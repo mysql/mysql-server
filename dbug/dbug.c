@@ -744,6 +744,7 @@ void _db_set_init_(const char *control)
   CODE_STATE tmp_cs;
   bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
+  tmp_cs.process= db_process ? db_process : "dbug";
   DbugParse(&tmp_cs, control);
 }
 
@@ -2265,6 +2266,33 @@ static void dbug_flush(CODE_STATE *cs)
   if (!cs->locked)
     pthread_mutex_unlock(&THR_LOCK_dbug);
 } /* dbug_flush */
+
+
+void _db_flush_()
+{
+  CODE_STATE *cs= NULL;
+  get_code_state_or_return;
+  (void) fflush(cs->stack->out_file);
+}
+
+
+#ifndef __WIN__
+void _db_suicide_()
+{
+  int retval;
+  sigset_t new_mask;
+  sigfillset(&new_mask);
+
+  fprintf(stderr, "SIGKILL myself\n");
+  fflush(stderr);
+
+  retval= kill(getpid(), SIGKILL);
+  assert(retval == 0);
+  retval= sigsuspend(&new_mask);
+  fprintf(stderr, "sigsuspend returned %d errno %d \n", retval, errno);
+  assert(FALSE); /* With full signal mask, we should never return here. */
+}
+#endif  /* ! __WIN__ */
 
 
 void _db_lock_file_()

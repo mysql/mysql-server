@@ -734,4 +734,27 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57194 group_concat cause crash and/or invalid memory reads with type errors
+--echo #
+
+CREATE TABLE t1(f1 int);
+INSERT INTO t1 values (0),(0);
+--disable_ps_protocol
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t GROUP BY t.f1 ) d));
+--enable_ps_protocol
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#58396 group_concat and explain extended are still crashy
+--echo #
+
+CREATE TABLE t1(a INT);
+--error ER_UNKNOWN_ERROR
+EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
+SHOW WARNINGS;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

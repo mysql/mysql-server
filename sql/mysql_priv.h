@@ -566,17 +566,42 @@ protected:
 
 #define MY_CHARSET_BIN_MB_MAXLEN 1
 
+/*
+  Flags below are set when we perform
+  context analysis of the statement and make
+  subqueries non-const. It prevents subquery
+  evaluation at context analysis stage.
+*/
+
+/*
+  Don't evaluate this subquery during statement prepare even if
+  it's a constant one. The flag is switched off in the end of
+  mysqld_stmt_prepare.
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_PREPARE 1
+/*
+  Special JOIN::prepare mode: changing of query is prohibited.
+  When creating a view, we need to just check its syntax omitting
+  any optimizations: afterwards definition of the view will be
+  reconstructed by means of ::print() methods and written to
+  to an .frm file. We need this definition to stay untouched.
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_VIEW    2
+/*
+  Don't evaluate this subquery during derived table prepare even if
+  it's a constant one.
+*/
+#define CONTEXT_ANALYSIS_ONLY_DERIVED 4
+
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
 #define UNCACHEABLE_SIDEEFFECT	4
 /// forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
-/** Don't evaluate subqueries in prepare even if they're not correlated */
-#define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     32
-#define UNCACHEABLE_CHECKOPTION   64
+#define UNCACHEABLE_UNITED     16
+#define UNCACHEABLE_CHECKOPTION 32
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
@@ -1047,7 +1072,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
 void log_slow_statement(THD *thd);
 bool check_dup(const char *db, const char *name, TABLE_LIST *tables);
-bool compare_record(TABLE *table);
+bool records_are_comparable(const TABLE *table);
+bool compare_records(const TABLE *table);
 bool append_file_to_dir(THD *thd, const char **filename_ptr, 
                         const char *table_name);
 void wait_while_table_is_used(THD *thd, TABLE *table,
@@ -1062,7 +1088,7 @@ uint cached_table_definitions(void);
 void kill_mysql(void);
 void close_connection(THD *thd, uint errcode, bool lock);
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables, 
-                          bool *write_to_binlog);
+                          int *write_to_binlog);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors, bool schema_db);

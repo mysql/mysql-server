@@ -8,16 +8,21 @@ AC_DEFUN([MY_MAINTAINER_MODE], [
     [AS_HELP_STRING([--enable-mysql-maintainer-mode],
                     [Enable a MySQL maintainer-specific development environment])],
     [USE_MYSQL_MAINTAINER_MODE=$enableval],
-    [USE_MYSQL_MAINTAINER_MODE=no])
+    [AS_IF([test "$with_debug" != "no"],
+      [USE_MYSQL_MAINTAINER_MODE=yes], [USE_MYSQL_MAINTAINER_MODE=no])])
   AC_MSG_RESULT([$USE_MYSQL_MAINTAINER_MODE])
 ])
 
 # Set warning options required under maintainer mode.
 AC_DEFUN([MY_MAINTAINER_MODE_WARNINGS], [
+  # Detect ICC posing as GCC.
+  AC_EGREP_CPP([^__INTEL_COMPILER], [__INTEL_COMPILER],
+               [INTEL_COMPILER=no], [INTEL_COMPILER=yes])
   # Setup GCC warning options.
-  AS_IF([test "$GCC" = "yes"], [
+  AS_IF([test "$GCC" = "yes" -a "$INTEL_COMPILER" = "no"], [
     C_WARNINGS="-Wall -Wextra -Wunused -Wwrite-strings -Wno-strict-aliasing -Werror"
     CXX_WARNINGS="${C_WARNINGS} -Wno-unused-parameter"
+    C_WARNINGS="${C_WARNINGS} -Wdeclaration-after-statement"
   ])
 
   # Test whether the warning options work.

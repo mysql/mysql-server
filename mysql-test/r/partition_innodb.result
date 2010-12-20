@@ -1,5 +1,31 @@
 drop table if exists t1, t2;
 #
+# Bug#56287: crash when using Partition datetime in sub in query
+#
+CREATE TABLE t1
+(c1 bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+c2 varchar(40) not null default '',
+c3 datetime not  NULL,
+PRIMARY KEY (c1,c3),
+KEY partidx(c3))
+ENGINE=InnoDB
+PARTITION BY RANGE (TO_DAYS(c3))
+(PARTITION p200912 VALUES LESS THAN (to_days('2010-01-01')),
+PARTITION p201103 VALUES LESS THAN (to_days('2011-04-01')),
+PARTITION p201912 VALUES LESS THAN MAXVALUE);
+insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
+PARTITION_NAME	TABLE_ROWS
+p200912	0
+p201103	1
+p201912	0
+SELECT count(*) FROM t1 p where c3 in
+(select c3 from t1 t where t.c3 < date '2011-04-26 19:19:44'
+ and t.c3 > date '2011-04-26 19:18:44') ;
+count(*)
+0
+DROP TABLE t1;
+#
 # Bug#51830: Incorrect partition pruning on range partition (regression)
 #
 CREATE TABLE t1 (a INT NOT NULL)
@@ -386,4 +412,10 @@ a	b
 2	2002-02-02
 3	2003-03-03
 COMMIT;
+DROP TABLE t1;
+CREATE TABLE t1 (i1 int NOT NULL primary key, f1 int) ENGINE = InnoDB
+PARTITION BY HASH(i1) PARTITIONS 2;
+INSERT INTO t1 VALUES (1,1), (2,2);
+SELECT * FROM t1 WHERE i1 = ( SELECT i1 FROM t1 WHERE f1=0 LIMIT 1 );
+i1	f1
 DROP TABLE t1;

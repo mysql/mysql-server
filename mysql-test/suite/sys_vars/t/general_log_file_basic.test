@@ -35,7 +35,8 @@
 #   Saving initial value of general_log_file in a temporary variable   #
 ########################################################################
 
-SET @start_value = @@global.general_log_file;
+#SET @start_value = @@global.general_log_file;
+LET $start_value = `SELECT @@global.general_log_file`;
 SELECT @start_value;
 
 
@@ -68,7 +69,8 @@ SELECT @@global.general_log_file = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='general_log_file';
 
-SET @@global.general_log_file= @start_value;
+#SET @@global.general_log_file= @start_value;
+eval SET @@global.general_log_file= '$start_value';
 
 #####################################################
 #       END OF general_log_file TESTS               #

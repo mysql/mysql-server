@@ -1712,16 +1712,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-    {
-      /*
-        We should disable const subselect item evaluation because
-        subselect transformation does not happen in view_prepare_mode
-        and thus val_...() methods can not be called for const items.
-      */
-      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
-                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
-      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
-    }
+      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 
     if (!conv)
     {
@@ -5286,8 +5277,17 @@ static uint nr_of_decimals(const char *str, const char *end)
 
 
 /**
-  This function is only called during parsing. We will signal an error if
-  value is not a true double value (overflow)
+  This function is only called during parsing:
+  - when parsing SQL query from sql_yacc.yy
+  - when parsing XPath query from item_xmlfunc.cc
+  We will signal an error if value is not a true double value (overflow):
+  eng: Illegal %s '%-.192s' value found during parsing
+  
+  Note: the string is NOT null terminated when called from item_xmlfunc.cc,
+  so this->name will contain some SQL query tail behind the "length" bytes.
+  This is Ok for now, as this Item is never seen in SHOW,
+  or EXPLAIN, or anywhere else in metadata.
+  Item->name should be fixed to use LEX_STRING eventually.
 */
 
 Item_float::Item_float(const char *str_arg, uint length)
@@ -5298,12 +5298,9 @@ Item_float::Item_float(const char *str_arg, uint length)
                     &error);
   if (error)
   {
-    /*
-      Note that we depend on that str_arg is null terminated, which is true
-      when we are in the parser
-    */
-    DBUG_ASSERT(str_arg[length] == 0);
-    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
+    char tmp[NAME_LEN + 1];
+    my_snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
+    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", tmp);
   }
   presentation= name=(char*) str_arg;
   decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);

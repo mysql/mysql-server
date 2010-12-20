@@ -27,6 +27,11 @@
 #include <unistd.h>
 #include <strings.h>
 
+#ifdef __linux__
+#include <ctype.h>          /* isprint */
+#include <sys/syscall.h>    /* SYS_gettid */
+#endif
+
 #if HAVE_EXECINFO_H
 #include <execinfo.h>
 #endif
@@ -46,10 +51,99 @@ void my_init_stacktrace()
 #endif
 }
 
-void my_safe_print_str(const char* name, const char* val, int max_len)
+#ifdef __linux__
+
+static void print_buffer(char *buffer, size_t count)
 {
-  char *heap_end= (char*) sbrk(0);
-  fprintf(stderr, "%s at %p ", name, val);
+  for (; count && *buffer; --count)
+  {
+    int c= (int) *buffer++;
+    fputc(isprint(c) ? c : ' ', stderr);
+  }
+}
+
+/**
+  Access the pages of this process through /proc/self/task/<tid>/mem
+  in order to safely print the contents of a memory address range.
+
+  @param  addr      The address at the start of the memory region.
+  @param  max_len   The length of the memory region.
+
+  @return Zero on success.
+*/
+static int safe_print_str(const char *addr, int max_len)
+{
+  int fd;
+  pid_t tid;
+  off_t offset;
+  ssize_t nbytes= 0;
+  size_t total, count;
+  char buf[256];
+
+  tid= (pid_t) syscall(SYS_gettid);
+
+  sprintf(buf, "/proc/self/task/%d/mem", tid);
+
+  if ((fd= open(buf, O_RDONLY)) < 0)
+    return -1;
+
+  /* Ensure that off_t can hold a pointer. */
+  compile_time_assert(sizeof(off_t) >= sizeof(intptr));
+
+  total= max_len;
+  offset= (intptr) addr;
+
+  /* Read up to the maximum number of bytes. */
+  while (total)
+  {
+    count= min(sizeof(buf), total);
+
+    if ((nbytes= pread(fd, buf, count, offset)) < 0)
+    {
+      /* Just in case... */
+      if (errno == EINTR)
+        continue;
+      else
+        break;
+    }
+
+    /* Advance offset into memory. */
+    total-= nbytes;
+    offset+= nbytes;
+    addr+= nbytes;
+
+    /* Output the printable characters. */
+    print_buffer(buf, nbytes);
+
+    /* Break if less than requested... */
+    if ((count - nbytes))
+      break;
+  }
+
+  /* Output a new line if something was printed. */
+  if (total != (size_t) max_len)
+    fputc('\n', stderr);
+
+  if (nbytes == -1)
+    fprintf(stderr, "Can't read from address %p: %m.\n", addr);
+
+  close(fd);
+
+  return 0;
+}
+
+#endif
+
+void my_safe_print_str(const char* val, int max_len)
+{
+  char *heap_end;
+
+#ifdef __linux__
+  if (!safe_print_str(val, max_len))
+    return;
+#endif
+
+  heap_end= (char*) sbrk(0);
 
   if (!PTR_SANE(val))
   {
@@ -57,7 +151,6 @@ void my_safe_print_str(const char* name, const char* val, int max_len)
     return;
   }
 
-  fprintf(stderr, "= ");
   for (; max_len && PTR_SANE(val) && *val; --max_len)
     fputc(*val++, stderr);
   fputc('\n', stderr);
@@ -318,6 +411,9 @@ end:
 /* Produce a core for the thread */
 void my_write_core(int sig)
 {
+#ifdef HAVE_gcov
+  extern void __gcov_flush(void);
+#endif
   signal(sig, SIG_DFL);
 #ifdef HAVE_gcov
   /*
@@ -325,7 +421,6 @@ void my_write_core(int sig)
     information from this process, causing gcov output to be incomplete.
     So we force the writing of coverage information here before terminating.
   */
-  extern void __gcov_flush(void);
   __gcov_flush();
 #endif
   pthread_kill(pthread_self(), sig);
@@ -655,10 +750,9 @@ void my_write_core(int unused)
 }
 
 
-void my_safe_print_str(const char *name, const char *val, int len)
+void my_safe_print_str(const char *val, int len)
 {
-  fprintf(stderr,"%s at %p", name, val);
-  __try 
+  __try
   {
     fprintf(stderr,"=%.*s\n", len, val);
   }

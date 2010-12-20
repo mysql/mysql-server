@@ -899,6 +899,16 @@ TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - KEY', f1,f2,f3,SLEEP(1.1) FROM t1
 TIMESTAMP	1	1	SELECT SQL_NO_CACHE 'Bug#31700 - PK',  f1,f2,f3,SLEEP(1.1) FROM t1 WHERE f1=2
 DROP TABLE t1;
 TRUNCATE TABLE mysql.slow_log;
+use mysql;
+drop table if exists renamed_general_log;
+drop table if exists renamed_slow_log;
+RENAME TABLE general_log TO renamed_general_log;
+ERROR HY000: Cannot rename 'general_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'general_log'
+RENAME TABLE slow_log TO renamed_slow_log;
+ERROR HY000: Cannot rename 'slow_log'. When logging enabled, rename to/from log table must rename two tables: the log table to an archive table and another table back to 'slow_log'
+use test;
+flush tables with read lock;
+unlock tables;
 SET @@session.long_query_time= @old_long_query_time;
 SET @@global.log_output=       @old_log_output;
 SET @@global.slow_query_log=   @old_slow_query_log;

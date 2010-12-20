@@ -904,9 +904,15 @@ String *Item_func_replace::val_str(String *str)
     search=res2->ptr();
     search_end=search+from_length;
 redo:
+    DBUG_ASSERT(res->ptr() || !offset);
     ptr=res->ptr()+offset;
     strend=res->ptr()+res->length();
-    end=strend-from_length+1;
+    /*
+      In some cases val_str() can return empty string
+      with ptr() == NULL and length() == 0.
+      Let's check strend to avoid overflow.
+    */
+    end= strend ? strend - from_length + 1 : NULL;
     while (ptr < end)
     {
         if (*ptr == *search)
@@ -1012,6 +1018,20 @@ String *Item_func_insert::val_str(String *str)
     return res;                                 // Wrong param; skip insert
   if ((length < 0) || (length > res->length()))
     length= res->length();
+
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    res2->set_charset(&my_charset_bin);
+  }
 
   /* start and length are now sufficiently valid to pass to charpos function */
    start= res->charpos((int) start);
@@ -2514,6 +2534,20 @@ String *Item_func_rpad::val_str(String *str)
   /* Set here so that rest of code sees out-of-bound value as such. */
   if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    rpad->set_charset(&my_charset_bin);
+  }
+
   if (count <= (res_char_length= res->numchars()))
   {						// String to pad is big enough
     res->length(res->charpos((int) count));	// Shorten result if longer
@@ -2615,6 +2649,20 @@ String *Item_func_lpad::val_str(String *str)
   /* Set here so that rest of code sees out-of-bound value as such. */
   if ((ulonglong) count > INT_MAX32)
     count= INT_MAX32;
+
+  /*
+    There is one exception not handled (intentionaly) by the character set
+    aggregation code. If one string is strong side and is binary, and
+    another one is weak side and is a multi-byte character string,
+    then we need to operate on the second string in terms on bytes when
+    calling ::numchars() and ::charpos(), rather than in terms of characters.
+    Lets substitute its character set to binary.
+  */
+  if (collation.collation == &my_charset_bin)
+  {
+    res->set_charset(&my_charset_bin);
+    pad->set_charset(&my_charset_bin);
+  }
 
   res_char_length= res->numchars();
 
@@ -3093,6 +3141,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   if ((null_value= (args[0]->null_value || n > (ulonglong) LL(4294967295))))
     return 0;					// Null value
 
+  str->set_charset(collation.collation);
   str->length(0);
   int4store(buf,n);
 
