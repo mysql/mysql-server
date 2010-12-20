@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Deadlock found");
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
@@ -39,7 +35,7 @@ a	b
 2	2
 3	3
 4	4
-Checking that both slave threads are running.
-DROP TABLE t1;
+include/check_slave_is_running.inc
 **** On Master ****
 DROP TABLE t1;
+include/rpl_end.inc

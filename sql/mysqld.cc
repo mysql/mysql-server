@@ -1139,7 +1139,7 @@ static void close_connections(void)
                           tmp->thread_id,
                           (tmp->main_security_ctx.user ?
                            tmp->main_security_ctx.user : ""));
-      close_connection(tmp,0,0);
+      close_connection(tmp);
     }
 #endif
     DBUG_PRINT("quit",("Unlocking LOCK_thread_count"));
@@ -1968,39 +1968,28 @@ static void network_init(void)
 /**
   Close a connection.
 
-  @param thd		Thread handle
-  @param errcode	Error code to print to console
-  @param lock	        1 if we have have to lock LOCK_thread_count
+  @param thd        Thread handle.
+  @param sql_errno  The error code to send before disconnect.
 
   @note
     For the connection that is doing shutdown, this is called twice
 */
-void close_connection(THD *thd, uint errcode, bool lock)
+void close_connection(THD *thd, uint sql_errno)
 {
-  st_vio *vio;
   DBUG_ENTER("close_connection");
-  DBUG_PRINT("enter",("fd: %s  error: '%s'",
-		      thd->net.vio ? vio_description(thd->net.vio) :
-		      "(not connected)",
-		      errcode ? ER_DEFAULT(errcode) : ""));
-  if (lock)
-    mysql_mutex_lock(&LOCK_thread_count);
-  thd->killed= THD::KILL_CONNECTION;
-  if ((vio= thd->net.vio) != 0)
-  {
-    if (errcode)
-      net_send_error(thd, errcode,
-                     ER_DEFAULT(errcode), NULL); /* purecov: inspected */
-    vio_close(vio);			/* vio is freed in delete thd */
-  }
-  if (lock)
-    mysql_mutex_unlock(&LOCK_thread_count);
-  MYSQL_CONNECTION_DONE((int) errcode, thd->thread_id);
+
+  if (sql_errno)
+    net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno), NULL);
+
+  thd->disconnect();
+
+  MYSQL_CONNECTION_DONE((int) sql_errno, thd->thread_id);
+
   if (MYSQL_CONNECTION_DONE_ENABLED())
   {
     sleep(0); /* Workaround to avoid tailcall optimisation */
   }
-  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode);
+  MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, sql_errno);
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -2755,7 +2744,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
-        bool not_used;
+        int not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
@@ -3420,6 +3409,8 @@ static int init_common_variables()
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
+      buffered_logs.print();
+      buffered_logs.cleanup();
       sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION), default_collation_name);
       return 1;
     }
@@ -4485,6 +4476,7 @@ int mysqld_main(int argc, char **argv)
   */
   buffered_logs.init();
   my_getopt_error_reporter= buffered_option_error_reporter;
+  my_charset_error_reporter= buffered_option_error_reporter;
 
   ho_error= handle_options(&remaining_argc, &remaining_argv,
                            (my_option*)(all_early_options.buffer), NULL);
@@ -5201,8 +5193,8 @@ void create_thread_to_handle_connection(THD *thd)
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
       net_send_error(thd, ER_CANT_CREATE_THREAD, error_message_buff, NULL);
+      close_connection(thd);
       mysql_mutex_lock(&LOCK_thread_count);
-      close_connection(thd,0,0);
       delete thd;
       mysql_mutex_unlock(&LOCK_thread_count);
       return;
@@ -5243,7 +5235,7 @@ static void create_new_thread(THD *thd)
     mysql_mutex_unlock(&LOCK_connection_count);
 
     DBUG_PRINT("error",("Too many connections"));
-    close_connection(thd, ER_CON_COUNT_ERROR, 1);
+    close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
     DBUG_VOID_RETURN;
   }
@@ -5624,7 +5616,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     if (!(thd->net.vio= vio_new_win32pipe(hConnectedPipe)) ||
 	my_net_init(&thd->net, thd->net.vio))
     {
-      close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+      close_connection(thd, ER_OUT_OF_RESOURCES);
       delete thd;
       continue;
     }
@@ -5819,7 +5811,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
                                                    event_conn_closed)) ||
                         my_net_init(&thd->net, thd->net.vio))
     {
-      close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+      close_connection(thd, ER_OUT_OF_RESOURCES);
       errmsg= 0;
       goto errorconn;
     }

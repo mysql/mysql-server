@@ -33,7 +33,7 @@ class TC_LOG
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
   virtual int log_xid(THD *thd, my_xid xid)=0;
-  virtual void unlog(ulong cookie, my_xid xid)=0;
+  virtual int unlog(ulong cookie, my_xid xid)=0;
 };
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
@@ -43,7 +43,7 @@ public:
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log_xid(THD *thd, my_xid xid)         { return 1; }
-  void unlog(ulong cookie, my_xid xid)  { }
+  int unlog(ulong cookie, my_xid xid)  { return 0; }
 };
 
 #ifdef HAVE_MMAP
@@ -88,7 +88,7 @@ class TC_LOG_MMAP: public TC_LOG
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:

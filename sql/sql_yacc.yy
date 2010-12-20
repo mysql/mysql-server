@@ -5823,11 +5823,8 @@ old_or_new_charset_name_or_default:
 collation_name:
           ident_or_text
           {
-            if (!($$=get_charset_by_name($1.str,MYF(0))))
-            {
-              my_error(ER_UNKNOWN_COLLATION, MYF(0), $1.str);
+            if (!($$= mysqld_collation_get_by_name($1.str)))
               MYSQL_YYABORT;
-            }
           }
         ;
 
@@ -5871,19 +5868,13 @@ unicode:
           }
         | UNICODE_SYM BINARY
           {
-            if (!(Lex->charset=get_charset_by_name("ucs2_bin", MYF(0))))
-            {
-              my_error(ER_UNKNOWN_COLLATION, MYF(0), "ucs2_bin");
+            if (!(Lex->charset= mysqld_collation_get_by_name("ucs2_bin")))
               MYSQL_YYABORT;
-            }
           }
         | BINARY UNICODE_SYM
           {
-            if (!(Lex->charset=get_charset_by_name("ucs2_bin", MYF(0))))
-            {
+            if (!(Lex->charset= mysqld_collation_get_by_name("ucs2_bin")))
               my_error(ER_UNKNOWN_COLLATION, MYF(0), "ucs2_bin");
-              MYSQL_YYABORT;
-            }
           }
         ;
 

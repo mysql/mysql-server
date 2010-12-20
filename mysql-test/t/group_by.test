@@ -1273,3 +1273,52 @@ SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
 
 DROP TABLE t1;
 --echo #End of test#49771
+
+--echo #
+--echo # Bug #58782
+--echo # Missing rows with SELECT .. WHERE .. IN subquery 
+--echo # with full GROUP BY and no aggr
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  col_int_nokey INT,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (10,7);
+INSERT INTO t1 VALUES (11,1);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (13,3);
+
+## original query:
+
+SELECT pk AS field1, col_int_nokey AS field2 
+FROM t1 
+WHERE col_int_nokey > 0
+GROUP BY field1, field2;
+
+## store query results in a new table:
+
+CREATE TABLE where_subselect
+  SELECT pk AS field1, col_int_nokey AS field2
+  FROM t1
+  WHERE col_int_nokey > 0
+  GROUP BY field1, field2
+;
+
+## query the new table and compare to original using WHERE ... IN():
+
+SELECT * 
+FROM where_subselect
+WHERE (field1, field2) IN (
+  SELECT pk AS field1, col_int_nokey AS field2
+  FROM t1
+  WHERE col_int_nokey > 0
+  GROUP BY field1, field2
+);
+
+DROP TABLE t1;
+DROP TABLE where_subselect;
+
+--echo # End of Bug #58782
