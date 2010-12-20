@@ -58,6 +58,7 @@ connection master;
 # Send shutdown to the connected server and give
 # it 10 seconds to die before zapping it
 shutdown_server 10;
+--source include/wait_until_disconnected.inc
 
 connection slave;
 --echo slave is unblocked

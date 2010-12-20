@@ -1478,6 +1478,7 @@ SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
 
 --echo End of 5.1 tests
 
+
 --echo Start of 5.4 tests
 
 #

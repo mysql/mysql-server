@@ -157,24 +157,24 @@
 #define OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT     (1ULL << 3)
 #define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
 #define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 5)
-#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 6)
-#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 7)
-#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 8)
-#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 9)
 /** If this is off, MRR is never used. */
-#define OPTIMIZER_SWITCH_MRR                       (1ULL << 10)
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 6)
 /**
    If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
    cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
    off, MRR is "forced" (i.e. used as long as the storage engine is capable of
    doing it).
 */
-#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 11)
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 7)
+#define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 8)
+#define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 9)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 10)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 11)
 #define OPTIMIZER_SWITCH_LAST                      (1ULL << 12)
 
 /**
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
-   optimizer features (semijoin, MRR) will be available.
+   optimizer features (semijoin) will be available.
  */
 #undef OPTIMIZER_SWITCH_ALL
 
@@ -189,19 +189,21 @@
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                  OPTIMIZER_SWITCH_MRR | \
-                                  OPTIMIZER_SWITCH_MRR_COST_BASED)
+                                  OPTIMIZER_SWITCH_FIRSTMATCH)
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
-                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN)
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_MRR_COST_BASED)
 #endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -215,17 +217,42 @@
 
 */
 
+/*
+  Flags below are set when we perform
+  context analysis of the statement and make
+  subqueries non-const. It prevents subquery
+  evaluation at context analysis stage.
+*/
+
+/*
+  Don't evaluate this subquery during statement prepare even if
+  it's a constant one. The flag is switched off in the end of
+  mysqld_stmt_prepare.
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_PREPARE 1
+/*
+  Special JOIN::prepare mode: changing of query is prohibited.
+  When creating a view, we need to just check its syntax omitting
+  any optimizations: afterwards definition of the view will be
+  reconstructed by means of ::print() methods and written to
+  to an .frm file. We need this definition to stay untouched.
+*/ 
+#define CONTEXT_ANALYSIS_ONLY_VIEW    2
+/*
+  Don't evaluate this subquery during derived table prepare even if
+  it's a constant one.
+*/
+#define CONTEXT_ANALYSIS_ONLY_DERIVED 4
+
 // uncachable cause
 #define UNCACHEABLE_DEPENDENT   1
 #define UNCACHEABLE_RAND        2
 #define UNCACHEABLE_SIDEEFFECT	4
 /// forcing to save JOIN for explain
 #define UNCACHEABLE_EXPLAIN     8
-/** Don't evaluate subqueries in prepare even if they're not correlated */
-#define UNCACHEABLE_PREPARE    16
 /* For uncorrelated SELECT in an UNION with some correlated SELECTs */
-#define UNCACHEABLE_UNITED     32
-#define UNCACHEABLE_CHECKOPTION   64
+#define UNCACHEABLE_UNITED     16
+#define UNCACHEABLE_CHECKOPTION 32
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)

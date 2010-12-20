@@ -642,6 +642,19 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   int left_events = max_binlog_dump_events;
 #endif
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  /*
+    Dump thread sends ER_MASTER_FATAL_ERROR_READING_BINLOG instead of the real
+    errors happend on master to slave when erorr is encountered.
+    So set a temporary Diagnostics_area to thd. The low level error is always
+    set into the temporary Diagnostics_area and be ingored. The original
+    Diagnostics_area will be restored at the end of this function.
+    ER_MASTER_FATAL_ERROR_READING_BINLOG will be set to the original
+    Diagnostics_area.
+  */
+  Diagnostics_area temp_da;
+  Diagnostics_area *saved_da= thd->stmt_da;
+  thd->stmt_da= &temp_da;
+
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
 
@@ -1209,6 +1222,7 @@ impossible position";
   }
 
 end:
+  thd->stmt_da= saved_da;
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
@@ -1239,6 +1253,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
+  thd->stmt_da= saved_da;
   my_message(my_errno, errmsg, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -1433,7 +1448,7 @@ bool show_binlogs(THD* thd)
 
   if (!mysql_bin_log.is_open())
   {
-    my_message(ER_NO_BINARY_LOGGING, ER(ER_NO_BINARY_LOGGING), MYF(0));
+    my_error(ER_NO_BINARY_LOGGING, MYF(0));
     DBUG_RETURN(TRUE);
   }
 

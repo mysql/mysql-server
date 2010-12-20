@@ -213,17 +213,34 @@ while($i)
   }
 
   --exec $MYSQL_BINLOG $flags $MYSQLD_DATADIR/$relay_log_file 1> $outfile.1 2> $outfile.2
+  -- let POS=$table_map_log_pos
+  -- let FLGS=$flags
+  -- let OUTFILE_1=$outfile.1
 
-  # Load outputs into a variable
-  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-  --eval SET @b55790_output.1= LOAD_FILE('$outfile.1')
+  -- perl
+$found=0;
+$file= $ENV{'OUTFILE_1'};
+$table_map_log_pos= $ENV{'POS'};
+$flags= $ENV{'FLGS'};
 
-  # Check Relay log contains the Table_map_log_event
-  if (!`SELECT INSTR(@b55790_output.1, 'end_log_pos $table_map_log_pos 	Table_map')`)
-  {
-    --echo **** ERROR **** Table map 'end_log_pos $table_map_log_pos  Table_map' NOT FOUND in mysqlbinlog output ($flags $outfile.1).
-    --cat_file $outfile.1
+open(FILE, "$file") or die("Unable to open $file: $!\n");
+while(<FILE>) {
+  if (/end_log_pos $table_map_log_pos .*Table_map/) {
+    $found=1;
+    break;
   }
+}
+
+if (!$found)
+{
+  print "**** ERROR **** Table map 'end_log_pos $table_map_log_pos  Table_map' NOT FOUND in mysqlbinlog output ($flags $file).";
+  seek(FILE, 0, 0);
+  while($line= <FILE>) {
+    print $line;
+  }
+}
+close(FILE);
+EOF
 
   # Check the warning is caused
   --cat_file $outfile.2

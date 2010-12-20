@@ -595,7 +595,8 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
   
   if (select_lex->master_unit()->item &&    // This is a subquery
-      !thd->lex->view_prepare_mode &&       // Not normalizing a view
+                                            // Not normalizing a view
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       !(select_options & SELECT_DESCRIBE))  // Not within a describe
   {
     /* Join object is a subquery within an IN/ANY/ALL/EXISTS predicate */
@@ -1762,11 +1763,11 @@ JOIN::optimize()
 
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
-  /* select_limit is used to decide if we are likely to scan the whole table */
-  select_limit= unit->select_limit_cnt;
+  // m_select_limit is used to decide if we are likely to scan the whole table.
+  m_select_limit= unit->select_limit_cnt;
   if (having || (select_options & OPTION_FOUND_ROWS))
-    select_limit= HA_POS_ERROR;
-  do_send_rows = (unit->select_limit_cnt) ? 1 : 0;
+    m_select_limit= HA_POS_ERROR;
+  do_send_rows = (unit->select_limit_cnt > 0) ? 1 : 0;
   // Ignore errors of execution if option IGNORE present
   if (thd->lex->ignore)
     thd->lex->current_select->no_error= 1;
@@ -2098,9 +2099,10 @@ JOIN::optimize()
         We have found that grouping can be removed since groups correspond to
         only one row anyway, but we still have to guarantee correct result
         order. The line below effectively rewrites the query from GROUP BY
-        <fields> to ORDER BY <fields>. There are two exceptions:
+        <fields> to ORDER BY <fields>. There are three exceptions:
         - if skip_sort_order is set (see above), then we can simply skip
           GROUP BY;
+        - if we are in a subquery, we don't have to maintain order
         - we can only rewrite ORDER BY if the ORDER BY fields are 'compatible'
           with the GROUP BY ones, i.e. either one is a prefix of another.
           We only check if the ORDER BY is a prefix of GROUP BY. In this case
@@ -2110,7 +2112,13 @@ JOIN::optimize()
           'order' as is.
        */
       if (!order || test_if_subpart(group_list, order))
-          order= skip_sort_order ? 0 : group_list;
+      {
+        if (skip_sort_order ||
+            select_lex->master_unit()->item) // This is a subquery
+          order= NULL;
+        else
+          order= group_list;
+      }
       /*
         If we have an IGNORE INDEX FOR GROUP BY(fields) clause, this must be 
         rewritten to IGNORE INDEX FOR ORDER BY(fields).
@@ -2154,18 +2162,18 @@ JOIN::optimize()
     JOIN_TAB *tab= &join_tab[const_tables];
     bool all_order_fields_used;
     if (order)
-      skip_sort_order= test_if_skip_sort_order(tab, order, select_limit, 1, 
+      skip_sort_order= test_if_skip_sort_order(tab, order, m_select_limit, 1, 
         &tab->table->keys_in_use_for_order_by);
     if ((group_list=create_distinct_group(thd, select_lex->ref_pointer_array,
                                           order, fields_list, all_fields,
 				          &all_order_fields_used)))
     {
       bool skip_group= (skip_sort_order &&
-        test_if_skip_sort_order(tab, group_list, select_limit, 1, 
+        test_if_skip_sort_order(tab, group_list, m_select_limit, 1, 
                                 &tab->table->keys_in_use_for_group_by) != 0);
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
-	  select_limit == HA_POS_ERROR ||
+	  m_select_limit == HA_POS_ERROR ||
 	  (order && !skip_sort_order))
       {
 	/*  Change DISTINCT to GROUP BY */
@@ -2509,7 +2517,7 @@ JOIN::optimize()
     ha_rows tmp_rows_limit= ((order == 0 || skip_sort_order) &&
                              !tmp_group &&
                              !thd->lex->current_select->with_sum_func) ?
-                            select_limit : HA_POS_ERROR;
+                            m_select_limit : HA_POS_ERROR;
 
     if (!(exec_tmp_table1=
 	  create_tmp_table(thd, &tmp_table_param, all_fields,
@@ -2559,6 +2567,7 @@ JOIN::optimize()
 
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
+        DBUG_PRINT("info",("Sorting for order"));
         thd_proc_info(thd, "Sorting for order");
         if (create_sort_index(thd, this, order,
                               HA_POS_ERROR, HA_POS_ERROR, TRUE))
@@ -2739,6 +2748,8 @@ JOIN::exec()
   int      tmp_error;
   DBUG_ENTER("JOIN::exec");
 
+  const bool has_group_by= this->group;
+
   thd_proc_info(thd, "executing");
   error= 0;
   if (procedure)
@@ -2847,7 +2858,7 @@ JOIN::exec()
 	(const_tables == tables ||
  	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
-				  select_limit, 0, 
+				  m_select_limit, 0, 
                                   &join_tab[const_tables].table->
                                     keys_in_use_for_query))))
       order=0;
@@ -3024,11 +3035,12 @@ JOIN::exec()
       }
       if (curr_join->group_list)
       {
-	thd_proc_info(thd, "Creating sort index");
 	if (curr_join->join_tab == join_tab && save_join_tab())
 	{
 	  DBUG_VOID_RETURN;
 	}
+	DBUG_PRINT("info",("Sorting for index"));
+	thd_proc_info(thd, "Creating sort index");
 	if (create_sort_index(thd, curr_join, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR, FALSE) ||
 	    make_group_fields(this, curr_join))
@@ -3217,7 +3229,7 @@ JOIN::exec()
     }
     {
       if (group)
-	curr_join->select_limit= HA_POS_ERROR;
+	curr_join->m_select_limit= HA_POS_ERROR;
       else
       {
 	/*
@@ -3236,7 +3248,7 @@ JOIN::exec()
 	      (curr_table->keyuse && !curr_table->first_inner))
 	  {
 	    /* We have to sort all rows */
-	    curr_join->select_limit= HA_POS_ERROR;
+	    curr_join->m_select_limit= HA_POS_ERROR;
 	    break;
 	  }
 	}
@@ -3254,12 +3266,38 @@ JOIN::exec()
 	the query. XXX: it's never shown in EXPLAIN!
 	OPTION_FOUND_ROWS supersedes LIMIT and is taken into account.
       */
-      if (create_sort_index(thd, curr_join,
-			    curr_join->group_list ? 
-			    curr_join->group_list : curr_join->order,
-			    curr_join->select_limit,
-			    (select_options & OPTION_FOUND_ROWS ?
-			     HA_POS_ERROR : unit->select_limit_cnt),
+      DBUG_PRINT("info",("Sorting for order by/group by"));
+      ORDER *order_arg=
+        curr_join->group_list ? curr_join->group_list : curr_join->order;
+      /*
+        filesort_limit:	 Return only this many rows from filesort().
+        We can use select_limit_cnt only if we have no group_by and 1 table.
+        This allows us to use Bounded_queue for queries like:
+          "select SQL_CALC_FOUND_ROWS * from t1 order by b desc limit 1;"
+        m_select_limit == HA_POS_ERROR (we need a full table scan)
+        unit->select_limit_cnt == 1 (we only need one row in the result set)
+       */
+      const ha_rows filesort_limit_arg=
+        (has_group_by || curr_join->tables > 1)
+        ? curr_join->m_select_limit : unit->select_limit_cnt;
+      const ha_rows select_limit_arg=
+        select_options & OPTION_FOUND_ROWS
+        ? HA_POS_ERROR : unit->select_limit_cnt;
+
+      DBUG_PRINT("info", ("has_group_by %d "
+                          "curr_join->tables %d "
+                          "curr_join->m_select_limit %d "
+                          "unit->select_limit_cnt %d",
+                          has_group_by,
+                          curr_join->tables,
+                          (int) curr_join->m_select_limit,
+                          (int) unit->select_limit_cnt));
+
+      if (create_sort_index(thd,
+                            curr_join,
+                            order_arg,
+                            filesort_limit_arg,
+                            select_limit_arg,
                             curr_join->group_list ? FALSE : TRUE))
 	DBUG_VOID_RETURN;
       sortorder= curr_join->sortorder;
@@ -3292,6 +3330,14 @@ JOIN::exec()
                                    Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
   error= do_select(curr_join, curr_fields_list, NULL, procedure);
   thd->limit_found_rows= curr_join->send_records;
+  if (curr_join->order &&
+      curr_join->sortorder)
+  {
+    /* Use info provided by filesort. */
+    DBUG_ASSERT(curr_join->tables > curr_join->const_tables);
+    JOIN_TAB *tab= curr_join->join_tab + curr_join->const_tables;
+    thd->limit_found_rows= tab->records;
+  }
 
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
@@ -9652,10 +9698,11 @@ static bool make_join_select(JOIN *join, Item *cond)
 	{
 	  /* Use quick key read if it's a constant and it's not used
 	     with key reading */
-	  if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
-	      && tab->type != JT_FT && (tab->type != JT_REF ||
-               (uint) tab->ref.key == tab->quick->index))
-	  {
+          if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF &&
+              tab->type != JT_FT &&
+              ((tab->type != JT_CONST && tab->type != JT_REF) ||
+               (uint)tab->ref.key == tab->quick->index))
+          {
 	    sel->quick=tab->quick;		// Use value from get_quick_...
 	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
@@ -18400,8 +18447,26 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       error=join->result->send_data(*join->fields);
     if (error)
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (++join->send_records >= join->unit->select_limit_cnt &&
-	join->do_send_rows)
+
+    ++join->send_records;
+    if (join->send_records >= join->unit->select_limit_cnt &&
+        !join->do_send_rows)
+    {
+      /*
+        If filesort is used for sorting, stop after select_limit_cnt+1
+        records are read. Because of optimization in some cases it can
+        provide only select_limit_cnt+1 records.
+      */
+      if (join->order &&
+          join->sortorder &&
+          join->select_options & OPTION_FOUND_ROWS)
+      {
+        DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
+        DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
+      }
+    }
+    if (join->send_records >= join->unit->select_limit_cnt &&
+        join->do_send_rows)
     {
       if (join->select_options & OPTION_FOUND_ROWS)
       {
@@ -20050,7 +20115,7 @@ use_filesort:
   SYNOPSIS
    create_sort_index()
      thd		Thread handler
-     tab		Table to sort (in join structure)
+     join		Join with table to sort
      order		How table should be sorted
      filesort_limit	Max number of rows that needs to be sorted
      select_limit	Max number of rows in final output
@@ -20060,8 +20125,8 @@ use_filesort:
 
 
   IMPLEMENTATION
-   - If there is an index that can be used, 'tab' is modified to use
-     this index.
+   - If there is an index that can be used, the first non-const join_tab in
+     'join' is modified to use this index.
    - If no index, create with filesort() an index file that can be used to
      retrieve rows in order (should be done with 'read_record').
      The sorted data is stored in tab->table and will be freed when calling
@@ -20080,6 +20145,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 {
   uint length= 0;
   ha_rows examined_rows;
+  ha_rows found_rows;
+  ha_rows filesort_retval= HA_POS_ERROR;
   TABLE *table;
   SQL_SELECT *select;
   JOIN_TAB *tab;
@@ -20152,10 +20219,11 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count
-  table->sort.found_records=filesort(thd, table,join->sortorder, length,
-                                     select, filesort_limit, 0,
-                                     &examined_rows);
-  tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
+  filesort_retval= filesort(thd, table, join->sortorder, length,
+                            select, filesort_limit, 0,
+                            &examined_rows, &found_rows);
+  table->sort.found_records= filesort_retval;
+  tab->records= found_rows;                     // For SQL_CALC_ROWS
   if (select)
   {
     /*
@@ -20184,7 +20252,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab->read_first_record= join_init_read_record;
   tab->join->examined_rows+=examined_rows;
   table->set_keyread(FALSE); // Restore if we used indexes
-  DBUG_RETURN(table->sort.found_records == HA_POS_ERROR);
+  DBUG_RETURN(filesort_retval == HA_POS_ERROR);
 err:
   DBUG_RETURN(-1);
 }
@@ -20501,7 +20569,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
   pos= sort= sortorder;
 
   if (!pos)
-    return 0;
+    DBUG_RETURN(0);
 
   for (;order;order=order->next,pos++)
   {
@@ -20518,6 +20586,7 @@ SORT_FIELD *make_unireg_sortorder(ORDER *order, uint *length,
     else
       pos->item= *order->item;
     pos->reverse=! order->asc;
+    DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
   }
   *length=count;
   DBUG_RETURN(sort);
@@ -21831,7 +21900,7 @@ init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr)
 {
   for (; func_ptr != end_ptr ;func_ptr++)
   {
-    if ((*func_ptr)->reset())
+    if ((*func_ptr)->reset_and_add())
       return 1;
   }
   /* If rollup, calculate the upper sum levels */
