@@ -911,6 +911,7 @@ Ndbfs::execALLOC_MEM_REQ(Signal* signal)
 
   request->par.alloc.ctx = &m_ctx;
   request->par.alloc.requestInfo = req->requestInfo;
+  request->par.alloc.bytes = (Uint64(req->bytes_hi) << 32) + req->bytes_lo;
   request->action = Request::allocmem;
   ndbrequire(forward(file, request));
 }
@@ -1264,6 +1265,8 @@ Ndbfs::report(Request * request, Signal* signal)
       AllocMemConf* conf = (AllocMemConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
       conf->senderData = request->theUserPointer;
+      conf->bytes_hi = Uint32(request->par.alloc.bytes >> 32);
+      conf->bytes_lo = Uint32(request->par.alloc.bytes);
       sendSignal(ref, GSN_ALLOC_MEM_CONF, signal,
                  AllocMemConf::SignalLength, JBB);
       pushIdleFile(request->file);
