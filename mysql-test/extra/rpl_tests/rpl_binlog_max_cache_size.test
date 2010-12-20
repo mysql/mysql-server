@@ -25,11 +25,13 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 
 let $old_max_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_cache_size", Value, 1);
 let $old_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_cache_size", Value, 1);
+let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1);
+let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1);
 
 SET GLOBAL max_binlog_cache_size = 4096;
-# Becuase of bug#55377, we have to set binlog_cache_size until the bug is
-# fixed.
 SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
 disconnect master;
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
@@ -47,14 +49,14 @@ connection master;
 
 --echo *** Single statement on transactional table ***
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval INSERT INTO t1 (a, data) VALUES (1,
      CONCAT($data, $data, $data, $data, $data));
 --enable_query_log
 
 --echo *** Single statement on non-transactional table ***
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval INSERT INTO t2 (a, data) VALUES (2,
        CONCAT($data, $data, $data, $data, $data, $data));
 --enable_query_log
@@ -74,7 +76,7 @@ eval INSERT INTO t2 (a, data) VALUES (5, $data);
 
 --echo *** Single statement on both transactional and non-transactional tables. ***
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
@@ -103,11 +105,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -130,9 +132,9 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (14, $data);
 --eval INSERT INTO t1 (a, data) VALUES (15, $data);
 --eval INSERT INTO t1 (a, data) VALUES (16, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (17, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (18, $data);
 --eval INSERT INTO t1 (a, data) VALUES (19, 's');
 --eval INSERT INTO t2 (a, data) VALUES (20, 's');
@@ -148,7 +150,7 @@ if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 if (`SELECT @@binlog_format = 'ROW'`)
 {
   --disable_query_log
-  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+  --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
   CREATE TABLE t4 SELECT * FROM t1;
   --enable_query_log
 }
@@ -162,9 +164,9 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (22, $data);
 --eval INSERT INTO t1 (a, data) VALUES (23, $data);
 --eval INSERT INTO t1 (a, data) VALUES (24, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (25, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (26, $data);
 --eval INSERT INTO t1 (a, data) VALUES (27, 's');
 --eval INSERT INTO t2 (a, data) VALUES (28, 's');
@@ -192,11 +194,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -221,11 +223,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -268,7 +270,7 @@ TRUNCATE TABLE t1;
 
 BEGIN;
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval CALL p1($data);
 --enable_query_log
 COMMIT;
@@ -277,7 +279,7 @@ TRUNCATE TABLE t1;
 
 BEGIN;
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval CALL p1($data);
 --enable_query_log
 ROLLBACK;
@@ -299,12 +301,12 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
 SAVEPOINT sv;
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -331,11 +333,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t2 (a, data) VALUES (3, $data);
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (7, $data);
 --eval UPDATE t2 SET data= CONCAT($data, $data);
 --eval INSERT INTO t1 (a, data) VALUES (8, 's');
@@ -351,7 +353,7 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (16, $data);
 --eval INSERT INTO t2 (a, data) VALUES (17, $data);
 --eval INSERT INTO t1 (a, data) VALUES (18, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (19, $data);
 --enable_query_log
 COMMIT;
@@ -367,10 +369,13 @@ let $diff_statement= SELECT * FROM t1;
 --echo # [ On Slave ]
 SET GLOBAL max_binlog_cache_size = 4096;
 SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
 
 source include/stop_slave.inc;
 source include/start_slave.inc;
 CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
 CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
 
 connection master;
@@ -385,6 +390,10 @@ connection master;
 --eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size
 --replace_result $old_binlog_cache_size ORIGINAL_VALUE
 --eval SET GLOBAL binlog_cache_size= $old_binlog_cache_size
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
 disconnect master;
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
@@ -415,6 +424,10 @@ source include/show_binlog_events.inc;
 --eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size
 --replace_result $old_binlog_cache_size ORIGINAL_VALUE
 --eval SET GLOBAL binlog_cache_size= $old_binlog_cache_size
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
 
 source include/stop_slave.inc;
 source include/start_slave.inc;

@@ -61,6 +61,13 @@ void mysql_client_binlog_statement(THD* thd)
   size_t decoded_len= base64_needed_decoded_length(coded_len);
 
   /*
+    option_bits will be changed when applying the event. But we don't expect
+    it be changed permanently after BINLOG statement, so backup it first.
+    It will be restored at the end of this function.
+  */
+  ulonglong thd_options= thd->variables.option_bits;
+
+  /*
     Allocation
   */
 
@@ -246,6 +253,7 @@ void mysql_client_binlog_statement(THD* thd)
   my_ok(thd);
 
 end:
+  thd->variables.option_bits= thd_options;
   rli->slave_close_thread_tables(thd);
   my_free(buf);
   DBUG_VOID_RETURN;
