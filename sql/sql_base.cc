@@ -3082,8 +3082,6 @@ bool reopen_table(TABLE *table)
   tmp.maybe_null=	table->maybe_null;
   tmp.status=		table->status;
 
-  tmp.s->table_map_id=  table->s->table_map_id;
-
   /* Get state */
   tmp.in_use=    	thd;
   tmp.reginfo.lock_type=table->reginfo.lock_type;

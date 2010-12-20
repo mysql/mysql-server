@@ -3003,6 +3003,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
       order_item->item= arg_ptr++;
     }
   }
+  memcpy(orig_args, args, sizeof(Item*) * arg_count);
 }
 
 
@@ -3233,7 +3234,6 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }
@@ -3401,8 +3401,6 @@ String* Item_func_group_concat::val_str(String* str)
 
 void Item_func_group_concat::print(String *str, enum_query_type query_type)
 {
-  /* orig_args is not filled with valid values until fix_fields() */
-  Item **pargs= fixed ? orig_args : args;
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
     str->append(STRING_WITH_LEN("distinct "));
@@ -3410,7 +3408,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
   {
     if (i)
       str->append(',');
-    pargs[i]->print(str, query_type);
+    orig_args[i]->print(str, query_type);
   }
   if (arg_count_order)
   {
@@ -3419,7 +3417,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      pargs[i + arg_count_field]->print(str, query_type);
+      orig_args[i + arg_count_field]->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else

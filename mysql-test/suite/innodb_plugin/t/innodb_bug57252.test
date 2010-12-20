@@ -1,0 +1,46 @@
+#
+# Bug#57252 disabling innobase_stats_on_metadata disables ANALYZE
+# http://bugs.mysql.com/57252
+#
+
+-- source include/have_innodb_plugin.inc
+
+-- disable_query_log
+-- disable_result_log
+
+SET @innodb_stats_on_metadata_orig = @@innodb_stats_on_metadata;
+
+CREATE TABLE bug57252 (a INT, KEY akey (a)) ENGINE=INNODB;
+
+BEGIN;
+let $i = 10;
+while ($i) {
+	eval INSERT INTO bug57252 VALUES ($i);
+	dec $i;
+}
+COMMIT;
+
+-- enable_result_log
+
+SET GLOBAL innodb_stats_on_metadata=0;
+
+# this calls ::info() without HA_STATUS_CONST and so
+# index->stat_n_diff_key_vals[] is not copied to the mysql-visible
+# rec_per_key
+SELECT cardinality FROM information_schema.statistics
+WHERE table_name='bug57252' AND index_name='akey';
+
+# this calls ::info() with HA_STATUS_CONST and so
+# index->stat_n_diff_key_vals[] is copied to the mysql-visible
+# rec_per_key at the end; when the bug is present dict_update_statistics()
+# is not called beforehand and so index->stat_n_diff_key_vals[] contains
+# an outdated data and thus we get an outdated data in the result when the
+# bug is present
+ANALYZE TABLE bug57252;
+
+SELECT cardinality FROM information_schema.statistics
+WHERE table_name='bug57252' AND index_name='akey';
+
+DROP TABLE bug57252;
+
+SET GLOBAL innodb_stats_on_metadata = @innodb_stats_on_metadata_orig;

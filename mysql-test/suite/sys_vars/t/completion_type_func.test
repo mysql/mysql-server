@@ -18,7 +18,7 @@
 #          server-system-variables.html#option_mysqld_completion_type          #
 #                                                                              #
 ################################################################################
-
+--source include/not_embedded.inc
 --source include/have_innodb.inc
 
 --disable_warnings

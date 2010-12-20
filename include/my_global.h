@@ -758,6 +758,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 #ifndef FN_LIBCHAR
 #define FN_LIBCHAR	'/'
+#define FN_DIRSEP       "/"     /* Valid directory separators */
 #define FN_ROOTDIR	"/"
 #endif
 #define MY_NFILE	64	/* This is only used to save filenames */

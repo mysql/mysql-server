@@ -221,7 +221,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
                             int (*callback)(void*, const char*),
                             void *callback_param)
 {
-  MYRG_INFO *m_info;
+  MYRG_INFO *UNINIT_VAR(m_info);
   int       rc;
   int       errpos;
   int       save_errno;

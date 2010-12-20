@@ -400,7 +400,7 @@ row_mysql_convert_row_to_innobase(
 					row is used, as row may contain
 					pointers to this record! */
 {
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	dfield_t*		dfield;
 	ulint			i;
 
@@ -1981,6 +1981,7 @@ row_create_table_for_mysql(
 		table already exists */
 
 		trx->error_state = DB_SUCCESS;
+		dict_mem_table_free(table);
 	}
 
 	que_graph_free((que_t*) que_node_get_parent(thr));

@@ -1839,8 +1839,11 @@ rl_username_completion_function (text, state)
 #else /* !__WIN32__ && !__OPENNT) */
   static char *username = (char *)NULL;
   static struct passwd *entry;
-  static int namelen, first_char, first_char_loc;
+  static int first_char, first_char_loc;
   char *value;
+#if defined (HAVE_GETPWENT)
+  static int namelen;
+#endif
 
   if (state == 0)
     {
@@ -1850,7 +1853,9 @@ rl_username_completion_function (text, state)
       first_char_loc = first_char == '~';
 
       username = savestring (&text[first_char_loc]);
+#if defined (HAVE_GETPWENT)
       namelen = strlen (username);
+#endif
       setpwent ();
     }
 

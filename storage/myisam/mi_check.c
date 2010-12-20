@@ -1741,6 +1741,8 @@ err:
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
+
+      param->retry_repair= 0;
     }
   }
   if (got_error)

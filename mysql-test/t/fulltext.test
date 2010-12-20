@@ -585,4 +585,40 @@ REPAIR TABLE t1;
 SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#54484 explain + prepared statement: crash and Got error -1 from storage engine
+--echo #
+
+CREATE TABLE t1(f1 VARCHAR(6) NOT NULL, FULLTEXT KEY(f1), UNIQUE(f1));
+INSERT INTO t1 VALUES ('test');
+
+SELECT 1 FROM t1 WHERE 1 >
+ ALL((SELECT 1 FROM t1 JOIN t1 a
+ ON (MATCH(t1.f1) against (""))
+ WHERE t1.f1 GROUP BY t1.f1)) xor f1;
+
+PREPARE stmt FROM
+'SELECT 1 FROM t1 WHERE 1 >
+ ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ ON (MATCH(t1.f1) against (""))
+ WHERE t1.f1 GROUP BY t1.f1)) xor f1';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM
+'SELECT 1 FROM t1 WHERE 1 >
+ ALL((SELECT 1 FROM t1 JOIN t1 a
+ ON (MATCH(t1.f1) against (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

@@ -26,6 +26,7 @@ SELECT @@general_log;
 INSERT into t1(name) values('Record_3');
 INSERT into t1(name) values('Record_4');
 ## There should be a difference ##
+SET @start_value= @@global.max_allowed_packet;
 SET @@global.max_allowed_packet= 1024*1024*1024;
 SET @orig_file= load_file('MYSQLD_LOGFILE.orig');
 SET @copy_file= load_file('MYSQLD_LOGFILE.copy');
@@ -34,3 +35,4 @@ STRCMP(@orig_file, @copy_file)
 1
 ## Dropping tables ##
 DROP TABLE t1;
+SET @@global.max_allowed_packet= @start_value;

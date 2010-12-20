@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _dbug_h
-#define _dbug_h
+#ifndef MY_DBUG_INCLUDED
+#define MY_DBUG_INCLUDED
+
+#ifndef __WIN__
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <signal.h>
+#endif  /* not __WIN__ */
 
 #if defined(__cplusplus) && !defined(DBUG_OFF)
 class Dbug_violation_helper
@@ -69,6 +79,7 @@ extern	void _db_end_(void);
 extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
 extern FILE *_db_fp_(void);
+extern  void _db_flush_();
 
 #ifdef __cplusplus
 
@@ -124,6 +135,35 @@ extern FILE *_db_fp_(void);
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define IF_DBUG(A) A
+#ifndef __WIN__
+#define DBUG_ABORT()                    (_db_flush_(), abort())
+#else
+/*
+  Avoid popup with abort/retry/ignore buttons. When BUG#31745 is fixed we can
+  call abort() instead of _exit(3) (now it would cause a "test signal" popup).
+*/
+#include <crtdbg.h>
+#define DBUG_ABORT() (_db_flush_(),\
+                     (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE),\
+                     (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
+                     _exit(3))
+#endif
+
+/*
+  Make the program fail, without creating a core file.
+  abort() will send SIGABRT which (most likely) generates core.
+  Use SIGKILL instead, which cannot be caught.
+  We also pause the current thread, until the signal is actually delivered.
+  An alternative would be to use _exit(EXIT_FAILURE),
+  but then valgrind would report lots of memory leaks.
+ */
+#ifdef __WIN__
+#define DBUG_SUICIDE() DBUG_ABORT()
+#else
+extern void _db_suicide_();
+#define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
+#endif
+
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -152,8 +192,12 @@ extern FILE *_db_fp_(void);
 #define DBUG_EXPLAIN(buf,len)
 #define DBUG_EXPLAIN_INITIAL(buf,len)
 #define IF_DBUG(A)
+#define DBUG_ABORT()                    do { } while(0)
+#define DBUG_SUICIDE()                  do { } while(0)
+
 #endif
 #ifdef	__cplusplus
 }
 #endif
-#endif
+
+#endif /* MY_DBUG_INCLUDED */
