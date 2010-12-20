@@ -222,7 +222,8 @@ loop:
 			is no index */
 
 			if (dict_table_get_first_index(table)) {
-				dict_update_statistics_low(table, TRUE);
+				dict_update_statistics(table, FALSE /* update
+						       even if initialized */);
 			}
 
 			dict_table_print_low(table);
@@ -1023,13 +1024,13 @@ err_exit:
 		if (err != DB_SUCCESS) {
 			dict_table_remove_from_cache(table);
 			table = NULL;
+		} else {
+			table->fk_max_recusive_level = 0;
 		}
 	} else if (!srv_force_recovery) {
 		dict_table_remove_from_cache(table);
 		table = NULL;
 	}
-
-	table->fk_max_recusive_level = 0;
 #if 0
 	if (err != DB_SUCCESS && table != NULL) {
 

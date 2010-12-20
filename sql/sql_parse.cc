@@ -27,6 +27,7 @@
 #include "sp_cache.h"
 #include "events.h"
 #include "sql_trigger.h"
+#include "debug_sync.h"
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -1473,7 +1474,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_REFRESH:
   {
-    bool not_used;
+    int not_used;
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (check_global_access(thd,RELOAD_ACL))
@@ -3226,7 +3227,11 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        {
+          res= 1;
+          break;
+        }
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
     }
@@ -3258,6 +3263,15 @@ end_with_restore_list:
       thd->first_successful_insert_id_in_cur_stmt=
         thd->first_successful_insert_id_in_prev_stmt;
 
+    DBUG_EXECUTE_IF("after_mysql_insert",
+                    {
+                      const char act[]=
+                        "now "
+                        "wait_for signal.continue";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     break;
   }
   case SQLCOM_REPLACE_SELECT:
@@ -3913,6 +3927,10 @@ end_with_restore_list:
     if (check_access(thd, UPDATE_ACL, "mysql", 0, 1, 1, 0) &&
         check_global_access(thd,CREATE_USER_ACL))
       break;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
+
     /* Conditionally writes to binlog */
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
       my_ok(thd);
@@ -3932,6 +3950,9 @@ end_with_restore_list:
                      select_lex->db ?
                      is_schema_db(select_lex->db) : 0))
       goto error;
+
+    /* Replicate current user as grantor */
+    thd->binlog_invoker();
 
     if (thd->security_ctx->user)              // If not replication
     {
@@ -4034,7 +4055,7 @@ end_with_restore_list:
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
   {
-    bool write_to_binlog;
+    int write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
 
@@ -4051,12 +4072,22 @@ end_with_restore_list:
       /*
         Presumably, RESET and binlog writing doesn't require synchronization
       */
-      if (!lex->no_write_to_binlog && write_to_binlog)
+
+      if (write_to_binlog > 0)  // we should write
+      { 
+        if (!lex->no_write_to_binlog)
+          res= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      } else if (write_to_binlog < 0) 
       {
-        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
-          break;
-      }
-      my_ok(thd);
+        /* 
+           We should not write, but rather report error because 
+           reload_acl_and_cache binlog interactions failed 
+         */
+        res= 1;
+      } 
+
+      if (!res)
+        my_ok(thd);
     } 
     
     break;
@@ -5848,13 +5879,6 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
-  /*
-    Don't evaluate this subquery during statement prepare even if
-    it's a constant one. The flag is switched off in the end of
-    mysqld_stmt_prepare.
-  */
-  if (thd->stmt_arena->is_stmt_prepare())
-    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
@@ -6845,7 +6869,10 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
   @param thd Thread handler (can be NULL!)
   @param options What should be reset/reloaded (tables, privileges, slave...)
   @param tables Tables to flush (if any)
-  @param write_to_binlog True if we can write to the binlog.
+  @param write_to_binlog < 0 if there was an error while interacting with the binary log inside
+                         reload_acl_and_cache, 
+                         0 if we should not write to the binary log, 
+                         > 0 if we can write to the binlog.
                
   @note Depending on 'options', it may be very bad to write the
     query to the binlog (e.g. FLUSH SLAVE); this is a
@@ -6859,11 +6886,11 @@ void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
 */
 
 bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
-                          bool *write_to_binlog)
+                          int *write_to_binlog)
 {
   bool result=0;
   select_errors=0;				/* Write if more errors */
-  bool tmp_write_to_binlog= 1;
+  int tmp_write_to_binlog= *write_to_binlog= 1;
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
@@ -6926,12 +6953,16 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     tmp_write_to_binlog= 0;
     if( mysql_bin_log.is_open() )
     {
-      mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+      if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        *write_to_binlog= -1;
     }
 #ifdef HAVE_REPLICATION
+    int rotate_error= 0;
     pthread_mutex_lock(&LOCK_active_mi);
-    rotate_relay_log(active_mi);
+    rotate_error= rotate_relay_log(active_mi);
     pthread_mutex_unlock(&LOCK_active_mi);
+    if (rotate_error)
+      *write_to_binlog= -1;
 #endif
 
     /* flush slow and general logs */
@@ -7042,7 +7073,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
- *write_to_binlog= tmp_write_to_binlog;
+ if (*write_to_binlog != -1)
+   *write_to_binlog= tmp_write_to_binlog;
  /*
    If the query was killed then this function must fail.
  */

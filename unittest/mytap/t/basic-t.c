@@ -22,7 +22,7 @@ int main() {
   plan(5);
   ok(1 == 1, "testing basic functions");
   ok(2 == 2, " ");
-  ok(3 == 3, NULL);
+  ok1(3 == 3);
   if (1 == 1)
     skip(2, "Sensa fragoli");
   else {

@@ -202,7 +202,7 @@ _move_history(int op)
  */
 static int
 /*ARGSUSED*/
-_getc_function(EditLine *el, char *c)
+_getc_function(EditLine *el __attribute__((__unused__)), char *c)
 {
 	int i;
 
@@ -1613,7 +1613,8 @@ rl_insert(int count, int c)
 
 /*ARGSUSED*/
 int
-rl_newline(int count, int c)
+rl_newline(int count __attribute__((__unused__)),
+	   int c __attribute__((__unused__)))
 {
 	/*
 	 * Readline-4.0 appears to ignore the args.
@@ -1623,7 +1624,7 @@ rl_newline(int count, int c)
 
 /*ARGSUSED*/
 static unsigned char
-rl_bind_wrapper(EditLine *el, unsigned char c)
+rl_bind_wrapper(EditLine *el __attribute__((__unused__)), unsigned char c)
 {
 	if (map[c] == NULL)
 	    return CC_ERROR;
@@ -1718,7 +1719,7 @@ rl_get_previous_history(int count, int key)
 
 void
 /*ARGSUSED*/
-rl_prep_terminal(int meta_flag)
+rl_prep_terminal(int meta_flag __attribute__((__unused__)))
 {
 	el_set(e, EL_PREP_TERM, 1);
 }
@@ -1922,7 +1923,8 @@ _rl_qsort_string_compare(char **s1, char **s2)
 
 int
 /*ARGSUSED*/
-rl_kill_text(int from, int to)
+rl_kill_text(int from __attribute__((__unused__)),
+	     int to __attribute__((__unused__)))
 {
 	return 0;
 }
@@ -1941,20 +1943,25 @@ rl_get_keymap(void)
 
 void
 /*ARGSUSED*/
-rl_set_keymap(Keymap k)
+rl_set_keymap(Keymap k __attribute__((__unused__)))
 {
 }
 
 int
 /*ARGSUSED*/
-rl_generic_bind(int type, const char * keyseq, const char * data, Keymap k)
+rl_generic_bind(int type __attribute__((__unused__)),
+		const char * keyseq __attribute__((__unused__)),
+		const char * data __attribute__((__unused__)),
+		Keymap k __attribute__((__unused__)))
 {
 	return 0;
 }
 
 int
 /*ARGSUSED*/
-rl_bind_key_in_map(int key, Function *fun, Keymap k)
+rl_bind_key_in_map(int key __attribute__((__unused__)),
+		   Function *fun __attribute__((__unused__)),
+		   Keymap k __attribute__((__unused__)))
 {
 	return 0;
 }

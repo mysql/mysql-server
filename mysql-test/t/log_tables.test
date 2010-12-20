@@ -1027,6 +1027,25 @@ DROP TABLE t1;
 
 TRUNCATE TABLE mysql.slow_log;
 
+#
+# Bug #47924 main.log_tables times out sporadically
+#
+
+use mysql;
+# Should result in error
+--disable_warnings
+drop table if exists renamed_general_log;
+drop table if exists renamed_slow_log;
+--enable_warnings
+--error ER_CANT_RENAME_LOG_TABLE
+RENAME TABLE general_log TO renamed_general_log;
+--error ER_CANT_RENAME_LOG_TABLE
+RENAME TABLE slow_log TO renamed_slow_log;
+
+use test;
+flush tables with read lock;
+unlock tables;
+
 SET @@session.long_query_time= @old_long_query_time;
 
 SET @@global.log_output=       @old_log_output;

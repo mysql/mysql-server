@@ -1449,8 +1449,8 @@ static struct my_option my_long_options[] =
    &opt_sigint_ignore,  &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
-   "Only update the default database. This is useful for skipping updates "
-   "to other database in the update log.",
+   "Ignore statements except those that occur while the default "
+   "database is the one named at the command line.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_POPEN
   {"pager", OPT_PAGER,
@@ -2736,6 +2736,10 @@ static void get_current_db()
 {
   MYSQL_RES *res;
 
+  /* If one_database is set, current_db is not supposed to change. */
+  if (one_database)
+    return;
+
   my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
   current_db= NULL;
   /* In case of error below current_db will be NULL */
@@ -3725,7 +3729,8 @@ print_tab_data(MYSQL_RES *result)
 }
 
 static int
-com_tee(String *buffer, char *line __attribute__((unused)))
+com_tee(String *buffer __attribute__((unused)),
+        char *line __attribute__((unused)))
 {
   char file_name[FN_REFLEN], *end, *param;
 
@@ -3784,7 +3789,8 @@ com_notee(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_pager(String *buffer, char *line __attribute__((unused)))
+com_pager(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char pager_name[FN_REFLEN], *end, *param;
 
@@ -3911,7 +3917,8 @@ com_rehash(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_shell(String *buffer, char *line __attribute__((unused)))
+com_shell(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char *shell_cmd;
 
@@ -4003,7 +4010,8 @@ com_connect(String *buffer, char *line)
 }
 
 
-static int com_source(String *buffer, char *line)
+static int com_source(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char source_name[FN_REFLEN], *end, *param;
   LINE_BUFFER *line_buff;
@@ -4908,7 +4916,8 @@ static void init_username()
   }
 }
 
-static int com_prompt(String *buffer, char *line)
+static int com_prompt(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;

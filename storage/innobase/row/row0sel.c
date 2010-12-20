@@ -2601,38 +2601,38 @@ row_sel_store_mysql_rec(
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
 	rec_t*		rec,		/* in: Innobase record in the index
 					which was described in prebuilt's
-					template */
+					template, or in the clustered index;
+					must be protected by a page latch */
+	ibool		rec_clust,	/* in: TRUE if rec is in the clustered
+					index instead of prebuilt->index */
 	const ulint*	offsets)	/* in: array returned by
-					rec_get_offsets() */
+					rec_get_offsets(rec) */
 {
-	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
 	mem_heap_t*		heap;
-	byte*			data;
-	ulint			len;
 	ulint			i;
 
 	ut_ad(prebuilt->mysql_template);
 	ut_ad(prebuilt->default_rec);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 
 	if (UNIV_LIKELY_NULL(prebuilt->blob_heap)) {
 		mem_heap_free(prebuilt->blob_heap);
 		prebuilt->blob_heap = NULL;
 	}
 
-	/* init null bytes with default values as they might be
-	left uninitialized in some cases and this uninited bytes
-	might be copied into mysql record buffer that leads to
-	valgrind warnings */
-	memcpy(mysql_rec, prebuilt->default_rec, prebuilt->null_bitmap_len);
-
 	for (i = 0; i < prebuilt->n_template; i++) {
 
-		templ = prebuilt->mysql_template + i;
+		const mysql_row_templ_t*templ = prebuilt->mysql_template + i;
+		byte*			data;
+		ulint			len;
+		ulint			field_no;
 
-		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets,
-						      templ->rec_field_no))) {
+		field_no = rec_clust
+			? templ->clust_rec_field_no : templ->rec_field_no;
+
+		if (UNIV_UNLIKELY(rec_offs_nth_extern(offsets, field_no))) {
 
 			/* Copy an externally stored field to the temporary
 			heap */
@@ -2658,15 +2658,13 @@ row_sel_store_mysql_rec(
 			causes an assert */
 
 			data = btr_rec_copy_externally_stored_field(
-				rec, offsets, templ->rec_field_no,
-				&len, heap);
+				rec, offsets, field_no, &len, heap);
 
 			ut_a(len != UNIV_SQL_NULL);
 		} else {
 			/* Field is stored in the row. */
 
-			data = rec_get_nth_field(rec, offsets,
-						 templ->rec_field_no, &len);
+			data = rec_get_nth_field(rec, offsets, field_no, &len);
 
 			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)
 			    && len != UNIV_SQL_NULL) {
@@ -3025,7 +3023,7 @@ row_sel_pop_cached_row_for_mysql(
 	row_prebuilt_t*	prebuilt)	/* in: prebuilt struct */
 {
 	ulint			i;
-	mysql_row_templ_t*	templ;
+	const mysql_row_templ_t*templ;
 	byte*			cached_rec;
 	ut_ad(prebuilt->n_fetch_cached > 0);
 	ut_ad(prebuilt->mysql_prefix_len <= prebuilt->mysql_row_len);
@@ -3081,14 +3079,19 @@ void
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
-	rec_t*		rec,		/* in: record to push */
-	const ulint*	offsets)	/* in: rec_get_offsets() */
+	rec_t*		rec,		/* in: Innobase record in the index
+					which was described in prebuilt's
+					template, or in the clustered index */
+	ibool		rec_clust,	/* in: TRUE if rec is in the clustered
+					index instead of prebuilt->index */
+	const ulint*	offsets)	/* in: rec_get_offsets(rec) */
 {
 	byte*	buf;
 	ulint	i;
 
 	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
 	ut_a(!prebuilt->templ_contains_blob);
 
 	if (prebuilt->fetch_cache[0] == NULL) {
@@ -3117,7 +3120,7 @@ row_sel_push_cache_row_for_mysql(
 	if (UNIV_UNLIKELY(!row_sel_store_mysql_rec(
 				  prebuilt->fetch_cache[
 					  prebuilt->n_fetch_cached],
-				  prebuilt, rec, offsets))) {
+				  prebuilt, rec, rec_clust, offsets))) {
 		ut_error;
 	}
 
@@ -3506,7 +3509,8 @@ row_search_for_mysql(
 							 rec, offsets));
 #endif
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
-							     rec, offsets)) {
+							     rec, FALSE,
+							     offsets)) {
 					err = DB_TOO_BIG_RECORD;
 
 					/* We let the main loop to do the
@@ -4239,19 +4243,8 @@ requires_clust_rec:
 			goto next_rec;
 		}
 
-		if (prebuilt->need_to_access_clustered) {
-
-			result_rec = clust_rec;
-
-			ut_ad(rec_offs_validate(result_rec, clust_index,
-						offsets));
-		} else {
-			/* We used 'offsets' for the clust rec, recalculate
-			them for 'rec' */
-			offsets = rec_get_offsets(rec, index, offsets,
-						  ULINT_UNDEFINED, &heap);
-			result_rec = rec;
-		}
+		result_rec = clust_rec;
+		ut_ad(rec_offs_validate(result_rec, clust_index, offsets));
 	} else {
 		result_rec = rec;
 	}
@@ -4262,6 +4255,7 @@ requires_clust_rec:
 	ut_ad(rec_offs_validate(result_rec,
 				result_rec != rec ? clust_index : index,
 				offsets));
+	ut_ad(!rec_get_deleted_flag(result_rec, comp));
 
 	if ((match_mode == ROW_SEL_EXACT
 	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
@@ -4282,7 +4276,7 @@ requires_clust_rec:
 		cursor. */
 
 		row_sel_push_cache_row_for_mysql(prebuilt, result_rec,
-						 offsets);
+						 result_rec != rec, offsets);
 		if (prebuilt->n_fetch_cached == MYSQL_FETCH_CACHE_SIZE) {
 
 			goto got_row;
@@ -4290,15 +4284,31 @@ requires_clust_rec:
 
 		goto next_rec;
 	} else {
-		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
+		if (UNIV_UNLIKELY
+		    (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE)) {
+			/* CHECK TABLE: fetch the row */
+
+			if (result_rec != rec
+			    && !prebuilt->need_to_access_clustered) {
+				/* We used 'offsets' for the clust
+				rec, recalculate them for 'rec' */
+				offsets = rec_get_offsets(rec, index, offsets,
+							  ULINT_UNDEFINED,
+							  &heap);
+				result_rec = rec;
+			}
+
 			memcpy(buf + 4, result_rec
 			       - rec_offs_extra_size(offsets),
 			       rec_offs_size(offsets));
 			mach_write_to_4(buf,
 					rec_offs_extra_size(offsets) + 4);
 		} else {
-			if (!row_sel_store_mysql_rec(buf, prebuilt,
-						     result_rec, offsets)) {
+			/* Returning a row to MySQL */
+
+			if (!row_sel_store_mysql_rec(buf, prebuilt, result_rec,
+						     result_rec != rec,
+						     offsets)) {
 				err = DB_TOO_BIG_RECORD;
 
 				goto lock_wait_or_error;

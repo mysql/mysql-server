@@ -534,12 +534,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 	else if (wild_compare(uname, wild, 0))
 	  continue;
       }
-      if (!(file_name= 
-            thd->make_lex_string(file_name, uname, file_name_len, TRUE)))
-      {
-        my_dirend(dirp);
-        DBUG_RETURN(FIND_FILES_OOM);
-      }
     }
     else
     {
@@ -724,7 +718,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
                       table_list->table_name));
 
   /* We want to preserve the tree for views. */
-  thd->lex->view_prepare_mode= TRUE;
+  thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
 
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
@@ -3321,7 +3315,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_state open_tables_state_backup;
-  bool save_view_prepare_mode= lex->view_prepare_mode;
+  uint8 save_context_analysis_only= lex->context_analysis_only;
   Query_tables_list query_tables_list_backup;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
@@ -3329,7 +3323,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   uint table_open_method;
   DBUG_ENTER("get_all_tables");
 
-  lex->view_prepare_mode= TRUE;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
 
   /*
@@ -3546,7 +3540,7 @@ err:
   lex->restore_backup_query_tables_list(&query_tables_list_backup);
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
-  lex->view_prepare_mode= save_view_prepare_mode;
+  lex->context_analysis_only= save_context_analysis_only;
   lex->sql_command= save_sql_command;
   DBUG_RETURN(error);
 }
@@ -3642,28 +3636,28 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 {
   const char *tmp_buff;
   MYSQL_TIME time;
+  int info_error= 0;
   CHARSET_INFO *cs= system_charset_info;
   DBUG_ENTER("get_schema_tables_record");
 
   restore_record(table, s->default_values);
   table->field[1]->store(db_name->str, db_name->length, cs);
   table->field[2]->store(table_name->str, table_name->length, cs);
+
   if (res)
   {
-    /*
-      there was errors during opening tables
-    */
-    const char *error= thd->is_error() ? thd->main_da.message() : "";
+    /* There was a table open error, so set the table type and return */
     if (tables->view)
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
     else
       table->field[3]->store(STRING_WITH_LEN("BASE TABLE"), cs);
-    table->field[20]->store(error, strlen(error), cs);
-    thd->clear_error();
+
+    goto err;
   }
-  else if (tables->view)
+
+  if (tables->view)
   {
     table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     table->field[20]->store(STRING_WITH_LEN("VIEW"), cs);
@@ -3752,9 +3746,14 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (share->comment.str)
       table->field[20]->store(share->comment.str, share->comment.length, cs);
 
-    if(file)
+    if (file)
     {
-      file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME | HA_STATUS_AUTO);
+      /* If info() fails, then there's nothing else to do */
+      if ((info_error= file->info(HA_STATUS_VARIABLE |
+                                  HA_STATUS_TIME |
+                                  HA_STATUS_AUTO)) != 0)
+        goto err;
+	  
       enum row_type row_type = file->get_row_type();
       switch (row_type) {
       case ROW_TYPE_NOT_USED:
@@ -3832,6 +3831,26 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       }
     }
   }
+
+err:
+  if (res || info_error)
+  {
+    /*
+      If an error was encountered, push a warning, set the TABLE COMMENT
+      column with the error text, and clear the error so that the operation
+      can continue.
+    */
+    const char *error= thd->is_error() ? thd->main_da.message() : "";
+    table->field[20]->store(error, strlen(error), cs);
+
+    if (thd->is_error())
+    {
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   thd->main_da.sql_errno(), thd->main_da.message());
+      thd->clear_error();
+    }
+  }
+  
   DBUG_RETURN(schema_table_store_record(thd, table));
 }
 

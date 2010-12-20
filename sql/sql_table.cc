@@ -3896,7 +3896,7 @@ bool mysql_create_table_no_lock(THD *thd,
       Then she could create the table. This case is pretty obscure and
       therefore we don't introduce a new error message only for it.
     */
-    if (get_cached_table_share(db, alias))
+    if (get_cached_table_share(db, table_name))
     {
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
       goto unlock_and_end;
@@ -6832,7 +6832,6 @@ view_err:
 			  table->alias);
     }
 
-    VOID(pthread_mutex_lock(&LOCK_open));
     /*
       Unlike to the above case close_cached_table() below will remove ALL
       instances of TABLE from table cache (it will also remove table lock
@@ -6853,6 +6852,7 @@ view_err:
       */
       ha_autocommit_or_rollback(thd, 0);
 
+      VOID(pthread_mutex_lock(&LOCK_open));
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -6885,6 +6885,8 @@ view_err:
         }
       }
     }
+    else
+      VOID(pthread_mutex_lock(&LOCK_open));
 
     if (error == HA_ERR_WRONG_COMMAND)
     {

@@ -144,16 +144,21 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
     len= my_snprintf(slider, buff_end - slider,
                      " %s, Error_code: %d;", err->msg, err->code);
   }
-  
-  rli->report(level, thd->is_error()? thd->main_da.sql_errno() : 0,
-              "Could not execute %s event on table %s.%s;"
-              "%s handler error %s; "
-              "the event's master log %s, end_log_pos %lu",
-              type, table->s->db.str,
-              table->s->table_name.str,
-              buff,
-              handler_error == NULL? "<unknown>" : handler_error,
-              log_name, pos);
+
+  if (ha_error != 0)
+    rli->report(level, thd->is_error() ? thd->main_da.sql_errno() : 0,
+                "Could not execute %s event on table %s.%s;"
+                "%s handler error %s; "
+                "the event's master log %s, end_log_pos %lu",
+                type, table->s->db.str, table->s->table_name.str,
+                buff, handler_error == NULL ? "<unknown>" : handler_error,
+                log_name, pos);
+  else
+    rli->report(level, thd->is_error() ? thd->main_da.sql_errno() : 0,
+                "Could not execute %s event on table %s.%s;"
+                "%s the event's master log %s, end_log_pos %lu",
+                type, table->s->db.str, table->s->table_name.str,
+                buff, log_name, pos);
 }
 #endif
 
@@ -1225,7 +1230,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
 #ifdef HAVE_REPLICATION
     case SLAVE_EVENT: /* can never happen (unused event) */
-      ev = new Slave_log_event(buf, event_len);
+      ev = new Slave_log_event(buf, event_len, description_event);
       break;
 #endif /* HAVE_REPLICATION */
     case CREATE_FILE_EVENT:
@@ -1313,8 +1318,10 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     (because constructor is "void") ; so instead we leave the pointer we
     wanted to allocate (e.g. 'query') to 0 and we test it in is_valid().
     Same for Format_description_log_event, member 'post_header_len'.
+
+    SLAVE_EVENT is never used, so it should not be read ever.
   */
-  if (!ev || !ev->is_valid())
+  if (!ev || !ev->is_valid() || (event_type == SLAVE_EVENT))
   {
     DBUG_PRINT("error",("Found invalid event in binary log"));
 
@@ -2307,7 +2314,7 @@ bool Query_log_event::write(IO_CACHE* file)
     start+= 4;
   }
 
-  if (thd && thd->is_current_user_used())
+  if (thd && thd->need_binlog_invoker())
   {
     LEX_STRING user;
     LEX_STRING host;
@@ -3330,7 +3337,8 @@ compare_errors:
       rli->report(ERROR_LEVEL, 0,
                       "\
 Query caused different errors on master and slave.     \
-Error on master: '%s' (%d), Error on slave: '%s' (%d). \
+Error on master: message (format)='%s' error code=%d ; \
+Error on slave: actual message='%s', error code=%d. \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
@@ -5978,8 +5986,12 @@ void Slave_log_event::init_from_mem_pool(int data_size)
 
 
 /** This code is not used, so has not been updated to be format-tolerant. */
-Slave_log_event::Slave_log_event(const char* buf, uint event_len)
-  :Log_event(buf,0) /*unused event*/ ,mem_pool(0),master_host(0)
+/* We are using description_event so that slave does not crash on Log_event
+  constructor */
+Slave_log_event::Slave_log_event(const char* buf, 
+                                 uint event_len,
+                                 const Format_description_log_event* description_event)
+  :Log_event(buf,description_event),mem_pool(0),master_host(0)
 {
   if (event_len < LOG_EVENT_HEADER_LEN)
     return;
@@ -7649,7 +7661,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                              get_type_str(),
                              RPL_LOG_NAME, (ulong) log_pos);
     thd->reset_current_stmt_binlog_row_based();
-    const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
   }
@@ -7680,14 +7691,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     const_cast<Relay_log_info*>(rli)->last_event_start_time= my_time(0);
   }
 
-  if (get_flags(STMT_END_F))
-    if ((error= rows_event_stmt_cleanup(rli, thd)))
-      rli->report(ERROR_LEVEL, error,
-                  "Error in %s event: commit of row events failed, "
-                  "table `%s`.`%s`",
-                  get_type_str(), m_table->s->db.str,
-                  m_table->s->table_name.str);
-
+  if (get_flags(STMT_END_F) && (error= rows_event_stmt_cleanup(rli, thd)))
+    slave_rows_error_report(ERROR_LEVEL,
+                            thd->is_error() ? 0 : error,
+                            rli, thd, table,
+                            get_type_str(),
+                            RPL_LOG_NAME, (ulong) log_pos);
   DBUG_RETURN(error);
 }
 
@@ -8250,6 +8259,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                 m_field_metadata, m_field_metadata_size,
                 m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
+    table_list->skip_temporary= 1;
 
     /*
       We record in the slave's information that the table should be
@@ -8354,7 +8364,7 @@ void Table_map_log_event::pack_info(Protocol *protocol)
 
 
 #ifdef MYSQL_CLIENT
-void Table_map_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
+void Table_map_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info)
 {
   if (!print_event_info->short_form)
   {

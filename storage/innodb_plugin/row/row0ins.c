@@ -1781,7 +1781,7 @@ ulint
 row_ins_duplicate_error_in_clust(
 /*=============================*/
 	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
-	dtuple_t*	entry,	/*!< in: entry to insert */
+	const dtuple_t*	entry,	/*!< in: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1977,7 +1977,7 @@ row_ins_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
@@ -2158,9 +2158,10 @@ ulint
 row_ins_index_entry(
 /*================*/
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry,	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints */
+	ibool		foreign,/*!< in: TRUE=check foreign key constraints
+				(foreign=FALSE only during CREATE INDEX) */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	ulint	err;

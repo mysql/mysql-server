@@ -123,20 +123,6 @@ void Item_subselect::cleanup()
 }
 
 
-/*
-   We cannot use generic Item::safe_charset_converter() because
-   Subselect transformation does not happen in view_prepare_mode
-   and thus we can not evaluate val_...() for const items.
-*/
-
-Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
-{
-  Item_func_conv_charset *conv=
-    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
-  return conv->safe ? conv : NULL;
-}
-
-
 void Item_singlerow_subselect::cleanup()
 {
   DBUG_ENTER("Item_singlerow_subselect::cleanup");
@@ -271,6 +257,7 @@ bool Item_subselect::exec()
   if (thd->is_error() || thd->killed)
     return 1;
 
+  DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -307,7 +294,7 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return const_item_cache;
+  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1638,7 +1625,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
   
-  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      left_expr && !left_expr->fixed)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
   return result || Item_subselect::fix_fields(thd_arg, ref);
@@ -1906,21 +1894,26 @@ int subselect_single_select_engine::exec()
       DBUG_RETURN(join->error ? join->error : 1);
     }
     if (!select_lex->uncacheable && thd->lex->describe && 
-        !(join->select_options & SELECT_DESCRIBE) && 
-        join->need_tmp)
+        !(join->select_options & SELECT_DESCRIBE))
     {
       item->update_used_tables();
       if (item->const_item())
       {
+        /*
+          It's necessary to keep original JOIN table because
+          create_sort_index() function may overwrite original
+          JOIN_TAB::type and wrong optimization method can be
+          selected on re-execution.
+        */
+        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
         /*
           Force join->join_tmp creation, because this subquery will be replaced
           by a simple select from the materialization temp table by optimize()
           called by EXPLAIN and we need to preserve the initial query structure
           so we can display it.
         */
-        select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-        select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-        if (join->init_save_join_tab())
+        if (join->need_tmp && join->init_save_join_tab())
           DBUG_RETURN(1);                        /* purecov: inspected */
       }
     }

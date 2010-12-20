@@ -19,6 +19,9 @@
 #                                                                              #
 ################################################################################
 
+# due to bug#56486
+--source include/not_windows.inc
+
 --echo '#--------------------FN_DYNVARS_093_01-------------------------#'
 ###############################################################################
 # Check if setting myisam_data_pointer_size is changed in every new connection#
