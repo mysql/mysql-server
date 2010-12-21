@@ -3283,7 +3283,7 @@ i_s_innodb_buffer_page_get_info(
 
 		block = reinterpret_cast<const buf_block_t*>(bpage);
 
-		frame = buf_block_get_frame(block);
+		frame = block->frame;
 
 		page_type = fil_page_get_type(frame);
 
