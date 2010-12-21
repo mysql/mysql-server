@@ -1322,7 +1322,7 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     const Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
     if (totalmb > config_mbytes)
     {
-      c_free_mb_force_lcp_limit = totalmb - config_mbytes;
+      c_free_mb_force_lcp_limit = Uint32(totalmb - config_mbytes);
     }
     else
     {
