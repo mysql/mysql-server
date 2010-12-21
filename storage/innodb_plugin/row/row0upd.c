@@ -1198,20 +1198,21 @@ row_upd_changes_ord_field_binary(
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
+	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+				stored columns in the old row */
 	dict_index_t*	index,	/*!< in: index of the record */
 	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
 				field numbers in this MUST be clustered index
 				positions! */
 {
-	ulint		n_unique;
-	ulint		n_upd_fields;
-	ulint		i, j;
-	dict_index_t*	clust_index;
+	ulint			n_unique;
+	ulint			i;
+	const dict_index_t*	clust_index;
 
-	ut_ad(update && index);
+	ut_ad(update);
+	ut_ad(index);
 
 	n_unique = dict_index_get_n_unique(index);
-	n_upd_fields = upd_get_n_fields(update);
 
 	clust_index = dict_table_get_first_index(index->table);
 
@@ -1219,33 +1220,72 @@ row_upd_changes_ord_field_binary(
 
 		const dict_field_t*	ind_field;
 		const dict_col_t*	col;
-		ulint			col_pos;
 		ulint			col_no;
+		const upd_field_t*	upd_field;
+		const dfield_t*		dfield;
+		dfield_t		dfield_ext;
+		ulint			dfield_len;
+		const byte*		buf;
 
 		ind_field = dict_index_get_nth_field(index, i);
 		col = dict_field_get_col(ind_field);
-		col_pos = dict_col_get_clust_pos(col, clust_index);
 		col_no = dict_col_get_no(col);
 
-		for (j = 0; j < n_upd_fields; j++) {
+		upd_field = upd_get_field_by_field_no(
+			update, dict_col_get_clust_pos(col, clust_index));
 
-			const upd_field_t*	upd_field
-				= upd_get_nth_field(update, j);
+		if (upd_field == NULL) {
+			continue;
+		}
 
-			/* Note that if the index field is a column prefix
-			then it may be that row does not contain an externally
-			stored part of the column value, and we cannot compare
-			the datas */
+		if (row == NULL) {
+			ut_ad(ext == NULL);
+			return(TRUE);
+		}
 
-			if (col_pos == upd_field->field_no
-			    && (row == NULL
-				|| ind_field->prefix_len > 0
-				|| !dfield_datas_are_binary_equal(
-					dtuple_get_nth_field(row, col_no),
-					&(upd_field->new_val)))) {
+		dfield = dtuple_get_nth_field(row, col_no);
 
-				return(TRUE);
+		/* This treatment of column prefix indexes is loosely
+		based on row_build_index_entry(). */
+
+		if (UNIV_LIKELY(ind_field->prefix_len == 0)
+		    || dfield_is_null(dfield)) {
+			/* do nothing special */
+		} else if (UNIV_LIKELY_NULL(ext)) {
+			/* See if the column is stored externally. */
+			buf = row_ext_lookup(ext, col_no, &dfield_len);
+
+			ut_ad(col->ord_part);
+
+			if (UNIV_LIKELY_NULL(buf)) {
+				if (UNIV_UNLIKELY(buf == field_ref_zero)) {
+					/* This should never happen, but
+					we try to fail safe here. */
+					ut_ad(0);
+					return(TRUE);
+				}
+
+				goto copy_dfield;
 			}
+		} else if (dfield_is_ext(dfield)) {
+			dfield_len = dfield_get_len(dfield);
+			ut_a(dfield_len > BTR_EXTERN_FIELD_REF_SIZE);
+			dfield_len -= BTR_EXTERN_FIELD_REF_SIZE;
+			ut_a(dict_index_is_clust(index)
+			     || ind_field->prefix_len <= dfield_len);
+			buf = dfield_get_data(dfield);
+copy_dfield:
+			ut_a(dfield_len > 0);
+			dfield_copy(&dfield_ext, dfield);
+			dfield_set_data(&dfield_ext, buf, dfield_len);
+			dfield = &dfield_ext;
+		}
+
+		if (!dfield_datas_are_binary_equal(
+			    dfield, &upd_field->new_val,
+			    ind_field->prefix_len)) {
+
+			return(TRUE);
 		}
 	}
 
@@ -1329,7 +1369,7 @@ row_upd_changes_first_fields_binary(
 			if (col_pos == upd_field->field_no
 			    && !dfield_datas_are_binary_equal(
 				    dtuple_get_nth_field(entry, i),
-				    &(upd_field->new_val))) {
+				    &upd_field->new_val, 0)) {
 
 				return(TRUE);
 			}
@@ -1568,8 +1608,8 @@ row_upd_sec_step(
 	ut_ad(!dict_index_is_clust(node->index));
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
-	    || row_upd_changes_ord_field_binary(node->row, node->index,
-						node->update)) {
+	    || row_upd_changes_ord_field_binary(node->row, node->ext,
+						node->index, node->update)) {
 		return(row_upd_sec_index_entry(node, thr));
 	}
 
@@ -1973,7 +2013,8 @@ exit_func:
 
 	row_upd_store_row(node);
 
-	if (row_upd_changes_ord_field_binary(node->row, index, node->update)) {
+	if (row_upd_changes_ord_field_binary(node->row, node->ext, index,
+					     node->update)) {
 
 		/* Update causes an ordering field (ordering fields within
 		the B-tree) of the clustered index record to change: perform
