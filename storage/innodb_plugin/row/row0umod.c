@@ -676,11 +676,10 @@ row_undo_mod_upd_exist_sec(
 						      index, heap);
 			if (UNIV_UNLIKELY(!entry)) {
 				/* The server must have crashed in
-				row_upd_clust_rec_by_insert(), in
-				row_ins_index_entry_low() before
-				btr_store_big_rec_extern_fields()
-				has written the externally stored columns
-				(BLOBs) of the new clustered index entry. */
+				row_upd_clust_rec_by_insert() before
+				the updated externally stored columns (BLOBs)
+				of the new clustered index entry were
+				written. */
 
 				/* The table must be in DYNAMIC or COMPRESSED
 				format.  REDUNDANT and COMPACT formats
