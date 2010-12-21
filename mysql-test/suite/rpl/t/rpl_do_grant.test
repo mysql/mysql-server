@@ -208,10 +208,10 @@ DROP DATABASE bug42217_db;
 -- connection master
 
 # user was already dropped in the slave before
-# so no need to wait for the slave to replicate
-# this statement (if it did and we later synced
-# the slave it would end up in an error anyway)
+# so we should not replicate this statement.
+SET SQL_LOG_BIN= 0;
 DROP USER 'create_rout_db'@'localhost';
+SET SQL_LOG_BIN= 1;
 
 # finish entire clean up (remove binlogs)
 # so that we leave a pristine environment for the
