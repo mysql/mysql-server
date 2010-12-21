@@ -24,6 +24,8 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 
+import com.mysql.clusterj.ColumnMetadata.Type;
+
 import com.mysql.clusterj.core.store.Column;
 
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -56,7 +58,7 @@ class ColumnImpl implements Column {
     private int charsetNumber = 0;
 
     /** The ndb column type for the column */
-    private Column.Type columnType;
+    private Type columnType;
 
     /** The prefix length for variable size columns */
     private int prefixLength = -1;
@@ -75,6 +77,9 @@ class ColumnImpl implements Column {
 
     /** Is this column a primary key column? */
     private boolean primaryKey;
+
+    /** Is this column a partition key column? */
+    private boolean partitionKey;
 
     private int length;
 
@@ -95,6 +100,7 @@ class ColumnImpl implements Column {
         int ndbType = ndbColumn.getType();
         this.columnType = convertType(ndbType);
         this.primaryKey = ndbColumn.getPrimaryKey();
+        this.partitionKey = ndbColumn.getPartitionKey();
         this.nullable = ndbColumn.getNullable();
         this.length = ndbColumn.getLength();
         this.inlineSize = ndbColumn.getInlineSize();
@@ -235,43 +241,43 @@ class ColumnImpl implements Column {
         }
     }
 
-    public Column.Type getType() {
+    public Type getType() {
         return columnType;
     }
 
     private Type convertType(int type) {
         switch (type) {
-            case ColumnConst.Type.Bigint: return Column.Type.Bigint;
-            case ColumnConst.Type.Bigunsigned: return Column.Type.Bigunsigned;
-            case ColumnConst.Type.Binary: return Column.Type.Binary;
-            case ColumnConst.Type.Bit: return Column.Type.Bit;
-            case ColumnConst.Type.Blob: return Column.Type.Blob;
-            case ColumnConst.Type.Char: return Column.Type.Char;
-            case ColumnConst.Type.Date: return Column.Type.Date;
-            case ColumnConst.Type.Datetime: return Column.Type.Datetime;
-            case ColumnConst.Type.Decimal: return Column.Type.Decimal;
-            case ColumnConst.Type.Decimalunsigned: return Column.Type.Decimalunsigned;
-            case ColumnConst.Type.Double: return Column.Type.Double;
-            case ColumnConst.Type.Float: return Column.Type.Float;
-            case ColumnConst.Type.Int: return Column.Type.Int;
-            case ColumnConst.Type.Longvarbinary: return Column.Type.Longvarbinary;
-            case ColumnConst.Type.Longvarchar: return Column.Type.Longvarchar;
-            case ColumnConst.Type.Mediumint: return Column.Type.Mediumint;
-            case ColumnConst.Type.Mediumunsigned: return Column.Type.Mediumunsigned;
-            case ColumnConst.Type.Olddecimal: return Column.Type.Olddecimal;
-            case ColumnConst.Type.Olddecimalunsigned: return Column.Type.Olddecimalunsigned;
-            case ColumnConst.Type.Smallint: return Column.Type.Smallint;
-            case ColumnConst.Type.Smallunsigned: return Column.Type.Smallunsigned;
-            case ColumnConst.Type.Text: return Column.Type.Text;
-            case ColumnConst.Type.Time: return Column.Type.Time;
-            case ColumnConst.Type.Timestamp: return Column.Type.Timestamp;
-            case ColumnConst.Type.Tinyint: return Column.Type.Tinyint;
-            case ColumnConst.Type.Tinyunsigned: return Column.Type.Tinyunsigned;
-            case ColumnConst.Type.Undefined: return Column.Type.Undefined;
-            case ColumnConst.Type.Unsigned: return Column.Type.Unsigned;
-            case ColumnConst.Type.Varbinary: return Column.Type.Varbinary;
-            case ColumnConst.Type.Varchar: return Column.Type.Varchar;
-            case ColumnConst.Type.Year: return Column.Type.Year;
+            case ColumnConst.Type.Bigint: return Type.Bigint;
+            case ColumnConst.Type.Bigunsigned: return Type.Bigunsigned;
+            case ColumnConst.Type.Binary: return Type.Binary;
+            case ColumnConst.Type.Bit: return Type.Bit;
+            case ColumnConst.Type.Blob: return Type.Blob;
+            case ColumnConst.Type.Char: return Type.Char;
+            case ColumnConst.Type.Date: return Type.Date;
+            case ColumnConst.Type.Datetime: return Type.Datetime;
+            case ColumnConst.Type.Decimal: return Type.Decimal;
+            case ColumnConst.Type.Decimalunsigned: return Type.Decimalunsigned;
+            case ColumnConst.Type.Double: return Type.Double;
+            case ColumnConst.Type.Float: return Type.Float;
+            case ColumnConst.Type.Int: return Type.Int;
+            case ColumnConst.Type.Longvarbinary: return Type.Longvarbinary;
+            case ColumnConst.Type.Longvarchar: return Type.Longvarchar;
+            case ColumnConst.Type.Mediumint: return Type.Mediumint;
+            case ColumnConst.Type.Mediumunsigned: return Type.Mediumunsigned;
+            case ColumnConst.Type.Olddecimal: return Type.Olddecimal;
+            case ColumnConst.Type.Olddecimalunsigned: return Type.Olddecimalunsigned;
+            case ColumnConst.Type.Smallint: return Type.Smallint;
+            case ColumnConst.Type.Smallunsigned: return Type.Smallunsigned;
+            case ColumnConst.Type.Text: return Type.Text;
+            case ColumnConst.Type.Time: return Type.Time;
+            case ColumnConst.Type.Timestamp: return Type.Timestamp;
+            case ColumnConst.Type.Tinyint: return Type.Tinyint;
+            case ColumnConst.Type.Tinyunsigned: return Type.Tinyunsigned;
+            case ColumnConst.Type.Undefined: return Type.Undefined;
+            case ColumnConst.Type.Unsigned: return Type.Unsigned;
+            case ColumnConst.Type.Varbinary: return Type.Varbinary;
+            case ColumnConst.Type.Varchar: return Type.Varchar;
+            case ColumnConst.Type.Year: return Type.Year;
             default: throw new ClusterJFatalInternalException(
                     local.message("ERR_Unknown_Column_Type",
                     tableName, columnName, type));
@@ -288,6 +294,14 @@ class ColumnImpl implements Column {
 
     public boolean isPrimaryKey() {
         return primaryKey;
+    }
+
+    public boolean isPartitionKey() {
+        return partitionKey;
+    }
+
+    public int getLength() {
+        return length;
     }
 
     public int getPrefixLength() {

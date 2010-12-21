@@ -130,12 +130,14 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
             if (primaryKeyColumnNames[i].equals(columnName)) {
                 idFieldHandlers[i] = fmd;
                 idFieldNumbers[i] = fmd.getFieldNumber();
+                if (logger.isDetailEnabled()) logger.detail("registerPrimaryKeyColumn found primary key " + columnName);
             }
         }
         // find the partition key column that matches the primary key column
         for (int j = 0; j < partitionKeyColumnNames.length; ++j) {
             if (partitionKeyColumnNames[j].equals(columnName)) {
                 partitionKeyFieldHandlers[j] = fmd;
+                if (logger.isDetailEnabled()) logger.detail("registerPrimaryKeyColumn found partition key " + columnName);
             }
         }
         return;

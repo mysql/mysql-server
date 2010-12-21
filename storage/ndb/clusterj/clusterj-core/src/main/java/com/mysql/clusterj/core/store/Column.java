@@ -18,6 +18,8 @@
 
 package com.mysql.clusterj.core.store;
 
+import com.mysql.clusterj.ColumnMetadata.Type;
+
 /** Column metadata for ndb columns.
  *
  */
@@ -39,6 +41,11 @@ public interface Column {
      */
     public boolean isPrimaryKey();
 
+    /** Is this column a partition key column?
+     * @return true if this column is a partition key column
+     */
+    public boolean isPartitionKey();
+
     /** Get the Charset name of the column. This is the value of the 
      * CHARACTER SET parameter in the column definition, or if not specified,
      * the value of the DEFAULT CHARACTER SET parameter in the table definition.
@@ -53,42 +60,10 @@ public interface Column {
      */
     public int getCharsetNumber();
 
-    /** The store type of the column. This is mapped from the ndb column type
-     * to the abstract type used in the store api.
+    /** For character columns, get the maximum length in bytes that can be stored
+     * in the column, excluding the prefix, after conversion via the charset.
      */
-    public enum Type {
-        Bigint,
-        Bigunsigned,
-        Binary,
-        Bit,
-        Blob,
-        Char,
-        Date,
-        Datetime,
-        Decimal,
-        Decimalunsigned,
-        Double,
-        Float,
-        Int,
-        Longvarbinary,
-        Longvarchar,
-        Mediumint,
-        Mediumunsigned,
-        Olddecimal,
-        Olddecimalunsigned,
-        Smallint,
-        Smallunsigned,
-        Text,
-        Time,
-        Timestamp,
-        Tinyint,
-        Tinyunsigned,
-        Undefined,
-        Unsigned,
-        Varbinary,
-        Varchar,
-        Year
-    }
+    public int getLength();
 
     /** For variable size columns, get the length of the prefix (one or two bytes) 
      * that specifies the length of the column data.

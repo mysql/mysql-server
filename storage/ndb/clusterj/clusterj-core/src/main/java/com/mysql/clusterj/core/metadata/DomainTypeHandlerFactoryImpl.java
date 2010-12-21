@@ -18,6 +18,7 @@
 
 package com.mysql.clusterj.core.metadata;
 
+import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
@@ -76,6 +77,9 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
             errorMessages.append("Trying standard factory com.mysql.clusterj.core.metadata.DomainTypeHandlerImpl.\n");
             handler = new DomainTypeHandlerImpl<T>(domainClass, dictionary);
             return handler;
+        } catch (ClusterJException e) {
+            errorMessages.append(e.toString());
+            throw e;
         } catch (Exception e) {
             errorMessages.append(e.toString());
             throw new ClusterJUserException(errorMessages.toString(), e);

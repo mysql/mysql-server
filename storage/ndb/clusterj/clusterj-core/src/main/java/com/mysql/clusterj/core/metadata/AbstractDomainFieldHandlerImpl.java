@@ -18,11 +18,12 @@
 
 package com.mysql.clusterj.core.metadata;
 
-import com.mysql.clusterj.core.spi.ValueHandler;
-import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.ColumnMetadata;
+import com.mysql.clusterj.core.spi.ValueHandler;
+import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
 import com.mysql.clusterj.core.query.PredicateImpl;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
@@ -32,7 +33,6 @@ import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.PartitionKey;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
-import com.mysql.clusterj.core.store.Column.Type;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
@@ -50,7 +50,7 @@ import java.util.Set;
 /**
  *
  */
-public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandler {
+public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandler, ColumnMetadata {
 
     public AbstractDomainFieldHandlerImpl() {}
 
@@ -62,8 +62,8 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     /** The domain type handler for this field */
     protected DomainTypeHandler<?> domainTypeHandler;
 
-    /** "true" if the mapped column allows null values */
-    protected String columnAllowsNull;
+    /** true if the mapped column allows null values */
+    protected boolean nullable;
 
     /** The default value for the column if the field is null */
     protected String columnDefaultValue = null;
@@ -76,6 +76,18 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
 
     /** The Charset name for the column. */
     protected String charsetName = null;
+
+    /** The precision of the column in the database */
+    protected int precision;
+
+    /** The scale of the column in the database */
+    protected int scale;
+
+    /** The length of the column in the database */
+    protected int maximumLength;
+
+    /** true if the column is part of the partition key */
+    protected boolean partitionKey;
 
     /** The Store Type for the column. */
     protected Type storeColumnType = null;
@@ -2612,5 +2624,60 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             handler.setShort(fmd.fieldNumber, (short) 0);
         }
     };
+
+    /* These methods implement ColumnMetadata
+     */
+
+    protected void initializeColumnMetadata(com.mysql.clusterj.core.store.Column storeColumn) {
+        this.columnName = storeColumn.getName();;
+        this.storeColumnType = storeColumn.getType();
+        this.charsetName = storeColumn.getCharsetName();
+        this.primaryKey = storeColumn.isPrimaryKey();
+        this.partitionKey = storeColumn.isPartitionKey();
+        this.precision = storeColumn.getPrecision();
+        this.scale = storeColumn.getScale();
+        this.maximumLength = storeColumn.getLength();
+        this.nullable = storeColumn.getNullable();
+    }
+
+    public boolean isPartitionKey() {
+        return partitionKey;
+    }
+
+    public int maximumLength() {
+        return maximumLength;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public int number() {
+        return fieldNumber;
+    }
+
+    public int precision() {
+        return precision;
+    }
+
+    public int scale() {
+        return scale;
+    }
+
+    public Type type() {
+        return this.storeColumnType;
+    }
+
+    public boolean nullable() {
+        return nullable;
+    }
+
+    public Class<?> javaType() {
+        return this.type;
+    }
+
+    public String charsetName() {
+        return this.charsetName;
+    }
 
 }
