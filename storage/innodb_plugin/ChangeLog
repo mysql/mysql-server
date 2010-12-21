@@ -1,8 +1,18 @@
+2010-12-21	The InnoDB Team
+
+	* include/data0data.h, include/data0data.ic, include/row0upd.h,
+	btr/btr0cur.c, row/row0purge.c, row/row0umod.c, row/row0upd.c,
+	innodb.result, innodb.test:
+	Fix Bug#58912 InnoDB unnecessarily avoids update-in-place
+	on column prefix indexes
+
 2010-12-09	The InnoDB Team
+
 	* buf/buf0lru.c:
 	Fix Bug#57600 output of I/O sum[%lu] can go negative
 
 2010-11-11	The InnoDB Team
+
 	* thr/thr0loc.c, trx/trx0i_s.c:
 	Fix Bug#57802 Empty ASSERTION parameter passed to the HASH_SEARCH macro
 
