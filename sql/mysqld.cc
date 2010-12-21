@@ -3247,8 +3247,8 @@ static int init_common_variables()
      size_t *pagesize = (size_t *) malloc(sizeof(size_t) * nelem);
      if (pagesize != NULL && getpagesizes(pagesize, nelem) > 0)
      {
-       size_t i, max_page_size= 0;
-       for (i= 0; i < nelem; i++)
+       size_t max_page_size= 0;
+       for (int i= 0; i < nelem; i++)
        {
          if (pagesize[i] > max_page_size &&
              pagesize[i] <= max_desired_page_size)
