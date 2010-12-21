@@ -2506,7 +2506,7 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
   }
   if (delete_count &&
       pagecache_delete_pages(share->pagecache, &info->dfile,
-                             page, delete_count, PAGECACHE_LOCK_WRITE, 0))
+                             page, delete_count, PAGECACHE_LOCK_WRITE, 1))
     res= 1;
 
   if (share->now_transactional)
