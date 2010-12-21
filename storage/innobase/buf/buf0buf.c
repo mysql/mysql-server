@@ -4194,7 +4194,7 @@ buf_page_monitor(
 
 	frame = bpage->zip.data
 		? bpage->zip.data
-		: buf_block_get_frame((buf_block_t*) bpage);
+		: ((buf_block_t*) bpage)->frame;
 
 	switch(fil_page_get_type(frame)) {
 		ulint	level;
