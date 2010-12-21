@@ -70,6 +70,7 @@ public:
     CS_waiting_for_first_connect,
     CS_connected
   };
+
   struct Node : public trp_node
   {
     Node();
