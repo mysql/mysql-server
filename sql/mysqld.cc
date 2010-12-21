@@ -345,6 +345,7 @@ static const char *optimizer_switch_names[]=
   "partial_match_rowid_merge",
   "partial_match_table_scan",
   "subquery_cache",
+  "mrr_sort_keys",
   "outer_join_with_cache",
   "semijoin_with_cache",
   "join_cache_incremental",
@@ -371,6 +372,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("partial_match_rowid_merge") - 1,
   sizeof("partial_match_table_scan") - 1,
   sizeof("subquery_cache") - 1,
+  sizeof("mrr_sort_keys") - 1,
   sizeof("outer_join_with_cache") - 1,
   sizeof("semijoin_with_cache") - 1,
   sizeof("join_cache_incremental") - 1,
@@ -475,6 +477,7 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "partial_match_rowid_merge=on,"
                                         "partial_match_table_scan=on,"
                                         "subquery_cache=on,"
+                                        "mrr_sort_keys=on,"
                                         "join_cache_incremental=on,"
                                         "join_cache_hashed=on,"
                                         "join_cache_bka=on"

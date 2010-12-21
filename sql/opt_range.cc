@@ -1119,7 +1119,7 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 }
 
 
-SQL_SELECT::SQL_SELECT() :quick(0),cond(0),free_cond(0)
+SQL_SELECT::SQL_SELECT() :quick(0),cond(0),pre_idx_push_select_cond(NULL),free_cond(0)
 {
   quick_keys.clear_all(); needed_reg.clear_all();
   my_b_clear(&file);
@@ -7459,7 +7459,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            uint *mrr_flags, uint *bufsize, COST_VECT *cost)
 {
   SEL_ARG_RANGE_SEQ seq;
-  RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
+  RANGE_SEQ_IF seq_if = {NULL, sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
   handler *file= param->table->file;
   ha_rows rows;
   uint keynr= param->real_keynr[idx];
@@ -8016,6 +8016,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 
   quick->mrr_buf_size= thd->variables.mrr_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, (uint)records,
+                                         ~0, 
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
     goto err;
@@ -8420,7 +8421,7 @@ int QUICK_RANGE_SELECT::reset()
   if (!mrr_buf_desc)
     empty_buf.buffer= empty_buf.buffer_end= empty_buf.end_of_used_area= NULL;
  
-  RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0, 0};
+  RANGE_SEQ_IF seq_funcs= {NULL, quick_range_seq_init, quick_range_seq_next, 0, 0};
   error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
                                      mrr_flags, mrr_buf_desc? mrr_buf_desc: 
                                                               &empty_buf);

@@ -7749,11 +7749,11 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_EQ_REF:
     if (cache_level <=2 || (no_hashed_cache && no_bka_cache))
       goto no_join_cache;
-
-    flags= HA_MRR_NO_NULL_ENDPOINTS;
+    flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;
     if (tab->table->covering_keys.is_set(tab->ref.key))
       flags|= HA_MRR_INDEX_ONLY;
     rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
+                                                  tab->ref.key_parts,
                                                   &bufsz, &flags, &cost);
 
     if ((cache_level <=4 && !no_hashed_cache) || no_bka_cache ||

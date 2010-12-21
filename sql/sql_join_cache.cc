@@ -2136,7 +2136,7 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
 
   /* Prepare to retrieve all records of the joined table */
   if ((error= join_tab_scan->open())) 
-    goto finish;
+    goto finish; /* psergey-note: if this returns error, we will assert in net_send_statement() */
 
   while (!(error= join_tab_scan->next()))   
   {
@@ -2626,6 +2626,7 @@ int JOIN_CACHE_HASHED::realloc_buffer()
   reset(TRUE);
   return rc;   	
 }
+
 
 /*
   Get maximum size of the additional space per record used for record keys
@@ -3596,6 +3597,16 @@ int JOIN_TAB_SCAN_MRR::next()
 }
 
 
+static 
+void bka_range_seq_key_info(void *init_params, uint *length, 
+                            key_part_map *map)
+{
+  TABLE_REF *ref= &(((JOIN_CACHE*)init_params)->join_tab->ref);
+  *length= ref->key_length;
+  *map= (key_part_map(1) << ref->key_parts) - 1;
+}
+
+
 /*
   Initialize retrieval of range sequence for BKA join algorithm
     
@@ -3644,12 +3655,12 @@ range_seq_t bka_range_seq_init(void *init_param, uint n_ranges, uint flags)
     This function are used only as a callback function.
    
   RETURN VALUE
-    0   ok, the range structure filled with info about the next range/key
-    1   no more ranges
+    FALSE   ok, the range structure filled with info about the next range/key
+    TRUE    no more ranges
 */    
 
 static 
-uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   DBUG_ENTER("bka_range_seq_next");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
@@ -3872,9 +3883,11 @@ void JOIN_CACHE_BKA::read_next_candidate_for_match(uchar *rec_ptr)
 
 int JOIN_CACHE_BKA::init()
 {
+  int res;
   bool check_only_first_match= join_tab->check_only_first_match();
 
-  RANGE_SEQ_IF rs_funcs= { bka_range_seq_init, 
+  RANGE_SEQ_IF rs_funcs= { bka_range_seq_key_info,
+                           bka_range_seq_init, 
                            bka_range_seq_next,
                            check_only_first_match ?
                              bka_range_seq_skip_record : 0,
@@ -3882,11 +3895,18 @@ int JOIN_CACHE_BKA::init()
 
   DBUG_ENTER("JOIN_CACHE_BKA::init");
 
-  if (!(join_tab_scan= new JOIN_TAB_SCAN_MRR(join, join_tab, 
-                                             mrr_mode, rs_funcs)))
+  JOIN_TAB_SCAN_MRR *jsm;
+  if (!(join_tab_scan= jsm= new JOIN_TAB_SCAN_MRR(join, join_tab, 
+                                                  mrr_mode, rs_funcs)))
     DBUG_RETURN(1);
 
-  DBUG_RETURN(JOIN_CACHE::init());
+  if ((res= JOIN_CACHE::init()))
+    DBUG_RETURN(res);
+
+  if (use_emb_key)
+    jsm->mrr_mode |= HA_MRR_MATERIALIZED_KEYS;
+
+  DBUG_RETURN(0);
 }
 
 
@@ -4110,12 +4130,12 @@ range_seq_t bkah_range_seq_init(void *init_param, uint n_ranges, uint flags)
     This function are used only as a callback function.
    
   RETURN VALUE
-    0    ok, the range structure filled with info about the next range/key
-    1    no more ranges
+    FALSE  ok, the range structure filled with info about the next range/key
+    TRUE   no more ranges
 */    
 
 static 
-uint bkah_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
+bool bkah_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   DBUG_ENTER("bkah_range_seq_next");
   JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
@@ -4256,7 +4276,8 @@ int JOIN_CACHE_BKAH::init()
 
   no_association= test(mrr_mode & HA_MRR_NO_ASSOCIATION);
 
-  RANGE_SEQ_IF rs_funcs= { bkah_range_seq_init,
+  RANGE_SEQ_IF rs_funcs= { bka_range_seq_key_info,
+                           bkah_range_seq_init,
                            bkah_range_seq_next,
                            check_only_first_match && !no_association ?
                              bkah_range_seq_skip_record : 0,

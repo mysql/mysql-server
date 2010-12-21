@@ -570,17 +570,18 @@ protected:
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE 512
 #define OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN 1024
 #define OPTIMIZER_SWITCH_SUBQUERY_CACHE (1<<11)
-#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<12)
-#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<13)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<14)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<15)
-#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<16)
+#define OPTIMIZER_SWITCH_MRR_SORT_KEYS (1<<12)
+#define OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE (1<<13)
+#define OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE (1<<14)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<15)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<16)
+#define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<17)
 
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<17)
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<17)
 #  define OPTIMIZER_SWITCH_LAST (1<<18)
+#else
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<18)
+#  define OPTIMIZER_SWITCH_LAST (1<<19)
 #endif
 
 #ifdef DBUG_OFF 
@@ -596,6 +597,8 @@ protected:
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
@@ -613,7 +616,8 @@ protected:
                                     OPTIMIZER_SWITCH_SEMIJOIN | \
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE|\
                                     OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN|\
-                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
+                                    OPTIMIZER_SWITCH_SUBQUERY_CACHE|\
+                                    OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_BKA)
@@ -1880,6 +1884,7 @@ void key_unpack(String *to,TABLE *form,uint index);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
 extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
+int key_tuple_cmp(KEY_PART_INFO *part, uchar *key1, uchar *key2, uint tuple_length);
 
 bool init_errmessage(void);
 #endif /* MYSQL_SERVER */

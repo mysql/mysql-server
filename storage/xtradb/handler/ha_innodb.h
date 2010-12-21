@@ -235,7 +235,8 @@ public:
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                uint *bufsz, uint *flags, COST_VECT *cost);
+                                uint key_parts, uint *bufsz, 
+                                uint *flags, COST_VECT *cost);
   DsMrr_impl ds_mrr;
 
   Item *idx_cond_push(uint keyno, Item* idx_cond);

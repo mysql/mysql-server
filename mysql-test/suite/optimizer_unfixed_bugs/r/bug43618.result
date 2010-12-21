@@ -1,3 +1,5 @@
+set @save_time_zone= @@time_zone;
+set time_zone='+03:00';
 CREATE TABLE t1(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1), UNIQUE INDEX(c2));
 INSERT INTO t1 VALUES('98-12-31 11:30:45','98.12.31 11+30+45','98-12-31 11:30:45','98.12.31 11+30+45'),('98/12/30 11*30*45','98@12@30 11^30^45','98/12/30 11*30*45','98@12@30 11^30^45'),('98-12-29','98.12.29','98-12-29','98.12.29'),('98/12/28','98@12@28','98/12/28','98@12@28');
 Warnings:
@@ -52,3 +54,4 @@ Warnings:
 Warning	1292	Incorrect datetime value: '2010-10-00 00:00:00' for column 'c2' at row 1
 Warning	1292	Incorrect datetime value: '2010-10-00 00:00:00' for column 'c2' at row 1
 DROP TABLE t1;
+set time_zone= @save_time_zone;

@@ -2245,11 +2245,11 @@ ha_rows ha_myisam::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 }
 
 ha_rows ha_myisam::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                         uint *bufsz, uint *flags,
-                                         COST_VECT *cost)
+                                         uint key_parts, uint *bufsz, 
+                                         uint *flags, COST_VECT *cost)
 {
   ds_mrr.init(this, table);
-  return ds_mrr.dsmrr_info(keyno, n_ranges, keys, bufsz, flags, cost);
+  return ds_mrr.dsmrr_info(keyno, n_ranges, keys, key_parts, bufsz, flags, cost);
 }
 
 /* MyISAM MRR implementation ends */

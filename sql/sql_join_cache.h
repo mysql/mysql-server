@@ -1195,6 +1195,7 @@ public:
  
   int next();
 
+  friend class JOIN_CACHE_BKA; /* it needs to add an mrr_mode flag after JOIN_CACHE::init() call */
 };
 
 /*

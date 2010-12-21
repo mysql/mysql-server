@@ -1157,6 +1157,23 @@ typedef void *range_seq_t;
 typedef struct st_range_seq_if
 {
   /*
+    Get key information
+ 
+    SYNOPSIS
+      get_key_info()
+        init_params  The seq_init_param parameter 
+        length       OUT length of the keys in this range sequence
+        map          OUT key_part_map of the keys in this range sequence
+
+    DESCRIPTION
+      This function is set only when using HA_MRR_FIXED_KEY mode. In that mode, 
+      all ranges are single-point equality ranges that use the same set of key
+      parts. This function allows the MRR implementation to get the length of
+      a key, and which keyparts it uses.
+  */
+  void (*get_key_info)(void *init_params, uint *length, key_part_map *map);
+
+  /*
     Initialize the traversal of range sequence
     
     SYNOPSIS
@@ -1180,10 +1197,10 @@ typedef struct st_range_seq_if
         range  OUT Information about the next range
     
     RETURN
-      0 - Ok, the range structure filled with info about the next range
-      1 - No more ranges
+      FALSE - Ok, the range structure filled with info about the next range
+      TRUE  - No more ranges
   */
-  uint (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
+  bool (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
 
   /*
     Check whether range_info orders to skip the next record
@@ -1285,9 +1302,9 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
                          COST_VECT *cost);
 
 /*
-  The below two are not used (and not handled) in this milestone of this WL
-  entry because there seems to be no use for them at this stage of
-  implementation.
+  Indicates that all scanned ranges will be singlepoint (aka equality) ranges.
+  The ranges may not use the full key but all of them will use the same number
+  of key parts.
 */
 #define HA_MRR_SINGLE_POINT 1
 #define HA_MRR_FIXED_KEY  2
@@ -1329,6 +1346,16 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
 
+/*
+  The MRR user has materialized range keys somewhere in the user's buffer.
+  This can be used for optimization of the procedure that sorts these keys
+  since in this case key values don't have to be copied into the MRR buffer.
+
+  In other words, it is guaranteed that after RANGE_SEQ_IF::next() call the 
+  pointer in range->start_key.key will point to a key value that will remain 
+  there until the end of the MRR scan.
+*/
+#define HA_MRR_MATERIALIZED_KEYS 256
 
 
 /*
@@ -1819,14 +1846,19 @@ public:
   inline int ha_index_first(uchar * buf);
   inline int ha_index_last(uchar * buf);
   inline int ha_index_next_same(uchar *buf, const uchar *key, uint keylen);
+  /*
+    TODO: should we make for those functions non-virtual ha_func_name wrappers,
+    too?
+  */
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
                                               uint *flags, COST_VECT *cost);
   virtual ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                                        uint *bufsz, uint *flags, COST_VECT *cost);
+                                        uint key_parts, uint *bufsz, 
+                                        uint *flags, COST_VECT *cost);
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
-                                    uint n_ranges, uint mode,
+                                    uint n_ranges, uint mode, 
                                     HANDLER_BUFFER *buf);
   virtual int multi_range_read_next(char **range_info);
   virtual int read_range_first(const key_range *start_key,
@@ -2185,7 +2217,8 @@ public:
       TRUE    if the engine supports virtual columns
   */
   virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
-
+  
+  TABLE* get_table() { return table; }
 protected:
   /* deprecated, don't use in new engines */
   inline void ha_statistic_increment(ulong SSV::*offset) const { }
@@ -2378,7 +2411,6 @@ private:
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   friend class ha_partition;
-  friend class DsMrr_impl;
 public:
   /* XXX to be removed, see ha_partition::partition_ht() */
   virtual handlerton *partition_ht() const

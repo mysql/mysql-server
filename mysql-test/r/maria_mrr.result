@@ -1,4 +1,5 @@
 drop table if exists t1,t2,t3,t4;
+set @mrr_buffer_size_save= @@mrr_buffer_size;
 set @save_storage_engine= @@storage_engine;
 set storage_engine=aria;
 create table t1(a int);
@@ -168,6 +169,7 @@ c-1020=w	filler
 c-1021=w	filler
 c-1022=w	filler
 c-1023=w	filler
+drop table if exists t4;
 create table t4 (a varchar(10), b int, c char(10), filler char(200),
 key idx1 (a, b, c));
 insert into t4 (filler) select concat('NULL-', 15-a) from t2 order by a limit 15;
@@ -292,6 +294,35 @@ NULL	9	0
 NULL	9	0
 drop table t1, t2;
 set storage_engine= @save_storage_engine;
+set @@mrr_buffer_size= @mrr_buffer_size_save;
+# 
+# Crash in quick_range_seq_next() in maria-5.3-dsmrr-cpk with join_cache_level = {8,1}
+# 
+set @save_join_cache_level= @@join_cache_level;
+SET SESSION join_cache_level = 8;
+CREATE TABLE `t1` (
+`col_int_key` int(11) DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+`col_varchar_nokey` varchar(1) DEFAULT NULL,
+KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO `t1` VALUES (6,'2005-10-07 00:00:00','e','e');
+INSERT INTO `t1` VALUES (51,'2000-07-15 05:00:34','f','f');
+CREATE TABLE `t2` (
+`col_int_key` int(11) DEFAULT NULL,
+`col_datetime_key` datetime DEFAULT NULL,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+`col_varchar_nokey` varchar(1) DEFAULT NULL,
+KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1;
+INSERT INTO `t2` VALUES (2,'2004-10-11 18:13:16','w','w');
+INSERT INTO `t2` VALUES (2,'1900-01-01 00:00:00','d','d');
+SELECT table2 .`col_datetime_key`
+FROM t2 JOIN ( t1 table2 JOIN t2 table3 ON table3 .`col_varchar_key` < table2 .`col_varchar_key` ) ON table3 .`col_varchar_nokey` ;
+col_datetime_key
+drop table t1, t2;
+set join_cache_level=@save_join_cache_level;
 CREATE TABLE t1(
 pk int NOT NULL, i int NOT NULL, v varchar(1) NOT NULL,
 PRIMARY KEY (pk), INDEX idx (v, i)
@@ -336,109 +367,39 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ref	PRIMARY,idx	idx	3	test.t2.v	2	Using index condition; Using where
 DROP TABLE t1,t2,t3;
 #
-# Bug #669420: MRR for Range checked for each record
+# BUG#671361: virtual int Mrr_ordered_index_reader::refill_buffer(): Assertion `!know_key_tuple_params
+# (works only on Maria because we need 1024-byte long key)
 #
+SET SESSION optimizer_use_mrr = 'force';
+SET SESSION join_cache_level = 6;
+SET SESSION join_buffer_size = 1024;
 CREATE TABLE t1 (
-pk int NOT NULL PRIMARY KEY,
-j int NOT NULL,
-i int NOT NULL,
-v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
-INDEX i (i),
-INDEX vi (v,i)
-) ENGINE=ARIA;
-INSERT INTO t1 VALUES (10,3,8,'v'),(11,3,8,'f');
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_1024_latin1_key varchar(1024) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_1024_latin1_key (col_varchar_1024_latin1_key)
+) ENGINE=Aria;
+INSERT INTO t1 VALUES
+(1,'z'),
+(2,'abcdefjhjkl'),
+(3,'in'),
+(4,'abcdefjhjkl'),
+(6,'abcdefjhjkl');
 CREATE TABLE t2 (
-pk int NOT NULL PRIMARY KEY,
-j int  NOT NULL,
-i int  NOT NULL,
-v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
-INDEX i (i),
-INDEX vi (v,i)
-) ENGINE=ARIA;
-INSERT INTO t2 VALUES (10,9,3,'i'),(11,101,186,'x'),(12,0,1,'g');
-SET SESSION join_cache_level=0;
-EXPLAIN 
-SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
-WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
+col_varchar_10_latin1 varchar(10) DEFAULT NULL
+) ENGINE=Aria;
+INSERT INTO t2 VALUES ('foo'), ('foo');
+EXPLAIN SELECT count(*)
+FROM t1 AS table1, t2 AS table2
+WHERE
+table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	i	4	NULL	2	Using index
-1	SIMPLE	t2	index	i,vi	vi	7	NULL	3	Using where; Using index
-1	SIMPLE	t3	ALL	PRIMARY,vi	NULL	NULL	NULL	3	Range checked for each record (index map: 0x5)
-SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
-WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
-i	i	v	pk	v
-8	1	g	10	i
-8	1	g	11	x
-8	1	g	12	g
-8	3	i	10	i
-8	3	i	11	x
-8	1	g	10	i
-8	1	g	11	x
-8	1	g	12	g
-8	3	i	10	i
-8	3	i	11	x
-SET SESSION join_cache_level=1;
-EXPLAIN 
-SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
-WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	i	4	NULL	2	Using index
-1	SIMPLE	t2	index	i,vi	vi	7	NULL	3	Using where; Using index; Using join buffer (flat, BNL join)
-1	SIMPLE	t3	ALL	PRIMARY,vi	NULL	NULL	NULL	3	Range checked for each record (index map: 0x5)
-SELECT t1.i, t2.i, t2.v, t3.pk, t3.v FROM t1, t2, t2 t3
-WHERE t2.i != 0 AND t3.pk >= t2.i AND t3.v >= t2.v;
-i	i	v	pk	v
-8	3	i	10	i
-8	3	i	11	x
-8	3	i	10	i
-8	3	i	11	x
-8	1	g	10	i
-8	1	g	11	x
-8	1	g	12	g
-8	1	g	10	i
-8	1	g	11	x
-8	1	g	12	g
-SET SESSION join_cache_level=DEFAULT;
-DROP TABLE t1,t2;
-CREATE TABLE t1 (
-pk int NOT NULL PRIMARY KEY,
-j int NOT NULL,
-i int NOT NULL,
-v varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL,
-INDEX i (i)
-) ENGINE=ARIA;
-INSERT INTO t1 VALUES 
-(10,3,8,'v'),(11,3,8,'f'),(12,3,5,'v'),(13,2,8,'s'),(14,1,8,'a'),
-(15,0,6,'p'),(16,8,7,'z'),(17,5,2,'a'),(18,9,5,'h'),(19,5,7,'h'),
-(20,4,2,'v'),(21,2,9,'v'),(22,33,142,'b'),(23,5,3,'y'),(24,1,0,'v'),
-(25,9,3,'m'),(26,1,5,'z'),(27,3,9,'n'),(28,8,1,'d'),(29,231,107,'a');
-SET SESSION join_cache_level = 0;
-EXPLAIN
-SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	i	NULL	NULL	NULL	20	
-1	SIMPLE	s	ALL	PRIMARY,i	NULL	NULL	NULL	20	Range checked for each record (index map: 0x3)
-SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j;
-f
-142
-142
-107
-EXPLAIN
-SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	ALL	i	NULL	NULL	NULL	20	Using temporary; Using filesort
-1	SIMPLE	s	ALL	PRIMARY,i	NULL	NULL	NULL	20	Range checked for each record (index map: 0x3)
-SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f;
-f
-107
-142
-EXPLAIN
-SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f LIMIT 1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	s	ALL	PRIMARY,i	NULL	NULL	NULL	20	Using temporary; Using filesort
-1	SIMPLE	t	ALL	i	NULL	NULL	NULL	20	Using where
-SELECT s.i f FROM t1 t, t1 s WHERE s.i >= t.i AND s.pk < t.j GROUP BY f LIMIT 1;
-f
-107
-SET SESSION join_cache_level=DEFAULT;
-DROP TABLE t1;
+1	SIMPLE	table2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	table1	ref	PRIMARY,col_varchar_1024_latin1_key	col_varchar_1024_latin1_key	1027	test.table2.col_varchar_10_latin1	2	Using index condition(BKA); Using where; Using join buffer (flat, BKA join)
+SELECT count(*)
+FROM t1 AS table1, t2 AS table2
+WHERE
+table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
+count(*)
+0
+drop table t1, t2;
