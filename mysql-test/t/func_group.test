@@ -1097,6 +1097,26 @@ SELECT MAX((SELECT 1 FROM t1 ORDER BY @var LIMIT 1)) m FROM t1 t2, t1
 DROP TABLE t1;
 
 --echo #
+--echo #  Bug#58030 crash in Item_func_geometry_from_text::val_str
+--echo #
+
+--disable_result_log
+
+SELECT MAX(TIMESTAMP(RAND(0)));
+SELECT MIN(TIMESTAMP(RAND(0)));
+
+--echo #
+--echo #  Bug#58177 crash and valgrind warnings in decimal and protocol sending functions...
+--echo #
+
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+SELECT MIN(GET_LOCK('aaaaaaaaaaaaaaaaa',0) / '0b1111111111111111111111111111111111111111111111111111111111111111111111111' ^ (RAND()));
+
+--enable_result_log
+
+--echo #
 --echo End of 5.1 tests
 
 --echo #
