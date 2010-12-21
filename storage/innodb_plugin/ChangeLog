@@ -1,4 +1,10 @@
 2010-12-21	The InnoDB Team
+	* include/btr0cur.h, include/row0upd.h, btr/btr0cur.c,
+	row/row0umod.c, row/row0upd.c:
+	Fix Bug#55284 Double free of off-page columns due to lock wait
+	while updating PRIMARY KEY
+
+2010-12-21	The InnoDB Team
 
 	* include/data0data.h, include/data0data.ic, include/row0upd.h,
 	btr/btr0cur.c, row/row0purge.c, row/row0umod.c, row/row0upd.c,
