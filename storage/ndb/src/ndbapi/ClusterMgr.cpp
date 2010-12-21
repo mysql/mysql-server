@@ -217,75 +217,75 @@ ClusterMgr::doStop( ){
 void
 ClusterMgr::forceHB()
 {
-    theFacade.lock_mutex();
+  theFacade.lock_mutex();
 
-    if(waitingForHB)
-    {
-      NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
-      theFacade.unlock_mutex();
-      return;
-    }
-
-    waitingForHB= true;
-
-    NodeBitmask ndb_nodes;
-    ndb_nodes.clear();
-    waitForHBFromNodes.clear();
-    for(Uint32 i = 1; i < MAX_NDB_NODES; i++)
-    {
-      const trp_node &node= getNodeInfo(i);
-      if(!node.defined)
-        continue;
-      if(node.m_info.getType() == NodeInfo::DB)
-      {
-        ndb_nodes.set(i);
-        waitForHBFromNodes.bitOR(node.m_state.m_connected_nodes);
-      }
-    }
-    waitForHBFromNodes.bitAND(ndb_nodes);
+  if(waitingForHB)
+  {
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
     theFacade.unlock_mutex();
+    return;
+  }
 
-#ifdef DEBUG_REG
-    char buf[128];
-    ndbout << "Waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
-#endif
-    NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
+  waitingForHB= true;
 
-    signal.theVerId_signalNumber   = GSN_API_REGREQ;
-    signal.theReceiversBlockNumber = QMGR;
-    signal.theTrace                = 0;
-    signal.theLength               = ApiRegReq::SignalLength;
-
-    ApiRegReq * req = CAST_PTR(ApiRegReq, signal.getDataPtrSend());
-    req->ref = numberToRef(API_CLUSTERMGR, theFacade.ownId());
-    req->version = NDB_VERSION;
-    req->mysql_version = NDB_MYSQL_VERSION_D;
-
+  NodeBitmask ndb_nodes;
+  ndb_nodes.clear();
+  waitForHBFromNodes.clear();
+  for(Uint32 i = 1; i < MAX_NDB_NODES; i++)
+  {
+    const trp_node &node= getNodeInfo(i);
+    if(!node.defined)
+      continue;
+    if(node.m_info.getType() == NodeInfo::DB)
     {
-      Guard g(clusterMgrThreadMutex);
-      lock();
-      int nodeId= 0;
-      for(int i=0;
-          (int) NodeBitmask::NotFound != (nodeId= waitForHBFromNodes.find(i));
-          i= nodeId+1)
-      {
-#ifdef DEBUG_REG
-        ndbout << "FORCE HB to " << nodeId << endl;
-#endif
-        raw_sendSignal(&signal, nodeId);
-      }
-      unlock();
+      ndb_nodes.set(i);
+      waitForHBFromNodes.bitOR(node.m_state.m_connected_nodes);
     }
-    /* Wait for nodes to reply - if any heartbeats was sent */
-    theFacade.lock_mutex();
-    if (!waitForHBFromNodes.isclear())
-      NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+  }
+  waitForHBFromNodes.bitAND(ndb_nodes);
+  theFacade.unlock_mutex();
 
-    waitingForHB= false;
 #ifdef DEBUG_REG
-    ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
+  char buf[128];
+  ndbout << "Waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
 #endif
-    theFacade.unlock_mutex();
+  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
+
+  signal.theVerId_signalNumber   = GSN_API_REGREQ;
+  signal.theReceiversBlockNumber = QMGR;
+  signal.theTrace                = 0;
+  signal.theLength               = ApiRegReq::SignalLength;
+
+  ApiRegReq * req = CAST_PTR(ApiRegReq, signal.getDataPtrSend());
+  req->ref = numberToRef(API_CLUSTERMGR, theFacade.ownId());
+  req->version = NDB_VERSION;
+  req->mysql_version = NDB_MYSQL_VERSION_D;
+
+  {
+    Guard g(clusterMgrThreadMutex);
+    lock();
+    int nodeId= 0;
+    for(int i=0;
+        (int) NodeBitmask::NotFound != (nodeId= waitForHBFromNodes.find(i));
+        i= nodeId+1)
+    {
+#ifdef DEBUG_REG
+      ndbout << "FORCE HB to " << nodeId << endl;
+#endif
+      raw_sendSignal(&signal, nodeId);
+    }
+    unlock();
+  }
+  /* Wait for nodes to reply - if any heartbeats was sent */
+  theFacade.lock_mutex();
+  if (!waitForHBFromNodes.isclear())
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+
+  waitingForHB= false;
+#ifdef DEBUG_REG
+  ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
+#endif
+  theFacade.unlock_mutex();
 }
 
 void
