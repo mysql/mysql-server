@@ -370,7 +370,7 @@ ClusterMgr::threadMain( ){
 	 * It is now time to send a new Heartbeat
 	 */
 	if (theNode.hbCounter >= theNode.hbFrequency) {
-	  theNode.m_info.m_heartbeat_cnt++;
+	  theNode.hbMissed++;
 	  theNode.hbCounter = 0;
 	}
 
@@ -385,7 +385,7 @@ ClusterMgr::threadMain( ){
 	raw_sendSignal(&signal, nodeId);
       }//if
       
-      if (theNode.m_info.m_heartbeat_cnt == 4 && theNode.hbFrequency > 0){
+      if (theNode.hbMissed == 4 && theNode.hbFrequency > 0){
 	reportNodeFailed(i);
       }//if
     }
@@ -675,7 +675,7 @@ ClusterMgr::execAPI_REGCONF(const Uint32 * theData){
   } else {
     set_node_alive(node, false);
   }//if
-  node.m_info.m_heartbeat_cnt = 0;
+  node.hbMissed = 0;
   node.hbCounter = 0;
 
   check_wait_for_hb(nodeId);
@@ -774,7 +774,7 @@ ClusterMgr::reportConnected(NodeId nodeId){
 
   Node & theNode = theNodes[nodeId];
   theNode.set_connected(true);
-  theNode.m_info.m_heartbeat_cnt = 0;
+  theNode.hbMissed = 0;
   theNode.hbCounter = 0;
 
   /**
