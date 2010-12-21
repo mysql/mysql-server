@@ -1310,13 +1310,33 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     ndbrequire(cmaxLogFilesInPageZero);
   }
 
-  Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
-  Uint64 limit = totalmb / 3;
-  ndbrequire(limit < Uint64(0xFFFFFFFF));
-  // If less than 33% of REDO free, force LCP
-  c_free_mb_force_lcp_limit = Uint32(limit); 
-  c_free_mb_tail_problem_limit = 4;  // If less than 4Mb set TAIL_PROBLEM
+  {
+    Uint32 config_val = 20;
+    ndb_mgm_get_int_parameter(p, CFG_DB_LCP_INTERVAL, &config_val);
+    config_val = config_val > 31 ? 31 : config_val;
 
+    const Uint32 mb = 1024 * 1024;
+    
+    // perform LCP after this amout of mbytes written
+    const Uint64 config_mbytes = ((Uint64(4) << config_val) + mb - 1) / mb;
+    const Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
+    if (totalmb > config_mbytes)
+    {
+      c_free_mb_force_lcp_limit = totalmb - config_mbytes;
+    }
+    else
+    {
+      c_free_mb_force_lcp_limit = 0;
+    }
+
+    // No less than 33%
+    Uint32 limit = Uint32(totalmb / 3);
+    if (c_free_mb_force_lcp_limit < limit)
+    {
+      c_free_mb_force_lcp_limit = limit;
+    }
+  }
+  c_free_mb_tail_problem_limit = 4;  // If less than 4Mb set TAIL_PROBLEM
 
   ndb_mgm_get_int_parameter(p, CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, 
                             &cTransactionDeadlockDetectionTimeout);
