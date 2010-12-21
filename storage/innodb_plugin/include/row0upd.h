@@ -286,10 +286,13 @@ row_upd_changes_ord_field_binary(
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
+	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+				stored columns in the old row */
 	dict_index_t*	index,	/*!< in: index of the record */
-	const upd_t*	update);/*!< in: update vector for the row; NOTE: the
+	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
 				field numbers in this MUST be clustered index
 				positions! */
+	__attribute__((nonnull(3,4), warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
