@@ -1112,7 +1112,7 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
      (ulonglong2double(rowids_size) + key_buff_elem_size));
 
   ptrdiff_t bytes_for_rowids= 
-    (ptrdiff_t)round(fraction_for_rowids * (full_buf_end - full_buf));
+    (ptrdiff_t)floor(0.5 + fraction_for_rowids * (full_buf_end - full_buf));
   
   ptrdiff_t bytes_for_keys= (full_buf_end - full_buf) - bytes_for_rowids;
 
