@@ -22,6 +22,9 @@
 #include <kernel/NodeInfo.hpp>
 #include <kernel/NodeState.hpp>
 
+class NdbOut;
+NdbOut& operator<<(NdbOut&, const struct trp_node&);
+
 struct trp_node
 {
   trp_node();
@@ -58,9 +61,13 @@ struct trp_node
     return confirmed;
   }
 
+  bool operator==(const trp_node& other) const;
+
 private:
   bool m_connected;     // Transporter connected
   bool m_api_reg_conf;// API_REGCONF has arrived
+
+  friend NdbOut& operator<<(NdbOut&, const trp_node&);
 };
 
 #endif
