@@ -23,11 +23,15 @@ import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.DynamicObject;
+import com.mysql.clusterj.ColumnMetadata;
+import com.mysql.clusterj.DynamicObjectDelegate;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
 
 import com.mysql.clusterj.core.CacheManager;
 
+import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
@@ -59,6 +63,9 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     /** The domain class. */
     Class<T> cls;
 
+    /** Dynamic class indicator */
+    boolean dynamic = false;
+
     /** The methods of the properties. */
     private Map<String, Method> unmatchedGetMethods = new HashMap<String, Method>();
     private Map<String, Method> unmatchedSetMethods = new HashMap<String, Method>();
@@ -84,19 +91,24 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
      */
     @SuppressWarnings( "unchecked" )
     public DomainTypeHandlerImpl(Class<T> cls, Dictionary dictionary) {
-        if (logger.isDebugEnabled()) logger.debug("New DomainTypeHandlerImpl for class " + cls.getName());
         this.cls = cls;
         this.name = cls.getName();
-        // Create a proxy class for the domain class
-        proxyClass = (Class<T>)Proxy.getProxyClass(
-                cls.getClassLoader(), new Class[]{cls});
-        ctor = getConstructorForInvocationHandler (proxyClass);
-        persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
-        if (persistenceCapable == null) {
-            throw new ClusterJUserException(local.message(
-                    "ERR_No_Persistence_Capable_Annotation", name));
+        this.dynamic = DynamicObject.class.isAssignableFrom(cls);
+        if (dynamic) {
+            // Dynamic object has a handler but no proxy
+            this.tableName = getTableNameForDynamicObject((Class<DynamicObject>)cls);
+        } else {
+            // Create a proxy class for the domain class
+            proxyClass = (Class<T>)Proxy.getProxyClass(
+                    cls.getClassLoader(), new Class[]{cls});
+            ctor = getConstructorForInvocationHandler (proxyClass);
+            persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
+            if (persistenceCapable == null) {
+                throw new ClusterJUserException(local.message(
+                        "ERR_No_Persistence_Capable_Annotation", name));
+            }
+            this.tableName = persistenceCapable.table();
         }
-        tableName = persistenceCapable.table();
         this.table = getTable(dictionary);
         if (table == null) {
             throw new ClusterJUserException(local.message("ERR_Get_NdbTable", name, tableName));
@@ -132,76 +144,95 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             indexHandlerImpls.add(imd);
         }
 
-        // Now iterate the fields in the class
-        List<String> fieldNameList = new ArrayList<String>();
-        Method[] methods = cls.getMethods();
-        for (Method method: methods) {
-            // remember get methods
-            String methodName = method.getName();
-            String name = convertMethodName(methodName);
-            Class type = getType(method);
-            DomainFieldHandlerImpl domainFieldHandler = null;
-            if (methodName.startsWith("get")) {
-                Method unmatched = unmatchedSetMethods.get(name);
-                if (unmatched == null) {
-                    // get is first of the pair; put it into the unmatched map
-                    unmatchedGetMethods.put(name, method);
-                } else {
-                    // found the potential match
-                    if (getType(unmatched).equals(type)) {
-                        // method names and types match
-                        unmatchedSetMethods.remove(name);
-                        domainFieldHandler = new DomainFieldHandlerImpl(this, table,
-                                numberOfFields++, name, type, method, unmatched);
-                    } else {
-                        // both unmatched because of type mismatch
-                        unmatchedGetMethods.put(name, method);
-                    }
-                }
-            } else if (methodName.startsWith("set")) {
-                Method unmatched = unmatchedGetMethods.get(name);
-                if (unmatched == null) {
-                    // set is first of the pair; put it into the unmatched map
-                    unmatchedSetMethods.put(name, method);
-                } else {
-                    // found the potential match
-                    if (getType(unmatched).equals(type)) {
-                        // method names and types match
-                        unmatchedGetMethods.remove(name);
-                        domainFieldHandler = new DomainFieldHandlerImpl(this, table,
-                                numberOfFields++, name, type, unmatched, method);
-                    } else {
-                        // both unmatched because of type mismatch
-                        unmatchedSetMethods.put(name, method);
-                    }
-                }
-            }
-            if (domainFieldHandler != null) {
-                // found matching methods
-                // set up field name to number map
+        if (dynamic) {
+            // for each column in the database, create a field
+            List<String> fieldNameList = new ArrayList<String>();
+            for (String columnName: table.getColumnNames()) {
+                Column storeColumn = table.getColumn(columnName);
+                DomainFieldHandlerImpl domainFieldHandler = null;
+                domainFieldHandler = 
+                    new DomainFieldHandlerImpl(this, table, numberOfFields++, storeColumn);
                 String fieldName = domainFieldHandler.getName();
                 fieldNameList.add(fieldName);
                 fieldNameToNumber.put(domainFieldHandler.getName(), domainFieldHandler.getFieldNumber());
-                // put field into either persistent or not persistent list
-                if (domainFieldHandler.isPersistent()) {
-                    persistentFieldHandlers.add(domainFieldHandler);
-                    if (!domainFieldHandler.isPrimaryKey()) {
-                        nonPKFieldHandlers.add(domainFieldHandler);
-                    }
-                }
-                if (domainFieldHandler.isPrimitive()) {
-                    primitiveFieldHandlers.add(domainFieldHandler);
+                persistentFieldHandlers.add(domainFieldHandler);
+                if (!storeColumn.isPrimaryKey()) {
+                    nonPKFieldHandlers.add(domainFieldHandler);
                 }
             }
-        }
-        fieldNames = fieldNameList.toArray(new String[fieldNameList.size()]);
-        // done with methods; if anything in unmatched we have a problem
-        if ((!unmatchedGetMethods.isEmpty()) || (!unmatchedSetMethods.isEmpty())) {
-            throw new ClusterJUserException(
-                    local.message("ERR_Unmatched_Methods", 
-                    unmatchedGetMethods, unmatchedSetMethods));
-        }
+            fieldNames = fieldNameList.toArray(new String[fieldNameList.size()]);
+        } else {
+            // Iterate the fields (names and types based on get/set methods) in the class
+            List<String> fieldNameList = new ArrayList<String>();
+            Method[] methods = cls.getMethods();
+            for (Method method: methods) {
+                // remember get methods
+                String methodName = method.getName();
+                String name = convertMethodName(methodName);
+                Class type = getType(method);
+                DomainFieldHandlerImpl domainFieldHandler = null;
+                if (methodName.startsWith("get")) {
+                    Method unmatched = unmatchedSetMethods.get(name);
+                    if (unmatched == null) {
+                        // get is first of the pair; put it into the unmatched map
+                        unmatchedGetMethods.put(name, method);
+                    } else {
+                        // found the potential match
+                        if (getType(unmatched).equals(type)) {
+                            // method names and types match
+                            unmatchedSetMethods.remove(name);
+                            domainFieldHandler = new DomainFieldHandlerImpl(this, table,
+                                    numberOfFields++, name, type, method, unmatched);
+                        } else {
+                            // both unmatched because of type mismatch
+                            unmatchedGetMethods.put(name, method);
+                        }
+                    }
+                } else if (methodName.startsWith("set")) {
+                    Method unmatched = unmatchedGetMethods.get(name);
+                    if (unmatched == null) {
+                        // set is first of the pair; put it into the unmatched map
+                        unmatchedSetMethods.put(name, method);
+                    } else {
+                        // found the potential match
+                        if (getType(unmatched).equals(type)) {
+                            // method names and types match
+                            unmatchedGetMethods.remove(name);
+                            domainFieldHandler = new DomainFieldHandlerImpl(this, table,
+                                    numberOfFields++, name, type, unmatched, method);
+                        } else {
+                            // both unmatched because of type mismatch
+                            unmatchedSetMethods.put(name, method);
+                        }
+                    }
+                }
+                if (domainFieldHandler != null) {
+                    // found matching methods
+                    // set up field name to number map
+                    String fieldName = domainFieldHandler.getName();
+                    fieldNameList.add(fieldName);
+                    fieldNameToNumber.put(domainFieldHandler.getName(), domainFieldHandler.getFieldNumber());
+                    // put field into either persistent or not persistent list
+                    if (domainFieldHandler.isPersistent()) {
+                        persistentFieldHandlers.add(domainFieldHandler);
+                        if (!domainFieldHandler.isPrimaryKey()) {
+                            nonPKFieldHandlers.add(domainFieldHandler);
+                        }
+                    }
+                    if (domainFieldHandler.isPrimitive()) {
+                        primitiveFieldHandlers.add(domainFieldHandler);
+                    }
+                }
+            }
+            fieldNames = fieldNameList.toArray(new String[fieldNameList.size()]);
+            // done with methods; if anything in unmatched we have a problem
+            if ((!unmatchedGetMethods.isEmpty()) || (!unmatchedSetMethods.isEmpty())) {
+                throw new ClusterJUserException(
+                        local.message("ERR_Unmatched_Methods", 
+                        unmatchedGetMethods, unmatchedSetMethods));
+            }
 
+        }
         // Check that all index columnNames have corresponding fields
         // indexes without fields will be unusable for query
         for (IndexHandlerImpl indexHandler:indexHandlerImpls) {
@@ -214,6 +245,24 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
         }
     }
 
+    protected <O extends DynamicObject> String getTableNameForDynamicObject(Class<O> cls) {
+        DynamicObject dynamicObject;
+        String tableName;
+        try {
+            dynamicObject = cls.newInstance();
+            tableName = dynamicObject.tableName();
+        } catch (InstantiationException e) {
+            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Instantiation", cls.getName()), e);
+        } catch (IllegalAccessException e) {
+            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Illegal_Access", cls.getName()), e);
+        }
+        if (tableName == null) {
+            throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Null_Table_Name",
+                    cls.getName()));
+        }
+        return tableName;
+    }
+
     /** Is this type supported? */
     public boolean isSupportedType() {
         // if unsupported, throw an exception
@@ -224,6 +273,8 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             throws IllegalArgumentException {
         if (instance instanceof ValueHandler) {
             return (ValueHandler)instance;
+        } else if (instance instanceof DynamicObject) {
+            return (ValueHandler)((DynamicObject)instance).delegate();
         } else {
             ValueHandler handler = (ValueHandler)
                     Proxy.getInvocationHandler(instance);
@@ -284,11 +335,17 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
     }
 
     public T newInstance() {
+        T instance;
         try {
             InvocationHandlerImpl<T> handler = new InvocationHandlerImpl<T>(this);
-            T proxy = ctor.newInstance(new Object[] {handler});
-            handler.setProxy(proxy);
-            return proxy;
+            if (dynamic) {
+                instance = cls.newInstance();
+                ((DynamicObject)instance).delegate((DynamicObjectDelegate)handler);
+            } else {
+                instance = ctor.newInstance(new Object[] {handler});
+                handler.setProxy(instance);
+            }
+            return instance;
         } catch (InstantiationException ex) {
             throw new ClusterJException(
                     local.message("ERR_Create_Instance", cls.getName()), ex);
@@ -429,6 +486,11 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     public Class<?> getOidClass() {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
+    protected ColumnMetadata[] columnMetadata() {
+        ColumnMetadata[] result = new ColumnMetadata[numberOfFields];
+        return persistentFieldHandlers.toArray(result);
     }
 
 }

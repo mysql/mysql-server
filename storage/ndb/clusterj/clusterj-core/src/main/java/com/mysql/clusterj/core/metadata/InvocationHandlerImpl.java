@@ -21,6 +21,8 @@ package com.mysql.clusterj.core.metadata;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.ColumnMetadata;
+import com.mysql.clusterj.DynamicObjectDelegate;
 
 import com.mysql.clusterj.core.CacheManager;
 import com.mysql.clusterj.core.StateManager;
@@ -44,7 +46,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class InvocationHandlerImpl<T> implements InvocationHandler,
-        StateManager, ValueHandler {
+        StateManager, ValueHandler, DynamicObjectDelegate {
 
     /** My message translator */
     static final I18NHelper local = I18NHelper.getInstance(InvocationHandlerImpl.class);
@@ -439,6 +441,18 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
 
     public void setJavaSqlTimestamp(int fieldNumber, java.sql.Timestamp value) {
         properties[fieldNumber] = value;
+    }
+
+    public Object get(int columnNumber) {
+        return properties[columnNumber];
+    }
+
+    public void set(int columnNumber, Object value) {
+        properties[columnNumber] = value;
+    }
+
+    public ColumnMetadata[] columnMetadata() {
+        return domainTypeHandler.columnMetadata();
     }
 
 }

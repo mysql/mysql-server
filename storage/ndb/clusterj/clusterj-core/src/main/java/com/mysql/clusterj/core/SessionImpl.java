@@ -260,16 +260,34 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         return instance;
     }
 
-    /** Make an instance persistent.
+    /** Make an instance persistent. Also recursively make an iterable collection or array persistent.
      * 
-     * @param object the instance
+     * @param object the instance or array or iterable collection of instances
      * @return the instance
      */
     public <T> T makePersistent(T object) {
         if (object == null) {
             return null;
         }
-        DomainTypeHandler domainTypeHandler = getDomainTypeHandler(object);
+        if (Iterable.class.isAssignableFrom(object.getClass())) {
+            startAutoTransaction();
+            Iterable<?> instances = (Iterable<?>)object;
+            for (Object instance:instances) {
+                makePersistent(instance);
+            }
+            endAutoTransaction();
+            return object;
+        }
+        if (object.getClass().isArray()) {
+            startAutoTransaction();
+            Object[] instances = (Object[])object;
+            for (Object instance:instances) {
+                makePersistent(instance);
+            }
+            endAutoTransaction();
+            return object;
+        }
+        DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(object);
         ValueHandler valueHandler = domainTypeHandler.getValueHandler(object);
         insert(domainTypeHandler, valueHandler);
         return object;

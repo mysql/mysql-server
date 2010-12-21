@@ -18,7 +18,6 @@
 
 package com.mysql.clusterj.core.metadata;
 
-import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJUserException;
@@ -47,7 +46,7 @@ import java.math.BigInteger;
  * type-specific handlers for Ndb operations.
  * 
  */
-public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl implements DomainFieldHandler {
+public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
 
     /** The NullValue setting of the column from the Persistent annotation. */
     NullValue nullValue = NullValue.NONE;
@@ -70,6 +69,9 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
     /** The Column annotation on the get method. */
     protected Column columnAnnotation = null;
 
+    /** The AllowsNull annotation */
+    protected String columnAllowsNull;
+
     /** Lob annotation is not null if annotated with @Lob. */
     protected Lob lobAnnotation;
 
@@ -83,6 +85,16 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
         return compareTo((DomainFieldHandlerImpl)other);
     }
 
+    /** Create a domain field handler for annotated interfaces.
+     * 
+     * @param domainTypeHandler the domain type handler
+     * @param table the table
+     * @param fieldNumber the field number (in schema definition order)
+     * @param name the field name
+     * @param type the java type
+     * @param getMethod the get method for the field
+     * @param setMethod the set method for the field
+     */
     public DomainFieldHandlerImpl(DomainTypeHandlerImpl<?> domainTypeHandler, Table table,
             int fieldNumber, String name, Class<?> type,
             Method getMethod, Method setMethod) {
@@ -136,13 +148,11 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
                 throw new ClusterJUserException(local.message("ERR_No_Column",
                         name, table.getName(), columnName));
             }
-            storeColumnType = storeColumn.getType();
-            charsetName = storeColumn.getCharsetName();
+            initializeColumnMetadata(storeColumn);
             if (logger.isDebugEnabled())
                 logger.debug("Column type for " + name + " is "
                         + storeColumnType.toString() + "; charset name is "
                         + charsetName);
-            primaryKey = storeColumn.isPrimaryKey();
             domainTypeHandler.registerPrimaryKeyColumn(this, columnName);
             lobAnnotation = getMethod.getAnnotation(Lob.class);
         }
@@ -205,7 +215,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
             } else if (type.equals(Long.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
             } else if (type.equals(Short.class)) {
-                if (com.mysql.clusterj.core.store.Column.Type.Year.equals(storeColumnType)) {
+                if (Type.Year.equals(storeColumnType)) {
                     objectOperationHandlerDelegate = objectOperationHandlerObjectShortYear;
                 } else {
                     objectOperationHandlerDelegate = objectOperationHandlerObjectShort;
@@ -217,7 +227,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
             } else if (type.equals(long.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerLong;
             } else if (type.equals(short.class)) {
-                if (com.mysql.clusterj.core.store.Column.Type.Year.equals(storeColumnType)) {
+                if (Type.Year.equals(storeColumnType)) {
                     objectOperationHandlerDelegate = objectOperationHandlerShortYear;
                 } else {
                     objectOperationHandlerDelegate = objectOperationHandlerShort;
@@ -247,6 +257,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
         // Handle indexes. One index can be annotated on this field.
         // Other indexes including the column mapped to this field
         // are annotated on the class.
+        // TODO: indexes are ignored since they are handled by reading the column metadata
         indexAnnotation = getMethod.getAnnotation(
                 com.mysql.clusterj.annotation.Index.class);
         String indexName = null;
@@ -257,10 +268,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
                         local.message("ERR_Index_Annotation_Columns", domainTypeHandler.getName(), name));
             }
         }
-        indices = domainTypeHandler.registerIndices(this, columnName);
-        indexNames = domainTypeHandler.getIndexNames(indices);
-        logger.debug("Index names for " + name + " are " + indexNames);
-        logger.debug("Indices for " + name + " are " + printIndices());
+        registerIndices(domainTypeHandler);
 
         persistentAnnotation = getMethod.getAnnotation(Persistent.class);
         if (persistentAnnotation != null) {
@@ -289,8 +297,172 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
         reportErrors();
     }
 
+    /** Create a domain field handler for dynamic objects.
+     * 
+     * @param domainTypeHandler the domain type handler
+     * @param table the table
+     * @param i the field number
+     * @param storeColumn the store column definition
+     */
+    public DomainFieldHandlerImpl(
+            DomainTypeHandlerImpl<?> domainTypeHandler, Table table, int i,
+            com.mysql.clusterj.core.store.Column storeColumn) {
+        if (logger.isDebugEnabled()) logger.debug("new dynamic DomainFieldHandlerImpl: " +
+                "fieldNumber: " + fieldNumber + "; name:" + name);
+        this.domainTypeHandler = domainTypeHandler;
+        this.fieldNumber = i;
+        this.storeColumn = storeColumn;
+        initializeColumnMetadata(storeColumn);
+        this.name = this.columnName;
+        this.columnNames = new String[]{columnName};
+        if (primaryKey) {
+            domainTypeHandler.registerPrimaryKeyColumn(this, columnName);
+            switch (this.storeColumnType) {
+                case Int:
+                case Unsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerKeyInt;
+                    this.type = Integer.class;
+                    break;
+                case Char:
+                case Varchar:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerKeyString;
+                    this.type = String.class;
+                    break;
+                case Bigint:
+                case Bigunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
+                    this.type = Long.class;
+                    break;
+                default:
+                    error(local.message("ERR_Primary_Field_Type", name));
+                }
+        } else {
+            switch (this.storeColumnType) {
+                case Bigint:
+                case Bigunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
+                    this.type = Long.class;
+                    break;
+                case Binary:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerBytes;
+                    this.type = byte[].class;
+                    break;
+                case Bit:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
+                    this.type = Long.class;
+                    break;
+                case Blob:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerBytesLob;
+                    this.type = byte[].class;
+                    break;
+                case Char:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerString;
+                    this.type = String.class;
+                    break;
+                case Date:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlDate;
+                    this.type = java.sql.Date.class;
+                    break;
+                case Datetime:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlTimestamp;
+                    this.type = java.sql.Timestamp.class;
+                    break;
+                case Decimal:
+                case Decimalunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerDecimal;
+                    this.type = BigDecimal.class;
+                    break;
+                case Double:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectDouble;
+                    this.type = Double.class;
+                    break;
+                case Float:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectFloat;
+                    this.type = Float.class;
+                    break;
+                case Int:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
+                    this.type = Integer.class;
+                    break;
+                case Longvarbinary:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerBytes;
+                    this.type = byte[].class;
+                    break;
+                case Longvarchar:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerString;
+                    this.type = String.class;
+                    break;
+                case Mediumint:
+                case Mediumunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
+                    this.type = Integer.class;
+                    break;
+                case Olddecimal:
+                    error(local.message("ERR_Unsupported_Field_Type", "Olddecimal", name));
+                    objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
+                    break;
+                case Olddecimalunsigned:
+                    error(local.message("ERR_Unsupported_Field_Type", "Olddecimalunsigned", name));
+                    objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
+                    break;
+                case Smallint:
+                case Smallunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectShort;
+                    this.type = Short.class;
+                    break;
+                case Text:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerStringLob;
+                    this.type = String.class;
+                    break;
+                case Time:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlTime;
+                    this.type = java.sql.Time.class;
+                    break;
+                case Timestamp:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerJavaSqlTimestamp;
+                    this.type = java.sql.Timestamp.class;
+                    break;
+                case Tinyint:
+                case Tinyunsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectByte;
+                    this.type = Byte.class;
+                    break;
+                case Undefined:
+                    error(local.message("ERR_Unsupported_Field_Type", "Undefined"));
+                    objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
+                    break;
+                case Unsigned:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectInteger;
+                    this.type = Integer.class;
+                    break;
+                case Varbinary:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerBytes;
+                    this.type = byte[].class;
+                    break;
+                case Varchar:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerString;
+                    this.type = String.class;
+                    break;
+                case Year:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerObjectShortYear;
+                    this.type = Short.class;
+                    break;
+            }
+        }
+        nullValueDelegate = nullValueNONE;
+        registerIndices(domainTypeHandler);
+        reportErrors();
+    }
+
     public boolean isPersistent() {
         return notPersistentAnnotation == null;
+    }
+
+    protected void registerIndices(DomainTypeHandlerImpl<?> domainTypeHandler) {
+        this.indices = domainTypeHandler.registerIndices(this, columnName);
+        this.indexNames = domainTypeHandler.getIndexNames(indices);
+        if (logger.isDebugEnabled()) logger.debug("Index names for " + name + " are " + indexNames);
+        if (logger.isDebugEnabled()) logger.debug("Indices for " + name + " are " + printIndices());
     }
 
     @Override
