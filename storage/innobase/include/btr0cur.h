@@ -333,10 +333,14 @@ ulint
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
-	btr_cur_t*	cursor,	/*!< in: cursor */
+	buf_block_t*	block,	/*!< in/out: buffer block of the record */
+	rec_t*		rec,	/*!< in/out: record */
+	dict_index_t*	index,	/*!< in: clustered index of the record */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull));
 /***********************************************************//**
 Sets a secondary index record delete mark to TRUE or FALSE.
 @return	DB_SUCCESS, DB_LOCK_WAIT, or error number */
@@ -471,40 +475,22 @@ btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
 /*******************************************************************//**
-Marks not updated extern fields as not-owned by this record. The ownership
-is transferred to the updated record which is inserted elsewhere in the
+Marks non-updated off-page fields as disowned by this record. The ownership
+must be transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field.
-@return TRUE if BLOB ownership was transferred */
+to free the field. */
 UNIV_INTERN
-ibool
-btr_cur_mark_extern_inherited_fields(
-/*=================================*/
+void
+btr_cur_disown_inherited_fields(
+/*============================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
 				part will be updated, or NULL */
 	rec_t*		rec,	/*!< in/out: record in a clustered index */
 	dict_index_t*	index,	/*!< in: index of the page */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	const upd_t*	update,	/*!< in: update vector */
-	mtr_t*		mtr);	/*!< in: mtr, or NULL if not logged */
-/*******************************************************************//**
-The complement of the previous function: in an update entry may inherit
-some externally stored fields from a record. We must mark them as inherited
-in entry, so that they are not freed in a rollback. */
-UNIV_INTERN
-void
-btr_cur_mark_dtuple_inherited_extern(
-/*=================================*/
-	dtuple_t*	entry,		/*!< in/out: updated entry to be
-					inserted to clustered index */
-	const upd_t*	update);	/*!< in: update vector */
-/*******************************************************************//**
-Marks all extern fields in a dtuple as owned by the record. */
-UNIV_INTERN
-void
-btr_cur_unmark_dtuple_extern_fields(
-/*================================*/
-	dtuple_t*	entry);		/*!< in/out: clustered index entry */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull(2,3,4,5,6)));
 /*******************************************************************//**
 Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
