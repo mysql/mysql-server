@@ -3,6 +3,7 @@ include/master-slave.inc
 call mtr.add_suppression('Slave can not handle replication events with the checksum that master is configured to log');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
+call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process');
 set @master_save_binlog_checksum= @@global.binlog_checksum;
 set @save_master_verify_checksum =  @@global.master_verify_checksum;
 select @@global.binlog_checksum as 'must be CRC32 because of the command line option';
