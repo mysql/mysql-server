@@ -248,7 +248,7 @@ public:
     representation of a TIMESTAMP argument verbatim, and thus does not depend on
     the timezone.
    */
-  virtual bool is_arguments_valid_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return has_timestamp_args();
   }

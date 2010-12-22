@@ -70,7 +70,7 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -90,7 +90,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -119,7 +119,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -152,7 +152,7 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -172,7 +172,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
   }
@@ -192,7 +192,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
   }
@@ -212,7 +212,7 @@ public:
      maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -232,7 +232,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
   }
@@ -266,7 +266,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -288,7 +288,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -322,7 +322,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_date_args();
   }
@@ -355,7 +355,7 @@ public:
     (and thus may not be used as a partitioning function)
     when its argument is NOT of the TIMESTAMP type.
   */
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_timestamp_args();
   }
@@ -380,7 +380,7 @@ public:
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
   }
@@ -637,7 +637,7 @@ public:
   const char *func_name() const { return "from_days"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return has_date_args() || has_time_args();
   }
@@ -767,7 +767,7 @@ class Item_extract :public Item_int_func
   bool eq(const Item *item, bool binary_cmp) const;
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     switch (int_type) {
     case INTERVAL_YEAR:
@@ -1053,7 +1053,7 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
-  bool is_arguments_valid_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_time_args();
   }
