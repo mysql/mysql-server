@@ -8,6 +8,7 @@ call mtr.add_suppression('Found invalid event in binary log');
 call mtr.add_suppression('Slave I/O: Relay log write failure: could not queue event from master');
 call mtr.add_suppression('event read from binlog did not pass crc check');
 call mtr.add_suppression('Replication event checksum verification failed');
+call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
 SET @old_master_verify_checksum = @@master_verify_checksum;
 # 1. Creating test table/data and set corruption position for testing
 * insert/update/delete rows in table t1 *

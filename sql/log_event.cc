@@ -1303,6 +1303,8 @@ err:
       enough to stop the SQL thread now ; as we are skipping the current event,
       going on with reading and successfully executing other events can
       only corrupt the slave's databases. So stop.
+      The file->error is also checked to record the position of
+      the last valid event when master server recovers.
     */
     file->error= -1;
   }
@@ -1375,20 +1377,15 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   if (crc_check &&
       event_checksum_test((uchar *) buf, event_len, alg))
   {
-#ifdef MYSQL_CLIENT
     *error= "Event crc check failed! Most likely there is event corruption.";
+#ifdef MYSQL_CLIENT
     if (force_opt)
     {
       ev= new Unknown_log_event(buf, description_event);
       DBUG_RETURN(ev);
     }
-    else
-      DBUG_RETURN(NULL);
-#else
-    *error= ER(ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE);
-    sql_print_error("%s", ER(ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE));
-    DBUG_RETURN(NULL);
 #endif
+    DBUG_RETURN(NULL);
   }
 
   if (event_type > description_event->number_of_event_types &&

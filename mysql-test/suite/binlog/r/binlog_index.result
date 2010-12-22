@@ -147,5 +147,147 @@ master-bin.000011
 master-bin.000012
 master-bin.000013
 
+# Test case6: Set DEBUG POINT before rename index file when
+#             appending a binlog file name to index file.
+show binary logs;
+Log_name	File_size
+master-bin.000006	#
+master-bin.000007	#
+master-bin.000008	#
+master-bin.000009	#
+master-bin.000010	#
+master-bin.000011	#
+master-bin.000012	#
+master-bin.000013	#
+SET SESSION debug="+d,crash_create_before_rename_index_file";
+flush logs;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test if the index file has the correct data,
+# i.e. binlog file name is added.
+show binary logs;
+Log_name	File_size
+master-bin.000006	#
+master-bin.000007	#
+master-bin.000008	#
+master-bin.000009	#
+master-bin.000010	#
+master-bin.000011	#
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+# Test case7: Set DEBUG POINT after rename index file when
+#             appending a binlog file name to index file.
+SET SESSION debug="+d,crash_create_after_rename_index_file";
+flush logs;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test if the index file has the correct data,
+# i.e. binlog file name is added.
+show binary logs;
+Log_name	File_size
+master-bin.000006	#
+master-bin.000007	#
+master-bin.000008	#
+master-bin.000009	#
+master-bin.000010	#
+master-bin.000011	#
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+# Test case8: Set DEBUG POINT after rename index file when
+#             purging the index file.
+show binary logs;
+Log_name	File_size
+master-bin.000006	#
+master-bin.000007	#
+master-bin.000008	#
+master-bin.000009	#
+master-bin.000010	#
+master-bin.000011	#
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+SET SESSION debug="+d,crash_create_after_rename_index_file";
+purge binary logs TO 'master-bin.000010';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test if the index file has the correct data,
+# i.e. requested binlog file names are removed.
+show binary logs;
+Log_name	File_size
+master-bin.000010	#
+master-bin.000011	#
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+# Test case9: Set DEBUG POINT befor rename index file when
+#             purging the index file.
+show binary logs;
+Log_name	File_size
+master-bin.000010	#
+master-bin.000011	#
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+SET SESSION debug="+d,crash_create_before_rename_index_file";
+purge binary logs TO 'master-bin.000012';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test if the index file has the correct data,
+# i.e. requested binlog file names are removed.
+show binary logs;
+Log_name	File_size
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+master-bin.000019	#
+# Test case10: Inject a fault to copy part content to the temp file
+#              when purging the index file.
+show binary logs;
+Log_name	File_size
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+master-bin.000019	#
+SET SESSION debug="+d,fault_injection_copy_part_file";
+purge binary logs TO 'master-bin.000014';
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test the index file is complete, although is not purged successfully.
+show binary logs;
+Log_name	File_size
+master-bin.000012	#
+master-bin.000013	#
+master-bin.000014	#
+master-bin.000015	#
+master-bin.000016	#
+master-bin.000017	#
+master-bin.000018	#
+master-bin.000019	#
+master-bin.000020	#
 SET SESSION debug="";
 End of tests

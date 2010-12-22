@@ -1141,58 +1141,51 @@ int query_error_code(THD *thd, bool not_killed)
 
 
 /**
-  Move all data up in a file in an filename index file.
+  Copy content of 'from' file from offset to 'to' file.
 
-    We do the copy outside of the IO_CACHE as the cache buffers would just
-    make things slower and more complicated.
-    In most cases the copy loop should only do one read.
+  - We do the copy outside of the IO_CACHE as the cache
+  buffers would just make things slower and more complicated.
+  In most cases the copy loop should only do one read.
 
-  @param index_file			File to move
-  @param offset			Move everything from here to beginning
+  @param from          File to copy.
+  @param to            File to copy to.
+  @param offset        Offset in 'from' file.
 
-  @note
-    File will be truncated to be 'offset' shorter or filled up with newlines
 
   @retval
-    0	ok
+    0    ok
+  @retval
+    -1    error
 */
-
-#ifdef HAVE_REPLICATION
-
-static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
+static bool copy_file(IO_CACHE *from, IO_CACHE *to, my_off_t offset)
 {
   int bytes_read;
-  my_off_t init_offset= offset;
-  File file= index_file->file;
   uchar io_buf[IO_SIZE*2];
-  DBUG_ENTER("copy_up_file_and_fill");
+  DBUG_ENTER("copy_file");
 
-  for (;; offset+= bytes_read)
+  mysql_file_seek(from->file, offset, MY_SEEK_SET, MYF(0));
+  while(TRUE)
   {
-    mysql_file_seek(file, offset, MY_SEEK_SET, MYF(0));
-    if ((bytes_read= (int) mysql_file_read(file, io_buf, sizeof(io_buf),
+    if ((bytes_read= (int) mysql_file_read(from->file, io_buf, sizeof(io_buf),
                                            MYF(MY_WME)))
-	< 0)
+        < 0)
       goto err;
+    if (DBUG_EVALUATE_IF("fault_injection_copy_part_file", 1, 0))
+      bytes_read= bytes_read/2;
     if (!bytes_read)
-      break;					// end of file
-    mysql_file_seek(file, offset-init_offset, MY_SEEK_SET, MYF(0));
-    if (mysql_file_write(file, io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
+      break;                                    // end of file
+    if (mysql_file_write(to->file, io_buf, bytes_read, MYF(MY_WME | MY_NABP)))
       goto err;
   }
-  /* The following will either truncate the file or fill the end with \n' */
-  if (mysql_file_chsize(file, offset - init_offset, '\n', MYF(MY_WME)) ||
-      mysql_file_sync(file, MYF(MY_WME)))
-    goto err;
 
-  /* Reset data in old index cache */
-  reinit_io_cache(index_file, READ_CACHE, (my_off_t) 0, 0, 1);
   DBUG_RETURN(0);
 
 err:
   DBUG_RETURN(1);
 }
 
+
+#ifdef HAVE_REPLICATION
 /**
    Load data's io cache specific hook to be executed
    before a chunk of data is being read into the cache's buffer
@@ -1446,6 +1439,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
   index_file_name[0] = 0;
   bzero((char*) &index_file, sizeof(index_file));
   bzero((char*) &purge_index_file, sizeof(purge_index_file));
+  bzero((char*) &crash_safe_index_file, sizeof(crash_safe_index_file));
 }
 
 /* this is called only once */
@@ -1507,13 +1501,34 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   }
   fn_format(index_file_name, index_file_name_arg, mysql_data_home,
             ".index", opt);
+
+  if (set_crash_safe_index_file_name(index_file_name_arg))
+  {
+    sql_print_error("MYSQL_BIN_LOG::set_crash_safe_index_file_name failed.");
+    return TRUE;
+  }
+
+  /*
+    We need move crash_safe_index_file to index_file if the index_file
+    does not exist and crash_safe_index_file exists when mysqld server
+    restarts.
+  */
+  if (my_access(index_file_name, F_OK) &&
+      !my_access(crash_safe_index_file_name, F_OK) &&
+      my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
+  {
+    sql_print_error("MYSQL_BIN_LOG::open_index_file failed to "
+                    "move crash_safe_index_file to index file.");
+    return TRUE;
+  }
+
   if ((index_file_nr= mysql_file_open(key_file_binlog_index,
                                       index_file_name,
                                       O_RDWR | O_CREAT | O_BINARY,
                                       MYF(MY_WME))) < 0 ||
        mysql_file_sync(index_file_nr, MYF(MY_WME)) ||
        init_io_cache(&index_file, index_file_nr,
-                     IO_SIZE, WRITE_CACHE,
+                     IO_SIZE, READ_CACHE,
                      mysql_file_seek(index_file_nr, 0L, MY_SEEK_END, MYF(0)),
                                      0, MYF(MY_WME | MY_WAIT_IF_FULL)) ||
       DBUG_EVALUATE_IF("fault_injection_openning_index", 1, 0))
@@ -1714,18 +1729,15 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
 #endif
 
       DBUG_ASSERT(my_b_inited(&index_file) != 0);
-      reinit_io_cache(&index_file, WRITE_CACHE,
-                      my_b_filelength(&index_file), 0, 0);
+
       /*
-        As this is a new log file, we write the file name to the index
-        file. As every time we write to the index file, we sync it.
+        The new log file name is appended into crash safe index file after
+        all the content of index file is copyed into the crash safe index
+        file. Then move the crash safe index file to index file.
       */
       if (DBUG_EVALUATE_IF("fault_injection_updating_index", 1, 0) ||
-          my_b_write(&index_file, (uchar*) log_file_name,
-                     strlen(log_file_name)) ||
-          my_b_write(&index_file, (uchar*) "\n", 1) ||
-          flush_io_cache(&index_file) ||
-          mysql_file_sync(index_file.file, MYF(MY_WME)))
+          add_log_to_index((uchar*) log_file_name, strlen(log_file_name),
+                           need_mutex))
         goto err;
 
 #ifdef HAVE_REPLICATION
@@ -1761,6 +1773,135 @@ shutdown the MySQL server and restart it.", name, errno);
   DBUG_RETURN(1);
 }
 
+
+/**
+  Move crash safe index file to index file.
+
+  @param need_mutex    Set it to FALSE if its caller already has a
+                       lock on LOCK_index
+
+  @retval
+    0    ok
+  @retval
+    -1    error
+*/
+int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_mutex)
+{
+  int error= 0;
+  File fd= -1;
+  DBUG_ENTER("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file");
+
+  if (need_mutex)
+    mysql_mutex_lock(&LOCK_index);
+  mysql_mutex_assert_owner(&LOCK_index);
+
+  if (my_b_inited(&index_file))
+  {
+    end_io_cache(&index_file);
+    if (mysql_file_close(index_file.file, MYF(0)) < 0)
+    {
+      error= -1;
+      sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "
+                      "failed to close the index file.");
+      goto err;
+    }
+    mysql_file_delete(key_file_binlog_index, index_file_name, MYF(MY_WME));
+  }
+
+  DBUG_EXECUTE_IF("crash_create_before_rename_index_file", DBUG_SUICIDE(););
+  if (my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
+  {
+    error= -1;
+    sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "
+                    "failed to move crash_safe_index_file to index file.");
+    goto err;
+  }
+  DBUG_EXECUTE_IF("crash_create_after_rename_index_file", DBUG_SUICIDE(););
+
+  if ((fd= mysql_file_open(key_file_binlog_index,
+                           index_file_name,
+                           O_RDWR | O_CREAT | O_BINARY,
+                           MYF(MY_WME))) < 0 ||
+           mysql_file_sync(fd, MYF(MY_WME)) ||
+           init_io_cache(&index_file, fd, IO_SIZE, READ_CACHE,
+                         mysql_file_seek(fd, 0L, MY_SEEK_END, MYF(0)),
+                                         0, MYF(MY_WME | MY_WAIT_IF_FULL)))
+  {
+    error= -1;
+    sql_print_error("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file "
+                    "failed to open the index file.");
+    goto err;
+  }
+
+err:
+  if (need_mutex)
+    mysql_mutex_unlock(&LOCK_index);
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Append log file name to index file.
+
+  - To make crash safe, we copy all the content of index file
+  to crash safe index file firstly and then append the log
+  file name to the crash safe index file. Finally move the
+  crash safe index file to index file.
+
+  @retval
+    0   ok
+  @retval
+    -1   error
+*/
+int MYSQL_BIN_LOG::add_log_to_index(uchar* log_file_name,
+                                    int name_len, bool need_mutex)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::add_log_to_index");
+
+  if (open_crash_safe_index_file())
+  {
+    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
+                    "open the crash safe index file.");
+    goto err;
+  }
+
+  if (copy_file(&index_file, &crash_safe_index_file, 0))
+  {
+    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
+                    "copy index file to crash safe index file.");
+    goto err;
+  }
+
+  if (my_b_write(&crash_safe_index_file, log_file_name, name_len) ||
+      my_b_write(&crash_safe_index_file, (uchar*) "\n", 1) ||
+      flush_io_cache(&crash_safe_index_file) ||
+      mysql_file_sync(crash_safe_index_file.file, MYF(MY_WME)))
+  {
+    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
+                    "append log file name: %s, to crash "
+                    "safe index file.", log_file_name);
+    goto err;
+  }
+
+  if (close_crash_safe_index_file())
+  {
+    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
+                    "close the crash safe index file.");
+    goto err;
+  }
+
+  if (move_crash_safe_index_file_to_index_file(need_mutex))
+  {
+    sql_print_error("MYSQL_BIN_LOG::add_log_to_index failed to "
+                    "move crash safe index file to index file.");
+    goto err;
+  }
+
+  DBUG_RETURN(0);
+
+err:
+  DBUG_RETURN(-1);
+}
 
 int MYSQL_BIN_LOG::get_current_log(LOG_INFO* linfo)
 {
@@ -1855,7 +1996,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   mysql_mutex_assert_owner(&LOCK_index);
 
   /* As the file is flushed, we can't get an error here */
-  (void) reinit_io_cache(&index_file, READ_CACHE, (my_off_t) 0, 0, 0);
+  my_b_seek(&index_file, (my_off_t) 0);
 
   for (;;)
   {
@@ -1926,8 +2067,7 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock)
   mysql_mutex_assert_owner(&LOCK_index);
 
   /* As the file is flushed, we can't get an error here */
-  (void) reinit_io_cache(&index_file, READ_CACHE, linfo->index_file_offset, 0,
-			 0);
+  my_b_seek(&index_file, linfo->index_file_offset);
 
   linfo->index_file_start_offset= linfo->index_file_offset;
   if ((length=my_b_gets(&index_file, fname, FN_REFLEN)) <= 1)
@@ -2085,6 +2225,92 @@ err:
 
 
 /**
+  Set the name of crash safe index file.
+
+  @retval
+    0   ok
+  @retval
+    1   error
+*/
+int MYSQL_BIN_LOG::set_crash_safe_index_file_name(const char *base_file_name)
+{
+  int error= 0;
+  DBUG_ENTER("MYSQL_BIN_LOG::set_crash_safe_index_file_name");
+  if (fn_format(crash_safe_index_file_name, base_file_name, mysql_data_home,
+                ".index_crash_safe", MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH |
+                                         MY_REPLACE_EXT)) == NULL)
+  {
+    error= 1;
+    sql_print_error("MYSQL_BIN_LOG::set_crash_safe_index_file_name failed "
+                    "to set file name.");
+  }
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Open a (new) crash safe index file.
+
+  @note
+    The crash safe index file is a special file
+    used for guaranteeing index file crash safe.
+  @retval
+    0   ok
+  @retval
+    1   error
+*/
+int MYSQL_BIN_LOG::open_crash_safe_index_file()
+{
+  int error= 0;
+  File file= -1;
+
+  DBUG_ENTER("MYSQL_BIN_LOG::open_crash_safe_index_file");
+
+  if (!my_b_inited(&crash_safe_index_file))
+  {
+    if ((file= my_open(crash_safe_index_file_name, O_RDWR | O_CREAT | O_BINARY,
+                       MYF(MY_WME | ME_WAITTANG))) < 0  ||
+        init_io_cache(&crash_safe_index_file, file, IO_SIZE, WRITE_CACHE,
+                      0, 0, MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
+    {
+      error= 1;
+      sql_print_error("MYSQL_BIN_LOG::open_crash_safe_index_file failed "
+                      "to open temporary index file.");
+    }
+  }
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Close the crash safe index file.
+
+  @note
+    The crash safe file is just closed, is not deleted.
+    Because it is moved to index file later on.
+  @retval
+    0   ok
+  @retval
+    1   error
+*/
+int MYSQL_BIN_LOG::close_crash_safe_index_file()
+{
+  int error= 0;
+
+  DBUG_ENTER("MYSQL_BIN_LOG::close_crash_safe_index_file");
+
+  if (my_b_inited(&crash_safe_index_file))
+  {
+    end_io_cache(&crash_safe_index_file);
+    error= my_close(crash_safe_index_file.file, MYF(0));
+  }
+  bzero((char*) &crash_safe_index_file, sizeof(crash_safe_index_file));
+
+  DBUG_RETURN(error);
+}
+
+
+/**
   Delete relay log files prior to rli->group_relay_log_name
   (i.e. all logs which are not involved in a non-finished group
   (transaction)), remove them from the index file and start on next
@@ -2219,19 +2445,67 @@ err:
   DBUG_RETURN(error);
 }
 
-/**
-  Update log index_file.
-*/
 
-int MYSQL_BIN_LOG::update_log_index(LOG_INFO* log_info, bool need_update_threads)
+/**
+  Remove logs from index file.
+
+  - To make crash safe, we copy the content of index file
+  from index_file_start_offset recored in log_info to
+  crash safe index file firstly and then move the crash
+  safe index file to index file.
+
+  @param linfo                  Store here the found log file name and
+                                position to the NEXT log file name in
+                                the index file.
+
+  @param need_update_threads    If we want to update the log coordinates
+                                of all threads. False for relay logs,
+                                true otherwise.
+
+  @retval
+    0    ok
+  @retval
+    LOG_INFO_IO    Got IO error while reading/writing file
+*/
+int MYSQL_BIN_LOG::remove_logs_from_index(LOG_INFO* log_info, bool need_update_threads)
 {
-  if (copy_up_file_and_fill(&index_file, log_info->index_file_start_offset))
-    return LOG_INFO_IO;
+  if (open_crash_safe_index_file())
+  {
+    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
+                    "open the crash safe index file.");
+    goto err;
+  }
+
+  if (copy_file(&index_file, &crash_safe_index_file,
+                log_info->index_file_start_offset))
+  {
+    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
+                    "copy index file to crash safe index file.");
+    goto err;
+  }
+
+  if (close_crash_safe_index_file())
+  {
+    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
+                    "close the crash safe index file.");
+    goto err;
+  }
+  DBUG_EXECUTE_IF("fault_injection_copy_part_file", DBUG_SUICIDE(););
+
+  if (move_crash_safe_index_file_to_index_file(FALSE))
+  {
+    sql_print_error("MYSQL_BIN_LOG::remove_logs_from_index failed to "
+                    "move crash safe index file to index file.");
+    goto err;
+  }
 
   // now update offsets in index file for running threads
   if (need_update_threads)
     adjust_linfo_offsets(log_info->index_file_start_offset);
   return 0;
+
+err:
+  return LOG_INFO_IO;
 }
 
 /**
@@ -2316,7 +2590,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   }
 
   /* We know how many files to delete. Update index file. */
-  if ((error=update_log_index(&log_info, need_update_threads)))
+  if ((error=remove_logs_from_index(&log_info, need_update_threads)))
   {
     sql_print_error("MSYQL_BIN_LOG::purge_logs failed to update the index file");
     goto err;
@@ -3389,6 +3663,9 @@ int MYSQL_BIN_LOG::write_cache(IO_CACHE *cache, bool lock_log, bool sync_log)
   if (do_checksum)
     crc= crc_0= my_checksum(0L, NULL, 0);
 
+  if (DBUG_EVALUATE_IF("fault_injection_crc_value", 1, 0))
+    crc= crc - 1;
+
   do
   {
     /*
@@ -3658,9 +3935,9 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
         goto err;
 
       bool synced= 0;
+      DBUG_EXECUTE_IF("half_binlogged_transaction", DBUG_SUICIDE(););
       if (flush_and_sync(&synced))
         goto err;
-      DBUG_EXECUTE_IF("half_binlogged_transaction", DBUG_SUICIDE(););
       if (cache->error)				// Error on read
       {
         sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
@@ -3923,6 +4200,9 @@ int MYSQL_BIN_LOG::open(const char *opt_name)
     Log_event  *ev=0;
     Format_description_log_event fdle(BINLOG_VERSION);
     char        log_name[FN_REFLEN];
+    my_off_t    valid_pos= 0;
+    my_off_t    binlog_size;
+    MY_STAT     s;
 
     if (! fdle.is_valid())
       goto err;
@@ -3944,13 +4224,17 @@ int MYSQL_BIN_LOG::open(const char *opt_name)
       goto err;
     }
 
+    my_stat(log_name, &s, MYF(0));
+    binlog_size= s.st_size;
+
     if ((ev= Log_event::read_log_event(&log, 0, &fdle,
                                        opt_master_verify_checksum)) &&
         ev->get_type_code() == FORMAT_DESCRIPTION_EVENT &&
         ev->flags & LOG_EVENT_BINLOG_IN_USE_F)
     {
       sql_print_information("Recovering after a crash using %s", opt_name);
-      error= recover(&log, (Format_description_log_event *)ev);
+      valid_pos= my_b_tell(&log);
+      error= recover(&log, (Format_description_log_event *)ev, &valid_pos);
     }
     else
       error=0;
@@ -3961,6 +4245,51 @@ int MYSQL_BIN_LOG::open(const char *opt_name)
 
     if (error)
       goto err;
+
+    /* Trim the crashed binlog file to last valid transaction
+      or event (non-transaction) base on valid_pos. */
+    if (valid_pos > 0)
+    {
+      if ((file= mysql_file_open(key_file_binlog, log_name,
+                                 O_RDWR | O_BINARY, MYF(MY_WME))) < 0)
+      {
+        sql_print_error("Failed to open the crashed binlog file "
+                        "when master server is recovering it.");
+        return -1;
+      }
+
+      /* Change binlog file size to valid_pos */
+      if (valid_pos < binlog_size)
+      {
+        if (my_chsize(file, valid_pos, 0, MYF(MY_WME)))
+        {
+          sql_print_error("Failed to trim the crashed binlog file "
+                          "when master server is recovering it.");
+          mysql_file_close(file, MYF(MY_WME));
+          return -1;
+        }
+        else
+        {
+          sql_print_information("Crashed binlog file %s size is %llu, "
+                                "but recovered up to %llu. Binlog trimmed to %llu bytes.",
+                                log_name, binlog_size, valid_pos, valid_pos);
+        }
+      }
+
+      /* Clear LOG_EVENT_BINLOG_IN_USE_F */
+      my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
+      uchar flags= 0;
+      if (mysql_file_pwrite(file, &flags, 1, offset, MYF(0)) != 1)
+      {
+        sql_print_error("Failed to clear LOG_EVENT_BINLOG_IN_USE_F "
+                        "for the crashed binlog file when master "
+                        "server is recovering it.");
+        mysql_file_close(file, MYF(MY_WME));
+        return -1;
+      }
+
+      mysql_file_close(file, MYF(MY_WME));
+    } //end if
   }
 
 err:
@@ -4010,11 +4339,32 @@ void MYSQL_BIN_LOG::unlog(ulong cookie, my_xid xid)
   rotate_and_purge(0);     // as ::write() did not rotate
 }
 
-int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
+
+/**
+  MYSQLD server recovers from last crashed binlog.
+
+  @param log           IO_CACHE of the crashed binlog.
+  @param fdle          Format_description_log_event of the crashed binlog.
+  @param valid_pos     The position of the last valid transaction or
+                       event(non-transaction) of the crashed binlog.
+
+  @retval
+    0                  ok
+  @retval
+    1                  error
+*/
+int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
+                            my_off_t *valid_pos)
 {
   Log_event  *ev;
   HASH xids;
   MEM_ROOT mem_root;
+  my_off_t last_valid_pos= *valid_pos;
+  /*
+    The flag is used for handling the case that a transaction
+    is partially written to the binlog.
+  */
+  bool in_transaction= TRUE;
 
   if (! fdle->is_valid() ||
       my_hash_init(&xids, &my_charset_bin, TC_LOG_PAGE_SIZE/3, 0,
@@ -4023,14 +4373,31 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
 
   init_alloc_root(&mem_root, TC_LOG_PAGE_SIZE, TC_LOG_PAGE_SIZE);
 
-  fdle->flags&= ~LOG_EVENT_BINLOG_IN_USE_F; // abort on the first error
-
-  while ((ev= Log_event::read_log_event(log, 0, fdle,
-                                        opt_master_verify_checksum))
+  while ((ev= Log_event::read_log_event(log, 0, fdle, TRUE))
          && ev->is_valid())
   {
-    if (ev->get_type_code() == XID_EVENT)
+    /*
+      Recorded valid position for the crashed binlog file
+      which contains incorrect events.
+    */
+    if (ev->get_type_code() == QUERY_EVENT &&
+        !strcmp(((Query_log_event*)ev)->query, "BEGIN"))
     {
+      in_transaction= TRUE;
+      *valid_pos= last_valid_pos;
+    }
+    last_valid_pos= my_b_tell(log);
+
+    if (ev->get_type_code() == QUERY_EVENT &&
+        !strcmp(((Query_log_event*)ev)->query, "COMMIT"))
+    {
+      DBUG_ASSERT(in_transaction == TRUE);
+      in_transaction= FALSE;
+    }
+    else if (ev->get_type_code() == XID_EVENT)
+    {
+      DBUG_ASSERT(in_transaction == TRUE);
+      in_transaction= FALSE;
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
                                       sizeof(xev->xid));
@@ -4039,6 +4406,13 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
     }
     delete ev;
   }
+
+  /*
+    Recorded valid position for the crashed binlog file
+    which did not contain incorrect events.
+  */
+  if (!log->error && !in_transaction)
+    *valid_pos= last_valid_pos;
 
   if (ha_recover(&xids))
     goto err2;
