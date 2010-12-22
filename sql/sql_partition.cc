@@ -1019,7 +1019,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     opening existing tables for easier maintenance. This exception should be
     deprecated at some point in future so that we always throw an error.
   */
-  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+  if (func_expr->walk(&Item::is_arguments_valid_processor,
                       0, NULL))
   {
     if (is_create_table_ind)
