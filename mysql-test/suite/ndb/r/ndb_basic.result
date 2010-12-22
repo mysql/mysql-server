@@ -25,6 +25,8 @@ SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
+ndb_blob_read_batch_bytes	#
+ndb_blob_write_batch_bytes	#
 ndb_cache_check_time	#
 ndb_cluster_connection_pool	#
 ndb_connectstring	#
