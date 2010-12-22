@@ -738,6 +738,10 @@ public:
 class JOIN_CACHE_HASHED: public JOIN_CACHE
 {
 
+  typedef uint (JOIN_CACHE_HASHED::*Hash_func) (uchar *key, uint key_len);
+  typedef bool (JOIN_CACHE_HASHED::*Hash_cmp_func) (uchar *key1, uchar *key2,
+                                                    uint key_len);
+  
 private:
 
   /* Size of the offset of a key entry in the hash table */
@@ -761,13 +765,39 @@ private:
 
   /* The offset of the data fields from the beginning of the record fields */
   uint data_fields_offset;
-  
-  uint get_hash_idx(uchar* key, uint key_len);
+
+  inline uint get_hash_idx_simple(uchar *key, uint key_len);
+  inline uint get_hash_idx_complex(uchar *key, uint key_len);
+
+  inline bool equal_keys_simple(uchar *key1, uchar *key2, uint key_len);
+  inline bool equal_keys_complex(uchar *key1, uchar *key2, uint key_len);
 
   int init_hash_table();
   void cleanup_hash_table();
   
 protected:
+
+  /* 
+    Index info on the TABLE_REF object used by the hash join
+    to look for matching records
+  */    
+  KEY *ref_key_info;
+  /* 
+    Number of the key parts the TABLE_REF object used by the hash join
+    to look for matching records
+  */    
+  uint ref_used_key_parts;
+
+  /*
+    The hash function used in the hash table,
+    usually set by the init() method
+  */ 
+  Hash_func hash_func;
+  /*
+    The function to check whether two key entries in the hash table
+    are equal or not, usually set by the init() method
+  */ 
+  Hash_cmp_func hash_cmp_func;
 
   /* 
     Length of a key value.
