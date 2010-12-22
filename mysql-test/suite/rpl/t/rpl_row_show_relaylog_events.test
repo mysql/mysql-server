@@ -16,3 +16,4 @@
 -- source include/have_binlog_format_row.inc
 
 -- source extra/rpl_tests/rpl_show_relaylog_events.inc
+--source include/rpl_end.inc

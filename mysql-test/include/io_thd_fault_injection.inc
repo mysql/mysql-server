@@ -11,11 +11,11 @@ SET @old_debug=@@global.debug;
 -- eval SET GLOBAL debug="+d,$io_thd_injection_fault_flag"
 
 START SLAVE io_thread;
--- source include/wait_for_slave_io_to_stop.inc
 -- source include/wait_for_slave_io_error.inc
 
 -- eval SET GLOBAL debug="-d,$io_thd_injection_fault_flag"
 SET GLOBAL debug=@old_debug;
 
 # restart because slave is in bad shape
--- source include/restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_restart_server.inc

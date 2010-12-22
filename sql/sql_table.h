@@ -133,7 +133,11 @@ enum enum_explain_filename_mode
 #define NO_FRM_RENAME   (1 << 2)
 #define FRM_ONLY        (1 << 3)
 
-uint filename_to_tablename(const char *from, char *to, uint to_length);
+uint filename_to_tablename(const char *from, char *to, uint to_length
+#ifndef DBUG_OFF
+                           , bool stay_quiet = false
+#endif /* DBUG_OFF */
+                           );
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);
 bool check_mysql50_prefix(const char *name);

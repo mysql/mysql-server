@@ -41,7 +41,6 @@ SET @old_binlog_row_image= @@binlog_row_image;
 -- echo # default 
 -- echo #####################################################
 
--- source include/master-slave-reset.inc
 -- connection master
 -- let $row_img_set=master:FULL:N,slave:FULL:Y
 -- source include/rpl_row_img_set.inc
@@ -90,7 +89,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
     -- echo ITERATIONS: row_img: $img_type, indexes: $index_type
 
-    -- source include/master-slave-reset.inc
+    -- source include/rpl_reset.inc
     -- connection master
 
     # create the table
@@ -279,7 +278,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
   -- echo ITERATIONS: row_img: $img_type
 
-  -- source include/master-slave-reset.inc
+  -- source include/rpl_reset.inc
   -- connection master
 
   # ASSERTIONS:
@@ -319,7 +318,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
   DROP TABLE IF EXISTS t;
   -- sync_slave_with_master
 
-  -- source include/master-slave-reset.inc
+  -- source include/rpl_reset.inc
 
   -- connection master
   if (`SELECT @@binlog_row_image = "MINIMAL"`)
@@ -456,7 +455,7 @@ while (`SELECT HEX(@img_types) != HEX('')`)
 
 -- echo ################## SPECIAL CASES #########################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:NOBLOB:N,slave:NOBLOB:Y
 -- source include/rpl_row_img_set.inc
@@ -512,7 +511,7 @@ DROP TABLE t;
 -- echo # PK (does not contain blob, but blob is updated)
 -- echo ###################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
@@ -559,7 +558,7 @@ DROP TABLE t;
 -- echo # AUTOINC columns
 -- echo ###################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:MINIMAL:N,slave:MINIMAL:Y
 -- source include/rpl_row_img_set.inc
@@ -578,7 +577,7 @@ DROP TABLE t;
 -- echo # Test that slave does not write more columns than the ones it has 
 -- echo ##################################################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:MINIMAL:N,slave:MINIMAL:Y
 -- source include/rpl_row_img_set.inc
@@ -609,7 +608,7 @@ DROP TABLE t;
 -- echo # Test that slave fills default columns in its own columns
 -- echo ##################################################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:FULL:N,slave:FULL:Y
 -- source include/rpl_row_img_set.inc
@@ -645,7 +644,7 @@ DROP TABLE t;
 -- echo # Test that slave uses partial BI when master contains more columns
 -- echo ##################################################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:MINIMAL:N,slave:MINIMAL:Y
 -- source include/rpl_row_img_set.inc
@@ -683,7 +682,7 @@ DROP TABLE t;
 -- echo # NOBLOB or FULL, it will log the expected columns
 -- echo ##################################################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:MINIMAL:N,slave:FULL:Y
 -- source include/rpl_row_img_set.inc
@@ -714,7 +713,7 @@ CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
 DROP TABLE t;
 -- sync_slave_with_master
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:MINIMAL:N,slave:NOBLOB:Y
 -- source include/rpl_row_img_set.inc
@@ -749,7 +748,7 @@ DROP TABLE t;
 -- echo # Test that the slave stop with error if no usable data is on BI
 -- echo ################################################################
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 -- let $row_img_set=master:MINIMAL:N,slave:NOBLOB:Y
 -- source include/rpl_row_img_set.inc
@@ -772,7 +771,8 @@ DROP TABLE t;
 let $slave_sql_errno= 1032;
 source include/wait_for_slave_sql_error.inc;
 DROP TABLE t;
--- source include/master-slave-reset.inc
+--let $rpl_only_running_threads= 1
+-- source include/rpl_reset.inc
 
 ## CLEAN UP
 
@@ -783,4 +783,4 @@ SET SESSION binlog_row_image= @old_binlog_row_image;
 SET GLOBAL binlog_row_image= @old_binlog_row_image;
 SET SESSION binlog_row_image= @old_binlog_row_image;
 
--- source include/master-slave-end.inc
+--source include/rpl_end.inc

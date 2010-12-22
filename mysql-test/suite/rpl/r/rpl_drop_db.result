@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop database if exists mysqltest1;
 create database mysqltest1;
 create table mysqltest1.t1 (n int);
@@ -34,4 +30,4 @@ n
 use test;
 drop table t1;
 drop database mysqltest1;
-include/stop_slave.inc
+include/rpl_end.inc

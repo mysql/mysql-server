@@ -46,9 +46,7 @@ use bug37656;
 SHOW TABLES;
 
 -- echo ### assertion: master and slave tables do not differ
-let $diff_table_1=master:B37656.T1;
-let $diff_table_2=slave:bug37656.t1;
-
+-- let $diff_tables= master:B37656.T1, slave:bug37656.t1
 -- source include/diff_tables.inc
 
 -- connection master
@@ -60,3 +58,5 @@ SHOW DATABASES LIKE '%37656';
 -- connection slave
 DROP DATABASE BUG37656;
 SHOW DATABASES LIKE '%37656';
+
+--source include/rpl_end.inc

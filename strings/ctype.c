@@ -39,6 +39,18 @@
   
 */
 
+
+/*
+  Avoid using my_snprintf
+  We cannot use my_snprintf() here, because ctype.o is
+  used to build conf_to_src, which must require minimun
+  dependency.
+*/
+
+#undef my_snprinf
+#define my_snprintf "We cannot use my_snprintf in this file"
+
+
 static char *mstr(char *str,const char *src,size_t l1,size_t l2)
 {
   l1= l1<l2 ? l1 : l2;
@@ -70,12 +82,74 @@ struct my_cs_file_section_st
 #define _CS_PRIMARY_ID	15
 #define _CS_BINARY_ID	16
 #define _CS_CSDESCRIPT	17
-#define _CS_RESET	18
-#define	_CS_DIFF1	19
-#define	_CS_DIFF2	20
-#define	_CS_DIFF3	21
-#define	_CS_IDENTICAL	22
-#define _CS_UCA_VERSION 23
+
+
+/* Special purpose commands */
+#define _CS_UCA_VERSION                 100
+#define _CS_CL_SUPPRESS_CONTRACTIONS    101
+#define _CS_CL_OPTIMIZE                 102
+
+
+/* Collation Settings */
+#define _CS_ST_SETTINGS                 200
+#define _CS_ST_STRENGTH                 201
+#define _CS_ST_ALTERNATE                202
+#define _CS_ST_BACKWARDS                203
+#define _CS_ST_NORMALIZATION            204
+#define _CS_ST_CASE_LEVEL               205
+#define _CS_ST_CASE_FIRST               206
+#define _CS_ST_HIRAGANA_QUATERNARY      207
+#define _CS_ST_NUMERIC                  208
+#define _CS_ST_VARIABLE_TOP             209
+#define _CS_ST_MATCH_BOUNDARIES         210
+#define _CS_ST_MATCH_STYLE              211
+
+
+/* Rules */
+#define _CS_RULES                       300
+#define _CS_RESET                       301
+#define _CS_DIFF1                       302
+#define _CS_DIFF2                       303
+#define _CS_DIFF3                       304
+#define _CS_DIFF4                       305
+#define _CS_IDENTICAL                   306
+
+/* Rules: Expansions */
+#define _CS_EXP_X                       320
+#define _CS_EXP_EXTEND                  321
+#define _CS_EXP_DIFF1                   322
+#define _CS_EXP_DIFF2                   323
+#define _CS_EXP_DIFF3                   324
+#define _CS_EXP_DIFF4                   325
+#define _CS_EXP_IDENTICAL               326
+
+/* Rules: Abbreviating Ordering Specifications */
+#define _CS_A_DIFF1                     351
+#define _CS_A_DIFF2                     352
+#define _CS_A_DIFF3                     353
+#define _CS_A_DIFF4                     354
+#define _CS_A_IDENTICAL                 355
+
+/* Rules: previous context */
+#define _CS_CONTEXT                     370
+
+/* Rules: Placing Characters Before Others*/
+#define _CS_RESET_BEFORE 380
+
+/* Rules: Logical Reset Positions */
+#define _CS_RESET_FIRST_PRIMARY_IGNORABLE     401
+#define _CS_RESET_LAST_PRIMARY_IGNORABLE      402
+#define _CS_RESET_FIRST_SECONDARY_IGNORABLE   403
+#define _CS_RESET_LAST_SECONDARY_IGNORABLE    404
+#define _CS_RESET_FIRST_TERTIARY_IGNORABLE    405
+#define _CS_RESET_LAST_TERTIARY_IGNORABLE     406
+#define _CS_RESET_FIRST_TRAILING              407
+#define _CS_RESET_LAST_TRAILING               408
+#define _CS_RESET_FIRST_VARIABLE              409
+#define _CS_RESET_LAST_VARIABLE               410
+#define _CS_RESET_FIRST_NON_IGNORABLE         411
+#define _CS_RESET_LAST_NON_IGNORABLE          412
+
 
 
 static struct my_cs_file_section_st sec[] =
@@ -85,6 +159,8 @@ static struct my_cs_file_section_st sec[] =
   {_CS_MISC,		"xml/encoding"},
   {_CS_MISC,		"charsets"},
   {_CS_MISC,		"charsets/max-id"},
+  {_CS_MISC,		"charsets/copyright"},
+  {_CS_MISC,		"charsets/description"},
   {_CS_CHARSET,		"charsets/charset"},
   {_CS_PRIMARY_ID,	"charsets/charset/primary-id"},
   {_CS_BINARY_ID,	"charsets/charset/binary-id"},
@@ -106,29 +182,89 @@ static struct my_cs_file_section_st sec[] =
   {_CS_ORDER,		"charsets/charset/collation/order"},
   {_CS_FLAG,		"charsets/charset/collation/flag"},
   {_CS_COLLMAP,		"charsets/charset/collation/map"},
-  {_CS_RESET,		"charsets/charset/collation/rules/reset"},
-  {_CS_DIFF1,		"charsets/charset/collation/rules/p"},
-  {_CS_DIFF2,		"charsets/charset/collation/rules/s"},
-  {_CS_DIFF3,		"charsets/charset/collation/rules/t"},
-  {_CS_IDENTICAL,	"charsets/charset/collation/rules/i"},
-  {_CS_UCA_VERSION,     "charsets/charset/collation/version"},
+
+  /* Special purpose commands */
+  {_CS_UCA_VERSION,              "charsets/charset/collation/version"},
+  {_CS_CL_SUPPRESS_CONTRACTIONS, "charsets/charset/collation/suppress_contractions"},
+  {_CS_CL_OPTIMIZE,              "charsets/charset/collation/optimize"},
+
+  /* Collation Settings */
+  {_CS_ST_SETTINGS,              "charsets/charset/collation/settings"},
+  {_CS_ST_STRENGTH,              "charsets/charset/collation/settings/strength"},
+  {_CS_ST_ALTERNATE,             "charsets/charset/collation/settings/alternate"},
+  {_CS_ST_BACKWARDS,             "charsets/charset/collation/settings/backwards"},
+  {_CS_ST_NORMALIZATION,         "charsets/charset/collation/settings/normalization"},
+  {_CS_ST_CASE_LEVEL,            "charsets/charset/collation/settings/caseLevel"},
+  {_CS_ST_CASE_FIRST,            "charsets/charset/collation/settings/caseFirst"},
+  {_CS_ST_HIRAGANA_QUATERNARY,   "charsets/charset/collation/settings/hiraganaQuaternary"},
+  {_CS_ST_NUMERIC,               "charsets/charset/collation/settings/numeric"},
+  {_CS_ST_VARIABLE_TOP,          "charsets/charset/collation/settings/variableTop"},
+  {_CS_ST_MATCH_BOUNDARIES,      "charsets/charset/collation/settings/match-boundaries"},
+  {_CS_ST_MATCH_STYLE,           "charsets/charset/collation/settings/match-style"},
+
+  /* Rules */
+  {_CS_RULES,           "charsets/charset/collation/rules"},
+  {_CS_RESET,           "charsets/charset/collation/rules/reset"},
+  {_CS_DIFF1,           "charsets/charset/collation/rules/p"},
+  {_CS_DIFF2,           "charsets/charset/collation/rules/s"},
+  {_CS_DIFF3,           "charsets/charset/collation/rules/t"},
+  {_CS_DIFF4,           "charsets/charset/collation/rules/q"},
+  {_CS_IDENTICAL,       "charsets/charset/collation/rules/i"},
+
+  /* Rules: expansions */
+  {_CS_EXP_X,           "charsets/charset/collation/rules/x"},
+  {_CS_EXP_EXTEND,      "charsets/charset/collation/rules/x/extend"},
+  {_CS_EXP_DIFF1,       "charsets/charset/collation/rules/x/p"},
+  {_CS_EXP_DIFF2,       "charsets/charset/collation/rules/x/s"},
+  {_CS_EXP_DIFF3,       "charsets/charset/collation/rules/x/t"},
+  {_CS_EXP_DIFF4,       "charsets/charset/collation/rules/x/q"},
+  {_CS_EXP_IDENTICAL,   "charsets/charset/collation/rules/x/i"},
+  
+  /* Rules: previous context */
+  {_CS_CONTEXT,         "charsets/charset/collation/rules/x/context"},
+
+  /* Rules: Abbreviating Ordering Specifications */
+  {_CS_A_DIFF1,         "charsets/charset/collation/rules/pc"},
+  {_CS_A_DIFF2,         "charsets/charset/collation/rules/sc"},
+  {_CS_A_DIFF3,         "charsets/charset/collation/rules/tc"},
+  {_CS_A_DIFF4,         "charsets/charset/collation/rules/qc"},
+  {_CS_A_IDENTICAL,     "charsets/charset/collation/rules/ic"},
+
+  /* Rules: Placing Characters Before Others*/
+  {_CS_RESET_BEFORE,    "charsets/charset/collation/rules/reset/before"},
+
+  /* Rules: Logical Reset Positions */
+  {_CS_RESET_FIRST_NON_IGNORABLE,       "charsets/charset/collation/rules/reset/first_non_ignorable"},
+  {_CS_RESET_LAST_NON_IGNORABLE,        "charsets/charset/collation/rules/reset/last_non_ignorable"},
+  {_CS_RESET_FIRST_PRIMARY_IGNORABLE,   "charsets/charset/collation/rules/reset/first_primary_ignorable"},
+  {_CS_RESET_LAST_PRIMARY_IGNORABLE,    "charsets/charset/collation/rules/reset/last_primary_ignorable"},
+  {_CS_RESET_FIRST_SECONDARY_IGNORABLE, "charsets/charset/collation/rules/reset/first_secondary_ignorable"},
+  {_CS_RESET_LAST_SECONDARY_IGNORABLE,  "charsets/charset/collation/rules/reset/last_secondary_ignorable"},
+  {_CS_RESET_FIRST_TERTIARY_IGNORABLE,  "charsets/charset/collation/rules/reset/first_tertiary_ignorable"},
+  {_CS_RESET_LAST_TERTIARY_IGNORABLE,   "charsets/charset/collation/rules/reset/last_tertiary_ignorable"},
+  {_CS_RESET_FIRST_TRAILING,            "charsets/charset/collation/rules/reset/first_trailing"},
+  {_CS_RESET_LAST_TRAILING,             "charsets/charset/collation/rules/reset/last_trailing"},
+  {_CS_RESET_FIRST_VARIABLE,            "charsets/charset/collation/rules/reset/first_variable"},
+  {_CS_RESET_LAST_VARIABLE,             "charsets/charset/collation/rules/reset/last_variable"},
+
   {0,	NULL}
 };
 
 static struct my_cs_file_section_st * cs_file_sec(const char *attr, size_t len)
 {
   struct my_cs_file_section_st *s;
-  for (s=sec; s->str; s++)
+  for (s= sec; s->str; s++)
   {
-    if (!strncmp(attr,s->str,len))
+    if (!strncmp(attr, s->str, len) && s->str[len] == 0)
       return s;
   }
   return NULL;
 }
 
 #define MY_CS_CSDESCR_SIZE	64
-#define MY_CS_TAILORING_SIZE	1024
+#define MY_CS_TAILORING_SIZE	32*1024
 #define MY_CS_UCA_VERSION_SIZE  64
+#define MY_CS_CONTEXT_SIZE      64
 
 typedef struct my_cs_file_info
 {
@@ -140,12 +276,59 @@ typedef struct my_cs_file_info
   uchar  sort_order[MY_CS_SORT_ORDER_TABLE_SIZE];
   uint16 tab_to_uni[MY_CS_TO_UNI_TABLE_SIZE];
   char   comment[MY_CS_CSDESCR_SIZE];
-  char   tailoring[MY_CS_TAILORING_SIZE];
+  char  *tailoring;
   size_t tailoring_length;
+  size_t tailoring_alloced_length;
+  char   context[MY_CS_CONTEXT_SIZE];
   CHARSET_INFO cs;
-  int (*add_collation)(CHARSET_INFO *cs);
-} MY_CHARSET_LOADER;
+  MY_CHARSET_LOADER *loader;
+} MY_CHARSET_FILE;
 
+
+static void
+my_charset_file_reset_charset(MY_CHARSET_FILE *i)
+{
+ bzero(&i->cs, sizeof(i->cs));
+}
+
+
+static void
+my_charset_file_reset_collation(MY_CHARSET_FILE *i)
+{
+  i->tailoring_length= 0;
+  i->context[0]= '\0';
+}
+
+
+static void
+my_charset_file_init(MY_CHARSET_FILE *i)
+{
+  my_charset_file_reset_charset(i);
+  my_charset_file_reset_collation(i);
+  i->tailoring= NULL;
+  i->tailoring_alloced_length= 0;
+}
+
+
+static void
+my_charset_file_free(MY_CHARSET_FILE *i)
+{
+  i->loader->free(i->tailoring);
+}
+
+
+static int
+my_charset_file_tailoring_realloc(MY_CHARSET_FILE *i, size_t newlen)
+{
+  if (i->tailoring_alloced_length > newlen ||
+     (i->tailoring= i->loader->realloc(i->tailoring,
+                                       (i->tailoring_alloced_length=
+                                        (newlen + 32*1024)))))
+  {
+    return MY_XML_OK;
+  }
+  return MY_XML_ERROR;
+}
 
 
 static int fill_uchar(uchar *a,uint size,const char *str, size_t len)
@@ -183,17 +366,119 @@ static int fill_uint16(uint16 *a,uint size,const char *str, size_t len)
 }
 
 
+
+
+static int
+tailoring_append(MY_XML_PARSER *st,
+                 const char *fmt, size_t len, const char *attr)
+{
+  struct my_cs_file_info *i= (struct my_cs_file_info *) st->user_data;
+  size_t newlen= i->tailoring_length + len + 64; /* 64 for format */ 
+  if (MY_XML_OK == my_charset_file_tailoring_realloc(i, newlen))
+  {
+    char *dst= i->tailoring + i->tailoring_length;
+    sprintf(dst, fmt, (int) len, attr);
+    i->tailoring_length+= strlen(dst);
+    return MY_XML_OK;
+  }
+  return MY_XML_ERROR;
+}
+
+
+static int
+tailoring_append2(MY_XML_PARSER *st,
+                  const char *fmt,
+                  size_t len1, const char *attr1,
+                  size_t len2, const char *attr2)
+{
+  struct my_cs_file_info *i= (struct my_cs_file_info *) st->user_data;
+  size_t newlen= i->tailoring_length + len1 + len2 + 64; /* 64 for format */
+  if (MY_XML_OK == my_charset_file_tailoring_realloc(i, newlen))
+  {
+    char *dst= i->tailoring + i->tailoring_length;
+    sprintf(dst, fmt, (int) len1, attr1, (int) len2, attr2);
+    i->tailoring_length+= strlen(dst);
+    return MY_XML_OK;
+  }
+  return MY_XML_ERROR;
+}
+
+
+static size_t
+scan_one_character(const char *s, const char *e, my_wc_t *wc)
+{
+  CHARSET_INFO *cs= &my_charset_utf8_general_ci;
+  if (s >= e)
+    return 0;
+
+  /* Escape sequence: \uXXXX */
+  if (s[0] == '\\' && s + 2 < e && s[1] == 'u' && my_isxdigit(cs, s[2]))
+  {
+    size_t len= 3; /* We have at least one digit */
+    for (s+= 3; s < e && my_isxdigit(cs, s[0]); s++, len++)
+    {
+    }
+    wc[0]= 0;
+    return len;
+  }
+  else if (s[0] > 0) /* 7-bit character */
+  {
+    wc[0]= 0;
+    return 1;
+  }
+  else /* Non-escaped character */
+  {
+    int rc= cs->cset->mb_wc(cs, wc, (uchar *) s, (uchar *) e);
+    if (rc > 0)
+      return (size_t) rc;
+  }
+  return 0;
+}
+
+
+static int
+tailoring_append_abbreviation(MY_XML_PARSER *st,
+                              const char *fmt, size_t len, const char *attr)
+{
+  size_t clen;
+  const char *attrend= attr + len;
+  my_wc_t wc;
+
+  for ( ; (clen= scan_one_character(attr, attrend, &wc)) > 0; attr+= clen)
+  {
+    DBUG_ASSERT(attr < attrend);
+    if (tailoring_append(st, fmt, clen, attr) != MY_XML_OK)
+      return MY_XML_ERROR;
+  }
+  return MY_XML_OK;
+}
+
+
 static int cs_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   struct my_cs_file_info *i= (struct my_cs_file_info *)st->user_data;
   struct my_cs_file_section_st *s= cs_file_sec(attr,len);
+  int state= s ? s->state : 0;
   
-  if ( s && (s->state == _CS_CHARSET))
-    bzero(&i->cs,sizeof(i->cs));
-  
-  if (s && (s->state == _CS_COLLATION))
-    i->tailoring_length= 0;
+  switch (state) {
+  case 0:
+    i->loader->reporter(WARNING_LEVEL, "Unknown LDML tag: '%.*s'", len, attr);
+    break;
 
+  case _CS_CHARSET:
+    my_charset_file_reset_charset(i);
+    break;
+
+  case _CS_COLLATION:
+    my_charset_file_reset_collation(i);
+    break;
+
+  case _CS_RESET:
+    return tailoring_append(st, " &", 0, NULL);
+
+  default:
+    break;
+  }
   return MY_XML_OK;
 }
 
@@ -207,13 +492,85 @@ static int cs_leave(MY_XML_PARSER *st,const char *attr, size_t len)
   
   switch(state){
   case _CS_COLLATION:
-    rc= i->add_collation ? i->add_collation(&i->cs) : MY_XML_OK;
+    if (i->tailoring_length)
+      i->cs.tailoring= i->tailoring;
+    rc= i->loader->add_collation ? i->loader->add_collation(&i->cs) : MY_XML_OK;
     break;
+
+  /* Rules: Logical Reset Positions */
+  case _CS_RESET_FIRST_NON_IGNORABLE:
+    rc= tailoring_append(st, "[first non-ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_LAST_NON_IGNORABLE:
+    rc= tailoring_append(st, "[last non-ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_FIRST_PRIMARY_IGNORABLE:
+    rc= tailoring_append(st, "[first primary ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_LAST_PRIMARY_IGNORABLE:
+    rc= tailoring_append(st, "[last primary ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_FIRST_SECONDARY_IGNORABLE:
+    rc= tailoring_append(st, "[first secondary ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_LAST_SECONDARY_IGNORABLE:
+    rc= tailoring_append(st, "[last secondary ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_FIRST_TERTIARY_IGNORABLE:
+    rc= tailoring_append(st, "[first tertiary ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_LAST_TERTIARY_IGNORABLE:
+    rc= tailoring_append(st, "[last tertiary ignorable]", 0, NULL);
+    break;
+
+  case _CS_RESET_FIRST_TRAILING:
+    rc= tailoring_append(st, "[first trailing]", 0, NULL);
+    break;
+
+  case _CS_RESET_LAST_TRAILING:
+    rc= tailoring_append(st, "[last trailing]", 0, NULL);
+    break;
+
+  case _CS_RESET_FIRST_VARIABLE:
+    rc= tailoring_append(st, "[first variable]", 0, NULL);
+    break;
+
+  case _CS_RESET_LAST_VARIABLE:
+    rc= tailoring_append(st, "[last variable]", 0, NULL);
+    break;
+
   default:
     rc=MY_XML_OK;
   }
   return rc;
 }
+
+
+static const char *diff_fmt[5]=
+{
+  "<%.*s",
+  "<<%.*s",
+  "<<<%.*s",
+  "<<<<%.*s",
+  "=%.*s"
+};
+
+
+static const char *context_diff_fmt[5]=
+{
+  "<%.*s|%.*s",
+  "<<%.*s|%.*s",
+  "<<<%.*s|%.*s",
+  "<<<<%.*s|%.*s",
+  "=%.*s|%.*s"
+};
 
 
 static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
@@ -222,8 +579,13 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
   struct my_cs_file_section_st *s;
   int    state= (int)((s=cs_file_sec(st->attr, strlen(st->attr))) ? s->state :
                       0);
-  
+  int rc= MY_XML_OK;
+
   switch (state) {
+  case _CS_MISC:
+  case _CS_FAMILY:
+  case _CS_ORDER:
+    break;
   case _CS_ID:
     i->cs.number= strtol(attr,(char**)NULL,10);
     break;
@@ -241,18 +603,6 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
     break;
   case _CS_CSDESCRIPT:
     i->cs.comment=mstr(i->comment,attr,len,MY_CS_CSDESCR_SIZE-1);
-    break;
-  case _CS_UCA_VERSION:
-      if (sizeof(i->tailoring) > len + sizeof("[version %.*s]"))
-      {
-        /*
-          We cannot use my_snprintf() here, because ctype.o is
-          used to build conf_to_src, which must require minimun
-          dependency.
-        */
-        sprintf(i->tailoring, "[version %.*s]", (int) len, attr);
-        i->tailoring_length= strlen(i->tailoring);
-      }
     break;
   case _CS_FLAG:
     if (!strncmp("primary",attr,len))
@@ -282,55 +632,176 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
     fill_uchar(i->ctype,MY_CS_CTYPE_TABLE_SIZE,attr,len);
     i->cs.ctype=i->ctype;
     break;
+
+  /* Special purpose commands */
+  case _CS_UCA_VERSION:
+    rc= tailoring_append(st, "[version %.*s]", len, attr);
+    break;
+
+  case _CS_CL_SUPPRESS_CONTRACTIONS:
+    rc= tailoring_append(st, "[suppress contractions %.*s]", len, attr);
+    break;
+
+  case _CS_CL_OPTIMIZE:
+    rc= tailoring_append(st, "[optimize %.*s]", len, attr);
+    break;
+
+  /* Collation Settings */
+  case _CS_ST_STRENGTH:
+    /* 1, 2, 3, 4, 5, or primary, secondary, tertiary, quaternary, identical */
+    rc= tailoring_append(st, "[strength %.*s]", len, attr);
+    break;
+
+  case _CS_ST_ALTERNATE:
+    /* non-ignorable, shifted */
+    rc= tailoring_append(st, "[alternate %.*s]", len, attr);
+    break;
+
+  case _CS_ST_BACKWARDS:
+    /* on, off, 2 */
+    rc= tailoring_append(st, "[backwards %.*s]", len, attr);
+    break;
+
+  case _CS_ST_NORMALIZATION:
+    /*
+      TODO for WL#896: check collations for normalization: vi.xml
+      We want precomposed characters work well at this point.
+    */
+    /* on, off */
+    rc= tailoring_append(st, "[normalization %.*s]", len, attr);
+    break;
+
+  case _CS_ST_CASE_LEVEL:
+    /* on, off */
+    rc= tailoring_append(st, "[caseLevel %.*s]", len, attr);
+    break;
+
+  case _CS_ST_CASE_FIRST:
+    /* upper, lower, off */
+    rc= tailoring_append(st, "[caseFirst %.*s]", len, attr);
+    break;
+
+  case _CS_ST_HIRAGANA_QUATERNARY:
+    /* on, off */
+    rc= tailoring_append(st, "[hiraganaQ %.*s]", len, attr);
+    break;
+
+  case _CS_ST_NUMERIC:
+    /* on, off */
+    rc= tailoring_append(st, "[numeric %.*s]", len, attr);
+    break;
+
+  case _CS_ST_VARIABLE_TOP:
+    /* TODO for WL#896: check value format */
+    rc= tailoring_append(st, "[variableTop %.*s]", len, attr);
+    break;
+
+  case _CS_ST_MATCH_BOUNDARIES:
+    /* none, whole-character, whole-word */
+    rc= tailoring_append(st, "[match-boundaries %.*s]", len, attr);
+    break;
+
+  case _CS_ST_MATCH_STYLE:
+    /* minimal, medial, maximal */
+    rc= tailoring_append(st, "[match-style %.*s]", len, attr);
+    break;
+
+
+  /* Rules */
   case _CS_RESET:
+    rc= tailoring_append(st, "%.*s", len, attr);
+    break;
+
   case _CS_DIFF1:
   case _CS_DIFF2:
   case _CS_DIFF3:
+  case _CS_DIFF4:
   case _CS_IDENTICAL:
+    rc= tailoring_append(st, diff_fmt[state - _CS_DIFF1], len, attr);
+    break;
+
+
+  /* Rules: Expansion */
+  case _CS_EXP_EXTEND:
+    rc= tailoring_append(st, " / %.*s", len, attr);
+    break;
+
+  case _CS_EXP_DIFF1:
+  case _CS_EXP_DIFF2:
+  case _CS_EXP_DIFF3:
+  case _CS_EXP_DIFF4:
+  case _CS_EXP_IDENTICAL:
+    if (i->context[0])
     {
-      /*
-        Convert collation description from
-        Locale Data Markup Language (LDML)
-        into ICU Collation Customization expression.
-      */
-      char arg[16];
-      const char *cmd[]= {"&","<","<<","<<<","="};
-      i->cs.tailoring= i->tailoring;
-      mstr(arg,attr,len,sizeof(arg)-1);
-      if (i->tailoring_length + 20 < sizeof(i->tailoring))
-      {
-        char *dst= i->tailoring_length + i->tailoring;
-        i->tailoring_length+= sprintf(dst," %s %s",cmd[state-_CS_RESET],arg);
-      }
+      rc= tailoring_append2(st, context_diff_fmt[state - _CS_EXP_DIFF1],
+                            strlen(i->context), i->context, len, attr);
+      i->context[0]= 0;
     }
+    else
+      rc= tailoring_append(st, diff_fmt[state  - _CS_EXP_DIFF1], len, attr);
+    break;
+
+  /* Rules: Context */
+  case _CS_CONTEXT:
+    if (len < sizeof(i->context) + 1)
+    {
+      memcpy(i->context, attr, len);
+      i->context[len]= '\0';
+    }
+    break;
+
+  /* Rules: Abbreviating Ordering Specifications */
+  case _CS_A_DIFF1:
+  case _CS_A_DIFF2:
+  case _CS_A_DIFF3:
+  case _CS_A_DIFF4:
+  case _CS_A_IDENTICAL:
+    rc= tailoring_append_abbreviation(st, diff_fmt[state - _CS_A_DIFF1], len, attr);
+    break;
+
+  /* Rules: Placing Characters Before Others */
+  case _CS_RESET_BEFORE:
+    /*
+      TODO for WL#896: Add this check into text customization parser:
+      It is an error if the strength of the before relation is not identical
+      to the relation after the reset. We'll need this for WL#896.
+    */
+    rc= tailoring_append(st, "[before %.*s]", len, attr);
+    break;
+
+
+  default:
+    break;
   }
-  return MY_XML_OK;
+
+  return rc;
 }
 
 
-my_bool my_parse_charset_xml(const char *buf, size_t len,
-                             int (*add_collation)(CHARSET_INFO *cs),
-                             char *error, size_t errsize)
+my_bool
+my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
 {
   MY_XML_PARSER p;
-  struct my_cs_file_info i;
+  struct my_cs_file_info info;
   my_bool rc;
   
+  my_charset_file_init(&info);
   my_xml_parser_create(&p);
   my_xml_set_enter_handler(&p,cs_enter);
   my_xml_set_value_handler(&p,cs_value);
   my_xml_set_leave_handler(&p,cs_leave);
-  i.add_collation= add_collation;
-  my_xml_set_user_data(&p,(void*)&i);
+  info.loader= loader;
+  my_xml_set_user_data(&p, (void *) &info);
   rc= (my_xml_parse(&p,buf,len) == MY_XML_OK) ? FALSE : TRUE;
   my_xml_parser_free(&p);
+  my_charset_file_free(&info);
   if (rc != MY_XML_OK)
   {
     const char *errstr= my_xml_error_string(&p);
-    if (errsize > 32 + strlen(errstr))
+    if (sizeof(loader->error) > 32 + strlen(errstr))
     {
       /* We cannot use my_snprintf() here. See previous comment. */
-      sprintf(error, "at line %d pos %d: %s",
+      sprintf(loader->error, "at line %d pos %d: %s",
                 my_xml_error_lineno(&p)+1,
                 (int) my_xml_error_pos(&p),
                 my_xml_error_string(&p));

@@ -1507,4 +1507,12 @@ static inline double rint(double x)
 
 #endif /* EMBEDDED_LIBRARY */
 
+
+enum loglevel {
+   ERROR_LEVEL=       0,
+   WARNING_LEVEL=     1,
+   INFORMATION_LEVEL= 2
+};
+
+
 #endif /* my_global_h */

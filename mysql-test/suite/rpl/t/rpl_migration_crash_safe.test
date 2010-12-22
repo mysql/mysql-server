@@ -47,7 +47,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 let $exp_slave= 0;
 let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
-if (`SELECT $got_slave <> $exp_slave`)
+if ($got_slave != $exp_slave)
 {
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die
@@ -66,23 +66,13 @@ INSERT INTO test VALUES (1), (2), (3);
 ########################################################################################
 --connection slave
 
---echo ### stop slave server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
-
---echo ### start slave server with --relay-log-info-repository=TABLE
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-restart:--relay-log-info-repository=TABLE --skip-slave-start
-EOF
---enable_reconnect
---source include/wait_until_connected_again.inc
-
---connection slave
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay-log-info-repository=TABLE --skip-slave-start
+--source include/rpl_restart_server.inc
 
 let $exp_slave= 1;
 let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
-if (`SELECT $got_slave <> $exp_slave`)
+if ($got_slave != $exp_slave)
 {
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die
@@ -93,25 +83,14 @@ file_exists $MYSQLD_DATADIR/relay-log.info;
 ########################################################################################
 # 3. Migration from TABLE to FILE
 ########################################################################################
---connection slave
 
---echo ### stop slave server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
-
---echo ### start slave server with --relay-log-info-repository=FILE
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-restart:--relay-log-info-repository=FILE --skip-slave-start
-EOF
---enable_reconnect
---source include/wait_until_connected_again.inc
-
---connection slave
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start
+--source include/rpl_restart_server.inc
 
 let $exp_slave= 0;
 let $got_slave= `SELECT COUNT(*) FROM mysql.slave_relay_log_info`;
-if (`SELECT $got_slave <> $exp_slave`)
+if ($got_slave != $exp_slave)
 {
   --echo "The mysql.slave_relay_log_info has information and this is not expected."
   --die

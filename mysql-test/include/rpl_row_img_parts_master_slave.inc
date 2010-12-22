@@ -68,7 +68,7 @@
 
 # wait for 5 minutes
 -- let $iterations=3000
-while(`SELECT $_pos = $row_img_pos_master`)
+while($_pos == $row_img_pos_master)
 {
   -- sleep 0.1
   -- let $_pos= query_get_value("SHOW MASTER STATUS", Position, 1)

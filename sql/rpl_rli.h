@@ -328,12 +328,15 @@ public:
   char slave_patternload_file[FN_REFLEN]; 
   size_t slave_patternload_file_size;  
 
-  Relay_log_info(bool is_slave_recovery,
-                 PSI_mutex_key *param_key_info_run_lock,
+  Relay_log_info(bool is_slave_recovery
+#ifdef HAVE_PSI_INTERFACE
+                 ,PSI_mutex_key *param_key_info_run_lock,
                  PSI_mutex_key *param_key_info_data_lock,
                  PSI_mutex_key *param_key_info_data_cond,
                  PSI_mutex_key *param_key_info_start_cond,
-                 PSI_mutex_key *param_key_info_stop_cond);
+                 PSI_mutex_key *param_key_info_stop_cond
+#endif
+                );
   virtual ~Relay_log_info();
 
   /**
