@@ -238,6 +238,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     {
       return 0;
     }
+    assert(s->header.theLength > 0);
     return s;
   }
 
@@ -258,6 +259,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
       {
         return 0;
       }
+      assert(s->header.theLength > 0);
       return s;
     }
     
@@ -327,6 +329,7 @@ ok:
   {
     // node shutdown complete
     s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
+    s->header.theLength = NFCompleteRep::SignalLength;
     NFCompleteRep *rep = (NFCompleteRep *)s->getDataPtrSend();
     rep->blockNo = 0;
     rep->nodeId = 0;
@@ -338,6 +341,7 @@ ok:
   {
     // node failure
     s->header.theVerId_signalNumber = GSN_NODE_FAILREP;
+    s->header.theLength = NodeFailRep::SignalLength;
     NodeFailRep *rep = (NodeFailRep *)s->getDataPtrSend();
     rep->failNo = 0;
     rep->masterNodeId = 0;
