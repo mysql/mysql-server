@@ -221,6 +221,32 @@ static MYSQL_THDVAR_BOOL(
   FALSE                              /* default */
 );
 
+static MYSQL_THDVAR_UINT(
+  blob_read_batch_bytes,             /* name */
+  PLUGIN_VAR_RQCMDARG,
+  "Specifies the bytesize large Blob reads "
+  "should be batched into.  0 == No limit.",
+  NULL,                              /* check func */
+  NULL,                              /* update func */
+  65536,                             /* default */
+  0,                                 /* min */
+  UINT_MAX,                          /* max */
+  0                                  /* block */
+);
+
+static MYSQL_THDVAR_UINT(
+  blob_write_batch_bytes,            /* name */
+  PLUGIN_VAR_RQCMDARG,
+  "Specifies the bytesize large Blob writes "
+  "should be batched into.  0 == No limit.",
+  NULL,                              /* check func */
+  NULL,                              /* update func */
+  65536,                             /* default */
+  0,                                 /* min */
+  UINT_MAX,                          /* max */
+  0                                  /* block */
+);
+  
 
 /*
   Default value for max number of transactions createable against NDB from
@@ -1425,6 +1451,8 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
   m_blob_expected_count_per_row= 0;
   m_blob_destination_record= dst_record;
   m_blobs_row_total_size= 0;
+  ndb_op->getNdbTransaction()->
+    setMaxPendingBlobReadBytes(THDVAR(current_thd, blob_read_batch_bytes));
 
   for (i= 0; i < table_share->fields; i++) 
   {
@@ -1465,6 +1493,8 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
   if (table_share->blob_fields == 0)
     DBUG_RETURN(0);
 
+  ndb_op->getNdbTransaction()->
+    setMaxPendingBlobWriteBytes(THDVAR(current_thd, blob_write_batch_bytes));
   blob_index= table_share->blob_field;
   blob_index_end= blob_index + table_share->blob_fields;
   do
@@ -14860,6 +14890,8 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),
+  MYSQL_SYSVAR(blob_read_batch_bytes),
+  MYSQL_SYSVAR(blob_write_batch_bytes),
 
   NULL
 };
