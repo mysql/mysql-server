@@ -1,0 +1,128 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+include/stop_slave.inc
+RESET MASTER;
+include/start_slave.inc
+call mtr.add_suppression("Attempting backtrace");
+call mtr.add_suppression("allocated tablespace *., old maximum was 0");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Buffered warning: Performance schema disabled");
+CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
+# Test case1: Set DEBUG POINT before binlog to make
+#             the master crash for transaction
+BEGIN;
+INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+SET SESSION debug="d,crash_commit_after_prepare";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test the transaction statements will not be binlogged
+show binlog events in 'master-bin.000001' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
+# On master, test the data will be rolled back after restart.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+# On slave, test replication will work fine, and the data 
+#           is not replicated
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+# Test case2: Set DEBUG POINT after binlog, and before the date
+#             is committed to make crash for transaction
+BEGIN;
+INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+SET SESSION debug="d,crash_commit_after_log";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test the transaction statements will be binlogged
+show binlog events in 'master-bin.000002' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
+# On master, test the data will be recovered after the master restart
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+# On slave, test replication will work fine, and the data is replicated
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+DROP TABLE t1;
+include/stop_slave.inc
+CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
+# Test case3: Set DEBUG POINT in the middle of binlog to
+#             make the master crash for transaction.
+SET SESSION debug="d,half_binlogged_transaction";
+BEGIN;
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test the halfly binlogged transaction will be trimmed
+# from the crashed binlog file
+show binlog events in 'master-bin.000003' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000003	#	Query	#	#	use `test`; CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB
+# Test the data will not be recovered successfully
+# after the master restart.
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+# Test case4: Set DEBUG POINT in the middle of binlog to
+#             make the master crash for non-transaction.
+SET SESSION debug="d,half_binlogged_transaction";
+CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
+INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test the halfly binlogged non-transaction statement will be trimmed
+# from the crashed binlog file
+show binlog events in 'master-bin.000004' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000004	#	Query	#	#	use `test`; CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM
+# Test the data will not be recovered successfully
+# after the master restart.
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+DROP TABLE t1, t2;

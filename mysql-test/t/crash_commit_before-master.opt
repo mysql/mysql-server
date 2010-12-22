@@ -1,3 +1,0 @@
---skip-stack-trace --skip-core-file
---default-storage-engine=MyISAM
---innodb-file-per-table=0

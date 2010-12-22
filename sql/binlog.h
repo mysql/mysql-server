@@ -35,6 +35,12 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
   /*
+    crash_safe_index_file is temp file used for guaranteeing
+    index file crash safe when master server restarts.
+  */
+  IO_CACHE crash_safe_index_file;
+  char crash_safe_index_file_name[FN_REFLEN];
+  /*
     purge_file is a temp file used in purge_logs so that the index file
     can be updated before deleting files from disk, yielding better crash
     recovery. It is created on demand the first time purge_logs is called
@@ -153,7 +159,8 @@ public:
   void close();
   int log_xid(THD *thd, my_xid xid);
   void unlog(ulong cookie, my_xid xid);
-  int recover(IO_CACHE *log, Format_description_log_event *fdle);
+  int recover(IO_CACHE *log, Format_description_log_event *fdle,
+              my_off_t *valid_pos);
 #if !defined(MYSQL_CLIENT)
 
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
@@ -218,7 +225,7 @@ public:
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
-  int update_log_index(LOG_INFO* linfo, bool need_update_threads);
+  int remove_logs_from_index(LOG_INFO* linfo, bool need_update_threads);
   void rotate_and_purge(uint flags);
   /**
      Flush binlog cache and synchronize to disk.
@@ -240,6 +247,11 @@ public:
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(Relay_log_info* rli, bool included);
+  int set_crash_safe_index_file_name(const char *base_file_name);
+  int open_crash_safe_index_file();
+  int close_crash_safe_index_file();
+  int add_log_to_index(uchar* log_file_name, int name_len, bool need_mutex);
+  int move_crash_safe_index_file_to_index_file(bool need_mutex);
   int set_purge_index_file_name(const char *base_file_name);
   int open_purge_index_file(bool destroy);
   bool is_inited_purge_index_file();

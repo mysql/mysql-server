@@ -230,6 +230,163 @@ flush logs;
 -- replace_regex /\.[\\\/]master/master/
 SELECT @index;
 
+#
+# WL#5493
+# Test case6 verifies if the index file has the correct data,
+# i.e. if binlog file name is added after the master restarts
+# when setting DEBUG POINT before renaming index file. 
+#
+# Test case7 verifies if the index file has the correct data,
+# i.e. if binlog file name is added after the master restarts
+# when setting DEBUG POINT after renaming index file.
+#
+# Test case8 verifies if the index file has the correct data,
+# i.e. if requested binlog file names are removed after the
+# master restarts when setting DEBUG POINT after purging index
+# file.
+#
+# Test case9 verifies if the index file has the correct data,
+# i.e. if requested binlog file names are removed after the
+# master restarts when setting DEBUG POINT before purging index
+# file.
+#
+# Test case10 verifies if the index file has the correct data,
+# i.e. although requested binlog file names are not removed
+# after the master restarts when injecting a fault to the
+# temp file in the process of purging the index file.
+#
+
+-- echo # Test case6: Set DEBUG POINT before rename index file when
+-- echo #             appending a binlog file name to index file.
+-- source include/show_binary_logs.inc
+file_exists $MYSQLD_DATADIR/master-bin.000013;
+--error 1
+file_exists $MYSQLD_DATADIR/master-bin.000014;
+
+# Write file to make mysql-test-run.pl expect crash and restart
+SET SESSION debug="+d,crash_create_before_rename_index_file";
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+flush logs;
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test if the index file has the correct data,
+-- echo # i.e. binlog file name is added.
+-- source include/show_binary_logs.inc
+file_exists $MYSQLD_DATADIR/master-bin.000014;
+file_exists $MYSQLD_DATADIR/master-bin.000015;
+--error 1
+file_exists $MYSQLD_DATADIR/master-bin.000016;
+
+-- echo # Test case7: Set DEBUG POINT after rename index file when
+-- echo #             appending a binlog file name to index file.
+# Write file to make mysql-test-run.pl expect crash and restart
+SET SESSION debug="+d,crash_create_after_rename_index_file";
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+-- error 2013
+flush logs;
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test if the index file has the correct data,
+-- echo # i.e. binlog file name is added.
+-- source include/show_binary_logs.inc
+file_exists $MYSQLD_DATADIR/master-bin.000016;
+file_exists $MYSQLD_DATADIR/master-bin.000017;
+--error 1
+file_exists $MYSQLD_DATADIR/master-bin.000018;
+
+-- echo # Test case8: Set DEBUG POINT after rename index file when
+-- echo #             purging the index file.
+
+-- source include/show_binary_logs.inc
+# Write file to make mysql-test-run.pl expect crash and restart
+SET SESSION debug="+d,crash_create_after_rename_index_file";
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+-- error 2013
+purge binary logs TO 'master-bin.000010';
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test if the index file has the correct data,
+-- echo # i.e. requested binlog file names are removed.
+-- source include/show_binary_logs.inc
+-- error 1
+file_exists $MYSQLD_DATADIR/master-bin.000008;
+-- error 1
+file_exists $MYSQLD_DATADIR/master-bin.000009;
+file_exists $MYSQLD_DATADIR/master-bin.000010;
+
+-- echo # Test case9: Set DEBUG POINT befor rename index file when
+-- echo #             purging the index file.
+
+-- source include/show_binary_logs.inc
+# Write file to make mysql-test-run.pl expect crash and restart
+SET SESSION debug="+d,crash_create_before_rename_index_file";
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+-- error 2013
+purge binary logs TO 'master-bin.000012';
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test if the index file has the correct data,
+-- echo # i.e. requested binlog file names are removed.
+-- source include/show_binary_logs.inc
+-- error 1
+file_exists $MYSQLD_DATADIR/master-bin.000010;
+-- error 1
+file_exists $MYSQLD_DATADIR/master-bin.000011;
+file_exists $MYSQLD_DATADIR/master-bin.000012;
+
+-- echo # Test case10: Inject a fault to copy part content to the temp file
+-- echo #              when purging the index file.
+
+-- source include/show_binary_logs.inc
+# Write file to make mysql-test-run.pl expect crash and restart
+SET SESSION debug="+d,fault_injection_copy_part_file";
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+-- error 2013
+purge binary logs TO 'master-bin.000014';
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test the index file is complete, although is not purged successfully.
+-- source include/show_binary_logs.inc
+file_exists $MYSQLD_DATADIR/master-bin.000012;
+file_exists $MYSQLD_DATADIR/master-bin.000013;
+file_exists $MYSQLD_DATADIR/master-bin.000014;
+
 eval SET SESSION debug="$old";
 
 --echo End of tests

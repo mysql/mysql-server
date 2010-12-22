@@ -1,0 +1,199 @@
+#
+# WL#5493 & WL#5440
+# Test case1 verifies if the transaction statements will not be
+# binlogged and replication will work fine, but the data will
+# be rolled back on master after the master restarts when setting
+# DEBUG POINT before binlog to make the master crash.
+# 
+# Test case2 verifies if the transaction statements will be
+# binlogged and replication will work fine, and the data will
+# be recovered after the master restarts when setting DEBUG
+# POINT after binlog, and before the date is committed to make
+# the master crash.
+#
+# Test case3 verifies if the halfly binlogged transaction 
+# statements will be trimmed from the crashed binlog file
+# and the data will not be recovered successfully after
+# the master restarts when setting DEBUG POINT in the
+# middle of binlog to make the master crash
+#
+# Test case4 verifies if the halfly binlogged non-transaction
+# statement will be trimmed from the crashed binlog file
+# and the data will not be recovered successfully after
+# the master restarts when setting DEBUG POINT in the
+# middle of binlog to make the master crash.
+#
+
+# Don't test this under valgrind, memory leaks will occur
+-- source include/not_valgrind.inc
+-- source include/not_embedded.inc
+-- source include/master-slave.inc
+-- source include/have_debug.inc
+-- source include/have_innodb.inc
+-- source include/have_binlog_format_row.inc
+
+# Reset master
+connection slave;
+--source include/stop_slave.inc 
+--source include/wait_for_slave_to_stop.inc
+
+connection master;
+RESET MASTER;
+
+connection slave;
+--source include/start_slave.inc
+--source include/wait_for_slave_to_start.inc
+
+connection master;
+call mtr.add_suppression("Attempting backtrace");
+call mtr.add_suppression("allocated tablespace *., old maximum was 0");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Buffered warning: Performance schema disabled");
+
+-- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
+
+-- echo # Test case1: Set DEBUG POINT before binlog to make
+-- echo #             the master crash for transaction
+#SET SESSION debug="d,crash_trans_commit_before_binlog";
+BEGIN;
+let $rows= 3;
+WHILE($rows)
+{
+  INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+  dec $rows;
+}
+# Write file to make mysql-test-run.pl expect crash and restart
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET SESSION debug="d,crash_commit_after_prepare";
+# Run the crashing query
+-- error 2013
+COMMIT;
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc 
+-- disable_reconnect
+
+-- echo # Test the transaction statements will not be binlogged
+-- source include/show_binlog_events.inc
+
+-- echo # On master, test the data will be rolled back after restart.
+SELECT COUNT(*) FROM t1;
+
+sync_slave_with_master;
+-- echo # On slave, test replication will work fine, and the data 
+-- echo #           is not replicated
+SELECT COUNT(*) FROM t1;
+
+connection master;
+-- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+-- echo # Test case2: Set DEBUG POINT after binlog, and before the date
+-- echo #             is committed to make crash for transaction
+#SET SESSION debug="d,crash_trans_commit_after_binlog";
+BEGIN;
+let $rows= 3;
+WHILE($rows)
+{
+  INSERT INTO t1 (a) VALUES (REPEAT('a',2));
+  dec $rows;
+}
+# Write file to make mysql-test-run.pl expect crash and restart
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+SET SESSION debug="d,crash_commit_after_log";
+# Run the crashing query
+-- error 2013
+COMMIT;
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test the transaction statements will be binlogged
+-- source include/show_binlog_events.inc
+
+-- echo # On master, test the data will be recovered after the master restart
+SELECT COUNT(*) FROM t1;
+
+sync_slave_with_master;
+-- echo # On slave, test replication will work fine, and the data is replicated
+SELECT COUNT(*) FROM t1;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+
+-- source include/stop_slave.inc
+
+connection master;
+-- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+# Test transaction with large data inserted
+CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
+
+-- echo # Test case3: Set DEBUG POINT in the middle of binlog to
+-- echo #             make the master crash for transaction.
+SET SESSION debug="d,half_binlogged_transaction";
+BEGIN;
+let $rows= 24;
+WHILE($rows)
+{
+  INSERT INTO t1 (a) VALUES (REPEAT('a',6144));
+  dec $rows;
+}
+# Write file to make mysql-test-run.pl expect crash and restart
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Run the crashing query
+-- error 2013
+COMMIT;
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test the halfly binlogged transaction will be trimmed
+-- echo # from the crashed binlog file
+-- source include/show_binlog_events.inc
+
+-- echo # Test the data will not be recovered successfully
+-- echo # after the master restart.
+SELECT COUNT(*) FROM t1;
+
+-- echo # Test case4: Set DEBUG POINT in the middle of binlog to
+-- echo #             make the master crash for non-transaction.
+SET SESSION debug="d,half_binlogged_transaction";
+# Write file to make mysql-test-run.pl expect crash and restart
+-- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+-- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
+-- error 2013
+INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
+
+-- source include/wait_until_disconnected.inc
+-- enable_reconnect
+-- echo # Restart the master server
+-- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- source include/wait_until_connected_again.inc
+-- disable_reconnect
+
+-- echo # Test the halfly binlogged non-transaction statement will be trimmed
+-- echo # from the crashed binlog file
+-- source include/show_binlog_events.inc
+
+-- echo # Test the data will not be recovered successfully
+-- echo # after the master restart.
+SELECT COUNT(*) FROM t2;
+
+DROP TABLE t1, t2;
+
