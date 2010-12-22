@@ -1,4 +1,12 @@
 
+if ($rpl_inited)
+{
+  if (!$allow_rpl_inited)
+  {
+    --die ERROR IN TEST: When using the replication test framework (master-slave.inc, rpl_init.inc etc), use rpl_restart_server.inc instead of restart_mysqld.inc. If you know what you are doing and you really have to use restart_mysqld.inc, set allow_rpl_inited=1 before you source restart_mysqld.inc
+  }
+}
+
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
 --let $_server_id= `SELECT @@server_id`

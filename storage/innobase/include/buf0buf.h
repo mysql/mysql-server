@@ -63,14 +63,18 @@ Created 11/5/1995 Heikki Tuuri
 					position of the block. */
 /* @} */
 
-#define MAX_BUFFER_POOLS 64		/*!< The maximum number of buffer
+#define MAX_BUFFER_POOLS_BITS	6	/*!< Number of bits to representing
+					a buffer pool ID */
+
+#define MAX_BUFFER_POOLS 	(1 << MAX_BUFFER_POOLS_BITS)
+					/*!< The maximum number of buffer
 					pools that can be defined */
 
 #define BUF_POOL_WATCH_SIZE		(srv_n_purge_threads + 1)
 					/*!< Maximum number of concurrent
 					buffer pool watches */
-#define MAX_PAGE_HASH_MUTEXES	1024	/*!< The maximum number of
-					page_hash mutexes */
+#define MAX_PAGE_HASH_LOCKS	1024	/*!< The maximum number of
+					page_hash locks */
 
 extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
@@ -118,6 +122,74 @@ enum buf_page_state {
 	BUF_BLOCK_REMOVE_HASH		/*!< hash index should be removed
 					before putting to the free list */
 };
+
+
+/** This structure defines information we will fetch from each buffer pool. It
+will be used to print table IO stats */
+struct buf_pool_info_struct{
+	/* General buffer pool info */
+	ulint	pool_unique_id;		/*!< Buffer Pool ID */
+	ulint	pool_size;		/*!< Buffer Pool size in pages */
+	ulint	lru_len;		/*!< Length of buf_pool->LRU */
+	ulint	old_lru_len;		/*!< buf_pool->LRU_old_len */
+	ulint	free_list_len;		/*!< Length of buf_pool->free list */
+	ulint	flush_list_len;		/*!< Length of buf_pool->flush_list */
+	ulint	n_pend_unzip;		/*!< buf_pool->n_pend_unzip, pages
+					pending decompress */
+	ulint	n_pend_reads;		/*!< buf_pool->n_pend_reads, pages
+					pending read */
+	ulint	n_pending_flush_lru;	/*!< Pages pending flush in LRU */
+	ulint	n_pending_flush_list;	/*!< Pages pending flush in FLUSH
+					LIST */
+	ulint	n_pages_made_young;	/*!< number of pages made young */
+	ulint	n_pages_not_made_young;	/*!< number of pages not made young */
+	ulint	n_pages_read;		/*!< buf_pool->n_pages_read */
+	ulint	n_pages_created;	/*!< buf_pool->n_pages_created */
+	ulint	n_pages_written;	/*!< buf_pool->n_pages_written */
+	ulint	n_page_gets;		/*!< buf_pool->n_page_gets */
+	ulint	n_ra_pages_read;	/*!< buf_pool->n_ra_pages_read, number
+					of pages readahead */
+	ulint	n_ra_pages_evicted;	/*!< buf_pool->n_ra_pages_evicted,
+					number of readahead pages evicted
+					without access */
+	ulint	n_page_get_delta;	/*!< num of buffer pool page gets since
+					last printout */
+
+	/* Buffer pool access stats */
+	double	page_made_young_rate;	/*!< page made young rate in pages
+					per second */
+	double	page_not_made_young_rate;/*!< page not made young rate
+					in pages per second */
+	double	pages_read_rate;	/*!< num of pages read per second */
+	double	pages_created_rate;	/*!< num of pages create per second */
+	double	pages_written_rate;	/*!< num of  pages written per second */
+	ulint	page_read_delta;	/*!< num of pages read since last
+					printout */
+	ulint	young_making_delta;	/*!< num of pages made young since
+					last printout */
+	ulint	not_young_making_delta;	/*!< num of pages not make young since
+					last printout */
+
+	/* Statistics about read ahead algorithm.  */
+	double	pages_readahead_rate;	/*!< readahead rate in pages per
+					second */
+	double	pages_evicted_rate;	/*!< rate of readahead page evicted
+					without access, in pages per second */
+
+	/* Stats about LRU eviction */
+	ulint	unzip_lru_len;		/*!< length of buf_pool->unzip_LRU
+					list */
+	/* Counters for LRU policy */
+	ulint	io_sum;			/*!< buf_LRU_stat_sum.io */
+	ulint	io_cur;			/*!< buf_LRU_stat_cur.io, num of IO
+					for current interval */
+	ulint	unzip_sum;		/*!< buf_LRU_stat_sum.unzip */
+	ulint	unzip_cur;		/*!< buf_LRU_stat_cur.unzip, num
+					pages decompressed in current
+					interval */
+};
+
+typedef struct buf_pool_info_struct	buf_pool_info_t;
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
@@ -636,6 +708,18 @@ void
 buf_print_io(
 /*=========*/
 	FILE*	file);	/*!< in: file where to print */
+/*******************************************************************//**
+Collect buffer pool stats information for a buffer pool. Also
+record aggregated stats if there are more than one buffer pool
+in the server */
+UNIV_INTERN
+void
+buf_stats_get_pool_info(
+/*====================*/
+	buf_pool_t*		buf_pool,	/*!< in: buffer pool */
+	ulint			pool_id,	/*!< in: buffer pool ID */
+	buf_pool_info_t*	all_pool_info);	/*!< in/out: buffer pool info
+						to fill */
 /*********************************************************************//**
 Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
@@ -1093,49 +1177,77 @@ buf_page_hash_get_low(
 	ulint		fold);	/*!< in: buf_page_address_fold(space, offset) */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is up to the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+If the block is found and lock is not NULL then the appropriate
+page_hash lock is acquired in the specified lock mode. Otherwise,
+mode value is ignored. It is up to the caller to release the
+lock. If the block is found and the lock is NULL then the page_hash
+lock is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
-buf_page_hash_get(
-/*==============*/
+buf_page_hash_get_locked(
+/*=====================*/
 					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
+					or NULL; if NULL, hash_lock
 					is also NULL. */
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex);		/*!< in/out: mutex of the page
+	rw_lock_t**	lock,		/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
+					is passed then the hash_lock
 					is released by this function */
+	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
+					RW_LOCK_SHARED. Ignored if
+					lock == NULL */
 /******************************************************************//**
-Returns the control block of a file page, NULL if not found or an
-uncompressed page frame does not exist.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is upto the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+Returns the control block of a file page, NULL if not found.
+If the block is found and lock is not NULL then the appropriate
+page_hash lock is acquired in the specified lock mode. Otherwise,
+mode value is ignored. It is up to the caller to release the
+lock. If the block is found and the lock is NULL then the page_hash
+lock is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_block_t*
-buf_block_hash_get(
-/*===============*/
+buf_block_hash_get_locked(
+/*=====================*/
 					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
+					or NULL; if NULL, hash_lock
 					is also NULL. */
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex);		/*!< in/out: mutex of the page
+	rw_lock_t**	lock,		/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
+					is passed then the hash_lock
 					is released by this function */
+	ulint		lock_mode);	/*!< in: RW_LOCK_EX or
+					RW_LOCK_SHARED. Ignored if
+					lock == NULL */
+/* There are four different ways we can try to get a bpage or block
+from the page hash:
+1) Caller already holds the appropriate page hash lock: in the case call
+buf_page_hash_get_low() function.
+2) Caller wants to hold page hash lock in x-mode
+3) Caller wants to hold page hash lock in s-mode
+4) Caller doesn't want to hold page hash lock */
+#define buf_page_hash_get_s_locked(b, s, o, l)			\
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+#define buf_page_hash_get_x_locked(b, s, o, l)			\
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+#define buf_page_hash_get(b, s, o)				\
+	buf_page_hash_get_locked(b, s, o, NULL, 0)
+
+#define buf_block_hash_get_s_locked(b, s, o, l)			\
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+#define buf_block_hash_get_x_locked(b, s, o, l)			\
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_EX)
+#define buf_block_hash_get(b, s, o)				\
+	buf_block_hash_get_locked(b, s, o, NULL, 0)
+
 /*********************************************************************//**
 Gets the current length of the free list of buffer blocks.
 @return	length of the free list */
@@ -1202,11 +1314,24 @@ void
 buf_get_total_stat(
 /*===============*/
 	buf_pool_stat_t*tot_stat);	/*!< out: buffer pool stats */
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
+	ulint		n,		/*!< in: nth chunk in the buffer pool */
+	ulint*		chunk_size);	/*!< in: chunk size */
 
 #endif /* !UNIV_HOTBACKUP */
 
 /** The common buffer control block structure
 for compressed and uncompressed frames */
+
+/** Number of bits used for buffer page states. */
+#define BUF_PAGE_STATE_BITS	3
 
 struct buf_page_struct{
 	/** @name General fields
@@ -1222,7 +1347,8 @@ struct buf_page_struct{
 	unsigned	offset:32;	/*!< page number; also protected
 					by buf_pool->mutex. */
 
-	unsigned	state:3;	/*!< state of the control block; also
+	unsigned	state:BUF_PAGE_STATE_BITS;
+					/*!< state of the control block; also
 					protected by buf_pool->mutex.
 					State transitions from
 					BUF_BLOCK_READY_FOR_USE to
@@ -1741,19 +1867,46 @@ Use these instead of accessing buf_pool->mutex directly. */
 
 
 
-/** Get appropriate page_hash_mutex. */
-#define buf_page_hash_mutex_get(b, f)		\
-	hash_get_mutex(b->page_hash, f)
+/** Get appropriate page_hash_lock. */
+# define buf_page_hash_lock_get(b, f)		\
+	hash_get_lock(b->page_hash, f)
 
-/** Test if page_hash mutex is owned. */
-#define buf_page_hash_mutex_own(b, p)			\
-	mutex_own(buf_page_hash_mutex_get(b,		\
+#ifdef UNIV_SYNC_DEBUG
+/** Test if page_hash lock is held in s-mode. */
+# define buf_page_hash_lock_held_s(b, p)		\
+	rw_lock_own(buf_page_hash_lock_get(b,		\
 		  buf_page_address_fold(p->space,	\
-					p->offset)))
-#define buf_block_hash_mutex_own(b, p)			\
-	mutex_own(buf_page_hash_mutex_get(b,		\
-		  buf_page_address_fold(p->page.space,	\
-					p->page.offset)))
+					p->offset)),	\
+					RW_LOCK_SHARED)
+
+/** Test if page_hash lock is held in x-mode. */
+# define buf_page_hash_lock_held_x(b, p)		\
+	rw_lock_own(buf_page_hash_lock_get(b,		\
+		  buf_page_address_fold(p->space,	\
+					p->offset)),	\
+					RW_LOCK_EX)
+
+/** Test if page_hash lock is held in x or s-mode. */
+# define buf_page_hash_lock_held_s_or_x(b, p)		\
+	(buf_page_hash_lock_held_s(b, p)		\
+	 || buf_page_hash_lock_held_x(b, p))
+
+# define buf_block_hash_lock_held_s(b, p)		\
+	buf_page_hash_lock_held_s(b, &(p->page))
+
+# define buf_block_hash_lock_held_x(b, p)		\
+	buf_page_hash_lock_held_x(b, &(p->page))
+
+# define buf_block_hash_lock_held_s_or_x(b, p)		\
+	buf_page_hash_lock_held_s_or_x(b, &(p->page))
+#else /* UNIV_SYNC_DEBUG */
+# define buf_page_hash_lock_held_s(b, p)	(TRUE)
+# define buf_page_hash_lock_held_x(b, p)	(TRUE)
+# define buf_page_hash_lock_held_s_or_x(b, p)	(TRUE)
+# define buf_block_hash_lock_held_s(b, p)	(TRUE)
+# define buf_block_hash_lock_held_x(b, p)	(TRUE)
+# define buf_block_hash_lock_held_s_or_x(b, p)	(TRUE)
+#endif /* UNIV_SYNC_DEBUG */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Forbid the release of the buffer pool mutex. */

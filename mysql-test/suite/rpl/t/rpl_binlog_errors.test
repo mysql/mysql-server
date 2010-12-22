@@ -14,9 +14,9 @@
 # 
 # Test cases are documented inline.
 
--- source include/master-slave.inc
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
+-- source include/master-slave.inc
 
 -- echo #######################################################################
 -- echo ####################### PART 1: MASTER TESTS ##########################
@@ -186,16 +186,8 @@ SELECT count(*) FROM t4;
 
 -- echo ### check that the incident event is written to the current log
 SET GLOBAL debug="-d,error_unique_log_filename";
--- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
--- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
-
-# 53 is the size of the incident event, so we start from 22 bytes before the
-# current position
--- let $binlog_start = `SELECT $binlog_start - 53`
-FLUSH LOGS;
--- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $binlog_start <binlog_start> $binlog_file BINLOG_FILE
--- replace_column 2 # 4 # 5 #
--- eval SHOW BINLOG EVENTS IN '$binlog_file' FROM $binlog_start LIMIT 1
+-- let $binlog_limit= 4,1
+-- source include/show_binlog_events.inc
 
 # clean up and move to next test
 DELETE FROM t4;
@@ -295,7 +287,8 @@ DROP TABLE t5;
 ###            failure to write the rotate event.
 
 # restart the server so that we have binlog again
---source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 # +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
 SET GLOBAL debug="+d,fault_injection_openning_index";
@@ -316,7 +309,8 @@ DELETE FROM t2;
 DROP TABLE t5;
 
 # restart the server so that we have binlog again
--- source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 -- echo ###################### TEST #12
 
@@ -342,7 +336,8 @@ DELETE FROM t2;
 DROP TABLE t5;
 
 # restart the server so that we have binlog again
--- source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 ## clean up
 SET GLOBAL debug= @old_debug;
@@ -359,9 +354,7 @@ RESET MASTER;
 -- echo #######################################################################
 
 ### setup
--- connection master
-# master-slave-reset starts the slave automatically
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection slave
 
 # slave suppressions
@@ -404,12 +397,9 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- source include/io_thd_fault_injection.inc
 
 ### clean up
--- disable_warnings
--- source include/stop_slave.inc
--- enable_warnings
+-- source include/stop_slave_sql.inc
 SET GLOBAL debug=@old_debug;
 RESET SLAVE;
 RESET MASTER;
--- source include/start_slave.inc
--- connection master
--- source include/master-slave-end.inc
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

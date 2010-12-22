@@ -26,13 +26,11 @@ REPLACE INTO t1 ( col1,col2) SELECT col1,col2 FROM t0;
 -- sync_slave_with_master
 -- connection master
 
--- let $diff_table_1=master:test.t0
--- let $diff_table_2=slave:test.t0
+-- let $diff_tables= master:t0, slave:t0
 -- source include/diff_tables.inc
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 DROP TABLE t0, t1;
--- sync_slave_with_master
+--source include/rpl_end.inc

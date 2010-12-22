@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(a int);
 select * into outfile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
 truncate table t1;
@@ -82,3 +78,4 @@ LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
 DROP TABLE t1;
 SET SESSION sql_mode=@old_mode;
 [slave]
+include/rpl_end.inc

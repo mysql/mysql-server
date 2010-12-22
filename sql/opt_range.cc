@@ -8428,7 +8428,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   if (unique == NULL)
   {
-    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", abort(); );
+    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", DBUG_ABORT(); );
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created", 
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"); );
 

@@ -6,7 +6,6 @@ binlog.binlog_multi_engine               # joro : NDB tests marked as experiment
 funcs_1.charset_collation_1              # depends on compile-time decisions
 funcs_1.myisam_views @solaris            # Bug#50595 2010-03-05 alik funcs_1.myisam_views takes longer time on 6.0 branch than 5.1 branch
 
-innodb.innodb_bug56143                   # Bug#58432 2010-11-24 alik innodb.innodb_bug56143 fails under valgrind
 innodb.innodb_information_schema         # Bug#48883 2010-05-11 alik Test "innodb_information_schema" takes fewer locks than expected
 
 main.func_math @freebsd                  # Bug#43020 2010-05-04 alik main.func_math fails on FreeBSD in PB2
@@ -41,61 +40,12 @@ sys_vars.plugin_dir_basic                     # Bug#52223 2010-11-24 alik Test "
 sys_vars.slow_query_log_func @solaris         # Bug#54819 2010-06-26 alik sys_vars.slow_query_log_func fails sporadically on Solaris 10
 sys_vars.wait_timeout_func                    # Bug#41255 2010-04-26 alik wait_timeout_func fails
 
-# Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
-# Usually the test cases from ndb and rpl_ndb test suites are not run in PB,
-# but they run by gcov.
-#
-
-ndb.*
-rpl_ndb.*
-rpl_ndb.rpl_ndb_log                      # Bug#38998
-
-# Declare all NDB-tests in other test suites experimental.
-
-stress.ddl_ndb
-
+# BUG #59055 : All ndb tests should be removed from the repository
+# Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests
 sys_vars.ndb_log_update_as_write_basic
 sys_vars.have_ndbcluster_basic
 sys_vars.ndb_log_updated_only_basic
 
-funcs_1.ndb_storedproc_10
-funcs_1.ndb_bitdata
-funcs_1.ndb_trig_03
-funcs_1.ndb_trig_0102
-funcs_1.is_tables_ndb
-funcs_1.is_columns_ndb
-funcs_1.ndb_trig_0407
-funcs_1.ndb_trig_1011ext
-funcs_1.ndb_storedproc_06
-funcs_1.ndb_views
-funcs_1.is_cml_ndb
-funcs_1.ndb_storedproc_02
-funcs_1.ndb_storedproc_03
-funcs_1.ndb_trig_03e
-funcs_1.is_engines_ndb
-funcs_1.ndb_trig_08
-funcs_1.ndb_storedproc_07
-funcs_1.ndb_storedproc_08
-funcs_1.ndb_func_view
-funcs_1.ndb_trig_09
-funcs_1.ndb_cursors
-
-funcs_2.ndb_charset
-
-parts.ndb_dd_backuprestore               # joro : NDB tests marked as experimental as agreed with bochklin
-parts.part_supported_sql_func_ndb        # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_alter1_1_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_alter1_1_2_ndb           # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_alter1_2_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_auto_increment_ndb       # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_basic_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_engine_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_int_ndb                  # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_mgm_lc0_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
 
 rpl_bhs.*                                # skozlov : WL#5139 - rpl_bhs suite generated "on-the-fly" at testing moment from rpl suite
 main.gis-rtree                           # svoj: due to BUG#38965
