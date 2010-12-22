@@ -3409,8 +3409,10 @@ static int init_common_variables()
     default_collation= get_charset_by_name(default_collation_name, MYF(0));
     if (!default_collation)
     {
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
       buffered_logs.print();
       buffered_logs.cleanup();
+#endif
       sql_print_error(ER_DEFAULT(ER_UNKNOWN_COLLATION), default_collation_name);
       return 1;
     }
