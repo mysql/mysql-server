@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 delete from mysql.user where user=_binary'rpl_do_grant';
 delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
@@ -166,21 +162,13 @@ USE bug42217_db;
 DROP FUNCTION upgrade_del_func;
 DROP FUNCTION upgrade_alter_func;
 DROP DATABASE bug42217_db;
+SET SQL_LOG_BIN= 0;
 DROP USER 'create_rout_db'@'localhost';
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+SET SQL_LOG_BIN= 1;
+include/rpl_reset.inc
+USE test;
 ######## BUG#49119 #######
 ### i) test case from the 'how to repeat section'
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
 CREATE TABLE t1(c1 INT);
 CREATE PROCEDURE p1() SELECT * FROM t1 |
 REVOKE EXECUTE ON PROCEDURE p1 FROM 'root'@'localhost';
@@ -188,12 +176,7 @@ ERROR 42000: There is no such grant defined for user 'root' on host 'localhost' 
 DROP TABLE t1;
 DROP PROCEDURE p1;
 ### ii) Test case in which REVOKE partially succeeds
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE TABLE t1(c1 INT);
 CREATE PROCEDURE p1() SELECT * FROM t1 |
 CREATE USER 'user49119'@'localhost';
@@ -246,12 +229,7 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP USER 'user49119'@'localhost';
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 grant all on *.* to foo@"1.2.3.4";
 revoke all privileges, grant option from "foo";
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
@@ -259,15 +237,11 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; grant all on *.* to foo@"1.2.3.4"
 master-bin.000001	#	Query	#	#	use `test`; revoke all privileges, grant option from "foo"
+include/check_slave_no_error.inc
 DROP USER foo@"1.2.3.4";
 
 # Bug#27606 GRANT statement should be replicated with DEFINER information
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 GRANT SELECT, INSERT ON mysql.user TO user_bug27606@localhost;
 SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';
 Grantor
@@ -284,3 +258,4 @@ Grantor
 root@localhost
 DROP USER user_bug27606@localhost;
 "End of test"
+include/rpl_end.inc

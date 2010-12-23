@@ -26,3 +26,4 @@ source include/show_binlog_events.inc;
 connection master;
 drop table test.t1;
 sync_slave_with_master;
+--source include/rpl_end.inc

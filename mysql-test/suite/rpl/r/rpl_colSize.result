@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t1;
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
@@ -177,3 +173,4 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 *** Cleanup  ***
 DROP TABLE t1;
+include/rpl_end.inc

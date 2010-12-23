@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== 0. Setting it all up ====
 SET BINLOG_FORMAT=STATEMENT;
 **** On Master ****
@@ -102,11 +98,7 @@ DELETE FROM logtbl;
 DROP PROCEDURE just_log;
 DROP PROCEDURE calc_and_log;
 DROP FUNCTION log_rows;
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/rpl_reset.inc
 #### 2. Using mixed mode ####
 ==== 2.1. Checking a procedure ====
 **** On Master ****
@@ -231,3 +223,4 @@ DROP PROCEDURE just_log;
 DROP PROCEDURE log_me;
 DROP PROCEDURE log_me_inner;
 DROP FUNCTION log_rows;
+include/rpl_end.inc
