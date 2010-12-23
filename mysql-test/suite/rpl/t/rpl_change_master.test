@@ -52,7 +52,8 @@ sync_slave_with_master;
 # BUG#12190 CHANGE MASTER has differ path requiremts on MASTER_LOG_FILE and RELAY_LOG_FILE
 #
 
-source include/master-slave-reset.inc;
+if ($bug_59037_is_fixed == 'true') {
+--source include/rpl_reset.inc
 
 connection master;
 create table t1 (a int);
@@ -65,8 +66,7 @@ insert into t1 values (2);
 sync_slave_with_master;
 
 # Check if the table t1 and t2 are identical on master and slave;
-let $diff_table_1= master:test.t1
-let $diff_table_2= slave:test.t1
+let $diff_tables= master:t1,slave:t1
 source include/diff_tables.inc;
 
 connection slave;
@@ -88,8 +88,7 @@ source include/wait_for_slave_sql_to_start.inc;
 sync_with_master;
 
 # Check if the table t1 and t2 are identical on master and slave;
-let $diff_table_1= master:test.t1
-let $diff_table_2= slave:test.t1
+let $diff_tables= master:t1,slave:t1
 source include/diff_tables.inc;
 
 # clean up
@@ -99,4 +98,6 @@ source include/wait_for_slave_io_to_start.inc;
 eval set global relay_log_purge=$relay_log_purge;
 connection master;
 drop table t1;
-sync_slave_with_master;
+}
+
+--source include/rpl_end.inc

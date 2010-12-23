@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
 CREATE USER tester IDENTIFIED BY 'test';
@@ -36,3 +32,4 @@ REVOKE ALL ON mysqltest1.* FROM 'tester'@'%';
 REVOKE ALL ON mysqltest1.* FROM ''@'localhost%';
 DROP USER tester@'%';
 DROP USER ''@'localhost%';
+include/rpl_end.inc

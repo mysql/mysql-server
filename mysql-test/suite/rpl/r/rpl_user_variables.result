@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 reset master;
 create table t1(n char(30));
 set @i1:=12345678901234, @i2:=-12345678901234, @i3:=0, @i4:=-1;
@@ -279,4 +275,4 @@ i
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
-stop slave;
+include/rpl_end.inc
