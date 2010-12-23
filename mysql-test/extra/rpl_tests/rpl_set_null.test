@@ -29,7 +29,7 @@
 # BUG#49481: RBR: MyISAM and bit fields may cause slave to stop on
 #  delete cant find record
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 
 -- connection master
 -- eval CREATE TABLE t1 (c1 BIT, c2 INT) Engine=$engine
@@ -37,8 +37,7 @@ INSERT INTO `t1` VALUES ( 1, 1 );
 UPDATE t1 SET c1=NULL where c2=1;
 -- sync_slave_with_master
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
@@ -46,15 +45,14 @@ UPDATE t1 SET c1=NULL where c2=1;
 DELETE FROM t1 WHERE c2=1 LIMIT 1;
 -- sync_slave_with_master
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE t1;
 -- sync_slave_with_master
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 
 -- connection master
 
@@ -68,8 +66,7 @@ SELECT * FROM t1;
 UPDATE t1 SET c1=NULL WHERE c1='w';
 -- sync_slave_with_master
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
@@ -77,8 +74,7 @@ UPDATE t1 SET c1=NULL WHERE c1='w';
 DELETE FROM t1 LIMIT 2;
 -- sync_slave_with_master
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master

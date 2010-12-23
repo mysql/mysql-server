@@ -150,6 +150,15 @@ enum monitor_id_value {
 	MONITOR_OVLD_PAGES_READ,
 	MONITOR_OVLD_BYTE_READ,
 	MONITOR_OVLD_BYTE_WRITTEN,
+	MONITOR_NUM_ADAPTIVE_FLUSHES,
+	MONITOR_FLUSH_ADAPTIVE_PAGES,
+	MONITOR_NUM_ASYNC_FLUSHES,
+	MONITOR_FLUSH_ASYNC_PAGES,
+	MONITOR_NUM_SYNC_FLUSHES,
+	MONITOR_FLUSH_SYNC_PAGES,
+	MONITOR_NUM_MAX_DIRTY_FLUSHES,
+	MONITOR_FLUSH_MAX_DIRTY_PAGES,
+	MONITOR_FLUSH_IO_CAPACITY_PCT,
 
 	/* Buffer Page I/O specific counters. */
 	MONITOR_MODULE_BUF_PAGE,
@@ -169,7 +178,6 @@ enum monitor_id_value {
 	MONITOR_ZBLOB_PAGE_READ,
 	MONITOR_ZBLOB2_PAGE_READ,
 	MONITOR_OTHER_PAGE_READ,
-
 	MONITOR_INDEX_LEAF_PAGE_WRITTEN,
 	MONITOR_INDEX_NON_LEAF_PAGE_WRITTEN,
 	MONITOR_INDEX_IBUF_LEAF_PAGE_WRITTEN,
@@ -223,7 +231,7 @@ enum monitor_id_value {
 	MONITOR_OVLD_LOG_WAITS,
 	MONITOR_OVLD_LOG_WRITE_REQUEST,
 	MONITOR_OVLD_LOG_WRITES,
-	MONITOR_FLUSH_IO_CAPACITY,
+
 	MONITOR_FLUSH_DIRTY_PAGE_EXCEED,
 
 	/* Page Manager related counters */
@@ -256,6 +264,13 @@ enum monitor_id_value {
 };
 
 typedef enum monitor_id_value		monitor_id_t;
+
+/** This informs the monitor control system to turn
+on/off and reset monitor counters through wild card match */
+#define	MONITOR_WILDCARD_MATCH		(NUM_MONITOR + 1)
+
+/** Cannot find monitor counter with a specified name */
+#define	MONITOR_NO_MATCH		(NUM_MONITOR + 2)
 
 /** struct monitor_info describes the basic/static information
 about each monitor counter. */
@@ -409,6 +424,23 @@ on the counters */
 		}							\
 	}
 
+#define	MONITOR_INC_VALUE(monitor, value)				\
+	if (MONITOR_IS_ON(monitor)) {					\
+		MONITOR_VALUE(monitor) += (value);			\
+		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
+			MONITOR_MAX_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	}
+
+#define	MONITOR_DEC_VALUE(monitor, value)				\
+	if (MONITOR_IS_ON(monitor)) {					\
+		ut_ad(MONITOR_VALUE(monitor) >= (value);		\
+		MONITOR_VALUE(monitor) -= (value);			\
+		if (MONITOR_VALUE(monitor) < MONITOR_MIN_VALUE(monitor)) {  \
+			MONITOR_MIN_VALUE(monitor) = MONITOR_VALUE(monitor);\
+		}							\
+	}
+
 /* Increment/decrement counter without check the monitor on/off bit, which
 could already be checked as a module group */
 #define	MONITOR_INC_NOCHECK(monitor)					\
@@ -527,7 +559,7 @@ is NUM_MONITOR then turn on all monitor counters.
 @return	0 if successful, or the first monitor that cannot be
 turned on because it is already turned on. */
 UNIV_INTERN
-ulint
+void
 srv_mon_set_module_control(
 /*=======================*/
 	monitor_id_t	module_id,	/*!< in: Module ID as in

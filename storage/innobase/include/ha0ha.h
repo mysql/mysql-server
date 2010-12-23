@@ -225,20 +225,33 @@ struct ha_node_struct {
 	ulint		fold;	/*!< fold value for the data */
 };
 
-#ifndef UNIV_HOTBACKUP
-/** Assert that the current thread is holding the mutex protecting a
-hash bucket corresponding to a fold value.
-@param table	in: hash table
-@param fold	in: fold value */
-# define ASSERT_HASH_MUTEX_OWN(table, fold)				\
-	ut_ad(!(table)->mutexes || mutex_own(hash_get_mutex(table, fold)))
-#else /* !UNIV_HOTBACKUP */
-/** Assert that the current thread is holding the mutex protecting a
-hash bucket corresponding to a fold value.
-@param table	in: hash table
-@param fold	in: fold value */
-# define ASSERT_HASH_MUTEX_OWN(table, fold) ((void) 0)
-#endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_DEBUG
+/********************************************************************//**
+Assert that the synchronization object in a hash operation involving
+possible change in the hash table is held.
+Note that in case of mutexes we assert that mutex is owned while in case
+of rw-locks we assert that it is held in exclusive mode. */
+UNIV_INLINE
+void
+hash_assert_can_modify(
+/*===================*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold value */
+/********************************************************************//**
+Assert that the synchronization object in a hash search operation is held.
+Note that in case of mutexes we assert that mutex is owned while in case
+of rw-locks we assert that it is held either in x-mode or s-mode. */
+UNIV_INLINE
+void
+hash_assert_can_search(
+/*===================*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold);	/*!< in: fold value */
+#else /* UNIV_DEBUG */
+#define hash_assert_can_modify(t, f)
+#define hash_assert_can_search(t, f)
+#endif /* UNIV_DEBUG */
+
 
 #ifndef UNIV_NONINL
 #include "ha0ha.ic"

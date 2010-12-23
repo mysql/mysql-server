@@ -1,7 +1,3 @@
-########################################################
-# By JBM 2006-02-14 Wrapped to share test code between #
-# engines. Added to skip test when NDB is default      #
-########################################################
 -- source include/not_ndb_default.inc
 let $engine_type=myisam;
 -- source extra/rpl_tests/rpl_EE_err.test

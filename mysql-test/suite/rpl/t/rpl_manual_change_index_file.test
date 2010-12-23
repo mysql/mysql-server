@@ -58,11 +58,10 @@ FLUSH LOGS;
 # error to slave. 
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
 connection slave;
-source include/wait_for_slave_io_to_stop.inc;
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
-let $last_error= `SELECT SUBSTRING("$last_error" FROM 17)`;
-echo Last_IO_Error;
-echo $last_error;
+# 1236 = ER_MASTER_FATAL_ERROR_READING_BINLOG
+--let $slave_io_errno= 1236
+--let $show_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
 
 connection master;
 
@@ -113,7 +112,7 @@ sync_slave_with_master;
 --echo # insteads of EE_FILENOTFOUND error is sent to slave, so that the slave
 --echo # I/O thread stops immediately.
 
-source include/master-slave-reset.inc;
+--source include/rpl_reset.inc
 --echo [ on master ]
 connection master;
 
@@ -201,4 +200,4 @@ SELECT * FROM t1;
 
 connection master;
 DROP TABLE t1;
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 connection slave
 SET @start_max_connections= @@global.max_connections;
 SET @start_init_slave= @@global.init_slave;
@@ -30,6 +26,7 @@ STOP SLAVE;
 RESET MASTER;
 RESET SLAVE;
 START SLAVE;
+include/wait_for_slave_to_start.inc
 SELECT @@global.max_connections = @start_max_connections + 1;
 @@global.max_connections = @start_max_connections + 1
 1
@@ -39,6 +36,7 @@ STOP SLAVE;
 RESET MASTER;
 RESET SLAVE;
 START SLAVE;
+include/wait_for_slave_to_start.inc
 SHOW VARIABLES LIKE 'init_slave';
 Variable_name	Value
 init_slave	SET @a=5
@@ -48,3 +46,4 @@ NULL
 Expect NULL
 SET @@global.max_connections= @start_max_connections;
 SET @@global.init_slave= @start_init_slave;
+include/rpl_end.inc

@@ -22,7 +22,6 @@
 
 class THD;
 
-uint filename_to_tablename(const char *from, char *to, uint to_length);
 int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 bool schema_table_store_record(THD *thd, TABLE *table);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);

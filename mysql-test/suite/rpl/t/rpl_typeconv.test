@@ -67,3 +67,4 @@ sync_slave_with_master;
 
 set global slave_type_conversions = @saved_slave_type_conversions;
 
+--source include/rpl_end.inc
