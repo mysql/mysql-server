@@ -6376,8 +6376,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       if (tab->type == JT_REF && tab->quick &&
 	  (((uint) tab->ref.key == tab->quick->index &&
 	    tab->ref.key_length < tab->quick->max_used_key_length) ||
-	   (!tab->table->intersect_keys.is_clear_all() &&
-	    tab->table->intersect_keys.is_set(tab->ref.key))))
+	    tab->table->intersect_keys.is_set(tab->ref.key)))
       {
 	/* Range uses longer key;  Use this instead of ref on key */
 	tab->type=JT_ALL;

@@ -75,24 +75,24 @@ SELECT * FROM City
 # the previous 4 plans are valid and return
 # the correct results when executed
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE Name LIKE 'C%' AND Population > 1000000;
- 
+--sorted_result 
 SELECT * FROM City
   WHERE Name LIKE 'C%' AND Population > 1000000; 
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE Name LIKE 'M%' AND Population > 1500000; 
-
+--sorted_result
 SELECT * FROM City 
   WHERE Name LIKE 'M%' AND Population > 1500000; 
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE Name LIKE 'M%' AND Population > 300000;
-
+--sorted_result
 SELECT * FROM City 
   WHERE Name LIKE 'M%' AND Population > 300000;
 
@@ -223,10 +223,10 @@ SELECT * FROM City USE INDEX ()
 SELECT * FROM City
   WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
-
+--sorted_result
 SELECT * FROM City
   WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
@@ -237,20 +237,20 @@ SELECT * FROM City USE INDEX ()
 SELECT * FROM City 
   WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE ID BETWEEN 3701 AND 4000 AND Population > 700000
         AND Country BETWEEN 'S' AND 'Z';
-
+--sorted_result
 SELECT * FROM City 
   WHERE ID BETWEEN 3701 AND 4000 AND Population > 700000
         AND Country BETWEEN 'S' AND 'Z';
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
         AND Country BETWEEN 'S' AND 'Z' ;
-
+--sorted_result
 SELECT * FROM City 
   WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
         AND Country BETWEEN 'S' AND 'Z' ;
@@ -293,7 +293,7 @@ SELECT * FROM City
 
 #Yet the query themselves return the correct results in this case as well
 
-
+--sorted_result
 SELECT * FROM City WHERE
   Name LIKE 'C%' AND Population > 1000000; 
 
@@ -310,7 +310,7 @@ SELECT * FROM City
 
 SELECT * FROM City
   WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
-
+--sorted_result
 SELECT * FROM City 
   WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
         AND Country BETWEEN 'S' AND 'Z';
@@ -353,17 +353,17 @@ SELECT * FROM City
 
 # Check that the previous 3 plans return the right results when executed
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE Country LIKE 'M%' AND Population > 1000000;
-
+--sorted_result
 SELECT * FROM City 
-  WHERE Country LIKE 'M%' AND Population > 700000;
+  WHERE Country LIKE 'M%' AND Population > 1000000;
 
-
+--sorted_result
 SELECT * FROM City USE INDEX ()
   WHERE Country='CHN' AND Population > 1500000;
-
+--sorted_result
 SELECT * FROM City 
   WHERE Country='CHN' AND Population > 1500000;
 

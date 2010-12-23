@@ -559,14 +559,12 @@ protected:
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT)
+                                    OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT)
 #else 
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                    OPTIMIZER_SWITCH_INDEX_MERGE_SORT_INTERSECT | \
                                     OPTIMIZER_SWITCH_TABLE_ELIMINATION)
 #endif
 

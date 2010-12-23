@@ -4863,6 +4863,17 @@ ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
     when searching for the best intersection plan. It also allocates
     memory to store the most cheap index intersection.
 
+  NOTES
+    When selecting candidates for index intersection we always take only
+    one representative out of any set of indexes that share the same range
+    conditions. These indexes always have the same prefixes and the
+    components of this prefixes are exactly those used in these range
+    conditions.
+    Range conditions over clustered primary key (cpk) is always used only
+    as the condition that filters out some rowids retrieved by the scans
+    for secondary indexes. The cpk index will be handled in special way by
+    the function that search for the best index intersection. 
+
   RETURN
     FALSE  in the case of success
     TRUE   otherwise
@@ -4935,7 +4946,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
 
     if (*index_scan == cpk_scan)
       continue;
-    if (cpk_scan && cpk_scan->used_key_parts == used_key_parts &&
+    if (cpk_scan && cpk_scan->used_key_parts >= used_key_parts &&
         same_index_prefix(cpk_scan->key_info, key_info, used_key_parts))
       continue;
 
@@ -5012,7 +5023,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
     curr.intersect_fields= &cpk_scan->used_fields;
     curr.records= cpk_scan->records;
     curr.length= 1;
-    for (scan_ptr=selected_index_scans, i= 0; *scan_ptr; scan_ptr++, i++)
+    for (scan_ptr=selected_index_scans; *scan_ptr; scan_ptr++)
     {
       ha_rows scan_records= (*scan_ptr)->records;
       ha_rows records= records_in_index_intersect_extension(&curr, *scan_ptr);
@@ -5022,7 +5033,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
   } 
   else
   {
-    for (scan_ptr=selected_index_scans, i= 0; *scan_ptr; scan_ptr++, i++)
+    for (scan_ptr=selected_index_scans; *scan_ptr; scan_ptr++)
       (*scan_ptr)->filtered_out= 0;
   }
 
@@ -5250,6 +5261,13 @@ ha_rows records_in_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
 }
 
 
+/* 
+  Estimate the cost a binary search within disjoint cpk range intervals
+
+  Number of comparisons to check whether a cpk value satisfies
+  the cpk range condition = log2(cpk_scan->range_count).
+*/ 
+
 static inline
 double get_cpk_filter_cost(ha_rows filtered_records, 
                            INDEX_SCAN_INFO *cpk_scan,
@@ -5412,6 +5430,7 @@ void find_index_intersect_best_extension(PARTIAL_INDEX_INTERSECT_INFO *curr)
     common_info->best_length= curr->length;
     common_info->best_records= curr->records;
     common_info->filtered_scans= curr->filtered_scans;
+    /* common_info->best_uses_cpk <=> at least one scan uses a cpk filter */
     common_info->best_uses_cpk= !curr->filtered_scans.is_clear_all();
     uint sz= sizeof(INDEX_SCAN_INFO *) * curr->length;
     memcpy(common_info->best_intersect, common_info->search_scans, sz);

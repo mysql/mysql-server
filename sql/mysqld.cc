@@ -433,7 +433,7 @@ static const char *sql_mode_str= "OFF";
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
                                         "index_merge_intersection=on,"
-                                        "index_merge_sort_intersection=on"
+                                        "index_merge_sort_intersection=off"
 #ifndef DBUG_OFF                                        
                                         ",table_elimination=on";
 #else
