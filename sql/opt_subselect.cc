@@ -3653,8 +3653,8 @@ bool JOIN::optimize_unflattened_subqueries()
 */
 
 bool JOIN::choose_subquery_plan(table_map join_tables)
-{  /* The original QEP of the subquery. */
-  Query_plan_state save_qep;
+{
+  Query_plan_state save_qep; /* The original QEP of the subquery. */
   enum_reopt_result reopt_result= REOPT_NONE;
   Item_in_subselect *in_subs;
 
@@ -3681,32 +3681,50 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
   if (in_subs->in_strategy & SUBS_MATERIALIZATION &&
       in_subs->in_strategy & SUBS_IN_TO_EXISTS)
   {
-    JOIN *outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
+    JOIN *outer_join;
     JOIN *inner_join= this;
-    /* Cost of the outer JOIN. */
-    double outer_read_time, outer_record_count;
-    /* Cost of the unmodified subquery. */
+    /* Number of (partial) rows of the outer JOIN filtered by the IN predicate. */
+    double outer_record_count;
+    /* Number of unique value combinations filtered by the IN predicate. */
+    double outer_lookup_keys;
+    /* Cost and row count of the unmodified subquery. */
     double inner_read_time_1, inner_record_count_1;
-    /* Cost of the subquery with injected IN-EXISTS predicates. */
-    double inner_read_time_2, inner_record_count_2;
+    /* Cost and row count of the subquery with injected IN-EXISTS predicates. */
+    double inner_read_time_2;
     /* The cost to compute IN via materialization. */
     double materialize_strategy_cost;
     /* The cost of the IN->EXISTS strategy. */
     double in_exists_strategy_cost;
+    double dummy;
 
+    /*
+      A. Estimate the number of rows of the outer table that will be filtered
+      by the IN predicate.
+    */
+    outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
     if (outer_join)
     {
+      uint outer_partial_plan_len;
       /*
         Make_cond_for_table is called for predicates only in the WHERE/ON
         clauses. In all other cases, predicates are not pushed to any
         JOIN_TAB, and their joi_tab_idx remains MAX_TABLES. Such predicates
-        are evaluated for each complete row.
+        are evaluated for each complete row of the outer join.
       */
-      uint partial_plan_len= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
-                             outer_join->tables :
-                             in_subs->get_join_tab_idx() + 1;
-      outer_join->get_partial_join_cost(partial_plan_len,
-                                        &outer_read_time, &outer_record_count);
+      outer_partial_plan_len= (in_subs->get_join_tab_idx() == MAX_TABLES) ?
+                               outer_join->tables :
+                               in_subs->get_join_tab_idx() + 1;
+      outer_join->get_partial_join_cost(outer_partial_plan_len, &dummy,
+                                        &outer_record_count);
+      if (outer_join->tables > outer_join->const_tables)
+        outer_lookup_keys= prev_record_reads(outer_join->best_positions,
+                                             outer_partial_plan_len,
+                                             in_subs->used_tables());
+      else
+      {
+        /* If all tables are constant, positions is undefined. */
+        outer_lookup_keys= 1;
+      }
     }
     else
     {
@@ -3714,15 +3732,17 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
         TODO: outer_join can be NULL for DELETE statements.
         How to compute its cost?
       */
-      outer_read_time= 1; /* TODO */
-      outer_record_count= 1;  /* TODO */
+      outer_record_count= 1;
+      outer_lookup_keys=1;
     }
+    DBUG_ASSERT(outer_lookup_keys <= outer_record_count);
 
-    inner_join->get_partial_join_cost(inner_join->tables,
-                                      &inner_read_time_1,
-                                      &inner_record_count_1);
-    /* inner_read_time_1 above is a dummy, get the correct total join cost. */
+    /*
+      B. Estimate the cost and number of records of the subquery both
+      unmodified, and with injected IN->EXISTS predicates.
+    */
     inner_read_time_1= inner_join->best_read;
+    inner_record_count_1= inner_join->record_count;
 
     if (in_to_exists_where && const_tables != tables)
     {
@@ -3734,9 +3754,6 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       if (reopt_result == REOPT_ERROR)
         return TRUE;
 
-      inner_join->get_partial_join_cost(inner_join->tables,
-                                        &inner_read_time_2,
-                                        &inner_record_count_2);
       /* inner_read_time_2 above is a dummy, get the correct total join cost. */
       inner_read_time_2= inner_join->best_read;
 
@@ -3745,13 +3762,12 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     {
       /* Reoptimization would not produce any better plan. */
       inner_read_time_2= inner_read_time_1;
-      inner_record_count_2= inner_record_count_1;
     }
 
-    /* Compute execution costs. */
     /*
-      1. Compute the cost of the materialization strategy.
+      C. Compute execution costs.
     */
+    /* C.1 Compute the cost of the materialization strategy. */
     uint rowlen= get_tmp_table_rec_length(unit->first_select()->item_list);
     /* The cost of writing one row into the temporary table. */
     double write_cost= get_tmp_table_write_cost(thd, inner_record_count_1,
@@ -3769,12 +3785,10 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     materialize_strategy_cost= materialization_cost +
                                outer_record_count * lookup_cost;
 
-    /*
-      2. Compute the cost of the IN=>EXISTS strategy.
-    */
-    in_exists_strategy_cost= outer_record_count * inner_read_time_2;
+    /* C.2 Compute the cost of the IN=>EXISTS strategy. */
+    in_exists_strategy_cost= outer_lookup_keys * inner_read_time_2;
 
-    /* Compare the costs and choose the cheaper strategy. */
+    /* C.3 Compare the costs and choose the cheaper strategy. */
     if (materialize_strategy_cost >= in_exists_strategy_cost)
       in_subs->in_strategy&= ~SUBS_MATERIALIZATION;
     else

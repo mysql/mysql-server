@@ -1376,7 +1376,8 @@ private:
 protected:
 
   /**
-    ???
+    The subset of the state of a JOIN that represents an optimized query
+    execution plan. Allows saving/restoring different plans for the same query.
   */
   class Query_plan_state {
   public:
@@ -1512,6 +1513,13 @@ public:
     account the changes made by test_if_skip_sort_order()).
   */
   double   best_read;
+  /*
+    Estimated result rows (fanout) of the whole query. If this is a subquery
+    that is reexecuted multiple times, this value includes the estiamted # of
+    reexecutions. This value is equal to the multiplication of all
+    join->positions[i].records_read of a JOIN.
+  */
+  double   record_count;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   TABLE    *tmp_table;
@@ -2054,7 +2062,7 @@ inline Item * and_items(Item* cond, Item *item)
 {
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
-bool choose_plan(JOIN *join,table_map join_tables);
+bool choose_plan(JOIN *join, table_map join_tables);
 void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab, 
                                 table_map last_remaining_tables, 
                                 bool first_alt, uint no_jbuf_before,
@@ -2099,5 +2107,6 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
                                ulonglong options);
 bool open_tmp_table(TABLE *table);
 void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps);
+double prev_record_reads(POSITION *positions, uint idx, table_map found_ref);
 
 #endif /* SQL_SELECT_INCLUDED */

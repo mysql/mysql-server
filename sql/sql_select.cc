@@ -65,15 +65,13 @@ static bool sort_and_filter_keyuse(DYNAMIC_ARRAY *keyuse);
 static int sort_keyuse(KEYUSE *a,KEYUSE *b);
 static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 			       table_map used_tables);
-bool choose_plan(JOIN *join,table_map join_tables);
-
 void best_access_path(JOIN *join, JOIN_TAB *s, 
                              table_map remaining_tables, uint idx, 
                              bool disable_jbuf, double record_count,
                              POSITION *pos, POSITION *loose_scan_pos);
 static void optimize_straight_join(JOIN *join, table_map join_tables);
 static bool greedy_search(JOIN *join, table_map remaining_tables,
-                             uint depth, uint prune_level);
+                          uint depth, uint prune_level);
 static bool best_extension_by_limited_search(JOIN *join,
                                              table_map remaining_tables,
                                              uint idx, double record_count,
@@ -90,7 +88,6 @@ static int join_tab_cmp_embedded_first(const void *emb, const void* ptr1, const 
 static bool find_best(JOIN *join,table_map rest_tables,uint index,
 		      double record_count,double read_time);
 static uint cache_record_length(JOIN *join,uint index);
-static double prev_record_reads(JOIN *join, uint idx, table_map found_ref);
 static bool get_best_combination(JOIN *join);
 static store_key *get_store_key(THD *thd,
 				KEYUSE *keyuse, table_map used_tables,
@@ -3143,6 +3140,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   {
     memcpy((uchar*) join->best_positions,(uchar*) join->positions,
 	   sizeof(POSITION)*join->const_tables);
+    join->record_count= 1.0;
     join->best_read=1.0;
   }
   if (join->choose_subquery_plan(all_table_map & ~join->const_table_map))
@@ -4505,8 +4503,8 @@ best_access_path(JOIN      *join,
             if (!(keyuse->used_tables & ~join->const_table_map))
               const_part|= keyuse->keypart_map;
 
-            double tmp2= prev_record_reads(join, idx, (found_ref |
-                                                      keyuse->used_tables));
+            double tmp2= prev_record_reads(join->positions, idx,
+                                           (found_ref | keyuse->used_tables));
             if (tmp2 < best_prev_record_reads)
             {
               best_part_found_ref= keyuse->used_tables & ~join->const_table_map;
@@ -4546,7 +4544,7 @@ best_access_path(JOIN      *join,
           Really, there should be records=0.0 (yes!)
           but 1.0 would be probably safer
         */
-        tmp= prev_record_reads(join, idx, found_ref);
+        tmp= prev_record_reads(join->positions, idx, found_ref);
         records= 1.0;
       }
       else
@@ -4561,7 +4559,7 @@ best_access_path(JOIN      *join,
           max_key_part= (uint) ~0;
           if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
           {
-            tmp = prev_record_reads(join, idx, found_ref);
+            tmp = prev_record_reads(join->positions, idx, found_ref);
             records=1.0;
           }
           else
@@ -5275,6 +5273,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     read_time+= record_count;  // We have to make a temp table
   memcpy((uchar*) join->best_positions, (uchar*) join->positions,
          sizeof(POSITION)*idx);
+  join->record_count= record_count;
   join->best_read= read_time;
 }
 
@@ -5487,7 +5486,7 @@ void JOIN::get_partial_join_cost(uint n_tables,
   double record_count= 1;
   double read_time= 0.0;
 
-  DBUG_ASSERT(n_tables <= tables && n_tables > 0);
+  DBUG_ASSERT(n_tables <= tables);
 
   for (uint i= const_tables; i < n_tables; i++)
   {
@@ -5500,8 +5499,6 @@ void JOIN::get_partial_join_cost(uint n_tables,
   *read_time_arg= read_time;// + record_count / TIME_FOR_COMPARE;
   *record_count_arg= record_count;
 }
-
-
 
 
 /**
@@ -5756,6 +5753,7 @@ best_extension_by_limited_search(JOIN      *join,
         {
           memcpy((uchar*) join->best_positions, (uchar*) join->positions,
                  sizeof(POSITION) * (idx + 1));
+          join->record_count= current_record_count;
           join->best_read= current_read_time - 0.001;
         }
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
@@ -5981,12 +5979,12 @@ cache_record_length(JOIN *join,uint idx)
     Expected number of row combinations
 */
 
-static double
-prev_record_reads(JOIN *join, uint idx, table_map found_ref)
+double
+prev_record_reads(POSITION *positions, uint idx, table_map found_ref)
 {
   double found=1.0;
-  POSITION *pos_end= join->positions - 1;
-  for (POSITION *pos= join->positions + idx - 1; pos != pos_end; pos--)
+  POSITION *pos_end= positions - 1;
+  for (POSITION *pos= positions + idx - 1; pos != pos_end; pos--)
   {
     if (pos->table->table->map & found_ref)
     {
@@ -19478,7 +19476,10 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
   }
 
   if (!added_keyuse.elements)
+  {
+    delete_dynamic(&added_keyuse);
     return REOPT_OLD_PLAN;
+  }
 
   if (save_to)
     save_query_plan(save_to);
