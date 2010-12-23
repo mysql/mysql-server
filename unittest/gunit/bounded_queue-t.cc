@@ -157,7 +157,7 @@ typedef BoundedQueueTest BoundedQueueDeathTest;
 /*
   Verifies that we DBUG_ASSERT if trying to push to an un-initialized queue.
  */
-TEST_F(BoundedQueueDeathTest, die_if_not_initialized)
+TEST_F(BoundedQueueDeathTest, DieIfNotInitialized)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   Test_element foo= 1;
@@ -168,7 +168,7 @@ TEST_F(BoundedQueueDeathTest, die_if_not_initialized)
 /*
   Verifies that popping an empty queue hits a DBUG_ASSERT.
  */
-TEST_F(BoundedQueueDeathTest, die_if_popping_empty_queue)
+TEST_F(BoundedQueueDeathTest, DieIfPoppingEmptyQueue)
 {
   EXPECT_EQ(0, m_queue.init(0, true, test_key_compare,
                             m_key_size,
@@ -183,7 +183,7 @@ TEST_F(BoundedQueueDeathTest, die_if_popping_empty_queue)
 /*
   Verifies that construct, initialize, destroy works.
  */
-TEST_F(BoundedQueueTest, construct_and_destruct)
+TEST_F(BoundedQueueTest, ConstructAndDestruct)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, true,
                             test_key_compare,
@@ -195,7 +195,7 @@ TEST_F(BoundedQueueTest, construct_and_destruct)
 /*
   Verifies that we reject too large queues.
  */
-TEST_F(BoundedQueueTest, too_many_elements)
+TEST_F(BoundedQueueTest, TooManyElements)
 {
   EXPECT_EQ(1, m_queue.init(UINT_MAX, true,
                             test_key_compare,
@@ -211,7 +211,7 @@ TEST_F(BoundedQueueTest, too_many_elements)
 /*
   Verifies that zero-size queue works.
  */
-TEST_F(BoundedQueueTest, zero_size_queue)
+TEST_F(BoundedQueueTest, ZeroSizeQueue)
 {
   EXPECT_EQ(0, m_queue.init(0, true, test_key_compare,
                             m_key_size,
@@ -224,7 +224,7 @@ TEST_F(BoundedQueueTest, zero_size_queue)
 /*
   Verifies that push and bounded size works, and that pop() gives sorted order.
  */
-TEST_F(BoundedQueueTest, push_and_pop_keep_largest)
+TEST_F(BoundedQueueTest, PushAndPopKeepLargest)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, false, test_key_compare,
                             m_key_size,
@@ -248,7 +248,7 @@ TEST_F(BoundedQueueTest, push_and_pop_keep_largest)
   Verifies that push and bounded size works, and that pop() gives sorted order.
   Note that with max_at_top == true, we will pop() in reverse order.
  */
-TEST_F(BoundedQueueTest, push_and_pop_keep_smallest)
+TEST_F(BoundedQueueTest, PushAndPopKeepSmallest)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, true, test_key_compare,
                             m_key_size,
@@ -270,7 +270,7 @@ TEST_F(BoundedQueueTest, push_and_pop_keep_smallest)
 /*
   Verifies that push, with bounded size, followed by sort() works.
  */
-TEST_F(BoundedQueueTest, insert_and_sort)
+TEST_F(BoundedQueueTest, InsertAndSort)
 {
   EXPECT_EQ(0, m_queue.init(num_elements/2, true, test_key_compare,
                             m_key_size,
@@ -294,7 +294,7 @@ TEST_F(BoundedQueueTest, insert_and_sort)
 /*
   A test of the function get_merge_many_buffs_cost_fast()
  */
-TEST(CostEstimationTest, merge_many_buff)
+TEST(CostEstimationTest, MergeManyBuff)
 {
   ha_rows num_rows= 512;
   ulong num_keys= 100;
@@ -397,7 +397,7 @@ void insert_and_sort()
 /*
   Test with Bounded_queue size == <limit>.
  */
-TEST_F(PerfTestSmall, insert_and_sort)
+TEST_F(PerfTestSmall, InsertAndSort)
 {
   insert_and_sort<limit>();
 }
@@ -406,7 +406,7 @@ TEST_F(PerfTestSmall, insert_and_sort)
 /*
   Test with Bounded_queue size == <number of rows>
  */
-TEST_F(PerfTestLarge, insert_and_sort)
+TEST_F(PerfTestLarge, InsertAndSort)
 {
   insert_and_sort<limit>();
 }
@@ -415,7 +415,7 @@ TEST_F(PerfTestLarge, insert_and_sort)
 /*
   Test without bounded queue, i.e. insert keys into array, and sort it.
  */
-TEST_F(PerfTestLarge, without_queue)
+TEST_F(PerfTestLarge, WithoutQueue)
 {
   for (int it= 0; it < num_iterations; ++it)
   {
@@ -435,7 +435,7 @@ TEST_F(PerfTestLarge, without_queue)
 /*
   Computes the overhead of setting up sort arrays, and rand() calls.
  */
-TEST_F(PerfTestLarge, no_sorting)
+TEST_F(PerfTestLarge, NoSorting)
 {
   for (int it= 0; it < num_iterations; ++it)
   {
