@@ -19,6 +19,7 @@ struct kv_pair {
 struct kv_pair kv_pairs[NUM_KV_PAIRS] = {{1,4},
                                          {2,5},
                                          {3,6}};
+static uint32_t block_size = 0;
 
 static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
 
@@ -132,6 +133,9 @@ static void run_test(void)
         r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
         r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                       CKERR(r);
         dbs[i]->app_private = &idx[i];
+        if (block_size != 0) {
+            r = dbs[i]->set_pagesize(dbs[i], block_size); CKERR(r);
+        }
         snprintf(name, sizeof(name), "db_%04x", i);
         r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
     }
@@ -173,6 +177,9 @@ static void do_args(int argc, char * const argv[]) {
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = 1;
+        } else if (strcmp(argv[0], "--block_size") == 0) {
+            argc--; argv++;
+            block_size = atoi(argv[0]);
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

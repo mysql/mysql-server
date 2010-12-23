@@ -187,6 +187,7 @@ struct fractal_thread_args {
     uint64_t                 total_disksize_estimate;
     int                      errno_result; // the final result.
     int                      which_db;
+    uint32_t                 target_nodesize;
 };
 
 void toku_brt_loader_set_n_rows(BRTLOADER bl, u_int64_t n_rows);
@@ -218,7 +219,8 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER                bl,
 				       int                      progress_allocation,
 				       QUEUE                    q,
 				       uint64_t                 total_disksize_estimate,
-                                       int                      which_db);
+                                       int                      which_db,
+                                       uint32_t                 target_nodesize);
 
 int brt_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, brt_compare_func, BRTLOADER, struct rowset *);
 
