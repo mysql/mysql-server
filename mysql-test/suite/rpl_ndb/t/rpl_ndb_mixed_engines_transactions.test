@@ -448,16 +448,13 @@ SELECT * FROM tndb ORDER BY a;
 --echo [on slave]
 --sync_slave_with_master
 
-let $diff_table_1=master:test.tmyisam;
-let $diff_table_2=slave:test.tmyisam;
+let $diff_tables= master:tmyisam, slave:tmyisam;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.tinnodb;
-let $diff_table_2=slave:test.tinnodb;
+let $diff_tables= master:tinnodb, slave:tinnodb;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.tndb;
-let $diff_table_2=slave:test.tndb;
+let $diff_tables= master:tndb, slave:tndb;
 source include/diff_tables.inc;
 
 
@@ -470,4 +467,4 @@ DROP TABLE tmyisam, tinnodb, tndb;
 --echo [on slave]
 sync_slave_with_master;
 
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

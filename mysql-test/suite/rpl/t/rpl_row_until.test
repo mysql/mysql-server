@@ -4,9 +4,6 @@
 
 # Note: The test is dependent on binlog positions
 
-# prepare version for substitutions
-let $VERSION=`select version()`;
-
 # Create some events on master
 connection master;
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
@@ -121,3 +118,10 @@ START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', MASTER_LOG_POS=561;
 START SLAVE;
 --replace_result 740 MASTER_LOG_POS
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=740;
+
+--source include/stop_slave.inc
+# Clear slave IO error.
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

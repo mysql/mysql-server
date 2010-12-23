@@ -27,13 +27,10 @@ size_t pack_row(TABLE* table, MY_BITMAP const* cols,
 int unpack_row(Relay_log_info const *rli,
                TABLE *table, uint const colcnt,
                uchar const *const row_data, MY_BITMAP const *cols,
-               uchar const **const row_end, ulong *const master_reclength,
-               const bool abort_on_warning= TRUE, const bool first_row= TRUE);
+               uchar const **const row_end, ulong *const master_reclength);
 
 // Fill table's record[0] with default values.
-int prepare_record(TABLE *const table, const uint skip, const bool check,
-                   const bool abort_on_warning= TRUE,
-                   const bool first_row= TRUE);
+int prepare_record(TABLE *const table, const uint skip, const bool check);
 #endif
 
 #endif

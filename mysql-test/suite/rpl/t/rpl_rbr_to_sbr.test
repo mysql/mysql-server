@@ -38,3 +38,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql $MYSQLTEST_VARDIR/tmp
 
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_master.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_rbr_to_sbr_slave.sql
+--source include/rpl_end.inc

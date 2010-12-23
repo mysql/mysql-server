@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 STOP SLAVE;
 CREATE DATABASE ndbsynctest;
 USE ndbsynctest;
@@ -68,7 +64,7 @@ CHANGE MASTER TO
 master_log_file = 'master-bin.000001',
 master_log_pos = <the_pos> ;
 START SLAVE;
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 SELECT hex(c1),hex(c2),c3 FROM t1 ORDER BY c3;
 hex(c1)	hex(c2)	c3
 1	1	row1
@@ -89,3 +85,4 @@ Position	File	epoch	inserts	updates	deletes	schemaops
 reset slave;
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
+include/rpl_end.inc

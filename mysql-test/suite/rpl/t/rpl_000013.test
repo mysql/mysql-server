@@ -1,0 +1,51 @@
+# This test is to verify that DROP TEMPORARY TABLE
+# is automatically binlogged and sent to slave
+# when a temp table is dropped by disconnection
+# of a master's conection.
+# So it does not apply to row-based, where we neither need
+# nor do this automatic binlogging. And if we run this test
+# in row-based, it hangs waiting for an offset which is never
+# reached (the "sync_with_master 1"), logically.
+
+--source include/have_binlog_format_mixed_or_statement.inc
+source include/master-slave.inc;
+--sync_slave_with_master
+connection master;
+
+create table t2(n int);
+create temporary table t1 (n int);
+insert into t1 values(1),(2),(3);
+insert into t2 select * from t1;
+connection master1;
+create temporary table t1 (n int);
+insert into t1 values (4),(5);
+insert into t2 select * from t1 as t10;
+save_master_pos;
+disconnect master;
+connection slave;
+#add 1 to catch drop table
+sync_with_master 1;
+connection master1;
+insert into t2 values(6);
+save_master_pos;
+disconnect master1;
+connection slave;
+# same trick to go one more event
+sync_with_master 1;
+select * from t2;
+show status like 'Slave_open_temp_tables';
+#
+# Clean up
+#
+connect (master2,localhost,root,,);
+connection master2;
+
+# We will get a warning for t1 as this is a temporary table that doesn't
+# exist in this connection.
+
+drop table if exists t1,t2;
+--sync_slave_with_master
+
+
+--source include/rpl_end.inc
+# End of 4.1 tests
