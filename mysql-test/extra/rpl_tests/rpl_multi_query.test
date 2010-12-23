@@ -7,9 +7,6 @@
 # PS doesn't support multi-statements
 --disable_ps_protocol
 -- source include/master-slave.inc
---disable_warnings
-drop database if exists mysqltest;
---enable_warnings
 create database mysqltest;
 
 delimiter /;
@@ -25,4 +22,5 @@ select * from mysqltest.t1;
 connection master;
 source include/show_binlog_events.inc;
 drop database mysqltest;
-sync_slave_with_master;
+
+--source include/rpl_end.inc

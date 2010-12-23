@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Initialize ====
 [on master]
 CREATE TABLE tinnodb (a INT) ENGINE = INNODB;
@@ -20,6 +16,7 @@ SELECT * FROM tinnodb ORDER BY a;
 a
 1
 [on slave]
+include/sync_slave_io_with_master.inc
 ==== Verify results on slave ====
 include/stop_slave.inc
 SELECT "" AS Slave_IO_State;
@@ -39,3 +36,4 @@ DROP TABLE tinnodb;
 set @@debug= @old_debug;
 [on slave]
 DROP TABLE tinnodb;
+include/rpl_end.inc

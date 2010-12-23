@@ -11,7 +11,6 @@
 ##############################################################################
 lowercase_table3         : Bug#54845 2010-06-30 alik main.lowercase_table3 on Mac OSX
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
-ctype_utf8mb4_ndb	: Bug#55799, Bug#51907, disabled by Konstantin 2010-08-06
 main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists

@@ -8,3 +8,4 @@
 --source include/have_innodb.inc
 
 --source extra/rpl_tests/rpl_drop_create_temp_table.test
+--source include/rpl_end.inc

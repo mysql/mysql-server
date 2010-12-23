@@ -8284,6 +8284,14 @@ int main(int argc, char **argv)
   var_set_int("$VIEW_PROTOCOL", view_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
+  var_set_int("$ENABLED_QUERY_LOG", 1);
+  var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+  var_set_int("$ENABLED_RESULT_LOG", 1);
+  var_set_int("$ENABLED_CONNECT_LOG", 0);
+  var_set_int("$ENABLED_WARNINGS", 1);
+  var_set_int("$ENABLED_INFO", 0);
+  var_set_int("$ENABLED_METADATA", 0);
+
   DBUG_PRINT("info",("result_file: '%s'",
                      result_file_name ? result_file_name : ""));
   verbose_msg("Results saved in '%s'.", 
@@ -8430,20 +8438,62 @@ int main(int argc, char **argv)
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:
 	do_close_connection(command); break;
-      case Q_ENABLE_QUERY_LOG:   disable_query_log=0; break;
-      case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
-      case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
-      case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
-      case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
-      case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
-      case Q_ENABLE_CONNECT_LOG:   disable_connect_log=0; break;
-      case Q_DISABLE_CONNECT_LOG:  disable_connect_log=1; break;
-      case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
-      case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
-      case Q_ENABLE_INFO:        disable_info=0; break;
-      case Q_DISABLE_INFO:       disable_info=1; break;
-      case Q_ENABLE_METADATA:    display_metadata=1; break;
-      case Q_DISABLE_METADATA:   display_metadata=0; break;
+      case Q_ENABLE_QUERY_LOG:
+        disable_query_log= 0;
+        var_set_int("$ENABLED_QUERY_LOG", 1);
+        break;
+      case Q_DISABLE_QUERY_LOG:
+        disable_query_log= 1;
+        var_set_int("$ENABLED_QUERY_LOG", 0);
+        break;
+      case Q_ENABLE_ABORT_ON_ERROR:
+        abort_on_error= 1;
+        var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+        break;
+      case Q_DISABLE_ABORT_ON_ERROR:
+        abort_on_error= 0;
+        var_set_int("$ENABLED_ABORT_ON_ERROR", 0);
+        break;
+      case Q_ENABLE_RESULT_LOG:
+        disable_result_log= 0;
+        var_set_int("$ENABLED_RESULT_LOG", 1);
+        break;
+      case Q_DISABLE_RESULT_LOG:
+        disable_result_log=1;
+        var_set_int("$ENABLED_RESULT_LOG", 0);
+        break;
+      case Q_ENABLE_CONNECT_LOG:
+        disable_connect_log=0;
+        var_set_int("$ENABLED_CONNECT_LOG", 1);
+        break;
+      case Q_DISABLE_CONNECT_LOG:
+        disable_connect_log=1;
+        var_set_int("$ENABLED_CONNECT_LOG", 0);
+        break;
+      case Q_ENABLE_WARNINGS:
+        disable_warnings= 0;
+        var_set_int("$ENABLED_WARNINGS", 1);
+        break;
+      case Q_DISABLE_WARNINGS:
+        disable_warnings= 1;
+        var_set_int("$ENABLED_WARNINGS", 0);
+        break;
+      case Q_ENABLE_INFO:
+        disable_info= 0;
+        var_set_int("$ENABLED_INFO", 1);
+        break;
+      case Q_DISABLE_INFO:
+        disable_info= 1;
+        var_set_int("$ENABLED_INFO", 0);
+        break;
+      case Q_ENABLE_METADATA:
+        display_metadata= 1;
+        var_set_int("$ENABLED_METADATA", 1);
+        break;
+      case Q_DISABLE_METADATA:
+        display_metadata= 0;
+        var_set_int("$ENABLED_METADATA", 0);
+        break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;
       case Q_REAL_SLEEP: do_sleep(command, 1); break;

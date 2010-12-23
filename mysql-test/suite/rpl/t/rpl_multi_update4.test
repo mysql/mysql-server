@@ -43,3 +43,4 @@ drop database d2;
 sync_slave_with_master;
 
 # End of test
+--source include/rpl_end.inc
