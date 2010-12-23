@@ -36,3 +36,5 @@ sync_slave_with_master;
 --echo **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
+
+--source include/rpl_end.inc

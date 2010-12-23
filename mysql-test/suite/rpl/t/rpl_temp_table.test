@@ -54,6 +54,7 @@ show status like 'Slave_open_temp_tables';
 connect (master2,localhost,root,,);
 connection master2;
 drop table if exists t1,t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
+
+
+--source include/rpl_end.inc

@@ -823,7 +823,7 @@ class Item_cache;
 class Item_sum_hybrid :public Item_sum
 {
 protected:
-  Item_cache *value;
+  Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
   Item_result hybrid_type;
   enum_field_types hybrid_field_type;
@@ -832,14 +832,14 @@ protected:
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
-    :Item_sum(item_par), value(0), cmp(0),
+    :Item_sum(item_par), value(0), arg_cache(0), cmp(0),
     hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
     cmp_sign(sign), was_values(TRUE)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
-    :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
-    hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
-    was_values(item->was_values)
+    :Item_sum(thd, item), value(item->value), arg_cache(0),
+    hybrid_type(item->hybrid_type), hybrid_field_type(item->hybrid_field_type),
+    cmp_sign(item->cmp_sign), was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
   void setup_hybrid(Item *item, Item *value_arg);

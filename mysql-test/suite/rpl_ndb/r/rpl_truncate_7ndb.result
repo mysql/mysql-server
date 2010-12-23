@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b LONG) ENGINE=NDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -87,3 +83,4 @@ master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+include/rpl_end.inc

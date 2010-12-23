@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET @old_binlog_format= @@global.binlog_format;
 SET BINLOG_FORMAT=MIXED;
 SET GLOBAL BINLOG_FORMAT=MIXED;
@@ -33,3 +29,4 @@ slave-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000001	#	Query	#	#	COMMIT
 DROP TABLE IF EXISTS t1;
 SET @@global.binlog_format= @old_binlog_format;
+include/rpl_end.inc

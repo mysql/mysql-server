@@ -1,14 +1,11 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(n int);
 stop slave;
 start slave;
 stop slave io_thread;
 start slave io_thread;
+include/wait_for_slave_to_start.inc
 drop table t1;
 create table t1i(n int primary key) engine=innodb;
 create table t2m(n int primary key) engine=myisam;
@@ -28,6 +25,7 @@ zero
 0
 stop slave;
 rollback;
+include/wait_for_slave_to_stop.inc
 *** sql thread is *not* running: No ***
 *** the prove: the stopped slave has finished the current transaction ***
 five
@@ -38,3 +36,4 @@ one
 1
 include/start_slave.inc
 drop table t1i, t2m;
+include/rpl_end.inc
