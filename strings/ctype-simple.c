@@ -1145,7 +1145,9 @@ static int pcmp(const void * f, const void * s)
   return res;
 }
 
-static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
+static my_bool
+create_fromuni(CHARSET_INFO *cs,
+               MY_CHARSET_LOADER *loader)
 {
   uni_idx	idx[PLANE_NUM];
   int		i,n;
@@ -1195,7 +1197,9 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
       break;
     
     numchars=idx[i].uidx.to-idx[i].uidx.from+1;
-    if (!(idx[i].uidx.tab=(uchar*) alloc(numchars * sizeof(*idx[i].uidx.tab))))
+    if (!(idx[i].uidx.tab= (uchar *)
+                           (loader->once_alloc) (numchars *
+                                                 sizeof(*idx[i].uidx.tab))))
       return TRUE;
     
     bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
@@ -1213,7 +1217,8 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
   
   /* Allocate and fill reverse table for each plane */
   n=i;
-  if (!(cs->tab_from_uni= (MY_UNI_IDX*) alloc(sizeof(MY_UNI_IDX)*(n+1))))
+  if (!(cs->tab_from_uni= (MY_UNI_IDX *)
+                          (loader->once_alloc)(sizeof(MY_UNI_IDX) * (n + 1))))
     return TRUE;
 
   for (i=0; i< n; i++)
@@ -1224,14 +1229,13 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
   return FALSE;
 }
 
-static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(size_t),
-                                 char *error __attribute__((unused)),
-                                 size_t errsize __attribute__((unused)))
+static my_bool
+my_cset_init_8bit(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
   cs->pad_char= ' ';
-  return create_fromuni(cs, alloc);
+  return create_fromuni(cs, loader);
 }
 
 static void set_max_sort_char(CHARSET_INFO *cs)
@@ -1253,10 +1257,9 @@ static void set_max_sort_char(CHARSET_INFO *cs)
   }
 }
 
-static my_bool my_coll_init_simple(CHARSET_INFO *cs,
-                                   void *(*alloc)(size_t) __attribute__((unused)),
-                                   char *error __attribute__((unused)),
-                                   size_t errsize __attribute__((unused)))
+static my_bool
+my_coll_init_simple(CHARSET_INFO *cs,
+                    MY_CHARSET_LOADER *loader __attribute__((unused)))
 {
   set_max_sort_char(cs);
   return FALSE;
