@@ -167,3 +167,4 @@ DROP TABLE t1;
 DROP TABLE t2;
 
 sync_slave_with_master;
+--source include/rpl_end.inc

@@ -1,4 +1,4 @@
-source include/reset_master_and_slave.inc;
+--source include/rpl_reset.inc
 
 --echo **** On Master ****
 connection master;
@@ -10,8 +10,7 @@ connection master;
 eval $trunc_stmt t1;
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 --echo ==== Test using a table with delete triggers ====
@@ -26,8 +25,7 @@ connection master;
 eval $trunc_stmt t1;
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 connection master;

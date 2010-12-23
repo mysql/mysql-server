@@ -72,3 +72,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.
 
 sync_slave_with_master;
 # End of 5.1 test case
+--source include/rpl_end.inc
