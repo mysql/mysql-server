@@ -336,6 +336,15 @@ select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;
 select "123456789012345678901234567890.123456789012345678901234567890" div 1 as x; 
 SHOW WARNINGS;
 
+--echo #
+--echo # Bug#57810 case/when/then : Assertion failed: length || !scale
+--echo #
+
+SELECT CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END;
+CREATE TABLE t1 SELECT CAST((CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END) AS CHAR) as C;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 --echo #
