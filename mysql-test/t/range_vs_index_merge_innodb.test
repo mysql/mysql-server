@@ -1,0 +1,7 @@
+--source include/have_innodb.inc
+
+SET SESSION STORAGE_ENGINE='InnoDB';
+
+--source t/range_vs_index_merge.test
+
+SET SESSION STORAGE_ENGINE=DEFAULT;

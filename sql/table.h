@@ -693,7 +693,7 @@ struct st_table {
     needed by the query without reading the row.
   */
   key_map covering_keys;
-  key_map quick_keys, merge_keys;
+  key_map quick_keys, merge_keys,intersect_keys;
   /*
     A set of keys that can be used in the query that references this
     table.

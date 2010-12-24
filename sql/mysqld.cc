@@ -339,7 +339,7 @@ TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 static const char *optimizer_switch_names[]=
 {
   "index_merge","index_merge_union","index_merge_sort_union",
-  "index_merge_intersection",
+  "index_merge_intersection","index_merge_sort_intersection",
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -353,6 +353,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_union") - 1,
   sizeof("index_merge_sort_union") - 1,
   sizeof("index_merge_intersection") - 1,
+  sizeof("index_merge_sort_intersection") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif
@@ -443,7 +444,8 @@ static const char *sql_mode_str= "OFF";
 /* Text representation for OPTIMIZER_SWITCH_DEFAULT */
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
-                                        "index_merge_intersection=on"
+                                        "index_merge_intersection=on,"
+                                        "index_merge_sort_intersection=off"
 #ifndef DBUG_OFF                                        
                                         ",table_elimination=on";
 #else
@@ -7348,7 +7350,8 @@ thread is in the relay logs.",
    0, GET_ULONG, OPT_ARG, MAX_TABLES+1, 0, MAX_TABLES+2, 0, 1, 0},
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
-   "index_merge_union, index_merge_sort_union, index_merge_intersection"
+   "index_merge_union, index_merge_sort_union, index_merge_intersection, "
+   "index_merge_sort_intersection"
 #ifndef DBUG_OFF
    ", table_elimination"
 #endif 
