@@ -2700,5 +2700,40 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2,t3,t4,t5;
 
+--echo #
+--echo # Bug #694092: incorrect detection of index only pushdown conditions
+--echo #
+
+CREATE TABLE t1 (
+  f1 varchar(10), f3 int(11), PRIMARY KEY (f3)
+);
+INSERT INTO t1 VALUES ('y',1),('or',5);
+
+CREATE TABLE t2 (
+ f3 int(11), f2 varchar(1024), f4 varchar(10), PRIMARY KEY (f3)
+);
+INSERT INTO t2 VALUES (6,'RPOYT','y'),(10,'JINQE','m');
+
+SET SESSION join_cache_level = 1;
+
+SET SESSION optimizer_switch = 'index_condition_pushdown=off';
+EXPLAIN
+SELECT * FROM t1,t2
+  WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
+SELECT * FROM t1,t2
+  WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
+
+SET SESSION optimizer_switch = 'index_condition_pushdown=on';
+EXPLAIN
+SELECT * FROM t1,t2
+  WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
+SELECT * FROM t1,t2
+  WHERE t1.f1 = t2.f4 AND (t1.f3 = 1 AND t2.f3 = 4 OR t1.f3 = 2 AND t2.f3 = 6);
+
+SET SESSION join_cache_level = DEFAULT;
+SET SESSION optimizer_switch = DEFAULT;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

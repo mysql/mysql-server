@@ -155,7 +155,11 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
 	  new_cond->argument_list()->push_back(fix);
           used_tables|= fix->used_tables();
         }
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        if (test(item->marker == ICP_COND_USES_INDEX_ONLY))
+        {
+          n_marked++;
+          item->marker= 0;
+        } 
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
@@ -184,7 +188,11 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
 	if (!fix)
 	  return (COND*) 0;
 	new_cond->argument_list()->push_back(fix);
-        n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
+        if (test(item->marker == ICP_COND_USES_INDEX_ONLY))
+        {
+          n_marked++;
+          item->marker= 0;
+        } 
       }
       if (n_marked ==((Item_cond*)cond)->argument_list()->elements)
         cond->marker= ICP_COND_USES_INDEX_ONLY;
