@@ -33,8 +33,7 @@ Created 12/13/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "dict0dict.h"
 
-
-typedef struct fts_stopword_struct fts_stopword_t;
+typedef struct fts_stopword_struct	fts_stopword_t;
 
 /* status bits for fts_stopword_t status field. */
 #define STOPWORD_NOT_INIT               0x1
@@ -46,6 +45,8 @@ extern const char*	fts_default_stopword[];
 
 /* Variable specifying the maximum FTS cache size for each table */
 extern ulint		fts_max_cache_size;
+
+extern char*		fts_internal_tbl_name;
 
 /********************************************************************//**
 Gets a pointer to a file address and latches the page.
@@ -125,6 +126,26 @@ fts_cache_add_doc(
 			index_cache,		/*!< in: index cache */
 	doc_id_t        doc_id,			/*!< in: doc id to add */
 	ib_rbt_t*       tokens);		/*!< in: document tokens */
+
+/****************************************************************//**
+Read the rows from the FTS index
+@return vector of rows fetched */
+UNIV_INTERN
+ulint
+fts_table_fetch_doc_ids(
+/*====================*/
+	trx_t*		trx,		/*!< in: transaction */
+	fts_table_t*	fts_table,	/*!< in: aux table */
+	fts_doc_ids_t*	doc_ids);	/*!< in: For collecting doc ids */
+/****************************************************************//**
+This function loads the documents in "ADDED" table into FTS cache,
+it also loads the stopword info into the FTS cache.
+@return DB_SUCCESS if all OK */
+UNIV_INTERN
+ibool
+fts_init_index(
+/*===========*/
+	dict_table_t*	table);	/*!< in: Table with FTS */
 #ifndef UNIV_NONINL
 #include "fut0fut.ic"
 #endif

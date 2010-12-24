@@ -2170,13 +2170,14 @@ row_upd(
 	}
 
 	while (node->index != NULL) {
+		if (node->index->type != DICT_FTS) {
+			log_free_check();
+			err = row_upd_sec_step(node, thr);
 
-		log_free_check();
-		err = row_upd_sec_step(node, thr);
+			if (err != DB_SUCCESS) {
 
-		if (err != DB_SUCCESS) {
-
-			goto function_exit;
+				goto function_exit;
+			}
 		}
 
 		node->index = dict_table_get_next_index(node->index);

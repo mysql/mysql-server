@@ -211,16 +211,6 @@ fts_doc_free(
 /*=========*/
 	fts_doc_t*	doc);		/* in: document */
 /********************************************************************
-Read the rows from the FTS index*/
-
-ulint
-fts_table_fetch_doc_ids(
-/*====================*/
-					/* out: vector of rows fetched*/
-	trx_t*		trx,		/* in: transaction */
-	fts_table_t*	fts_table,	/* in: aux table */
-	fts_doc_ids_t*	doc_ids);	/* in: For collecting doc ids */
-/********************************************************************
 Free fts_optimizer_word_t instanace.*/
 
 void
@@ -480,17 +470,14 @@ fts_wait_for_background_thread_to_start(
 	ulint		max_wait);	/* in: time in microseconds, if set
 					to 0 then it disables timeout
 					checking */
-/********************************************************************
-Get the total number of documents in the FTS. */
-
+/*********************************************************************//**
+Get the total number of documents in the FTS.
+@return estimated number of rows in the table */
+UNIV_INTERN
 ulint
 fts_get_total_document_count(
 /*=========================*/
-					/* out: DB_SUCCESS or error code. */
-	trx_t*		trx,		/* in: transaction */
-	dict_table_t*	table,		/* in: table instance */
-	fts_table_t*	fts_table,	/* in: fts aux table instance */
-	ulint*		total);		/* out: total documents */
+	dict_table_t*	table);		/*!< in: table instance */
 /********************************************************************
 Get the total number of words in the FTS for a particular FTS index. */
 

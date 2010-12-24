@@ -94,6 +94,10 @@ UNIV_INTERN mysql_pfs_key_t	fts_optimize_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	fts_bg_threads_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+/** variable to record innodb_fts_internal_tbl_name for information
+schema table INNODB_FTS_INSERTED etc. */
+UNIV_INTERN char* fts_internal_tbl_name		= NULL;
+
 /* InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
 below comes from "Google Stopword" list. Reference:
@@ -1835,74 +1839,20 @@ fts_get_max_cache_size(
 	return(cache_size_in_mb * 1024 * 1024);
 }
 
-/********************************************************************
-Get the total number of documents in the FTS. */
-
+/*********************************************************************//**
+Get the total number of documents in the FTS.
+@return estimated number of rows in the table */
+UNIV_INTERN
 ulint
 fts_get_total_document_count(
 /*=========================*/
-						/* out: DB_SUCCESS if all OK
-						else error code */
-	trx_t*		trx,			/* in: transaction */
-	dict_table_t*   table,			/* in: table instance */
-	fts_table_t*	fts_table,		/* in: fts aux table instance */
-	ulint*		total)			/* out: total documents */
+	dict_table_t*   table)		/*!< in: table instance */
 {
-	ulint		error;
-	fts_string_t	value;
-
-	*total = 0;
-
-	/* We set the length of value to the max bytes it can hold. This
-	information is used by the callback that reads the value. */
-	value.len = FTS_MAX_CONFIG_VALUE_LEN;
-	value.utf8 = ut_malloc(value.len + 1);
-
-	error = fts_config_get_value(
-		trx, fts_table, FTS_TOTAL_DELETED_COUNT, &value);
-
-	if (error == DB_SUCCESS) {
-		ib_uint32_t	deleted_count = 0;
-
-		value.utf8[value.len] = 0;
-		deleted_count = strtoul((char*) value.utf8, NULL, 10);
-
-		/* If next_doc_id is less than last_doc_id, we shall
-		use the next_doc_id in the cache, rather than
-		retrieving it from sysconfig table, which stores
-		the value of last_doc_id instead of next_doc_id
-		in such case. */
-		if (table->fts->cache->next_doc_id <
-			    table->fts->cache->last_doc_id) {
-			*total = table->fts->cache->next_doc_id - deleted_count;
-		} else {
-			value.len = FTS_MAX_CONFIG_VALUE_LEN;
-
-			error = fts_config_get_value(
-				trx, fts_table, FTS_NEXT_DOC_ID, &value);
-
-			if (error == DB_SUCCESS) {
-				doc_id_t	next_id;
-
-				value.utf8[value.len] = 0;
-				next_id = strtoul((char*) value.utf8, NULL, 10);
-
-				ut_a(next_id > deleted_count);
-
-				*total = next_id - deleted_count;
-			}
-		}
+	if (!table->stat_initialized) {
+		dict_update_statistics(table);
 	}
 
-	if (error != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error: (%lu) reading total "
-			"documents value from config table\n", error);
-	}
-
-	ut_free(value.utf8);
-
-	return(error);
+	return(table->stat_n_rows);
 }
 
 /********************************************************************
@@ -4078,14 +4028,14 @@ fts_sync_doc_ids(
 				*(doc_id_t*) ib_vector_last_const(doc_ids);
 
 			/* FIXME: Still requires synchronizing word info to
-			disk at this stage. */
-			error = fts_sync(sync);
+			disk at this stage.
+			error = fts_sync(sync); */
 			break;
 		}
 
 		/* These must hold! */
 		ut_a(sync->min_doc_id > 0);
-		ut_a(sync->min_doc_id < sync->max_doc_id);
+		ut_a(sync->min_doc_id <= sync->max_doc_id);
 		ut_a(sync->upper_index <= ib_vector_size(doc_ids));
 
 		/* SYNC the contents of the cache to disk. */
@@ -4226,7 +4176,7 @@ fts_get_rows_count(
 Read and sync the pending doc ids in the FTS auxiliary ADDED table. */
 static
 ulint
-fts_pending_process(
+fts_load_from_added(
 /*================*/
 						/* out: DB_SUCCESS if all OK */
 	fts_sync_t*	sync)			/* in: sync state */
@@ -4409,7 +4359,7 @@ fts_add_thread(
 	fts_optimize_add_table(table);
 
 	/* Read and sync the pending doc ids. */
-	error = fts_pending_process(&sync);
+	error = fts_load_from_added(&sync);
 
 	if (error == DB_SUCCESS) {
 		fts_cache_t*	cache = sync.table->fts->cache;
@@ -5691,4 +5641,33 @@ cleanup:
 	trx_free_for_background(trx);
 
 	return(error == DB_SUCCESS);
+}
+/****************************************************************//**
+This function loads the documents in "ADDED" table into FTS cache,
+it also loads the stopword info into the FTS cache.
+@return DB_SUCCESS if all OK */
+UNIV_INTERN
+ibool
+fts_init_index(
+/*===========*/
+	dict_table_t*	table)		/*!< in: Table with FTS */
+{
+	fts_sync_t	sync;
+	ulint		error;
+
+	memset(&sync, 0, sizeof(sync));
+	sync.table = table;
+
+	fts_update_max_cache_size(&sync);
+
+	/* Load Doc IDs in the ADDED table, parse them and add to
+	index cache */	
+	error = fts_load_from_added(&sync);
+
+	if (error == DB_SUCCESS
+	    && (table->fts->cache->stopword_info.status & STOPWORD_NOT_INIT)) {
+		fts_load_stopword(table, NULL, NULL, TRUE, TRUE);
+	}
+
+	return(error);
 }
