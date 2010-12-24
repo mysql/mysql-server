@@ -533,7 +533,9 @@ enum	fts_status {
 				the table. */
 	BG_THREAD_READY = 2,	/* TRUE if the FTS background thread
 				is ready */
-	ADD_THREAD_STARTED = 4	/* TRUE if the FTS add thread started */
+	ADD_THREAD_STARTED = 4,	/* TRUE if the FTS add thread started */
+	ADDED_TABLE_SYNCED = 8,	/* TRUE if the ADDED table record is sync-ed
+				after crash recovery */
 };
 
 typedef	enum fts_status	fts_status_t;
@@ -549,7 +551,7 @@ struct fts_struct {
 
 					/* TRUE if background threads running
 					should stop themselves */
-	fts_status_t	fts_status;	/* Status bit regarding fts
+	ulint		fts_status;	/* Status bit regarding fts
 					running state */
 
 	ib_wqueue_t*	add_wq;		/* Work queue for scheduling jobs

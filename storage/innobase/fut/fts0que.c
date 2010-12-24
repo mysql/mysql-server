@@ -3041,12 +3041,7 @@ fts_query(
 	query.word_freqs = rbt_create(
 		sizeof(fts_word_freq_t), fts_query_strcmp);
 
-	error = fts_get_total_document_count(
-		trx, index->table, &query.fts_common_table, &query.total_docs);
-
-	if (error != DB_SUCCESS) {
-		goto func_exit;
-	}
+	query.total_docs = fts_get_total_document_count(index->table);
 
 	error = fts_get_total_word_count(trx, query.index, &query.total_words);
 

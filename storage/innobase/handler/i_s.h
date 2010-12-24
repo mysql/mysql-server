@@ -35,5 +35,7 @@ extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
 extern struct st_mysql_plugin   i_s_innodb_metrics;
 extern struct st_mysql_plugin	i_s_innodb_stopword;
+extern struct st_mysql_plugin	i_s_innodb_fts_inserted;
+extern struct st_mysql_plugin	i_s_innodb_fts_deleted;
 
 #endif /* i_s_h */

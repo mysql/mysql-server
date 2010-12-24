@@ -2317,6 +2317,279 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_stopword =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED and
+INFORMATION_SCHEMA.INNODB_FTS_INSERTED */
+static ST_FIELD_INFO	i_s_fts_doc_fields_info[] =
+{
+#define	I_S_FTS_DOC_ID			0
+	{STRUCT_FLD(field_name,		"DOC_ID"),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/*******************************************************************//**
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_deleted_fill(
+/*=================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	COND*		cond)	/*!< in: condition (ignored) */
+{
+	Field**			fields;
+	TABLE*			table = (TABLE *) tables->table;
+	trx_t*			trx;
+	fts_table_t		fts_table;
+	fts_doc_ids_t*		deleted;
+	const dict_table_t*	user_table;
+
+	DBUG_ENTER("i_s_fts_deleted_fill");
+
+	if (!fts_internal_tbl_name) {
+		DBUG_RETURN(1);
+	}
+
+	deleted = fts_doc_ids_create();
+
+	user_table = dict_table_get(fts_internal_tbl_name, FALSE);
+
+	if (!user_table) {
+		DBUG_RETURN(1);
+	}
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "Select for FTS DELETE TABLE"; 
+
+	fts_table.table_id = user_table->id;
+	fts_table.parent = user_table->name;
+	fts_table.parent = fts_internal_tbl_name;
+	fts_table.type = FTS_COMMON_TABLE;
+	fts_table.suffix = "DELETED";
+
+	fts_table_fetch_doc_ids(trx, &fts_table, deleted);
+
+	fields = table->field;
+
+	for (ulint j = 0; j < ib_vector_size(deleted->doc_ids); ++j) {
+		doc_id_t	doc_id;
+
+		doc_id = *(doc_id_t*)ib_vector_get_const(deleted->doc_ids, j);
+
+		OK(fields[I_S_FTS_DOC_ID]->store(doc_id));
+
+		OK(schema_table_store_record(thd, table));
+	}
+
+	trx_free_for_background(trx);
+
+	fts_doc_ids_free(deleted);
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_DELETED
+@return	0 on success */
+static
+int
+i_s_fts_deleted_init(
+/*=================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_fts_deleted_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_fts_doc_fields_info;
+	schema->fill_table = i_s_fts_deleted_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_deleted =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_FTS_DELETED"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "INNODB AUXILIARY FTS DELETED TABLE"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_fts_deleted_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/*******************************************************************//**
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INSERTED.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_inserted_fill(
+/*==================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	COND*		cond)	/*!< in: condition (ignored) */
+{
+	Field**			fields;
+	TABLE*			table = (TABLE *) tables->table;
+	trx_t*			trx;
+	fts_table_t		fts_table;
+	fts_doc_ids_t*		inserted;
+	const dict_table_t*	user_table;
+
+	DBUG_ENTER("i_s_fts_inserted_fill");
+
+	if (!fts_internal_tbl_name) {
+		DBUG_RETURN(1);
+	}
+
+	user_table = dict_table_get(fts_internal_tbl_name, FALSE);
+
+	if (!user_table) {
+		DBUG_RETURN(1);
+	}
+
+	inserted = fts_doc_ids_create();
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "Select for FTS ADDED Table";
+
+	fts_table.table_id = user_table->id;
+	fts_table.parent = user_table->name;
+	fts_table.suffix = "ADDED";
+	fts_table.type = FTS_COMMON_TABLE;
+
+	fts_table_fetch_doc_ids(trx, &fts_table, inserted);
+
+	fields = table->field;
+
+	for (ulint j = 0; j < ib_vector_size(inserted->doc_ids); ++j) {
+		doc_id_t	doc_id;
+
+		doc_id = *(doc_id_t*)ib_vector_get_const(inserted->doc_ids, j);
+
+		OK(fields[I_S_FTS_DOC_ID]->store(doc_id));
+
+		OK(schema_table_store_record(thd, table));
+	}
+
+	trx_free_for_background(trx);
+
+	fts_doc_ids_free(inserted);
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INSERTED
+@return	0 on success */
+static
+int
+i_s_fts_inserted_init(
+/*==================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_fts_inserted_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_fts_doc_fields_info;
+	schema->fill_table = i_s_fts_inserted_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_inserted =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_FTS_INSERTED"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "INNODB AUXILIARY FTS INSERTED TABLE"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_fts_inserted_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
 /*******************************************************************//**
 Unbind a dynamic INFORMATION_SCHEMA table.
 @return	0 on success */

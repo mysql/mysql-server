@@ -3327,6 +3327,12 @@ recv_recovery_rollback_active(void)
 	/* Drop temporary tables. */
 	row_mysql_drop_temp_tables();
 
+	/* Drop any auxiliary tables that were not dropped when the
+	parent table was dropped. This can happen if the parent table
+	was dropped but the server crashed before the auxiliary tables
+	were dropped. */
+	fts_drop_orphaned_tables();
+
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user
 		session */

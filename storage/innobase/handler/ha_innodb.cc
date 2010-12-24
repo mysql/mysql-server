@@ -6295,6 +6295,13 @@ ha_innobase::ft_init_ext(
 		return NULL;
 	}
 
+	ut_a(table->fts);
+
+	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
+		fts_init_index(table);
+		table->fts->fts_status |= ADDED_TABLE_SYNCED;
+	}
+
 	error = fts_query(
 		trx, index, flags,
 		query, query_len, &prebuilt->result);
@@ -11115,6 +11122,80 @@ innodb_stopword_table_update(
 	fts_server_stopword_table = *(char**) var_ptr;
 }
 
+/*************************************************************//**
+Check whether valid argument given to "innodb_fts_internal_tbl_name"
+This function is registered as a callback with MySQL.
+@return 0 for valid stopword table */
+static
+int
+innodb_internal_table_validate(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	table_name;
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	int		len = sizeof(buff);
+	int		ret = 1;
+	dict_table_t*	user_table;
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	table_name = value->val_str(value, buff, &len);
+
+	user_table = dict_table_get(table_name, FALSE);
+
+	if (user_table && dict_table_has_fts_index(user_table)) {
+		*static_cast<const char**>(save) = table_name;
+		ret = 0;
+	}
+
+	return(ret);
+}
+
+/****************************************************************//**
+Update global variable "fts_internal_tbl_name" with the "saved"
+stopword table name value. This function is registered as a callback
+with MySQL. */
+static
+void
+innodb_internal_table_update(
+/*=========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	const char*	table_name;
+	char*		old;
+
+	ut_a(save != NULL);
+	ut_a(var_ptr != NULL);
+
+	table_name = *static_cast<const char*const*>(save);
+	old = *(char**) var_ptr;
+
+	if (table_name) {
+		*(char**) var_ptr =  my_strdup(table_name,  MYF(0));
+	} else {
+		*(char**) var_ptr = NULL;
+	}
+
+	if (old) {
+		my_free(old);
+	}
+
+	fts_internal_tbl_name = *(char**) var_ptr;
+}
+
 /****************************************************************//**
 Update the session variable innodb_session_stopword_table
 with the "saved" stopword table name value. This function
@@ -11758,6 +11839,12 @@ static MYSQL_SYSVAR_STR(server_stopword_table, innobase_server_stopword_table,
   innodb_stopword_table_update,
   NULL);
 
+static MYSQL_SYSVAR_STR(fts_internal_tbl_name, fts_internal_tbl_name,
+  PLUGIN_VAR_NOCMDARG,
+  "FTS internal auxiliary table to be checked",
+  innodb_internal_table_validate, 
+  innodb_internal_table_update, NULL);
+
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
   "Set to 0 (write and flush once per second),"
@@ -12056,6 +12143,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(server_stopword_table),
+  MYSQL_SYSVAR(fts_internal_tbl_name),
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
@@ -12110,7 +12198,9 @@ i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
 i_s_innodb_metrics,
-i_s_innodb_stopword
+i_s_innodb_stopword,
+i_s_innodb_fts_inserted,
+i_s_innodb_fts_deleted
 
 mysql_declare_plugin_end;
 

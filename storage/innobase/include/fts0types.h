@@ -90,28 +90,28 @@ struct fts_stopword_struct {
 /* The SYNC state of the cache. There is one instance of this struct
 associated with each ADD thread. */
 struct fts_sync_struct {
-	trx_t*          trx;            /* The transaction used for SYNCing
+	trx_t*		trx;		/*!< The transaction used for SYNCing
 					the cache to disk */
-	dict_table_t*   table;          /* Table with FTS index(es) */
-	ulint           max_cache_size; /* Max size in bytes of the cache */
-	ibool           cache_full;     /* flag, when true it indicates that
+	dict_table_t*	table;		/*!< Table with FTS index(es) */
+	ulint		max_cache_size;	/*!< Max size in bytes of the cache */
+	ibool		cache_full;	/*!< flag, when true it indicates that
 					we need to sync the cache to disk */
-	ulint           lower_index;    /* the start index of the doc id
+	ulint		lower_index;	/*!< the start index of the doc id
 					vector from where to start adding
 					documents to the FTS cache */
-	ulint           upper_index;    /* max index of the doc id vector to
+	ulint		upper_index;	/*!< max index of the doc id vector to
 					add to the FTS cache */
-	ibool           interrupted;    /* TRUE if SYNC was interrupted */
-	doc_id_t        min_doc_id;     /* The smallest doc id added to the
+	ibool		interrupted;	/*!< TRUE if SYNC was interrupted */
+	doc_id_t	min_doc_id;	/*!< The smallest doc id added to the
 					cache. It should equal to
 					doc_ids[lower_index] */
-	doc_id_t        max_doc_id;     /* The doc id at which the cache was
+	doc_id_t	max_doc_id;	/*!< The doc id at which the cache was
 					noted as being full, we use this to
 					set the upper_limit field */
-	ib_time_t       start_time;     /* SYNC start time */
+        ib_time_t	start_time;	/*!< SYNC start time */
 };
 
-typedef struct	fts_sync_struct	fts_sync_t;
+typedef struct fts_sync_struct	fts_sync_t;
 
 /* The cache for the FTS system. It is a memory-based inverted index
 that new entries are added to, until it grows over the configured maximum
