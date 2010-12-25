@@ -344,6 +344,9 @@ extern ulint srv_buf_pool_reads;
 /** Time in seconds between automatic buffer pool dumps */
 extern uint srv_auto_lru_dump;
 
+/** Release row locks already in the prepare phase */
+extern my_bool innobase_release_locks_early;
+
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
 

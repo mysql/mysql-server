@@ -1,0 +1,131 @@
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+--source include/have_log_bin.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (k INT NOT NULL, a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(k)) ENGINE=InnoDB;
+INSERT INTO t1 (k, a, b, c) VALUES (1, 0, 0, 0);
+INSERT INTO t1 (k, a, b, c) VALUES (2, 0, 0, 0);
+INSERT INTO t1 (k, a, b, c) VALUES (3, 0, 0, 0);
+INSERT INTO t1 (k, a, b, c) VALUES (4, 0, 0, 0);
+
+RESET MASTER;
+SET DEBUG_SYNC= 'RESET';
+
+# Two transactions A,B that update the same row.
+# A releases row locks during the prepare phase, and waits using DEBUG_SYNC.
+# B then updates the same row.
+# Verify that
+#  - B's update can proceed while A is waiting for commit, showing that
+#    locks are released early.
+#  - B cannot be binlogged before A.
+
+connect(c1,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+connection c1;
+--echo # Connection c1
+
+# First verify that row locks are released early.
+BEGIN;
+UPDATE t1 SET a=10 WHERE k=1;
+# Wait until c2 starts COMMIT, to verify that we release our locks in prepare.
+SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c1_prepared WAIT_FOR c2_committing";
+send COMMIT;
+
+    connection c2;
+    --echo # Connection c2
+    SET DEBUG_SYNC="now WAIT_FOR c1_prepared";
+    BEGIN;
+    SELECT * FROM t1 WHERE k=1 FOR UPDATE;
+    UPDATE t1 SET a=20 WHERE k=1;
+    SET DEBUG_SYNC="now SIGNAL c2_committing";
+    COMMIT;
+
+connection c1;
+--echo # Connection c1
+reap;
+
+# Now verify that binlog order is correct.
+BEGIN;
+UPDATE t1 SET a=10 WHERE k=2;
+# This time wait until c2 is binlogged. This should time out, as we must not
+# allow c2 to finish commit before c1.
+SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 2";
+send COMMIT;
+
+    connection c2;
+    --echo # Connection c2
+    SET DEBUG_SYNC="now WAIT_FOR c1_prepared";
+    BEGIN;
+    SELECT * FROM t1 WHERE k=2 FOR UPDATE;
+    UPDATE t1 SET a=20 WHERE k=2;
+    SET DEBUG_SYNC="binlog_after_log_and_order SIGNAL c2_committed";
+    send COMMIT;
+
+connection c1;
+--echo # Connection c1
+--echo # This should warn about DEBUG_SYNC timeout
+reap;
+
+connection c2;
+--echo # Connection c2
+reap;
+
+--replace_regex /xid=[0-9]+/xid=XX/
+SHOW BINLOG EVENTS LIMIT 2,12;
+
+
+connection c1;
+--echo # Connection c1
+# Now the same thing, but using autocommit.
+RESET MASTER;
+# First verify that row locks are released early.
+# Wait until c2 starts COMMIT, to verify that we release our locks in prepare.
+SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c1_prepared WAIT_FOR c2_committing";
+send UPDATE t1 SET a=10 WHERE k=3;
+
+    connection c2;
+    --echo # Connection c2
+    SET DEBUG_SYNC="now WAIT_FOR c1_prepared";
+    SELECT * FROM t1 WHERE k=3 FOR UPDATE;
+    SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c2_committing";
+    UPDATE t1 SET a=20 WHERE k=3;
+
+connection c1;
+--echo # Connection c1
+reap;
+
+# Now verify that binlog order is correct, this time with autocommit.
+# This time wait until c2 is binlogged. This should time out, as we must not
+# allow c2 to finish commit before c1.
+SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c1_prepared WAIT_FOR c2_committed TIMEOUT 2";
+send UPDATE t1 SET a=10 WHERE k=4;
+
+    connection c2;
+    --echo # Connection c2
+    SET DEBUG_SYNC="now WAIT_FOR c1_prepared";
+    SELECT * FROM t1 WHERE k=4 FOR UPDATE;
+    SET DEBUG_SYNC="binlog_after_log_and_order SIGNAL c2_committed";
+    send UPDATE t1 SET a=20 WHERE k=4;
+
+connection c1;
+--echo # Connection c1
+--echo # This should warn about DEBUG_SYNC timeout
+reap;
+
+connection c2;
+--echo # Connection c2
+reap;
+
+--replace_regex /xid=[0-9]+/xid=XX/
+SHOW BINLOG EVENTS LIMIT 1,12;
+
+
+SELECT * FROM t1 ORDER BY k;
+
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

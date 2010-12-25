@@ -220,6 +220,7 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
+static void innobase_prepare_ordered(handlerton *hton, THD* thd, bool all);
 static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
@@ -2041,6 +2042,10 @@ innobase_init(
         innobase_hton->savepoint_set=innobase_savepoint;
         innobase_hton->savepoint_rollback=innobase_rollback_to_savepoint;
         innobase_hton->savepoint_release=innobase_release_savepoint;
+	if (innobase_release_locks_early)
+		innobase_hton->prepare_ordered=innobase_prepare_ordered;
+	else
+		innobase_hton->prepare_ordered=NULL;
         innobase_hton->commit_ordered=innobase_commit_ordered;
         innobase_hton->commit=innobase_commit;
         innobase_hton->rollback=innobase_rollback;
@@ -2726,6 +2731,54 @@ innobase_start_trx_and_assign_read_view(
 	DBUG_RETURN(0);
 }
 
+/*****************************************************************//**
+Release row locks early during prepare phase.
+
+Only enabled if --innodb-release-locks-early=1. In this case, a prepared
+transaction is treated as committed to memory (but not to disk), and we
+release row locks at the end of the prepare phase.
+
+The consistent commit ordering guarantees of prepare_ordered() calls means
+that transactions will not be binlogged in different order than locks are
+released (which would cause trouble for statement-based replication).
+
+This optimisation is not 100% safe, so is not enabled by default. But some
+applications may decide to enable it to reduce contention on hotspot rows.
+
+The consequences of enabling this are:
+
+ - It is not possible to rollback after successful prepare(). If there is
+   a need to rollback (ie. failure to binlog the transaction), we crash the
+   server (!)
+
+ - If we crash during commit, it is possible that an application/user can have
+   seen another transaction committed that is not recovered by XA crash
+   recovery. Thus durability is partially lost. However, consistency is still
+   guaranteed, we never recover a transaction and not recover another
+   transaction that committed before. */
+static
+void
+innobase_prepare_ordered(
+/*============*/
+	handlerton *hton, /*!< in: Innodb handlerton */
+	THD*	thd,	/*!< in: MySQL thread handle of the user for whom
+			the transaction should be committed */
+	bool	all)	/*!< in:	TRUE - commit transaction
+				FALSE - the current SQL statement ended */
+{
+	trx_t*		trx;
+	DBUG_ENTER("innobase_prepare_ordered");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	trx = check_trx_exists(thd);
+
+	mutex_enter(&kernel_mutex);
+	lock_release_off_kernel(trx);
+	mutex_exit(&kernel_mutex);
+
+	DBUG_VOID_RETURN;
+}
+
 static
 void
 innobase_commit_ordered_2(
@@ -2965,6 +3018,15 @@ innobase_rollback(
 	release it now before a possibly lengthy rollback */
 
 	row_unlock_table_autoinc_for_mysql(trx);
+
+	/* if transaction has already released locks, it is too late to
+	rollback */
+	if (innobase_release_locks_early && trx->conc_state == TRX_PREPARED
+	    && UT_LIST_GET_LEN(trx->trx_locks) == 0) {
+		sql_print_error("Rollback after releasing locks! "
+				"errno=%d, dberr=%d", errno, trx->error_state);
+		ut_error;
+	}
 
 	if (all
 		|| !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -11691,6 +11753,11 @@ static	MYSQL_SYSVAR_ULINT(pass_corrupt_table, srv_pass_corrupt_table,
   "except for the deletion.",
   NULL, NULL, 0, 0, 1, 0);
 
+static MYSQL_SYSVAR_BOOL(release_locks_early, innobase_release_locks_early,
+  PLUGIN_VAR_READONLY,
+  "Release row locks in the prepare stage instead of in the commit stage",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(additional_mem_pool_size),
@@ -11778,6 +11845,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(auto_lru_dump),
   MYSQL_SYSVAR(use_purge_thread),
   MYSQL_SYSVAR(pass_corrupt_table),
+  MYSQL_SYSVAR(release_locks_early),
   NULL
 };
 

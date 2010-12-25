@@ -4991,6 +4991,7 @@ MYSQL_BIN_LOG::write_transaction_to_binlog_events(group_commit_entry *entry)
     DEBUG_SYNC(entry->thd, "commit_after_prepare_ordered");
   }
   pthread_mutex_unlock(&LOCK_prepare_ordered);
+  DEBUG_SYNC(entry->thd, "commit_after_release_LOCK_prepare_ordered");
 
   /*
     The first in the queue handle group commit for all; the others just wait
@@ -6498,6 +6499,8 @@ TC_LOG_BINLOG::log_and_order(THD *thd, my_xid xid, bool all,
   }
   else
     err= binlog_flush_trx_cache(thd, trx_data, NULL, all);
+
+  DEBUG_SYNC(thd, "binlog_after_log_and_order");
 
   DBUG_RETURN(!err);
 }
