@@ -1391,6 +1391,7 @@ void clean_up(bool print_message)
   ha_end();
   if (tc_log)
     tc_log->close();
+  TC_destroy();
   xid_cache_free();
   wt_end();
   delete_elements(&key_caches, (void (*)(const char*, uchar*)) free_key_cache);
@@ -4240,6 +4241,8 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!errmesg[0][0])
     unireg_abort(1);
+
+  TC_init();
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())

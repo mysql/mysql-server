@@ -761,6 +761,8 @@ THD::THD()
   active_vio = 0;
 #endif
   pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_wakeup_ready, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_wakeup_ready, 0);
 
   /* Variables with default values */
   proc_info="login";
@@ -1147,6 +1149,8 @@ THD::~THD()
   free_root(&transaction.mem_root,MYF(0));
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
+  pthread_cond_destroy(&COND_wakeup_ready);
+  pthread_mutex_destroy(&LOCK_wakeup_ready);
   pthread_mutex_destroy(&LOCK_thd_data);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
@@ -4149,6 +4153,25 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
   }
   DBUG_RETURN(0);
 }
+
+void
+THD::wait_for_wakeup_ready()
+{
+  pthread_mutex_lock(&LOCK_wakeup_ready);
+  while (!wakeup_ready)
+    pthread_cond_wait(&COND_wakeup_ready, &LOCK_wakeup_ready);
+  pthread_mutex_unlock(&LOCK_wakeup_ready);
+}
+
+void
+THD::signal_wakeup_ready()
+{
+  pthread_mutex_lock(&LOCK_wakeup_ready);
+  wakeup_ready= true;
+  pthread_cond_signal(&COND_wakeup_ready);
+  pthread_mutex_unlock(&LOCK_wakeup_ready);
+}
+
 
 bool Discrete_intervals_list::append(ulonglong start, ulonglong val,
                                  ulonglong incr)

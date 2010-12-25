@@ -1,0 +1,28 @@
+CALL mtr.add_suppression("Error writing file 'master-bin'");
+RESET MASTER;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+INSERT INTO t1 VALUES(0);
+SET SESSION debug='+d,fail_binlog_write_1';
+INSERT INTO t1 VALUES(1);
+ERROR HY000: Error writing file 'master-bin' (errno: 28)
+INSERT INTO t1 VALUES(2);
+ERROR HY000: Error writing file 'master-bin' (errno: 28)
+SET SESSION debug='';
+INSERT INTO t1 VALUES(3);
+SELECT * FROM t1;
+a
+0
+3
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+BINLOG	POS	Format_desc	1	ENDPOS	Server ver: #, Binlog ver: #
+BINLOG	POS	Query	1	ENDPOS	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb
+BINLOG	POS	Query	1	ENDPOS	BEGIN
+BINLOG	POS	Query	1	ENDPOS	use `test`; INSERT INTO t1 VALUES(0)
+BINLOG	POS	Xid	1	ENDPOS	COMMIT /* XID */
+BINLOG	POS	Query	1	ENDPOS	BEGIN
+BINLOG	POS	Query	1	ENDPOS	BEGIN
+BINLOG	POS	Query	1	ENDPOS	BEGIN
+BINLOG	POS	Query	1	ENDPOS	use `test`; INSERT INTO t1 VALUES(3)
+BINLOG	POS	Xid	1	ENDPOS	COMMIT /* XID */
+DROP TABLE t1;

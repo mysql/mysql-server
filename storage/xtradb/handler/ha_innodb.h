@@ -241,16 +241,6 @@ LEX_STRING *thd_query_string(MYSQL_THD thd);
 char **thd_query(MYSQL_THD thd);
 #endif
 
-/** Get the file name of the MySQL binlog.
- * @return the name of the binlog file
- */
-const char* mysql_bin_log_file_name(void);
-
-/** Get the current position of the MySQL binlog.
- * @return byte offset from the beginning of the binlog
- */
-ulonglong mysql_bin_log_file_pos(void);
-
 /**
   Check if a user thread is a replication slave thread
   @param thd  user thread
@@ -290,6 +280,11 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
 #endif /* MYSQL_VERSION_ID > 50140 */
 }
+
+/** Get the file name and position of the MySQL binlog corresponding to the
+ * current commit.
+ */
+extern void mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file);
 
 typedef struct trx_struct trx_t;
 /********************************************************************//**

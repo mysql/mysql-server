@@ -1007,6 +1007,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   DBUG_ENTER("dispatch_command");
   DBUG_PRINT("info", ("command: %d", command));
 
+  DBUG_EXECUTE_IF("crash_dispatch_command_before",
+                  { DBUG_PRINT("crash_dispatch_command_before", ("now"));
+                    DBUG_ABORT(); });
+
   thd->command=command;
   /*
     Commands which always take a long time are logged into

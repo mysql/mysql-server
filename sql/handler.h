@@ -764,9 +764,98 @@ struct handlerton
      NOTE 'all' is also false in auto-commit mode where 'end of statement'
      and 'real commit' mean the same event.
    */
-   int  (*commit)(handlerton *hton, THD *thd, bool all);
+   int (*commit)(handlerton *hton, THD *thd, bool all);
+   /*
+     The commit_ordered() method is called prior to the commit() method, after
+     the transaction manager has decided to commit (not rollback) the
+     transaction. Unlike commit(), commit_ordered() is called only when the
+     full transaction is committed, not for each commit of statement
+     transaction in a multi-statement transaction.
+
+     Not that like prepare(), commit_ordered() is only called when 2-phase
+     commit takes place. Ie. when no binary log and only a single engine
+     participates in a transaction, one commit() is called, no
+     commit_orderd(). So engines must be prepared for this.
+
+     The calls to commit_ordered() in multiple parallel transactions is
+     guaranteed to happen in the same order in every participating
+     handler. This can be used to ensure the same commit order among multiple
+     handlers (eg. in table handler and binlog). So if transaction T1 calls
+     into commit_ordered() of handler A before T2, then T1 will also call
+     commit_ordered() of handler B before T2.
+
+     Engines that implement this method should during this call make the
+     transaction visible to other transactions, thereby making the order of
+     transaction commits be defined by the order of commit_ordered() calls.
+
+     The intension is that commit_ordered() should do the minimal amount of
+     work that needs to happen in consistent commit order among handlers. To
+     preserve ordering, calls need to be serialised on a global mutex, so
+     doing any time-consuming or blocking operations in commit_ordered() will
+     limit scalability.
+
+     Handlers can rely on commit_ordered() calls to be serialised (no two
+     calls can run in parallel, so no extra locking on the handler part is
+     required to ensure this).
+
+     Note that commit_ordered() can be called from a different thread than the
+     one handling the transaction! So it can not do anything that depends on
+     thread local storage, in particular it can not call my_error() and
+     friends (instead it can store the error code and delay the call of
+     my_error() to the commit() method).
+
+     Similarly, since commit_ordered() returns void, any return error code
+     must be saved and returned from the commit() method instead.
+
+     The commit_ordered method is optional, and can be left unset if not
+     needed in a particular handler (then there will be no ordering guarantees
+     wrt. other engines and binary log).
+   */
+   void (*commit_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*rollback)(handlerton *hton, THD *thd, bool all);
    int  (*prepare)(handlerton *hton, THD *thd, bool all);
+   /*
+     The prepare_ordered method is optional. If set, it will be called after
+     successful prepare() in all handlers participating in 2-phase
+     commit. Like commit_ordered(), it is called only when the full
+     transaction is committed, not for each commit of statement transaction.
+
+     The calls to prepare_ordered() among multiple parallel transactions are
+     ordered consistently with calls to commit_ordered(). This means that
+     calls to prepare_ordered() effectively define the commit order, and that
+     each handler will see the same sequence of transactions calling into
+     prepare_ordered() and commit_ordered().
+
+     Thus, prepare_ordered() can be used to define commit order for handlers
+     that need to do this in the prepare step (like binlog). It can also be
+     used to release transaction's locks early in an order consistent with the
+     order transactions will be eventually committed.
+
+     Like commit_ordered(), prepare_ordered() calls are serialised to maintain
+     ordering, so the intension is that they should execute fast, with only
+     the minimal amount of work needed to define commit order. Handlers can
+     rely on this serialisation, and do not need to do any extra locking to
+     avoid two prepare_ordered() calls running in parallel.
+
+     Like commit_ordered(), prepare_ordered() is not guaranteed to be called
+     in the context of the thread handling the rest of the transaction. So it
+     cannot invoke code that relies on thread local storage, in particular it
+     cannot call my_error().
+
+     prepare_ordered() cannot cause a rollback by returning an error, all
+     possible errors must be handled in prepare() (the prepare_ordered()
+     method returns void). In case of some fatal error, a record of the error
+     must be made internally by the engine and returned from commit() later.
+
+     Note that for user-level XA SQL commands, no consistent ordering among
+     prepare_ordered() and commit_ordered() is guaranteed (as that would
+     require blocking all other commits for an indefinite time).
+
+     When 2-phase commit is not used (eg. only one engine (and no binlog) in
+     transaction), prepare() is not called and in such cases prepare_ordered()
+     also is not called.
+   */
+   void (*prepare_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);
    int  (*commit_by_xid)(handlerton *hton, XID *xid);
    int  (*rollback_by_xid)(handlerton *hton, XID *xid);
