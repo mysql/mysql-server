@@ -2520,6 +2520,24 @@ int JOIN_CACHE_HASHED::init()
   pack_length+= get_size_of_rec_offset(); 
   pack_length_with_blob_ptrs+= get_size_of_rec_offset();
 
+  ref_key_info= join_tab->table->key_info+join_tab->ref.key;
+  ref_used_key_parts= join_tab->ref.key_parts;
+
+  hash_func= &JOIN_CACHE_HASHED::get_hash_idx_simple;
+  hash_cmp_func= &JOIN_CACHE_HASHED::equal_keys_simple;
+
+  KEY_PART_INFO *key_part= ref_key_info->key_part;
+  KEY_PART_INFO *key_part_end= key_part+ref_used_key_parts;
+  for ( ; key_part < key_part_end; key_part++)
+  {
+    if (!key_part->field->eq_cmp_as_binary())
+    {
+      hash_func= &JOIN_CACHE_HASHED::get_hash_idx_complex;
+      hash_cmp_func= &JOIN_CACHE_HASHED::equal_keys_complex;
+      break;
+    }
+  }
+      
   init_hash_table();
 
   rec_fields_offset= get_size_of_rec_offset()+get_size_of_rec_length()+
@@ -2904,7 +2922,7 @@ bool JOIN_CACHE_HASHED::key_search(uchar *key, uint key_len,
                                    uchar **key_ref_ptr) 
 {
   bool is_found= FALSE;
-  uint idx= get_hash_idx(key, key_length);
+  uint idx= (this->*hash_func)(key, key_length);
   uchar *ref_ptr= hash_table+size_of_key_ofs*idx;
   while (!is_null_key_ref(ref_ptr))
   {
@@ -2913,7 +2931,7 @@ bool JOIN_CACHE_HASHED::key_search(uchar *key, uint key_len,
     next_key= use_emb_key ? get_emb_key(ref_ptr-get_size_of_rec_offset()) :
                             ref_ptr-key_length;
 
-    if (memcmp(next_key, key, key_len) == 0)
+    if ((this->*hash_cmp_func)(next_key, key, key_len))
     {
       is_found= TRUE;
       break;
@@ -2925,22 +2943,24 @@ bool JOIN_CACHE_HASHED::key_search(uchar *key, uint key_len,
 
 
 /* 
-  Calclulate hash value for a key in the hash table of the join buffer
+  Hash function that considers a key in the hash table as byte array
 
   SYNOPSIS
-    get_hash_idx()
+    get_hash_idx_simple()
       key             pointer to the key value
       key_len         key value length
       
   DESCRIPTION
     The function calculates an index of the hash entry in the hash table
-    of the join buffer for the given key  
+    of the join buffer for the given key. It considers the key just as
+    a sequence of bytes of the length key_len.
 
   RETURN VALUE
-    the calculated index of the hash entry for the given key.  
+    the calculated index of the hash entry for the given key  
 */
 
-uint JOIN_CACHE_HASHED::get_hash_idx(uchar* key, uint key_len)
+inline
+uint JOIN_CACHE_HASHED::get_hash_idx_simple(uchar* key, uint key_len)
 {
   ulong nr= 1;
   ulong nr2= 4;
@@ -2952,6 +2972,93 @@ uint JOIN_CACHE_HASHED::get_hash_idx(uchar* key, uint key_len)
     nr2+= 3;
   }
   return nr % hash_entries;
+}
+
+
+/* 
+  Hash function that takes into account collations of the components of the key  
+
+  SYNOPSIS
+    get_hash_idx_complex()
+      key             pointer to the key value
+      key_len         key value length
+      
+  DESCRIPTION
+    The function calculates an index of the hash entry in the hash table
+    of the join buffer for the given key. It takes into account that the
+    components of the key may be of a varchar type with different collations.
+    The function guarantees that the same hash value for any two equal
+    keys that may differ as byte sequences.
+    The function takes the info about the components of the key, their
+    types and used collations from the class member ref_key_info containing
+    a pointer to the descriptor of the index that can be used for the join
+    operation.
+
+  RETURN VALUE
+    the calculated index of the hash entry for the given key  
+*/
+
+inline
+uint JOIN_CACHE_HASHED::get_hash_idx_complex(uchar *key, uint key_len)
+{
+  return 
+    (uint) (key_hashnr(ref_key_info, ref_used_key_parts, key) % hash_entries);
+}
+
+
+/* 
+  Compare two key entries in the hash table as sequence of bytes
+
+  SYNOPSIS
+    equal_keys_simple()
+      key1            pointer to the first key entry
+      key2            pointer to the second key entry 
+      key_len         the length of the key values
+      
+  DESCRIPTION
+    The function compares two key entries in the hash table key1 and key2
+    as two sequences bytes of the length key_len
+
+  RETURN VALUE
+    TRUE       key1 coincides with key2
+    FALSE      otherwise
+*/
+
+inline
+bool JOIN_CACHE_HASHED::equal_keys_simple(uchar *key1, uchar *key2,
+                                          uint key_len)
+{
+  return memcmp(key1, key2, key_len) == 0;
+}
+
+
+/* 
+  Compare two key entries taking into account the used collation
+
+  SYNOPSIS
+    equal_keys_complex()
+      key1            pointer to the first key entry
+      key2            pointer to the second key entry 
+      key_len         the length of the key values
+      
+  DESCRIPTION
+    The function checks whether two key entries in the hash table
+    key1 and key2 are equal as, possibly, compound keys of a certain
+    structure whose components may be of a varchar type and may
+    employ different collations.
+    The descriptor of the key structure is taken from the class
+    member ref_key_info.
+
+  RETURN VALUE
+    TRUE       key1 is equal tokey2
+    FALSE      otherwise
+*/
+
+inline
+bool JOIN_CACHE_HASHED::equal_keys_complex(uchar *key1, uchar *key2,
+                                          uint key_len)
+{
+  return key_buf_cmp(ref_key_info, ref_used_key_parts, key1, key2) == 0;
 }
 
 

@@ -2700,5 +2700,28 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2,t3,t4,t5;
 
+--echo #
+--echo # Bug #670380: hash join for non-binary collation
+--echo #
+
+CREATE TABLE t1 (pk int PRIMARY KEY, a varchar(32));
+CREATE TABLE t2 (pk int PRIMARY KEY, a varchar(32), INDEX idx(a));
+INSERT INTO t1 VALUES
+  (10,'AAA'), (20,'BBBB'), (30,'Cc'), (40,'DD'), (50,'ee');
+INSERT INTO t2 VALUES
+  (1,'Bbbb'), (2,'BBB'), (3,'bbbb'), (4,'AaA'), (5,'CC'),
+  (6,'cC'), (7,'CCC'), (8,'AAA'), (9,'bBbB'), (10,'aaaa'),
+  (11,'a'), (12,'dd'), (13,'EE'), (14,'ee'), (15,'D');
+
+SET SESSION join_cache_level = 4;
+
+EXPLAIN
+SELECT * FROM t1,t2 WHERE t1.a=t2.a;
+SELECT * FROM t1,t2 WHERE t1.a=t2.a;
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+ 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
