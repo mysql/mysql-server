@@ -290,3 +290,60 @@ COUNT(*)
 DROP VIEW  v1;
 DROP TABLE t1;
 SET GLOBAL storage_engine=@old_engine;
+# Connection default
+SET binlog_format= mixed;
+RESET MASTER;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1,0), (2,0);
+SELECT GET_LOCK("block_queries_1", 120);
+GET_LOCK("block_queries_1", 120)
+1
+# Connection c3
+SELECT GET_LOCK("block_queries_2", 120);
+GET_LOCK("block_queries_2", 120)
+1
+# Connection c1
+SET @c= 0;
+SELECT IF(@c<1, @c:=@c+1, GET_LOCK("block_queries_1", 120)) FROM t1 ORDER BY a;
+# Connection c2
+SET binlog_format="row";
+SET @d= 10;
+UPDATE t2 SET b=IF(@d<=10, @d:=@d+1, GET_LOCK("block_queries_2", 120)) ORDER BY a;
+# Connection default
+# Make sure other queries are running (and waiting).
+SELECT RELEASE_LOCK("block_queries_1");
+RELEASE_LOCK("block_queries_1")
+1
+# Connection c3
+SELECT RELEASE_LOCK("block_queries_2");
+RELEASE_LOCK("block_queries_2")
+1
+# Connection c1
+IF(@c<1, @c:=@c+1, GET_LOCK("block_queries_1", 120))
+1
+1
+# Connection c2
+# Connection default
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	11
+2	1
+DROP TABLE t1;
+DROP TABLE t2;
+SHOW BINLOG EVENTS LIMIT 6,3;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	524	Query	1	592	BEGIN
+master-bin.000001	592	Query	1	689	use `test`; INSERT INTO t2 VALUES (1,0), (2,0)
+master-bin.000001	689	Xid	1	716	COMMIT /* XID */
+-- CHANGE MASTER TO MASTER_LOG_FILE='./master-bin.000001', MASTER_LOG_POS=716;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	0
+2	0
+DROP TABLE t1,t2;

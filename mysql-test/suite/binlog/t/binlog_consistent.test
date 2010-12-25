@@ -1,0 +1,88 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed_or_statement.inc
+--source include/have_innodb.inc
+
+RESET MASTER;
+
+# Test that we get the correct binlog position from START TRANSACTION WITH
+# CONSISTENT SNAPSHOT even when other transactions are active.
+
+connect(con1,localhost,root,,);
+connect(con2,localhost,root,,);
+connect(con3,localhost,root,,);
+connect(con4,localhost,root,,);
+
+connection default;
+--echo # Connection default
+
+CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
+SHOW MASTER STATUS;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+BEGIN;
+INSERT INTO t1 VALUES (0, "");
+
+connection con1;
+--echo # Connection con1
+BEGIN;
+INSERT INTO t1 VALUES (1, "");
+
+connection con2;
+--echo # Connection con2
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=myisam;
+BEGIN;
+INSERT INTO t1 VALUES (2, "first");
+INSERT INTO t2 VALUES (2);
+INSERT INTO t1 VALUES (2, "second");
+
+connection default;
+--echo # Connection default
+COMMIT;
+
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
+connection con3;
+--echo # Connection con3
+BEGIN;
+INSERT INTO t1 VALUES (3, "");
+INSERT INTO t2 VALUES (3);
+
+connection con4;
+--echo # Connection con4
+BEGIN;
+INSERT INTO t1 VALUES (4, "");
+COMMIT;
+
+connection default;
+--echo # Connection default
+SELECT * FROM t1 ORDER BY a,b;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+SELECT * FROM t2 ORDER BY a;
+
+connection con1;
+--echo # Connection con1
+COMMIT;
+
+connection con2;
+--echo # Connection con2
+COMMIT;
+
+connection con3;
+--echo # Connection con3
+COMMIT;
+FLUSH LOGS;
+
+connection default;
+--echo # Connection default
+SELECT * FROM t1 ORDER BY a,b;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+COMMIT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+SHOW MASTER STATUS;
+
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
+SHOW BINLOG EVENTS;
+
+DROP TABLE t1,t2;

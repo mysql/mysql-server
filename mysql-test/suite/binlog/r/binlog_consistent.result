@@ -1,0 +1,99 @@
+RESET MASTER;
+# Connection default
+CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb;
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	241		
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+binlog_snapshot_file	./master-bin.000001
+binlog_snapshot_position	241
+BEGIN;
+INSERT INTO t1 VALUES (0, "");
+# Connection con1
+BEGIN;
+INSERT INTO t1 VALUES (1, "");
+# Connection con2
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=myisam;
+BEGIN;
+INSERT INTO t1 VALUES (2, "first");
+INSERT INTO t2 VALUES (2);
+INSERT INTO t1 VALUES (2, "second");
+# Connection default
+COMMIT;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# Connection con3
+BEGIN;
+INSERT INTO t1 VALUES (3, "");
+INSERT INTO t2 VALUES (3);
+# Connection con4
+BEGIN;
+INSERT INTO t1 VALUES (4, "");
+COMMIT;
+# Connection default
+SELECT * FROM t1 ORDER BY a,b;
+a	b
+0	
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+binlog_snapshot_file	./master-bin.000001
+binlog_snapshot_position	540
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000001	727		
+SELECT * FROM t2 ORDER BY a;
+a
+2
+3
+# Connection con1
+COMMIT;
+# Connection con2
+COMMIT;
+# Connection con3
+COMMIT;
+FLUSH LOGS;
+# Connection default
+SELECT * FROM t1 ORDER BY a,b;
+a	b
+0	
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+binlog_snapshot_file	./master-bin.000001
+binlog_snapshot_position	540
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000002	106		
+COMMIT;
+SHOW STATUS LIKE 'binlog_snapshot_%';
+Variable_name	Value
+binlog_snapshot_file	./master-bin.000002
+binlog_snapshot_position	106
+SHOW MASTER STATUS;
+File	Position	Binlog_Do_DB	Binlog_Ignore_DB
+master-bin.000002	106		
+SHOW BINLOG EVENTS;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	106	Server ver: #, Binlog ver: #
+master-bin.000001	106	Query	1	241	use `test`; CREATE TABLE t1 (a INT, b VARCHAR(100), PRIMARY KEY (a,b)) ENGINE=innodb
+master-bin.000001	241	Query	1	353	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=myisam
+master-bin.000001	353	Query	1	421	BEGIN
+master-bin.000001	421	Query	1	513	use `test`; INSERT INTO t1 VALUES (0, "")
+master-bin.000001	513	Xid	1	540	COMMIT /* XID */
+master-bin.000001	540	Query	1	608	BEGIN
+master-bin.000001	608	Query	1	700	use `test`; INSERT INTO t1 VALUES (4, "")
+master-bin.000001	700	Xid	1	727	COMMIT /* XID */
+master-bin.000001	727	Query	1	795	BEGIN
+master-bin.000001	795	Query	1	887	use `test`; INSERT INTO t1 VALUES (1, "")
+master-bin.000001	887	Xid	1	914	COMMIT /* XID */
+master-bin.000001	914	Query	1	982	BEGIN
+master-bin.000001	982	Query	1	1079	use `test`; INSERT INTO t1 VALUES (2, "first")
+master-bin.000001	1079	Query	1	1167	use `test`; INSERT INTO t2 VALUES (2)
+master-bin.000001	1167	Query	1	1265	use `test`; INSERT INTO t1 VALUES (2, "second")
+master-bin.000001	1265	Xid	1	1292	COMMIT /* XID */
+master-bin.000001	1292	Query	1	1360	BEGIN
+master-bin.000001	1360	Query	1	1452	use `test`; INSERT INTO t1 VALUES (3, "")
+master-bin.000001	1452	Query	1	1540	use `test`; INSERT INTO t2 VALUES (3)
+master-bin.000001	1540	Xid	1	1567	COMMIT /* XID */
+master-bin.000001	1567	Rotate	1	1611	master-bin.000002;pos=4
+DROP TABLE t1,t2;
