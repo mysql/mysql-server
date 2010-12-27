@@ -1,6 +1,4 @@
 ###########################################################
-# 2006-02-01: By JBM: Added 1022, ORDER BY 
-###########################################################
 # See if queries that use both auto_increment and LAST_INSERT_ID()
 # are replicated well
 ############################################################
@@ -14,9 +12,6 @@
 --echo #
 
 use test;
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
 
 --echo #
 --echo # See if queries that use both auto_increment and LAST_INSERT_ID()
@@ -42,9 +37,7 @@ eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
 insert into t1 values (1),(2),(3);
 insert into t1 values (null);
 insert into t2 values (null,last_insert_id());
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 connection master;
@@ -63,9 +56,7 @@ insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
 SET FOREIGN_KEY_CHECKS=1;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1;
 select * from t2;
 connection master;
@@ -83,17 +74,13 @@ insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
 insert into t2 (c) select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 connection master;
 drop table t1;
 drop table t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 --echo #
 --echo # Bug#8412: Error codes reported in binary log for CHARACTER SET,
@@ -208,9 +195,7 @@ call foo();
 
 select * from t1;
 select * from t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1;
 select * from t2;
 connection master;
@@ -548,4 +533,5 @@ connection master;
 drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
-sync_slave_with_master;
+
+--source include/rpl_end.inc

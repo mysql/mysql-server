@@ -1,10 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-drop database if exists mysqltest;
+include/master-slave.inc
+[connection master]
 create database mysqltest;
 create table mysqltest.t1 ( n int);
 alter table mysqltest.t1 add m int;
@@ -35,7 +30,8 @@ ALTER TABLE t1 CHANGE b c INT;
 ALTER TABLE t2 CHANGE b c VARCHAR(255);
 
 INSERT INTO t1 (a) VALUES(2);
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 
 DROP TABLE t1, t2;
+include/rpl_end.inc

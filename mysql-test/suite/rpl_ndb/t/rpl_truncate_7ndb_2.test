@@ -9,3 +9,4 @@
 --source include/have_binlog_format_mixed.inc
 --source include/big_test.inc
 --source suite/rpl_ndb/t/rpl_truncate_7ndb.test
+--source include/rpl_end.inc

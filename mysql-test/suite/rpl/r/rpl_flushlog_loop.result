@@ -1,27 +1,15 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_init.inc [topology=1->2->1]
 show variables like 'relay_log%';
 Variable_name	Value
-relay_log	MYSQLD_DATADIR/relay-log
+relay_log	
 relay_log_index	
 relay_log_info_file	relay-log.info
 relay_log_purge	ON
 relay_log_space_limit	0
-stop slave;
-change master to master_host='127.0.0.1',master_user='root',
-master_password='',master_port=MASTER_PORT;
-start slave;
-stop slave;
-change master to master_host='127.0.0.1',master_user='root',
-master_password='',master_port=SLAVE_PORT;
-include/start_slave.inc
 CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
 INSERT INTO t1 VALUE(1);
 FLUSH LOGS;
 INSERT INTO t1 VALUE(2);
-Checking that both slave threads are running.
-Relay_Log_File	relay-log.000003
+include/check_slave_is_running.inc
+Relay_Log_File = 'mysqld-relay-bin.000003'
+include/rpl_end.inc
