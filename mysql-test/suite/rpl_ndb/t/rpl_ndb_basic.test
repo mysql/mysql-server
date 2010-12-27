@@ -188,7 +188,6 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 # Wait for deadlock to be detected.
 # When detected, the slave will stop, so we just wait for it to stop.
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
 
 # Replication should have stopped, since max retries were not enough.
 # verify with show slave status 
@@ -259,4 +258,4 @@ SELECT c1 FROM t1 ORDER BY c1 LIMIT 5;
 # cleanup
 --connection master
 DROP TABLE t1;
--- source include/master-slave-end.inc
+--source include/rpl_end.inc

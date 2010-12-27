@@ -49,3 +49,4 @@ sync_slave_with_master;
 # Since changes to mysql.* are ignored, the revoke need to
 # be done on slave as well
 delete from mysql.user where user="user_foo";
+--source include/rpl_end.inc

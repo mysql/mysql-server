@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int auto_increment, KEY(t));
 stop slave;
@@ -19,23 +15,32 @@ insert into t1 values(1);
 select * from t1;
 t
 1
-Master_SSL_Allowed	Yes
-Master_SSL_CA_Path	
-Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
-Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
-Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-Checking that both slave threads are running.
+Master_SSL_Allowed = 'Yes'
+Master_SSL_CA_Path = ''
+Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
+Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
+Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+include/check_slave_is_running.inc
 STOP SLAVE;
 select * from t1;
 t
 1
 insert into t1 values (NULL);
-Master_SSL_Allowed	Yes
-Master_SSL_CA_Path	
-Master_SSL_CA_File	MYSQL_TEST_DIR/std_data/cacert.pem
-Master_SSL_Cert	MYSQL_TEST_DIR/std_data/client-cert.pem
-Master_SSL_Key	MYSQL_TEST_DIR/std_data/client-key.pem
-Checking that both slave threads are running.
+include/wait_for_slave_to_start.inc
+Master_SSL_Allowed = 'Yes'
+Master_SSL_CA_Path = ''
+Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
+Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
+Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
+include/check_slave_is_running.inc
 drop user replssl@localhost;
 drop table t1;
+include/stop_slave.inc
+CHANGE MASTER TO
+master_user = 'root',
+master_ssl = 0,
+master_ssl_ca = '',
+master_ssl_cert = '',
+master_ssl_key = '';
 End of 5.0 tests
+include/rpl_end.inc

@@ -1,6 +1,4 @@
-
 --source include/have_innodb.inc
 --source include/not_ndb_default.inc
-
 let $engine=InnoDB;
 --source extra/rpl_tests/rpl_truncate.test

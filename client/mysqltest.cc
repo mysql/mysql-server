@@ -444,7 +444,7 @@ struct st_command
   char *query, *query_buf,*first_argument,*last_argument,*end;
   DYNAMIC_STRING content;
   int first_word_len, query_len;
-  my_bool abort_on_error;
+  my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
   char require_file[FN_REFLEN];
   enum enum_commands type;
@@ -3287,7 +3287,7 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
     if (ds_wild && ds_wild->length &&
         wild_compare(file->name, ds_wild->str, 0))
       continue;
-    dynstr_append(ds, file->name);
+    replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
   }
   set_wild_chars(0);
@@ -3317,6 +3317,7 @@ static void do_list_files(struct st_command *command)
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -3358,6 +3359,7 @@ static void do_list_files_write_file_command(struct st_command *command,
     {"file", ARG_STRING, FALSE, &ds_wild, "Filename (incl. wildcard)"}
   };
   DBUG_ENTER("do_list_files_write_file");
+  command->used_replace= 1;
 
   check_command_args(command, command->first_argument,
                      list_files_args,
@@ -7988,6 +7990,14 @@ int main(int argc, char **argv)
   var_set_int("$VIEW_PROTOCOL", view_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
+  var_set_int("$ENABLED_QUERY_LOG", 1);
+  var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+  var_set_int("$ENABLED_RESULT_LOG", 1);
+  var_set_int("$ENABLED_CONNECT_LOG", 0);
+  var_set_int("$ENABLED_WARNINGS", 1);
+  var_set_int("$ENABLED_INFO", 0);
+  var_set_int("$ENABLED_METADATA", 0);
+
   DBUG_PRINT("info",("result_file: '%s'",
                      result_file_name ? result_file_name : ""));
   verbose_msg("Results saved in '%s'.", 
@@ -8130,20 +8140,62 @@ int main(int argc, char **argv)
       case Q_RPL_PROBE: do_rpl_probe(command); break;
       case Q_ENABLE_RPL_PARSE:	 do_enable_rpl_parse(command); break;
       case Q_DISABLE_RPL_PARSE:  do_disable_rpl_parse(command); break;
-      case Q_ENABLE_QUERY_LOG:   disable_query_log=0; break;
-      case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
-      case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
-      case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
-      case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
-      case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
-      case Q_ENABLE_CONNECT_LOG:   disable_connect_log=0; break;
-      case Q_DISABLE_CONNECT_LOG:  disable_connect_log=1; break;
-      case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
-      case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
-      case Q_ENABLE_INFO:        disable_info=0; break;
-      case Q_DISABLE_INFO:       disable_info=1; break;
-      case Q_ENABLE_METADATA:    display_metadata=1; break;
-      case Q_DISABLE_METADATA:   display_metadata=0; break;
+      case Q_ENABLE_QUERY_LOG:
+        disable_query_log= 0;
+        var_set_int("$ENABLED_QUERY_LOG", 1);
+        break;
+      case Q_DISABLE_QUERY_LOG:
+        disable_query_log= 1;
+        var_set_int("$ENABLED_QUERY_LOG", 0);
+        break;
+      case Q_ENABLE_ABORT_ON_ERROR:
+        abort_on_error= 1;
+        var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+        break;
+      case Q_DISABLE_ABORT_ON_ERROR:
+        abort_on_error= 0;
+        var_set_int("$ENABLED_ABORT_ON_ERROR", 0);
+        break;
+      case Q_ENABLE_RESULT_LOG:
+        disable_result_log= 0;
+        var_set_int("$ENABLED_RESULT_LOG", 1);
+        break;
+      case Q_DISABLE_RESULT_LOG:
+        disable_result_log=1;
+        var_set_int("$ENABLED_RESULT_LOG", 0);
+        break;
+      case Q_ENABLE_CONNECT_LOG:
+        disable_connect_log=0;
+        var_set_int("$ENABLED_CONNECT_LOG", 1);
+        break;
+      case Q_DISABLE_CONNECT_LOG:
+        disable_connect_log=1;
+        var_set_int("$ENABLED_CONNECT_LOG", 0);
+        break;
+      case Q_ENABLE_WARNINGS:
+        disable_warnings= 0;
+        var_set_int("$ENABLED_WARNINGS", 1);
+        break;
+      case Q_DISABLE_WARNINGS:
+        disable_warnings= 1;
+        var_set_int("$ENABLED_WARNINGS", 0);
+        break;
+      case Q_ENABLE_INFO:
+        disable_info= 0;
+        var_set_int("$ENABLED_INFO", 1);
+        break;
+      case Q_DISABLE_INFO:
+        disable_info= 1;
+        var_set_int("$ENABLED_INFO", 0);
+        break;
+      case Q_ENABLE_METADATA:
+        display_metadata= 1;
+        var_set_int("$ENABLED_METADATA", 1);
+        break;
+      case Q_DISABLE_METADATA:
+        display_metadata= 0;
+        var_set_int("$ENABLED_METADATA", 0);
+        break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;
       case Q_REAL_SLEEP: do_sleep(command, 1); break;
@@ -8404,7 +8456,7 @@ int main(int argc, char **argv)
       memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
     }
 
-    if (command_executed != last_command_executed)
+    if (command_executed != last_command_executed || command->used_replace)
     {
       /*
         As soon as any command has been executed,

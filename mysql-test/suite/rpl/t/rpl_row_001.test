@@ -7,3 +7,4 @@
 -- source include/master-slave.inc
 let $engine_type=MYISAM;
 -- source extra/rpl_tests/rpl_row_001.test
+--source include/rpl_end.inc
