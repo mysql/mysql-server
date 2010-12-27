@@ -164,6 +164,8 @@ SET @@session.time_zone = default;
 connection master;
 DROP TABLE t1;
 SET @@session.time_zone = default;
+--sync_slave_with_master
+--source include/stop_slave.inc
 
 # Bug#41719 delayed INSERT into timestamp col needs set time_zone for concurrent binlogging
 # To test that time_zone is correctly binloging for 'insert delayed' statement
@@ -195,5 +197,8 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 select * from t1 order by a;
 DROP TABLE t1;
 SET @@session.time_zone = default;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
 
 --echo End of 5.0 tests

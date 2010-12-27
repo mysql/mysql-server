@@ -18,3 +18,4 @@ set @@global.binlog_format = mixed;
 
 connection master;
 set @@global.binlog_format = @old_global_binlog_format;
+--source include/rpl_end.inc

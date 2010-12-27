@@ -54,3 +54,5 @@ if (!`SELECT '$before_position'='$after_position'`)
 DROP DATABASE `mysqltest-1`;
 connection slave;
 DROP DATABASE `#mysql50#mysqltest-1`;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

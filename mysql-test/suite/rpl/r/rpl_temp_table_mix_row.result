@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Initialize ====
 [on master]
 CREATE TABLE t1 (a CHAR(48));
@@ -15,6 +11,7 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 Variable_name	Value
 Slave_open_temp_tables	1
 [on master]
+[on master1]
 [on slave]
 ==== Verify results on slave ====
 SHOW STATUS LIKE "Slave_open_temp_tables";
@@ -22,14 +19,10 @@ Variable_name	Value
 Slave_open_temp_tables	0
 ==== Clean up ====
 [on master]
+include/rpl_connect.inc [creating master]
 DROP TABLE t1;
 [on slave]
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
 CREATE TABLE t3 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
@@ -110,6 +103,7 @@ master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 # Compare the base table.
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 
 DROP TABLE t1;
+include/rpl_end.inc

@@ -1329,9 +1329,14 @@ void Item_func_div::fix_length_and_dec()
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
     set_if_smaller(decimals, NOT_FIXED_DEC);
-    max_length=args[0]->max_length - args[0]->decimals + decimals;
     uint tmp=float_length(decimals);
-    set_if_smaller(max_length,tmp);
+    if (decimals == NOT_FIXED_DEC)
+      max_length= tmp;
+    else
+    {
+      max_length=args[0]->max_length - args[0]->decimals + decimals;
+      set_if_smaller(max_length,tmp);
+    }
     break;
   }
   case INT_RESULT:
@@ -6066,7 +6071,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view

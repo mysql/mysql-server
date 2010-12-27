@@ -29,14 +29,16 @@ INSERT INTO t1 VALUES (1);
 --echo [on slave]
 connection slave;
 # slave should have stopped because can't find table t1
---source include/wait_for_slave_sql_to_stop.inc
-# see if we have a good error message:
-let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
---echo Last_SQL_Error = $err
+# 1146 = ER_NO_SUCH_TABLE
+--let $slave_sql_errno= 1146
+--source include/wait_for_slave_sql_error.inc
 
 --echo ==== Clean up ====
-source include/stop_slave.inc;
+source include/stop_slave_io.inc;
+RESET SLAVE;
 
 --echo [on master]
 connection master;
 DROP TABLE t1;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

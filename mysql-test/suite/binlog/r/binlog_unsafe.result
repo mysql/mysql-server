@@ -1,8 +1,8 @@
 ==== Setup tables ====
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t2 (a TEXT);
 CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
-CREATE TABLE trigger_table (a CHAR(7));
+CREATE TABLE trigger_table (a TEXT);
 CREATE TABLE trigger_table2 (a INT);
 ==== Non-deterministic statements ====
 INSERT DELAYED INTO t1 VALUES (5);

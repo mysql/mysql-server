@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set @old_global_binlog_format=  @@global.binlog_format;
 set @old_session_binlog_format=  @@session.binlog_format;
 SET GLOBAL binlog_format = 'ROW';
@@ -11,10 +7,6 @@ SET SESSION binlog_format = 'ROW';
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	ROW
 @@session.binlog_format	ROW
-DROP TABLE IF EXISTS t1, t2, t3;
-DROP PROCEDURE IF EXISTS p1;
-DROP PROCEDURE IF EXISTS p2;
-DROP PROCEDURE IF EXISTS p3;
 CREATE TABLE t1(id MEDIUMINT NOT NULL AUTO_INCREMENT,
 dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 fkid MEDIUMINT, filler VARCHAR(255),
@@ -138,7 +130,7 @@ SUBPARTITIONS 2
  PARTITION pa9 VALUES LESS THAN (90) ENGINE = InnoDB,
  PARTITION pa10 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION pa11 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 SELECT count(*) "Slave norm" FROM t1;
 Slave norm	500
 SELECT count(*) "Slave bykey" FROM t2;
@@ -148,6 +140,7 @@ Slave byrange	500
 set @@global.binlog_format=  @old_global_binlog_format;
 set @@session.binlog_format=  @old_session_binlog_format;
 DROP TABLE t1, t2, t3;
-DROP PROCEDURE IF EXISTS p1;
-DROP PROCEDURE IF EXISTS p2;
-DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+include/rpl_end.inc
