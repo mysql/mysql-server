@@ -3929,12 +3929,16 @@ bool mysql_create_table_no_lock(THD *thd,
   }
 
   /* Give warnings for not supported table options */
-  if (create_info->transactional && !file->ht->commit)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        file->engine_name()->str,
-                        "TRANSACTIONAL=1");
+#if defined(WITH_ARIA_STORAGE_ENGINE)
+  extern handlerton *maria_hton;
+  if (file->ht != maria_hton)
+#endif
+    if (create_info->transactional)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          file->engine_name()->str,
+                          "TRANSACTIONAL=1");
 
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))

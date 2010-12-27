@@ -3302,6 +3302,9 @@ static int ha_maria_init(void *p)
   maria_hton->panic= maria_hton_panic;
   maria_hton->commit= maria_commit;
   maria_hton->rollback= maria_rollback;
+#ifdef MARIA_CANNOT_ROLLBACK
+  maria_hton->commit= 0;
+#endif
   maria_hton->flush_logs= maria_flush_logs;
   maria_hton->show_status= maria_show_status;
   /* TODO: decide if we support Maria being used for log tables */
