@@ -22,8 +22,6 @@
 #include "ma_key_recover.h"
 #include "ma_blockrec.h"
 
-#define MAX_POINTER_LENGTH 8
-
 	/* Functions declared in this file */
 
 static int w_search(MARIA_HA *info, uint32 comp_flag,
@@ -802,7 +800,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
 #endif
   if (t_length > 0)
   {
-    if (t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
+    if (t_length >= keyinfo->maxlength*2+MARIA_INDEX_OVERHEAD_SIZE)
     {
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);
@@ -811,7 +809,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
   }
   else
   {
-    if (-t_length >= keyinfo->maxlength*2+MAX_POINTER_LENGTH)
+    if (-t_length >= keyinfo->maxlength*2+MARIA_INDEX_OVERHEAD_SIZE)
     {
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(-1);

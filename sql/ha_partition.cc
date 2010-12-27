@@ -2434,7 +2434,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   for (i= 0; i < m_tot_parts; i++)
     m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
 
-  my_afree((gptr) engine_array);
+  my_afree(engine_array);
     
   if (!m_file && create_handlers(mem_root))
   {
@@ -2444,7 +2444,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   DBUG_RETURN(FALSE);
 
 err3:
-  my_afree((gptr) engine_array);
+  my_afree(engine_array);
 err2:
   my_free(file_buffer, MYF(0));
 err1:
@@ -4643,19 +4643,6 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
       break;
     case partition_index_first:
       DBUG_PRINT("info", ("index_first on partition %d", i));
-      /*
-        MyISAM engine can fail if we call index_first() when indexes disabled
-        that happens if the table is empty.
-        Here we use file->stats.records instead of file->records() because
-        file->records() is supposed to return an EXACT count, and it can be
-        possibly slow. We don't need an exact number, an approximate one- from
-        the last ::info() call - is sufficient.
-      */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->ha_index_first(buf);
       break;
     case partition_index_first_unordered:
@@ -4749,36 +4736,10 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
                                      m_start_key.flag);
       break;
     case partition_index_first:
-      /*
-        MyISAM engine can fail if we call index_first() when indexes disabled
-        that happens if the table is empty.
-        Here we use file->stats.records instead of file->records() because
-        file->records() is supposed to return an EXACT count, and it can be
-        possibly slow. We don't need an exact number, an approximate one- from
-        the last ::info() call - is sufficient.
-      */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->ha_index_first(rec_buf_ptr);
       reverse_order= FALSE;
       break;
     case partition_index_last:
-      /*
-        MyISAM engine can fail if we call index_last() when indexes disabled
-        that happens if the table is empty.
-        Here we use file->stats.records instead of file->records() because
-        file->records() is supposed to return an EXACT count, and it can be
-        possibly slow. We don't need an exact number, an approximate one- from
-        the last ::info() call - is sufficient.
-      */
-      if (file->stats.records == 0)
-      {
-        error= HA_ERR_END_OF_FILE;
-        break;
-      }
       error= file->ha_index_last(rec_buf_ptr);
       reverse_order= TRUE;
       break;

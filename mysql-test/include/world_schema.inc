@@ -22,4 +22,4 @@ CREATE TABLE CountryLanguage (
   Percentage float(3,1) NOT NULL default '0.0',
   PRIMARY KEY  (Country, Language),
   INDEX (Percentage)
-); 
+);

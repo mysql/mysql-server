@@ -339,7 +339,7 @@ TYPELIB sql_mode_typelib= { array_elements(sql_mode_names)-1,"",
 static const char *optimizer_switch_names[]=
 {
   "index_merge","index_merge_union","index_merge_sort_union",
-  "index_merge_intersection",
+  "index_merge_intersection","index_merge_sort_intersection",
   "index_condition_pushdown",
   "firstmatch","loosescan","materialization", "semijoin",
   "partial_match_rowid_merge",
@@ -364,6 +364,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("index_merge_union") - 1,
   sizeof("index_merge_sort_union") - 1,
   sizeof("index_merge_intersection") - 1,
+  sizeof("index_merge_sort_intersection") - 1,
   sizeof("index_condition_pushdown") - 1,
   sizeof("firstmatch") - 1,
   sizeof("loosescan") - 1,
@@ -469,6 +470,7 @@ static const char *sql_mode_str= "OFF";
 static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "index_merge_sort_union=on,"
                                         "index_merge_intersection=on,"
+                                        "index_merge_sort_intersection=off"
                                         "index_condition_pushdown=on,"
                                         "firstmatch=on,"
                                         "loosescan=on,"
@@ -7404,6 +7406,7 @@ thread is in the relay logs.",
   {"optimizer_switch", OPT_OPTIMIZER_SWITCH,
    "optimizer_switch=option=val[,option=val...], where option={index_merge, "
    "index_merge_union, index_merge_sort_union, index_merge_intersection, "
+   "index_merge_sort_intersection, "
    "index_condition_pushdown, firstmatch, loosescan, materialization, "
    "semijoin, partial_match_rowid_merge, partial_match_table_scan, "
    "subquery_cache, outer_join_with_cache, semijoin_with_cache, "

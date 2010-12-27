@@ -57,6 +57,7 @@ typedef struct st_sort_param {
   uint addon_length;        /* Length of added packed fields */
   uint res_length;          /* Length of records in final sorted file/buffer */
   uint keys;				/* Max keys / buffer */
+  element_count min_dupl_count;
   ha_rows max_rows,examined_rows;
   TABLE *sort_form;			/* For quicker make_sortkey */
   SORT_FIELD *local_sortorder;
@@ -80,4 +81,9 @@ int merge_buffers(SORTPARAM *param,IO_CACHE *from_file,
 		  IO_CACHE *to_file, uchar *sort_buffer,
 		  BUFFPEK *lastbuff,BUFFPEK *Fb,
 		  BUFFPEK *Tb,int flag);
+int merge_index(SORTPARAM *param, uchar *sort_buffer,
+		BUFFPEK *buffpek, uint maxbuffer,
+		IO_CACHE *tempfile, IO_CACHE *outfile);
+
 void reuse_freed_buff(QUEUE *queue, BUFFPEK *reuse, uint key_length);
+

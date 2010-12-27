@@ -6980,16 +6980,16 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
   a helper function to report an access denied error in all the proper places
 */
 
-static void login_failed_error(THD *thd, bool passwd_used)
+static void login_failed_error(THD *thd)
 {
   my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
            thd->main_security_ctx.user,
            thd->main_security_ctx.host_or_ip,
-           passwd_used ? ER(ER_YES) : ER(ER_NO));
+           thd->password ? ER(ER_YES) : ER(ER_NO));
   general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
                     thd->main_security_ctx.user,
                     thd->main_security_ctx.host_or_ip,
-                    passwd_used ? ER(ER_YES) : ER(ER_NO));
+                    thd->password ? ER(ER_YES) : ER(ER_NO));
   status_var_increment(thd->status_var.access_denied_errors);
   /* 
     Log access denied messages to the error log when log-warnings = 2
@@ -7001,7 +7001,7 @@ static void login_failed_error(THD *thd, bool passwd_used)
     sql_print_warning(ER(ER_ACCESS_DENIED_ERROR),
                       thd->main_security_ctx.user,
                       thd->main_security_ctx.host_or_ip,
-                      passwd_used ? ER(ER_YES) : ER(ER_NO));      
+                      thd->password ? ER(ER_YES) : ER(ER_NO));      
   }
 }
 
@@ -7266,7 +7266,7 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio, Security_context *sctx)
 
   if (!mpvio->acl_user)
   {
-    login_failed_error(mpvio->thd, 0);
+    login_failed_error(mpvio->thd);
     return 1;
   }
 
@@ -7583,8 +7583,11 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     return packet_error;
   }
 
+  thd->password= passwd_len > 0;
   if (find_mpvio_user(mpvio, sctx))
+  {
     return packet_error;
+  }
 
   if (thd->client_capabilities & CLIENT_PLUGIN_AUTH)
   {
@@ -8072,7 +8075,7 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
     DBUG_ASSERT(mpvio.status == MPVIO_EXT::FAILURE);
 
     if (!thd->is_error())
-      login_failed_error(thd, thd->password);
+      login_failed_error(thd);
     DBUG_RETURN(1);
   }
 
@@ -8092,7 +8095,7 @@ bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_le
     */
     if (acl_check_ssl(thd, acl_user))
     {
-      login_failed_error(thd, thd->password);
+      login_failed_error(thd);
       DBUG_RETURN(1);
     }
 

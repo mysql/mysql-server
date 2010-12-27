@@ -30,7 +30,17 @@ extern "C" {
 
 #define tree_set_pointer(element,ptr) *((uchar **) (element+1))=((uchar*) (ptr))
 
+/*
+  A tree with its flag set to TREE_ONLY_DUPS behaves differently on inserting 
+  an element that is not in the tree:
+  the element is not added at all, but instead tree_insert() returns a special
+  address TREE_ELEMENT_UNIQUE as an indication that the function has not failed
+  due to lack of memory. 
+*/
+
+#define TREE_ELEMENT_UNIQUE ((TREE_ELEMENT *) 1)
 #define TREE_NO_DUPS 1
+#define TREE_ONLY_DUPS 2
 
 typedef enum { left_root_right, right_root_left } TREE_WALK;
 typedef uint32 element_count;
