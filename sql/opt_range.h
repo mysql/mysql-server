@@ -457,11 +457,8 @@ public:
   INDEX MERGE OPTIMIZER
     Current implementation doesn't detect all cases where index_merge could
     be used, in particular:
-     * index_merge will never be used if range scan is possible (even if
-       range scan is more expensive)
 
-     * index_merge+'using index' is not supported (this the consequence of
-       the above restriction)
+     * index_merge+'using index' is not supported
 
      * If WHERE part contains complex nested AND and OR conditions, some ways
        to retrieve rows using index_merge will not be considered. The choice
