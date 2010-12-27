@@ -2707,6 +2707,8 @@ write_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
 hello
 EOF
 
+# Verify that --replace_result also work on list_files
+--replace_result file REPLACED_FILE
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
 # list_files gets the directory list before creating the new file
 list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file2.txt $MYSQLTEST_VARDIR/tmp/testdir *;

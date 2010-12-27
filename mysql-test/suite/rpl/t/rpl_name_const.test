@@ -45,3 +45,4 @@ select * from t1 order by id;
 connection master;
 drop table t1;
 drop procedure test_procedure;
+--source include/rpl_end.inc

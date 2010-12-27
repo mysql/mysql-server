@@ -1240,8 +1240,11 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     The same with db_load_routine() required circa 7k bytes and
     14k bytes accordingly. Hence, here we book the stack with some
     reasonable margin.
+
+    Reverting back to 8 * STACK_MIN_SIZE until further fix.
+    8 * STACK_MIN_SIZE is required on some exotic platforms.
   */
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&old_packet))
+  if (check_stack_overrun(thd, 8 * STACK_MIN_SIZE, (uchar*)&old_packet))
     DBUG_RETURN(TRUE);
 
   /* init per-instruction memroot */
@@ -2915,9 +2918,6 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     It's merged with the saved parent's value at the exit of this func.
   */
   bool parent_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&parent_modified_non_trans_table))
-    DBUG_RETURN(TRUE);
-
   thd->transaction.stmt.modified_non_trans_table= FALSE;
   DBUG_ASSERT(!thd->derived_tables);
   DBUG_ASSERT(thd->change_list.is_empty());
@@ -3073,9 +3073,6 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
-    DBUG_RETURN(TRUE);
-
   const CSET_STRING query_backup= thd->query_string;
 #if defined(ENABLED_PROFILING)
   /* This s-p instr is profilable and will be captured. */
@@ -3159,7 +3156,7 @@ sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   MYSQL_QUERY_EXEC_START(thd->query(),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
-                         thd->security_ctx->priv_user,
+                         &thd->security_ctx->priv_user[0],
                          (char *)thd->security_ctx->host_or_ip,
                          3);
   int res= mysql_execute_command(thd);

@@ -1,0 +1,10 @@
+#############################################################
+# Purpose: To test having extra columns on the master WL#3915
+#############################################################
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+let $engine_type = 'MyISAM';
+--source extra/rpl_tests/rpl_extra_col_master.test
+
+--source include/rpl_end.inc

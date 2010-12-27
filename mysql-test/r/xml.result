@@ -1094,6 +1094,19 @@ Warning	1525	Incorrect XML value: 'parse error at line 1 pos 23: unexpected END-
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 23: unexpected END-OF-INPUT'
 DROP TABLE t1;
 #
+# Bug#57257 Replace(ExtractValue(...)) causes MySQL crash
+#
+SET NAMES utf8;
+SELECT REPLACE(EXTRACTVALUE('1', '/a'),'ds','');
+REPLACE(EXTRACTVALUE('1', '/a'),'ds','')
+
+#
+# Bug #57820 extractvalue crashes
+#
+SELECT AVG(DISTINCT EXTRACTVALUE((''),('$@k')));
+AVG(DISTINCT EXTRACTVALUE((''),('$@k')))
+NULL
+#
 # Bug#57279 updatexml dies with: Assertion failed: str_arg[length] == 0
 #
 SELECT UPDATEXML(NULL, (LPAD(0.1111E-15, '2011', 1)), 1);

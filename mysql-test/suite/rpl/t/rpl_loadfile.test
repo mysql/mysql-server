@@ -58,8 +58,7 @@
 #     vii) assert that the contents of master and slave 
 #          table are the same
 
-connection master;
-source include/reset_master_and_slave.inc;
+--source include/rpl_reset.inc
 
 connection master;
 let $file= $MYSQLTEST_VARDIR/tmp/bug_39701.data;
@@ -105,11 +104,12 @@ sync_slave_with_master;
 #            if the file was removed before the slave started,
 #            meaning that contents were indeed transfered
 #            through binlog (in row format)
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 # CLEAN UP
+--connection master
 DROP TABLE t1;
 DROP PROCEDURE p;
-sync_slave_with_master;
+
+--source include/rpl_end.inc
