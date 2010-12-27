@@ -1464,7 +1464,7 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
     }
     if (s_wc != t_wc)
     {
-      return  my_bincmp(s, s + s_res, t, t + t_res);
+      return s_wc > t_wc ? 1 : -1;
     }
 
     s+= s_res;
@@ -1504,7 +1504,7 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
 
     if (s_wc != t_wc)
     {
-      return my_bincmp(s, s + s_res, t, t + t_res);
+      return s_wc > t_wc ? 1 : -1;
     }
 
     s+= s_res;
@@ -2693,7 +2693,10 @@ static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
 {
   if ( r+2 > e ) 
     return MY_CS_TOOSMALL2;
-  
+
+  if (wc > 0xFFFF) /* UCS2 does not support characters outside BMP */
+    return MY_CS_ILUNI;
+
   r[0]= (uchar) (wc >> 8);
   r[1]= (uchar) (wc & 0xFF);
   return 2;

@@ -22,4 +22,5 @@ connection master;
 select * from t1;
 commit;
 drop table t1;
--- sync_slave_with_master
+
+--source include/rpl_end.inc

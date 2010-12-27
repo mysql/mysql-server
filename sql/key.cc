@@ -364,9 +364,7 @@ void key_unpack(String *to,TABLE *table,uint idx)
         while (tmp_end > tmp.ptr() && !*--tmp_end) ;
         tmp.length(tmp_end - tmp.ptr() + 1);
       }
-      if (cs->mbmaxlen > 1 &&
-          table->field[key_part->fieldnr - 1]->field_length !=
-          key_part->length)
+      if (cs->mbmaxlen > 1 && (key_part->key_part_flag & HA_PART_KEY_SEG))
       {
         /* 
           Prefix key, multi-byte charset. 

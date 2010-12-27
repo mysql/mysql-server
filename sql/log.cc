@@ -2185,7 +2185,8 @@ static int find_uniq_filename(char *name)
   *end='.';
   length= (size_t) (end - start + 1);
 
-  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
+  if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
+      !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
     DBUG_RETURN(1);
@@ -2212,7 +2213,11 @@ updating the index files.", max_found);
   }
 
   next= max_found + 1;
-  sprintf(ext_buf, "%06lu", next);
+  if (sprintf(ext_buf, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
   *end++='.';
 
   /* 
@@ -2229,7 +2234,11 @@ index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     goto end;
   }
 
-  sprintf(end, "%06lu", next);
+  if (sprintf(end, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
 
   /* print warning if reaching the end of available extensions. */
   if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
@@ -2462,13 +2471,8 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
-        /* 
-          This should be treated as error once propagation of error further
-          up in the stack gets proper handling.
-        */
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                            log_name);
+        my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                        MYF(ME_FATALERROR), log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -2972,6 +2976,23 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       sync_purge_index_file() ||
       DBUG_EVALUATE_IF("fault_injection_registering_index", 1, 0))
   {
+    /**
+        TODO: although this was introduced to appease valgrind
+              when injecting emulated faults using fault_injection_registering_index
+              it may be good to consider what actually happens when
+              open_purge_index_file succeeds but register or sync fails.
+
+              Perhaps we might need the code below in MYSQL_LOG_BIN::cleanup
+              for "real life" purposes as well? 
+     */
+    DBUG_EXECUTE_IF("fault_injection_registering_index", {
+      if (my_b_inited(&purge_index_file))
+      {
+        end_io_cache(&purge_index_file);
+        my_close(purge_index_file.file, MYF(0));
+      }
+    });
+
     sql_print_error("MSYQL_BIN_LOG::open failed to sync the index file.");
     DBUG_RETURN(1);
   }
@@ -2981,7 +3002,10 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (MYSQL_LOG::open(key_file_binlog,
+  if (MYSQL_LOG::open(
+#ifdef HAVE_PSI_INTERFACE
+                      key_file_binlog,
+#endif
                       log_name, log_type_arg, new_name, io_cache_type_arg))
   {
 #ifdef HAVE_REPLICATION
@@ -3450,7 +3474,8 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   if (!thd->slave_thread)
     need_start_event=1;
   if (!open_index_file(index_file_name, 0, FALSE))
-    open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE);
+    if ((error= open(save_name, log_type, 0, io_cache_type, no_auto_events, max_size, 0, FALSE)))
+      goto err;
   my_free((void *) save_name);
 
 err:
@@ -4115,17 +4140,23 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
   incapsulation 3) allows external access to the class without
   a lock (which is not possible with private new_file_without_locking
   method).
+
+  @retval
+    nonzero - error
 */
 
-void MYSQL_BIN_LOG::new_file()
+int MYSQL_BIN_LOG::new_file()
 {
-  new_file_impl(1);
+  return new_file_impl(1);
 }
 
-
-void MYSQL_BIN_LOG::new_file_without_locking()
+/*
+  @retval
+    nonzero - error
+ */
+int MYSQL_BIN_LOG::new_file_without_locking()
 {
-  new_file_impl(0);
+  return new_file_impl(0);
 }
 
 
@@ -4134,19 +4165,23 @@ void MYSQL_BIN_LOG::new_file_without_locking()
 
   @param need_lock		Set to 1 if caller has not locked LOCK_log
 
+  @retval
+    nonzero - error
+
   @note
     The new file name is stored last in the index file
 */
 
-void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
+int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
 {
-  char new_name[FN_REFLEN], *new_name_ptr, *old_name;
+  int error= 0, close_on_error= FALSE;
+  char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
   if (!is_open())
   {
     DBUG_PRINT("info",("log is closed"));
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(error);
   }
 
   if (need_lock)
@@ -4184,7 +4219,7 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
     We have to do this here and not in open as we want to store the
     new file name in the current binary log file.
   */
-  if (generate_new_name(new_name, name))
+  if ((error= generate_new_name(new_name, name)))
     goto end;
   new_name_ptr=new_name;
 
@@ -4198,7 +4233,14 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
       */
       Rotate_log_event r(new_name+dirname_length(new_name),
                          0, LOG_EVENT_OFFSET, is_relay_log ? Rotate_log_event::RELAY_LOG : 0);
-      r.write(&log_file);
+      if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
+         (error= r.write(&log_file)))
+      {
+        DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
+        close_on_error= TRUE;
+        my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE), MYF(ME_FATALERROR), name, errno);
+        goto end;
+      }
       bytes_written += r.data_written;
     }
     /*
@@ -4226,17 +4268,56 @@ void MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   */
 
   /* reopen index binlog file, BUG#34582 */
-  if (!open_index_file(index_file_name, 0, FALSE))
-    open(old_name, log_type, new_name_ptr,
-         io_cache_type, no_auto_events, max_size, 1, FALSE);
+  file_to_open= index_file_name;
+  error= open_index_file(index_file_name, 0, FALSE);
+  if (!error)
+  {
+    /* reopen the binary log file. */
+    file_to_open= new_name_ptr;
+    error= open(old_name, log_type, new_name_ptr, io_cache_type,
+                no_auto_events, max_size, 1, FALSE);
+  }
+
+  /* handle reopening errors */
+  if (error)
+  {
+    my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
+                    MYF(ME_FATALERROR), file_to_open, error);
+    close_on_error= TRUE;
+  }
+
   my_free(old_name);
 
 end:
+
+  if (error && close_on_error /* rotate or reopen failed */)
+  {
+    /* 
+      Close whatever was left opened.
+
+      We are keeping the behavior as it exists today, ie,
+      we disable logging and move on (see: BUG#51014).
+
+      TODO: as part of WL#1790 consider other approaches:
+       - kill mysql (safety);
+       - try multiple locations for opening a log file;
+       - switch server to protected/readonly mode
+       - ...
+    */
+    close(LOG_CLOSE_INDEX);
+    sql_print_error("Could not open %s for logging (error %d). "
+                     "Turning logging off for the whole duration "
+                     "of the MySQL server process. To turn it on "
+                     "again: fix the cause, shutdown the MySQL "
+                     "server and restart it.", 
+                     new_name_ptr, errno);
+  }
+
   if (need_lock)
     mysql_mutex_unlock(&LOCK_log);
   mysql_mutex_unlock(&LOCK_index);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 
@@ -4261,8 +4342,7 @@ bool MYSQL_BIN_LOG::append(Log_event* ev)
   if (flush_and_sync(0))
     goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
-    new_file_without_locking();
-
+    error= new_file_without_locking();
 err:
   mysql_mutex_unlock(&LOCK_log);
   signal_update();				// Safe as we don't call close
@@ -4293,8 +4373,7 @@ bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
   if (flush_and_sync(0))
     goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
-    new_file_without_locking();
-
+    error= new_file_without_locking();
 err:
   if (!error)
     signal_update();
@@ -4917,7 +4996,6 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       goto err;
 
     error= 0;
-
 err:
     if (event_info->use_direct_logging())
     {
@@ -5022,8 +5100,19 @@ bool general_log_write(THD *thd, enum enum_server_command command,
   return FALSE;
 }
 
-void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
+/**
+  @note
+    If rotation fails, for instance the server was unable 
+    to create a new log file, we still try to write an 
+    incident event to the current log.
+
+  @retval
+    nonzero - error 
+*/
+int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
 {
+  int error= 0;
+  DBUG_ENTER("MYSQL_BIN_LOG::rotate_and_purge");
 #ifdef HAVE_REPLICATION
   bool check_purge= false;
 #endif
@@ -5032,26 +5121,38 @@ void MYSQL_BIN_LOG::rotate_and_purge(uint flags)
   if ((flags & RP_FORCE_ROTATE) ||
       (my_b_tell(&log_file) >= (my_off_t) max_size))
   {
-    new_file_without_locking();
+    if ((error= new_file_without_locking()))
+      /** 
+         Be conservative... There are possible lost events (eg, 
+         failing to log the Execute_load_query_log_event
+         on a LOAD DATA while using a non-transactional
+         table)!
+
+         We give it a shot and try to write an incident event anyway
+         to the current log. 
+      */
+      if (!write_incident(current_thd, FALSE))
+        flush_and_sync(0);
+
 #ifdef HAVE_REPLICATION
     check_purge= true;
 #endif
   }
   if (!(flags & RP_LOCK_LOG_IS_ALREADY_LOCKED))
     mysql_mutex_unlock(&LOCK_log);
-
 #ifdef HAVE_REPLICATION
   /*
     NOTE: Run purge_logs wo/ holding LOCK_log
           as it otherwise will deadlock in ndbcluster_binlog_index_purge_file
   */
-  if (check_purge && expire_logs_days)
+  if (!error && check_purge && expire_logs_days)
   {
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
     if (purge_time >= 0)
       purge_logs_before_date(purge_time);
   }
 #endif
+  DBUG_RETURN(error);
 }
 
 uint MYSQL_BIN_LOG::next_file_id()
@@ -5237,6 +5338,10 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
 {
   uint error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
+
+  if (!is_open())
+    DBUG_RETURN(error);
+
   LEX_STRING const write_error_msg=
     { C_STRING_WITH_LEN("error writing to the binary log") };
   Incident incident= INCIDENT_LOST_EVENTS;
@@ -5249,7 +5354,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool lock)
     if (!error && !(error= flush_and_sync(0)))
     {
       signal_update();
-      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      error= rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
     }
     mysql_mutex_unlock(&LOCK_log);
   }
@@ -5358,7 +5463,8 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event,
       mysql_mutex_unlock(&LOCK_prep_xids);
     }
     else
-      rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
+      if (rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED))
+        goto err;
   }
   mysql_mutex_unlock(&LOCK_log);
 
@@ -6191,7 +6297,7 @@ int TC_LOG_MMAP::sync()
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
+int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
   my_xid *x=(my_xid *)(data+cookie);
@@ -6209,6 +6315,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);
+  return 0;
 }
 
 void TC_LOG_MMAP::close()
@@ -6451,8 +6558,9 @@ int TC_LOG_BINLOG::log_xid(THD *thd, my_xid xid)
               !binlog_commit_flush_trx_cache(thd, cache_mngr, xid));
 }
 
-void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
+int TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
 {
+  DBUG_ENTER("TC_LOG_BINLOG::unlog");
   mysql_mutex_lock(&LOCK_prep_xids);
   DBUG_ASSERT(prepared_xids > 0);
   if (--prepared_xids == 0) {
@@ -6460,7 +6568,7 @@ void TC_LOG_BINLOG::unlog(ulong cookie, my_xid xid)
     mysql_cond_signal(&COND_prep_xids);
   }
   mysql_mutex_unlock(&LOCK_prep_xids);
-  rotate_and_purge(0);     // as ::write() did not rotate
+  DBUG_RETURN(rotate_and_purge(0));     // as ::write() did not rotate
 }
 
 int TC_LOG_BINLOG::recover(IO_CACHE *log, Format_description_log_event *fdle)
