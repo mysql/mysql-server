@@ -35,6 +35,8 @@ CREATE TABLE T1 (a int);
 CREATE TABLE T3 (txt TEXT);
 
 # assert: that tables exist on master with upper case names
+# this fixes result mismatches for MacOSX
+--replace_result Tables_in_bug_37656 Tables_in_BUG_37656
 show tables;
 
 # assert: that tables exist on slave but with lower case names
@@ -77,26 +79,23 @@ if (`SELECT count(*) != 0 FROM t1`)
   -- echo UNEXPECTED DATA on $dbname_lower.t1 as table is filtered by replicate-ignore-table rules
 }
 
--- let $diff_table_1=master:$dbname_upper.T2
--- let $diff_table_2=slave:$dbname_lower.t2
+-- let $diff_tables= master:$dbname_upper.T2, slave:$dbname_lower.t2
 -- source include/diff_tables.inc
 
--- let $diff_table_1=master:$dbname_upper.T3
--- let $diff_table_2=slave:$dbname_lower.t3
+-- let $diff_tables= master:$dbname_upper.T3, slave:$dbname_lower.t3
 -- source include/diff_tables.inc
 
 # clean up
 -- connection master
 -- echo ******** [ MASTER ] ********
 -- eval DROP DATABASE $dbname_upper
--- sync_slave_with_master
 
 
 # 
 # BUG#50653: drop procedure implicitely treats db name in a case sensitive way
 #
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 -- let $dbname= B50653
@@ -140,5 +139,3 @@ if ($last_error)
 -- connection master
 -- eval DROP DATABASE $dbname
 -- sync_slave_with_master
-
--- source include/master-slave-end.inc

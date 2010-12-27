@@ -34,11 +34,13 @@ public:
     stop_cond - when stopped
     data_cond - when data protected by data_lock changes
   */
-  mysql_cond_t data_cond,start_cond,stop_cond;
+  mysql_cond_t data_cond,start_cond, stop_cond;
 
+#ifdef HAVE_PSI_INTERFACE
   PSI_mutex_key *key_info_run_lock, *key_info_data_lock;
 
   PSI_mutex_key *key_info_data_cond, *key_info_start_cond, *key_info_stop_cond;
+#endif
 
   THD *info_thd;
 
@@ -51,12 +53,15 @@ public:
   int events_until_exit;
 #endif
 
-  Rpl_info(const char* type,
-           PSI_mutex_key *param_key_info_run_lock,
+  Rpl_info(const char* type
+#ifdef HAVE_PSI_INTERFACE
+           ,PSI_mutex_key *param_key_info_run_lock,
            PSI_mutex_key *param_key_info_data_lock,
            PSI_mutex_key *param_key_info_data_cond,
            PSI_mutex_key *param_key_info_start_cond,
-           PSI_mutex_key *param_key_info_stop_cond);
+           PSI_mutex_key *param_key_info_stop_cond
+#endif
+          );
   virtual ~Rpl_info();
 
   int check_info()

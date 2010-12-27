@@ -413,4 +413,4 @@ DROP FUNCTION delay_on_slave;
 --echo [on slave]
 --sync_slave_with_master
 
---source include/master-slave-end.inc
+--source include/rpl_end.inc

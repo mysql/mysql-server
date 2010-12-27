@@ -1,15 +1,9 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 include/stop_slave.inc
 CREATE TABLE test(id INTEGER NOT NULL PRIMARY KEY);
 INSERT INTO test VALUES (1), (2), (3);
-### stop slave server
-### start slave server with --relay-log-info-repository=TABLE
-### stop slave server
-### start slave server with --relay-log-info-repository=FILE
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=TABLE --skip-slave-start]
+include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-info-repository=FILE --skip-slave-start]
 include/start_slave.inc
 DROP TABLE test;
