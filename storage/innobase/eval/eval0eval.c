@@ -887,7 +887,7 @@ eval_func(
 
 	ut_ad(que_node_get_type(func_node) == QUE_NODE_FUNC);
 
-	class = func_node->class;
+	class = func_node->node_class;
 	func = func_node->func;
 
 	arg = func_node->args;

@@ -243,7 +243,7 @@ pars_func_low(
 
 	node->func = func;
 
-	node->class = pars_func_get_class(func);
+	node->node_class = pars_func_get_class(func);
 
 	node->args = arg;
 
@@ -961,7 +961,7 @@ pars_check_aggregate(
 
 			func_node = exp_node;
 
-			if (func_node->class == PARS_FUNC_AGGREGATE) {
+			if (func_node->node_class == PARS_FUNC_AGGREGATE) {
 
 				n_aggregate_nodes++;
 			}

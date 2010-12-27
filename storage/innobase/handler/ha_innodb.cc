@@ -12200,7 +12200,8 @@ i_s_innodb_cmpmem_reset,
 i_s_innodb_metrics,
 i_s_innodb_stopword,
 i_s_innodb_fts_inserted,
-i_s_innodb_fts_deleted
+i_s_innodb_fts_deleted,
+i_s_innodb_fts_index_cache
 
 mysql_declare_plugin_end;
 

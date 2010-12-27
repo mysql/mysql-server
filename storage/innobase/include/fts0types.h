@@ -254,12 +254,6 @@ struct fts_token_struct {
 /* It's defined in fut0fut.c */
 extern const fts_index_selector_t fts_index_selector[];
 
-/* Max length of an FTS word in characters */
-#define FTS_MAX_WORD_LEN		32
-
-/* Maximum token length in bytes(for UTF8)*/
-#define FTS_MAX_UTF8_WORD_LEN		(FTS_MAX_WORD_LEN * 4)
-
 /********************************************************************
 Compare two UTF-8 strings. */
 UNIV_INLINE

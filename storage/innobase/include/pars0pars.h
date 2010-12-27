@@ -723,7 +723,7 @@ is also used for some non-functions like the assignment ':=' */
 struct func_node_struct{
 	que_common_t	common;	/*!< type: QUE_NODE_FUNC */
 	int		func;	/*!< token code of the function name */
-	ulint		class;	/*!< class of the function */
+	ulint		node_class;/*!< class of the function */
 	que_node_t*	args;	/*!< argument(s) of the function */
 	UT_LIST_NODE_T(func_node_t) cond_list;
 				/*!< list of comparison conditions; defined
