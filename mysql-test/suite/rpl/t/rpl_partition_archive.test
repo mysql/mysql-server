@@ -8,3 +8,5 @@
 let $engine_type= 'Archive';
 
 --source suite/rpl/include/rpl_partition.inc
+
+--source include/rpl_end.inc

@@ -3973,6 +3973,22 @@ WHERE t1.b <=> (SELECT a FROM t1 WHERE a < SOME(SELECT '1'));
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57703 create view cause Assertion failed: 0, file .\item_subselect.cc, line 846
+--echo #
+
+CREATE TABLE t1(a int);
+CREATE VIEW v1 AS SELECT 1 FROM t1 GROUP BY
+SUBSTRING(1 FROM (SELECT 3 FROM t1 WHERE a >= ANY(SELECT 1)));
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57352 valgrind warnings when creating view
+--echo #
+CREATE VIEW v1 AS SELECT 1 IN (1 LIKE 2,0) AS f;
+DROP VIEW v1;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------

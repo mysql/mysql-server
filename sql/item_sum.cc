@@ -1199,8 +1199,10 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
   value= Item_cache::get_cache(item);
   value->setup(item);
   value->store(value_arg);
+  arg_cache= Item_cache::get_cache(item);
+  arg_cache->setup(item);
   cmp= new Arg_comparator();
-  cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
+  cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
   collation.set(item->collation);
 }
 
@@ -1969,11 +1971,11 @@ Item *Item_sum_min::copy_or_same(THD* thd)
 bool Item_sum_min::add()
 {
   /* args[0] < value */
-  int res= cmp->compare();
-  if (!args[0]->null_value &&
-      (null_value || res < 0))
+  arg_cache->cache_value();
+  if (!arg_cache->null_value &&
+      (null_value || cmp->compare() < 0))
   {
-    value->store(args[0]);
+    value->store(arg_cache);
     value->cache_value();
     null_value= 0;
   }
@@ -1992,11 +1994,11 @@ Item *Item_sum_max::copy_or_same(THD* thd)
 bool Item_sum_max::add()
 {
   /* args[0] > value */
-  int res= cmp->compare();
-  if (!args[0]->null_value &&
-      (null_value || res > 0))
+  arg_cache->cache_value();
+  if (!arg_cache->null_value &&
+      (null_value || cmp->compare() > 0))
   {
-    value->store(args[0]);
+    value->store(arg_cache);
     value->cache_value();
     null_value= 0;
   }
@@ -3037,6 +3039,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
       order_item->item= arg_ptr++;
     }
   }
+  memcpy(orig_args, args, sizeof(Item*) * arg_count);
 }
 
 
@@ -3248,7 +3251,6 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }

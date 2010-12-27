@@ -31,12 +31,10 @@ commit;
 ##########################################################################
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 ##########################################################################
@@ -48,3 +46,4 @@ drop table t1;
 drop table t2;
 
 sync_slave_with_master;
+--source include/rpl_end.inc
