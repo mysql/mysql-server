@@ -47,6 +47,8 @@ extern "C" {
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "srv0mon.h"
 #include "fut0fut.h"
+#include "pars0pars.h"
+#include "fts0types.h"
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -2323,10 +2325,10 @@ static ST_FIELD_INFO	i_s_fts_doc_fields_info[] =
 {
 #define	I_S_FTS_DOC_ID			0
 	{STRUCT_FLD(field_name,		"DOC_ID"),
-	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -2354,7 +2356,7 @@ i_s_fts_deleted_fill(
 	DBUG_ENTER("i_s_fts_deleted_fill");
 
 	if (!fts_internal_tbl_name) {
-		DBUG_RETURN(1);
+		DBUG_RETURN(0);
 	}
 
 	deleted = fts_doc_ids_create();
@@ -2362,11 +2364,11 @@ i_s_fts_deleted_fill(
 	user_table = dict_table_get(fts_internal_tbl_name, FALSE);
 
 	if (!user_table) {
-		DBUG_RETURN(1);
+		DBUG_RETURN(0);
 	}
 
 	trx = trx_allocate_for_background();
-	trx->op_info = "Select for FTS DELETE TABLE"; 
+	trx->op_info = "Select for FTS DELETE TABLE";
 
 	fts_table.table_id = user_table->id;
 	fts_table.parent = user_table->name;
@@ -2483,13 +2485,13 @@ i_s_fts_inserted_fill(
 	DBUG_ENTER("i_s_fts_inserted_fill");
 
 	if (!fts_internal_tbl_name) {
-		DBUG_RETURN(1);
+		DBUG_RETURN(0);
 	}
 
 	user_table = dict_table_get(fts_internal_tbl_name, FALSE);
 
 	if (!user_table) {
-		DBUG_RETURN(1);
+		DBUG_RETURN(0);
 	}
 
 	inserted = fts_doc_ids_create();
@@ -2570,6 +2572,259 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_inserted =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_inserted_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHED and
+INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE */
+static ST_FIELD_INFO	i_s_fts_index_fields_info[] =
+{
+#define	I_S_FTS_WORD			0
+	{STRUCT_FLD(field_name,		"WORD"),
+	 STRUCT_FLD(field_length,	FTS_MAX_UTF8_WORD_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	I_S_FTS_FIRST_DOC_ID		1
+	{STRUCT_FLD(field_name,		"FIRST_DOC_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	I_S_FTS_LAST_DOC_ID		2
+	{STRUCT_FLD(field_name,		"LAST_DOC_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	I_S_FTS_DOC_COUNT		3
+	{STRUCT_FLD(field_name,		"DOC_COUNT"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	I_S_FTS_ILIST_DOC_ID		4
+	{STRUCT_FLD(field_name,		"DOC_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define	I_S_FTS_ILIST_DOC_POS		5
+	{STRUCT_FLD(field_name,		"POSITION"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/*******************************************************************//**
+Go through the Doc Node and its ilist, fill the dynamic table
+INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHED for one FTS index on the table.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_index_cache_fill_one_index(
+/*===============================*/
+	fts_index_cache_t*	index_cache,	/*!< in: FTS index cache */
+	THD*			thd,		/*!< in: thread */
+	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
+{
+	TABLE*			table = (TABLE *) tables->table;
+	Field**			fields;
+	const ib_rbt_node_t*	rbt_node;
+
+	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
+
+	fields = table->field;
+
+	/* Go through each word in the index cache */
+	for (rbt_node = rbt_first(index_cache->words);
+	     rbt_node;
+	     rbt_node = rbt_next(index_cache->words, rbt_node)) {
+		doc_id_t	doc_id = 0;
+
+		fts_tokenizer_word_t* word;
+
+		word = rbt_value(fts_tokenizer_word_t, rbt_node);
+
+		/* Decrypt the ilist, and display Dod ID and word position */
+		for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
+			fts_node_t*	node;
+			byte*		ptr;
+			ulint		decoded = 0;
+
+			node = static_cast<fts_node_t*> (ib_vector_get(
+				word->nodes, i));
+
+			ptr = node->ilist;
+
+			while (decoded < node->ilist_size) {
+				ulint	pos = fts_decode_vlc(&ptr);
+
+				doc_id += pos;
+
+				/* Get position info */
+				while (*ptr) {
+					pos = fts_decode_vlc(&ptr);
+
+					OK(field_store_string(
+						fields[I_S_FTS_WORD],
+						reinterpret_cast<const char*>
+						(word->text.utf8)));
+
+					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
+						node->first_doc_id));
+
+					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
+						node->last_doc_id));
+
+					OK(fields[I_S_FTS_DOC_COUNT]->store(
+						node->doc_count));
+
+					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
+						doc_id));
+
+					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
+						pos));
+
+					OK(schema_table_store_record(
+						thd, table));
+				}
+
+				++ptr;
+
+				decoded = ptr - (byte*) node->ilist;
+			}
+		}
+	}
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHED
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_index_cache_fill(
+/*=====================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	COND*		cond)	/*!< in: condition (ignored) */
+{
+	const dict_table_t*	user_table;
+	fts_cache_t*		cache;
+
+	DBUG_ENTER("i_s_fts_index_cache_fill");
+
+	if (!fts_internal_tbl_name) {
+		DBUG_RETURN(0);
+	}
+
+	user_table = dict_table_get(fts_internal_tbl_name, FALSE);
+
+	if (!user_table) {
+		DBUG_RETURN(0);
+	}
+
+	cache = user_table->fts->cache;
+
+	ut_a(cache);
+
+	for (ulint i = 0; i < ib_vector_size(cache->indexes); i++) {
+		fts_index_cache_t*      index_cache;
+
+		index_cache = static_cast<fts_index_cache_t*> (
+			ib_vector_get(cache->indexes, i));
+
+		i_s_fts_index_cache_fill_one_index(index_cache, thd, tables);
+	}
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_CACHE
+@return	0 on success */
+static
+int
+i_s_fts_index_cache_init(
+/*=====================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_fts_index_cache_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_fts_index_fields_info;
+	schema->fill_table = i_s_fts_index_cache_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_cache =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_fts_index_fields_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_FTS_INDEX_CACHE"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "INNODB AUXILIARY FTS INDEX CACHED"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_fts_index_cache_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */

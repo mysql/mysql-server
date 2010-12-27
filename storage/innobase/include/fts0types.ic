@@ -72,7 +72,8 @@ fts_utf8_string_dup(
 	const fts_string_t*	src,		/* in: src string */
 	mem_heap_t*		heap)		/* in: heap to use */
 {
-	dst->utf8 = mem_heap_dup(heap, src->utf8, src->len + 1);
+	dst->utf8 = (unsigned char*) mem_heap_dup(heap, src->utf8,
+						  src->len + 1);
 	dst->utf8[src->len] = 0;
 	dst->len = src->len;
 }
