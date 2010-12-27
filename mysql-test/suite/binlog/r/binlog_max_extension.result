@@ -3,6 +3,5 @@ call mtr.add_suppression("Log filename extension number exhausted:");
 call mtr.add_suppression("Can't generate a unique log-filename");
 RESET MASTER;
 FLUSH LOGS;
-Warnings:
-Warning	1098	Can't generate a unique log-filename master-bin.(1-999)
+ERROR HY000: Can't generate a unique log-filename master-bin.(1-999)
 

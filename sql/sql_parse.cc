@@ -600,7 +600,7 @@ void do_handle_bootstrap(THD *thd)
   if (my_thread_init() || thd->store_globals())
   {
 #ifndef EMBEDDED_LIBRARY
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+    close_connection(thd, ER_OUT_OF_RESOURCES);
 #endif
     thd->fatal_error();
     goto end;
@@ -877,7 +877,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->profiling.start_new_query();
 #endif
   MYSQL_COMMAND_START(thd->thread_id, command,
-                      thd->security_ctx->priv_user,
+                      &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
   
   thd->command=command;
@@ -937,6 +937,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_CHANGE_USER:
   {
+    bool rc;
     status_var_increment(thd->status_var.com_other);
 
     thd->change_user();
@@ -956,7 +957,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
-    if (acl_authenticate(thd, 0, packet_length))
+    rc= acl_authenticate(thd, 0, packet_length);
+    MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
+    if (rc)
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
@@ -1015,7 +1018,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					// fatal error is set
     MYSQL_QUERY_START(thd->query(), thd->thread_id,
                       (char *) (thd->db ? thd->db : ""),
-                      thd->security_ctx->priv_user,
+                      &thd->security_ctx->priv_user[0],
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
@@ -1067,7 +1070,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       MYSQL_QUERY_START(beginning_of_next_stmt, thd->thread_id,
                         (char *) (thd->db ? thd->db : ""),
-                        thd->security_ctx->priv_user,
+                        &thd->security_ctx->priv_user[0],
                         (char *) thd->security_ctx->host_or_ip);
 
       thd->set_query_and_id(beginning_of_next_stmt, length,
@@ -1215,7 +1218,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_REFRESH:
   {
-    bool not_used;
+    int not_used;
     status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
     ulong options= (ulong) (uchar) packet[0];
     if (trans_commit_implicit(thd))
@@ -1394,6 +1397,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
+
+  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                      thd->stmt_da->is_error() ? thd->stmt_da->sql_errno() : 0,
+                      command_name[command].str);
 
   log_slow_statement(thd);
 
@@ -2773,7 +2780,11 @@ end_with_restore_list:
       {
         Incident_log_event ev(thd, incident);
         (void) mysql_bin_log.write(&ev);        /* error is ignored */
-        mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+        if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        {
+          res= 1;
+          break;
+        }
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
     }
@@ -3509,8 +3520,7 @@ end_with_restore_list:
     lex->no_write_to_binlog= 1;
   case SQLCOM_FLUSH:
   {
-    bool write_to_binlog;
-
+    int write_to_binlog;
     if (check_global_access(thd,RELOAD_ACL))
       goto error;
 
@@ -3539,12 +3549,22 @@ end_with_restore_list:
       /*
         Presumably, RESET and binlog writing doesn't require synchronization
       */
-      if (!lex->no_write_to_binlog && write_to_binlog)
+
+      if (write_to_binlog > 0)  // we should write
+      { 
+        if (!lex->no_write_to_binlog)
+          res= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      } else if (write_to_binlog < 0) 
       {
-        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
-          break;
-      }
-      my_ok(thd);
+        /* 
+           We should not write, but rather report error because 
+           reload_acl_and_cache binlog interactions failed 
+         */
+        res= 1;
+      } 
+
+      if (!res)
+        my_ok(thd);
     } 
     
     break;
@@ -5295,13 +5315,6 @@ mysql_new_select(LEX *lex, bool move_down)
     DBUG_RETURN(1);
   }
   select_lex->nest_level= lex->nest_level;
-  /*
-    Don't evaluate this subquery during statement prepare even if
-    it's a constant one. The flag is switched off in the end of
-    mysqld_stmt_prepare.
-  */
-  if (thd->stmt_arena->is_stmt_prepare())
-    select_lex->uncacheable|= UNCACHEABLE_PREPARE;
   if (move_down)
   {
     SELECT_LEX_UNIT *unit;
@@ -5489,7 +5502,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           MYSQL_QUERY_EXEC_START(thd->query(),
                                  thd->thread_id,
                                  (char *) (thd->db ? thd->db : ""),
-                                 thd->security_ctx->priv_user,
+                                 &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
 
@@ -7208,9 +7221,6 @@ bool parse_sql(THD *thd,
   /* Backup creation context. */
 
   Object_creation_ctx *backup_ctx= NULL;
-
-  if (check_stack_overrun(thd, 2 * STACK_MIN_SIZE, (uchar*)&backup_ctx))
-    return TRUE;
 
   if (creation_ctx)
     backup_ctx= creation_ctx->set_n_backup(thd);

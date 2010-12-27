@@ -1283,6 +1283,40 @@ void THD::awake(THD::killed_state state_to_set)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Close the Vio associated this session.
+
+  @remark LOCK_thd_data is taken due to the fact that
+          the Vio might be disassociated concurrently.
+*/
+
+void THD::disconnect()
+{
+  Vio *vio= NULL;
+
+  mysql_mutex_lock(&LOCK_thd_data);
+
+  killed= THD::KILL_CONNECTION;
+
+#ifdef SIGNAL_WITH_VIO_CLOSE
+  /*
+    Since a active vio might might have not been set yet, in
+    any case save a reference to avoid closing a inexistent
+    one or closing the vio twice if there is a active one.
+  */
+  vio= active_vio;
+  close_active_vio();
+#endif
+
+  /* Disconnect even if a active vio is not associated. */
+  if (net.vio != vio)
+    vio_close(net.vio);
+
+  mysql_mutex_unlock(&LOCK_thd_data);
+}
+
+
 /*
   Remember the location of thread info, the structure needed for
   sql_alloc() and the structure for the net buffer
@@ -2973,7 +3007,7 @@ void Security_context::init()
 {
   host= user= ip= external_user= 0;
   host_or_ip= "connecting host";
-  priv_user[0]= priv_host[0]= '\0';
+  priv_user[0]= priv_host[0]= proxy_user[0]= '\0';
   master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;

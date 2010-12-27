@@ -62,7 +62,9 @@ SELECT * FROM t2 ORDER BY a;
 SELECT * FROM t3 ORDER BY a;
 
 --connection slave
---source include/wait_for_slave_sql_to_stop.inc
+# 1146 = ER_NO_SUCH_TABLE
+--let $slave_sql_errno= 1146
+--source include/wait_for_slave_sql_error.inc
 SHOW TABLES LIKE 't%';
 if (`SELECT @@BINLOG_FORMAT = 'ROW'`) {
 --replace_regex /AA/AA_for_row_or_XX_for_stmt_mixed/
@@ -77,7 +79,7 @@ if (!`SELECT @@BINLOG_FORMAT = 'ROW'`) {
   SELECT * FROM t2 ORDER BY a;
 }
 
---source include/stop_slave.inc
+--source include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;
 --source include/start_slave.inc
 
@@ -107,7 +109,9 @@ INSERT INTO t1 VALUES(2, 'B');
 UPDATE t1 SET b = 'X' WHERE a = 2;
 
 --connection slave
---source include/wait_for_slave_sql_to_stop.inc
+# 1146 = ER_NO_SUCH_TABLE
+--let $slave_sql_errno= 1146
+--source include/wait_for_slave_sql_error.inc
 
 --connection master
 SELECT * FROM t1 ORDER BY a;
@@ -119,7 +123,7 @@ SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
---source include/stop_slave.inc
+--source include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;
 --source include/start_slave.inc
 
@@ -151,7 +155,9 @@ INSERT INTO t3 VALUES (3, 'C'), (4, 'D');
 COMMIT;
 
 --connection slave
---source include/wait_for_slave_sql_to_stop.inc
+# 1146 = ER_NO_SUCH_TABLE
+--let $slave_sql_errno= 1146
+--source include/wait_for_slave_sql_error.inc
 
 --connection master
 SELECT * FROM t1 ORDER BY a;
@@ -163,7 +169,7 @@ SHOW TABLES LIKE 't%';
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
-source include/stop_slave.inc;
+source include/stop_slave_io.inc;
 RENAME TABLE t3_bak TO t3;
 source include/start_slave.inc;
 
@@ -174,3 +180,4 @@ DROP TABLE t1,t2,t3;
 --sync_slave_with_master
 
 # End of 5.1 test
+--source include/rpl_end.inc

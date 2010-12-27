@@ -1812,16 +1812,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-    {
-      /*
-        We should disable const subselect item evaluation because
-        subselect transformation does not happen in view_prepare_mode
-        and thus val_...() methods can not be called for const items.
-      */
-      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
-                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
-      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
-    }
+      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 
     if (!conv)
     {
@@ -5848,6 +5839,10 @@ bool Item::send(Protocol *protocol, String *buffer)
     String *res;
     if ((res=val_str(buffer)))
       result= protocol->store(res->ptr(),res->length(),res->charset());
+    else
+    {
+      DBUG_ASSERT(null_value);
+    }
     break;
   }
   case MYSQL_TYPE_TINY:
@@ -7512,9 +7507,19 @@ void Item_cache_datetime::store(Item *item, longlong val_arg)
 }
 
 
+void Item_cache_datetime::store(Item *item)
+{
+  Item_cache::store(item);
+  str_value_cached= FALSE;
+}
+
 String *Item_cache_datetime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+
+  if ((value_cached || str_value_cached) && null_value)
+    return NULL;
+
   if (!str_value_cached)
   {
     /*
@@ -7528,6 +7533,8 @@ String *Item_cache_datetime::val_str(String *str)
     if (value_cached)
     {
       MYSQL_TIME ltime;
+      /* Return NULL in case of OOM/conversion error. */
+      null_value= TRUE;
       if (str_value.alloc(MAX_DATE_STRING_REP_LENGTH))
         return NULL;
       if (cached_field_type == MYSQL_TYPE_TIME)
@@ -7550,13 +7557,14 @@ String *Item_cache_datetime::val_str(String *str)
       {
         int was_cut;
         longlong res;
-        res= number_to_datetime(val_int(), &ltime, TIME_FUZZY_DATE, &was_cut);
+        res= number_to_datetime(int_value, &ltime, TIME_FUZZY_DATE, &was_cut);
         if (res == -1)
           return NULL;
       }
       str_value.length(my_TIME_to_str(&ltime,
                                       const_cast<char*>(str_value.ptr())));
       str_value_cached= TRUE;
+      null_value= FALSE;
     }
     else if (!cache_value())
       return NULL;
@@ -7577,7 +7585,7 @@ my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 double Item_cache_datetime::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value_int())
+  if ((!value_cached && !cache_value_int()) || null_value)
     return 0.0;
   return (double) int_value;
 }
@@ -7585,7 +7593,7 @@ double Item_cache_datetime::val_real()
 longlong Item_cache_datetime::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value_int())
+  if ((!value_cached && !cache_value_int()) || null_value)
     return 0;
   return int_value;
 }

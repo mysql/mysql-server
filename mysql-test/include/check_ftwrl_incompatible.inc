@@ -41,11 +41,11 @@ if (!$err)
 {
 --echo Error: Was able to run '$statement' under FTWRL!
 unlock tables;
-if (`SELECT "$cleanup_stmt1" <> ""`)
+if ($cleanup_stmt1)
 {
 --eval $cleanup_stmt1;
 }
-if (`SELECT "$cleanup_stmt2" <> ""`)
+if ($cleanup_stmt2)
 {
 --eval $cleanup_stmt2;
 }
@@ -88,16 +88,16 @@ unlock tables;
 connection default;
 --reap
 
-if (`SELECT "$cleanup_stmt1" <> ""`)
+if ($cleanup_stmt1)
 {
 --eval $cleanup_stmt1;
 }
-if (`SELECT "$cleanup_stmt2" <> ""`)
+if ($cleanup_stmt2)
 {
 --eval $cleanup_stmt2;
 }
 
-if (`SELECT "$skip_3rd_check" = ""`)
+if (!$skip_3rd_check)
 {
 #
 # Finally, let us check that FTWRL will not succeed if this
@@ -141,11 +141,11 @@ connection default;
 
 set debug_sync= "RESET";
 
-if (`SELECT "$cleanup_stmt1" <> ""`)
+if ($cleanup_stmt1)
 {
 --eval $cleanup_stmt1;
 }
-if (`SELECT "$cleanup_stmt2" <> ""`)
+if ($cleanup_stmt2)
 {
 --eval $cleanup_stmt2;
 }
