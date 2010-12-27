@@ -2759,5 +2759,36 @@ SET SESSION optimizer_switch = DEFAULT;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug #694443: hash join using IS NULL the an equi-join condition
+--echo #
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES
+  (7), (4), (9), (1), (3), (8), (2);
+
+CREATE TABLE t2 (a int, b int, INDEX idx (a));
+INSERT INTO t2 VALUES
+  (NULL,10), (4,80), (7,70), (6,11), (7,90), (NULL,40),
+  (4,77), (4,50), (NULL,41), (7,99), (7,88), (8,12),
+  (1,21), (4,90), (7,91), (8,22), (6,92), (NULL,42),
+  (2,78), (2,51), (1,43), (5,97), (5,89);
+
+SET SESSION join_cache_level = 1;
+EXPLAIN 
+SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
+SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
+
+SET SESSION join_cache_level = 4;
+EXPLAIN 
+SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
+SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
+
+
+SET SESSION join_cache_level = DEFAULT;
+
+DROP TABLE t1,t2;
+  
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;

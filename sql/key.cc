@@ -103,10 +103,11 @@ int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
   @param from_record full record to be copied from
   @param key_info    descriptor of the index
   @param key_length  specifies length of all keyparts that will be copied
+  @param with_zerofill  skipped bytes in the key buffer to be filled with 0
 */
 
 void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
-              uint key_length)
+              uint key_length, bool with_zerofill)
 {
   uint length;
   KEY_PART_INFO *key_part;
@@ -129,6 +130,8 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
           The -1 below is to subtract the null byte which is already handled
         */
         length= min(key_length, (uint) key_part->store_length-1);
+        if (with_zerofill)
+          bzero((char*) to_key, length);
         continue;
       }
     }
@@ -137,7 +140,9 @@ void key_copy(uchar *to_key, uchar *from_record, KEY *key_info,
     {
       key_length-= HA_KEY_BLOB_LENGTH;
       length= min(key_length, key_part->length);
-      key_part->field->get_key_image(to_key, length, Field::itRAW);
+      uint bytes= key_part->field->get_key_image(to_key, length, Field::itRAW);
+      if (with_zerofill && bytes < length)
+        bzero((char*) to_key + bytes, length - bytes);
       to_key+= HA_KEY_BLOB_LENGTH;
     }
     else

@@ -3429,7 +3429,7 @@ uchar *JOIN_CACHE_BNLH::get_matching_chain_by_join_key()
   TABLE_REF *ref= &join_tab->ref;
   KEY *keyinfo= table->key_info+ref->key;
   /* Build the join key value out of the record in the record buffer */
-  key_copy(key_buff, table->record[0], keyinfo, key_length);
+  key_copy(key_buff, table->record[0], keyinfo, key_length, TRUE);
   /* Look for this key in the join buffer */
   if (!key_search(key_buff, key_length, &key_ref_ptr))
     return 0;
