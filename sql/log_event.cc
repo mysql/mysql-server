@@ -7128,7 +7128,8 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     m_width(tbl_arg ? tbl_arg->s->fields : 1),
     m_rows_buf(0), m_rows_cur(0), m_rows_end(0), m_flags(0) 
 #ifdef HAVE_REPLICATION
-    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL),
+    m_key(NULL), m_key_info(NULL), m_key_nr(0)
 #endif
 {
   /*
@@ -7176,7 +7177,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 #endif
     m_table_id(0), m_rows_buf(0), m_rows_cur(0), m_rows_end(0)
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-    , m_curr_row(NULL), m_curr_row_end(NULL), m_key(NULL)
+    , m_curr_row(NULL), m_curr_row_end(NULL),
+    m_key(NULL), m_key_info(NULL), m_key_nr(0)
 #endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
@@ -9043,6 +9045,86 @@ record_compare_exit:
   return result;
 }
 
+
+/**
+  Find the best key to use when locating the row in @c find_row().
+
+  A primary key is preferred if it exists; otherwise a unique index is
+  preferred. Else we pick the index with the smalles rec_per_key value.
+
+  If a suitable key is found, set @c m_key, @c m_key_nr and @c m_key_info
+  member fields appropriately.
+
+  @returns Error code on failure, 0 on success.
+*/
+int Rows_log_event::find_key()
+{
+  uint i, best_key_nr, last_part;
+  KEY *key, *best_key;
+  ulong best_rec_per_key, tmp;
+  DBUG_ENTER("Rows_log_event::find_key");
+  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+
+  best_key_nr= MAX_KEY;
+  LINT_INIT(best_key);
+  LINT_INIT(best_rec_per_key);
+
+  /*
+    Keys are sorted so that any primary key is first, followed by unique keys,
+    followed by any other. So we will automatically pick the primary key if
+    it exists.
+  */
+  for (i= 0, key= m_table->key_info; i < m_table->s->keys; i++, key++)
+  {
+    if (!m_table->s->keys_in_use.is_set(i))
+      continue;
+    /*
+      We cannot use a unique key with NULL-able columns to uniquely identify
+      a row (but we can still select it for range scan below if nothing better
+      is available).
+    */
+    if ((key->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+    {
+      best_key_nr= i;
+      best_key= key;
+      break;
+    }
+    /*
+      We can only use a non-unique key if it allows range scans (ie. skip
+      FULLTEXT indexes and such).
+    */
+    last_part= key->key_parts - 1;
+    DBUG_PRINT("info", ("Index %s rec_per_key[%u]= %lu",
+                        key->name, last_part, key->rec_per_key[last_part]));
+    if (!(m_table->file->index_flags(i, last_part, 1) & HA_READ_NEXT))
+      continue;
+
+    tmp= key->rec_per_key[last_part];
+    if (best_key_nr == MAX_KEY || (tmp > 0 && tmp < best_rec_per_key))
+    {
+      best_key_nr= i;
+      best_key= key;
+      best_rec_per_key= tmp;
+    }
+  }
+
+  if (best_key_nr == MAX_KEY)
+  {
+    m_key_info= NULL;
+    DBUG_RETURN(0);
+  }
+
+  // Allocate buffer for key searches
+  m_key= (uchar *) my_malloc(best_key->key_length, MYF(MY_WME));
+  if (m_key == NULL)
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  m_key_info= best_key;
+  m_key_nr= best_key_nr;
+
+  DBUG_RETURN(0);;
+}
+
+
 /**
   Locate the current row in event's table.
 
@@ -9142,12 +9224,17 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
    */ 
   store_record(table,record[1]);    
 
-  if (table->s->keys > 0 && table->s->keys_in_use.is_set(0))
+  if (m_key_info)
   {
-    DBUG_PRINT("info",("locating record using primary key (index_read)"));
+    DBUG_PRINT("info",("locating record using key #%u [%s] (index_read)",
+                       m_key_nr, m_key_info->name));
+    /* We use this to test that the correct key is used in test cases. */
+    DBUG_EXECUTE_IF("slave_crash_if_wrong_index",
+                    if(0 != strcmp(m_key_info->name,"expected_key")) abort(););
 
-    /* The 0th key is active: search the table using the index */
-    if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
+    /* The key is active: search the table using the index */
+    if (!table->file->inited &&
+        (error= table->file->ha_index_init(m_key_nr, FALSE)))
     {
       DBUG_PRINT("info",("ha_index_init returns error %d",error));
       table->file->print_error(error, MYF(0));
@@ -9157,14 +9244,14 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
     /* Fill key data for the row */
 
     DBUG_ASSERT(m_key);
-    key_copy(m_key, table->record[0], table->key_info, 0);
+    key_copy(m_key, table->record[0], m_key_info, 0);
 
     /*
       Don't print debug messages when running valgrind since they can
       trigger false warnings.
      */
 #ifndef HAVE_valgrind
-    DBUG_DUMP("key data", m_key, table->key_info->key_length);
+    DBUG_DUMP("key data", m_key, m_key_info->key_length);
 #endif
 
     /*
@@ -9250,6 +9337,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
       record we are looking for is stored in record[1].
      */ 
     DBUG_PRINT("info",("non-unique index, scanning it to find matching record")); 
+    /* We use this to test that the correct key is used in test cases. */
+    DBUG_EXECUTE_IF("slave_crash_if_index_scan", abort(););
 
     while (record_compare(table))
     {
@@ -9288,6 +9377,8 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   else
   {
     DBUG_PRINT("info",("locating record using table scan (rnd_next)"));
+    /* We use this to test that the correct key is used in test cases. */
+    DBUG_EXECUTE_IF("slave_crash_if_table_scan", abort(););
 
     int restart_count= 0; // Number of times scanning has restarted from top
 
@@ -9407,14 +9498,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     return 0;
   }
 
-  if (m_table->s->keys > 0)
-  {
-    // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
-    if (!m_key)
-      return HA_ERR_OUT_OF_MEM;
-  }
-  return 0;
+  return find_key();
 }
 
 int 
@@ -9425,6 +9509,7 @@ Delete_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_table->file->ha_index_or_rnd_end();
   my_free(m_key, MYF(MY_ALLOW_ZERO_PTR));
   m_key= NULL;
+  m_key_info= NULL;
 
   return error;
 }
@@ -9527,13 +9612,9 @@ Update_rows_log_event::Update_rows_log_event(const char *buf, uint event_len,
 int 
 Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability *const)
 {
-  if (m_table->s->keys > 0)
-  {
-    // Allocate buffer for key searches
-    m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
-    if (!m_key)
-      return HA_ERR_OUT_OF_MEM;
-  }
+  int err;
+  if ((err= find_key()))
+    return err;
 
   m_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
@@ -9548,6 +9629,7 @@ Update_rows_log_event::do_after_row_operations(const Slave_reporting_capability 
   m_table->file->ha_index_or_rnd_end();
   my_free(m_key, MYF(MY_ALLOW_ZERO_PTR)); // Free for multi_malloc
   m_key= NULL;
+  m_key_info= NULL;
 
   return error;
 }
