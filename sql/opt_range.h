@@ -482,8 +482,7 @@ public:
     Current implementation doesn't detect all cases where index merge could
     be used, in particular:
 
-     * index merge+'using index' is not supported (this the consequence of
-       the above restriction)
+     * index_merge+'using index' is not supported
 
      * If WHERE part contains complex nested AND and OR conditions, some ways
        to retrieve rows using index merge will not be considered. The choice
