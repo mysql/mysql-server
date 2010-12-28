@@ -34,19 +34,17 @@
 #define QRY_WRONG_INDEX_TYPE 4810
 #define QRY_OPERAND_ALREADY_BOUND 4811
 #define QRY_DEFINITION_TOO_LARGE 4812
-#define QRY_DUPLICATE_COLUMN_IN_PROJ 4813
-#define QRY_NEED_PARAMETER 4814
-#define QRY_RESULT_ROW_ALREADY_DEFINED 4815
-#define QRY_HAS_ZERO_OPERATIONS 4816
-#define QRY_IN_ERROR_STATE 4817
-#define QRY_ILLEGAL_STATE 4818
-#define QRY_WRONG_OPERATION_TYPE 4819
-#define QRY_SCAN_ORDER_ALREADY_SET 4820
-#define QRY_PARAMETER_HAS_WRONG_TYPE 4821
-#define QRY_CHAR_PARAMETER_TRUNCATED 4822
-#define QRY_MULTIPLE_SCAN_BRANCHES 4823
-#define QRY_MULTIPLE_SCAN_SORTED 4824
-#define QRY_SEQUENTIAL_SCAN_SORTED 4825
+#define QRY_SEQUENTIAL_SCAN_SORTED 4813
+#define QRY_RESULT_ROW_ALREADY_DEFINED 4814
+#define QRY_HAS_ZERO_OPERATIONS 4815
+#define QRY_IN_ERROR_STATE 4816
+#define QRY_ILLEGAL_STATE 4817
+#define QRY_WRONG_OPERATION_TYPE 4820
+#define QRY_SCAN_ORDER_ALREADY_SET 4821
+#define QRY_PARAMETER_HAS_WRONG_TYPE 4822
+#define QRY_CHAR_PARAMETER_TRUNCATED 4823
+#define QRY_MULTIPLE_SCAN_BRANCHES 4824
+#define QRY_MULTIPLE_SCAN_SORTED 4825
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -637,14 +635,11 @@ public:
 
   const NdbError& getNdbError() const;
 
-  void setErrorCode(int aErrorCode)
-  { if (!m_error.code)
-      m_error.code = aErrorCode;
-  }
+  void setErrorCode(int aErrorCode);
 
 private:
   bool hasError() const
-  { return (m_error.code!=0); }
+  { return m_hasError; }
 
   /**
    * Add an operand to m_operands. Set an error code if operand
@@ -663,6 +658,8 @@ private:
   Vector<NdbQueryOperationDefImpl*> m_operations;
   Vector<NdbQueryOperandImpl*> m_operands;
   Uint32 m_paramCnt;
+  /** True if there was an error that prevents further use of this object.*/
+  bool m_hasError;
 }; // class NdbQueryBuilderImpl
 
 

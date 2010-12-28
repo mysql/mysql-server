@@ -54,8 +54,9 @@ static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_ReceiveTimedOut = 4008;
 static const int Err_NodeFailCausedAbort = 4028;
+static const int Err_SimpleDirtyReadFailed = 4119;
 static const int Err_WrongFieldLength = 4209;
-static const int Err_MixRecAttrAndRecord = 4284;
+static const int Err_ReadTooMuch = 4257;
 static const int Err_InvalidRangeNo = 4286;
 static const int Err_DifferentTabForKeyRecAndAttrRec = 4287;
 static const int Err_KeyIsNULL = 4316;
@@ -962,7 +963,7 @@ NdbQuery::setBound(const NdbRecord *keyRecord,
 {
   const int error = m_impl.setBound(keyRecord,bound);
   if (unlikely(error)) {
-    m_impl.setErrorCodeAbort(error);
+    m_impl.setErrorCode(error);
     return -1;
   } else {
     return 0;
@@ -1082,11 +1083,6 @@ NdbQueryOperation::setResultRowRef (
                        const char* & bufRef,
                        const unsigned char* result_mask)
 {
-  // FIXME: Errors must be set in the NdbError object owned by this operation.
-  if (unlikely(rec==0)) {
-    m_impl.getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
-    return -1;
-  }
   return m_impl.setResultRowRef(rec, bufRef, result_mask);
 }
 
@@ -1364,7 +1360,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_operations = static_cast<NdbQueryOperationImpl*> (::operator new(size));
   if (unlikely(m_operations == NULL))
   {
-    setErrorCodeAbort(Err_MemoryAlloc);
+    setErrorCode(Err_MemoryAlloc);
     return;
   }
 
@@ -1467,7 +1463,10 @@ NdbQueryImpl::assignParameters(const NdbQueryParamValue paramValues[])
   // Build explicit key/filter/bounds for root operation, possibly refering paramValues
   const int error = getRoot().prepareKeyInfo(m_keyInfo, paramValues);
   if (unlikely(error != 0))
-    return error;
+  {
+    setErrorCode(error);
+    return -1;
+  }
 
   // Serialize parameter values for the other (non-root) operations
   // (No need to serialize for root (i==0) as root key is part of keyInfo above)
@@ -1477,7 +1476,10 @@ NdbQueryImpl::assignParameters(const NdbQueryParamValue paramValues[])
     {
       const int error = getQueryOperation(i).serializeParams(paramValues);
       if (unlikely(error != 0))
-        return error;
+      {
+        setErrorCode(error);
+        return -1;
+      }
     }
   }
   assert(m_state<Defined);
@@ -1807,13 +1809,13 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
       switch (fetchResult) {
 
       case FetchResult_ok:          // OK - got data wo/ error
-        assert (m_error.code == 0);
+        assert(m_state != Failed);
         rootFrag = m_applFrags.getCurrent();
         assert (rootFrag!=NULL);
         break;
 
       case FetchResult_noMoreData:  // No data, no error
-        assert (m_error.code == 0);
+        assert(m_state != Failed);
         assert (m_applFrags.getCurrent()==NULL);
         getRoot().nullifyResult();
         m_state = EndOfData;
@@ -1821,7 +1823,7 @@ NdbQueryImpl::nextRootResult(bool fetchAllowed, bool forceSend)
         return NdbQuery::NextResult_scanComplete;
 
       case FetchResult_noMoreCache: // No cached data, no error
-        assert (m_error.code == 0);
+        assert(m_state != Failed);
         assert (m_applFrags.getCurrent()==NULL);
         getRoot().nullifyResult();
         if (fetchAllowed)
@@ -1951,7 +1953,7 @@ NdbQueryImpl::awaitMoreResults(bool forceSend)
         else
           setFetchTerminated(Err_NodeFailCausedAbort,false);
 
-        assert (!m_error.code);
+        assert (m_state != Failed);
       } // while(!hasReceivedError())
     } // Terminates scope of 'PollGuard'
 
@@ -2113,22 +2115,41 @@ NdbQueryImpl::setErrorCode(int aErrorCode)
   m_error.code = aErrorCode;
   m_transaction.theErrorLine = 0;
   m_transaction.theErrorOperation = NULL;
-  //if (m_abortOption != AO_IgnoreError)
-  m_transaction.setOperationErrorCode(aErrorCode);
-  m_state = Failed;
-}
 
-void
-NdbQueryImpl::setErrorCodeAbort(int aErrorCode)
-{
-  assert (aErrorCode!=0);
-  m_error.code = aErrorCode;
-  m_transaction.theErrorLine = 0;
-  m_transaction.theErrorOperation = NULL;
-  m_transaction.setOperationErrorCodeAbort(aErrorCode);
-  m_state = Failed;
-}
+  switch(aErrorCode)
+  {
+    // Not realy an error. A root lookup found no match.
+  case Err_TupleNotFound:
+    // Simple or dirty read failed due to node failure. Transaction will be aborted.
+  case Err_SimpleDirtyReadFailed:
+    /** 
+     * Theses are application errorsthat means that a give method invocation fails,
+     * but there is no need to abort the transaction.
+     */
+  case Err_FunctionNotImplemented:
+  case Err_UnknownColumn:
+  case Err_WrongFieldLength:
+  case Err_InvalidRangeNo:
+  case Err_DifferentTabForKeyRecAndAttrRec:
+  case Err_KeyIsNULL:
+  case QRY_REQ_ARG_IS_NULL:
+  case QRY_PARAMETER_HAS_WRONG_TYPE:
+  case QRY_RESULT_ROW_ALREADY_DEFINED:
+  case QRY_CHAR_OPERAND_TRUNCATED:
+  case QRY_WRONG_OPERATION_TYPE:
+  case QRY_SEQUENTIAL_SCAN_SORTED:
+  case QRY_SCAN_ORDER_ALREADY_SET:
+  case QRY_MULTIPLE_SCAN_SORTED:
+    m_transaction.setOperationErrorCode(aErrorCode);
+    break;
 
+    // For any other error, abort the transaction.
+  default:
+    m_state = Failed;
+    m_transaction.setOperationErrorCodeAbort(aErrorCode);
+    break;
+  }
+}
 
 /*
  * ::setFetchTerminated() Should only be called with mutex locked.
@@ -2210,9 +2231,9 @@ NdbQueryImpl::prepareSend()
   if (unlikely(m_state != Defined)) {
     assert (m_state >= Initial && m_state < Destructed);
     if (m_state == Failed) 
-      setErrorCodeAbort(QRY_IN_ERROR_STATE);
+      setErrorCode(QRY_IN_ERROR_STATE);
     else
-      setErrorCodeAbort(QRY_ILLEGAL_STATE);
+      setErrorCode(QRY_ILLEGAL_STATE);
     DEBUG_CRASH();
     return -1;
   }
@@ -2269,19 +2290,19 @@ NdbQueryImpl::prepareSend()
     int error;
     if (unlikely((error = m_operations[i].prepareReceiver()) != 0)
               || (error = m_operations[i].prepareAttrInfo(m_attrInfo)) != 0) {
-      setErrorCodeAbort(error);
+      setErrorCode(error);
       return -1;
     }
   }
 
   if (unlikely(m_attrInfo.isMemoryExhausted() || m_keyInfo.isMemoryExhausted())) {
-    setErrorCodeAbort(Err_MemoryAlloc);
+    setErrorCode(Err_MemoryAlloc);
     return -1;
   }
 
   if (unlikely(m_attrInfo.getSize() > ScanTabReq::MaxTotalAttrInfo  ||
                m_keyInfo.getSize()  > ScanTabReq::MaxTotalAttrInfo)) {
-    setErrorCodeAbort(4257); // TODO: find a more suitable errorcode, 
+    setErrorCode(Err_ReadTooMuch); // TODO: find a more suitable errorcode, 
     return -1;
   }
 
@@ -2299,7 +2320,7 @@ NdbQueryImpl::prepareSend()
                                               keyRec,
                                               getRoot().m_ndbRecord)) != 0)
             || (error = m_fullFrags.prepare(m_rootFragCount)) != 0) {
-    setErrorCodeAbort(error);
+    setErrorCode(error);
     return -1;
   }
 
@@ -2309,7 +2330,7 @@ NdbQueryImpl::prepareSend()
   m_rootFrags = new NdbRootFragment[m_rootFragCount];
   if(m_rootFrags == NULL)
   {
-    setErrorCodeAbort(Err_MemoryAlloc);
+    setErrorCode(Err_MemoryAlloc);
     return -1;
   }
   else
@@ -2426,9 +2447,9 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   if (unlikely(m_state != Prepared)) {
     assert (m_state >= Initial && m_state < Destructed);
     if (m_state == Failed) 
-      setErrorCodeAbort(QRY_IN_ERROR_STATE);
+      setErrorCode(QRY_IN_ERROR_STATE);
     else
-      setErrorCodeAbort(QRY_ILLEGAL_STATE);
+      setErrorCode(QRY_ILLEGAL_STATE);
     DEBUG_CRASH();
     return -1;
   }
@@ -2564,7 +2585,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     const int res = impl->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
-      setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
+      setErrorCode(Err_SendFailed);  // Error: 'Send to NDB failed'
       return FetchResult_sendFail;
     }
     m_tcState = Active;
@@ -2644,7 +2665,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     const int res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
     if (unlikely(res == -1))
     {
-      setErrorCodeAbort(Err_SendFailed);  // Error: 'Send to NDB failed'
+      setErrorCode(Err_SendFailed);  // Error: 'Send to NDB failed'
       return FetchResult_sendFail;
     }
     m_transaction.OpSent();
@@ -2886,7 +2907,7 @@ int NdbQueryImpl::isPrunable(bool& prunable)
     if (unlikely(error != 0))
     {
       prunable = false;
-      setErrorCodeAbort(error);
+      setErrorCode(error);
       return -1;
     }
     m_prunability = prunable ? Prune_Yes : Prune_No;
@@ -3247,7 +3268,7 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   if (errno == ENOMEM)
   {
     // Memory allocation in Vector() (for m_children) assumed to have failed.
-    queryImpl.setErrorCodeAbort(Err_MemoryAlloc);
+    queryImpl.setErrorCode(Err_MemoryAlloc);
     return;
   }
   // Fill in operations parent refs, and append it as child of its parent
@@ -3401,7 +3422,7 @@ NdbQueryOperationImpl::getValue(
   const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrName);
   if(unlikely(column==NULL)){
-    getQuery().setErrorCodeAbort(Err_UnknownColumn);
+    getQuery().setErrorCode(Err_UnknownColumn);
     return NULL;
   } else {
     return getValue(*column, resultBuffer);
@@ -3416,7 +3437,7 @@ NdbQueryOperationImpl::getValue(
   const NdbColumnImpl* const column 
     = m_operationDef.getTable().getColumn(anAttrId);
   if(unlikely(column==NULL)){
-    getQuery().setErrorCodeAbort(Err_UnknownColumn);
+    getQuery().setErrorCode(Err_UnknownColumn);
     return NULL;
   } else {
     return getValue(*column, resultBuffer);
@@ -3442,12 +3463,12 @@ NdbQueryOperationImpl::getValue(
   Ndb* const ndb = getQuery().getNdbTransaction().getNdb();
   NdbRecAttr* const recAttr = ndb->getRecAttr();
   if(unlikely(recAttr == NULL)) {
-    getQuery().setErrorCodeAbort(Err_MemoryAlloc);
+    getQuery().setErrorCode(Err_MemoryAlloc);
     return NULL;
   }
   if(unlikely(recAttr->setup(&column, resultBuffer))) {
     ndb->releaseRecAttr(recAttr);
-    getQuery().setErrorCodeAbort(Err_MemoryAlloc);
+    getQuery().setErrorCode(Err_MemoryAlloc);
     return NULL;
   }
   // Append to tail of list.
@@ -3467,6 +3488,10 @@ NdbQueryOperationImpl::setResultRowBuf (
                        char* resBuffer,
                        const unsigned char* result_mask)
 {
+  if (unlikely(rec==0)) {
+    getQuery().setErrorCode(QRY_REQ_ARG_IS_NULL);
+    return -1;
+  }
   if (unlikely(getQuery().m_state != NdbQueryImpl::Defined)) {
     int state = getQuery().m_state;
     assert (state >= NdbQueryImpl::Initial && state < NdbQueryImpl::Destructed);
@@ -3769,7 +3794,7 @@ int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues
 {
   if (unlikely(paramValues == NULL))
   {
-    return QRY_NEED_PARAMETER;
+    return QRY_REQ_ARG_IS_NULL;
   }
 
   const NdbQueryOperationDefImpl& def = getQueryOperationDef();
@@ -3793,7 +3818,7 @@ int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues
     if (unlikely(error))
       return error;
     if (unlikely(null))
-      return QRY_NEED_PARAMETER;
+      return Err_KeyIsNULL;
 
     if(unlikely(m_params.isMemoryExhausted())){
       return Err_MemoryAlloc;
@@ -4627,7 +4652,7 @@ NdbQueryOperationImpl::setOrdering(NdbQueryOptions::ScanOrdering ordering)
 
   if (m_parallelism != 0)
   {
-    getQuery().setErrorCodeAbort(QRY_SEQUENTIAL_SCAN_SORTED);
+    getQuery().setErrorCode(QRY_SEQUENTIAL_SCAN_SORTED);
     return -1;
   }
 
@@ -4672,7 +4697,15 @@ int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
                || table_version_major(table.getObjectVersion()) != 
                table_version_major(code.getTable()->getObjectVersion())))
   {
-    getQuery().setErrorCodeAbort(Err_InterpretedCodeWrongTab);
+    getQuery().setErrorCode(Err_InterpretedCodeWrongTab);
+    return -1;
+  }
+
+  if (unlikely((code.m_flags & NdbInterpretedCode::Finalised) 
+               == 0))
+  {
+    //  NdbInterpretedCode::finalise() not called.
+    getQuery().setErrorCode(Err_FinaliseNotCalled);
     return -1;
   }
 
@@ -4683,7 +4716,7 @@ int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
 
     if (unlikely(m_interpretedCode==NULL))
     {
-      getQuery().setErrorCodeAbort(Err_MemoryAlloc);
+      getQuery().setErrorCode(Err_MemoryAlloc);
       return -1;
     }
   }
@@ -4695,7 +4728,7 @@ int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
   const int error = m_interpretedCode->copy(code);
   if (unlikely(error))
   {
-    getQuery().setErrorCodeAbort(error);
+    getQuery().setErrorCode(error);
     return -1;
   }
   return 0;
@@ -4704,18 +4737,18 @@ int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
 int NdbQueryOperationImpl::setParallelism(Uint32 parallelism){
   if (!getQueryOperationDef().isScanOperation())
   {
-    getQuery().setErrorCodeAbort(QRY_WRONG_OPERATION_TYPE);
+    getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
     return -1;
   }
   else if (getOrdering() == NdbQueryOptions::ScanOrdering_ascending ||
            getOrdering() == NdbQueryOptions::ScanOrdering_descending)
   {
-    getQuery().setErrorCodeAbort(QRY_SEQUENTIAL_SCAN_SORTED);
+    getQuery().setErrorCode(QRY_SEQUENTIAL_SCAN_SORTED);
     return -1;
   }
   else if (getQueryOperationDef().getQueryOperationIx() > 0)
   {
-    getQuery().setErrorCodeAbort(Err_FunctionNotImplemented);
+    getQuery().setErrorCode(Err_FunctionNotImplemented);
     return -1;
   }
   m_parallelism = parallelism;
@@ -4725,7 +4758,7 @@ int NdbQueryOperationImpl::setParallelism(Uint32 parallelism){
 int NdbQueryOperationImpl::setBatchSize(Uint32 batchSize){
   if (!getQueryOperationDef().isScanOperation())
   {
-    getQuery().setErrorCodeAbort(QRY_WRONG_OPERATION_TYPE);
+    getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
     return -1;
   }
 
@@ -4751,14 +4784,6 @@ NdbQueryOperationImpl::prepareInterpretedCode(Uint32Buffer& attrInfo) const
 {
   // There should be no subroutines in a filter.
   assert(m_interpretedCode->m_first_sub_instruction_pos==0);
-
-  if (unlikely((m_interpretedCode->m_flags & NdbInterpretedCode::Finalised) 
-               == 0))
-  {
-    //  NdbInterpretedCode::finalise() not called.
-    return Err_FinaliseNotCalled;
-  }
-
   assert(m_interpretedCode->m_instructions_length > 0);
   assert(m_interpretedCode->m_instructions_length <= 0xffff);
 

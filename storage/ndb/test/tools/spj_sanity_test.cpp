@@ -1,3 +1,4 @@
+#include <new>
 #include <assert.h>
 #include <mysql.h>
 #include <mysqld_error.h>
@@ -21,8 +22,39 @@
 #else
 #define ASSERT_ALWAYS assert
 #endif
+/* Query-related error codes. Used for negative testing. */
+#define QRY_REQ_ARG_IS_NULL 4800
+#define QRY_TOO_FEW_KEY_VALUES 4801
+#define QRY_TOO_MANY_KEY_VALUES 4802
+#define QRY_OPERAND_HAS_WRONG_TYPE 4803
+#define QRY_CHAR_OPERAND_TRUNCATED 4804
+#define QRY_NUM_OPERAND_RANGE 4805
+#define QRY_MULTIPLE_PARENTS 4806
+#define QRY_UNKONWN_PARENT 4807
+#define QRY_UNKNOWN_COLUMN 4808
+#define QRY_UNRELATED_INDEX 4809
+#define QRY_WRONG_INDEX_TYPE 4810
+#define QRY_OPERAND_ALREADY_BOUND 4811
+#define QRY_DEFINITION_TOO_LARGE 4812
+#define QRY_SEQUENTIAL_SCAN_SORTED 4813
+#define QRY_RESULT_ROW_ALREADY_DEFINED 4814
+#define QRY_HAS_ZERO_OPERATIONS 4815
+#define QRY_IN_ERROR_STATE 4816
+#define QRY_ILLEGAL_STATE 4817
+#define QRY_WRONG_OPERATION_TYPE 4820
+#define QRY_SCAN_ORDER_ALREADY_SET 4821
+#define QRY_PARAMETER_HAS_WRONG_TYPE 4822
+#define QRY_CHAR_PARAMETER_TRUNCATED 4823
+#define QRY_MULTIPLE_SCAN_BRANCHES 4824
+#define QRY_MULTIPLE_SCAN_SORTED 4825
+
 
 namespace SPJSanityTest{
+
+  static void resetError(const NdbError& err)
+  {
+    new (&const_cast<NdbError&>(err)) NdbError;
+  }
 
   class IntField{
   public:
@@ -599,13 +631,18 @@ namespace SPJSanityTest{
 
   void LookupOperation::buildThis(NdbQueryBuilder& builder,
                                             const NdbDictionary::Table& tab){
-    NdbQueryOperand* keyOperands[Key::size+1];
+    NdbQueryOperand* keyOperands[Key::size+2];
     if(m_parent==NULL){
       const Key key = Row(0).getPrimaryKey();
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = key.makeConstOperand(builder, i);
       }
     }else{
+      // Negative testing
+      ASSERT_ALWAYS(builder.linkedValue(m_parent->m_operationDef, 
+                                        "unknown_col") == NULL);
+      ASSERT_ALWAYS(builder.getNdbError().code == QRY_UNKNOWN_COLUMN);
+
       for(int i = 0; i<Key::size; i++){
         keyOperands[i] = 
           builder.linkedValue(m_parent->m_operationDef, 
@@ -617,16 +654,53 @@ namespace SPJSanityTest{
                          Operation::m_childNo);*/
       }
     }
+    // Negative testing
+    keyOperands[Key::size] = keyOperands[0];
+    keyOperands[Key::size+1] = NULL;
+    ASSERT_ALWAYS(builder.readTuple(&tab, keyOperands)== NULL);
+    ASSERT_ALWAYS(builder.getNdbError().code == QRY_TOO_MANY_KEY_VALUES);
+    resetError(builder.getNdbError());
+
     keyOperands[Key::size] = NULL;
     m_operationDef = builder.readTuple(&tab, keyOperands);
+    ASSERT_ALWAYS(m_operationDef != NULL);
+
+    // Negative testing
+    keyOperands[Key::size-1] = builder.constValue(0x1fff1fff);
+    ASSERT_ALWAYS(keyOperands[Key::size-1] != NULL);
+    ASSERT_ALWAYS(builder.readTuple(&tab, keyOperands) == NULL);
+    ASSERT_ALWAYS(builder.getNdbError().code == QRY_OPERAND_HAS_WRONG_TYPE);
+
+    // Negative testing
+    keyOperands[Key::size-1] = NULL;
+    ASSERT_ALWAYS(builder.readTuple(&tab, keyOperands) == NULL);
+    ASSERT_ALWAYS(builder.getNdbError().code == QRY_TOO_FEW_KEY_VALUES);
+    resetError(builder.getNdbError());
   }
 
   void LookupOperation::submit(){
     NdbQueryOperation* queryOp 
       = m_query.getOperation(m_operationId);
-    queryOp->setResultRowRef(m_query.getNdbRecord(), 
-                             m_resultCharPtr,
-                             NULL);
+    // Negative testing
+    ASSERT_ALWAYS(queryOp->setResultRowRef(NULL, 
+                                           m_resultCharPtr,
+                                           NULL) == -1);
+    ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
+                  QRY_REQ_ARG_IS_NULL);
+    ASSERT_ALWAYS(queryOp->setOrdering(NdbQueryOptions::ScanOrdering_ascending)
+                  == -1);
+    ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
+                  QRY_WRONG_OPERATION_TYPE);
+
+    ASSERT_ALWAYS(queryOp->setResultRowRef(m_query.getNdbRecord(), 
+                                           m_resultCharPtr,
+                                           NULL) == 0);
+    // Negative testing
+    ASSERT_ALWAYS(queryOp->setResultRowRef(m_query.getNdbRecord(), 
+                                           m_resultCharPtr,
+                                           NULL) == -1);
+    ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
+                  QRY_RESULT_ROW_ALREADY_DEFINED);
   }
 
   void LookupOperation::verifyOwnRow(){
@@ -702,9 +776,15 @@ namespace SPJSanityTest{
                          Operation::m_childNo);*/
     }
     keyOperands[Key::size] = NULL;
-    m_operationDef = builder.readTuple(index, 
-                                                       &tab, 
-                                                       keyOperands);
+    m_operationDef = builder.readTuple(index, &tab, keyOperands);
+
+    // Negative testing
+    const NdbDictionary::Index* const orderedIndex
+      = dict->getIndex(m_indexName, tab.getName());
+    ASSERT_ALWAYS(orderedIndex != NULL);
+    ASSERT_ALWAYS(builder.readTuple(orderedIndex, &tab, keyOperands) == NULL);
+    ASSERT_ALWAYS(builder.getNdbError().code == QRY_WRONG_INDEX_TYPE);
+    resetError(builder.getNdbError());
   }
 
   void IndexLookupOperation::submit(){
@@ -872,6 +952,18 @@ namespace SPJSanityTest{
     queryOp->setResultRowRef(m_query.getNdbRecord(), 
                              m_resultCharPtr,
                              NULL);
+
+    // Negative testing.
+    if (m_ordering != NdbQueryOptions::ScanOrdering_unordered){
+      ASSERT_ALWAYS(queryOp
+                    ->setOrdering(NdbQueryOptions::ScanOrdering_ascending) != 0);
+      ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
+                    QRY_SCAN_ORDER_ALREADY_SET);
+
+      ASSERT_ALWAYS(queryOp->setParallelism(1) != 0);
+      ASSERT_ALWAYS(queryOp->getQuery().getNdbError().code == 
+                    QRY_SEQUENTIAL_SCAN_SORTED);
+    }
   }
 
   void IndexScanOperation::verifyOwnRow(){

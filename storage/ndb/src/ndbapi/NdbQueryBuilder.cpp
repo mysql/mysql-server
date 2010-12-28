@@ -1050,7 +1050,8 @@ NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
   m_ndb(ndb), m_error(),
   m_operations(),
   m_operands(),
-  m_paramCnt(0)
+  m_paramCnt(0),
+  m_hasError(false)
 {
   if (errno == ENOMEM)
   {
@@ -1072,6 +1073,15 @@ NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
   }
 }
 
+void NdbQueryBuilderImpl::setErrorCode(int aErrorCode)
+{ 
+  DBUG_ASSERT(aErrorCode != 0);
+  m_error.code = aErrorCode;
+  if (aErrorCode == Err_MemoryAlloc)
+  {
+    m_hasError = true;
+  }
+}
 
 bool 
 NdbQueryBuilderImpl::contains(const NdbQueryOperationDefImpl* opDef)
