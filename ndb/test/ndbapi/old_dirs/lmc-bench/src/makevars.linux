@@ -1,6 +1,0 @@
-PROJECT_TOP = /home/lmcritr/ecurlmc/users/lmcritr/dbBenchmark
-
-CFLAGS	    = -Wall -Wstrict-prototypes -O2 -I/opt/TimesTen4.1/32/include/ -I../include
-LDFLAGS     = -L/opt/TimesTen4.1/32/lib -Wl,-rpath,/opt/TimesTen4.1/32/lib
-LIBS        = -ltten -ldl
-LIBSCS      = -lttclient -ldl
