@@ -1,8 +1,0 @@
-one db-node
-testOIBasic -case t -table 1 -index 1 -fragtype small -threads 10 -rows 5000 -subloop 1
-------------------------------------------------------------
-040331
-build index - 5769 ms per 50000 ( 115 ms per 1000 )
-update - 5962 ms per 50000 ( 119 ms per 1000 )
-update indexed - 14851 ms per 50000 ( 297 ms per 1000 )
-overhead - 149 pct
