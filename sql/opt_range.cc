@@ -5711,8 +5711,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
       bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr-1);
   }
   ror_scan->index_read_cost=
-    param->table->file->keyread_time(ror_scan->keynr, 1,
-                                     param->table->quick_rows[ror_scan->keynr]);
+    param->table->file->keyread_time(ror_scan->keynr, 1, ror_scan->records);
   DBUG_RETURN(ror_scan);
 }
 
