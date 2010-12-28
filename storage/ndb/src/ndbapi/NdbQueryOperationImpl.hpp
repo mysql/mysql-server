@@ -109,9 +109,6 @@ public:
 
   void setErrorCode(int aErrorCode);
 
-  /** Set an error code and initiate transaction abort.*/
-  void setErrorCodeAbort(int aErrorCode);
-
   /** Assign supplied parameter values to the parameter placeholders
    *  created when the query was defined.
    *  Values are *copied* into this NdbQueryImpl object:

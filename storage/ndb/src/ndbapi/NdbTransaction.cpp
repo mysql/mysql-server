@@ -836,7 +836,7 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     NdbQueryImpl* last = NULL;
     while (query!=NULL) {
       const int tReturnCode = query->prepareSend();
-      if (tReturnCode == -1) {
+      if (unlikely(tReturnCode != 0)) {
         theSendStatus = sendABORTfail;
         DBUG_VOID_RETURN;
       }//if
@@ -2976,7 +2976,7 @@ NdbTransaction::createQuery(const NdbQueryDef* def,
 
   const int error = query->assignParameters(paramValues);
   if (unlikely(error)) {
-    setErrorCode(error);
+    // Error code for transaction is already set.
     query->release();
     return NULL;
   }
