@@ -1,0 +1,419 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+DROP DATABASE IF EXISTS world;
+--enable_warnings
+
+set names utf8;
+
+CREATE DATABASE world;
+
+use world;
+
+--source include/world_schema.inc
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+--source include/world.inc
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+SELECT COUNT(*) FROM Country;
+SELECT COUNT(*) FROM City;
+SELECT COUNT(*) FROM CountryLanguage;
+
+CREATE INDEX Name ON City(Name);
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+ANALYZE TABLE City;
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+
+SET SESSION optimizer_switch='index_merge_sort_intersection=on';
+
+SELECT COUNT(*) FROM City;
+
+# The output of the next 6 queries tells us about selectivities
+# of the conditions utilized in 4 queries following after them  
+
+SELECT COUNT(*) FROM City WHERE Name LIKE 'C%';
+SELECT COUNT(*) FROM City WHERE Name LIKE 'M%';
+SELECT COUNT(*) FROM City WHERE Population > 1000000;
+SELECT COUNT(*) FROM City WHERE Population > 1500000;
+SELECT COUNT(*) FROM City WHERE Population > 300000;
+SELECT COUNT(*) FROM City WHERE Population > 5000000;
+
+# The pattern of the WHERE condition used in the following 4 queries is
+#   range(key1) AND range(key2)
+# Varying values of the constants in the  conjuncts of the condition
+# we can get either an index intersection retrieval over key1 and key2
+# or a range index scan for one of these indexes
+
+EXPLAIN
+SELECT * FROM City WHERE
+  Name LIKE 'C%' AND Population > 1000000; 
+
+EXPLAIN
+SELECT * FROM City WHERE
+  Name LIKE 'M%' AND Population > 1500000; 
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE Name LIKE 'M%' AND Population > 300000;
+
+EXPLAIN
+SELECT * FROM City
+  WHERE Name LIKE 'M%' AND Population > 5000000;
+
+
+# The following 8 queries check that 
+# the previous 4 plans are valid and return
+# the correct results when executed
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE Name LIKE 'C%' AND Population > 1000000;
+--sorted_result 
+SELECT * FROM City
+  WHERE Name LIKE 'C%' AND Population > 1000000; 
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE Name LIKE 'M%' AND Population > 1500000; 
+--sorted_result
+SELECT * FROM City 
+  WHERE Name LIKE 'M%' AND Population > 1500000; 
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE Name LIKE 'M%' AND Population > 300000;
+--sorted_result
+SELECT * FROM City 
+  WHERE Name LIKE 'M%' AND Population > 300000;
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE Name LIKE 'M%' AND Population > 5000000;
+
+SELECT * FROM City
+  WHERE Name LIKE 'M%' AND Population > 5000000;
+
+
+# The output of the next 6 queries tells us about selectivities
+# of the conditions utilized in 3 queries following after them  
+
+SELECT COUNT(*) FROM City WHERE Name BETWEEN 'M' AND 'N';
+SELECT COUNT(*) FROM City WHERE Name BETWEEN 'G' AND 'J'; 
+SELECT COUNT(*) FROM City WHERE Population > 1000000;
+SELECT COUNT(*) FROM City WHERE Population > 500000;
+SELECT COUNT(*) FROM City WHERE Country LIKE 'C%';
+SELECT COUNT(*) FROM City WHERE Country LIKE 'B%';
+
+
+# The pattern of the WHERE condition used in the following 3 queries is
+#   range(key1) AND range(key2) AND range(key3)
+# Varying values of the constants in the  conjuncts of the condition
+# we can get index intersection over different pairs of keys:
+# over(key1,key2), over(key1,key3) and over(key2,key3)
+
+
+EXPLAIN
+SELECT * FROM City
+  WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+
+
+# The following 6 queries check that 
+# the previous 3 plans are valid and return
+# the correct results when executed
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
+
+SELECT * FROM City
+  WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
+
+SELECT * FROM City 
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+
+SELECT * FROM City 
+  WHERE Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+
+
+# The output of the next 12 queries tells us about selectivities
+# of the conditions utilized in 5 queries following after them  
+
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 501 AND 1000;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 1 AND 500;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 2001 AND 2500;
+SELECT COUNT(*) FROM City WHERE ID BETWEEN 3701 AND 4000;
+SELECT COUNT(*) FROM City WHERE Population > 700000;
+SELECT COUNT(*) FROM City WHERE Population > 1000000;
+SELECT COUNT(*) FROM City WHERE Population > 300000;
+SELECT COUNT(*) FROM City WHERE Population > 600000;
+SELECT COUNT(*) FROM City WHERE Country LIKE 'C%';
+SELECT COUNT(*) FROM City WHERE Country LIKE 'A%';
+SELECT COUNT(*) FROM City WHERE Country LIKE 'L%';
+SELECT COUNT(*) FROM City WHERE Country BETWEEN 'S' AND 'Z';
+
+
+# The pattern of the WHERE condition used in the following 5 queries is
+#   range(key1) AND range(key2) AND range(key3)
+# with key1 happens to be a primary key (it matters only for InnoDB)
+# Varying values of the constants in the  conjuncts of the condition
+# we can get index intersection  either over all three keys, or over
+# different pairs, or a range scan over one of these keys.
+# Bear in mind that the condition (Country LIKE 'A%') is actually
+# equivalent to the condition (Country BETWEEN 'A' AND 'B') for the
+# tested instance the table City. 
+
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE ID BETWEEN 3701 AND 4000 AND Population > 1000000
+        AND Country BETWEEN 'S' AND 'Z';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z' ;
+
+
+# The following 10 queries check that 
+# the previous 5 plans are valid and return
+# the correct results when executed
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
+
+SELECT * FROM City
+  WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
+--sorted_result
+SELECT * FROM City
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
+
+SELECT * FROM City 
+  WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'L%';
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE ID BETWEEN 3701 AND 4000 AND Population > 700000
+        AND Country BETWEEN 'S' AND 'Z';
+--sorted_result
+SELECT * FROM City 
+  WHERE ID BETWEEN 3701 AND 4000 AND Population > 700000
+        AND Country BETWEEN 'S' AND 'Z';
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z' ;
+--sorted_result
+SELECT * FROM City 
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z' ;
+
+
+SET SESSION sort_buffer_size = 2048;
+
+
+# The following EXPLAIN command demonstrate that the execution plans
+# may be different if sort_buffer_size is set to a small value
+
+
+EXPLAIN
+SELECT * FROM City WHERE
+  Name LIKE 'C%' AND Population > 1000000; 
+
+EXPLAIN
+SELECT * FROM City WHERE
+  Name LIKE 'M%' AND Population > 1500000; 
+
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+
+
+EXPLAIN
+SELECT * FROM City
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z';
+
+
+#Yet the query themselves return the correct results in this case as well
+
+--sorted_result
+SELECT * FROM City WHERE
+  Name LIKE 'C%' AND Population > 1000000; 
+
+SELECT * FROM City WHERE
+  Name LIKE 'M%' AND Population > 1500000; 
+
+
+SELECT * FROM City 
+  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 700000 AND Country LIKE 'B%';
+
+SELECT * FROM City 
+  WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
+
+
+SELECT * FROM City
+  WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
+--sorted_result
+SELECT * FROM City 
+  WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
+        AND Country BETWEEN 'S' AND 'Z';
+
+
+SET SESSION sort_buffer_size = default;
+
+# Instead of the index on the column Country create two compound indexes
+# including this column as the first component
+
+DROP INDEX Country ON City;
+
+CREATE INDEX CountryID ON City(Country,ID);
+CREATE INDEX CountryName ON City(Country,Name);
+
+--disable_query_log
+--disable_result_log
+--disable_warnings
+ANALYZE TABLE City;
+--enable_warnings
+--enable_result_log
+--enable_query_log
+
+# Check that the first component of a compound index can be used for
+# index intersection, even in the cases when we have a ref access
+# for this component
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE Country LIKE 'M%' AND Population > 1000000;
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE Country='CHN' AND Population > 1500000;
+
+EXPLAIN
+SELECT * FROM City 
+  WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
+
+
+# Check that the previous 3 plans return the right results when executed
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE Country LIKE 'M%' AND Population > 1000000;
+--sorted_result
+SELECT * FROM City 
+  WHERE Country LIKE 'M%' AND Population > 1000000;
+
+--sorted_result
+SELECT * FROM City USE INDEX ()
+  WHERE Country='CHN' AND Population > 1500000;
+--sorted_result
+SELECT * FROM City 
+  WHERE Country='CHN' AND Population > 1500000;
+
+
+SELECT * FROM City USE INDEX ()
+  WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
+
+SELECT * FROM City 
+  WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
+
+
+DROP DATABASE world;
+
+use test;
+
+#
+# Bug #684086: crash with EXPLAIN in InnoDB for index intersection
+#              of two indexes one of which is primary
+#
+
+CREATE TABLE t1 (
+  f1 int,
+  f4 varchar(32),
+  f5 int,
+  PRIMARY KEY (f1),
+  KEY (f4)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES 
+  (5,'H',1), (9,'g',0), (527,'i',0), (528,'y',1), (529,'S',6),
+  (530,'m',7), (531,'b',2), (532,'N',1), (533,'V',NULL), (534,'l',1),
+  (535,'M',0), (536,'w',1), (537,'j',5), (538,'l',0), (539,'n',2),
+  (540,'m',2), (541,'r',2), (542,'l',2), (543,'h',3),(544,'o',0),
+  (956,'h',0), (957,'g',0), (958,'W',5), (959,'s',3), (960,'w',0),
+  (961,'q',0), (962,'e',NULL), (963,'u',7), (964,'q',1), (965,'N',NULL),
+  (966,'e',0), (967,'t',3), (968,'e',6), (969,'f',NULL), (970,'j',0),
+  (971,'s',3), (972,'I',0), (973,'h',4), (974,'g',1), (975,'s',0),
+  (976,'r',3), (977,'x',1), (978,'v',8), (979,'j',NULL), (980,'z',7),
+  (981,'t',9), (982,'j',5), (983,'u',NULL), (984,'g',6), (985,'w',1),
+  (986,'h',1), (987,'v',0), (988,'v',0), (989,'c',2), (990,'b',7),
+  (991,'z',0), (992,'M',1), (993,'u',2), (994,'r',2), (995,'b',4),
+  (996,'A',2), (997,'u',0), (998,'a',0), (999,'j',2), (1,'I',2);
+
+EXPLAIN
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+
+SELECT * FROM t1
+WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
+
+DROP TABLE t1;
+
+SET SESSION optimizer_switch='index_merge_sort_intersection=on';

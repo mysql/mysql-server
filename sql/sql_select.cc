@@ -2688,6 +2688,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       goto error;
     }
     table->quick_keys.clear_all();
+    table->intersect_keys.clear_all();
     table->reginfo.join_tab=s;
     table->reginfo.not_exists_optimize=0;
     bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->s->keys);
@@ -6373,8 +6374,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       used_tables|=current_map;
 
       if (tab->type == JT_REF && tab->quick &&
-	  (uint) tab->ref.key == tab->quick->index &&
-	  tab->ref.key_length < tab->quick->max_used_key_length)
+	  (((uint) tab->ref.key == tab->quick->index &&
+	    tab->ref.key_length < tab->quick->max_used_key_length) ||
+	    tab->table->intersect_keys.is_set(tab->ref.key)))
       {
 	/* Range uses longer key;  Use this instead of ref on key */
 	tab->type=JT_ALL;
@@ -10186,6 +10188,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->quick_keys.init();
   table->covering_keys.init();
   table->merge_keys.init();
+  table->intersect_keys.init();
   table->keys_in_use_for_query.init();
 
   table->s= share;
@@ -13678,7 +13681,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       by clustered PK values.
     */
   
-    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
+    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+        quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
       DBUG_RETURN(0);
@@ -14084,6 +14088,7 @@ check_reverse_order:
         QUICK_SELECT_DESC *tmp;
         int quick_type= select->quick->get_type();
         if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION ||
             quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
@@ -14256,6 +14261,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     select->cleanup();				// filesort did select
     tab->select= 0;
     table->quick_keys.clear_all();  // as far as we cleanup select->quick
+    table->intersect_keys.clear_all();
     table->sort.io_cache= tablesort_result_cache;
   }
   tab->select_cond=0;
@@ -16880,6 +16886,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         quick_type= tab->select->quick->get_type();
         if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
           tab->type = JT_INDEX_MERGE;
         else
@@ -17092,6 +17099,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
+            quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
         {
           extra.append(STRING_WITH_LEN("; Using "));

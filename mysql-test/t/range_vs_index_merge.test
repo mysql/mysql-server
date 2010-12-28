@@ -33,6 +33,8 @@ ANALYZE TABLE City;
 --enable_result_log
 --enable_query_log
 
+set session optimizer_switch='index_merge_sort_intersection=off';
+
 # The following 4 queries are added for code coverage 
 
 #the exptected # of rows differ on 32-bit and 64-bit platforms for innodb 
@@ -1007,3 +1009,6 @@ SELECT * FROM t1 FORCE KEY (PRIMARY,f3,f4)
 SET SESSION optimizer_switch=DEFAULT;
 
 DROP TABLE t1;
+
+#the following command must be the last one in the file
+set session optimizer_switch='index_merge_sort_intersection=default';

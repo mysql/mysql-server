@@ -736,6 +736,7 @@ select * from information_schema.session_variables where variable_name like 'tmp
 # Bug #19606: make ssl settings available via SHOW VARIABLES and @@variables
 # 
 # Don't actually output, since it depends on the system
+set sort_buffer_size=1024*8;
 --replace_column 1 # 2 # 3 # 4 # 5 #
 select @@ssl_ca, @@ssl_capath, @@ssl_cert, @@ssl_cipher, @@ssl_key;
 --replace_column 2 #
