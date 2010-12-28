@@ -1683,8 +1683,8 @@ row_upd_clust_rec_by_insert_inherit_func(
 		len = dfield_get_len(dfield);
 		ut_a(len != UNIV_SQL_NULL);
 		ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
-		data = dfield_get_data(dfield) + len
-			- BTR_EXTERN_FIELD_REF_SIZE;
+		data = dfield_get_data(dfield);
+		data += len - BTR_EXTERN_FIELD_REF_SIZE;
 		/* The pointer must not be zero. */
 		ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 		/* The BLOB must be owned. */
