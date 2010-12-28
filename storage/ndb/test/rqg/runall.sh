@@ -5,11 +5,51 @@ set -e
 : ${load:=1}
 : ${loops:=100}
 : ${queries:=1000}
+: ${host:=loki43}
+: ${port:=4401}
+: ${RQG_HOME:=/net/fimafeng09/export/home/tmp/oleja/mysql/randgen/randgen-2.2.0}
+
+
+while getopts ":nm:r:l:h:p:" opt; do
+  case $opt in
+    n)
+      load=0
+      ;;
+    m)
+      MYSQLINSTALL=${OPTARG}
+      ;;
+    r)
+      RQG_HOME=${OPTARG}
+      ;;
+    l)
+      loops=${OPTARG}
+      ;;
+    h)
+      host=${OPTARG}
+      ;;
+    p)
+      port=${OPTARG}
+      ;;
+    \?)
+      echo "Usage: `basename $0` [options]"  >&2
+      echo "-n : Do not create database (assumed to exist already)."  >&2
+      echo "-m <mysql install dir>"  >&2
+      echo "-r <rqg installation dir>"  >&2
+      echo "-l <no of loops>"  >&2
+      echo "-h <host>"  >&2
+      echo "-p <port>"  >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+
 
 pre="spj"
 opre="$pre.$$"
-
-: ${RQG_HOME:=/net/fimafeng09/export/home/tmp/oleja/mysql/randgen/randgen-2.2.0}
 
 : ${data:= --spec=simple.zz}
 : ${grammar:=spj_test.yy}
@@ -33,9 +73,9 @@ gensql=${RQG_HOME}/gensql.pl
 gendata=${RQG_HOME}/gendata.pl
 ecp="set engine_condition_pushdown=on;"
 
-dsn=dbi:mysql:host=loki43:port=4401:user=root:database=${pre}_myisam
-mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot"
-mysql="$MYSQLINSTALL/bin/mysql --host=loki43 --port=4401"
+dsn=dbi:mysql:host=${host}:port=${port}:user=root:database=${pre}_myisam
+mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot --host=${host} --port=${port}"
+mysql="$MYSQLINSTALL/bin/mysql --host=${host} --port=${port}"
 
 # Create database with a case sensitive collation to ensure a deterministic 
 # resultset when 'LIMIT' is specified:
