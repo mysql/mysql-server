@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (a varchar(10) character set utf8);
 load data infile '../../std_data/loaddata6.dat' into table t1;
 set @@character_set_database=koi8r;
@@ -76,3 +72,4 @@ E4B880E4BA8CE4B889
 E59B9BE4BA94E585AD
 E4B883E585ABE4B99D
 DROP DATABASE mysqltest;
+include/rpl_end.inc

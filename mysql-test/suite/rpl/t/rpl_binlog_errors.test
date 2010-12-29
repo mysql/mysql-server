@@ -14,9 +14,9 @@
 # 
 # Test cases are documented inline.
 
--- source include/master-slave.inc
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
+-- source include/master-slave.inc
 
 -- echo #######################################################################
 -- echo ####################### PART 1: MASTER TESTS ##########################
@@ -295,7 +295,8 @@ DROP TABLE t5;
 ###            failure to write the rotate event.
 
 # restart the server so that we have binlog again
---source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 # +d,fault_injection_openning_index => injects fault on MYSQL_BIN_LOG::open_index_file
 SET GLOBAL debug="+d,fault_injection_openning_index";
@@ -316,7 +317,8 @@ DELETE FROM t2;
 DROP TABLE t5;
 
 # restart the server so that we have binlog again
--- source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 -- echo ###################### TEST #12
 
@@ -342,7 +344,8 @@ DELETE FROM t2;
 DROP TABLE t5;
 
 # restart the server so that we have binlog again
--- source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 ## clean up
 SET GLOBAL debug= @old_debug;
@@ -359,9 +362,7 @@ RESET MASTER;
 -- echo #######################################################################
 
 ### setup
--- connection master
-# master-slave-reset starts the slave automatically
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection slave
 
 # slave suppressions
@@ -404,12 +405,9 @@ call mtr.add_suppression("Can't generate a unique log-filename .*");
 -- source include/io_thd_fault_injection.inc
 
 ### clean up
--- disable_warnings
--- source include/stop_slave.inc
--- enable_warnings
+-- source include/stop_slave_sql.inc
 SET GLOBAL debug=@old_debug;
 RESET SLAVE;
 RESET MASTER;
--- source include/start_slave.inc
--- connection master
--- source include/master-slave-end.inc
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

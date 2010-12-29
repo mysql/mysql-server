@@ -609,6 +609,7 @@ UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_warnings;
 
 connection slave;
+change master to master_user='root',master_password='';
 source include/start_slave.inc;
 
 connection master;
@@ -618,3 +619,4 @@ sync_slave_with_master;
 connection master;
 drop user rpl@127.0.0.1;
 flush privileges;
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 *** Preparing data ***
 CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(10)) ENGINE=MyISAM;
@@ -33,6 +29,7 @@ a	b
 SELECT * FROM t3 ORDER BY a;
 a	b
 1	ZZ
+include/wait_for_slave_sql_error.inc [errno=1146]
 SHOW TABLES LIKE 't%';
 Tables_in_test (t%)
 t1
@@ -44,7 +41,7 @@ a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
 1	AA_for_row_or_YY_for_stmt_mixed
-include/stop_slave.inc
+include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;
 include/start_slave.inc
 TRUNCATE t1;
@@ -60,6 +57,7 @@ INSERT INTO t3 VALUES(2, 'B');
 INSERT INTO t2 VALUES(2, 'B');
 INSERT INTO t1 VALUES(2, 'B');
 UPDATE t1 SET b = 'X' WHERE a = 2;
+include/wait_for_slave_sql_error.inc [errno=1146]
 SELECT * FROM t1 ORDER BY a;
 a	b
 2	X
@@ -78,7 +76,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
-include/stop_slave.inc
+include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;
 include/start_slave.inc
 TRUNCATE t1;
@@ -95,6 +93,7 @@ INSERT INTO t1 VALUES (3, 'C'), (4, 'D');
 INSERT INTO t2 VALUES (3, 'C'), (4, 'D');
 INSERT INTO t3 VALUES (3, 'C'), (4, 'D');
 COMMIT;
+include/wait_for_slave_sql_error.inc [errno=1146]
 SELECT * FROM t1 ORDER BY a;
 a	b
 3	C
@@ -116,8 +115,9 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
-include/stop_slave.inc
+include/stop_slave_io.inc
 RENAME TABLE t3_bak TO t3;
 include/start_slave.inc
 *** Clean up ***
 DROP TABLE t1,t2,t3;
+include/rpl_end.inc
