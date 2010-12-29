@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t11;
 drop table if exists t11;
 create table t2 (n int);
@@ -26,7 +22,7 @@ n
 select * from t11;
 ERROR 42S02: Table 'test.t11' doesn't exist
 drop table if exists t1,t2,t11;
-Replicate_Do_Table	test.t1
+Replicate_Do_Table = 'test.t1'
 create table t1 (ts timestamp);
 set one_shot time_zone='met';
 insert into t1 values('2005-08-12 00:00:00');
@@ -73,3 +69,4 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 *** master ***
 drop table t1;
 drop table t2;
+include/rpl_end.inc

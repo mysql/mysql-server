@@ -16,6 +16,8 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
+#include <my_global.h>
+
 /*
   the following #define adds server-only members to enum_mysql_show_type,
   that is defined in plugin.h
