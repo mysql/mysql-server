@@ -180,5 +180,3 @@ DROP TABLE t1;
 DROP TABLE t3;
 
 --echo End of 6.0 tests
-
---source include/master-slave-end.inc

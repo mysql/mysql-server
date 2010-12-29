@@ -119,7 +119,5 @@ DROP TABLE t1, logtbl;
 DROP PROCEDURE just_log;
 DROP PROCEDURE calc_and_log;
 DROP FUNCTION log_rows;
-sync_slave_with_master;
 
-source include/reset_master_and_slave.inc;
-
+--source include/rpl_end.inc

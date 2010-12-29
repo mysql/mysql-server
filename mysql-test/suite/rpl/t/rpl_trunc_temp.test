@@ -52,3 +52,6 @@ let $wait_binlog_event= DROP;
 source include/wait_for_binlog_event.inc;
 
 show status like 'Slave_open_temp_tables';
+
+
+--source include/rpl_end.inc
