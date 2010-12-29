@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET @positive= 18446744073709551615;
 SET @negative= -9223372036854775808;
 CREATE TABLE t1 (`tinyint` TINYINT,
@@ -58,7 +54,7 @@ real	18446744073709552000.00
 decimal	18446744073709551615.00
 #########################################
 ## assertion: master and slave tables are in sync
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE t1;
 ### b) user var
 INSERT INTO t1 VALUES (@positive,
@@ -110,7 +106,7 @@ real	18446744073709552000.00
 decimal	18446744073709551615.00
 #########################################
 ## assertion: master and slave tables are in sync
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE t1;
 ### insert min signed
 ### a) declarative
@@ -150,7 +146,7 @@ real	-9223372036854776000.00
 decimal	-9223372036854775808.00
 #########################################
 ## assertion: master and slave tables are in sync
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE t1;
 ### b) user var
 INSERT INTO t1 VALUES (@negative,
@@ -202,16 +198,11 @@ real	-9223372036854776000.00
 decimal	-9223372036854775808.00
 #########################################
 ## assertion: master and slave tables are in sync
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 TRUNCATE t1;
 ## check: contents of both tables master's and slave's
 DROP TABLE t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
 CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
 SET @aux = 10294947273192243200;
@@ -219,6 +210,7 @@ SET @aux1= @aux;
 INSERT INTO t1 VALUES (@aux) , (@aux1);
 ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
 ## assertion: master and slave tables are in sync
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 DROP TRIGGER tr1;
 DROP TABLE t1;
+include/rpl_end.inc

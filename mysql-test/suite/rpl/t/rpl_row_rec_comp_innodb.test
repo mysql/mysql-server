@@ -8,3 +8,4 @@
 
 -- let $engine= InnoDB
 -- source extra/rpl_tests/rpl_record_compare.test
+--source include/rpl_end.inc
