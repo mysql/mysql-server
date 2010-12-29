@@ -58,6 +58,6 @@ sync_with_master;
 use test1;
 select * from t1;
 
-drop database test1;
 connection master;
 drop database test1;
+--source include/rpl_end.inc

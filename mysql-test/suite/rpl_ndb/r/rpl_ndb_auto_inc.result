@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ***************** Test 1 ************************
 
 CREATE TABLE t1 (a INT NOT NULL auto_increment,b INT, PRIMARY KEY (a)) ENGINE=NDB auto_increment=3;
@@ -168,3 +164,4 @@ a
 32
 42
 drop table t1;
+include/rpl_end.inc

@@ -57,4 +57,4 @@ SET GLOBAL debug= '$debug_save';
 
 connection master;
 DROP TABLE t1, t2;
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

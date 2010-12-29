@@ -11,4 +11,4 @@ source extra/rpl_tests/rpl_stm_create_if_not_exists.test;
 let $is_temporary=1;
 source extra/rpl_tests/rpl_stm_create_if_not_exists.test;
 
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

@@ -76,3 +76,4 @@ sync_slave_with_master;
 connection master;
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
 sync_slave_with_master;
+--source include/rpl_end.inc

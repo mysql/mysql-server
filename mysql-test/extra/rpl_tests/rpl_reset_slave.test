@@ -54,9 +54,9 @@ source include/check_slave_no_error.inc;
 change master to master_user='impossible_user_name';
 start slave;
 let $slave_io_errno= 1045;
-source include/wait_for_slave_io_error.inc;
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 
-source include/stop_slave.inc;
 change master to master_user='root';
 source include/start_slave.inc;
 source include/check_slave_no_error.inc;
@@ -69,8 +69,11 @@ source include/stop_slave.inc;
 change master to master_user='impossible_user_name';
 start slave;
 let $slave_io_errno= 1045;
-source include/wait_for_slave_io_error.inc;
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 
-source include/stop_slave.inc;
 reset slave;
 source include/check_slave_no_error.inc;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ###################################################################################
 #                                   CONFIGURATION
 ###################################################################################
@@ -868,12 +864,7 @@ DROP TABLE nt_4;
 DROP PROCEDURE pc_i_tt_3;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE TABLE `t1` ( 
 `c1` int(10) unsigned NOT NULL AUTO_INCREMENT, 
 `c2` tinyint(1) unsigned DEFAULT NULL, 
@@ -887,5 +878,6 @@ INSERT INTO t1 (c1,c2,c3,c4,c5) VALUES (1, 1, 'X', 1, NULL);
 COMMIT;
 ROLLBACK;
 SET AUTOCOMMIT=1;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE `t1`;
+include/rpl_end.inc
