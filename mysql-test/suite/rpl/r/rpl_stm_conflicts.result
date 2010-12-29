@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Initialize ====
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -19,6 +15,7 @@ a
 1
 [on slave]
 ---- Wait until slave stops with an error ----
+include/wait_for_slave_sql_error.inc [errno=1062]
 Last_SQL_Error (expected "duplicate key" error)
 Error 'Duplicate entry '1' for key 'PRIMARY'' on query. Default database: 'test'. Query: 'INSERT INTO t1 VALUES (1)'
 SELECT * FROM t1;
@@ -27,6 +24,7 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 DELETE FROM t1 WHERE a = 1;
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 ---- Sync slave and verify that there is no error ----
 Last_SQL_Error = '' (expected no error)
 SELECT * FROM t1;
@@ -53,3 +51,4 @@ a
 [on master]
 DROP TABLE t1;
 [on slave]
+include/rpl_end.inc

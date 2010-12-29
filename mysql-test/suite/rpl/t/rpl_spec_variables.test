@@ -304,3 +304,4 @@ SET @@global.storage_engine=@restore_slave_storage_engine;
 call mtr.add_suppression("The table 't[12]' is full");
 
 # End of 5.1 test 
+--source include/rpl_end.inc
