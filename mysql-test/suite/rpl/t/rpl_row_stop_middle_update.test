@@ -28,5 +28,6 @@ select count(*) from t1;
 connection master;
 drop table t1;
 connection slave; # slave SQL thread is stopped
-source include/stop_slave.inc;
 drop table t1;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

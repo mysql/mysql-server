@@ -34,13 +34,15 @@ USE test_ignore;
 
 connection master;
 DROP DATABASE test_ignore;
+USE test;
+DROP TABLE t1;
 sync_slave_with_master;
+USE test;
+
 
 # Bug#19995: Extreneous table maps generated for statements that does
 # not generate rows
---disable_query_log
---source include/master-slave-reset.inc
---enable_query_log
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TABLE t1 (a INT);
@@ -55,9 +57,7 @@ DROP TABLE t1;
 # BUG#17620: Replicate (Row Based) Fails when Query Cache enabled on
 # slave
 --echo ================ Test for BUG#17620 ================
---disable_query_log
---source include/master-slave-reset.inc
---enable_query_log
+--source include/rpl_reset.inc
 
 --echo **** On Slave **** 
 connection slave;
@@ -89,12 +89,13 @@ sync_slave_with_master;
 SELECT * FROM t1;
 
 SET GLOBAL QUERY_CACHE_SIZE=0;
+--connection master
+DROP TABLE t1;
+
 
 # Bug#22550: Replication of BIT columns failing
 --echo ================ Test for BUG#22550 ================
---disable_query_log
---source include/master-slave-reset.inc
---enable_query_log
+--source include/rpl_reset.inc
 
 connection master;
 CREATE TABLE t1 (a BIT(1), b INT) ENGINE=MYISAM;
@@ -120,9 +121,7 @@ sync_slave_with_master;
 # field does not work
 
 --echo ================ Test for BUG#22583 ================
---disable_query_log
---source include/master-slave-reset.inc
---enable_query_log
+--source include/rpl_reset.inc
 
 # disabling warnings temporarily for ENGINE=INNODB to work without InnoDB
 --disable_warnings
@@ -227,13 +226,10 @@ sync_slave_with_master;
 # row-based replication 
 #
 
-disable_query_log;
-source include/master-slave-reset.inc;
-enable_query_log;
+--source include/rpl_reset.inc
 
 --echo **** On Master ****
 connection master;
-SET SESSION BINLOG_FORMAT=ROW;
 CREATE TABLE t1 (a INT PRIMARY KEY, b SET('master','slave'));
 INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
 --echo **** On Slave ****
@@ -241,7 +237,7 @@ sync_slave_with_master;
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 # since bug#31552/31609 idempotency is not default any longer. In
-# order the preceeding test UPDATE t1 to pass the mode is switched
+# order for the preceeding test UPDATE t1 to pass, the mode is switched
 # temprorarily
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 --echo **** On Master ****
@@ -255,9 +251,10 @@ let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
 disable_query_log;
 eval SELECT "$last_error" AS Last_SQL_Error;
 enable_query_log;
+
 SELECT * FROM t1 ORDER BY a;
-DROP TABLE t1;
 
 --echo **** On Master ****
 connection master;
 DROP TABLE t1;
+--source include/rpl_end.inc

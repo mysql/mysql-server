@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 SELECT * FROM t1 ORDER BY word;
@@ -151,3 +147,4 @@ Abernathy
 aberrant
 aberration
 drop table t1;
+include/rpl_end.inc

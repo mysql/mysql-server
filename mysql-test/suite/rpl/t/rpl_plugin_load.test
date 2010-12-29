@@ -56,5 +56,5 @@ SELECT * FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='EXAMPLE';
 sync_slave_with_master;
 #
 # Cleanup
---source include/master-slave-end.inc
+--source include/rpl_end.inc
 --echo End of test

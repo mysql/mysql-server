@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop database if exists mysqltest1;
 create database mysqltest1;
 use mysqltest1;
@@ -427,3 +423,4 @@ INSERT INTO t13 VALUES (CURRENT_USER());
 INSERT INTO t13 VALUES (my_current_user());
 drop database mysqltest1;
 set global binlog_format =@my_binlog_format;
+include/rpl_end.inc

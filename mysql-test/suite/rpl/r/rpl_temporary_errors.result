@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Deadlock found");
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
@@ -40,12 +36,9 @@ a	b
 2	2
 3	3
 4	4
-Checking that both slave threads are running.
-DROP TABLE t1;
+include/check_slave_is_running.inc
 **** On Master ****
-SET SQL_LOG_BIN= 0;
 DROP TABLE t1;
-SET SQL_LOG_BIN= 1;
 SET SESSION BINLOG_FORMAT=MIXED;
 CREATE TABLE t_myisam (id INT, PRIMARY KEY (id)) engine= MyIsam;
 INSERT INTO t_myisam (id) VALUES(1);
@@ -101,3 +94,4 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb(id) VALUES(1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_innodb(id) VALUES(1)
 master-bin.000001	#	Query	#	#	ROLLBACK
 DROP TABLE t_myisam, t_innodb;
+include/rpl_end.inc

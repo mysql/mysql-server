@@ -1,33 +1,32 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
-stop slave;
+include/stop_slave.inc
 SET @@global.debug= "+d,'debug_lock.before_get_UNIX_TIMESTAMP'";
-start slave;
+include/start_slave.inc
 slave is going to hang in get_master_version_and_clock
+include/rpl_stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_unix_timestamp';
 Check network error happened here
+include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'debug_lock.before_get_UNIX_TIMESTAMP'";
-stop slave;
+include/rpl_start_server.inc [server_number=1]
+include/wait_for_slave_param.inc [Slave_IO_Running]
+include/stop_slave.inc
 SET @@global.debug= "+d,'debug_lock.before_get_SERVER_ID'";
-start slave;
+include/start_slave.inc
 slave is going to hang in get_master_version_and_clock
+include/rpl_stop_server.inc [server_number=1]
 slave is unblocked
 SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
 Check network error happened here
+include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
 set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
+include/rpl_start_server.inc [server_number=1]
+include/wait_for_slave_param.inc [Slave_IO_Running]
 set global debug= '';
-reset master;
-include/stop_slave.inc
-change master to master_port=SLAVE_PORT;
-start slave;
-*** must be having the replicate-same-server-id IO thread error ***
-Last_IO_Error = Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
 SET DEBUG_SYNC= 'RESET';
+include/rpl_end.inc

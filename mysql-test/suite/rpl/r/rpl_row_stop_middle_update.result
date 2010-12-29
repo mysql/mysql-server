@@ -1,17 +1,14 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (words varchar(20)) engine=myisam;
 load data infile '../../std_data/words.dat' into table t1 (words);
 select count(*) from t1;
 count(*)
 70
+include/wait_for_slave_sql_to_stop.inc
 select count(*) from t1;
 count(*)
 70
 drop table t1;
-include/stop_slave.inc
 drop table t1;
+include/rpl_end.inc
