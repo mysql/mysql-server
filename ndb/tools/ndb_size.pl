@@ -1,16 +1,22 @@
 #!/usr/bin/perl -w
 
-use strict;
-
-use DBI;
-use POSIX;
-use HTML::Template;
+# Copyright (C) 2005, 2006 MySQL AB
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 # MySQL Cluster size estimator
 # ----------------------------
-#
-# (C)2005 MySQL AB
-#
 #
 # The purpose of this tool is to work out storage requirements
 # from an existing MySQL database.
@@ -21,8 +27,6 @@ use HTML::Template;
 # We currently estimate sizes for: 4.1, 5.0 and 5.1 to various amounts
 # of accurracy.
 #
-# There is no warranty.
-#
 # BUGS
 # ----
 # - enum/set is 0 byte storage! Woah - efficient!
@@ -31,6 +35,12 @@ use HTML::Template;
 # - no disk data values
 # - computes the storage requirements of views (and probably MERGE)
 # - ignores character sets.
+
+use strict;
+
+use DBI;
+use POSIX;
+use HTML::Template;
 
 my $template = HTML::Template->new(filename => 'ndb_size.tmpl',
 				   die_on_bad_params => 0)
