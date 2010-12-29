@@ -173,6 +173,38 @@ static monitor_info_t	innodb_counter_info[] =
 	{"buffer_byte_written", "Buffer", "Amount of data written in bytes",
 	 MONITOR_EXISTING, MONITOR_OVLD_BYTE_WRITTEN},
 
+	{"buffer_flush_adaptive_flushes", "Buffer", "Occurrences of adaptive flush",
+	 0, MONITOR_NUM_ADAPTIVE_FLUSHES},
+
+	{"buffer_flush_adaptive_pages", "Buffer",
+	 "Number of pages flushed as part of adaptive flushing",
+	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_ADAPTIVE_PAGES},
+
+	{"buffer_flush_async_flushes", "Buffer", "Occurrences of async flush",
+	 0, MONITOR_NUM_ASYNC_FLUSHES},
+
+	{"buffer_flush_async_pages", "Buffer",
+	 "Number of pages flushed as part of async flushing",
+	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_ASYNC_PAGES},
+
+	{"buffer_flush_sync_flushes", "Buffer", "Occurrences of sync flush",
+	 0, MONITOR_NUM_SYNC_FLUSHES},
+
+	{"buffer_flush_sync_pages", "Buffer",
+	 "Number of pages flushed as part of sync flushing",
+	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_SYNC_PAGES},
+
+	{"buffer_flush_max_dirty_flushes", "Buffer", "Occurrences of max dirty page flush",
+	 0, MONITOR_NUM_MAX_DIRTY_FLUSHES},
+
+	{"buffer_flush_max_dirty_pages", "Buffer",
+	 "Number of pages flushed as part of max dirty flushing",
+	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_MAX_DIRTY_PAGES},
+
+	{"buffer_flush_io_capacity_pct", "Buffer",
+	 "Percent of Server I/O capacity during flushing",
+	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_IO_CAPACITY_PCT},
+
 	/* ========== Counters for Buffer Page I/O ========== */
 	{"module_buf_page", "Buffer Page I/O", "Buffer Page I/O Module",
 	 MONITOR_MODULE | MONITOR_GROUP_MODULE, MONITOR_MODULE_BUF_PAGE},
@@ -357,9 +389,6 @@ static monitor_info_t	innodb_counter_info[] =
 	{"log_writes", "Recovery", "Number of log writes",
 	 MONITOR_EXISTING, MONITOR_OVLD_LOG_WRITES},
 
-	{"log_flush_io_capacity", "Recovery",
-	 "Percent of Server I/O capacity during flushing",
-	 MONITOR_DISPLAY_CURRENT, MONITOR_FLUSH_IO_CAPACITY},
 
 	{"log_flush_dirty_page_exceed", "Recovery",
 	 "Number of flush calls when the max dirty page pct was hit",
@@ -464,10 +493,9 @@ srv_mon_get_name(
 /****************************************************************//**
 Turn on/off, reset monitor counters in a module. If module_id
 is MONITOR_ALL_COUNTER then turn on all monitor counters.
-@return	0 if successful, or the first monitor that cannot be
 turned on because it has already been turned on. */
 UNIV_INTERN
-ulint
+void
 srv_mon_set_module_control(
 /*=======================*/
 	monitor_id_t	module_id,	/*!< in: Module ID as in
@@ -505,13 +533,6 @@ srv_mon_set_module_control(
 	}
 
 	for (ix = start_id; ix < NUM_MONITOR; ix++) {
-		/* Cannot turn on a monitor already been turned on. User
-		should be aware some counters are already on before
-		turn them on again (which could reset counter value) */
-		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-			return(ix);
-		}
-
 		/* if we hit the next module counter, we will
 		continue if we want to turn on all monitor counters,
 		and break if just turn on the counters in the
@@ -528,6 +549,15 @@ srv_mon_set_module_control(
 				/* Hitting the next module, stop */
 				break;
 			}
+		}
+
+		/* Cannot turn on a monitor already been turned on. User
+		should be aware some counters are already on before
+		turn them on again (which could reset counter value) */
+		if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
+			fprintf(stderr, "Monitor '%s' is already enabled.\n",
+				srv_mon_get_name((monitor_id_t)ix));
+			continue;
 		}
 
 		/* For some existing counters (server status variables),
@@ -563,8 +593,6 @@ srv_mon_set_module_control(
 			ut_error;
 		}
 	}
-
-	return(0);
 }
 
 /****************************************************************//**

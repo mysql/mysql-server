@@ -48,6 +48,7 @@ if ($master_bind_error_expected)
   # The given master bind address is not valid
   # and replication should fail
   let $slave_io_errno= $master_bind_error_expected;
+  let $slave_io_error_is_nonfatal= 1;
   source include/wait_for_slave_io_error.inc;
   echo got expected error $master_bind_error_expected;
   source include/stop_slave.inc;

@@ -6531,7 +6531,26 @@ MY_UCA_INFO my_uca_v400=
     0,       /*   nitems          */
     NULL,    /*   item            */
     NULL     /*   flags           */
-  }
+  },
+
+  /* Logical positions */
+  0x0009,    /* first_non_ignorable       p != ignore                  */
+  0xA48C,    /* last_non_ignorable        Not a CJK and not UNASSIGNED */
+
+  0x0332,    /* first_primary_ignorable   p == 0                       */
+  0x20EA,    /* last_primary_ignorable                                 */
+
+  0x0000,    /* first_secondary_ignorable p,s == 0                     */
+  0xFE73,    /* last_secondary_ignorable  p,s == 0                     */
+
+  0x0000,    /* first_tertiary_ignorable  p,s,t == 0                   */
+  0xFE73,    /* last_tertiary_ignorable   p,s,t == 0                   */
+
+  0x0000,    /* first_trailing            */
+  0x0000,    /* last_trailing             */
+
+  0x0009,    /* first_variable            */
+  0x2183,    /* last_variable             */
 };
 
 /******************************************************/
@@ -19084,7 +19103,25 @@ MY_UCA_INFO my_uca_v520=
     0,           /*   nitems          */
     NULL,        /*   item            */
     NULL         /*   flags           */
-  }
+  },
+
+  0x0009,    /* first_non_ignorable       p != ignore                       */
+  0x1342E,   /* last_non_ignorable        Not a CJK and not UASSIGNED       */
+
+  0x0332,    /* first_primary_ignorable   p == ignore                       */
+  0x101FD,   /* last_primary_ignorable                                      */
+
+  0x0000,    /* first_secondary_ignorable p,s= ignore                       */
+  0xFE73,    /* last_secondary_ignorable                                    */
+
+  0x0000,    /* first_tertiary_ignorable  p,s,t == ignore                   */
+  0xFE73,    /* last_tertiary_ignorable                                     */
+
+  0x0000,    /* first_trailing                                              */
+  0x0000,    /* last_trailing                                               */
+
+  0x0009,    /* first_variable            if alt=non-ignorable: p != ignore */
+  0x1D371,   /* last_variable             if alt=shifter: p,s,t == ignore   */
 };
 
 
@@ -19259,7 +19296,13 @@ static const char persian[]=
     "& \\u0642 < \\u06A9 < \\u0643"
     "& \\u0648 < \\u0647 < \\u0629 < \\u06C0 < \\u06CC < \\u0649 < \\u064A"
     "& \\uFE80 < \\uFE81 < \\uFE82 < \\uFE8D < \\uFE8E < \\uFB50 < \\uFB51"
-             " < \\uFE80 < \\uFE83 < \\uFE84 < \\uFE87 < \\uFE88 < \\uFE85"
+             " < \\uFE80 "
+    /*
+      FE80 appears both in reset and shift.
+      We need to break the rule here and reset to *new* FE80 again,
+      so weight for FE83 is calculated as P[FE80]+1, not as P[FE80]+8.
+    */
+             " & \\uFE80 < \\uFE83 < \\uFE84 < \\uFE87 < \\uFE88 < \\uFE85"
              " < \\uFE86 < \\u0689 < \\u068A"
     "& \\uFEAE < \\uFDFC"
     "& \\uFED8 < \\uFB8E < \\uFB8F < \\uFB90 < \\uFB91 < \\uFED9 < \\uFEDA"
@@ -19435,11 +19478,15 @@ static uint16 nochar[]= {0,0};
 #define MY_UCA_CNT_FLAG_SIZE 4096
 #define MY_UCA_CNT_FLAG_MASK 4095
 
-#define MY_UCA_CNT_HEAD 1
-#define MY_UCA_CNT_TAIL 2
+#define MY_UCA_CNT_HEAD  1
+#define MY_UCA_CNT_TAIL  2
+#define MY_UCA_CNT_MID1  4
+#define MY_UCA_CNT_MID2  8
+#define MY_UCA_CNT_MID3  16
+#define MY_UCA_CNT_MID4  32
 
-
-
+#define MY_UCA_PREVIOUS_CONTEXT_HEAD 64
+#define MY_UCA_PREVIOUS_CONTEXT_TAIL 128
 
 /********** Helper functions to handle contraction ************/
 
@@ -19471,14 +19518,30 @@ my_uca_add_contraction_flag(MY_UCA_INFO *uca, my_wc_t wc, int flag)
 */
 
 static MY_CONTRACTION *
-my_uca_add_contraction(MY_UCA_INFO *uca,
-                       my_wc_t *wc, int len __attribute__((unused)))
+my_uca_add_contraction(MY_UCA_INFO *uca, my_wc_t *wc, size_t len,
+                       my_bool with_context)
 {
   MY_CONTRACTIONS *list= &uca->contractions;
   MY_CONTRACTION *next= &list->item[list->nitems];
-  DBUG_ASSERT(len == 2); /* We currently support only contraction2 */
-  next->ch[0]= wc[0];
-  next->ch[1]= wc[1];
+  size_t i;
+  /*
+    Contraction is always at least 2 characters.
+    Contraction is never longer than MY_UCA_MAX_CONTRACTION,
+    which is guaranteed by using my_coll_rule_expand() with proper limit.
+  */
+  DBUG_ASSERT(len > 1 && len <= MY_UCA_MAX_CONTRACTION);
+  for (i= 0; i < len; i++)
+  {
+    /*
+      We don't support contractions with U+0000.
+      my_coll_rule_expand() guarantees there're no U+0000 in a contraction.
+    */
+    DBUG_ASSERT(wc[i] != 0);
+    next->ch[i]= wc[i];
+  }
+  if (i < MY_UCA_MAX_CONTRACTION)
+    next->ch[i]= 0; /* Add end-of-line marker */
+  next->with_context= with_context;
   list->nitems++;
   return next;
 }
@@ -19497,11 +19560,12 @@ my_uca_add_contraction(MY_UCA_INFO *uca,
 */
 
 static my_bool
-my_uca_alloc_contractions(MY_UCA_INFO *uca, void *(*alloc)(size_t), size_t n)
+my_uca_alloc_contractions(MY_UCA_INFO *uca,
+                          MY_CHARSET_LOADER *loader, size_t n)
 {
   uint size= n * sizeof(MY_CONTRACTION);
-  if (!(uca->contractions.item= (*alloc)(size)) ||
-      !(uca->contractions.flags= (char *) (*alloc)(MY_UCA_CNT_FLAG_SIZE)))
+  if (!(uca->contractions.item= (loader->once_alloc)(size)) ||
+      !(uca->contractions.flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
     return 1;
   bzero((void *) uca->contractions.item, size);
   bzero((void *) uca->contractions.flags, MY_UCA_CNT_FLAG_SIZE);
@@ -19578,12 +19642,29 @@ my_uca_can_be_contraction_tail(MY_UCA_INFO *uca, my_wc_t wc)
 
 
 /**
+  Check if a character can be contraction part
+
+  @param uca      Pointer to UCA data
+  @param wc       Code point
+
+  @retval   0 - cannot be contraction part
+  @retval   1 - can be contraction part
+*/
+
+my_bool
+my_uca_can_be_contraction_part(MY_UCA_INFO *uca, my_wc_t wc, int flag)
+{
+  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] & flag;
+}
+
+
+/**
   Find a contraction and return its weight array
-  
+
   @param uca      Pointer to UCA data
   @param wc1      First character
   @param wc2      Second character
-  
+
   @return   Weight array
   @retval   NULL - no contraction found
   @retval   ptr  - contraction weight array
@@ -19594,9 +19675,9 @@ my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2)
 {
   MY_CONTRACTIONS *list= &uca->contractions;
   MY_CONTRACTION *c, *last;
-  for (c= list->item, last= &list->item[list->nitems]; c < last; c++)
+  for (c= list->item, last= c + list->nitems; c < last; c++)
   {
-    if (c->ch[0] == wc1 && c->ch[1] == wc2)
+    if (c->ch[0] == wc1 && c->ch[1] == wc2 && c->ch[2] == 0)
     {
       return c->weight;
     }
@@ -19604,6 +19685,175 @@ my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2)
   return NULL;
 }
 
+
+/**
+  Check if a character can be previous context head
+
+  @param uca      Pointer to UCA data
+  @param wc       Code point
+
+  @return
+  @retval   FALSE - cannot be previous context head
+  @retval   TRUE  - can be previous context head
+*/
+
+my_bool
+my_uca_can_be_previous_context_head(MY_UCA_INFO *uca, my_wc_t wc)
+{
+  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] &
+         MY_UCA_PREVIOUS_CONTEXT_HEAD;
+}
+
+
+/**
+  Check if a character can be previois context tail
+
+  @param uca      Pointer to UCA data
+  @param wc       Code point
+
+  @return
+  @retval   FALSE - cannot be contraction tail
+  @retval   TRUE - can be contraction tail
+*/
+
+my_bool
+my_uca_can_be_previous_context_tail(MY_UCA_INFO *uca, my_wc_t wc)
+{
+  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] &
+         MY_UCA_PREVIOUS_CONTEXT_TAIL;
+}
+
+
+/**
+  Compare two wide character strings, wide analog to strncmp().
+
+  @param a      Pointer to the first string
+  @param b      Pointer to the second string
+  @param len    Length of the strings
+
+  @return
+  @retval       0 - strings are equal
+  @retval       non-zero - strings are different
+*/
+
+static int
+my_wmemcmp(my_wc_t *a, my_wc_t *b, size_t len)
+{
+  return memcmp(a, b, len * sizeof(my_wc_t));
+}
+
+
+/**
+  Check if a string is a contraction,
+  and return its weight array on success.
+
+  @param uca    Pointer to UCA data
+  @param wc     Pointer to wide string
+  @param len    String length
+
+  @return       Weight array
+  @retval       NULL - Input string is not a known contraction
+  @retval       ptr  - contraction weight array
+*/
+
+uint16 *
+my_uca_contraction_weight(MY_UCA_INFO *uca, my_wc_t *wc, size_t len)
+{
+  MY_CONTRACTIONS *list= &uca->contractions;
+  MY_CONTRACTION *c, *last;
+  for (c= list->item, last= c + list->nitems; c < last; c++)
+  {
+    if ((len == MY_UCA_MAX_CONTRACTION || c->ch[len] == 0) &&
+        !c->with_context &&
+        !my_wmemcmp(c->ch, wc, len))
+      return c->weight;
+  }
+  return NULL;
+}
+
+
+/**
+  Find a contraction in the input stream and return its weight array
+
+  Scan input characters while their flags tell that they can be
+  a contraction part. Then try to find real contraction among the
+  candidates, starting from the longest.
+
+  @param scanner  Pointer to UCA scanner
+  @param[OUT] *wc Where to store the scanned string
+
+  @return         Weight array
+  @retval         NULL - no contraction found
+  @retval         ptr  - contraction weight array
+*/
+
+static uint16 *
+my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
+{
+  size_t clen= 1;
+  int flag;
+  const uchar *s, *beg[MY_UCA_MAX_CONTRACTION];
+
+  /* Scan all contraction candidates */
+  for (s= scanner->sbeg, flag= MY_UCA_CNT_MID1;
+       clen < MY_UCA_MAX_CONTRACTION;
+       flag<<= 1)
+  {
+    int mblen;
+    if ((mblen= scanner->cs->cset->mb_wc(scanner->cs, &wc[clen],
+                                         s, scanner->send)) <= 0)
+      break;
+    beg[clen]= s= s + mblen;
+    if (!my_uca_can_be_contraction_part(scanner->uca, wc[clen++], flag))
+      break;
+  }
+
+  /* Find among candidates the longest real contraction */
+  for ( ; clen > 1; clen--)
+  {
+    uint16 *cweight;
+    if (my_uca_can_be_contraction_tail(scanner->uca, wc[clen - 1]) &&
+        (cweight= my_uca_contraction_weight(scanner->uca, wc, clen)))
+    {
+      scanner->wbeg= cweight + 1;
+      scanner->sbeg= beg[clen - 1];
+      return cweight;
+    }
+  }
+
+  return NULL; /* No contractions were found */
+}
+
+
+/**
+  Find weight for contraction with previous context
+  and return its weight array.
+
+  @param scanner  Pointer to UCA scanner
+  @param wc0      Previous character
+  @param wc1      Current character
+
+  @return   Weight array
+  @retval   NULL - no contraction with context found
+  @retval   ptr  - contraction weight array
+*/
+
+uint16 *
+my_uca_previous_context_find(my_uca_scanner *scanner,
+                             my_wc_t wc0, my_wc_t wc1)
+{
+  MY_CONTRACTIONS *list= &scanner->uca->contractions;
+  MY_CONTRACTION *c, *last;
+  for (c= list->item, last= c + list->nitems; c < last; c++)
+  {
+    if (c->with_context && wc0 == c->ch[0] && wc1 == c->ch[1])
+    {
+      scanner->wbeg= c->weight + 1;
+      return c->weight;
+    }
+  }
+  return NULL;
+}
 
 /****************************************************************/
 
@@ -19638,164 +19888,12 @@ my_uca_scanner_next_implicit(my_uca_scanner *scanner)
 }
 
 
-#ifdef HAVE_CHARSET_ucs2
-/*
-  Initialize collation weight scanner
-
-  SYNOPSIS:
-    my_uca_scanner_init()
-    scanner	Pointer to an initialized scanner structure
-    cs		Character set + collation information
-    str		Beginning of the string
-    length	Length of the string.
-    
-  NOTES:
-    Optimized for UCS2
-
-  RETURN
-    N/A
-*/
-
-static void my_uca_scanner_init_ucs2(my_uca_scanner *scanner,
-                                     CHARSET_INFO *cs,
-                                     const uchar *str, size_t length)
-{
-  scanner->wbeg= nochar; 
-  if (length)
-  {
-    scanner->sbeg= str;
-    scanner->send= str + length - 2;
-    scanner->uca= cs->uca;
-    return;
-  }
-
-  /*
-    Sometimes this function is called with
-    str=NULL and length=0, which should be
-    considered as an empty string.
-    
-    The above initialization is unsafe for such cases,
-    because scanner->send is initialized to (NULL-2), which is 0xFFFFFFFE.
-    Then we fall into an endless loop in my_uca_scanner_next_ucs2().
-      
-    Do special initialization for the case when length=0.
-    Initialize scanner->sbeg to an address greater than scanner->send.
-    Next call of my_uca_scanner_next_ucs2() will correctly return with -1.
-  */
-  scanner->sbeg= (uchar*) &nochar[1];
-  scanner->send= (uchar*) &nochar[0];
-}
-
-
-/*
-  Read next collation element (weight), i.e. converts
-  a stream of characters into a stream of their weights.
-  
-  SYNOPSIS:
-    my_uca_scanner_next()
-    scanner	Address of a previously initialized scanner strucuture
-    
-  NOTES:
-    Optimized for UCS2
-    
-    Checks if the current character's weight string has been fully scanned,
-    if no, then returns the next weight for this character,
-    else scans the next character and returns its first weight.
-
-    Each character can have number weights from 0 to 8.
-    
-    Some characters do not have weights at all, 0 weights. 
-    It means they are ignored during comparison.
-    
-    Examples:
-    1. 0x0001 START OF HEADING, has no weights, ignored, does
-       not produce any weights.
-    2. 0x0061 LATIN SMALL LETTER A, has one weight.
-       0x0E33 will be returned
-    3. 0x00DF LATIN SMALL LETTER SHARP S, aka SZ ligature,
-       has two weights. It will return 0x0FEA twice for two
-       consequent calls.
-    4. 0x247D PATENTHESIZED NUMBER TEN, has four weights,
-       this function will return these numbers in four 
-       consequent calls: 0x0288, 0x0E2A, 0x0E29, 0x0289
-    5. A string consisting of the above characters:
-       0x0001 0x0061 0x00DF 0x247D
-       will return the following weights, one weight per call:
-       0x0E33 0x0FEA 0x0FEA 0x0288, 0x0E2A, 0x0E29, 0x0289
-    
-  RETURN
-    Next weight, a number between 0x0000 and 0xFFFF
-    Or -1 on error (END-OF-STRING or ILLEGAL MULTIBYTE SEQUENCE)
-*/
-
-static int my_uca_scanner_next_ucs2(my_uca_scanner *scanner)
-{
-  
-  /* 
-    Check if the weights for the previous character have been
-    already fully scanned. If yes, then get the next character and 
-    initialize wbeg and wlength to its weight string.
-  */
-  
-  if (scanner->wbeg[0])
-    return *scanner->wbeg++;
-  
-  do 
-  {
-    uint16 *wpage;
-    
-    if (scanner->sbeg > scanner->send)
-      return -1;
-    
-    scanner->page= (uchar)scanner->sbeg[0];
-    scanner->code= (uchar)scanner->sbeg[1];
-    scanner->sbeg+= 2;
-    
-    if (my_uca_have_contractions_quick(scanner->uca) &&
-        (scanner->sbeg <= scanner->send))
-    {
-      my_wc_t wc1= ((scanner->page << 8) | scanner->code);
-      
-      if (my_uca_can_be_contraction_head(scanner->uca, wc1))
-      {
-        uint16 *cweight;
-        my_wc_t wc2= (((my_wc_t) scanner->sbeg[0]) << 8) | scanner->sbeg[1];
-        if (my_uca_can_be_contraction_tail(scanner->uca, wc2) &&
-          (cweight= my_uca_contraction2_weight(scanner->uca, wc1, wc2)))
-        {
-          scanner->implicit[0]= 0;
-          scanner->wbeg= scanner->implicit;
-          scanner->sbeg+=2;
-          return *cweight;
-        }
-      }
-    }
-    
-    if (!(wpage= scanner->uca->weights[scanner->page]))
-      return my_uca_scanner_next_implicit(scanner);
-    scanner->wbeg= wpage +
-                   scanner->code * scanner->uca->lengths[scanner->page];
-  } while (!scanner->wbeg[0]);
-  
-  return *scanner->wbeg++;
-}
-
-
-static my_uca_scanner_handler my_ucs2_uca_scanner_handler=
-{
-  my_uca_scanner_init_ucs2,
-  my_uca_scanner_next_ucs2
-};
-
-#endif
-
-
 /*
   The same two functions for any character set
 */
-static void my_uca_scanner_init_any(my_uca_scanner *scanner,
-				    CHARSET_INFO *cs __attribute__((unused)),
-				    const uchar *str, size_t length)
+static void
+my_uca_scanner_init_any(my_uca_scanner *scanner,
+                        CHARSET_INFO *cs, const uchar *str, size_t length)
 {
   /* Note, no needs to initialize scanner->wbeg */
   scanner->sbeg= str;
@@ -19807,66 +19905,78 @@ static void my_uca_scanner_init_any(my_uca_scanner *scanner,
 
 static int my_uca_scanner_next_any(my_uca_scanner *scanner)
 {
-  
   /* 
     Check if the weights for the previous character have been
     already fully scanned. If yes, then get the next character and 
     initialize wbeg and wlength to its weight string.
   */
-  
-  if (scanner->wbeg[0])
-    return *scanner->wbeg++;
-  
-  do 
+
+  if (scanner->wbeg[0])      /* More weights left from the previous step: */
+    return *scanner->wbeg++; /* return the next weight from expansion     */
+
+  do
   {
     uint16 *wpage;
-    my_wc_t wc;
-    int mb_len;
-    
-    if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc, 
+    my_wc_t wc[MY_UCA_MAX_CONTRACTION];
+    int mblen;
+
+    /* Get next character */
+    if (((mblen= scanner->cs->cset->mb_wc(scanner->cs, wc,
                                           scanner->sbeg,
                                           scanner->send)) <= 0))
       return -1;
-    
-    scanner->sbeg+= mb_len;
-    if (wc > scanner->uca->maxchar)
+
+    scanner->sbeg+= mblen;
+    if (wc[0] > scanner->uca->maxchar)
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
       scanner->wbeg= nochar;
       return 0xFFFD;
     }
-    else
+
+    if (my_uca_have_contractions_quick(scanner->uca))
     {
-      scanner->page= wc >> 8;
-      scanner->code= wc & 0xFF;
-    }
-    
-    if (my_uca_have_contractions_quick(scanner->uca) &&
-        my_uca_can_be_contraction_head(scanner->uca, wc))
-    {
-      my_wc_t wc2;
       uint16 *cweight;
-      
-      if (((mb_len= scanner->cs->cset->mb_wc(scanner->cs, &wc2,
-                                            scanner->sbeg, 
-                                            scanner->send)) >=0) &&
-          my_uca_can_be_contraction_tail(scanner->uca, wc2) &&
-          (cweight= my_uca_contraction2_weight(scanner->uca, wc, wc2)))
+      /*
+        If we have scanned a character which can have previous context,
+        and there were some more characters already before,
+        then reconstruct codepoint of the previous character
+        from "page" and "code" into w[1], and verify that {wc[1], wc[0]}
+        together form a real previous context pair.
+        Note, we support only 2-character long sequences with previous
+        context at the moment. CLDR does not have longer sequences.
+      */
+      if (my_uca_can_be_previous_context_tail(scanner->uca, wc[0]) &&
+          scanner->wbeg != nochar &&     /* if not the very first character */
+          my_uca_can_be_previous_context_head(scanner->uca,
+                                              (wc[1]= ((scanner->page << 8) +
+                                                        scanner->code))) &&
+          (cweight= my_uca_previous_context_find(scanner, wc[1], wc[0])))
       {
-        scanner->implicit[0]= 0;
-        scanner->wbeg= scanner->implicit;
-        scanner->sbeg+= mb_len;
+        scanner->page= scanner->code= 0; /* Clear for the next character */
         return *cweight;
       }
+      else if (my_uca_can_be_contraction_head(scanner->uca, wc[0]))
+      {
+        /* Check if w[0] starts a contraction */
+        if ((cweight= my_uca_scanner_contraction_find(scanner, wc)))
+          return *cweight;
+      }
     }
-    
+
+    /* Process single character */
+    scanner->page= wc[0] >> 8;
+    scanner->code= wc[0] & 0xFF;
+
+    /* If weight page for w[0] does not exist, then calculate algoritmically */
     if (!(wpage= scanner->uca->weights[scanner->page]))
       return my_uca_scanner_next_implicit(scanner);
-    
+
+    /* Calculate pointer to w[0]'s weight, using page and offset */
     scanner->wbeg= wpage +
                    scanner->code * scanner->uca->lengths[scanner->page];
-  } while (!scanner->wbeg[0]);
-  
+  } while (!scanner->wbeg[0]); /* Skip ignorable characters */
+
   return *scanner->wbeg++;
 }
 
@@ -20420,17 +20530,47 @@ int my_wildcmp_uca(CHARSET_INFO *cs,
 
 typedef enum my_coll_lexem_num_en
 {
-  MY_COLL_LEXEM_EOF	= 0,
-  MY_COLL_LEXEM_DIFF	= 1, 
-  MY_COLL_LEXEM_SHIFT	= 4,
-  MY_COLL_LEXEM_CHAR	= 5,
-  MY_COLL_LEXEM_ERROR	= 6,
+  MY_COLL_LEXEM_EOF     = 0,
+  MY_COLL_LEXEM_SHIFT   = 1,
+  MY_COLL_LEXEM_RESET   = 4,
+  MY_COLL_LEXEM_CHAR    = 5,
+  MY_COLL_LEXEM_ERROR   = 6,
   MY_COLL_LEXEM_OPTION  = 7,
+  MY_COLL_LEXEM_EXTEND  = 8,
+  MY_COLL_LEXEM_CONTEXT = 9,
 } my_coll_lexem_num;
+
+
+/**
+  Convert collation customization lexem to string,
+  for nice error reporting
+
+  @param term   lexem code
+
+  @return       lexem name
+*/
+
+static const char *
+my_coll_lexem_num_to_str(my_coll_lexem_num term)
+{
+  switch (term)
+  {
+  case MY_COLL_LEXEM_EOF:    return "EOF";
+  case MY_COLL_LEXEM_SHIFT:  return "Shift";
+  case MY_COLL_LEXEM_RESET:  return "&";
+  case MY_COLL_LEXEM_CHAR:   return "Character";
+  case MY_COLL_LEXEM_OPTION: return "Bracket option";
+  case MY_COLL_LEXEM_EXTEND: return "/";
+  case MY_COLL_LEXEM_CONTEXT:return "|";
+  case MY_COLL_LEXEM_ERROR:  return "ERROR";
+  }
+  return NULL;
+}
 
 
 typedef struct my_coll_lexem_st
 {
+  my_coll_lexem_num term;
   const char *beg;
   const char *end;
   const char *prev;
@@ -20464,6 +20604,27 @@ static void my_coll_lexem_init(MY_COLL_LEXEM *lexem,
 }
 
 
+/**
+  Compare lexem to string with length
+
+  @param lexem       lexem
+  @param pattern     string
+  @param patternlen  string length
+
+  @return
+  @retval            0 if lexem is equal to string, non-0 otherwise.
+*/
+
+static int
+lex_cmp(MY_COLL_LEXEM *lexem, const char *pattern, size_t patternlen)
+{
+  size_t lexemlen= lexem->beg - lexem->prev;
+  if (lexemlen < patternlen)
+    return 1; /* Not a prefix */
+  return strncasecmp(lexem->prev, pattern, patternlen);
+}
+
+
 /*
   Print collation customization expression parse error, with context.
   
@@ -20487,7 +20648,8 @@ static void my_coll_lexem_print_error(MY_COLL_LEXEM *lexem,
   size_t len= lexem->end - lexem->prev;
   strmake (tail, lexem->prev, (size_t) min(len, sizeof(tail)-1));
   errstr[errsize-1]= '\0';
-  my_snprintf(errstr,errsize-1,"%s at '%s'", txt, tail);
+  my_snprintf(errstr, errsize - 1,
+              "%s at '%s'", txt[0] ? txt : "Syntax error", tail);
 }
 
 
@@ -20538,57 +20700,75 @@ static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
 {
   const char *beg;
   my_coll_lexem_num rc;
-  
+
   for (beg= lexem->beg ; beg < lexem->end ; beg++)
   {
-    if (*beg == ' ' || *beg == '\t' || *beg == '\r' || *beg == '\n')
+    switch (*beg)
+    {
+    case ' ':
+    case '\t':
+    case '\r':
+    case '\n':
       continue;
-    
-    if (*beg == '[')
-    {
-      if ((beg= (const char *) memchr(beg, ']', lexem->end - beg )))
+
+    case '[':  /* Bracket expression, e.g. "[optimize [a-z]]" */
       {
-        rc= MY_COLL_LEXEM_OPTION;
-        beg++;
-      }
-      else
+        size_t nbrackets; /* Indicates nested recursion level */
+        for (beg++, nbrackets= 1 ; beg < lexem->end; beg++)
+        {
+          if (*beg == '[') /* Enter nested bracket expression */
+            nbrackets++;
+          else if (*beg == ']')
+          {
+            if (--nbrackets == 0)
+            {
+              rc= MY_COLL_LEXEM_OPTION;
+              beg++;
+              goto ex;
+            }
+          }
+        }
         rc= MY_COLL_LEXEM_ERROR;
-      goto ex;
-    }
-    
-    if (*beg == '&')
-    {
+        goto ex;
+      }
+
+    case '&':
       beg++;
-      rc= MY_COLL_LEXEM_SHIFT;
+      rc= MY_COLL_LEXEM_RESET;
       goto ex;
-    }
-    
-    if (beg[0] == '=')
-    {
+
+    case '=':
       beg++;
       lexem->diff= 0;
-      rc= MY_COLL_LEXEM_DIFF;
+      rc= MY_COLL_LEXEM_SHIFT;
       goto ex;
-    }
-    
-    if (beg[0] == '<')
-    {
-      for (beg++, lexem->diff= 1;
-           (beg < lexem->end) && 
-           (*beg == '<') && (lexem->diff<3);
-           beg++, lexem->diff++);
-      rc= MY_COLL_LEXEM_DIFF;
+
+    case '/':
+      beg++;
+      rc= MY_COLL_LEXEM_EXTEND;
       goto ex;
-    }
-    
-    if ((*beg >= 'a' && *beg <= 'z') || (*beg >= 'A' && *beg <= 'Z'))
-    {
-      lexem->code= *beg++;
-      rc= MY_COLL_LEXEM_CHAR;
+
+    case '|':
+      beg++;
+      rc= MY_COLL_LEXEM_CONTEXT;
       goto ex;
+
+    case '<':   /* Shift: '<' or '<<' or '<<<' or '<<<<' */
+      {
+        /* Scan up to 3 additional '<' characters */
+        for (beg++, lexem->diff= 1;
+             (beg < lexem->end) && (*beg == '<') && (lexem->diff <= 3);
+             beg++, lexem->diff++);
+        rc= MY_COLL_LEXEM_SHIFT;
+        goto ex;
+      }
+      default:
+        break;
     }
-    
-    if ((*beg == '\\') && (beg+2 < lexem->end) && (beg[1] == 'u'))
+
+    /* Escaped character, e.g. \u1234 */
+    if ((*beg == '\\') && (beg + 2 < lexem->end) &&
+        (beg[1] == 'u') && my_isxdigit(&my_charset_utf8_general_ci, beg[2]))
     {
       int ch;
       
@@ -20602,15 +20782,43 @@ static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem)
       rc= MY_COLL_LEXEM_CHAR;
       goto ex;
     }
-    
+
+    /*
+      Unescaped single byte character:
+        allow printable ASCII range except SPACE and
+        special characters parsed above []<&/|=
+    */
+    if (*beg >= 0x21 && *beg <= 0x7E)
+    {
+      lexem->code= *beg++;
+      rc= MY_COLL_LEXEM_CHAR;
+      goto ex;
+    }
+
+    if (((uchar) *beg) > 0x7F) /* Unescaped multibyte character */
+    {
+      CHARSET_INFO *cs= &my_charset_utf8_general_ci;
+      my_wc_t wc;
+      int nbytes= cs->cset->mb_wc(cs, &wc,
+                                  (uchar *) beg, (uchar *) lexem->end);
+      if (nbytes > 0)
+      {
+        rc= MY_COLL_LEXEM_CHAR;
+        beg+= nbytes;
+        lexem->code= (int) wc;
+        goto ex;
+      }
+    }
+
     rc= MY_COLL_LEXEM_ERROR;
     goto ex;
   }
   rc= MY_COLL_LEXEM_EOF;
-  
+
 ex:
   lexem->prev= lexem->beg;
   lexem->beg= beg;
+  lexem->term= rc;
   return rc;  
 }
 
@@ -20619,187 +20827,811 @@ ex:
   Collation rule item
 */
 
+#define MY_UCA_MAX_EXPANSION  6  /* Maximum expansion length   */
+
 typedef struct my_coll_rule_item_st
 {
-  my_wc_t base[2];  /* Base character                             */
-  my_wc_t curr[2];  /* Current character                          */
-  int diff[3];      /* Primary, Secondary and Tertiary difference */
+  my_wc_t base[MY_UCA_MAX_EXPANSION];    /* Base character                  */
+  my_wc_t curr[MY_UCA_MAX_CONTRACTION];  /* Current character               */
+  int diff[4];      /* Primary, Secondary, Tertiary, Quaternary difference  */
+  size_t before_level;                   /* "reset before" indicator        */
+  my_bool with_context;
 } MY_COLL_RULE;
 
 
-#define MY_MAX_COLL_RULE 256
+/**
+  Return length of a 0-terminated wide string, analog to strnlen().
+
+  @param  s       Pointer to wide string
+  @param  maxlen  Mamixum string length
+
+  @return         string length, or maxlen if no '\0' is met.
+*/
+static size_t
+my_wstrnlen(my_wc_t *s, size_t maxlen)
+{
+  size_t i;
+  for (i= 0; i < maxlen; i++)
+  {
+    if (s[i] == 0)
+      return i;
+  }
+  return maxlen;
+}
+
+
+/**
+  Return length of the "reset" string of a rule.
+
+  @param  r  Collation customization rule
+
+  @return    Length of r->base
+*/
+
+static inline size_t
+my_coll_rule_reset_length(MY_COLL_RULE *r)
+{
+  return my_wstrnlen(r->base, MY_UCA_MAX_EXPANSION);
+}
+
+
+/**
+  Return length of the "shift" string of a rule.
+
+  @param  r  Collation customization rule
+
+  @return    Length of r->base
+*/
+
+static inline size_t
+my_coll_rule_shift_length(MY_COLL_RULE *r)
+{
+  return my_wstrnlen(r->curr, MY_UCA_MAX_CONTRACTION);
+}
+
+
+/**
+  Append new character to the end of a 0-terminated wide string.
+
+  @param  wc     Wide string
+  @param  limit  Maximum possible result length
+  @param  code   Character to add
+
+  @return        1 if character was added, 0 if string was too long
+*/
+
+static int
+my_coll_rule_expand(my_wc_t *wc, size_t limit, my_wc_t code)
+{
+  size_t i;
+  for (i= 0; i <= limit; i++)
+  {
+    if (wc[i] == 0)
+    {
+      wc[i]= code;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+/**
+  Initialize collation customization rule
+
+  @param  wc     Rule
+*/
+
+static void
+my_coll_rule_reset(MY_COLL_RULE *r)
+{
+  bzero((void *) r, sizeof(*r));
+}
+
 
 typedef struct my_coll_rules_st
 {
-  uint version;
-  MY_COLL_RULE rule[MY_MAX_COLL_RULE];
+  uint version;              /* Unicode version, e.g. 400 or 520  */
+  MY_UCA_INFO *uca;          /* Unicode weight data               */
+  size_t nrules;             /* Number of rules in the rule array */
+  size_t mrules;             /* Number of allocated rules         */
+  MY_COLL_RULE *rule;        /* Rule array                        */
+  MY_CHARSET_LOADER *loader;
 } MY_COLL_RULES;
+
+
+/**
+  Realloc rule array to a new size.
+  Reallocate memory for 128 additional rules at once,
+  to reduce the number of reallocs, which is important
+  for long tailorings (e.g. for East Asian collations).
+
+  @param  rules   Rule container
+  @param  n       new number of rules
+
+  @return         0 on success, -1 on error.
+*/
+
+static int
+my_coll_rules_realloc(MY_COLL_RULES *rules, size_t n)
+{
+  if (rules->nrules < rules->mrules ||
+      (rules->rule= rules->loader->realloc(rules->rule,
+                                           sizeof(MY_COLL_RULE) *
+                                           (rules->mrules= n + 128))))
+    return 0;
+  return -1;
+}
+
+
+/**
+  Append one new rule to a rule array
+
+  @param  rules   Rule container
+  @param  rule    New rule to add
+
+  @return         0 on success, -1 on error.
+*/
+
+static int
+my_coll_rules_add(MY_COLL_RULES *rules, MY_COLL_RULE *rule)
+{
+  if (my_coll_rules_realloc(rules, rules->nrules + 1))
+    return -1;
+  rules->rule[rules->nrules++]= rule[0];
+  return 0;
+}
+
+
+/**
+  Apply difference at level
+
+  @param  r      Rule
+  @param  level  Level (0,1,2,3,4)
+*/
+
+static void
+my_coll_rule_shift_at_level(MY_COLL_RULE *r, int level)
+{
+  switch (level)
+  {
+  case 4: /* Quaternary difference */
+    r->diff[3]++;
+    break;
+  case 3: /* Tertiary difference */
+    r->diff[2]++;
+    r->diff[3]= 0;
+    break;
+  case 2: /* Secondary difference */
+    r->diff[1]++;
+    r->diff[2]= r->diff[3]= 0;
+    break;
+  case 1: /* Primary difference */
+    r->diff[0]++;
+    r->diff[1]= r->diff[2]= r->diff[3]= 0;
+    break;
+  case 0:
+    /* Do nothing for '=': use the previous offsets for all levels */
+    break;
+  default:
+    DBUG_ASSERT(0);
+  }
+}
+
+
+typedef struct my_coll_rule_parser_st
+{
+  MY_COLL_LEXEM tok[2]; /* Current token and next token for look-ahead */
+  MY_COLL_RULE rule;    /* Currently parsed rule */
+  MY_COLL_RULES *rules; /* Rule list pointer     */
+  char errstr[128];     /* Error message         */
+} MY_COLL_RULE_PARSER;
+
+
+/**
+  Current parser token
+
+  @param  p   Collation customization parser
+
+  @return     Pointer to the current token
+*/
+
+static MY_COLL_LEXEM *
+my_coll_parser_curr(MY_COLL_RULE_PARSER *p)
+{
+  return &p->tok[0];
+}
+
+
+/**
+  Next parser token, to look ahead.
+
+  @param  p   Collation customization parser
+
+  @return     Pointer to the next token
+*/
+
+static MY_COLL_LEXEM *
+my_coll_parser_next(MY_COLL_RULE_PARSER *p)
+{
+  return &p->tok[1];
+}
+
+
+/**
+  Scan one token from the input stream
+
+  @param  p   Collation customization parser
+
+  @return     1, for convenience, to use in logical expressions easier.
+*/
+static int
+my_coll_parser_scan(MY_COLL_RULE_PARSER *p)
+{
+  my_coll_parser_curr(p)[0]= my_coll_parser_next(p)[0];
+  my_coll_lexem_next(my_coll_parser_next(p));
+  return 1;
+}
+
+
+/**
+  Initialize collation customization parser
+
+  @param  p        Collation customization parser
+  @param  rules    Where to store rules
+  @param  str      Beginning of a collation customization sting
+  @param  str_end  End of the collation customizations string
+*/
+
+static void
+my_coll_parser_init(MY_COLL_RULE_PARSER *p,
+                    MY_COLL_RULES *rules,
+                    const char *str, const char *str_end)
+{
+  /*
+    Initialize parser to the input buffer and scan two tokens,
+    to make the current token and the next token known.
+  */
+  bzero((void *) p, sizeof(*p));
+  p->rules= rules;
+  p->errstr[0]= '\0';
+  my_coll_lexem_init(my_coll_parser_curr(p), str, str_end);
+  my_coll_lexem_next(my_coll_parser_curr(p));
+  my_coll_parser_next(p)[0]= my_coll_parser_curr(p)[0];
+  my_coll_lexem_next(my_coll_parser_next(p));
+}
+
+
+/**
+  Display error when an unexpected token found
+
+  @param  p        Collation customization parser
+  @param  term     Which lexem was expected
+
+  @return          0, to use in "return" and boolean expressions.
+*/
+
+static int
+my_coll_parser_expected_error(MY_COLL_RULE_PARSER *p, my_coll_lexem_num term)
+{
+  my_snprintf(p->errstr, sizeof(p->errstr),
+              "%s expected", my_coll_lexem_num_to_str(term));
+  return 0;
+}
+
+
+/**
+  Display error when a too long character sequence is met
+
+  @param  p        Collation customization parser
+  @param  name     Which kind of sequence: contraction, expansion, etc.
+
+  @return          0, to use in "return" and boolean expressions.
+*/
+
+static int
+my_coll_parser_too_long_error(MY_COLL_RULE_PARSER *p, const char *name)
+{
+  my_snprintf(p->errstr, sizeof(p->errstr), "%s is too long", name);
+  return 0;
+}
+
+
+/**
+  Scan the given lexem from input stream, or display "expected" error.
+
+  @param  p        Collation customization parser
+  @param  term     Which lexem is expected.
+
+  @return
+  @retval          0 if the required term was not found.
+  @retval          1 if the required term was found.
+*/
+static int
+my_coll_parser_scan_term(MY_COLL_RULE_PARSER *p, my_coll_lexem_num term)
+{
+  if (my_coll_parser_curr(p)->term != term)
+    return my_coll_parser_expected_error(p, term);
+  return my_coll_parser_scan(p);
+}
+
+
+/*
+  In the following code we have a few functions to parse
+  various collation customization non-terminal symbols.
+  Unlike our usual coding convension, they return
+  - 0 on "error" (when the rule was not scanned) and
+  - 1 on "success"(when the rule was scanned).
+  This is done intentionally to make body of the functions look easier
+  and repeat the grammar of the rules in straightforward manner.
+  For example:
+
+  // <x> ::= <y> | <z>
+  int parse_x() { return parse_y() || parser_z(); }
+
+  // <x> ::= <y> <z>
+  int parse_x() { return parse_y() && parser_z(); }
+
+  Using 1 on "not found" and 0 on "found" in the parser code would
+  make the code more error prone and harder to read because
+  of having to use inverse boolean logic.
+*/
+
+
+/**
+  Scan a collation setting in brakets, for example UCA version.
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if setting was scanned.
+  @retval          1 if setting was not scanned.
+*/
+
+static int
+my_coll_parser_scan_setting(MY_COLL_RULE_PARSER *p)
+{
+  MY_COLL_RULES *rules= p->rules;
+  MY_COLL_LEXEM *lexem= my_coll_parser_curr(p);
+
+  if (!lex_cmp(lexem, C_STRING_WITH_LEN("[version 4.0.0]")))
+  {
+    rules->version= 400;
+    rules->uca= &my_uca_v400;
+  }
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[version 5.2.0]")))
+  {
+    rules->version= 520;
+    rules->uca= &my_uca_v520;
+  }
+  else
+  {
+    return 0;
+  }
+  return my_coll_parser_scan(p);
+}
+
+
+/**
+  Scan multiple collation settings
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if no settings were scanned.
+  @retval          1 if one or more settings were scanned.
+*/
+
+static int
+my_coll_parser_scan_settings(MY_COLL_RULE_PARSER *p)
+{
+  /* Scan collation setting or special purpose command */
+  while (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_OPTION)
+  {
+    if (!my_coll_parser_scan_setting(p))
+      return 0;
+  }
+  return 1;
+}
+
+
+/**
+  Scan [before xxx] reset option
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if reset option was not scanned.
+  @retval          1 if reset option was scanned.
+*/
+
+static int
+my_coll_parser_scan_reset_before(MY_COLL_RULE_PARSER *p)
+{
+  MY_COLL_LEXEM *lexem= my_coll_parser_curr(p);
+  if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before primary]")) ||
+      !lex_cmp(lexem, C_STRING_WITH_LEN("[before 1]")))
+  {
+    p->rule.before_level= 1;
+  }
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before secondary]")) ||
+           !lex_cmp(lexem, C_STRING_WITH_LEN("[before 2]")))
+  {
+    p->rule.before_level= 2;
+  }
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before tertiary]")) ||
+           !lex_cmp(lexem, C_STRING_WITH_LEN("[before 3]")))
+  {
+    p->rule.before_level= 3;
+  }
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before quaternary]")) ||
+           !lex_cmp(lexem, C_STRING_WITH_LEN("[before 4]")))
+  {
+    p->rule.before_level= 4;
+  }
+  else
+  {
+    p->rule.before_level= 0;
+    return 0; /* Don't scan thr next character */
+  }
+  return my_coll_parser_scan(p);
+}
+
+
+/**
+  Scan logical position and add to the wide string.
+
+  @param  p        Collation customization parser
+  @param  pwc      Wide string to add code to
+  @param  limit    The result string cannot be longer than 'limit' characters
+
+  @return
+  @retval          0 if logical position was not scanned.
+  @retval          1 if logical position was scanned.
+*/
+
+static int
+my_coll_parser_scan_logical_position(MY_COLL_RULE_PARSER *p,
+                                     my_wc_t *pwc, size_t limit)
+{
+  MY_COLL_RULES *rules= p->rules;
+  MY_COLL_LEXEM *lexem= my_coll_parser_curr(p);
+
+  if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first non-ignorable]")))
+    lexem->code= rules->uca->first_non_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last non-ignorable]")))
+    lexem->code= rules->uca->last_non_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first primary ignorable]")))
+    lexem->code= rules->uca->first_primary_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last primary ignorable]")))
+    lexem->code= rules->uca->last_primary_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first secondary ignorable]")))
+    lexem->code= rules->uca->first_secondary_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last secondary ignorable]")))
+    lexem->code= rules->uca->last_secondary_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first tertiary ignorable]")))
+    lexem->code= rules->uca->first_tertiary_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last tertiary ignorable]")))
+    lexem->code= rules->uca->last_tertiary_ignorable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first trailing]")))
+    lexem->code= rules->uca->first_trailing;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last trailing]")))
+    lexem->code= rules->uca->last_trailing;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first variable]")))
+    lexem->code= rules->uca->first_variable;
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last variable]")))
+    lexem->code= rules->uca->last_variable;
+  else
+    return 0; /* Don't scan the next token */
+
+  if (!my_coll_rule_expand(pwc, limit, lexem->code))
+  {
+    /*
+      Logical position can not be in a contraction,
+      so the above call should never fail.
+      Let's assert in debug version and print
+      a nice error message in production version.
+    */
+    DBUG_ASSERT(0);
+    return my_coll_parser_too_long_error(p, "Logical position");
+  }
+  return my_coll_parser_scan(p);
+}
+
+
+/**
+  Scan character list
+
+    <character list> ::= CHAR [ CHAR... ]
+
+  @param  p        Collation customization parser
+  @param  pwc      Character string to add code to
+  @param  limit    The result string cannot be longer than 'limit' characters
+  @param  name     E.g. "contraction", "expansion"
+
+  @return
+  @retval          0 if character sequence was not scanned.
+  @retval          1 if character sequence was scanned.
+*/
+
+static int
+my_coll_parser_scan_character_list(MY_COLL_RULE_PARSER *p,
+                                   my_wc_t *pwc, size_t limit,
+                                   const char *name)
+{
+  if (my_coll_parser_curr(p)->term != MY_COLL_LEXEM_CHAR)
+    return my_coll_parser_expected_error(p, MY_COLL_LEXEM_CHAR);
+
+  if (!my_coll_rule_expand(pwc, limit, my_coll_parser_curr(p)->code))
+    return my_coll_parser_too_long_error(p, name);
+
+  if (!my_coll_parser_scan_term(p, MY_COLL_LEXEM_CHAR))
+    return 0;
+
+  while (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_CHAR)
+  {
+    if (!my_coll_rule_expand(pwc, limit, my_coll_parser_curr(p)->code))
+      return my_coll_parser_too_long_error(p, name);
+    my_coll_parser_scan(p);
+  }
+  return 1;
+}
+
+
+/**
+  Scan reset sequence
+
+  <reset sequence> ::=
+    [ <reset before option> ] <character list>
+  | [ <reset before option> ] <logical reset position>
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if reset sequence was not scanned.
+  @retval          1 if reset sequence was scanned.
+*/
+
+static int
+my_coll_parser_scan_reset_sequence(MY_COLL_RULE_PARSER *p)
+{
+  my_coll_rule_reset(&p->rule);
+
+  /* Scan "[before x]" option, if exists */
+  if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_OPTION)
+    my_coll_parser_scan_reset_before(p);
+
+  /* Try logical reset position */
+  if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_OPTION)
+  {
+    if (!my_coll_parser_scan_logical_position(p, p->rule.base, 1))
+      return 0;
+  }
+  else
+  {
+    /* Scan single reset character or expansion */
+    if (!my_coll_parser_scan_character_list(p, p->rule.base,
+                                            MY_UCA_MAX_EXPANSION, "Expansion"))
+      return 0;
+  }
+
+  if (p->rule.before_level == 1) /* Apply "before primary" option  */
+  {
+    /*
+      Suppose we have this rule:  &B[before primary] < C
+      i.e. we need to put C before B, but after A, so
+      the result order is: A < C < B.
+
+      Let primary weight of B be [BBBB].
+
+      We cannot just use [BBBB-1] as weight for C:
+      DUCET does not have enough unused weights between any two characters,
+      so using [BBBB-1] will likely make C equal to the previous character,
+      which is A, so we'll get this order instead of the desired: A = C < B.
+
+      To guarantee that that C is sorted after A, we'll use expansion
+      with a kind of "biggest possible character".
+      As "biggest possible character" we'll use "last_non_ignorable":
+
+      We'll compose weight for C as: [BBBB-1][MMMM+1]
+      where [MMMM] is weight for "last_non_ignorable".
+
+      At this point we only need to store codepoints
+      'B' and 'last_non_ignorable'. Actual weights for 'C'
+      will be calculated according to the above formula later,
+      in create_tailoring().
+    */
+    if (!my_coll_rule_expand(p->rule.base, MY_UCA_MAX_EXPANSION,
+                             p->rules->uca->last_non_ignorable))
+      return my_coll_parser_too_long_error(p, "Expansion");
+  }
+  return 1;
+}
+
+
+/**
+  Scan shift sequence
+
+  <shift sequence> ::=
+    <character list>  [ / <character list> ]
+  | <character list>  [ | <character list> ]
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if shift sequence was not scanned.
+  @retval          1 if shift sequence was scanned.
+*/
+
+static int
+my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p)
+{
+  MY_COLL_RULE before_extend;
+
+  bzero((void *) &p->rule.curr, sizeof(p->rule.curr));
+
+  /* Scan single shift character or contraction */
+  if (!my_coll_parser_scan_character_list(p, p->rule.curr,
+                                          MY_UCA_MAX_CONTRACTION,
+                                          "Contraction"))
+    return 0;
+
+  before_extend= p->rule; /* Remember the part before "/" */
+
+  /* Append the part after "/" as expansion */
+  if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_EXTEND)
+  {
+    my_coll_parser_scan(p);
+    if (!my_coll_parser_scan_character_list(p, p->rule.base,
+                                            MY_UCA_MAX_EXPANSION,
+                                            "Expansion"))
+      return 0;
+  }
+  else if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_CONTEXT)
+  {
+    /*
+      We support 2-character long context sequences only:
+      one character is the previous context, plus the current character.
+      It's OK as Unicode's CLDR does not have longer examples.
+    */
+    my_coll_parser_scan(p);
+    p->rule.with_context= TRUE;
+    if (!my_coll_parser_scan_character_list(p, p->rule.curr + 1, 1, "context"))
+      return 0;
+  }
+
+  /* Add rule to the rule list */
+  if (my_coll_rules_add(p->rules, &p->rule))
+    return 0;
+
+  p->rule= before_extend; /* Restore to the state before "/" */
+
+  return 1;
+}
+
+
+/**
+  Scan shift operator
+
+  <shift> ::=  <  | <<  | <<<  | <<<<  | =
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if shift operator was not scanned.
+  @retval          1 if shift operator was scanned.
+*/
+static int
+my_coll_parser_scan_shift(MY_COLL_RULE_PARSER *p)
+{
+  if (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_SHIFT)
+  {
+    my_coll_rule_shift_at_level(&p->rule, my_coll_parser_curr(p)->diff);
+    return my_coll_parser_scan(p);
+  }
+  return 0;
+}
+
+
+/**
+  Scan one rule: reset followed by a number of shifts
+
+  <rule> ::=
+    & <reset sequence>
+    <shift> <shift sequence>
+    [ { <shift> <shift sequence> }... ]
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if rule was not scanned.
+  @retval          1 if rule was scanned.
+*/
+static int
+my_coll_parser_scan_rule(MY_COLL_RULE_PARSER *p)
+{
+  if (!my_coll_parser_scan_term(p, MY_COLL_LEXEM_RESET) ||
+      !my_coll_parser_scan_reset_sequence(p))
+    return 0;
+
+  /* Scan the first required shift command */
+  if (!my_coll_parser_scan_shift(p))
+    return my_coll_parser_expected_error(p, MY_COLL_LEXEM_SHIFT);
+
+  /* Scan the first shift sequence */
+  if (!my_coll_parser_scan_shift_sequence(p))
+    return 0;
+
+  /* Scan subsequent shift rules */
+  while (my_coll_parser_scan_shift(p))
+  {
+    if (!my_coll_parser_scan_shift_sequence(p))
+      return 0;
+  }
+  return 1;
+}
+
+
+/**
+  Scan collation customization: settings followed by rules
+
+  <collation customization> ::=
+    [ <setting> ... ]
+    [ <rule>... ]
+
+  @param  p        Collation customization parser
+
+  @return
+  @retval          0 if collation customozation expression was not scanned.
+  @retval          1 if collation customization expression was scanned.
+*/
+
+static int
+my_coll_parser_exec(MY_COLL_RULE_PARSER *p)
+{
+  if (!my_coll_parser_scan_settings(p))
+    return 0;
+
+  while (my_coll_parser_curr(p)->term == MY_COLL_LEXEM_RESET)
+  {
+    if (!my_coll_parser_scan_rule(p))
+      return 0;
+  }
+  /* Make sure no unparsed input data left */
+  return my_coll_parser_scan_term(p, MY_COLL_LEXEM_EOF);
+}
 
 
 /*
   Collation language syntax parser.
   Uses lexical parser.
-  
-  SYNOPSIS
-    my_coll_rule_parse
-    rule                 Collation rule list to load to.
-    str                  A string containin collation language expression.
-    str_end              End of the string.
-  USAGE
-    
-  RETURN VALUES
-    A positive number means the number of rules loaded.
-   -1 means ERROR, e.g. too many items, syntax error, etc.
+
+  @param rules           Collation rule list to load to.
+  @param str             A string with collation customization.
+  @param str_end         End of the string.
+
+  @return
+  @retval                0 on success
+  @retval                1 on error
 */
 
-
 static int
-my_coll_rule_parse(MY_COLL_RULES *rules, size_t mitems,
-                   const char *str, const char *str_end,
-                   char *errstr, size_t errsize)
+my_coll_rule_parse(MY_COLL_RULES *rules,
+                   const char *str, const char *str_end)
 {
-  MY_COLL_LEXEM lexem;
-  my_coll_lexem_num lexnum;
-  my_coll_lexem_num prevlexnum= MY_COLL_LEXEM_ERROR;
-  MY_COLL_RULE item; 
-  int state= 0;
-  size_t nitems= 0;
-  
-  /* Init all variables */
-  errstr[0]= '\0';
-  bzero(&item, sizeof(item));
-  my_coll_lexem_init(&lexem, str, str_end);
-  
-  while ((lexnum= my_coll_lexem_next(&lexem)))
+  MY_COLL_RULE_PARSER p;
+
+  my_coll_parser_init(&p, rules, str, str_end);
+
+  if (!my_coll_parser_exec(&p))
   {
-    if (lexnum == MY_COLL_LEXEM_ERROR)
-    {
-      my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Unknown character");
-      return -1;
-    }
-    
-    switch (state) {
-    case 0:
-      if (lexnum == MY_COLL_LEXEM_OPTION)
-      {
-        const char v520[]= "[version 5.2.0]";
-        const char v400[]= "[version 4.0.0]";
-        size_t len= lexem.beg - lexem.prev;
-        
-        if ((len == sizeof(v520) - 1) && !memcmp(lexem.prev, v520, len))
-        {
-          rules->version= 520;
-          continue;
-        }
-        else if ((len == sizeof(v400) - 1) && !memcmp(lexem.prev, v400, len))
-        {
-          rules->version= 400;
-          continue;
-        }
-        else
-        {
-          my_coll_lexem_print_error(&lexem, errstr, errsize-1,
-                                    "Unknown option");
-          return -1;
-        }
-      }
-      if (lexnum != MY_COLL_LEXEM_SHIFT)
-      {
-        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"& expected");
-        return -1;
-      }
-      prevlexnum= lexnum;
-      state= 2;
-      continue;
-      
-    case 1:
-      if (lexnum != MY_COLL_LEXEM_SHIFT && lexnum != MY_COLL_LEXEM_DIFF)
-      {
-        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"& or < expected");
-        return -1;
-      }
-      prevlexnum= lexnum;
-      state= 2;
-      continue;
-      
-    case 2:
-      if (lexnum != MY_COLL_LEXEM_CHAR)
-      {
-        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"character expected");
-        return -1;
-      }
-      
-      if (prevlexnum == MY_COLL_LEXEM_SHIFT)
-      {
-        MY_COLL_LEXEM savlex= lexem;
-        item.base[0]= lexem.code;
-        item.diff[0]= 0;
-        item.diff[1]= 0;
-        item.diff[2]= 0;
-        
-        /* Check if shift to a double character (expansion) */
-        if ((lexnum= my_coll_lexem_next(&lexem)) == MY_COLL_LEXEM_CHAR)
-        {
-          item.base[1]= lexem.code;
-        }
-        else
-        {
-          item.base[1]= 0;
-          lexem= savlex;   /* Restore previous parser state */
-        }
-      }
-      else if (prevlexnum == MY_COLL_LEXEM_DIFF)
-      {
-        MY_COLL_LEXEM savlex;
-        savlex= lexem;
-        item.curr[0]= lexem.code;
-        
-        /* Check if diff for a double character (contraction) */
-        if ((lexnum= my_coll_lexem_next(&lexem)) == MY_COLL_LEXEM_CHAR)
-        {
-          item.curr[1]= lexem.code;
-        }
-        else
-        {
-          item.curr[1]= 0;
-          lexem=savlex;   /* Restore previous parser state */
-        }
-        if (lexem.diff == 3)
-        {
-          item.diff[2]++;
-        }
-        else if (lexem.diff == 2)
-        {
-          item.diff[1]++;
-          item.diff[2]= 0;
-        }
-        else if (lexem.diff == 1)
-        {
-          item.diff[0]++;
-          item.diff[1]= 0;
-          item.diff[2]= 0;
-        }
-        else if (lexem.diff == 0)
-        {
-          /* Do nothing for '=': use the previous offsets for all levels */
-        }
-        if (nitems >= mitems)
-        {
-          my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Too many rules");
-          return -1;
-        }
-        rules->rule[nitems++]= item;
-      }
-      else
-      {
-        my_coll_lexem_print_error(&lexem,errstr,errsize-1,"Should never happen");
-        return -1;
-      }
-      state= 1;
-      continue;
-    }
+    my_coll_lexem_print_error(my_coll_parser_curr(&p),
+                              rules->loader->error,
+                              sizeof(rules->loader->error) - 1,
+                              p.errstr);
+    return 1;
   }
-  return (int) nitems;
+  return 0;
 }
 
 
@@ -20808,36 +21640,90 @@ my_coll_rule_parse(MY_COLL_RULES *rules, size_t mitems,
   Copies UCA weights for a given "uint" string
   to the given location.
   
-  @weights    source UCA weight array
-  @lengths    source UCA length array
-  @to         destination
+  @src_uca    source UCA weight data
+  @dst_uca    destination UCA weight data
+  @to         destination address
   @to_length  size of destination
-  @str        string
+  @str        qide string
   @len        string length
   
   @return    number of weights put
 */
 
 static size_t
-my_char_weight_put(MY_UCA_INFO *src_uca,
+my_char_weight_put(MY_UCA_INFO *dst_uca,
                    uint16 *to, size_t to_length,
                    my_wc_t *str, size_t len)
 {
-  size_t i, count;
+  size_t count;
   if (!to_length)
     return 0;
   to_length--; /* Without trailing zero */
-  for (count=0, i= 0; (i < len) && (count < to_length); i++, str++)
+
+  for (count= 0; len; )
   {
-    uint16 *from= my_char_weight_addr(src_uca, *str);
-    for ( ; from && from[0]; from++)
+    size_t chlen;
+    uint16 *from= NULL;
+
+    for (chlen= len; chlen > 1; chlen--)
     {
-      *to++= *from;
+      if ((from= my_uca_contraction_weight(dst_uca, str, chlen)))
+      {
+        str+= chlen;
+        len-= chlen;
+        break;
+      }
+    }
+
+    if (!from)
+    {
+      from= my_char_weight_addr(dst_uca, *str);
+      str++;
+      len--;
+    }
+
+    for ( ; from && *from && count < to_length; )
+    {
+      *to++= *from++;
       count++;
     }
   }
+
   *to= 0;
   return count;
+}
+
+
+/**
+  Alloc new page and copy the default UCA weights
+  @param loader   - Character set loader
+  @param src_uca  - Default UCA data to copy from
+  @param dst_uca  - UCA data to copy weights to
+  @param page     - page number
+
+  @return
+  @retval         FALSE on success
+  @retval         TRUE  on error
+*/
+static my_bool
+my_uca_copy_page(MY_CHARSET_LOADER *loader,
+                 MY_UCA_INFO *src_uca,
+                 MY_UCA_INFO *dst_uca,
+                 size_t page)
+{
+  uint chc, size= 256 * dst_uca->lengths[page] * sizeof(uint16);
+  if (!(dst_uca->weights[page]= (uint16 *) (loader->once_alloc)(size)))
+    return TRUE;
+
+  DBUG_ASSERT(src_uca->lengths[page] <= dst_uca->lengths[page]);
+  bzero((void *) dst_uca->weights[page], size);
+  for (chc=0 ; chc < 256; chc++)
+  {
+    memcpy(dst_uca->weights[page] + chc * dst_uca->lengths[page],
+           src_uca->weights[page] + chc * src_uca->lengths[page],
+           src_uca->lengths[page] * sizeof(uint16));
+  }
+  return FALSE;
 }
 
 
@@ -20859,33 +21745,32 @@ my_char_weight_put(MY_UCA_INFO *src_uca,
 */
 
 static my_bool
-create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t),
-                 char *error, size_t errsize)
+create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   MY_COLL_RULES rules;
   MY_COLL_RULE *r, *rlast;
   MY_UCA_INFO new_uca, *src_uca= NULL;
-  int rc, ncontractions= 0;
-  size_t npages;
-  
-  DBUG_ASSERT(error != NULL && errsize > 0);
-  *error= '\0';
-  
+  int rc= 0, ncontractions= 0;
+  size_t npages, i;
+
+  *loader->error= '\0';
+
   if (!cs->tailoring)
     return 0; /* Ok to add a collation without tailoring */
-  
-  bzero((void *) &rules, sizeof(rules));
-  bzero((void *) &new_uca, sizeof(new_uca));
-  
-  /* Parse ICU Collation Customization expression */
-  if ((rc= my_coll_rule_parse(&rules, MY_MAX_COLL_RULE,
-                              cs->tailoring,
-                              cs->tailoring + strlen(cs->tailoring),
-                              error, errsize)) < 0)
-    return 1;
 
-  rlast= rules.rule + rc;
-  
+  bzero((void *) &rules, sizeof(rules));
+  rules.loader= loader;
+  rules.uca= cs->uca ? cs->uca : &my_uca_v400; /* For logical positions, etc */
+  bzero((void *) &new_uca, sizeof(new_uca));
+
+  /* Parse ICU Collation Customization expression */
+  if ((rc= my_coll_rule_parse(&rules,
+                              cs->tailoring,
+                              cs->tailoring + strlen(cs->tailoring))))
+    goto ex;
+
+  rlast= rules.rule + rules.nrules;
+
   if (rules.version == 520)           /* Unicode-5.2.0 requested */
   {
     src_uca= &my_uca_v520;
@@ -20906,97 +21791,149 @@ create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t),
   new_uca.maxchar= src_uca->maxchar;
   npages= (src_uca->maxchar + 1) / 256;
 
-  if (!(new_uca.weights= (uint16**) (*alloc)(npages * sizeof(uint16*))))
-    return 1;
-  bzero(new_uca.weights, npages * sizeof(uint16*));
+  /* Allocate memory for pages and their lengths */
+  if (!(new_uca.lengths= (uchar *) (loader->once_alloc)(npages)) ||
+      !(new_uca.weights= (uint16 **) (loader->once_alloc)(npages *
+                                                          sizeof(uint16 *))))
+  {
+    rc= 1;
+    goto ex;
+  }
 
-  if (!(new_uca.lengths= (uchar*) (*alloc)(npages)))
-    return 1;
-  
+  /* Copy pages lengths and page pointers from the default UCA weights */ 
   memcpy(new_uca.lengths, src_uca->lengths, npages);
-
+  memcpy(new_uca.weights, src_uca->weights, npages * sizeof(uint16 *));
 
   /*
-    Calculate maximum lenghts for the pages
-    which will be overwritten.
+    Calculate maximum lenghts for the pages which will be overwritten.
+    Mark pages that will be otherwriten as NULL.
+    We'll allocate their own memory.
   */
   for (r= rules.rule; r < rlast; r++)
   {
     if (r->curr[0] > new_uca.maxchar)
     {
-      my_snprintf(error, errsize,
+      my_snprintf(loader->error, sizeof(loader->error),
                   "Shift character out of range: u%04X", (uint) r->curr[0]);
-      return 1;
+      rc= 1;
+      goto ex;
     }
     else if (r->base[0] > src_uca->maxchar)
     {
-      my_snprintf(error, errsize,
+      my_snprintf(loader->error, sizeof(loader->error),
                   "Reset character out of range: u%04X", (uint) r->base[0]);
-      return 1;
+      rc= 1;
+      goto ex;
     }
-    
+
     if (!r->curr[1]) /* If not a contraction */
     {
-      uint pageb= (r->base[0] >> 8);
       uint pagec= (r->curr[0] >> 8);
-      if (new_uca.lengths[pagec] < src_uca->lengths[pageb])
-        new_uca.lengths[pagec]= src_uca->lengths[pageb];
+      if (r->base[1]) /* Expansion */
+      {
+        /* Reserve space for maximum possible length */
+        new_uca.lengths[pagec]= MY_UCA_MAX_WEIGHT_SIZE;
+      }
+      else
+      {
+        uint pageb= (r->base[0] >> 8);
+        if (new_uca.lengths[pagec] < src_uca->lengths[pageb])
+          new_uca.lengths[pagec]= src_uca->lengths[pageb];
+      }
+      new_uca.weights[pagec]= NULL; /* Mark that we'll overwrite this page */
     }
     else
       ncontractions++;
   }
-  
-  
+
+  /* Allocate pages that we'll overwrite and copy default weights */
+  for (i= 0; i < npages; i++)
+  {
+    /*
+      Don't touch pages with lengths[i]==0, they have implicit weights
+      calculated algorithmically.
+    */
+    if (!new_uca.weights[i] && new_uca.lengths[i] &&
+        (rc= my_uca_copy_page(loader, src_uca, &new_uca, i)))
+      goto ex;
+  }
+
+
   if (ncontractions)
   {
-    if (my_uca_alloc_contractions(&new_uca, alloc, ncontractions))
-      return 1;
+    if (my_uca_alloc_contractions(&new_uca, loader, ncontractions))
+    {
+      rc= 1;
+      goto ex;
+    }
   }
-  
-  
+
+  /*
+    Preparatory step is done at this point.
+    Now we have memory allocated for the pages that we'll overwrite,
+    and for contractions, including previous context contractions.
+    Also, for the pages that we'll overwrite, we have copied default weights.
+    Now iterate through the rules, overwrite weights for the characters
+    that appear in the rules, and put all contractions into contraction list.
+  */
   for (r= rules.rule; r < rlast;  r++)
   {
-    size_t nweights, nchars= r->base[1] ? 2 : 1;
+    size_t nweights;
+    size_t nreset= my_coll_rule_reset_length(r); /* Length of reset sequence */
+    size_t nshift= my_coll_rule_shift_length(r); /* Length of shift sequence */
     uint16 *to;
-    
-    if (r->curr[1]) /* Contraction */
+
+    if (nshift >= 2) /* Contraction */
     {
-      /* Mark both letters as "is contraction part" */
-      my_uca_add_contraction_flag(&new_uca, r->curr[0], MY_UCA_CNT_HEAD);
-      my_uca_add_contraction_flag(&new_uca, r->curr[1], MY_UCA_CNT_TAIL);
-      to= my_uca_add_contraction(&new_uca, r->curr, 2)->weight;
-      nweights= MY_UCA_MAX_WEIGHT_SIZE;
+      size_t i;
+      int flag;
+      /* Add HEAD, MID and TAIL flags for the contraction parts */
+      my_uca_add_contraction_flag(&new_uca, r->curr[0],
+                                  r->with_context ?
+                                  MY_UCA_PREVIOUS_CONTEXT_HEAD :
+                                  MY_UCA_CNT_HEAD);
+      for (i= 1, flag= MY_UCA_CNT_MID1; i < nshift - 1; i++, flag<<= 1)
+        my_uca_add_contraction_flag(&new_uca, r->curr[i], flag);
+      my_uca_add_contraction_flag(&new_uca, r->curr[i],
+                                  r->with_context ?
+                                  MY_UCA_PREVIOUS_CONTEXT_TAIL :
+                                  MY_UCA_CNT_TAIL);
+      /* Add new contraction to the contraction list */
+      to= my_uca_add_contraction(&new_uca, r->curr, nshift,
+                                 r->with_context)->weight;
+      /* Store weights of the "reset to" character */
+      new_uca.contractions.nitems--; /* Temporarily hide - it's incomplete */
+      nweights= my_char_weight_put(&new_uca, to, MY_UCA_MAX_WEIGHT_SIZE,
+                                   r->base, nreset);
+      new_uca.contractions.nitems++; /* Activate, now it's complete */
     }
     else
     {
       my_wc_t pagec= (r->curr[0] >> 8);
-      if (!new_uca.weights[pagec])
-      {
-        /* Alloc new page and copy the default UCA weights */
-        uint chc, size= 256 * new_uca.lengths[pagec] * sizeof(uint16);
-        
-        if (!(new_uca.weights[pagec]= (uint16*) (*alloc)(size)))
-          return 1;
-        bzero((void *) new_uca.weights[pagec], size);
-        
-        for (chc=0 ; chc < 256; chc++)
-        {
-          memcpy(new_uca.weights[pagec] + chc * new_uca.lengths[pagec],
-                 src_uca->weights[pagec] + chc * src_uca->lengths[pagec],
-                 src_uca->lengths[pagec] * sizeof(uint16));
-        }
-      }
+      DBUG_ASSERT(new_uca.weights[pagec]);
       to= my_char_weight_addr(&new_uca, r->curr[0]);
-      nweights= new_uca.lengths[pagec];
+      /* Store weights of the "reset to" character */
+      nweights= my_char_weight_put(&new_uca, to, new_uca.lengths[pagec],
+                                   r->base, nreset);
     }
 
-    /* Store weights of the "shift to" character */
-    nweights= my_char_weight_put(src_uca, to, nweights, r->base, nchars);
-
-    /* Apply primary difference */
+    /* Apply primary difference. */
     if (nweights)
     {
       to[nweights - 1]+= r->diff[0];
+      if (r->before_level == 1) /* Apply "&[before primary]" */
+      {
+        if (nweights >= 2)
+          to[nweights - 2]--; /* Reset before */
+        else
+        {
+          my_snprintf(loader->error, sizeof(loader->error),
+                      "Can't reset before "
+                      "a primary ignorable character U+%04X", r->base[0]);
+          rc= 1;
+          goto ex;
+        }
+      }
     }
     else
     {
@@ -21005,23 +21942,20 @@ create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t),
       to[0]= r->diff[0];
     }
   }
-  
-  
-  /* Copy non-overwritten pages from the default UCA weights */
+
+
+  if (!(cs->uca= (MY_UCA_INFO *) (loader->once_alloc)(sizeof(MY_UCA_INFO))))
   {
-    size_t i;
-    for (i= 0; i < npages; i++)
-    {
-      if (!new_uca.weights[i])
-        new_uca.weights[i]= src_uca->weights[i];
-    }
+    rc= 1;
+    goto ex;
   }
-  
-  if (!(cs->uca= (MY_UCA_INFO *) (*alloc)(sizeof(MY_UCA_INFO))))
-    return 1;
   cs->uca[0]= new_uca;
 
-  return 0;
+ex:
+  (loader->free)(rules.rule);
+  if (rc != 0 && loader->error[0])
+    loader->reporter(ERROR_LEVEL, "%s", loader->error);
+  return rc;
 }
 
 
@@ -21032,14 +21966,13 @@ create_tailoring(CHARSET_INFO *cs, void *(*alloc)(size_t),
 */
 
 static my_bool
-my_coll_init_uca(CHARSET_INFO *cs, void *(*alloc)(size_t),
-                 char *error, size_t errsize)
+my_coll_init_uca(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   cs->pad_char= ' ';
   cs->ctype= my_charset_utf8_unicode_ci.ctype;
   if (!cs->caseinfo)
     cs->caseinfo= &my_unicase_default;
-  return create_tailoring(cs, alloc, error, errsize);
+  return create_tailoring(cs, loader);
 }
 
 static int my_strnncoll_any_uca(CHARSET_INFO *cs,
@@ -21086,7 +22019,7 @@ static int my_strnncoll_ucs2_uca(CHARSET_INFO *cs,
                                  const uchar *t, size_t tlen,
                                  my_bool t_is_prefix)
 {
-  return my_strnncoll_uca(cs, &my_ucs2_uca_scanner_handler,
+  return my_strnncoll_uca(cs, &my_any_uca_scanner_handler,
                           s, slen, t, tlen, t_is_prefix);
 }
 
@@ -21095,7 +22028,7 @@ static int my_strnncollsp_ucs2_uca(CHARSET_INFO *cs,
                                    const uchar *t, size_t tlen,
                                    my_bool diff_if_only_endspace_difference)
 {
-  return my_strnncollsp_uca(cs, &my_ucs2_uca_scanner_handler,
+  return my_strnncollsp_uca(cs, &my_any_uca_scanner_handler,
                             s, slen, t, tlen,
                             diff_if_only_endspace_difference);
 }   
@@ -21104,14 +22037,14 @@ static void my_hash_sort_ucs2_uca(CHARSET_INFO *cs,
                                   const uchar *s, size_t slen,
                                   ulong *n1, ulong *n2)
 {
-  my_hash_sort_uca(cs, &my_ucs2_uca_scanner_handler, s, slen, n1, n2); 
+  my_hash_sort_uca(cs, &my_any_uca_scanner_handler, s, slen, n1, n2); 
 }
 
 static size_t my_strnxfrm_ucs2_uca(CHARSET_INFO *cs, 
                                    uchar *dst, size_t dstlen, uint nweights,
                                    const uchar *src, size_t srclen, uint flags)
 {
-  return my_strnxfrm_uca(cs, &my_ucs2_uca_scanner_handler,
+  return my_strnxfrm_uca(cs, &my_any_uca_scanner_handler,
                          dst, dstlen, nweights, src, srclen, flags);
 }
 
