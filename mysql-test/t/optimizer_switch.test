@@ -110,4 +110,7 @@ set optimizer_switch='default,materialization=off,loosescan=off';
 select @@optimizer_switch; 
 set optimizer_switch=default;
 
-
+#
+# Bug #695304: invalid default setting for optimizer_switch
+#
+select @@optimizer_switch;

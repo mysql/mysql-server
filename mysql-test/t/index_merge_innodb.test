@@ -18,6 +18,11 @@ let $engine_type= InnoDB;
 # InnoDB does not support Merge tables (affects include/index_merge1.inc)
 let $merge_table_support= 0;
 
+set @optimizer_switch_save= @@optimizer_switch;
+
+set optimizer_switch='index_merge_sort_intersection=off';
+
+
 # The first two tests are disabled because of non deterministic explain output.
 # If include/index_merge1.inc can be enabled for InnoDB and all other
 # storage engines, please remove the subtest for Bug#21277 from
@@ -71,7 +76,7 @@ SELECT COUNT(*) FROM
   (SELECT * FROM t1 FORCE INDEX(primary,idx)
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 SELECT COUNT(*) FROM 
-  (SELECT * FROM t1 
+  (SELECT * FROM t1 FORCE INDEX(primary,idx)
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 
 --replace_column 9 #
@@ -84,3 +89,5 @@ SELECT COUNT(*) FROM
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 
 DROP TABLE t1;
+
+set optimizer_switch= @optimizer_switch_save;
