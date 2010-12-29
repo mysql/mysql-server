@@ -31,9 +31,9 @@ INSERT INTO t1 VALUES (2,3);
 # Replicate back to the master to test this mixed event on the master
 STOP SLAVE;
 
+--let $rpl_topology= 1->2->1
+--source include/rpl_change_topology.inc
 connection master;
---replace_result $SLAVE_MYPORT SLAVE_PORT
-eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$SLAVE_MYPORT,MASTER_USER="root";
 
 START SLAVE;
 
@@ -76,3 +76,6 @@ source include/check_slave_is_running.inc;
 -- connection master
 DROP TABLE t1;
 -- sync_slave_with_master
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

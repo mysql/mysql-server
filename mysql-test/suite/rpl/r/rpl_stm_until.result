@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 [on slave]
 include/stop_slave.inc
 ==== Create some events on master ====
@@ -18,29 +14,41 @@ drop table t2;
 ==== Replicate one event at a time on slave ====
 [on slave]
 start slave until master_log_file='MASTER_LOG_FILE', master_log_pos=MASTER_LOG_POS;
+include/wait_for_slave_io_to_start.inc
+include/wait_for_slave_sql_to_stop.inc
 select * from t1;
 n
 1
 2
 3
 4
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 start slave until master_log_file='master-no-such-bin.000001', master_log_pos=MASTER_LOG_POS;
+include/wait_for_slave_io_to_start.inc
+include/wait_for_slave_sql_to_stop.inc
 select * from t1;
 n
 1
 2
 3
 4
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=RELAY_LOG_POS;
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+start slave until relay_log_file='slave-relay-bin.000003', relay_log_pos=RELAY_LOG_POS;
+include/wait_for_slave_io_to_start.inc
+include/wait_for_slave_sql_to_stop.inc
 select * from t2;
 n
 1
 2
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 start slave;
 [on master]
 [on slave]
 include/stop_slave.inc
 start slave until master_log_file='MASTER_LOG_FILE', master_log_pos=MASTER_LOG_POS;
+include/wait_for_slave_io_to_start.inc
+include/wait_for_slave_sql_to_stop.inc
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 ==== Test various error conditions ====
 start slave until master_log_file='master-bin', master_log_pos=MASTER_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
@@ -75,6 +83,7 @@ select count(*) as two from t1;
 two
 2
 start slave until master_log_file='MASTER_LOG_FILE', master_log_pos= UNTIL_POS;;
+include/wait_for_slave_sql_to_stop.inc
 slave stopped at the prescribed position
 select 0 as zero;
 zero
@@ -84,23 +93,15 @@ one
 1
 drop table t1;
 start slave;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
+include/rpl_reset.inc
 flush logs;
 stop slave;
 reset slave;
 start slave until master_log_file='master-bin.000001', master_log_pos=294 /* to stop right before DROP */;
+include/wait_for_slave_sql_to_stop.inc
 show tables /* t1 must exist */;
 Tables_in_test
 t1
 drop table t1;
 stop slave;
-reset slave;
-reset master;
+include/rpl_end.inc

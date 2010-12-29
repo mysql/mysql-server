@@ -111,3 +111,4 @@ sync_slave_with_master;
 set global read_only=0;
 
 
+--source include/rpl_end.inc

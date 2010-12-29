@@ -109,3 +109,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/sp011_master.sql $MYSQLTEST_VARDIR/tmp/sp011_sl
 --remove_file $MYSQLTEST_VARDIR/tmp/sp011_slave.sql
 
 # End of 5.0 test case
+--source include/rpl_end.inc

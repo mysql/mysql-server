@@ -643,3 +643,4 @@ drop function mysqltestbug36570_f1;
 
 # Cleanup
 sync_slave_with_master;
+--source include/rpl_end.inc
