@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (a int, b int, c int, key(b));
 SET SQL_LOG_BIN=1;
@@ -12,27 +8,18 @@ INSERT INTO t VALUES (1,2,4);
 INSERT INTO t VALUES (4,3,4);
 DELETE FROM t;
 DROP TABLE t;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE TABLE t (a int, b int, c int, key(b));
 ALTER TABLE t DISABLE KEYS;
 INSERT INTO t VALUES (1,2,4);
 INSERT INTO t VALUES (4,3,4);
 DELETE FROM t;
 DROP TABLE t;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NOT NULL, c3 INT, UNIQUE KEY(c1,c3), KEY(c2));
 INSERT INTO t1(c1,c2) VALUES(1,1);
 INSERT INTO t1(c1,c2) VALUES(1,2);
 UPDATE t1 SET c1=1000 WHERE c2=2;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
+include/rpl_end.inc
