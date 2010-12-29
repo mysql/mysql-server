@@ -19,10 +19,13 @@ eval CREATE $_temporary TABLE IF NOT EXISTS t1 (c1 INT , c2 INT, c3 char(10), c4
   SELECT 'abc' AS c3, 1 AS c4;
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 --echo
@@ -36,10 +39,13 @@ eval CREATE $_temporary TABLE IF NOT EXISTS t1
   SELECT 'abc', 2;
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 --echo
@@ -57,10 +63,13 @@ eval CREATE $_temporary TABLE IF NOT EXISTS test.t1
   SELECT 'abc', 20;
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:test.t1,slave:test.t1
+  --source include/diff_tables.inc
 }
 USE test;
 DROP DATABASE db1;
@@ -74,10 +83,13 @@ eval CREATE $_temporary TABLE IF NOT EXISTS t1
   REPLACE SELECT '123', 2;
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 --echo
@@ -89,10 +101,13 @@ eval CREATE $_temporary TABLE IF NOT EXISTS t1
   IGNORE SELECT '123', 2;
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 --echo
@@ -103,10 +118,14 @@ let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 eval CREATE $_temporary TABLE IF NOT EXISTS t1
   SELECT '123', 2;
 source include/show_binlog_events.inc;
+
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 --echo
@@ -121,10 +140,13 @@ eval CREATE $_temporary TABLE IF NOT EXISTS t1
   IGNORE (SELECT '123', 3) UNION (SELECT '123', 4);
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 if (!$is_temporary)
@@ -155,10 +177,14 @@ let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 call p1(500);
 call p1(600);
 source include/show_binlog_events.inc;
+
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 DROP PROCEDURE p1;
 
@@ -173,10 +199,14 @@ EXECUTE stm USING @a;
 SET @a= 800;
 EXECUTE stm USING @a;
 source include/show_binlog_events.inc;
+
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 --echo
@@ -224,10 +254,13 @@ eval /*!CREATE $_temporary TABLE IF NOT EXISTS t1
   */SELECT 'abc', 905;
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+--connection master
+
 if (!$is_temporary)
 {
-  let $diff_table= test.t1;
-  source include/rpl_diff_tables.inc;
+  --let $diff_tables= master:t1,slave:t1
+  --source include/diff_tables.inc
 }
 
 DROP TABLE t2;

@@ -14,9 +14,8 @@ flush tables;
 SELECT * FROM t1 ORDER BY a;
 sync_slave_with_master;
 
-connection master;
-sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
 connection master;
 drop table t1;
-sync_slave_with_master;
+
+--source include/rpl_end.inc

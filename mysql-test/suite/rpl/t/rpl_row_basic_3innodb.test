@@ -6,3 +6,4 @@ let $type= 'INNODB' ;
 let $extra_index= ;
 -- source extra/rpl_tests/rpl_row_basic.test
 
+--source include/rpl_end.inc

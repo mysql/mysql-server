@@ -134,3 +134,4 @@ SELECT * FROM visits_events;
 DROP DATABASE track;
 sync_slave_with_master;
 --echo End of 5.1 tests
+--source include/rpl_end.inc

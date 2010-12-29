@@ -8,3 +8,4 @@
 -- source include/ndb_master-slave.inc
 let $engine_type=NDBCLUSTER;
 -- source extra/rpl_tests/rpl_row_sp006.test
+--source include/rpl_end.inc
