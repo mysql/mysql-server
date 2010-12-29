@@ -59,3 +59,4 @@ select Host,User from mysql.user where Host='fakehost';
 #
 connection master;
 source include/show_binlog_events.inc;
+--source include/rpl_end.inc

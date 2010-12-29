@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** On Master ****
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
@@ -53,3 +49,4 @@ t2
 SHOW TABLES;
 Tables_in_test
 t2
+include/rpl_end.inc

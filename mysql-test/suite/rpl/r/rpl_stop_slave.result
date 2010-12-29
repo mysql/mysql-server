@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 # BUG#56118 STOP SLAVE does not wait till trx with CREATE TMP TABLE ends
 #
@@ -41,10 +37,12 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
+include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 
 # CREATE TEMPORARY TABLE with MyISAM engine
 # -----------------------------------------
@@ -66,10 +64,12 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
+include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 
 # CREATE TEMPORARY TABLE ... SELECT with InnoDB engine
 # ----------------------------------------------------
@@ -92,10 +92,12 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
+include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 
 # CREATE TEMPORARY TABLE ... SELECT with MyISAM engine
 # ----------------------------------------------------
@@ -118,10 +120,13 @@ SET DEBUG_SYNC= 'now SIGNAL signal.continue';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
+include/wait_for_slave_sql_to_stop.inc
 # Slave should stop after the transaction has committed.
 # So t1 on master is same to t1 on slave.
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 # Test end
 SET GLOBAL debug= '$debug_save';
 DROP TABLE t1, t2;
+include/rpl_end.inc

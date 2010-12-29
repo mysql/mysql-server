@@ -22,3 +22,4 @@ sync_slave_with_master;
 # End of 4.1 tests
 
 
+--source include/rpl_end.inc

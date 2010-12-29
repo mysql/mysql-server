@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Create a big file ====
 ==== Load our big file into a table ====
 create table t2 (id int not null primary key auto_increment);
@@ -29,3 +25,4 @@ count(*)
 ==== Clean up ====
 [on master]
 drop table t2;
+include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create database if not exists mysqltest;
 use mysqltest;
 create temporary table mysqltest.t1 (n int)ENGINE=MyISAM;
@@ -26,3 +22,4 @@ CREATE TEMPORARY TABLE tmp3 (a int);
 DROP TEMPORARY TABLE tmp3;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
+include/rpl_end.inc

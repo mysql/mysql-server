@@ -15,8 +15,6 @@
 
 --source include/master-slave.inc
 
-drop table if exists t1;
-
 create table t1(id int);
 
 show tables;
@@ -28,3 +26,4 @@ flush logs;
 --exec $MYSQL_BINLOG $MYSQL_TEST_DIR/var/log/master-bin.000001 | $MYSQL test
 
 drop table t1;
+--source include/rpl_end.inc

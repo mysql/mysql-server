@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -23,3 +19,4 @@ a
 1
 commit;
 drop table t1;
+include/rpl_end.inc

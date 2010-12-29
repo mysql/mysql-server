@@ -27,3 +27,5 @@ echo "*** must be NULL ***";
 select master_pos_wait('foo', 98);
 
 # End of 4.1 tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
