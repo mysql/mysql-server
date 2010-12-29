@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
 [on slave]
 SET @old_slave_exec_mode= @@global.slave_exec_mode;
@@ -24,6 +20,7 @@ a
 1
 [on slave]
 ---- Wait until slave stops with an error ----
+include/wait_for_slave_sql_error.inc [errno=1062]
 Last_SQL_Error (expected "duplicate key" error)
 Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY; the event's master log master-bin.000001, end_log_pos END_LOG_POS
 SELECT * FROM t1;
@@ -32,6 +29,7 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 DELETE FROM t1 WHERE a = 1;
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 ---- Sync slave and verify that there is no error ----
 Last_SQL_Error = '' (expected no error)
 SELECT * FROM t1;
@@ -51,6 +49,7 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Wait until slave stops with an error ----
+include/wait_for_slave_sql_error.inc [errno=1032]
 Last_SQL_Error (expected "duplicate key" error)
 Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_KEY_NOT_FOUND; the event's master log master-bin.000001, end_log_pos END_LOG_POS
 SELECT * FROM t1;
@@ -58,6 +57,7 @@ a
 ---- Resolve the conflict on the slave and restart SQL thread ----
 INSERT INTO t1 VALUES (1);
 START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
 ---- Sync slave and verify that there is no error ----
 Last_SQL_Error =  (expected no error)
 SELECT * FROM t1;
@@ -66,6 +66,7 @@ a
 [on master]
 DROP TABLE t1;
 [on slave]
+include/rpl_reset.inc
 ######## Run with slave_exec_mode=IDEMPOTENT ########
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 ==== Initialize ====
@@ -109,3 +110,4 @@ a
 DROP TABLE t1;
 [on slave]
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
+include/rpl_end.inc

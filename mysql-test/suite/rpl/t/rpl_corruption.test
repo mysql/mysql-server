@@ -1,6 +1,4 @@
 ############################################################
-# Author: Serge Kozlov <serge.kozlov@oracle.com>
-# Date:	17 Oct 2010
 # Purpose: WL#5064 Testing with corrupted events.
 # The test emulates the corruption at the vary stages
 # of replication:
@@ -114,8 +112,7 @@ SET GLOBAL debug="-d,corrupt_read_log_event_char";
 --source include/start_slave.inc
 --connection master
 --sync_slave_with_master
-let $diff_table_1= master:test.t1;
-let $diff_table_2= slave:test.t1;
+--let $diff_tables= master:t1, slave:t1
 --source include/diff_tables.inc
                                                                
 # Clean up
@@ -126,3 +123,5 @@ SET GLOBAL master_verify_checksum = @old_master_verify_checksum;
 DROP TABLE t1;
 --sync_slave_with_master
 SET GLOBAL debug= "";
+
+--source include/rpl_end.inc

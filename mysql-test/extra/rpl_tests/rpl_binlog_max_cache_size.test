@@ -68,7 +68,8 @@ eval INSERT INTO t2 (a, data) VALUES (2,
 --enable_query_log
 
 # Incident event
---let $slave_sql_errno=1590
+# 1590=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 1590
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --disable_query_log
@@ -87,15 +88,13 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
 
-# Incident event
---let $slave_skip_counter=1
-if (`SELECT @@binlog_format = 'ROW'`)
-{
-  --inc $slave_skip_counter
-}
---let $slave_sql_errno=1590
+# 1590=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 1590
+--let $slave_skip_counter= `SELECT IF(@@binlog_format = 'ROW', 2, 1)`
 --source include/wait_for_slave_sql_error_and_skip.inc
---let $slave_skip_counter=
+
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                             2 - BEGIN - IMPLICIT COMMIT by DDL
@@ -183,8 +182,9 @@ BEGIN;
 CREATE TABLE t5 (a int);
 --enable_query_log
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                     3 - BEGIN - COMMIT
@@ -212,8 +212,9 @@ BEGIN;
 --enable_query_log
 COMMIT;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                      4 - BEGIN - ROLLBACK
@@ -241,8 +242,9 @@ BEGIN;
 --enable_query_log
 ROLLBACK;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                         5 - PROCEDURE 
@@ -290,8 +292,9 @@ eval CALL p1($data);
 --enable_query_log
 ROLLBACK;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                           6 - XID
@@ -321,8 +324,9 @@ SAVEPOINT sv;
 ROLLBACK TO sv;
 COMMIT;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                        7 - NON-TRANS TABLE
@@ -364,8 +368,9 @@ BEGIN;
 --enable_query_log
 COMMIT;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################
 --echo #      8 - Bug#55375(Regression Bug) Transaction bigger than
@@ -415,7 +420,7 @@ while ($n)
 --enable_query_log
 COMMIT;
 
-connection slave;
+--connection slave
 --let $slave_sql_errno= 1197
 if (`SELECT @@binlog_format = 'ROW'`)
 {
@@ -474,8 +479,10 @@ SHOW VARIABLES LIKE 'BINLOG_CACHE_SIZE';
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+# t4 exists only if binlog_format!=row, so so a warning is generated
+# if binog_format=row
+--disable_warnings
 DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
+--enable_warnings
+DROP TABLE t5;
 DROP PROCEDURE p1;
-source include/master-slave-end.inc;

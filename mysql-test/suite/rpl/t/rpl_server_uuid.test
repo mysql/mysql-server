@@ -8,6 +8,7 @@
 # --replicate-same-server-id is set.
 #
 ##############################################################################
+--let $rpl_server_count= 3
 --source include/master-slave.inc
 --source include/not_embedded.inc
 --source include/have_debug.inc
@@ -27,9 +28,8 @@ CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@glo
 sync_slave_with_master;
 --let $slave_datadir=`SELECT @@DATADIR`
 
-connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
-connection slave2;
---let $slave2_datadir=`SELECT @@DATADIR`
+connection server_3;
+--let $server_3_datadir=`SELECT @@DATADIR`
 
 connection master;
 --let $original_master_uuid=query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -87,7 +87,8 @@ connection master;
 # UUID as slave.
 --remove_file $master_datadir/$uuid_file
 --copy_file $slave_datadir/$uuid_file $master_datadir/$uuid_file
---source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 connection slave;
 START SLAVE IO_THREAD;
@@ -98,14 +99,15 @@ let $show_statement= SHOW SLAVE STATUS;
 
 connection master;
 --remove_file $master_datadir/$uuid_file
---copy_file $slave2_datadir/$uuid_file $master_datadir/$uuid_file
---source include/restart_mysqld.inc
+--copy_file $server_3_datadir/$uuid_file $master_datadir/$uuid_file
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 --let $master_log_file= query_get_value(SHOW MASTER STATUS, 'File', 1)
 --let $master_log_pos= query_get_value(SHOW MASTER STATUS, 'Position', 1)
 
 --echo 
---echo # slave2 is running with --replicate-same-server-id option 
-connection slave2;
+--echo # server_3 is running with --replicate-same-server-id option 
+connection server_3;
 --replace_result $MASTER_MYPORT MASTER_PORT
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
      MASTER_PORT= $MASTER_MYPORT,
@@ -115,13 +117,14 @@ eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
 --source include/check_slave_no_error.inc
 
 connection master;
-sync_slave_with_master slave2;
+sync_slave_with_master server_3;
 --source include/stop_slave.inc
 
 connection master;
 --remove_file $master_datadir/$uuid_file
 --move_file $master_datadir/original_$uuid_file $master_datadir/$uuid_file
---source include/restart_mysqld.inc
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
 
 --echo
 --echo # Case 4:
@@ -230,4 +233,4 @@ RESET SLAVE;
 eval CHANGE MASTER TO 
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 --source include/start_slave.inc
---source include/master-slave-end.inc
+--source include/rpl_end.inc

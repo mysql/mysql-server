@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1, t2, t3;
 ==== Read modern binlog (version 5.1.23) ====
 SELECT * FROM t1 ORDER BY a;
 a	b

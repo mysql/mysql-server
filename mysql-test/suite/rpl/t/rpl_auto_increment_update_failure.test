@@ -159,11 +159,9 @@ source include/show_binlog_events.inc;
 sync_slave_with_master;
 --echo #Test if the results are consistent on master and slave
 --echo #for 'UPDATE MORE THAN ONE TABLES ON TOP-STATEMENT'
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 connection master;
@@ -199,11 +197,9 @@ source include/show_binlog_events.inc;
 sync_slave_with_master;
 --echo #Test if the results are consistent on master and slave
 --echo #for 'INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES'
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 connection master;
@@ -212,3 +208,4 @@ drop table t2;
 drop view  v15;
 sync_slave_with_master;
 
+--source include/rpl_end.inc
