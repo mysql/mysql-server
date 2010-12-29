@@ -51,10 +51,6 @@
 #include <descrip.h>
 #endif
 
-#ifdef OS2
-#include "my_os2dirsrch.h"
-#endif
-
 #if defined(THREAD) && defined(HAVE_READDIR_R)
 #define READDIR(A,B,C) ((errno=readdir_r(A,B,&C)) != 0 || !C)
 #else

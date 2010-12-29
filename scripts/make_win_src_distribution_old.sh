@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2003-2006 MySQL AB
+# Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 # new CMake build was added. The new build obsoletes this script, Unix
 # and Windows share the same source TAR/ZIP.
 # Also note that the old build from source created by this script is
-# no longer tested by MySQL AB and may not work. Please use the new
+# no longer tested by Oracle and may not work. Please use the new
 # CMake based build.
 
 # Terminate loudly on error, we don't want partial package
