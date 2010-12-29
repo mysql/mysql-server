@@ -1,12 +1,6 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set timestamp=1000000000;
-drop database if exists mysqltest2;
-drop database if exists mysqltest3;
 create database mysqltest2 character set latin2;
 set @@character_set_server=latin5;
 create database mysqltest3;
@@ -142,3 +136,4 @@ primary key (`pk`)
 set @p=_latin1 'test';
 update t1 set pk='test' where pk=@p;
 drop table t1;
+include/rpl_end.inc

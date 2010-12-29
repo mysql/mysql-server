@@ -638,3 +638,23 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 End of 5.0 tests
 End of 5.1 tests
+RESET MASTER;
+CREATE DATABASE test1;
+USE test1;
+CREATE TABLE t1(id int);
+DROP DATABASE test1;
+CREATE DATABASE test1;
+USE test1;
+CREATE TABLE t1(id int);
+DROP TABLE t1;
+DROP DATABASE test1;
+FLUSH LOGS;
+show binlog events in 'master-bin.000002' from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	CREATE DATABASE test1
+master-bin.000002	#	Query	#	#	use `test1`; CREATE TABLE t1(id int)
+master-bin.000002	#	Query	#	#	DROP DATABASE test1
+master-bin.000002	#	Query	#	#	CREATE DATABASE test1
+master-bin.000002	#	Query	#	#	use `test1`; CREATE TABLE t1(id int)
+master-bin.000002	#	Query	#	#	use `test1`; DROP TABLE t1
+master-bin.000002	#	Query	#	#	DROP DATABASE test1

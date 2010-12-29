@@ -136,14 +136,6 @@ sync_slave_with_master;
 connection master;
 SET AUTOCOMMIT = 1;
 #
-# 1. DROP all objects, which probably already exist, but must be created here
-#
---disable_warnings
-DROP DATABASE IF EXISTS mysqltest1;
-DROP DATABASE IF EXISTS mysqltest2;
-DROP DATABASE IF EXISTS mysqltest3;
---enable_warnings
-#
 # 2. CREATE all objects needed
 #    working database is mysqltest1
 #    working table (transactional!) is mysqltest1.t1 
@@ -619,6 +611,3 @@ connection master;
 DROP DATABASE mysqltest1;
 # mysqltest2 was alreday DROPPED some tests before.
 DROP DATABASE mysqltest3;
---enable_warnings
-
--- source include/master-slave-end.inc

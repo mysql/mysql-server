@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP DATABASE IF EXISTS mysqltest;
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp(c1 int);
 CREATE TEMPORARY TABLE IF NOT EXISTS tmp(c1 int);
@@ -25,3 +21,4 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE IF NOT EXISTS `
 )
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO `test`.`tmp2` (`c1`) SELECT * FROM tmp
 master-bin.000001	#	Query	#	#	COMMIT
+include/rpl_end.inc

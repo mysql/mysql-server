@@ -124,7 +124,7 @@ DROP TABLE t3;
 
 # Reset binlog so that show binlog events will not show the tests
 # above.
-source include/master-slave-reset.inc;
+source include/rpl_reset.inc;
 connection master;
 
 create table t1(a int auto_increment primary key, b int);

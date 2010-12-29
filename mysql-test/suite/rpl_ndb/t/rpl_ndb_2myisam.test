@@ -32,3 +32,4 @@ CREATE TABLE mysql.ndb_apply_status
 
 --connection slave
 drop table mysql.ndb_apply_status;
+--source include/rpl_end.inc

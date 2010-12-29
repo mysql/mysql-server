@@ -1,6 +1,4 @@
 #############################################################
-# Author: Mats Kindahl <mats@mysql.com>
-# Date:   2008-06-18
 # Purpose: Test for BUG#37426
 #   RBR breaks for CHAR() UTF8 fields > 85 chars
 #############################################################
@@ -20,3 +18,4 @@ SELECT * FROM char128_utf8;
 sync_slave_with_master;
 
 SELECT * FROM char128_utf8;
+--source include/rpl_end.inc

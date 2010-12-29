@@ -241,7 +241,7 @@ DELETE FROM t1;
 sync_slave_with_master;
 
 # Just to get a clean binary log
-source include/reset_master_and_slave.inc;
+--source include/rpl_reset.inc
 
 --echo **** On Master ****
 connection master;
@@ -353,8 +353,7 @@ INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 --echo [expecting slave to replicate correctly]
@@ -363,8 +362,7 @@ INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 --echo [expecting slave to stop]
@@ -374,16 +372,12 @@ INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
 
 connection slave;
 # 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
---let $slave_sql_errno= 1535 
+--let $slave_sql_errno= 1535
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
-connection master;
-RESET MASTER;
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo [expecting slave to replicate correctly]
 connection master;
@@ -391,8 +385,7 @@ INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t4;
-let $diff_table_2=slave:test.t4;
+let $diff_tables= master:t4, slave:t4;
 source include/diff_tables.inc;
 
 --echo [expecting slave to stop]
@@ -402,16 +395,11 @@ INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
 # 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
---let $slave_sql_errno= 1535 
+--let $slave_sql_errno= 1535
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
-connection master;
-RESET MASTER;
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+
+--source include/rpl_reset.inc
 
 --echo [expecting slave to stop]
 connection master;
@@ -420,16 +408,11 @@ INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
 
 connection slave;
 # 1535 = ER_BINLOG_ROW_WRONG_TABLE_DEF 
---let $slave_sql_errno= 1535 
+--let $slave_sql_errno= 1535
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
-connection master;
-RESET MASTER;
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+
+--source include/rpl_reset.inc
 
 --echo [expecting slave to replicate correctly]
 connection master;
@@ -437,8 +420,7 @@ INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t7;
-let $diff_table_2=slave:test.t7;
+let $diff_tables= master:t7, slave:t7;
 source include/diff_tables.inc;
 
 connection master;
@@ -458,8 +440,7 @@ UPDATE t1 SET a = 10;
 INSERT INTO t1 VALUES (4);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 connection master;
@@ -537,8 +518,7 @@ UPDATE t1 SET `int_key` = 4 ORDER BY `pk` LIMIT 6;
 --sync_slave_with_master
 --echo *** results: t2 must be consistent ****
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=master:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 --connection master
@@ -576,8 +556,7 @@ UPDATE t1 SET a = 8 WHERE a < 5;
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 connection master;
@@ -639,8 +618,7 @@ UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 3;
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 connection master;
