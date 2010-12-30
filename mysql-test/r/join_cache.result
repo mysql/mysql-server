@@ -6122,6 +6122,38 @@ f1	f3	f3	f2	f4
 SET SESSION join_cache_level = DEFAULT;
 SET SESSION optimizer_switch = DEFAULT;
 DROP TABLE t1,t2;
+CREATE TABLE t1 (f1 int, f2 varchar(10), KEY (f1), KEY (f2)) ;
+INSERT INTO t1 VALUES
+(4,'e'), (891879424,'l'), (-243400704,'ectlyqupbk'), (1851981824,'of'),
+(-1495203840,'you'), (4,'no'), (-1436942336,'c'), (891420672,'DQQYO'),
+(608698368,'qergldqmec'), (1,'x');
+CREATE TABLE t2 (f3 varchar(64), KEY (f3));
+INSERT INTO t2 VALUES 
+('d'), ('UALLN'), ('d'), ('z'), ('r'), ('YVAKV'), ('d'), ('TNGZK'), ('e'),
+('xucupaxdyythsgiw'), ('why'), ('ttugkxucupaxdyyt'), ('l'), ('LHTKN'),
+('d'), ('o'), ('v'), ('KGLCJ'), ('your');
+SET SESSION optimizer_switch='index_merge_sort_intersection=off';
+SET SESSION optimizer_switch = 'index_condition_pushdown=off';
+EXPLAIN SELECT * FROM t1,t2 
+WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0, 100) ORDER BY t1.f2 LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	f1,f2	f2	13	NULL	10	Using where
+1	SIMPLE	t2	ref	f3	f3	67	test.t1.f2	2	Using where; Using index
+SELECT * FROM t1,t2 
+WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0 ,100) ORDER BY t1.f2 LIMIT 1;
+f1	f2	f3
+SET SESSION optimizer_switch = DEFAULT;
+SET SESSION optimizer_switch = 'index_condition_pushdown=on';
+EXPLAIN SELECT * FROM t1,t2 
+WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0 ,100) ORDER BY t1.f2 LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	f1,f2	f2	13	NULL	10	Using where
+1	SIMPLE	t2	ref	f3	f3	67	test.t1.f2	2	Using where; Using index
+SELECT * FROM t1,t2 
+WHERE t2.f3 = t1.f2 AND t1.f1 IN (9, 0 ,100) ORDER BY t1.f2 LIMIT 1;
+f1	f2	f3
+SET SESSION optimizer_switch = DEFAULT;
+DROP TABLE t1,t2;
 #
 # Bug #694443: hash join using IS NULL the an equi-join condition
 #

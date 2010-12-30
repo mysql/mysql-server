@@ -113,4 +113,6 @@ set optimizer_switch=default;
 #
 # Bug #695304: invalid default setting for optimizer_switch
 #
+
+--replace_regex /,table_elimination=on//
 select @@optimizer_switch;
