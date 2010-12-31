@@ -1777,7 +1777,8 @@ int Dbtup::handleDeleteReq(Signal* signal,
       goto error;
     }
     Uint32 len = regTabPtr->total_rec_size - 
-      (((Uint32*)dst) - get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location));
+      Uint32(((Uint32*)dst) - 
+             get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location));
     memcpy(dst, org, 4 * len);
     req_struct->m_tuple_ptr = dst;
     set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
