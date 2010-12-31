@@ -76,7 +76,7 @@ drop table t1;
 # Case 7. ALTER. Modify virtual stored -> virtual non-stored
 create table t1 (a int, b int as (a % 2) persistent);
 alter table t1 modify b int as (a % 2);
-ERROR HY000: 'Changing the STORED status' is not yet supported for computed columns
+ERROR HY000: This is not yet supported for computed columns
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -87,7 +87,7 @@ drop table t1;
 # Case 8. ALTER. Modify virtual non-stored -> virtual stored
 create table t1 (a int, b int as (a % 2));
 alter table t1 modify b int as (a % 2) persistent;
-ERROR HY000: 'Changing the STORED status' is not yet supported for computed columns
+ERROR HY000: This is not yet supported for computed columns
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

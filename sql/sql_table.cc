@@ -6280,9 +6280,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       def->field=field;
       if (field->stored_in_db != def->stored_in_db)
       {
-        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN,
-                 MYF(0),
-                 "Changing the STORED status");
+        my_error(ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN, MYF(0));
         goto err;
       }
       if (!def->after)

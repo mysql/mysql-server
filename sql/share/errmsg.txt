@@ -6017,7 +6017,7 @@ ER_ONLY_INTEGERS_ALLOWED
         eng "Only integers allowed as number here"
         ger "An dieser Stelle sind nur Ganzzahlen zulässig"
 ER_UNSUPORTED_LOG_ENGINE
-        eng "This storage engine cannot be used for log tables""
+        eng "This storage engine cannot be used for log tables"
         ger "Diese Speicher-Engine kann für Logtabellen nicht verwendet werden"
 ER_BAD_LOG_STATEMENT
         eng "You cannot '%s' a log table if logging is enabled"
@@ -6236,13 +6236,15 @@ ER_WARNING_NON_DEFAULT_VALUE_FOR_VIRTUAL_COLUMN
         eng "The value specified for computed column '%s' in table '%s' ignored"
 
 ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
-        eng "'%s' is not yet supported for computed columns"
+        eng "This is not yet supported for computed columns"
 
 ER_CONST_EXPR_IN_VCOL
         eng "Constant expression in computed column function is not allowed"
 
 ER_ROW_EXPR_FOR_VCOL
         eng "Expression for computed column cannot return a row"
+ER_UNSUPPORTED_ENGINE_FOR_VIRTUAL_COLUMNS
+        eng "%s storage engine does not support computed columns"
 ER_UNKNOWN_OPTION
         eng "Unknown option '%-.64s'"
 ER_BAD_OPTION_VALUE

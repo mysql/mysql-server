@@ -1471,7 +1471,7 @@ UNIV_INTERN
 ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
-		  HA_NULL_IN_KEY |
+		  HA_NULL_IN_KEY | HA_CAN_VIRTUAL_COLUMNS |
 		  HA_CAN_INDEX_BLOBS |
 		  HA_CAN_SQL_HANDLER |
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
