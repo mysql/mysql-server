@@ -26,13 +26,16 @@
 
 struct UndoPage
 {
-  File_formats::Page_header m_page_header;
   Uint32 m_words_used;
   Uint32 m_ref_count;
-  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-2-(sizeof(File_formats::Page_header)>>2)];
+  Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS-2];
   
-  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2-(sizeof(File_formats::Page_header)>>2) );
+  STATIC_CONST( DATA_WORDS = GLOBAL_PAGE_SIZE_WORDS-2 );
 };
+
+#if defined VM_TRACE || defined ERROR_INSERT
+#define SAFE_UB
+#endif
 
 static
 inline
@@ -54,7 +57,10 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
 {
   UndoPage* page;
   assert(words);
-  if(m_first_free == RNIL)
+#ifdef SAFE_UB
+  words += 2; // header + footer
+#endif
+  if (m_first_free == RNIL)
   {
     page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, 
                                       &m_first_free,
@@ -68,7 +74,7 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   page = get_page(m_mm, m_first_free);
   Uint32 pos= page->m_words_used;
 
-  if(words + pos > UndoPage::DATA_WORDS)
+  if (words + pos > UndoPage::DATA_WORDS)
   {
     m_first_free= RNIL;
     return alloc_copy_tuple(dst, words);
@@ -79,6 +85,11 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   
   page->m_ref_count++;
   page->m_words_used = pos + words;
+#ifdef SAFE_UB
+  page->m_data[pos] = words;    // header
+  page->m_data[pos + words - 1] = m_first_free + pos;
+  pos ++;
+#endif
   return page->m_data + pos;
 }
 
@@ -100,10 +111,10 @@ Undo_buffer::free_copy_tuple(Local_key* key)
 
   page->m_ref_count= cnt - 1;
   
-  if(cnt - 1 == 0)
+  if (cnt - 1 == 0)
   {
     page->m_words_used= 0;
-    if(m_first_free == key->m_page_no)
+    if (m_first_free == key->m_page_no)
     {
       //ndbout_c("resetting page");
     }
@@ -119,6 +130,16 @@ Undo_buffer::free_copy_tuple(Local_key* key)
 Uint32 *
 Undo_buffer::get_ptr(const Local_key* key)
 {
-  return get_page(m_mm, key->m_page_no)->m_data+key->m_page_idx;
+  UndoPage* page = get_page(m_mm, key->m_page_no);
+  Uint32 * ptr = page->m_data + key->m_page_idx;
+#ifdef SAFE_UB
+  Uint32 words = * ptr;
+  Uint32 check = ptr[words - 1];
+  if (unlikely(! ((check == key->m_page_no + key->m_page_idx))))
+  {
+    abort();
+  }
+  ptr++;
+#endif
+  return ptr;
 }
-
