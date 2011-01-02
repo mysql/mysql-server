@@ -1,0 +1,36 @@
+# test that deletes work when hot indexing is on
+
+set storage_engine='tokudb';
+
+--echo # Establish connection conn1 (user = root)
+connect (conn1,localhost,root,,);
+
+connection default;
+
+# create table s
+--disable_warnings
+drop table if exists s;
+--enable_warnings
+create table s (a int, b int);
+
+# populate table s
+let $a = 10000;
+while ($a) {
+    eval insert into s values ($a,0),($a,1),($a,2),($a,3),($a,4),($a,5),($a,6),($a,7),($a,8),($a,9);
+    dec $a;
+}
+
+set tokudb_create_index_online=1;
+send create index i_a on s(a);
+
+connection conn1;
+set tokudb_write_lock_wait=1;
+set tokudb_read_lock_wait=1;
+delete from s where a=1;
+
+connection default;
+reap;
+disconnect conn1;
+
+#cleanup
+drop table s;
