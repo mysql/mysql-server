@@ -26,10 +26,16 @@ send create index i_a on s(a);
 connection conn1;
 set tokudb_write_lock_wait=1;
 set tokudb_read_lock_wait=1;
-delete from s where a=1;
+let $a = 10000;
+while ($a) {
+    eval delete from s where a=$a;
+    dec $a;
+}
 
 connection default;
 reap;
+select count(*) from s;
+select count(*) from s use index(i_a);
 disconnect conn1;
 
 #cleanup
