@@ -91,11 +91,13 @@ if (`SELECT @@global.binlog_format != 'ROW' OR @@global.slave_exec_mode = 'STRIC
   # key error, and stops the SQL thread.
   let $slave_sql_errno= 1062; # ER_DUP_ENTRY
   source include/wait_for_slave_sql_error.inc;
-  let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+
+  --let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
   --replace_regex /end_log_pos [0-9]+/end_log_pos END_LOG_POS/
   --disable_query_log
   --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
   --enable_query_log
+
   SELECT * FROM t1;
 
   --echo ---- Resolve the conflict on the slave and restart SQL thread ----
@@ -142,8 +144,13 @@ if (`SELECT @@global.binlog_format = 'ROW' AND @@global.slave_exec_mode = 'STRIC
   --echo ---- Wait until slave stops with an error ----
   let $slave_sql_errno= 1032; # ER_KEY_NOT_FOUND
   source include/wait_for_slave_sql_error.inc;
-  let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
-  --echo Last_SQL_Error = $err (expected "can't find record" error)
+
+  --let $err= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
+  --replace_regex /end_log_pos [0-9]+/end_log_pos END_LOG_POS/
+  --disable_query_log
+  --eval SELECT "$err" as 'Last_SQL_Error (expected "duplicate key" error)'
+  --enable_query_log
+
   SELECT * FROM t1;
 
   --echo ---- Resolve the conflict on the slave and restart SQL thread ----
@@ -168,4 +175,4 @@ connection master;
 DROP TABLE t1;
 
 --echo [on slave]
-sync_slave_with_master;
+--sync_slave_with_master

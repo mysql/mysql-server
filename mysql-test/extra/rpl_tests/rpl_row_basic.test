@@ -158,8 +158,8 @@ SELECT * FROM t5,t2,t3 WHERE t5.C2='Q' AND t2.c12='R' AND t3.C3 ='S' ORDER BY t5
 #
 
 if (`select char_length('$bit_field_special') > 0`) {
-  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
   connection slave;
+  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
   eval SET GLOBAL SLAVE_TYPE_CONVERSIONS = '$bit_field_special';
 }
 
@@ -252,7 +252,7 @@ DELETE FROM t1;
 sync_slave_with_master;
 
 # Just to get a clean binary log
-source include/reset_master_and_slave.inc;
+--source include/rpl_reset.inc
 
 --echo **** On Master ****
 connection master;
@@ -368,8 +368,7 @@ INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 --echo [expecting slave to replicate correctly]
@@ -378,20 +377,14 @@ INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 connection slave;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
-connection master;
-RESET MASTER;
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 --echo [expecting slave to replicate correctly]
 connection master;
@@ -399,8 +392,7 @@ INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t4;
-let $diff_table_2=slave:test.t4;
+let $diff_tables= master:t4, slave:t4;
 source include/diff_tables.inc;
 
 --echo [expecting slave to stop]
@@ -413,13 +405,8 @@ connection slave;
 --let $slave_sql_errno= 1677 
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
-connection master;
-RESET MASTER;
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+
+--source include/rpl_reset.inc
 
 --echo [expecting slave to stop]
 connection master;
@@ -431,13 +418,8 @@ connection slave;
 --let $slave_sql_errno= 1677 
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
-connection master;
-RESET MASTER;
-connection slave;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
-source include/wait_for_slave_to_start.inc;
+
+--source include/rpl_reset.inc
 
 --echo [expecting slave to replicate correctly]
 connection master;
@@ -445,8 +427,7 @@ INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t7;
-let $diff_table_2=slave:test.t7;
+let $diff_tables= master:t7, slave:t7;
 source include/diff_tables.inc;
 
 connection master;
@@ -466,8 +447,7 @@ UPDATE t1 SET a = 10;
 INSERT INTO t1 VALUES (4);
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 connection master;
@@ -545,8 +525,7 @@ UPDATE t1 SET `int_key` = 4 ORDER BY `pk` LIMIT 6;
 --sync_slave_with_master
 --echo *** results: t2 must be consistent ****
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=master:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 --connection master
@@ -584,8 +563,7 @@ UPDATE t1 SET a = 8 WHERE a < 5;
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 connection master;
@@ -604,8 +582,8 @@ connection master;
 
 # Since t1 contain a bit field, we have to do this trick to handle InnoDB
 if (`select char_length('$bit_field_special') > 0`) {
-  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
   connection slave;
+  SET @saved_slave_type_conversions = @@SLAVE_TYPE_CONVERSIONS;
   eval SET GLOBAL SLAVE_TYPE_CONVERSIONS = '$bit_field_special';
 }
 
@@ -659,8 +637,7 @@ if (`select char_length('$bit_field_special') > 0`) {
   SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 }
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 connection master;

@@ -501,6 +501,19 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Error	1690	BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
+#
+# Bug#57810 case/when/then : Assertion failed: length || !scale
+#
+SELECT CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END;
+CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END
+NULL
+CREATE TABLE t1 SELECT CAST((CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END) AS CHAR) as C;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `C` varchar(23) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
 End of 5.1 tests
 #
 # Bug #8433: Overflow must be an error

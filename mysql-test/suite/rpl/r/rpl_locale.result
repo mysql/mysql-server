@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (s1 char(10));
 set lc_time_names= 'de_DE';
 insert into t1 values (date_format('2001-01-01','%W'));
@@ -18,3 +14,4 @@ s1
 Montag
 Monday
 drop table t1;
+include/rpl_end.inc
