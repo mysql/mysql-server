@@ -3986,14 +3986,14 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
   {
     setErrorCodeAbort(4509);
     /* Non SF_MultiRange scan cannot have more than one bound */
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   if (currentRangeOldApi == NULL)
   {
     setErrorCodeAbort(4259);
     /* Invalid set of range scan bounds */
-    return -1;
+    DBUG_RETURN(-1);
   }
 
   /* If it's an ordered scan and we're reading range numbers
@@ -4016,12 +4016,12 @@ NdbIndexScanOperation::end_of_bound(Uint32 no)
     {
       setErrorCodeAbort(4282);
       /* range_no not strictly increasing in ordered multi-range index scan */
-      return -1;
+      DBUG_RETURN(-1);
     }
   }
   
   if (buildIndexBoundOldApi(no) != 0)
-    return -1;
+    DBUG_RETURN(-1);
       
   DBUG_RETURN(0);
 }

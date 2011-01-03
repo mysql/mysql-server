@@ -45,10 +45,19 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
              ((trans_state == TRANS_ERROR_WAIT_STORED_PROCREQ) &&
              (requestInfo == ZSTORED_PROCEDURE_DELETE)));
   ndbrequire(regTabPtr.p->tableStatus == DEFINED);
+  /*
+   * Also store count of procs called from non-API scans.
+   * It can be done here since seize/release always succeeds.
+   * The count is only used under -DERROR_INSERT via DUMP.
+   */
+  BlockReference apiBlockref = signal->theData[5];
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
   {
     jam();
+#if defined VM_TRACE || defined ERROR_INSERT
+    storedProcCountNonAPI(apiBlockref, +1);
+#endif
     SectionHandle handle(this, signal);
     ndbrequire(handle.m_cnt == 1);
 
@@ -60,16 +69,42 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
   }
   case ZCOPY_PROCEDURE:
     jam();
+#if defined VM_TRACE || defined ERROR_INSERT
+    storedProcCountNonAPI(apiBlockref, +1);
+#endif
     copyProcedure(signal, regTabPtr, regOperPtr.p);
     break;
   case ZSTORED_PROCEDURE_DELETE:
     jam();
+#if defined VM_TRACE || defined ERROR_INSERT
+    storedProcCountNonAPI(apiBlockref, -1);
+#endif
     deleteScanProcedure(signal, regOperPtr.p);
     break;
   default:
     ndbrequire(false);
   }//switch
 }//Dbtup::execSTORED_PROCREQ()
+
+void Dbtup::storedProcCountNonAPI(BlockReference apiBlockref, int add_del)
+{
+  BlockNumber apiBlockno = refToBlock(apiBlockref);
+  if (apiBlockno < MIN_API_BLOCK_NO) {
+    ndbassert(blockToMain(apiBlockno) == BACKUP ||
+              blockToMain(apiBlockno) == SUMA ||
+              blockToMain(apiBlockno) == DBLQH);
+    if (add_del == +1) {
+      jam();
+      c_storedProcCountNonAPI++;
+    } else if (add_del == -1) {
+      jam();
+      ndbassert(c_storedProcCountNonAPI > 0);
+      c_storedProcCountNonAPI--;
+    } else {
+      ndbassert(false);
+    }
+  }
+}
 
 void Dbtup::deleteScanProcedure(Signal* signal,
                                 Operationrec* regOperPtr) 
