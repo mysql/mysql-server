@@ -1872,7 +1872,7 @@ int
 NdbBlob::deletePartsThrottled(Uint32 part, Uint32 count)
 {
   DBUG_ENTER("NdbBlob::deletePartsThrottled");
-  DBUG_PRINT("info", ("part=%u count=%u maxPendingBlobWriteBytes=%llu", 
+  DBUG_PRINT("info", ("part=%u count=%u maxPendingBlobWriteBytes=%u", 
                       part, count, theNdbCon->maxPendingBlobWriteBytes));
   
   if (thePartSize)
