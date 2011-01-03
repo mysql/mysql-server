@@ -630,9 +630,9 @@ bool pfs_show_status(handlerton *hton, THD *thd,
   /*
     Note about naming conventions:
     - Internal buffers exposed as a table in the performance schema are named
-    after the table, as in 'EVENTS_WAITS_CURRENT'
+    after the table, as in 'events_waits_current'
     - Internal buffers not exposed by a table are named with parenthesis,
-    as in '(PFS_MUTEX_CLASS)'.
+    as in '(pfs_mutex_class)'.
   */
   if (stat != HA_ENGINE_STATUS)
     DBUG_RETURN(false);
@@ -643,285 +643,285 @@ bool pfs_show_status(handlerton *hton, THD *thd,
   {
     switch (i){
     case 0:
-      name= "EVENTS_WAITS_CURRENT.ROW_SIZE";
+      name= "events_waits_current.row_size";
       size= sizeof(PFS_events_waits);
       break;
     case 1:
-      name= "EVENTS_WAITS_CURRENT.ROW_COUNT";
+      name= "events_waits_current.row_count";
       size= WAIT_STACK_SIZE * thread_max;
       break;
     case 2:
-      name= "EVENTS_WAITS_HISTORY.ROW_SIZE";
+      name= "events_waits_history.row_size";
       size= sizeof(PFS_events_waits);
       break;
     case 3:
-      name= "EVENTS_WAITS_HISTORY.ROW_COUNT";
+      name= "events_waits_history.row_count";
       size= events_waits_history_per_thread * thread_max;
       break;
     case 4:
-      name= "EVENTS_WAITS_HISTORY.MEMORY";
+      name= "events_waits_history.memory";
       size= events_waits_history_per_thread * thread_max
         * sizeof(PFS_events_waits);
       total_memory+= size;
       break;
     case 5:
-      name= "EVENTS_WAITS_HISTORY_LONG.ROW_SIZE";
+      name= "events_waits_history_long.row_size";
       size= sizeof(PFS_events_waits);
       break;
     case 6:
-      name= "EVENTS_WAITS_HISTORY_LONG.ROW_COUNT";
+      name= "events_waits_history_long.row_count";
       size= events_waits_history_long_size;
       break;
     case 7:
-      name= "EVENTS_WAITS_HISTORY_LONG.MEMORY";
+      name= "events_waits_history_long.memory";
       size= events_waits_history_long_size * sizeof(PFS_events_waits);
       total_memory+= size;
       break;
     case 8:
-      name= "(PFS_MUTEX_CLASS).ROW_SIZE";
+      name= "(pfs_mutex_class).row_size";
       size= sizeof(PFS_mutex_class);
       break;
     case 9:
-      name= "(PFS_MUTEX_CLASS).ROW_COUNT";
+      name= "(pfs_mutex_class).row_count";
       size= mutex_class_max;
       break;
     case 10:
-      name= "(PFS_MUTEX_CLASS).MEMORY";
+      name= "(pfs_mutex_class).memory";
       size= mutex_class_max * sizeof(PFS_mutex_class);
       total_memory+= size;
       break;
     case 11:
-      name= "(PFS_RWLOCK_CLASS).ROW_SIZE";
+      name= "(pfs_rwlock_class).row_size";
       size= sizeof(PFS_rwlock_class);
       break;
     case 12:
-      name= "(PFS_RWLOCK_CLASS).ROW_COUNT";
+      name= "(pfs_rwlock_class).row_count";
       size= rwlock_class_max;
       break;
     case 13:
-      name= "(PFS_RWLOCK_CLASS).MEMORY";
+      name= "(pfs_rwlock_class).memory";
       size= rwlock_class_max * sizeof(PFS_rwlock_class);
       total_memory+= size;
       break;
     case 14:
-      name= "(PFS_COND_CLASS).ROW_SIZE";
+      name= "(pfs_cond_class).row_size";
       size= sizeof(PFS_cond_class);
       break;
     case 15:
-      name= "(PFS_COND_CLASS).ROW_COUNT";
+      name= "(pfs_cond_class).row_count";
       size= cond_class_max;
       break;
     case 16:
-      name= "(PFS_COND_CLASS).MEMORY";
+      name= "(pfs_cond_class).memory";
       size= cond_class_max * sizeof(PFS_cond_class);
       total_memory+= size;
       break;
     case 17:
-      name= "(PFS_THREAD_CLASS).ROW_SIZE";
+      name= "(pfs_thread_class).row_size";
       size= sizeof(PFS_thread_class);
       break;
     case 18:
-      name= "(PFS_THREAD_CLASS).ROW_COUNT";
+      name= "(pfs_thread_class).row_count";
       size= thread_class_max;
       break;
     case 19:
-      name= "(PFS_THREAD_CLASS).MEMORY";
+      name= "(pfs_thread_class).memory";
       size= thread_class_max * sizeof(PFS_thread_class);
       total_memory+= size;
       break;
     case 20:
-      name= "(PFS_FILE_CLASS).ROW_SIZE";
+      name= "(pfs_file_class).row_size";
       size= sizeof(PFS_file_class);
       break;
     case 21:
-      name= "(PFS_FILE_CLASS).ROW_COUNT";
+      name= "(pfs_file_class).row_count";
       size= file_class_max;
       break;
     case 22:
-      name= "(PFS_FILE_CLASS).MEMORY";
+      name= "(pfs_file_class).memory";
       size= file_class_max * sizeof(PFS_file_class);
       total_memory+= size;
       break;
     case 23:
-      name= "(PFS_SOCKET_CLASS).ROW_SIZE";
-      size= sizeof(PFS_socket_class);
-      break;
-    case 24:
-      name= "(PFS_SOCKET_CLASS).ROW_COUNT";
-      size= socket_class_max;
-      break;
-    case 25:
-      name= "(PFS_SOCKET_CLASS).MEMORY";
-      size= socket_class_max * sizeof(PFS_socket_class);
-      total_memory+= size;
-      break;
-    case 26:
-      name= "MUTEX_INSTANCES.ROW_SIZE";
+      name= "mutex_instances.row_size";
       size= sizeof(PFS_mutex);
       break;
-    case 27:
-      name= "MUTEX_INSTANCES.ROW_COUNT";
+    case 24:
+      name= "mutex_instances.row_count";
       size= mutex_max;
       break;
-    case 28:
-      name= "MUTEX_INSTANCES.MEMORY";
+    case 25:
+      name= "mutex_instances.memory";
       size= mutex_max * sizeof(PFS_mutex);
       total_memory+= size;
       break;
-    case 29:
-      name= "RWLOCK_INSTANCES.ROW_SIZE";
+    case 26:
+      name= "rwlock_instances.row_size";
       size= sizeof(PFS_rwlock);
       break;
-    case 30:
-      name= "RWLOCK_INSTANCES.ROW_COUNT";
+    case 27:
+      name= "rwlock_instances.row_count";
       size= rwlock_max;
       break;
-    case 31:
-      name= "RWLOCK_INSTANCES.MEMORY";
+    case 28:
+      name= "rwlock_instances.memory";
       size= rwlock_max * sizeof(PFS_rwlock);
       total_memory+= size;
       break;
-    case 32:
-      name= "COND_INSTANCES.ROW_SIZE";
+    case 29:
+      name= "cond_instances.row_size";
       size= sizeof(PFS_cond);
       break;
-    case 33:
-      name= "COND_INSTANCES.ROW_COUNT";
+    case 30:
+      name= "cond_instances.row_count";
       size= cond_max;
       break;
-    case 34:
-      name= "COND_INSTANCES.MEMORY";
+    case 31:
+      name= "cond_instances.memory";
       size= cond_max * sizeof(PFS_cond);
       total_memory+= size;
       break;
-    case 35:
-      name= "PROCESSLIST.ROW_SIZE";
+    case 32:
+      name= "threads.row_size";
       size= sizeof(PFS_thread);
       break;
-    case 36:
-      name= "PROCESSLIST.ROW_COUNT";
+    case 33:
+      name= "threads.row_count";
       size= thread_max;
       break;
-    case 37:
-      name= "PROCESSLIST.MEMORY";
+    case 34:
+      name= "threads.memory";
       size= thread_max * sizeof(PFS_thread);
       total_memory+= size;
       break;
-    case 38:
-      name= "FILE_INSTANCES.ROW_SIZE";
+    case 35:
+      name= "file_instances.row_size";
       size= sizeof(PFS_file);
       break;
-    case 39:
-      name= "FILE_INSTANCES.ROW_COUNT";
+    case 36:
+      name= "file_instances.row_count";
       size= file_max;
       break;
-    case 40:
-      name= "FILE_INSTANCES.MEMORY";
+    case 37:
+      name= "file_instances.memory";
       size= file_max * sizeof(PFS_file);
       total_memory+= size;
       break;
-    case 41:
-      name= "(PFS_FILE_HANDLE).ROW_SIZE";
+    case 38:
+      name= "(pfs_file_handle).row_size";
       size= sizeof(PFS_file*);
       break;
-    case 42:
-      name= "(PFS_FILE_HANDLE).ROW_COUNT";
+    case 39:
+      name= "(pfs_file_handle).row_count";
       size= file_handle_max;
       break;
-    case 43:
-      name= "(PFS_FILE_HANDLE).MEMORY";
+    case 40:
+      name= "(pfs_file_handle).memory";
       size= file_handle_max * sizeof(PFS_file*);
       total_memory+= size;
       break;
-    case 44:
-      name= "SOCKET_INSTANCES.ROW_SIZE";
-      size= sizeof(PFS_socket);
-      break;
-    case 45:
-      name= "SOCKET_INSTANCES.ROW_COUNT";
-      size= socket_max;
-      break;
-    case 46:
-      name= "SOCKET_INSTANCES.MEMORY";
-      size= socket_max * sizeof(PFS_socket);
-      total_memory+= size;
-      break;
-    case 47:
-      name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_SIZE";
+    case 41:
+      name= "events_waits_summary_by_thread_by_event_name.row_size";
       size= sizeof(PFS_single_stat);
       break;
-    case 48:
-      name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_COUNT";
+    case 42:
+      name= "events_waits_summary_by_thread_by_event_name.row_count";
       size= thread_max * max_instrument_class;
       break;
-    case 49:
-      name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.MEMORY";
+    case 43:
+      name= "events_waits_summary_by_thread_by_event_name.memory";
       size= thread_max * max_instrument_class * sizeof(PFS_single_stat);
       total_memory+= size;
       break;
-    case 50:
-      name= "(PFS_TABLE_SHARE).ROW_SIZE";
+    case 44:
+      name= "(pfs_table_share).row_size";
       size= sizeof(PFS_table_share);
       break;
-    case 51:
-      name= "(PFS_TABLE_SHARE).ROW_COUNT";
+    case 45:
+      name= "(pfs_table_share).row_count";
       size= table_share_max;
       break;
-    case 52:
-      name= "(PFS_TABLE_SHARE).MEMORY";
+    case 46:
+      name= "(pfs_table_share).memory";
       size= table_share_max * sizeof(PFS_table_share);
       total_memory+= size;
       break;
-    case 53:
-      name= "(PFS_TABLE).ROW_SIZE";
+    case 47:
+      name= "(pfs_table).row_size";
       size= sizeof(PFS_table);
       break;
-    case 54:
-      name= "(PFS_TABLE).ROW_COUNT";
+    case 48:
+      name= "(pfs_table).row_count";
       size= table_max;
       break;
-    case 55:
-      name= "(PFS_TABLE).MEMORY";
+    case 49:
+      name= "(pfs_table).memory";
       size= table_max * sizeof(PFS_table);
       total_memory+= size;
       break;
-    case 56:
-      name= "SETUP_ACTORS.ROW_SIZE";
+    case 50:
+      name= "setup_actors.row_size";
       size= sizeof(PFS_setup_actor);
       break;
-    case 57:
-      name= "SETUP_ACTORS.ROW_COUNT";
+    case 51:
+      name= "setup_actors.row_count";
       size= setup_actor_max;
       break;
-    case 58:
-      name= "SETUP_ACTORS.MEMORY";
+    case 52:
+      name= "setup_actors.memory";
       size= setup_actor_max * sizeof(PFS_setup_actor);
       total_memory+= size;
       break;
-    case 59:
-      name= "SETUP_OBJECTS.ROW_SIZE";
+    case 53:
+      name= "setup_objects.row_size";
       size= sizeof(PFS_setup_object);
       break;
-    case 60:
-      name= "SETUP_OBJECTS.ROW_COUNT";
+    case 54:
+      name= "setup_objects.row_count";
       size= setup_object_max;
       break;
-    case 61:
-      name= "SETUP_OBJECTS.MEMORY";
+    case 55:
+      name= "setup_objects.memory";
       size= setup_object_max * sizeof(PFS_setup_object);
       total_memory+= size;
       break;
-    case 62:
-      name= "EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.ROW_SIZE";
+   case 56:
+      name= "events_waits_summary_global_by_event_name.row_size";
       size= sizeof(PFS_single_stat);
       break;
-    case 63:
-      name= "EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.ROW_COUNT";
+    case 57:
+      name= "events_waits_summary_global_by_event_name.row_count";
       size= max_instrument_class;
       break;
-    case 64:
-      name= "EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME.MEMORY";
+    case 58:
+      name= "events_waits_summary_global_by_event_name.memory";
       size= max_instrument_class * sizeof(PFS_single_stat);
+      total_memory+= size;
+      break;
+    case 59:
+      name= "(pfs_socket_class).row_size";
+      size= sizeof(PFS_socket_class);
+      break;
+    case 60:
+      name= "(pfs_socket_class).row_count";
+      size= socket_class_max;
+      break;
+    case 61:
+      name= "(pfs_socket_class).memory";
+      size= socket_class_max * sizeof(PFS_socket_class);
+      total_memory+= size;
+      break;
+    case 62:
+      name= "socket_instances.row_size";
+      size= sizeof(PFS_socket);
+      break;
+    case 63:
+      name= "socket_instances.row_count";
+      size= socket_max;
+      break;
+    case 64:
+      name= "socket_instances.memory";
+      size= socket_max * sizeof(PFS_socket);
       total_memory+= size;
       break;
     /*
@@ -929,7 +929,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       for aggregation in total_memory.
     */
     case 65:
-      name= "PERFORMANCE_SCHEMA.MEMORY";
+      name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
       DBUG_ASSERT(size == pfs_allocated_memory);

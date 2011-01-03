@@ -41,9 +41,6 @@ connection master;
 flush status;
 show status like "binlog_cache_use";
 show status like "binlog_cache_disk_use";
---disable_warnings
-drop table if exists t1;
---enable_warnings
 
 #
 # parameter to ensure the test slightly varies binlog content
@@ -84,8 +81,7 @@ show status like "binlog_cache_disk_use";
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 # undoing changes with verifying the above once again
@@ -127,8 +123,7 @@ show status like "binlog_cache_disk_use";
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+--let $diff_tables= master:t2, slave:t2
 source include/diff_tables.inc;
 
 # undoing changes with verifying the above once again
@@ -170,8 +165,7 @@ show status like "binlog_cache_disk_use";
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t3;
-let $diff_table_2=slave:test.t3;
+--let $diff_tables= master:t3, slave:t3
 source include/diff_tables.inc;
 
 # undoing changes with verifying the above once again
@@ -230,16 +224,13 @@ show status like "binlog_cache_disk_use";
 
 sync_slave_with_master;
 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+--let $diff_tables= master:t1, slave:t1
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+--let $diff_tables= master:t2, slave:t2
 source include/diff_tables.inc;
 
-let $diff_table_1=master:test.t3;
-let $diff_table_2=slave:test.t3;
+--let $diff_tables= master:t3, slave:t3
 source include/diff_tables.inc;
 
 
@@ -258,7 +249,4 @@ set @@global.master_verify_checksum = @save_master_verify_checksum;
 drop procedure test.p_init;
 drop procedure test.p1;
 
-sync_slave_with_master;
-
---echo End of tests
-
+--source include/rpl_end.inc

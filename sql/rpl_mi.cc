@@ -76,14 +76,22 @@ const char *info_mi_fields []=
   "retry_count"
 };
 
-Master_info::Master_info(PSI_mutex_key *param_key_info_run_lock,
+Master_info::Master_info(
+#ifdef HAVE_PSI_INTERFACE
+                         PSI_mutex_key *param_key_info_run_lock,
                          PSI_mutex_key *param_key_info_data_lock,
                          PSI_mutex_key *param_key_info_data_cond,
                          PSI_mutex_key *param_key_info_start_cond,
-                         PSI_mutex_key *param_key_info_stop_cond)
-   :Rpl_info("I/O", param_key_info_run_lock, param_key_info_data_lock,
+                         PSI_mutex_key *param_key_info_stop_cond
+#endif
+                        )
+   :Rpl_info("I/O"
+#ifdef HAVE_PSI_INTERFACE
+             ,param_key_info_run_lock, param_key_info_data_lock,
              param_key_info_data_cond, param_key_info_start_cond,
-             param_key_info_stop_cond),
+             param_key_info_stop_cond
+#endif
+            ),
    ssl(0), ssl_verify_server_cert(0),
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
    clock_diff_with_master(0), heartbeat_period(0),

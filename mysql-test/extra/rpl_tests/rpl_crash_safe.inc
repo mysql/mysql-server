@@ -87,9 +87,9 @@ if (`SELECT HEX(@commands) != HEX('')`)
     --error 0, 2013
     START SLAVE SQL_THREAD;
     --source include/wait_until_disconnected.inc
-    --enable_reconnect
     --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
-    --source include/wait_until_connected_again.inc
+    --let $rpl_server_number= 2
+    --source include/rpl_reconnect.inc
     connection slave;
     --let $slave_before= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
     START SLAVE;
@@ -104,7 +104,7 @@ if (`SELECT HEX(@commands) != HEX('')`)
   sync_slave_with_master;
   --let $slave_after= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
   connection master;
-  if (`SELECT $slave_after != $master_after`)
+  if ($slave_after != $master_after)
   {
     --echo Slave is out of sync.
     --echo MASTER_BEFORE $master_before MASTER_AFTER $master_after SLAVE_BEFORE $slave_before SLAVE_AFTER $slave_after

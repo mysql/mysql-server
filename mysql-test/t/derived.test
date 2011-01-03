@@ -301,4 +301,37 @@ SELECT 0 FROM
 (SELECT 0) t56, (SELECT 0) t57, (SELECT 0) t58, (SELECT 0) t59, (SELECT 0) t60,
 (SELECT 0) t61; # 61 == MAX_TABLES
 
+--echo #
+--echo #  A nested materialized derived table is used before being populated.
+--echo #  (addon for bug#19077)
+--echo #
+
+CREATE TABLE t1 (i INT, j BIGINT);
+INSERT INTO t1 VALUES (1, 2), (2, 2), (3, 2);
+SELECT * FROM (SELECT MIN(i) FROM t1
+WHERE j = SUBSTRING('12', (SELECT * FROM (SELECT MIN(j) FROM t1) t2))) t3;
+DROP TABLE t1;
+
 --echo # End of 5.0 tests
+
+
+--echo #
+--echo # Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
+--echo #           temptable views
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, KEY (b));
+INSERT INTO t1 VALUES (1),(1);
+INSERT INTO t2 VALUES (1),(1);
+
+CREATE algorithm=temptable VIEW v1 AS
+  SELECT 1 FROM t1 LEFT JOIN t1 t3 ON 1 > (SELECT 1 FROM t1);
+CREATE algorithm=temptable VIEW v2 AS SELECT 1 FROM t2;
+
+# This caused the assert to be triggered.
+--error ER_SUBQUERY_NO_1_ROW
+EXPLAIN SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
+
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;

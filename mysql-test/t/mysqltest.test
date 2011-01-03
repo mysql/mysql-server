@@ -1354,6 +1354,11 @@ EOF
 --exec $MYSQL_TEST < $MYSQL_TMP_DIR/mysqltest.sql 2>&1
 remove_file $MYSQL_TMP_DIR/mysqltest.sql;
 
+--error 1
+--exec echo "if (\$var ==) {" | $MYSQL_TEST  2>&1
+--error 1
+--exec echo "if (\$var > ) {" | $MYSQL_TEST  2>&1
+
 # ----------------------------------------------------------------------------
 # Test while with compare conditions
 # ----------------------------------------------------------------------------
@@ -2125,6 +2130,7 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
+--replace_regex /my_errno=[0-9]*/(my_errno)/
 --error 1
 --exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
 
@@ -2701,6 +2707,8 @@ write_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
 hello
 EOF
 
+# Verify that --replace_result also work on list_files
+--replace_result file REPLACED_FILE
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
 # list_files gets the directory list before creating the new file
 list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file2.txt $MYSQLTEST_VARDIR/tmp/testdir *;

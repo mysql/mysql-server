@@ -69,9 +69,7 @@ static uchar bin_char_array[] =
 
 static my_bool 
 my_coll_init_8bit_bin(CHARSET_INFO *cs,
-                      void *(*alloc)(size_t) __attribute__((unused)),
-                      char *error __attribute__((unused)),
-                      size_t errsize __attribute__((unused)))
+                      MY_CHARSET_LOADER *loader __attribute__((unused)))
 {
   cs->max_sort_char=255; 
   return FALSE;

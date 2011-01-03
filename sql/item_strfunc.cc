@@ -1177,9 +1177,15 @@ String *Item_func_replace::val_str(String *str)
     search=res2->ptr();
     search_end=search+from_length;
 redo:
+    DBUG_ASSERT(res->ptr() || !offset);
     ptr=res->ptr()+offset;
     strend=res->ptr()+res->length();
-    end=strend-from_length+1;
+    /*
+      In some cases val_str() can return empty string
+      with ptr() == NULL and length() == 0.
+      Let's check strend to avoid overflow.
+    */
+    end= strend ? strend - from_length + 1 : NULL;
     while (ptr < end)
     {
         if (*ptr == *search)
@@ -3103,11 +3109,8 @@ void Item_func_set_collation::fix_length_and_dec()
 					 MY_CS_BINSORT,MYF(0));
   else
   {
-    if (!(set_collation= get_charset_by_name(colname,MYF(0))))
-    {
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), colname);
+    if (!(set_collation= mysqld_collation_get_by_name(colname)))
       return;
-    }
   }
 
   if (!set_collation || 

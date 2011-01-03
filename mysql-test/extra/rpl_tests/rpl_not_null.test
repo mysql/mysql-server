@@ -71,12 +71,10 @@ INSERT INTO t4(a) VALUES (5);
 sync_slave_with_master;
 
 --echo TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
  
-let $diff_table_1=master:test.t2;
-let $diff_table_2=slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 --echo TABLES t2 and t3 must be different.
@@ -101,8 +99,7 @@ REPLACE INTO t1(a,b,c) VALUES (2, NULL, 300);
 sync_slave_with_master;
 
 --echo TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 --echo ************* CLEANING *************
@@ -154,8 +151,7 @@ REPLACE INTO t1(a,b,c) VALUES (2, NULL, b'00');
 --echo ************* SHOWING THE RESULT SETS WITH UPDATES and REPLACES *************
 --echo TABLES t1 and t2 must be equal otherwise an error will be thrown. 
 sync_slave_with_master;
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
  
 connection master;
@@ -273,7 +269,7 @@ sync_slave_with_master;
 #  SELECT * FROM t3 ORDER BY a;
 #  connection slave;
 #  SELECT * FROM t3 ORDER BY a;
-#  --source include/reset_master_and_slave.inc
+#  --source include/rpl_reset.inc
 #  
 #  connection master;
 #  

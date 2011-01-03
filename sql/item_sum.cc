@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1199,8 +1199,10 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
   value= Item_cache::get_cache(item);
   value->setup(item);
   value->store(value_arg);
+  arg_cache= Item_cache::get_cache(item);
+  arg_cache->setup(item);
   cmp= new Arg_comparator();
-  cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
+  cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
   collation.set(item->collation);
 }
 
@@ -1328,27 +1330,11 @@ void Item_sum_sum::fix_length_and_dec()
 bool Item_sum_sum::add()
 {
   DBUG_ENTER("Item_sum_sum::add");
-  bool arg_is_null;
   if (hybrid_type == DECIMAL_RESULT)
   {
-    my_decimal value, *val;
-    if (aggr->use_distinct_values)
-    {
-      /* 
-        We are aggregating distinct rows. Get the value from the distinct 
-        table pointer
-      */
-      Aggregator_distinct *daggr= (Aggregator_distinct *)aggr;
-      val= daggr->table->field[0]->val_decimal (&value);
-      arg_is_null= daggr->table->field[0]->is_null();
-    }
-    else
-    {
-      /* non-distinct aggregation */
-      val= args[0]->val_decimal(&value);
-      arg_is_null= args[0]->null_value;
-    }
-    if (!arg_is_null)
+    my_decimal value;
+    const my_decimal *val= aggr->arg_val_decimal(&value);
+    if (!aggr->arg_is_null())
     {
       my_decimal_add(E_DEC_FATAL_ERROR, dec_buffs + (curr_dec_buff^1),
                      val, dec_buffs + curr_dec_buff);
@@ -1358,25 +1344,8 @@ bool Item_sum_sum::add()
   }
   else
   {
-    double val;
-    if (aggr->use_distinct_values)
-    {
-      /* 
-        We are aggregating distinct rows. Get the value from the distinct 
-        table pointer
-      */
-      Aggregator_distinct *daggr= (Aggregator_distinct *)aggr;
-      val= daggr->table->field[0]->val_real ();
-      arg_is_null= daggr->table->field[0]->is_null();
-    }
-    else
-    {
-      /* non-distinct aggregation */
-      val= args[0]->val_real();
-      arg_is_null= args[0]->null_value;
-    }
-    sum+= val;
-    if (!arg_is_null)
+    sum+= aggr->arg_val_real();
+    if (!aggr->arg_is_null())
       null_value= 0;
   }
   DBUG_RETURN(0);
@@ -1471,6 +1440,45 @@ Aggregator_distinct::~Aggregator_distinct()
     delete tmp_table_param;
     tmp_table_param= NULL;
   }
+}
+
+
+my_decimal *Aggregator_simple::arg_val_decimal(my_decimal *value)
+{
+  return item_sum->args[0]->val_decimal(value);
+}
+
+
+double Aggregator_simple::arg_val_real()
+{
+  return item_sum->args[0]->val_real();
+}
+
+
+bool Aggregator_simple::arg_is_null()
+{
+  return item_sum->args[0]->null_value;
+}
+
+
+my_decimal *Aggregator_distinct::arg_val_decimal(my_decimal * value)
+{
+  return use_distinct_values ? table->field[0]->val_decimal(value) :
+    item_sum->args[0]->val_decimal(value);
+}
+
+
+double Aggregator_distinct::arg_val_real()
+{
+  return use_distinct_values ? table->field[0]->val_real() :
+    item_sum->args[0]->val_real();
+}
+
+
+bool Aggregator_distinct::arg_is_null()
+{
+  return use_distinct_values ? table->field[0]->is_null() :
+    item_sum->args[0]->null_value;
 }
 
 
@@ -1579,7 +1587,7 @@ bool Item_sum_avg::add()
 {
   if (Item_sum_sum::add())
     return TRUE;
-  if (!args[0]->null_value)
+  if (!aggr->arg_is_null())
     count++;
   return FALSE;
 }
@@ -1963,11 +1971,11 @@ Item *Item_sum_min::copy_or_same(THD* thd)
 bool Item_sum_min::add()
 {
   /* args[0] < value */
-  int res= cmp->compare();
-  if (!args[0]->null_value &&
-      (null_value || res < 0))
+  arg_cache->cache_value();
+  if (!arg_cache->null_value &&
+      (null_value || cmp->compare() < 0))
   {
-    value->store(args[0]);
+    value->store(arg_cache);
     value->cache_value();
     null_value= 0;
   }
@@ -1986,11 +1994,11 @@ Item *Item_sum_max::copy_or_same(THD* thd)
 bool Item_sum_max::add()
 {
   /* args[0] > value */
-  int res= cmp->compare();
-  if (!args[0]->null_value &&
-      (null_value || res > 0))
+  arg_cache->cache_value();
+  if (!arg_cache->null_value &&
+      (null_value || cmp->compare() > 0))
   {
-    value->store(args[0]);
+    value->store(arg_cache);
     value->cache_value();
     null_value= 0;
   }
@@ -2232,7 +2240,7 @@ void Item_sum_avg::reset_field()
 
 void Item_sum_bit::reset_field()
 {
-  reset();
+  reset_and_add();
   int8store(result_field->ptr, bits);
 }
 
@@ -3031,6 +3039,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
       order_item->item= arg_ptr++;
     }
   }
+  memcpy(orig_args, args, sizeof(Item*) * arg_count);
 }
 
 
@@ -3242,7 +3251,6 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   if (check_sum_func(thd, ref))
     return TRUE;
 
-  memcpy (orig_args, args, sizeof (Item *) * arg_count);
   fixed= 1;
   return FALSE;
 }

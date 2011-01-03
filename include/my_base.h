@@ -351,7 +351,7 @@ enum ha_base_keytype {
 /*
   update the 'variable' part of the info:
   handler::records, deleted, data_file_length, index_file_length,
-  delete_length, check_time, mean_rec_length
+  check_time, mean_rec_length
 */
 #define HA_STATUS_VARIABLE      16
 /*
@@ -364,6 +364,11 @@ enum ha_base_keytype {
   update handler::auto_increment_value
 */
 #define HA_STATUS_AUTO          64
+/*
+  Get also delete_length when HA_STATUS_VARIABLE is called. It's ok to set it also
+  when only HA_STATUS_VARIABLE but it won't be used.
+*/
+#define HA_STATUS_VARIABLE_EXTRA 128
 
 /*
   Errorcodes given by handler functions

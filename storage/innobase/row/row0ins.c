@@ -1545,7 +1545,7 @@ row_ins_check_foreign_constraints(
 			if (foreign->referenced_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
-					foreign->referenced_table_name, FALSE);
+					foreign->referenced_table_name_lookup, FALSE);
 			}
 
 			if (0 == trx->dict_operation_lock_mode) {
