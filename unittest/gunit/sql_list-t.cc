@@ -66,10 +66,10 @@ void insert_values(T (&array)[size], List<T> *list)
   The functions SetUp(), TearDown(), SetUpTestCase(), TearDownTestCase() are
   inherited from ::testing::Test (google naming style differs from MySQL).
 */
-class Sql_list_test : public ::testing::Test
+class SqlListTest : public ::testing::Test
 {
 protected:
-  Sql_list_test()
+  SqlListTest()
     : m_mem_root_p(&m_mem_root), m_int_list(), m_int_list_iter(m_int_list)
   {
   }
@@ -106,12 +106,12 @@ protected:
 
 private:
   // Declares (but does not define) copy constructor and assignment operator.
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(Sql_list_test);
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(SqlListTest);
 };
 
 
 // Tests that we can construct and destruct lists.
-TEST_F(Sql_list_test, construct_and_destruct)
+TEST_F(SqlListTest, ConstructAndDestruct)
 {
   EXPECT_TRUE(m_int_list.is_empty());
   List<int> *p_int_list= new List<int>;
@@ -121,7 +121,7 @@ TEST_F(Sql_list_test, construct_and_destruct)
 
 
 // Tests basic operations push and pop.
-TEST_F(Sql_list_test, basic_operations)
+TEST_F(SqlListTest, BasicOperations)
 {
   int i1= 1;
   int i2= 2;
@@ -139,7 +139,7 @@ TEST_F(Sql_list_test, basic_operations)
 
 
 // Tests list copying.
-TEST_F(Sql_list_test, deep_copy)
+TEST_F(SqlListTest, DeepCopy)
 {
   int values[] = {11, 22, 33, 42, 5};
   insert_values(values, &m_int_list);
@@ -157,7 +157,7 @@ TEST_F(Sql_list_test, deep_copy)
 
 
 // Tests that we can iterate over values.
-TEST_F(Sql_list_test, iterate)
+TEST_F(SqlListTest, Iterate)
 {
   int values[] = {3, 2, 1};
   insert_values(values, &m_int_list);
@@ -187,7 +187,7 @@ private:
 
 
 // An example of a test without any fixture.
-TEST(Sql_ilist_test, construct_and_destruct)
+TEST(SqlIlistTest, ConstructAndDestruct)
 {
   I_List<Linked_node> i_list;
   I_List_iterator<Linked_node> i_list_iter(i_list);
@@ -198,7 +198,7 @@ TEST(Sql_ilist_test, construct_and_destruct)
 
 
 // Tests iteration over intrusive lists.
-TEST(Sql_ilist_test, iterate)
+TEST(SqlIlistTest, Iterate)
 {
   I_List<Linked_node> i_list;
   I_List_iterator<Linked_node> i_list_iter(i_list);

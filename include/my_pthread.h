@@ -214,7 +214,11 @@ int pthread_cancel(pthread_t thread);
 typedef void *(* pthread_handler)(void *);
 
 #define my_pthread_once_t pthread_once_t
+#if defined(PTHREAD_ONCE_INITIALIZER)
+#define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INITIALIZER
+#else
 #define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
+#endif
 #define my_pthread_once(C,F) pthread_once(C,F)
 
 /* Test first for RTS or FSU threads */
