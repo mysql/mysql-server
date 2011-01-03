@@ -19,3 +19,4 @@ set @@global.report_host='my.new.address.net';
 
 
 --echo end of tests
+--source include/rpl_end.inc

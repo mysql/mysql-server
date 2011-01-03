@@ -1,4 +1,4 @@
-/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2255,7 +2255,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG_STATUS:
-          value= ((char *) status_var + (ulonglong) value);
+          value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_LONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);

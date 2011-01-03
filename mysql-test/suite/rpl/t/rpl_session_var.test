@@ -57,5 +57,5 @@ sync_slave_with_master;
 SELECT length(data) < 100 FROM t1;
 connection master;
 drop table t1;
-sync_slave_with_master;
 
+--source include/rpl_end.inc
