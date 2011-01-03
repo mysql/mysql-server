@@ -8357,12 +8357,18 @@ void Dblqh::execACC_SCANREF(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   tcConnectptr.p->errorCode = ref->errorCode;
 
-  AccScanConf* conf = (AccScanConf*)signal->getDataPtrSend();
-  conf->scanPtr = ref->scanPtr;
-  conf->accPtr = ref->accPtr;
-  conf->flag = AccScanConf::ZEMPTY_FRAGMENT;
-  sendSignal(reference(), GSN_ACC_SCANCONF,
-             signal, AccScanConf::SignalLength, JBB);
+  /*
+   * MRR scan can hit this between 2 DBTUX scans.  Previous range has
+   * terminated via last NEXT_SCANCONF, then index is set to Dropping,
+   * and then next range is started and returns ACC_SCANREF.
+   */
+  if (scanptr.p->scanStoredProcId != RNIL) {
+    jam();
+    scanptr.p->scanCompletedStatus = ZTRUE;
+    accScanCloseConfLab(signal);
+    return;
+  }
+  tupScanCloseConfLab(signal);
 }//Dblqh::execACC_SCANREF()
 
 /* ***************>> */
@@ -8443,13 +8449,12 @@ void Dblqh::execNEXT_SCANREF(Signal* signal)
   ptrCheckGuard(tcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
   tcConnectptr.p->errorCode = ref->errorCode;
 
-  NextScanConf* conf = (NextScanConf*)signal->getDataPtr();
-  conf->scanPtr = ref->scanPtr;
-  // usual weird flags to indicate scan end
-  conf->accOperationPtr = RNIL;
-  conf->fragId = RNIL;
-  sendSignal(reference(), GSN_NEXT_SCANCONF,
-             signal, 3, JBB);
+  /*
+   * MRR scan may have other ranges left.  But the scan has already
+   * failed.  Terminate the scan now.
+   */
+  scanptr.p->scanCompletedStatus = ZTRUE;
+  accScanCloseConfLab(signal);
 }//Dblqh::execNEXT_SCANREF()
 
 /* ******************> */
@@ -9302,6 +9307,16 @@ void Dblqh::accScanConfScanLab(Signal* signal)
      *       THE FRAGMENT WAS EMPTY.
      *       REPORT SUCCESSFUL COPYING.
      * --------------------------------------------------------------------- */
+    /*
+     * MRR scan + delete can hit this when the fragment was not
+     * initially empty, but has become empty after previous range.
+     */
+    if (scanptr.p->scanStoredProcId != RNIL) {
+      jam();
+      scanptr.p->scanCompletedStatus = ZTRUE;
+      accScanCloseConfLab(signal);
+      return;
+    }
     tupScanCloseConfLab(signal);
     return;
   }//if
@@ -9340,8 +9355,9 @@ void Dblqh::accScanConfScanLab(Signal* signal)
     signal->theData[3] = ZSTORED_PROC_SCAN;
     
     signal->theData[4] = scanptr.p->scanAiLength;
+    signal->theData[5] = scanptr.p->scanApiBlockref;
     sendSignal(tcConnectptr.p->tcTupBlockref,
-	       GSN_STORED_PROCREQ, signal, 5, JBB);
+	       GSN_STORED_PROCREQ, signal, 6, JBB);
     
     signal->theData[0] = tcConnectptr.p->tupConnectrec;
     AttrbufPtr regAttrinbufptr;
@@ -10198,8 +10214,9 @@ void Dblqh::accScanCloseConfLab(Signal* signal)
   signal->theData[2] = scanptr.p->scanSchemaVersion;
   signal->theData[3] = ZDELETE_STORED_PROC_ID;
   signal->theData[4] = scanptr.p->scanStoredProcId;
+  signal->theData[5] = scanptr.p->scanApiBlockref;
   sendSignal(tcConnectptr.p->tcTupBlockref,
-             GSN_STORED_PROCREQ, signal, 5, JBB);
+             GSN_STORED_PROCREQ, signal, 6, JBB);
 }//Dblqh::accScanCloseConfLab()
 
 /* -------------------------------------------------------------------------
@@ -11005,7 +11022,8 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
   signal->theData[2] = scanptr.p->scanSchemaVersion;
   signal->theData[3] = ZSTORED_PROC_COPY;
 // theData[4] is not used in TUP with ZSTORED_PROC_COPY
-  sendSignal(scanptr.p->scanBlockref, GSN_STORED_PROCREQ, signal, 5, JBB);
+  signal->theData[5] = scanptr.p->scanApiBlockref;
+  sendSignal(scanptr.p->scanBlockref, GSN_STORED_PROCREQ, signal, 6, JBB);
   return;
 }//Dblqh::accScanConfCopyLab()
 
@@ -11617,7 +11635,8 @@ void Dblqh::accCopyCloseConfLab(Signal* signal)
   signal->theData[2] = scanptr.p->scanSchemaVersion;
   signal->theData[3] = ZDELETE_STORED_PROC_ID;
   signal->theData[4] = scanptr.p->scanStoredProcId;
-  sendSignal(tcConnectptr.p->tcTupBlockref, GSN_STORED_PROCREQ, signal, 5, JBB);
+  signal->theData[5] = scanptr.p->scanApiBlockref;
+  sendSignal(tcConnectptr.p->tcTupBlockref, GSN_STORED_PROCREQ, signal, 6, JBB);
   return;
 }//Dblqh::accCopyCloseConfLab()
 
@@ -20459,7 +20478,7 @@ Dblqh::validate_filter(Signal* signal)
     default:
       infoEvent("Invalid filter op: 0x%x pos: %ld",
 		* start,
-		start - (signal->theData + 1));
+		long(start - (signal->theData + 1)));
       return false;
     }
   }

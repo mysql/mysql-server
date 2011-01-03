@@ -995,6 +995,8 @@ SectionHandle::~SectionHandle()
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
 #define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getNoOfFree()
 #define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getNoOfFree())
+#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getNoOfFree()+(y)
+#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getNoOfFree()+(y))
 
 #define RSS_OP_COUNTER(x) Uint32 x
 #define RSS_OP_COUNTER_INIT(x) x = 0
@@ -1010,6 +1012,8 @@ SectionHandle::~SectionHandle()
 #define RSS_AP_SNAPSHOT(x) struct rss_dummy0_##x { int dummy; }
 #define RSS_AP_SNAPSHOT_SAVE(x)
 #define RSS_AP_SNAPSHOT_CHECK(x)
+#define RSS_AP_SNAPSHOT_SAVE2(x,y)
+#define RSS_AP_SNAPSHOT_CHECK2(x,y)
 
 #define RSS_OP_COUNTER(x) struct rss_dummy1_##x { int dummy; }
 #define RSS_OP_COUNTER_INIT(x)

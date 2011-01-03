@@ -130,6 +130,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   RSS_OP_COUNTER_INIT(cnoOfFreeFragoprec);
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
   RSS_OP_COUNTER_INIT(cnoOfFreeTabDescrRec);
+  c_storedProcCountNonAPI = 0;
 }//Dbtup::Dbtup()
 
 Dbtup::~Dbtup() 
