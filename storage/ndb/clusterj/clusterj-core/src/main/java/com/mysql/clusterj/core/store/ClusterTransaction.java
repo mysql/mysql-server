@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,5 +65,7 @@ public interface ClusterTransaction {
     public void setLockMode(LockMode lockmode);
 
     public void setAutocommit(boolean autocommit);
+
+    public void postExecuteCallback(Runnable postExecuteCallbackHandler);
 
 }

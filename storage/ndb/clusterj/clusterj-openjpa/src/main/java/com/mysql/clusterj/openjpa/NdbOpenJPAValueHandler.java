@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +17,7 @@
 
 package com.mysql.clusterj.openjpa;
 
+import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.util.Logger;
@@ -290,6 +290,26 @@ public class NdbOpenJPAValueHandler implements ValueHandler {
     private void dumpStackTrace() {
         Throwable t = new Throwable();
         t.printStackTrace();
+    }
+
+    public void found(Boolean found) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public ColumnMetadata[] columnMetadata() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Boolean found() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Object get(int columnNumber) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void set(int columnNumber, Object value) {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
 }

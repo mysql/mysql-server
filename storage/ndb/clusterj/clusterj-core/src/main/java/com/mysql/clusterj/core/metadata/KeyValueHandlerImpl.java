@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +18,7 @@
 package com.mysql.clusterj.core.metadata;
 
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -359,6 +359,36 @@ public class KeyValueHandlerImpl implements ValueHandler {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    public void found(Boolean found) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "found(Boolean)", "KeyValueHandlerImpl"));
+    }
+
+    public ColumnMetadata[] columnMetadata() {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "columnMetadata", "KeyValueHandlerImpl"));
+    }
+
+    public Boolean found() {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "found", "KeyValueHandlerImpl"));
+    }
+
+    public Object get(int columnNumber) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "get(int)", "KeyValueHandlerImpl"));
+    }
+
+    public void set(int columnNumber, Object value) {
+        throw new ClusterJFatalInternalException(
+                local.message("ERR_Operation_Not_Supported",
+                "set(int, Object)", "KeyValueHandlerImpl"));
     }
 
 }

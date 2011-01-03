@@ -59,6 +59,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKeyTest.java \
   $(clusterj_test_src)/testsuite/clusterj/HashOnlyLongIntStringPKTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/LoadTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongIntStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongLongStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultiplePKTest.java \

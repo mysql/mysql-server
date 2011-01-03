@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009-2010 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +17,10 @@
 
 package com.mysql.clusterj.core;
 
-import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.DynamicObject;
 import com.mysql.clusterj.LockMode;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.Transaction;
@@ -109,6 +108,11 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** The list of objects changed since the last flush */
     protected List<StateManager> changeList = new ArrayList<StateManager>();
 
+    /** The list of pending operations, such as load operations, that need to be
+     * processed after the operation is sent to the database via @see #executeNoCommit().
+     */
+    protected List<Runnable> postExecuteOperations = new ArrayList<Runnable>();
+
     /** The transaction state of this session. */
     protected TransactionState transactionState;
 
@@ -124,6 +128,16 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
 
     /** The lock mode for read operations */
     private LockMode lockmode = LockMode.READ_COMMITTED;
+
+    /** Our post-execute callback handler */
+    private Runnable postExecuteCallbackHandler = new Runnable() {
+        public void run() {
+            for (Runnable postExecuteCallback: postExecuteOperations) {
+                postExecuteCallback.run();
+            }
+            postExecuteOperations.clear();
+        }
+    };
 
     /** Create a SessionImpl with factory, properties, Db, and dictionary
      */
@@ -202,6 +216,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     instance = domainTypeHandler.getInstance(instanceHandler);
                 }
                 // found the instance in the datastore
+                instanceHandler.found(Boolean.TRUE);
                 // put the results into the instance
                 domainTypeHandler.objectSetValues(rs, instanceHandler);
                 // set the cache manager to track updates
@@ -211,6 +226,10 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             } else {
                 if (logger.isDetailEnabled()) logger.detail("No instance found in database for class " + domainTypeHandler.getName() + " table: " + domainTypeHandler.getTableName() + keyHandler.pkToString(domainTypeHandler));
                 // no instance found in database
+                if (instanceHandler != null) {
+                    // mark the handler as not found
+                    instanceHandler.found(Boolean.FALSE);
+                }
                 endAutoTransaction();
                 return null;
             }
@@ -243,7 +262,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return a new instance that can be used with makePersistent
      */
     public <T> T newInstance(Class<T> cls) {
-        DomainTypeHandler domainTypeHandler = getDomainTypeHandler(cls);
         return factory.newInstance(cls, dictionary);
     }
 
@@ -260,6 +278,90 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         return instance;
     }
 
+    /** Load the instance from the database into memory. Loading
+     * is asynchronous and will be executed when an operation requiring
+     * database access is executed: find, flush, or query. The instance must
+     * have been returned from find or query; or
+     * created via session.newInstance and its primary key initialized.
+     * @param instance the instance to load
+     * @return the instance
+     * @see #found(Object)
+     */
+    public <T> T load(final T object) {
+        if (object == null) {
+            return null;
+        }
+        if (Iterable.class.isAssignableFrom(object.getClass())) {
+            Iterable<?> instances = (Iterable<?>)object;
+            for (Object instance:instances) {
+                load(instance);
+            }
+            return object;
+        }
+        if (object.getClass().isArray()) {
+            Object[] instances = (Object[])object;
+            for (Object instance:instances) {
+                load(instance);
+            }
+            return object;
+        }
+        // a transaction must already be active (autocommit is not supported)
+        assertActive();
+        final DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(object);
+        final ValueHandler instanceHandler = domainTypeHandler.getValueHandler(object);
+        setPartitionKey(domainTypeHandler, instanceHandler);
+        Table storeTable = domainTypeHandler.getStoreTable();
+        // perform a primary key operation
+        final Operation op = clusterTransaction.getSelectOperation(storeTable);
+        // set the keys into the operation
+        domainTypeHandler.operationSetKeys(instanceHandler, op);
+        // set the expected columns into the operation
+        domainTypeHandler.operationGetValues(op);
+        final ResultData rs = op.resultData(false);
+        final SessionImpl cacheManager = this;
+        // defer execution of the key operation until the next find, flush, or query
+        Runnable postExecuteOperation = new Runnable() {
+            public void run() {
+                if (rs.next()) {
+                    // found row in database
+                    instanceHandler.found(Boolean.TRUE);
+                   // put the results into the instance
+                    domainTypeHandler.objectSetValues(rs, instanceHandler);
+                    // set the cache manager to track updates
+                    domainTypeHandler.objectSetCacheManager(cacheManager, instanceHandler);
+                    // reset modified bits in instance
+                    domainTypeHandler.objectResetModified(instanceHandler);
+                } else {
+                    // mark instance as not found
+                    instanceHandler.found(Boolean.FALSE);
+                }
+                
+            }
+        };
+        postExecuteOperations.add(postExecuteOperation);
+        return object;
+    }
+
+    /** Was this instance found in the database?
+     * @param instance the instance
+     * @return <ul><li>null if the instance is null or was created via newInstance and never loaded;
+     * </li><li>true if the instance was returned from a find or query
+     * or created via newInstance and successfully loaded;
+     * </li><li>false if the instance was created via newInstance and not found.
+     * </li></ul>
+     */
+    public Boolean found(Object instance) {
+        if (instance == null) {
+            return null;
+        }
+        if (instance instanceof DynamicObject) {
+            return ((DynamicObject)instance).found();
+        }
+        // make sure the instance is a persistent type
+        getDomainTypeHandler(instance);
+        return true;
+    }
+    
     /** Make an instance persistent. Also recursively make an iterable collection or array persistent.
      * 
      * @param object the instance or array or iterable collection of instances
@@ -287,7 +389,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             endAutoTransaction();
             return object;
         }
-        DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(object);
+        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(object);
         ValueHandler valueHandler = domainTypeHandler.getValueHandler(object);
         insert(domainTypeHandler, valueHandler);
         return object;
@@ -621,6 +723,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
             if (partitionKey != null) {
                 clusterTransaction.setPartitionKey(partitionKey);
             }
+            // register our post-execute callback
+            clusterTransaction.postExecuteCallback(postExecuteCallbackHandler);
         } catch (ClusterJException ex) {
             throw new ClusterJException(
                     local.message("ERR_Ndb_Start"), ex);
@@ -925,8 +1029,8 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param object the instance for which to get the domain type handler
      * @return the domain type handler
      */
-    protected synchronized DomainTypeHandler getDomainTypeHandler(Object object) {
-        DomainTypeHandler domainTypeHandler =
+    protected synchronized <T> DomainTypeHandler<T> getDomainTypeHandler(T object) {
+        DomainTypeHandler<T> domainTypeHandler =
                 factory.getDomainTypeHandler(object, dictionary);
         return domainTypeHandler;
     }
@@ -1081,7 +1185,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         }
         // now flush changes to the back end
         if (clusterTransaction != null) {
-            clusterTransaction.executeNoCommit();
+            executeNoCommit();
         }
     }
 
@@ -1128,13 +1232,19 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param fieldName the field to mark as modified
      */
     public void markModified(Object instance, String fieldName) {
-        DomainTypeHandler domainTypeHandler = getDomainTypeHandler(instance);
+        DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(instance);
         ValueHandler handler = domainTypeHandler.getValueHandler(instance);
         domainTypeHandler.objectMarkModified(handler, fieldName);
     }
 
+    /** Execute any pending operations (insert, delete, update, load)
+     * and then perform post-execute operations (for load) via
+     * clusterTransaction.postExecuteCallback().
+     */
     public void executeNoCommit() {
-        clusterTransaction.executeNoCommit();
+        if (clusterTransaction != null) {
+            clusterTransaction.executeNoCommit();
+        }
     }
 
     public <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> domainTypeHandler) {

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,6 +73,9 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
 
     /** The cache manager for object modification notifications. */
     private CacheManager objectManager;
+
+    /** Has this object been found in the database? */
+    private Boolean found = null;
 
     public InvocationHandlerImpl(DomainTypeHandlerImpl<T> domainTypeHandler) {
         this.domainTypeHandler = domainTypeHandler;
@@ -453,6 +455,14 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
 
     public ColumnMetadata[] columnMetadata() {
         return domainTypeHandler.columnMetadata();
+    }
+
+    public void found(Boolean found) {
+        this.found = found;
+    }
+
+    public Boolean found() {
+        return found;
     }
 
 }

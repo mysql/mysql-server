@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,6 +56,8 @@ public interface Operation {
     public void postExecuteCallback(Runnable callback);
 
     public ResultData resultData();
+
+    public ResultData resultData(boolean execute);
 
     public void setBigInteger(Column storeColumn, BigInteger value);
 

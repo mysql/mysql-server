@@ -1,19 +1,18 @@
 /*
- *  Copyright (C) 2009 Sun Microsystems, Inc.
- *  All rights reserved. Use is subject to license terms.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 package com.mysql.clusterj.tie;
@@ -37,7 +36,6 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
-import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
 
 /**
@@ -198,14 +196,23 @@ class OperationImpl implements Operation {
      * 
      */
     public ResultData resultData() {
+        return resultData(true);
+    }
+
+    /** Construct a new ResultData and if requested, execute the operation.
+     * 
+     */
+    public ResultData resultData(boolean execute) {
         if (logger.isDetailEnabled()) logger.detail("storeColumns: " + Arrays.toString(storeColumns.toArray()));
-        ResultDataImpl result = new ResultDataImpl(ndbOperation, storeColumns, maximumColumnId, bufferSize,
-                offsets, lengths, maximumColumnLength, bufferManager);
-        clusterTransaction.executeNoCommit(false, true);
-        NdbErrorConst error = ndbOperation.getNdbError();
-        int errorCode = error.code();
-        if (errorCode != 0)
-            result.setNoResult();
+        ResultDataImpl result;
+        if (execute) {
+            result = new ResultDataImpl(ndbOperation, storeColumns, maximumColumnId, bufferSize,
+                    offsets, lengths, bufferManager, false);
+            clusterTransaction.executeNoCommit(false, true);
+        } else {
+            result = new ResultDataImpl(ndbOperation, storeColumns, maximumColumnId, bufferSize,
+                    offsets, lengths, bufferManager, true);
+        }
         return result;
     }
 
