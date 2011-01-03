@@ -3565,7 +3565,7 @@ cleanup:
 
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error = 0;
-    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint curr_num_DBs = share->num_DBs;
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key], false);
