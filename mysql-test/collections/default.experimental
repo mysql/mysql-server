@@ -4,21 +4,19 @@
 binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
-funcs_1.myisam_views @solaris            # Bug#50595 2010-03-05 alik funcs_1.myisam_views takes longer time on 6.0 branch than 5.1 branch
 
-innodb.innodb_bug56143                   # Bug#58432 2010-11-24 alik innodb.innodb_bug56143 fails under valgrind
 innodb.innodb_information_schema         # Bug#48883 2010-05-11 alik Test "innodb_information_schema" takes fewer locks than expected
 
 main.func_math @freebsd                  # Bug#43020 2010-05-04 alik main.func_math fails on FreeBSD in PB2
+main.gis                                 # Bug#52208 2010-11-24 alik gis fails on some platforms (Solaris, HP-UX, Linux)
 main.gis-rtree @freebsd                  # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
-main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
 main.lowercase_table2 @darwin            # Bug#55509 2010-07-26 alik main.lowercase_table2 fails on Mac OSX (again)
 main.mysqlslap @windows                  # Bug#54024 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
-main.server_uuid                         # Bug#57482 2010-11-02 alik server_uuid fails on PB2
+main.show_check                          # Bug#58414 2010-11-24 alik Race condition in show_check.test
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
@@ -28,74 +26,23 @@ perfschema.func_file_io                  # Bug#58172 2010-11-15 alik perfschema.
 perfschema.start_server_on               # Bug#55576 2010-08-02 alik Two perfschema tests failed on mysql-next-mr-innodb PB2 tests#
 perfschema.server_init                   # Bug#55576 2010-08-02 alik Two perfschema tests failed on mysql-next-mr-innodb PB2 tests#
 
-rpl.rpl_get_master_version_and_clock*    # Bug#57918 2010-11-18 alik rpl_get_master_version_and_clock times out sporadically
 rpl.rpl_heartbeat_basic                  # BUG#54820 2010-06-26 alik rpl.rpl_heartbeat_basic fails sporadically again
 rpl.rpl_innodb_bug28430*                 # Bug#46029
 rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 rpl.rpl_delayed_slave*                   # BUG#57514 rpl_delayed_slave fails sporadically in pb
-rpl.rpl_change_master                    # Bug#57482 2010-11-16 alfranio fails on PB2
-rpl.rpl_change_master_crash_safe         # Bug#57482 2010-11-16 alfranio fails on PB2
 rpl.rpl_seconds_behind_master            # BUG#58053 2010-11-24 luis fails sporadically on pb2
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+sys_vars.plugin_dir_basic                     # Bug#52223 2010-11-24 alik Test "plugin_dir_basic" does not support RPM build (test) directory structure
 sys_vars.slow_query_log_func @solaris         # Bug#54819 2010-06-26 alik sys_vars.slow_query_log_func fails sporadically on Solaris 10
 sys_vars.wait_timeout_func                    # Bug#41255 2010-04-26 alik wait_timeout_func fails
 
-# Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
-# Usually the test cases from ndb and rpl_ndb test suites are not run in PB,
-# but they run by gcov.
-#
-
-ndb.*
-rpl_ndb.*
-rpl_ndb.rpl_ndb_log                      # Bug#38998
-
-# Declare all NDB-tests in other test suites experimental.
-
-stress.ddl_ndb
-
+# BUG #59055 : All ndb tests should be removed from the repository
+# Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests
 sys_vars.ndb_log_update_as_write_basic
 sys_vars.have_ndbcluster_basic
 sys_vars.ndb_log_updated_only_basic
 
-funcs_1.ndb_storedproc_10
-funcs_1.ndb_bitdata
-funcs_1.ndb_trig_03
-funcs_1.ndb_trig_0102
-funcs_1.is_tables_ndb
-funcs_1.is_columns_ndb
-funcs_1.ndb_trig_0407
-funcs_1.ndb_trig_1011ext
-funcs_1.ndb_storedproc_06
-funcs_1.ndb_views
-funcs_1.is_cml_ndb
-funcs_1.ndb_storedproc_02
-funcs_1.ndb_storedproc_03
-funcs_1.ndb_trig_03e
-funcs_1.is_engines_ndb
-funcs_1.ndb_trig_08
-funcs_1.ndb_storedproc_07
-funcs_1.ndb_storedproc_08
-funcs_1.ndb_func_view
-funcs_1.ndb_trig_09
-funcs_1.ndb_cursors
-
-funcs_2.ndb_charset
-
-parts.ndb_dd_backuprestore               # joro : NDB tests marked as experimental as agreed with bochklin
-parts.part_supported_sql_func_ndb        # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_alter1_1_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_alter1_1_2_ndb           # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_alter1_2_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_auto_increment_ndb       # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_basic_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_engine_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_int_ndb                  # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_mgm_lc0_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
-parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
 
 rpl_bhs.*                                # skozlov : WL#5139 - rpl_bhs suite generated "on-the-fly" at testing moment from rpl suite
 main.gis-rtree                           # svoj: due to BUG#38965

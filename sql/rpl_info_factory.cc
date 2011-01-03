@@ -87,11 +87,15 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option)
 
   DBUG_ENTER("Rpl_info_factory::Rpl_info_factory");
 
-  if (!(mi= new Master_info(&key_master_info_run_lock,
+  if (!(mi= new Master_info(
+#ifdef HAVE_PSI_INTERFACE
+                            &key_master_info_run_lock,
                             &key_master_info_data_lock,
                             &key_master_info_data_cond,
                             &key_master_info_start_cond,
-                            &key_master_info_stop_cond)))
+                            &key_master_info_stop_cond
+#endif
+                           )))
     goto err;
 
   /*
@@ -163,12 +167,15 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
 
   DBUG_ENTER("Rpl_info_factory::create_rli");
 
-  if (!(rli= new Relay_log_info(is_slave_recovery,
-                                &key_relay_log_info_run_lock,
+  if (!(rli= new Relay_log_info(is_slave_recovery
+#ifdef HAVE_PSI_INTERFACE
+                                ,&key_relay_log_info_run_lock,
                                 &key_relay_log_info_data_lock,
                                 &key_relay_log_info_data_cond,
                                 &key_relay_log_info_start_cond,
-                                &key_relay_log_info_stop_cond)))
+                                &key_relay_log_info_stop_cond
+#endif
+                               )))
     goto err;
 
   /*

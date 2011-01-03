@@ -1,18 +1,9 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
 DROP TABLE t1;
 DROP TABLE t1;
+include/wait_for_slave_sql_to_stop.inc
 # assertion: timestamp should be filled
 include/stop_slave.inc
 # assertion: show that error is preserved after stop slave as well as the timestamp
@@ -21,16 +12,12 @@ Last_SQL_Errno: 1051
 include/start_slave.inc
 # assertion: show that the error is not reported anymore since replication
 #            has resumed correctly
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-RESET MASTER;
+include/wait_for_slave_param.inc [Last_SQL_Errno]
+include/rpl_reset.inc
 include/stop_slave.inc
 change master to master_port=SLAVE_PORT;
 START SLAVE;
+include/wait_for_slave_param.inc [Last_IO_Errno]
 *** must be having the replicate-same-server-id IO thread error ***
 # assertion: assert that error has been reported as well as a timestamp
 include/stop_slave.inc
@@ -39,3 +26,5 @@ change master to master_port=MASTER_PORT;
 Last_IO_Errno: 1593
 include/start_slave.inc
 # assertion: show that no error is reported anymore
+include/wait_for_slave_param.inc [Last_IO_Errno]
+include/rpl_end.inc

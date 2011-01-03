@@ -12801,3 +12801,9 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1
 DROP TABLE t1;
+#
+# BUG#58205 - Valgrind failure in fn_format when called from
+#             archive_discover
+#
+CREATE TABLE `a/../`(a INT) ENGINE=ARCHIVE;
+DROP TABLE `a/../`;

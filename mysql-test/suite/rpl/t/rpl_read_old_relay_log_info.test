@@ -40,3 +40,5 @@ if (`SELECT "$master_file" != "" OR
   --die log coordinates changed
 }
 
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop table if exists t1;
 drop procedure if exists p1;
 create table t1 (a varchar(255) character set sjis);
@@ -24,3 +20,4 @@ hex(a)
 965C
 drop table t1;
 drop procedure p1;
+include/rpl_end.inc

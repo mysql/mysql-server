@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -262,12 +262,6 @@ extern const char *my_defaults_file;
 
 extern my_bool timed_mutexes;
 
-enum loglevel {
-   ERROR_LEVEL,
-   WARNING_LEVEL,
-   INFORMATION_LEVEL
-};
-
 enum cache_type
 {
   TYPE_NOT_SET= 0, READ_CACHE, WRITE_CACHE,
@@ -456,7 +450,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   IO_CACHE_CALLBACK pre_close;
   /*
     Counts the number of times, when we were forced to use disk. We use it to
-    increase the binlog_cache_disk_use status variable.
+    increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
+    variables.
   */
   ulong disk_writes;
   void* arg;				/* for use by pre/post_read */
@@ -495,6 +490,10 @@ typedef struct st_io_cache		/* Used when cacheing files */
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
+
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+
+extern my_error_reporter my_charset_error_reporter;
 
 	/* defines for mf_iocache */
 
@@ -911,15 +910,20 @@ int my_getpagesize(void);
 int my_msync(int, void *, size_t, int);
 
 /* character sets */
+extern void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader);
 extern uint get_charset_number(const char *cs_name, uint cs_flags);
 extern uint get_collation_number(const char *name);
 extern const char *get_charset_name(uint cs_number);
 
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
+                                              const char *name, myf flags);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 					   uint cs_flags, myf my_flags);
-
+extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
+                                            const char *name,
+                                            uint cs_flags, myf my_flags);
 extern my_bool resolve_charset(const char *cs_name,
                                CHARSET_INFO *default_cs,
                                CHARSET_INFO **cs);
