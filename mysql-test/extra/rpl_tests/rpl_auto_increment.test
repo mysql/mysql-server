@@ -229,5 +229,31 @@ source include/diff_tables.inc;
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
+sync_slave_with_master;
+
+#
+# BUG#56662
+# The test verifies if the assertion of "next_insert_id == 0"
+# will fail in ha_external_lock() function.
+#
+connection master;
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+
+BEGIN;
+--echo # Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+--echo # zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+--echo # Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+--echo # affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+SELECT * FROM t1;
+sync_slave_with_master;
+SELECT * FROM t1;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
 
 --source include/rpl_end.inc

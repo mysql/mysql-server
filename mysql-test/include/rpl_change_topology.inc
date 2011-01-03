@@ -111,11 +111,11 @@ if (`SELECT '$rpl_topology' = '' OR '$rpl_server_count' = ''`)
   --die You must set $rpl_topology and $rpl_server_count before you source rpl_change_topology.inc. If you really want to change to the empty topology, set $rpl_topology= none
 }
 --let $_rpl_topology= $rpl_topology
-if (`SELECT '$_rpl_topology' = 'none'`)
+if ($_rpl_topology == 'none')
 {
   --let $_rpl_topology=
 }
-if (`SELECT '!$rpl_master_list!' = '!!'`)
+if ($rpl_master_list == '')
 {
   --die You must source include/rpl_init.inc before you source include/rpl_change_topology.inc
 }
@@ -227,16 +227,13 @@ if (!$rpl_skip_change_master)
       }
       eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_port, MASTER_USER = 'root', MASTER_LOG_FILE = '$_rpl_master_log_file'$_rpl_master_log_pos, MASTER_CONNECT_RETRY = 1;
     }
-    if (!$_rpl_master)
+    if ($_rpl_master == '')
     {
-      if (`SELECT '$_rpl_master' = ''`)
-      {
         # This un-configures the server so that it's not a slave.
         # After BUG#28796, such configuration is not possible any more.
         #--let $rpl_connection_name= server_$_rpl_server
         #--source include/rpl_connection.inc
         #CHANGE MASTER TO MASTER_HOST = '';
-      }
     }
     --dec $_rpl_server
   }

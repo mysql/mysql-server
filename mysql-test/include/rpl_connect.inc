@@ -33,7 +33,7 @@ if (!$rpl_server_number)
 {
   --die ERROR IN TEST: You must set $rpl_server_number before sourcing include/rpl_connect.inc
 }
-if (`SELECT '$rpl_connection_name' = ''`)
+if (!$rpl_connection_name)
 {
   --die ERROR IN TEST: You must set $rpl_connection_name before sourcing include/rpl_connect.inc
 }
