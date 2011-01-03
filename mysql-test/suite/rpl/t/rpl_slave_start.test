@@ -36,4 +36,4 @@ SET DEBUG_SYNC="now SIGNAL signal.continue";
 --echo [on master]
 connection master;
 DROP TABLE t1;
-source include/master-slave-end.inc;
+source include/rpl_end.inc;

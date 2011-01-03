@@ -356,7 +356,7 @@ buf_buddy_relocate_block(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ulint		fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
-	mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -376,11 +376,11 @@ buf_buddy_relocate_block(
 		break;
 	}
 
-	mutex_enter(hash_mutex);
+	rw_lock_x_lock(hash_lock);
 	mutex_enter(&buf_pool->zip_mutex);
 
 	if (!buf_page_can_relocate(bpage)) {
-		mutex_exit(hash_mutex);
+		rw_lock_x_unlock(hash_lock);
 		mutex_exit(&buf_pool->zip_mutex);
 		return(FALSE);
 	}
@@ -400,7 +400,7 @@ buf_buddy_relocate_block(
 
 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
-	mutex_exit(hash_mutex);
+	rw_lock_x_unlock(hash_lock);
 	mutex_exit(&buf_pool->zip_mutex);
 	return(TRUE);
 }
@@ -460,7 +460,7 @@ buf_buddy_relocate(
 		on uninitialized value. */
 		UNIV_MEM_VALID(&space, sizeof space);
 		UNIV_MEM_VALID(&page_no, sizeof page_no);
-		bpage = buf_page_hash_get(buf_pool, space, page_no, NULL);
+		bpage = buf_page_hash_get(buf_pool, space, page_no);
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly

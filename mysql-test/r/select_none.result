@@ -4875,7 +4875,7 @@ SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 End of 5.1 tests
 #
-# Bug#45277: Lost HAVING clause led to a wrong result.
+# Bug#45227: Lost HAVING clause led to a wrong result.
 #
 CREATE TABLE `CC` (
 `int_nokey` int(11) NOT NULL,
@@ -4904,7 +4904,7 @@ Warning	1292	Truncated incorrect DOUBLE value: 'q'
 Warning	1292	Truncated incorrect DOUBLE value: 'm'
 Warning	1292	Truncated incorrect DOUBLE value: 'j'
 DROP TABLE CC;
-# End of test#45277
+# End of test#45227
 #
 # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 
 #            SELECT from VIEW with GROUP BY

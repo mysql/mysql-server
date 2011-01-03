@@ -87,20 +87,21 @@ hash_calc_hash(
 
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
-Gets the mutex index for a fold value in a hash table.
-@return	mutex number */
+Gets the sync object index for a fold value in a hash table.
+@return	index */
 UNIV_INLINE
 ulint
-hash_get_mutex_no(
-/*==============*/
+hash_get_sync_obj_index(
+/*====================*/
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold)	/*!< in: fold */
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(ut_is_2pow(table->n_mutexes));
+	ut_ad(table->type != HASH_TABLE_SYNC_NONE);
+	ut_ad(ut_is_2pow(table->n_sync_obj));
 	return(ut_2pow_remainder(hash_calc_hash(fold, table),
-				 table->n_mutexes));
+				 table->n_sync_obj));
 }
 
 /************************************************************//**
@@ -115,7 +116,8 @@ hash_get_nth_heap(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(i < table->n_mutexes);
+	ut_ad(table->type != HASH_TABLE_SYNC_NONE);
+	ut_ad(i < table->n_sync_obj);
 
 	return(table->heaps[i]);
 }
@@ -139,7 +141,7 @@ hash_get_heap(
 		return(table->heap);
 	}
 
-	i = hash_get_mutex_no(table, fold);
+	i = hash_get_sync_obj_index(table, fold);
 
 	return(hash_get_nth_heap(table, i));
 }
@@ -156,9 +158,10 @@ hash_get_nth_mutex(
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-	ut_ad(i < table->n_mutexes);
+	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
+	ut_ad(i < table->n_sync_obj);
 
-	return(table->mutexes + i);
+	return(table->sync_obj.mutexes + i);
 }
 
 /************************************************************//**
@@ -176,8 +179,47 @@ hash_get_mutex(
 	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-	i = hash_get_mutex_no(table, fold);
+	i = hash_get_sync_obj_index(table, fold);
 
 	return(hash_get_nth_mutex(table, i));
+}
+
+/************************************************************//**
+Gets the nth rw_lock in a hash table.
+@return	rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_get_nth_lock(
+/*==============*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		i)	/*!< in: index of the rw_lock */
+{
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
+	ut_ad(i < table->n_sync_obj);
+
+	return(table->sync_obj.rw_locks + i);
+}
+
+/************************************************************//**
+Gets the rw_lock for a fold value in a hash table.
+@return	rw_lock */
+UNIV_INLINE
+rw_lock_t*
+hash_get_lock(
+/*==========*/
+	hash_table_t*	table,	/*!< in: hash table */
+	ulint		fold)	/*!< in: fold */
+{
+	ulint	i;
+
+	ut_ad(table);
+	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+
+	i = hash_get_sync_obj_index(table, fold);
+
+	return(hash_get_nth_lock(table, i));
 }
 #endif /* !UNIV_HOTBACKUP */

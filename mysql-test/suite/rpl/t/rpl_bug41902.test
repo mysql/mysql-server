@@ -56,4 +56,8 @@ purge binary logs to 'master-bin.000001';
 SET @@debug="";
 purge binary logs to 'master-bin.000001';
 
---echo End of the tests
+--echo ==== clean up ====
+--connection slave
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1';
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

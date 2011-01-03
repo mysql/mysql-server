@@ -1821,8 +1821,7 @@ btr_search_validate(void)
 				hash_block = buf_block_hash_get(
 					buf_pool,
 					buf_block_get_space(block),
-					buf_block_get_page_no(block),
-					NULL);
+					buf_block_get_page_no(block));
 			} else {
 				hash_block = NULL;
 			}

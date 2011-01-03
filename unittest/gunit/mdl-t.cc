@@ -148,10 +148,10 @@ const ulong zero_timeout= 0;
 const ulong long_timeout= (ulong) 3600L*24L*365L;
 
 
-class MDL_test : public ::testing::Test
+class MDLTest : public ::testing::Test
 {
 protected:
-  MDL_test()
+  MDLTest()
   : m_thd(NULL),
     m_null_ticket(NULL),
     m_null_request(NULL)
@@ -190,7 +190,7 @@ protected:
   MDL_request        m_global_request;
   MDL_request_list   m_request_list;
 private:
-  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDL_test);
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
 };
 
 
@@ -278,14 +278,14 @@ void MDL_thread::run()
 }
 
 // googletest recommends DeathTest suffix for classes use in death tests.
-typedef MDL_test MDL_DeathTest;
+typedef MDLTest MDLDeathTest;
 
 
 /*
   Verifies that we die with a DBUG_ASSERT if we destry a non-empty MDL_context.
  */
 #if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
-TEST_F(MDL_DeathTest, die_when_m_tickets_nonempty)
+TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
@@ -303,12 +303,12 @@ TEST_F(MDL_DeathTest, die_when_m_tickets_nonempty)
 /*
   The most basic test: just construct and destruct our test fixture.
  */
-TEST_F(MDL_test, construct_and_destruct)
+TEST_F(MDLTest, ConstructAndDestruct)
 {
 }
 
 
-void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
+void MDLTest::test_one_simple_shared_lock(enum_mdl_type lock_type)
 {
   m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type,
                  MDL_TRANSACTION);
@@ -335,7 +335,7 @@ void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
 /*
   Acquires one lock of type MDL_SHARED.
  */
-TEST_F(MDL_test, one_shared)
+TEST_F(MDLTest, OneShared)
 {
   test_one_simple_shared_lock(MDL_SHARED);
 }
@@ -344,7 +344,7 @@ TEST_F(MDL_test, one_shared)
 /*
   Acquires one lock of type MDL_SHARED_HIGH_PRIO.
  */
-TEST_F(MDL_test, one_shared_high_prio)
+TEST_F(MDLTest, OneSharedHighPrio)
 {
   test_one_simple_shared_lock(MDL_SHARED_HIGH_PRIO);
 }
@@ -353,7 +353,7 @@ TEST_F(MDL_test, one_shared_high_prio)
 /*
   Acquires one lock of type MDL_SHARED_READ.
  */
-TEST_F(MDL_test, one_shared_read)
+TEST_F(MDLTest, OneSharedRead)
 {
   test_one_simple_shared_lock(MDL_SHARED_READ);
 }
@@ -362,7 +362,7 @@ TEST_F(MDL_test, one_shared_read)
 /*
   Acquires one lock of type MDL_SHARED_WRITE.
  */
-TEST_F(MDL_test, one_shared_write)
+TEST_F(MDLTest, OneSharedWrite)
 {
   test_one_simple_shared_lock(MDL_SHARED_WRITE);
 }
@@ -371,7 +371,7 @@ TEST_F(MDL_test, one_shared_write)
 /*
   Acquires one lock of type MDL_EXCLUSIVE.  
  */
-TEST_F(MDL_test, one_exclusive)
+TEST_F(MDLTest, OneExclusive)
 {
   const enum_mdl_type lock_type= MDL_EXCLUSIVE;
   m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type,
@@ -401,7 +401,7 @@ TEST_F(MDL_test, one_exclusive)
   Acquires two locks, on different tables, of type MDL_SHARED.
   Verifies that they are independent.
  */
-TEST_F(MDL_test, two_shared)
+TEST_F(MDLTest, TwoShared)
 {
   MDL_request request_2;
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED, MDL_EXPLICIT);
@@ -436,7 +436,7 @@ TEST_F(MDL_test, two_shared)
   Verifies that two different contexts can acquire a shared lock
   on the same table.
  */
-TEST_F(MDL_test, shared_locks_between_contexts)
+TEST_F(MDLTest, SharedLocksBetweenContexts)
 {
   THD         *thd2= (THD*) this;
   MDL_context  mdl_context2;
@@ -463,7 +463,7 @@ TEST_F(MDL_test, shared_locks_between_contexts)
 /*
   Verifies that we can upgrade a shared lock to exclusive.
  */
-TEST_F(MDL_test, upgrade_shared_upgradable)
+TEST_F(MDLTest, UpgradeSharedUpgradable)
 {
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_NO_WRITE,
                  MDL_TRANSACTION);
@@ -488,7 +488,7 @@ TEST_F(MDL_test, upgrade_shared_upgradable)
 /*
   Verifies that only upgradable locks can be upgraded to exclusive.
  */
-TEST_F(MDL_DeathTest, die_upgrade_shared)
+TEST_F(MDLDeathTest, DieUpgradeShared)
 {
   MDL_request request_2;
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
@@ -518,7 +518,7 @@ TEST_F(MDL_DeathTest, die_upgrade_shared)
 /*
   Verfies that locks are released when we roll back to a savepoint.
  */
-TEST_F(MDL_test, savepoint)
+TEST_F(MDLTest, SavePoint)
 {
   MDL_request request_2;
   MDL_request request_3;
@@ -568,7 +568,7 @@ TEST_F(MDL_test, savepoint)
 /*
   Verifies that we can grab shared locks concurrently, in different threads.
  */
-TEST_F(MDL_test, concurrent_shared)
+TEST_F(MDLTest, ConcurrentShared)
 {
   Notification lock_grabbed;
   Notification release_locks;
@@ -594,7 +594,7 @@ TEST_F(MDL_test, concurrent_shared)
   Verifies that we cannot grab an exclusive lock on something which
   is locked with a shared lock in a different thread.
  */
-TEST_F(MDL_test, concurrent_shared_exclusive)
+TEST_F(MDLTest, ConcurrentSharedExclusive)
 {
   expected_error= ER_LOCK_WAIT_TIMEOUT;
 
@@ -632,7 +632,7 @@ TEST_F(MDL_test, concurrent_shared_exclusive)
   Verifies that we cannot we cannot grab a shared lock on something which
   is locked exlusively in a different thread.
  */
-TEST_F(MDL_test, concurrent_exclusive_shared)
+TEST_F(MDLTest, ConcurrentExclusiveShared)
 {
   Notification lock_grabbed;
   Notification release_locks;
@@ -667,7 +667,7 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
   Thread 2: gets notified, and releases lock.
   Thread 1: gets the exclusive lock.
  */
-TEST_F(MDL_test, concurrent_upgrade)
+TEST_F(MDLTest, ConcurrentUpgrade)
 {
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_NO_WRITE,
                  MDL_TRANSACTION);

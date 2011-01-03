@@ -42,8 +42,6 @@ Created 5/7/1996 Heikki Tuuri
 #ifdef UNIV_DEBUG
 extern ibool	lock_print_waits;
 #endif /* UNIV_DEBUG */
-/* Buffer for storing information about the most recent deadlock error */
-extern FILE*	lock_latest_err_file;
 
 /*********************************************************************//**
 Gets the size of a lock struct.
@@ -621,7 +619,7 @@ UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	const trx_t*	trx);	/*!< in: transaction */
+	trx_t*		trx);	/*!< in: transaction */
 /*******************************************************************//**
 Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */

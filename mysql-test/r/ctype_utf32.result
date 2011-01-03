@@ -921,7 +921,7 @@ select 1.1 + '1.2xxx';
 1.1 + '1.2xxx'
 2.3
 Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: ''
+Warning	1292	Truncated incorrect DOUBLE value: '1.2xxx'
 select left('aaa','1');
 left('aaa','1')
 a

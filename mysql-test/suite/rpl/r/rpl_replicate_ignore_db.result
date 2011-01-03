@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop database if exists mysqltest1;
 drop database if exists mysqltest2;
 create database mysqltest1;
@@ -21,3 +17,4 @@ a
 1
 drop database mysqltest1;
 drop database mysqltest2;
+include/rpl_end.inc

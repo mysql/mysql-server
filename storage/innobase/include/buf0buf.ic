@@ -35,6 +35,15 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0lru.h"
 #include "buf0rea.h"
 
+/** A chunk of buffers. The buffer pool is allocated in chunks. */
+struct buf_chunk_struct{
+	ulint		mem_size;	/*!< allocated size of the chunk */
+	ulint		size;		/*!< size of frames[] and blocks[] */
+	void*		mem;		/*!< pointer to the memory area which
+					was allocated for the frames */
+	buf_block_t*	blocks;		/*!< array of buffer control blocks */
+};
+
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return size in bytes */
@@ -975,18 +984,19 @@ buf_page_hash_get_low(
 {
 	buf_page_t*	bpage;
 
-#ifdef UNIV_DEBUG
-	ulint		hash_fold;
-	mutex_t*	hash_mutex;
-
 	ut_ad(buf_pool);
+
+#ifdef UNIV_SYNC_DEBUG
+	ulint		hash_fold;
+	rw_lock_t*	hash_lock;
 
 	hash_fold = buf_page_address_fold(space, offset);
 	ut_ad(hash_fold == fold);
 
-	hash_mutex = hash_get_mutex(buf_pool->page_hash, fold);
-	ut_ad(mutex_own(hash_mutex));
-#endif /* UNIV_DEBUG */
+	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX)
+	      || rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
 
@@ -1011,105 +1021,144 @@ buf_page_hash_get_low(
 
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is up to the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+If the block is found and lock is not NULL then the appropriate
+page_hash lock is acquired in the specified lock mode. Otherwise,
+mode value is ignored. It is up to the caller to release the
+lock. If the block is found and the lock is NULL then the page_hash
+lock is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
-buf_page_hash_get(
-/*==============*/
+buf_page_hash_get_locked(
+/*=====================*/
 					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
+					or NULL; if NULL, hash_lock
 					is also NULL. */
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex)		/*!< in/out: mutex of the page
+	rw_lock_t**	lock,		/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
+					is passed then the hash_lock
 					is released by this function */
+	ulint		lock_mode)	/*!< in: RW_LOCK_EX or
+					RW_LOCK_SHARED. Ignored if
+					lock == NULL */
 {
-	buf_page_t*	bpage;
+	buf_page_t*	bpage = NULL;
 	ulint		fold;
-	mutex_t*	hash_mutex;
+	rw_lock_t*	hash_lock;
+	ulint		mode = RW_LOCK_SHARED;
 
-	if (mutex != NULL) {
-		*mutex = NULL;
+	if (lock != NULL) {
+		*lock = NULL;
+		ut_ad(lock_mode == RW_LOCK_EX
+		      || lock_mode == RW_LOCK_SHARED);
+		mode = lock_mode;
 	}
 
 	fold = buf_page_address_fold(space, offset);
-	hash_mutex = hash_get_mutex(buf_pool->page_hash, fold);
+	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
 
-	mutex_enter(hash_mutex);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (mode == RW_LOCK_SHARED) {
+		rw_lock_s_lock(hash_lock);
+	} else {
+		rw_lock_x_lock(hash_lock);
+	}
+
 	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
 
 	if (!bpage || UNIV_UNLIKELY(buf_pool_watch_is_sentinel(buf_pool, bpage))) {
-		mutex_exit(hash_mutex);
-		return(NULL);
+		bpage = NULL;
+		goto unlock_and_exit;
 	}
 
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(offset == bpage->offset);
 	ut_ad(space == bpage->space);
 
-	if (mutex == NULL) {
-		/* The caller wants us to release the page_hash mutex */
-		mutex_exit(hash_mutex);
+	if (lock == NULL) {
+		/* The caller wants us to release the page_hash lock */
+		goto unlock_and_exit;
 	} else {
 		/* To be released by the caller */
-		*mutex = hash_mutex;
+		*lock = hash_lock;
+		goto exit;
 	}
 
+unlock_and_exit:
+	if (mode == RW_LOCK_SHARED) {
+		rw_lock_s_unlock(hash_lock);
+	} else {
+		rw_lock_x_unlock(hash_lock);
+	}
+exit:
 	return(bpage);
 }
 
 /******************************************************************//**
-Returns the control block of a file page, NULL if not found or an
-uncompressed page frame does not exist.
-If the block is found and mutex is not NULL then the appropriate
-page_hash mutex is acquired. It is upto the caller to release the
-mutex. If the block is found and the mutex is NULL then the page_hash
-mutex is released by this function.
+Returns the control block of a file page, NULL if not found.
+If the block is found and lock is not NULL then the appropriate
+page_hash lock is acquired in the specified lock mode. Otherwise,
+mode value is ignored. It is up to the caller to release the
+lock. If the block is found and the lock is NULL then the page_hash
+lock is released by this function.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_block_t*
-buf_block_hash_get(
-/*===============*/
+buf_block_hash_get_locked(
+/*=====================*/
 					/*!< out: pointer to the bpage,
-					or NULL; if NULL, hash_mutex
+					or NULL; if NULL, hash_lock
 					is also NULL. */
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page number */
-	mutex_t**	mutex)		/*!< in/out: mutex of the page
+	rw_lock_t**	lock,		/*!< in/out: lock of the page
 					hash acquired if bpage is
 					found. NULL otherwise. If NULL
-					is passed then the hash_mutex
+					is passed then the hash_lock
 					is released by this function */
+	ulint		lock_mode)	/*!< in: RW_LOCK_EX or
+					RW_LOCK_SHARED. Ignored if
+					lock == NULL */
 {
-	buf_page_t*	bpage = buf_page_hash_get(buf_pool, space, offset, mutex);
+	buf_page_t*	bpage = buf_page_hash_get_locked(buf_pool,
+							 space,
+							 offset,
+							 lock,
+							 lock_mode);
 	buf_block_t*	block = buf_page_get_block(bpage);
 
 	if (block) {
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
-		ut_ad(!mutex || mutex_own(*mutex));
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(!lock || rw_lock_own(*lock, lock_mode));
+#endif /* UNIV_SYNC_DEBUG */
 		return(block);
 	} else if (bpage) {
 		/* It is not a block. Just a bpage */
 		ut_ad(buf_page_in_file(bpage));
 
-		if (mutex) {
-			mutex_exit(*mutex);
+		if (lock) {
+			if (lock_mode == RW_LOCK_SHARED) {
+				rw_lock_s_unlock(*lock);
+			} else {
+				rw_lock_x_unlock(*lock);
+			}
 		}
-		*mutex = NULL;
+		*lock = NULL;
 		return(NULL);
 	}
 
 	ut_ad(!bpage);
-	ut_ad(mutex == NULL ||*mutex == NULL);
+	ut_ad(lock == NULL ||*lock == NULL);
 	return(NULL);
 }
 
@@ -1129,7 +1178,7 @@ buf_page_peek(
 {
 	buf_pool_t*		buf_pool = buf_pool_get(space, offset);
 
-	return(buf_page_hash_get(buf_pool, space, offset, NULL) != NULL);
+	return(buf_page_hash_get(buf_pool, space, offset) != NULL);
 }
 
 /********************************************************************//**
@@ -1254,5 +1303,22 @@ buf_pool_mutex_exit_all(void)
 		buf_pool = buf_pool_from_array(i);
 		buf_pool_mutex_exit(buf_pool);
 	}
+}
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
+	ulint		n,		/*!< in: nth chunk in the buffer pool */
+	ulint*		chunk_size)	/*!< in: chunk size */
+{
+	const buf_chunk_t*	chunk;
+
+	chunk = buf_pool->chunks + n;
+	*chunk_size = chunk->size;
+	return(chunk->blocks);
 }
 #endif /* !UNIV_HOTBACKUP */
