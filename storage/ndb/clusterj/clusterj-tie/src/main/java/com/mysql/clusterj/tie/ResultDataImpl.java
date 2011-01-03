@@ -1,19 +1,18 @@
 /*
- *  Copyright (C) 2009 Sun Microsystems, Inc.
- *  All rights reserved. Use is subject to license terms.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 package com.mysql.clusterj.tie;
@@ -38,6 +37,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbBlob;
+import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbRecAttr;
 
@@ -68,7 +68,7 @@ class ResultDataImpl implements ResultData {
     /** The flag indicating that there are no more results */
     private boolean nextDone;
 
-    /** The ByteBuffer containing the results, obtained from buffer manager */
+    /** The ByteBuffer containing the results, possibly obtained from buffer manager */
     private ByteBuffer byteBuffer = null;
 
     /** Offsets into the ByteBuffer containing the results */
@@ -91,17 +91,23 @@ class ResultDataImpl implements ResultData {
      * @param bufferSize the size of the buffer needed
      * @param offsets the array of offsets indexed by column id
      * @param lengths the array of lengths indexed by column id
+     * @param bufferManager the buffer manager
+     * @param allocateNew true to allocate a new (unshared) result buffer
      */
     public ResultDataImpl(NdbOperation ndbOperation, List<Column> storeColumns,
-            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths, int maximumLength,
-            BufferManager bufferManager) {
+            int maximumColumnId, int bufferSize, int[] offsets, int[] lengths,
+            BufferManager bufferManager, boolean allocateNew) {
         this.ndbOperation = ndbOperation;
         this.bufferManager = bufferManager;
         // save the column list
         this.storeColumns = storeColumns.toArray(new Column[storeColumns.size()]);
         this.offsets = offsets;
         this.lengths = lengths;
-        byteBuffer = bufferManager.getResultDataBuffer(bufferSize);
+        if (allocateNew) {
+            byteBuffer = ByteBuffer.allocateDirect(bufferSize);
+        } else {
+            byteBuffer = bufferManager.getResultDataBuffer(bufferSize);
+        }
         byteBuffer.order(ByteOrder.nativeOrder());
         // iterate the list of store columns and allocate an NdbRecAttr (via getValue) for each
         ndbRecAttrs = new NdbRecAttr[maximumColumnId + 1];
@@ -130,11 +136,17 @@ class ResultDataImpl implements ResultData {
 
     public boolean next() {
         // NdbOperation has exactly zero or one result. ScanResultDataImpl handles scans...
+        NdbErrorConst error = ndbOperation.getNdbError();
+        // if the ndbOperation reports an error there is no result
+        int errorCode = error.code();
+        if (errorCode != 0) {
+            setNoResult();
+        }
         if (nextDone) {
             return false;
         } else {
-                nextDone = true;
-                return true;
+            nextDone = true;
+            return true;
         }
     }
 

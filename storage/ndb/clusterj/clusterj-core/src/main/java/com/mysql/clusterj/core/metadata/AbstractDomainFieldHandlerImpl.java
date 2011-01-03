@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009-2010 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2353,6 +2352,9 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, ResultData rs, ValueHandler handler) {
+            if (logger.isDetailEnabled()) {
+                logger.detail("field " + fmd.name + " set to value " + rs.getString(fmd.storeColumn));
+            }
             handler.setString(fmd.fieldNumber, rs.getString(fmd.storeColumn));
         }
 

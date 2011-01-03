@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright 2009-2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,14 +20,15 @@ package com.mysql.clusterj.core.spi;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import com.mysql.clusterj.DynamicObjectDelegate;
+
 /** ValueHandler is the interface that must be implemented for core
  * components to access values of a managed instance.
  *
  */
-public interface ValueHandler {
+public interface ValueHandler extends DynamicObjectDelegate {
 
     public String pkToString(DomainTypeHandler<?> domainTypeHandler);
-
 
     boolean isNull(int fieldNumber);
     boolean isModified(int fieldNumber);

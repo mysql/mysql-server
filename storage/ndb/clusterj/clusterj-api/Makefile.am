@@ -68,7 +68,7 @@ clusterj_api_java = \
   $(clusterj_api_src)/com/mysql/clusterj/Constants.java \
   $(clusterj_api_src)/com/mysql/clusterj/LockMode.java \
   $(clusterj_api_src)/com/mysql/clusterj/ColumnMetadata.java \
-  $(clusterj_api_src)/com/mysql/clusterj/DynamicObject.java \ 
+  $(clusterj_api_src)/com/mysql/clusterj/DynamicObject.java \
   $(clusterj_api_src)/com/mysql/clusterj/DynamicObjectDelegate.java
 
 
