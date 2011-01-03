@@ -49,6 +49,8 @@ extern "C" {
 #include "fut0fut.h"
 #include "pars0pars.h"
 #include "fts0types.h"
+#include "fts0opt.h"
+#include "fts0priv.h"
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -2825,6 +2827,295 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_cache =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_index_cache_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/*******************************************************************//**
+Go through a FTS index auxiliary table, fetch its rows and fill
+FTS word cache structure.
+@return	DB_SUCCESS on success, otherwise error code */
+static
+ulint
+i_s_fts_index_table_fill_selected(
+/*==============================*/
+	dict_index_t*		index,		/*!< in: FTS index */
+	ib_vector_t*		words,		/*!< in/out: vector to hold
+						fetched words */
+	ulint			selected)	/*!< in: selected FTS index */
+{
+	pars_info_t*		info;
+	fts_table_t		fts_table;
+	trx_t*			trx;
+	que_t*			graph;
+	ulint			error;
+	fts_fetch_t		fetch;
+
+	info = pars_info_create();
+
+	fetch.read_arg = words;
+	fetch.read_record = fts_optimize_index_fetch_node;
+
+	trx = trx_allocate_for_background();
+
+	trx->op_info = "fetching FTS index nodes";
+
+	pars_info_bind_function(info, "my_func", fetch.read_record, &fetch);
+
+	fts_table.type = FTS_INDEX_TABLE;
+	fts_table.parent = index->table->name;
+	fts_table.table_id = index->table->id;
+	fts_table.index_id = index->id;
+
+	fts_table.suffix = fts_get_suffix(selected);
+
+	graph = fts_parse_sql(
+		&fts_table, info,
+		"DECLARE FUNCTION my_func;\n"
+		"DECLARE CURSOR c IS"
+		" SELECT word, doc_count, first_doc_id, last_doc_id, "
+		"ilist\n"
+		" FROM %s;\n"
+		"BEGIN\n"
+		"\n"
+		"OPEN c;\n"
+		"WHILE 1 = 1 LOOP\n"
+		"  FETCH c INTO my_func();\n"
+		"  IF c % NOTFOUND THEN\n"
+		"    EXIT;\n"
+		"  END IF;\n"
+		"END LOOP;\n"
+		"CLOSE c;");
+
+	for(;;) {
+		error = fts_eval_sql(trx, graph);
+
+		if (error == DB_SUCCESS) {
+			fts_sql_commit(trx);
+
+			break;
+		} else {
+			fts_sql_rollback(trx);
+
+			ut_print_timestamp(stderr);
+
+			if (error == DB_LOCK_WAIT_TIMEOUT) {
+				fprintf(stderr, "  InnoDB: Warning: "
+					"lock wait timeout reading "
+					"FTS index.  Retrying!\n");
+
+				trx->error_state = DB_SUCCESS;
+			} else {
+				fprintf(stderr, "  InnoDB: Error: %lu "
+				"while reading FTS index.\n", error);
+				break;
+			}
+		}
+	}
+
+	que_graph_free(graph);
+	pars_info_free(info);
+
+	trx_free_for_background(trx);
+
+	return(error);
+}
+
+/*******************************************************************//**
+Go through a FTS index and its auxiliary tables, fetch rows in each table
+and fill INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_index_table_fill_one_index(
+/*===============================*/
+	dict_index_t*		index,		/*!< in: FTS index */
+	THD*			thd,		/*!< in: thread */
+	TABLE_LIST*		tables)		/*!< in/out: tables to fill */
+{
+	TABLE*			table = (TABLE *) tables->table;
+	Field**			fields;
+	ib_vector_t*		words;
+	mem_heap_t*		heap;
+
+	DBUG_ENTER("i_s_fts_index_cache_fill_one_index");
+
+	heap = mem_heap_create(1024);
+
+	words = ib_vector_create(ib_heap_allocator_create(heap),
+				 sizeof(fts_word_t), 256);
+
+	fields = table->field;
+
+	/* Iterate through each auxiliary table as described in
+	fts_index_selector */
+	for (ulint selected = 0; selected < 4; selected++) {
+		i_s_fts_index_table_fill_selected(index, words, selected);
+	}
+
+	/* Go through each word in the index cache */
+	for (ulint i = 0; i < ib_vector_size(words); i++) {
+		fts_word_t*	word;
+		doc_id_t	doc_id = 0;
+
+		word = (fts_word_t*) ib_vector_get(words, i);
+
+		word->text.utf8[word->text.len] = 0;
+
+		/* Decrypt the ilist, and display Dod ID and word position */
+		for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
+			fts_node_t*	node;
+			byte*		ptr;
+			ulint		decoded = 0;
+
+			node = static_cast<fts_node_t*> (ib_vector_get(
+				word->nodes, i));
+
+			ptr = node->ilist;
+
+			while (decoded < node->ilist_size) {
+				ulint	pos = fts_decode_vlc(&ptr);
+
+				doc_id += pos;
+
+				/* Get position info */
+				while (*ptr) {
+					pos = fts_decode_vlc(&ptr);
+
+					OK(field_store_string(
+						fields[I_S_FTS_WORD],
+						reinterpret_cast<const char*>
+						(word->text.utf8)));
+
+					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
+						node->first_doc_id));
+
+					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
+						node->last_doc_id));
+
+					OK(fields[I_S_FTS_DOC_COUNT]->store(
+						node->doc_count));
+
+					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
+						doc_id));
+
+					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
+						pos));
+
+					OK(schema_table_store_record(
+						thd, table));
+				}
+
+				++ptr;
+
+				decoded = ptr - (byte*) node->ilist;
+			}
+		}
+	}
+
+	mem_heap_free(heap);
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Fill the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE
+@return	0 on success, 1 on failure */
+static
+int
+i_s_fts_index_table_fill(
+/*=====================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	COND*		cond)	/*!< in: condition (ignored) */
+{
+	const dict_table_t*	user_table;
+	dict_index_t*		index;
+
+	DBUG_ENTER("i_s_fts_index_table_fill");
+
+	if (!fts_internal_tbl_name) {
+		DBUG_RETURN(0);
+	}
+
+	user_table = dict_table_get(fts_internal_tbl_name, FALSE);
+
+	if (!user_table) {
+		DBUG_RETURN(0);
+	}
+
+	for (index = dict_table_get_first_index(user_table);
+	     index; index = dict_table_get_next_index(index)) {
+		if (index->type & DICT_FTS) {
+			i_s_fts_index_table_fill_one_index(index, thd, tables);
+		}
+	}
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_FTS_INDEX_TABLE
+@return	0 on success */
+static
+int
+i_s_fts_index_table_init(
+/*=====================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_fts_index_table_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_fts_index_fields_info;
+	schema->fill_table = i_s_fts_index_table_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_fts_index_table =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_fts_index_fields_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_FTS_INDEX_TABLE"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "INNODB AUXILIARY FTS INDEX TABLE"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_fts_index_table_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
