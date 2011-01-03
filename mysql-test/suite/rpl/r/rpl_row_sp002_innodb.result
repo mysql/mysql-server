@@ -1,15 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-DROP PROCEDURE IF EXISTS test.p1;
-DROP PROCEDURE IF EXISTS test.p2;
-DROP PROCEDURE IF EXISTS test.p3;
-DROP TABLE IF EXISTS test.t3;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
+include/master-slave.inc
+[connection master]
 CREATE TABLE test.t1 (a INT AUTO_INCREMENT KEY, t CHAR(6)) ENGINE=INNODB;
 CREATE TABLE test.t2 (a INT AUTO_INCREMENT KEY, f INT, FOREIGN KEY(a) REFERENCES test.t1(a) ON DELETE CASCADE) ENGINE=INNODB;
 create procedure test.p1(IN i CHAR(6))
@@ -231,9 +221,10 @@ a	t
 98	NONE
 SET AUTOCOMMIT=1;
 SET FOREIGN_KEY_CHECKS=0;
-DROP PROCEDURE IF EXISTS test.p3;
-DROP PROCEDURE IF EXISTS test.p1;
-DROP PROCEDURE IF EXISTS test.p2;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
-DROP TABLE IF EXISTS test.t3;
+DROP PROCEDURE test.p3;
+DROP PROCEDURE test.p1;
+DROP PROCEDURE test.p2;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+include/rpl_end.inc
