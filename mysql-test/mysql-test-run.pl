@@ -729,9 +729,11 @@ sub run_test_server ($$$) {
 	    last;
 	  }
 
-	  # Second best choice is the first that does not fulfill
-	  # any of the above conditions
-	  if (!defined $second_best){
+	  # From secondary choices, we prefer to pick a 'long-running' test if
+          # possible; this helps avoid getting stuck with a few of those at the
+          # end of high --parallel runs, with most workers being idle.
+	  if (!defined $second_best ||
+              ($t->{'long_test'} && !($tests->[$second_best]{'long_test'}))){
 	    #mtr_report("Setting second_best to $i");
 	    $second_best= $i;
 	  }
