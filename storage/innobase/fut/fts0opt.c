@@ -410,7 +410,7 @@ fts_optimize_read_node(
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record. */
-static
+UNIV_INTERN
 ibool
 fts_optimize_index_fetch_node(
 /*==========================*/

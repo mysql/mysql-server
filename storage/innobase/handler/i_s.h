@@ -38,5 +38,6 @@ extern struct st_mysql_plugin	i_s_innodb_stopword;
 extern struct st_mysql_plugin	i_s_innodb_fts_inserted;
 extern struct st_mysql_plugin	i_s_innodb_fts_deleted;
 extern struct st_mysql_plugin	i_s_innodb_fts_index_cache;
+extern struct st_mysql_plugin	i_s_innodb_fts_index_table;
 
 #endif /* i_s_h */
