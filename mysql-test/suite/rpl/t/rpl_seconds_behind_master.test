@@ -133,7 +133,7 @@ sync_slave_with_master;
 #     desired query. At that time we inspect the Seconds_Behind_Master
 #     and assert that it is in the desired time window.
 
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 # this will increase the timestamp +3600, so it becomes
@@ -205,4 +205,4 @@ DROP TABLE t1;
 
 SET @@global.debug= @old_debug;
 
--- source include/master-slave-end.inc
+-- source include/rpl_end.inc

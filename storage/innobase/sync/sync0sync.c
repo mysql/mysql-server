@@ -1212,7 +1212,7 @@ sync_thread_add_level(
 
 
 	case SYNC_BUF_PAGE_HASH:
-		/* Multiple page_hash mutexes are only allowed during
+		/* Multiple page_hash locks are only allowed during
 		buf_validate and that is where buf_pool mutex is already
 		held. */
 		/* Fall through */

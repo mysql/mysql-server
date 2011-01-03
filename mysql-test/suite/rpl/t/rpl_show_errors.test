@@ -9,7 +9,6 @@
 #
 
 ############# CHECKS SQL ERRORS #############
--- source include/master-slave-reset.inc
 -- connection master
 CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
 -- sync_slave_with_master
@@ -64,12 +63,11 @@ source include/wait_for_slave_param.inc;
 
 ############# CHECKS IO ERRORS #############
 
--- connection master
--- source include/master-slave-reset.inc
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 # mostly copied and extended from rpl_server_id1.test
 -- connection slave
-RESET MASTER;
 
 # replicate ourselves
 -- source include/stop_slave.inc
@@ -117,3 +115,4 @@ let $slave_param_value= 0;
 let $slave_error_message= Failed while waiting for slave to clear the IO error after starting;
 source include/wait_for_slave_param.inc;
 
+--source include/rpl_end.inc

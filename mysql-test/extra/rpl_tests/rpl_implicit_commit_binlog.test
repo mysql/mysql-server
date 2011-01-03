@@ -649,8 +649,7 @@ SET AUTOCOMMIT= 1;
 --echo ###################################################################################
 --sync_slave_with_master
 
---let $diff_table_1= master:test.tt_1
---let $diff_table_2= slave:test.tt_1
+--let $diff_tables= master:tt_1,slave:tt_1
 --source include/diff_tables.inc
 
 --echo ###################################################################################

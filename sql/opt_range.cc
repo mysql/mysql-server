@@ -8428,7 +8428,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   if (unique == NULL)
   {
-    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", abort(); );
+    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", DBUG_ABORT(); );
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created", 
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"); );
 
@@ -11611,7 +11611,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result()
 
   min_functions_it->rewind();
   while ((min_func= (*min_functions_it)++))
-    min_func->reset();
+    min_func->reset_and_add();
 }
 
 
@@ -11643,7 +11643,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_max_result()
 
   max_functions_it->rewind();
   while ((max_func= (*max_functions_it)++))
-    max_func->reset();
+    max_func->reset_and_add();
 }
 
 

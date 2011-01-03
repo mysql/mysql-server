@@ -1109,7 +1109,8 @@ trx_mark_sql_stat_end(
 }
 
 /**********************************************************************//**
-Prints info about a transaction to the given file. */
+Prints info about a transaction to the given file. Caller must not own
+the transaction mutex. */
 UNIV_INTERN
 void
 trx_print(
@@ -1120,7 +1121,10 @@ trx_print(
 				   use the default max length */
 {
 	ibool	newline;
+	ulint	n_row_locks;
+	ulint	n_trx_locks;
 
+	ut_ad(!trx_mutex_own(trx));
 	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
@@ -1191,15 +1195,27 @@ trx_print(
 		fprintf(f, "que state %lu ", (ulong) trx->lock.que_state);
 	}
 
-	if (0 < UT_LIST_GET_LEN(trx->lock.trx_locks)
+	trx_mutex_enter(trx);
+
+	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
+
+	if (n_trx_locks != 0
 	    || mem_heap_get_size(trx->lock.lock_heap) > 400) {
 		newline = TRUE;
 
+		n_row_locks = lock_number_of_rows_locked(trx);
+	} else {
+		n_row_locks = ULINT_UNDEFINED;
+	}
+
+	trx_mutex_exit(trx);
+
+	if (n_row_locks != ULINT_UNDEFINED) {
 		fprintf(f, "%lu lock struct(s), heap size %lu,"
 			" %lu row lock(s)",
-			(ulong) UT_LIST_GET_LEN(trx->lock.trx_locks),
+			(ulong) n_trx_locks,
 			(ulong) mem_heap_get_size(trx->lock.lock_heap),
-			(ulong) lock_number_of_rows_locked(trx));
+			(ulong) n_row_locks);
 	}
 
 	if (trx->has_search_latch) {

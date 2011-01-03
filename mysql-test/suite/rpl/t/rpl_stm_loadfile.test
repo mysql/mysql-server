@@ -22,3 +22,4 @@ enable_query_log;
 
 -- source extra/rpl_tests/rpl_loadfile.test
 
+--source include/rpl_end.inc

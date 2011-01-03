@@ -97,7 +97,7 @@ while ($1)
  dec $1;
 }
 commit;
---echo *** the following must show the counter value > 1 ***
+--echo *** the following must show the counter value = 1 ***
 show status like "binlog_cache_use";
 enable_query_log;
 

@@ -1684,6 +1684,9 @@ ARMENIAN CAPIT ECH	2
 ARMENIAN CAPIT ZA	2
 DROP TABLE t1;
 #
+# Start of 5.5 tests
+#
+#
 # WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
 # Testing that only utf8mb4 is superset for utf8
 # No other Unicode character set pairs have superset/subset relations
@@ -1739,3 +1742,22 @@ ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf8mb4_
 SELECT CHARSET(CONCAT(utf32, utf16)) FROM t1;
 ERROR HY000: Illegal mix of collations (utf32_general_ci,IMPLICIT) and (utf16_general_ci,IMPLICIT) for operation 'concat'
 DROP TABLE t1;
+#
+# Bug#58321 No warning when characters outside BMP0 is converted to UCS2
+#
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
+CREATE TABLE t2 (a VARCHAR(10) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (0x10082), (0x12345);
+INSERT INTO t2 SELECT * FROM t1;
+Warnings:
+Warning	1366	Incorrect string value: '\x00\x01\x00\x82' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x00\x01\x23\x45' for column 'a' at row 2
+SELECT HEX(a) FROM t2;
+HEX(a)
+003F
+003F
+DROP TABLE t1;
+DROP TABLE t2;
+#
+# End of 5.5 tests
+#

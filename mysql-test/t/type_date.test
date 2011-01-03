@@ -284,4 +284,12 @@ DROP TABLE t1;
 
 --echo #
 
+--echo #
+--echo # Bug#57278: Crash on min/max + with date out of range.
+--echo #
+set @a=(select min(makedate('111','1'))) ;
+select @a;
+--echo #
+
+
 --echo End of 6.0 tests

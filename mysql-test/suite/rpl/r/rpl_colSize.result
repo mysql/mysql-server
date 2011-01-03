@@ -1,13 +1,10 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t1;
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
 STOP SLAVE;
+include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 SET @saved_slave_type_conversions = @@slave_type_conversions;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
@@ -57,6 +54,7 @@ t LONGTEXT
 RESET MASTER;
 *** Start replication ***
 START SLAVE;
+include/wait_for_slave_to_start.inc
 *** Insert data on master and display it. ***
 INSERT INTO t1 () VALUES (
 17.567, 
@@ -180,3 +178,4 @@ t1	CREATE TABLE `t1` (
 *** Cleanup  ***
 DROP TABLE t1;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+include/rpl_end.inc

@@ -1,36 +1,12 @@
-include/stop_slave.inc
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
-RESET MASTER;
-RESET SLAVE;
-include/stop_slave.inc
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
-RESET MASTER;
-RESET SLAVE;
-include/stop_slave.inc
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
-RESET MASTER;
-RESET SLAVE;
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_A_PORT,master_user='root',MASTER_LOG_FILE='MASTER_A_LOG_FILE';
-CHANGE MASTER TO master_host='127.0.0.1',master_port=MASTER_B_PORT,master_user='root',MASTER_LOG_FILE='MASTER_B_LOG_FILE';
-SHOW VARIABLES LIKE 'server_id';
-Variable_name	Value
-server_id	1
-SHOW VARIABLES LIKE 'server_id';
-Variable_name	Value
-server_id	2
-SHOW VARIABLES LIKE 'server_id';
-Variable_name	Value
-server_id	3
-include/start_slave.inc
-include/start_slave.inc
-CON: 'mysqld_a', IMG: 'NOBLOB', RESTART SLAVE: 'N'
+include/rpl_init.inc [topology=1->2->3]
+CON: 'server_1', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
-CON: 'mysqld_b', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
+CON: 'server_2', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -39,7 +15,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
-CON: 'mysqld_c', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
+CON: 'server_3', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -49,7 +25,6 @@ SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
 ### engines: MyISAM, MyISAM, MyISAM
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -66,6 +41,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -76,14 +52,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -100,6 +77,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -110,14 +88,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -134,6 +113,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -144,14 +124,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -168,6 +149,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -178,14 +160,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -202,6 +185,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -212,14 +196,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -236,6 +221,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -246,14 +232,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -270,6 +257,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -280,14 +268,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -304,6 +293,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -314,14 +304,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -338,6 +329,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -348,14 +340,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -372,6 +365,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -382,14 +376,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -406,6 +401,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -416,14 +412,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -440,6 +437,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -450,16 +448,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: MyISAM, MyISAM, InnoDB
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -476,6 +474,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -486,14 +485,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -510,6 +510,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -520,14 +521,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -544,6 +546,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -554,14 +557,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -578,6 +582,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -588,14 +593,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -612,6 +618,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -622,14 +629,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -646,6 +654,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -656,14 +665,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -680,6 +690,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -690,14 +701,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -714,6 +726,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -724,14 +737,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -748,6 +762,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -758,14 +773,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -782,6 +798,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -792,14 +809,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -816,6 +834,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -826,14 +845,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -850,6 +870,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -860,16 +881,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: MyISAM, InnoDB, MyISAM
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -886,6 +907,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -896,14 +918,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -920,6 +943,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -930,14 +954,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -954,6 +979,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -964,14 +990,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -988,6 +1015,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -998,14 +1026,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1022,6 +1051,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1032,14 +1062,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1056,6 +1087,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1066,14 +1098,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1090,6 +1123,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1100,14 +1134,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1124,6 +1159,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1134,14 +1170,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1158,6 +1195,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1168,14 +1206,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1192,6 +1231,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1202,14 +1242,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1226,6 +1267,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1236,14 +1278,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1260,6 +1303,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1270,16 +1314,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: MyISAM, InnoDB, InnoDB
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1296,6 +1340,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1306,14 +1351,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1330,6 +1376,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1340,14 +1387,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1364,6 +1412,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1374,14 +1423,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1398,6 +1448,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1408,14 +1459,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1432,6 +1484,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1442,14 +1495,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1466,6 +1520,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1476,14 +1531,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1500,6 +1556,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1510,14 +1567,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1534,6 +1592,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1544,14 +1603,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1568,6 +1628,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1578,14 +1639,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1602,6 +1664,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1612,14 +1675,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1636,6 +1700,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1646,14 +1711,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1670,6 +1736,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1680,16 +1747,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: InnoDB, MyISAM, MyISAM
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1706,6 +1773,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1716,14 +1784,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1740,6 +1809,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1750,14 +1820,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1774,6 +1845,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1784,14 +1856,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1808,6 +1881,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1818,14 +1892,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1842,6 +1917,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1852,14 +1928,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1876,6 +1953,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1886,14 +1964,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1910,6 +1989,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1920,14 +2000,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1944,6 +2025,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1954,14 +2036,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -1978,6 +2061,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -1988,14 +2072,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2012,6 +2097,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2022,14 +2108,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2046,6 +2133,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2056,14 +2144,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2080,6 +2169,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2090,16 +2180,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: InnoDB, MyISAM, InnoDB
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2116,6 +2206,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2126,14 +2217,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2150,6 +2242,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2160,14 +2253,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2184,6 +2278,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2194,14 +2289,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2218,6 +2314,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2228,14 +2325,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2252,6 +2350,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2262,14 +2361,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2286,6 +2386,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2296,14 +2397,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2320,6 +2422,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2330,14 +2433,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2354,6 +2458,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2364,14 +2469,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2388,6 +2494,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2398,14 +2505,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2422,6 +2530,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2432,14 +2541,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2456,6 +2566,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2466,14 +2577,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2490,6 +2602,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2500,16 +2613,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: InnoDB, InnoDB, MyISAM
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2526,6 +2639,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2536,14 +2650,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2560,6 +2675,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2570,14 +2686,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2594,6 +2711,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2604,14 +2722,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2628,6 +2747,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2638,14 +2758,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2662,6 +2783,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2672,14 +2794,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2696,6 +2819,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2706,14 +2830,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2730,6 +2855,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2740,14 +2866,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2764,6 +2891,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2774,14 +2902,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2798,6 +2927,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2808,14 +2938,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2832,6 +2963,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2842,14 +2974,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2866,6 +2999,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2876,14 +3010,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2900,6 +3035,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2910,16 +3046,16 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 ### engines: InnoDB, InnoDB, InnoDB
-DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2936,6 +3072,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2946,14 +3083,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -2970,6 +3108,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -2980,14 +3119,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3004,6 +3144,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3014,14 +3155,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3038,6 +3180,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3048,14 +3191,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3072,6 +3216,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3082,14 +3227,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3106,6 +3252,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3116,14 +3263,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3140,6 +3288,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3150,14 +3299,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3174,6 +3324,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3184,14 +3335,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3208,6 +3360,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3218,14 +3371,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3242,6 +3396,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3252,14 +3407,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3276,6 +3432,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3286,14 +3443,15 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
+include/rpl_sync.inc
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
@@ -3310,6 +3468,7 @@ INSERT INTO t VALUES (7, '7', '7', '7' );
 INSERT INTO t VALUES (9, '9', '9', NULL );
 INSERT INTO t VALUES (2, '1', '2', '2' );
 INSERT INTO t VALUES (3, '1', '3', '2' );
+include/rpl_sync.inc
 UPDATE t SET c4 = '7';
 UPDATE t SET c4 = '5' WHERE c1 = 1;
 UPDATE t SET c2 = '5' WHERE c1 = 1;
@@ -3320,31 +3479,23 @@ UPDATE t SET c2 = '8' WHERE c2 = '4';
 UPDATE t SET c3 = '0' WHERE c4 = NULL;
 UPDATE t SET c2 = '0' WHERE c4 = '0';
 UPDATE t SET c2 = '2' WHERE c4 = '2';
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DELETE FROM t WHERE c1 = 7;
 DELETE FROM t WHERE c1 = 8;
 DELETE FROM t;
-Comparing tables mysqld_a:test.t and mysqld_b:test.t
-Comparing tables mysqld_b:test.t and mysqld_c:test.t
+include/rpl_sync.inc
+include/diff_tables.inc [server_1:test.t, server_2:test.t, server_3:test.t]
 DROP TABLE t;
-CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
+include/rpl_sync.inc
+CON: 'server_1', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
-CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
-SET SESSION binlog_row_image= 'FULL';
-SET GLOBAL binlog_row_image= 'FULL';
-include/stop_slave.inc
-include/start_slave.inc
-FLUSH TABLES;
-SHOW VARIABLES LIKE 'binlog_row_image';
-Variable_name	Value
-binlog_row_image	FULL
-CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
+CON: 'server_2', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -3353,3 +3504,13 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'server_3', IMG: 'FULL', RESTART SLAVE: 'Y'
+SET SESSION binlog_row_image= 'FULL';
+SET GLOBAL binlog_row_image= 'FULL';
+include/stop_slave.inc
+include/start_slave.inc
+FLUSH TABLES;
+SHOW VARIABLES LIKE 'binlog_row_image';
+Variable_name	Value
+binlog_row_image	FULL
+include/rpl_end.inc
