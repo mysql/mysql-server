@@ -54,19 +54,25 @@ void Dbtup::execSTORED_PROCREQ(Signal* signal)
   switch (requestInfo) {
   case ZSCAN_PROCEDURE:
     jam();
+#if defined VM_TRACE || defined ERROR_INSERT
     storedProcCountNonAPI(apiBlockref, +1);
+#endif
     scanProcedure(signal,
                   regOperPtr.p,
                   signal->theData[4]);
     break;
   case ZCOPY_PROCEDURE:
     jam();
+#if defined VM_TRACE || defined ERROR_INSERT
     storedProcCountNonAPI(apiBlockref, +1);
+#endif
     copyProcedure(signal, regTabPtr, regOperPtr.p);
     break;
   case ZSTORED_PROCEDURE_DELETE:
     jam();
+#if defined VM_TRACE || defined ERROR_INSERT
     storedProcCountNonAPI(apiBlockref, -1);
+#endif
     deleteScanProcedure(signal, regOperPtr.p);
     break;
   default:

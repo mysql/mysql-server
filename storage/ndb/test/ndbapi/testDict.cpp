@@ -4104,6 +4104,7 @@ runBug58277createtable(NDBT_Context* ctx, NDBT_Step* step)
 
   do
   {
+    CHK2(rows > 0, "cannot use --records=0"); // others require this
     g_info << "create table " << tabname << endl;
     NdbDictionary::Table tab(tabname);
     const char* name[] = { "a", "b" };
