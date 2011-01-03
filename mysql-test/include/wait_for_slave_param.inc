@@ -52,7 +52,7 @@ if (!$_slave_timeout)
   let $_slave_timeout= 300;
 }
 
-if (`SELECT '$slave_error_param' = ''`)
+if ($slave_error_param == '')
 {
   --let $slave_error_param= 1
 }
@@ -70,7 +70,7 @@ if ($rpl_debug)
 
 --let $_slave_check_configured= query_get_value("SHOW SLAVE STATUS", Slave_IO_Running, 1)
 
-if (`SELECT '$_slave_check_configured' = 'No such row'`)
+if ($_slave_check_configured == 'No such row')
 {
   --echo **** ERROR: SHOW SLAVE STATUS returned empty result set. Slave not configured. ****
   --source include/show_rpl_debug_info.inc

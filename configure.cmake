@@ -269,6 +269,49 @@ ENDIF()
 #
 FIND_PACKAGE (Threads)
 
+FUNCTION(MY_CHECK_PTHREAD_ONCE_INIT)
+  CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
+  IF(NOT HAVE_WERROR_FLAG)
+    RETURN()
+  ENDIF()
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
+  CHECK_C_SOURCE_COMPILES("
+    #include <pthread.h>
+    void foo(void) {}
+    int main()
+    {
+      pthread_once_t once_control = PTHREAD_ONCE_INIT;
+      pthread_once(&once_control, foo);
+      return 0;
+    }"
+    HAVE_PTHREAD_ONCE_INIT
+  )
+  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6611808
+  IF(NOT HAVE_PTHREAD_ONCE_INIT)
+    CHECK_C_SOURCE_COMPILES("
+      #include <pthread.h>
+      void foo(void) {}
+      int main()
+      {
+        pthread_once_t once_control = { PTHREAD_ONCE_INIT };
+        pthread_once(&once_control, foo);
+        return 0;
+      }"
+      HAVE_ARRAY_PTHREAD_ONCE_INIT
+    )
+  ENDIF()
+  IF(HAVE_PTHREAD_ONCE_INIT)
+    SET(PTHREAD_ONCE_INITIALIZER "PTHREAD_ONCE_INIT" PARENT_SCOPE)
+  ENDIF()
+  IF(HAVE_ARRAY_PTHREAD_ONCE_INIT)
+    SET(PTHREAD_ONCE_INITIALIZER "{ PTHREAD_ONCE_INIT }" PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+IF(CMAKE_USE_PTHREADS_INIT)
+  MY_CHECK_PTHREAD_ONCE_INIT()
+ENDIF()
+
 #
 # Tests for functions
 #
