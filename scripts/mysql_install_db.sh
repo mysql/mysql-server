@@ -398,18 +398,20 @@ else
   echo "Installation of system tables failed!  Examine the logs in"
   echo "$ldata for more information."
   echo
-  echo "You can try to start the mysqld daemon with:"
+  echo "The problem could be conflicting information in an external"
+  echo "my.cnf files. You can ignore these by doing:"
   echo
-  echo "    shell> $mysqld --skip-grant &"
+  echo "    shell> /scripts/mysql_install_db --defaults-file=~/.my.cnf"
+  echo
+  echo "You can also try to start the mysqld daemon with:"
+  echo
+  echo "    shell> $mysqld --skip-grant --general-log &"
   echo
   echo "and use the command line tool $bindir/mysql"
   echo "to connect to the mysql database and look at the grant tables:"
   echo
   echo "    shell> $bindir/mysql -u root mysql"
   echo "    mysql> show tables"
-  echo
-  echo "Try 'mysqld --help' if you have problems with paths.  Using"
-  echo "--general-log gives you a log in $ldata that may be helpful."
   echo
   echo "The latest information about mysql_install_db is available at"
   echo "http://kb.askmonty.org/v/installing-system-tables-mysql_install_db."

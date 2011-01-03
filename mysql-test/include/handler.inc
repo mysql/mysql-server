@@ -77,8 +77,9 @@ handler t2 read a prev  limit 10;
 
 handler t2 read a>=(16) limit 4;
 handler t2 read a>=(16) limit 2,2;
+select * from t1 where a>=16 limit 2,2;
 handler t2 read a last  limit 3;
-
+handler t2 read a=(16) limit 1,3;
 handler t2 read a=(19);
 handler t2 read a=(19) where b="yyy";
 
@@ -104,6 +105,79 @@ handler t2 read first;
 eval alter table t1 engine = $engine_type;
 --error 1109
 handler t2 read first;
+
+handler t1 open;
+handler t1 read a=(16) limit 1,3;
+flush tables;
+handler t1 read a=(16) limit 1,3;
+handler t1 close;
+
+#
+# Test with prepared statements
+#
+
+handler t1 open;
+prepare stmt from 'handler t1 read a=(?) limit ?,?';
+set @a=16,@b=1,@c=100;
+execute stmt using @a,@b,@c;
+set @a=16,@b=2,@c=1;
+execute stmt using @a,@b,@c;
+set @a=16,@b=0,@c=2;
+execute stmt using @a,@b,@c;
+deallocate prepare stmt;
+
+prepare stmt from 'handler t1 read a next limit ?';
+handler t1 read a>=(11);
+set @a=3;
+execute stmt using @a;
+execute stmt using @a;
+execute stmt using @a;
+deallocate prepare stmt;
+
+prepare stmt from 'handler t1 read b prev limit ?';
+execute stmt using @a;
+execute stmt using @a;
+execute stmt using @a;
+execute stmt using @a;
+deallocate prepare stmt;
+
+prepare stmt from 'handler t1 read b=(?,?)';
+set @a=14, @b='aaa';
+execute stmt using @a,@b;
+set @a=14, @b='not found';
+execute stmt using @a,@b;
+deallocate prepare stmt;
+
+prepare stmt from 'handler t1 read b=(1+?) limit 10';
+set @a=15;
+execute stmt using @a;
+execute stmt using @a;
+deallocate prepare stmt;
+
+prepare stmt from 'handler t1 read a>=(?) where a < ? limit 5';
+set @a=15, @b=20;
+execute stmt using @a,@b;
+execute stmt using @a,@b;
+deallocate prepare stmt;
+
+prepare stmt from 'handler t1 read a=(?)';
+set @a=16;
+execute stmt using @a;
+alter table t1 add c int;
+--error 1109
+execute stmt using @a;
+deallocate prepare stmt;
+--error 1109
+handler t1 close;
+
+handler t1 open;
+prepare stmt from 'handler t1 read a=(?)';
+flush tables;
+set @a=16;
+--error ER_NEED_REPREPARE
+execute stmt using @a;
+deallocate prepare stmt;
+handler t1 close;
 
 #
 # DROP TABLE / ALTER TABLE

@@ -230,14 +230,16 @@ static void check_locks(THR_LOCK *lock, const char *where,
 
     if (found_errors < MAX_FOUND_ERRORS)
     {
-      uint count=0;
+      uint count=0, count2= 0;
       THR_LOCK_DATA *data;
       for (data=lock->read.data ; data ; data=data->next)
       {
+        count2++;
 	if (data->type == TL_READ_NO_INSERT)
 	  count++;
         /* Protect against infinite loop. */
-        DBUG_ASSERT(count <= lock->read_no_write_count);
+        DBUG_ASSERT(count <= lock->read_no_write_count &&
+                    count2 <= MAX_LOCKS);
       }
       if (count != lock->read_no_write_count)
       {
@@ -288,7 +290,10 @@ static void check_locks(THR_LOCK *lock, const char *where,
         if (lock->write.data->type == TL_WRITE_CONCURRENT_INSERT)
         {
           THR_LOCK_DATA *data;
-          for (data=lock->write.data->next ; data ; data=data->next)
+          uint count= 0;
+          for (data=lock->write.data->next;
+               data && count < MAX_LOCKS;
+               data=data->next)
           {
             if (data->type != TL_WRITE_CONCURRENT_INSERT)
             {

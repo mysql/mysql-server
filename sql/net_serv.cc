@@ -697,7 +697,8 @@ net_real_write(NET *net,const uchar *packet, size_t len)
   {
     my_bool old_mode;
     thr_end_alarm(&alarmed);
-    vio_blocking(net->vio, net_blocking, &old_mode);
+    if (!net_blocking)
+      vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
   DBUG_RETURN(((int) (pos != end)));
@@ -988,7 +989,8 @@ end:
   {
     my_bool old_mode;
     thr_end_alarm(&alarmed);
-    vio_blocking(net->vio, net_blocking, &old_mode);
+    if (!net_blocking)
+      vio_blocking(net->vio, net_blocking, &old_mode);
   }
   net->reading_or_writing=0;
 #ifdef DEBUG_DATA_PACKETS

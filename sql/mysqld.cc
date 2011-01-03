@@ -457,7 +457,7 @@ static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
 static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
-static my_bool opt_sync= 0;
+static my_bool opt_sync= 0, opt_thread_alarm;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 uint thread_handling;
@@ -6003,7 +6003,7 @@ enum options_mysqld
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
   OPT_QUERY_ALLOC_BLOCK_SIZE, OPT_QUERY_PREALLOC_SIZE,
   OPT_TRANS_ALLOC_BLOCK_SIZE, OPT_TRANS_PREALLOC_SIZE,
-  OPT_SYNC_FRM, OPT_SYNC_BINLOG, OPT_SYNC,
+  OPT_SYNC_FRM, OPT_SYNC_BINLOG, OPT_SYNC, OPT_THREAD_ALARM,
   OPT_SYNC_REPLICATION,
   OPT_SYNC_REPLICATION_SLAVE_ID,
   OPT_SYNC_REPLICATION_TIMEOUT,
@@ -6328,7 +6328,7 @@ struct my_option my_long_options[] =
    "Disable initialization of builtin InnoDB plugin.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"init-connect", OPT_INIT_CONNECT, 
-   "Command(s) that are executed for each new connection.",
+   "Command(s) that are executed for each new connection (but not for SUPER users).",
    &opt_init_connect, &opt_init_connect, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DISABLE_GRANT_OPTIONS
@@ -7579,6 +7579,10 @@ thread is in the relay logs.",
    "error. Used only if the connection has active cursors.",
    &table_lock_wait_timeout, &table_lock_wait_timeout,
    0, GET_ULONG, REQUIRED_ARG, 50, 1, 1024 * 1024 * 1024, 0, 1, 0},
+  {"thread-alarm", OPT_THREAD_ALARM,
+   "Enable/disable system thread alarm calls. Should only be turned off when running tests or debugging!!",
+   &opt_thread_alarm, &opt_thread_alarm, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
+   0},
   {"thread_cache_size", OPT_THREAD_CACHE_SIZE,
    "How many threads we should keep in a cache for reuse.",
    &thread_cache_size, &thread_cache_size, 0, GET_ULONG,
@@ -9358,6 +9362,7 @@ static int get_options(int *argc,char **argv)
   */
   my_disable_locking= myisam_single_user= test(opt_external_locking == 0);
   my_disable_sync= opt_sync == 0;
+  my_disable_thr_alarm= opt_thread_alarm == 0;
   my_default_record_cache_size=global_system_variables.read_buff_size;
   myisam_max_temp_length=
     (my_off_t) global_system_variables.myisam_max_sort_file_size;

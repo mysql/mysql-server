@@ -24,6 +24,7 @@
 #include "sql_trigger.h"
 #include "sql_show.h"
 #include "debug_sync.h"
+#include "sql_handler.h"
 
 #ifdef __WIN__
 #include <io.h>

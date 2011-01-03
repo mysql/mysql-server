@@ -123,8 +123,10 @@ typedef struct st_thr_lock_data {
   struct st_thr_lock *lock;
   pthread_cond_t *cond;
   void *status_param;			/* Param to status functions */
-  void *debug_print_param;
   enum thr_lock_type type;
+
+  enum thr_lock_type org_type;		/* Cache for MariaDB */
+  void *debug_print_param;              /* For error messages */
   uint priority;
 } THR_LOCK_DATA;
 

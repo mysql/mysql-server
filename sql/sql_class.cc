@@ -44,6 +44,7 @@
 #include "sp_cache.h"
 #include "sql_select.h" /* declares create_tmp_table() */
 #include "debug_sync.h"
+#include "sql_handler.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -702,7 +703,7 @@ THD::THD()
   catalog= (char*)"std"; // the only catalog we have for now
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
-  locked=some_tables_deleted=no_errors=password= 0;
+  some_tables_deleted=no_errors=password= 0;
   query_start_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;

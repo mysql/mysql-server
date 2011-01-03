@@ -19,6 +19,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "parse_file.h"
+#include "sql_handler.h"
 
 /*************************************************************************/
 

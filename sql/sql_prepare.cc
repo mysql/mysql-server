@@ -95,6 +95,7 @@ When one supplies long data for a placeholder:
 #else
 #include <mysql_com.h>
 #endif
+#include "sql_handler.h"
 
 /**
   A result class used to send cursor rows using the binary protocol.
@@ -243,6 +244,8 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int error;
   THD *thd= stmt->thd;
   DBUG_ENTER("send_prep_stmt");
+  DBUG_PRINT("enter",("stmt->id: %lu  columns: %d  param_count: %d",
+                      stmt->id, columns, stmt->param_count));
 
   buff[0]= 0;                                   /* OK packet indicator */
   int4store(buff+1, stmt->id);
@@ -1835,6 +1838,56 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
   return res;
 }
 
+/**
+  Validate SELECT statement.
+
+    In case of success, if this query is not EXPLAIN, send column list info
+    back to the client.
+
+  @param stmt               prepared statement
+  @param tables             list of tables used in the query
+
+  @retval 0 success
+  @retval 1 error, error message is set in THD
+  @retval 2 success, and statement metadata has been sent
+*/
+
+static int mysql_test_handler_read(Prepared_statement *stmt,
+                                   TABLE_LIST *tables)
+{
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  SQL_HANDLER *ha_table;
+  DBUG_ENTER("mysql_test_select");
+
+  lex->select_lex.context.resolve_in_select_list= TRUE;
+
+  /*
+    We don't have to test for permissions as this is already done during
+    HANDLER OPEN
+  */
+  if (!(ha_table= mysql_ha_read_prepare(thd, tables, lex->ha_read_mode,
+                                        lex->ident.str,
+                                        lex->insert_list,
+                                        lex->select_lex.where)))
+    DBUG_RETURN(1);
+
+  if (!stmt->is_sql_prepare())
+  {
+    if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
+    {
+      my_error(ER_OUTOFMEMORY, MYF(0), sizeof(select_send));
+      DBUG_RETURN(1);
+    }
+    if (send_prep_stmt(stmt, ha_table->fields.elements) ||
+        lex->result->send_fields(ha_table->fields, Protocol::SEND_EOF) ||
+        thd->protocol->flush())
+      DBUG_RETURN(1);
+    DBUG_RETURN(2);
+  }
+  DBUG_RETURN(0);
+}
+
 
 /**
   Perform semantic analysis of the parsed tree and send a response packet
@@ -1947,6 +2000,14 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_INSERT_SELECT:
   case SQLCOM_REPLACE_SELECT:
     res= mysql_test_insert_select(stmt, tables);
+    break;
+
+  case SQLCOM_HA_READ:
+    res= mysql_test_handler_read(stmt, tables);
+    {
+      /* Statement and field info has already been sent */
+      DBUG_RETURN(FALSE);
+    }
     break;
 
     /*

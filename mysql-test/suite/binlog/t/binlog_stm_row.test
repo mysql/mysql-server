@@ -60,7 +60,7 @@ let $wait_condition=
 --echo # con1
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM information_schema.processlist WHERE
-  state = "Locked" and info = "INSERT INTO t2 VALUES (3)";
+  state = "Table Lock" and info = "INSERT INTO t2 VALUES (3)";
 --source include/wait_condition.inc
 SELECT RELEASE_LOCK('Bug#34306');
 --connection con2

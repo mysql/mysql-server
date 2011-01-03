@@ -37,9 +37,9 @@ INSERT INTO t1(name) VALUES('Record_7');
 connection default;
 ## show processlist info and state ##
 SELECT state,info FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE state= "Locked" AND info LIKE "INSERT INTO t1%";
+WHERE state= "Table Lock" AND info LIKE "INSERT INTO t1%";
 state	info
-Locked	INSERT INTO t1(name) VALUES('Record_7')
+Table lock	INSERT INTO t1(name) VALUES('Record_7')
 ## table contents befor UNLOCK ##
 SELECT * FROM t1;
 name

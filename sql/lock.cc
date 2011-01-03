@@ -84,41 +84,11 @@
 
 extern HASH open_cache;
 
-/* flags for get_lock_data */
-#define GET_LOCK_UNLOCK         1
-#define GET_LOCK_STORE_LOCKS    2
-
-static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table,uint count,
-				 uint flags, TABLE **write_locked);
-static void reset_lock_data(MYSQL_LOCK *sql_lock);
+static void reset_lock_data(MYSQL_LOCK *sql_lock, bool unlock);
 static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error, const char *);
 
-/*
-  Lock tables.
-
-  SYNOPSIS
-    mysql_lock_tables()
-    thd                         The current thread.
-    tables                      An array of pointers to the tables to lock.
-    count                       The number of tables to lock.
-    flags                       Options:
-      MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      Ignore a global read lock
-      MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      Ignore SET GLOBAL READ_ONLY
-      MYSQL_LOCK_IGNORE_FLUSH                 Ignore a flush tables.
-      MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        Instead of reopening altered
-                                              or dropped tables by itself,
-                                              mysql_lock_tables() should
-                                              notify upper level and rely
-                                              on caller doing this.
-    need_reopen                 Out parameter, TRUE if some tables were altered
-                                or deleted and should be reopened by caller.
-
-  RETURN
-    A lock structure pointer on success.
-    NULL on error or if some tables should be reopen.
-*/
 
 /* Map the return value of thr_lock to an error from errmsg.txt */
 static int thr_lock_errno_to_mysql[]=
@@ -132,6 +102,7 @@ static int thr_lock_errno_to_mysql[]=
   @param flags Lock flags
   @return 0 if all the check passed, non zero if a check failed.
 */
+
 int mysql_lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
 {
   bool log_table_write_query;
@@ -194,81 +165,118 @@ int mysql_lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
   DBUG_RETURN(0);
 }
 
+
+/*
+  Lock tables.
+
+  SYNOPSIS
+    mysql_lock_tables()
+    thd                         The current thread.
+    tables                      An array of pointers to the tables to lock.
+    count                       The number of tables to lock.
+    flags                       Options:
+      MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      Ignore a global read lock
+      MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      Ignore SET GLOBAL READ_ONLY
+      MYSQL_LOCK_IGNORE_FLUSH                 Ignore a flush tables.
+      MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN        Instead of reopening altered
+                                              or dropped tables by itself,
+                                              mysql_lock_tables() should
+                                              notify upper level and rely
+                                              on caller doing this.
+    need_reopen                 Out parameter, TRUE if some tables were altered
+                                or deleted and should be reopened by caller.
+
+  RETURN
+    A lock structure pointer on success.
+    NULL on error or if some tables should be reopen.
+*/
+
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
                               uint flags, bool *need_reopen)
 {
-  MYSQL_LOCK *sql_lock;
   TABLE *write_lock_used;
-  int rc;
-
-  DBUG_ENTER("mysql_lock_tables");
+  MYSQL_LOCK *sql_lock;
+  DBUG_ENTER("mysql_lock_tables(tables)");
 
   *need_reopen= FALSE;
-
   if (mysql_lock_tables_check(thd, tables, count, flags))
-    DBUG_RETURN (NULL);
+    DBUG_RETURN(NULL);
 
+  if (!(sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS,
+                                &write_lock_used)) ||
+      ! sql_lock->table_count)
+    DBUG_RETURN(sql_lock);
+
+  if (mysql_lock_tables(thd, sql_lock, write_lock_used != 0, flags,
+                        need_reopen))
+  {
+    /* Clear the lock type of all lock data to avoid reusage. */
+    reset_lock_data(sql_lock, 1);
+    my_free(sql_lock, MYF(0));
+    sql_lock= 0;
+  }
+  DBUG_RETURN(sql_lock);
+}
+
+
+/**
+   Lock a table based on a MYSQL_LOCK structure.
+
+   mysql_lock_tables()
+
+   @param thd			The current thread.
+   @param sql_lock		Tables that should be locked
+   @param write_lock_used 	1 if any of the tables are write locked
+   @param flags			See mysql_lock_tables()
+   @param need_reopen           Out parameter, TRUE if some tables were altered
+                                or deleted and should be reopened by caller.
+
+   @return 0   ok
+   @return 1  error
+*/
+
+bool mysql_lock_tables(THD *thd, MYSQL_LOCK *sql_lock,
+                       bool write_lock_used,
+                       uint flags, bool *need_reopen)
+{
+  int rc;
+  bool error= 1;
+  DBUG_ENTER("mysql_lock_tables(sql_lock)");
+
+  *need_reopen= FALSE;
   for (;;)
   {
-    if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS,
-                                   &write_lock_used)) ||
-        ! sql_lock->table_count)
-      break;
-
-    if (global_read_lock && write_lock_used &&
-        ! (flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK))
+    if (write_lock_used && !(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK))
     {
-      /*
-	Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
-	Wait until the lock is gone
-      */
-      if (wait_if_global_read_lock(thd, 1, 1))
+      if (global_read_lock)
       {
-        /* Clear the lock type of all lock data to avoid reusage. */
-        reset_lock_data(sql_lock);
-	my_free((uchar*) sql_lock,MYF(0));
-	sql_lock=0;
-	break;
+        /*
+          Someone has issued LOCK ALL TABLES FOR READ and we want a write lock
+          Wait until the lock is gone
+        */
+        if (wait_if_global_read_lock(thd, 1, 1))
+          break;
+        if (thd->version != refresh_version)
+          goto retry;
       }
-      if (thd->version != refresh_version)
-      {
-        /* Clear the lock type of all lock data to avoid reusage. */
-        reset_lock_data(sql_lock);
-	my_free((uchar*) sql_lock,MYF(0));
-	goto retry;
-      }
-    }
 
-    if (!(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
-        write_lock_used &&
-        opt_readonly &&
-        !(thd->security_ctx->master_access & SUPER_ACL) &&
-        !thd->slave_thread)
-    {
-      /*
-	Someone has issued SET GLOBAL READ_ONLY=1 and we want a write lock.
-        We do not wait for READ_ONLY=0, and fail.
-      */
-      reset_lock_data(sql_lock);
-      my_free((uchar*) sql_lock, MYF(0));
-      sql_lock=0;
-      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
-      break;
+      if (opt_readonly &&
+          !(thd->security_ctx->master_access & SUPER_ACL) &&
+          !thd->slave_thread)
+      {
+        /*
+          Someone has issued SET GLOBAL READ_ONLY=1 and we want a write lock.
+          We do not wait for READ_ONLY=0, and fail.
+        */
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--read-only");
+        break;
+      }
     }
 
     thd_proc_info(thd, "System lock");
-    DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
     if (lock_external(thd, sql_lock->table, sql_lock->table_count))
-    {
-      /* Clear the lock type of all lock data to avoid reusage. */
-      reset_lock_data(sql_lock);
-      my_free((uchar*) sql_lock,MYF(0));
-      sql_lock=0;
       break;
-    }
     thd_proc_info(thd, "Table lock");
-    DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
-    thd->locked=1;
     /* Copy the lock data array. thr_multi_lock() reorders its contens. */
     memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
            sql_lock->lock_count * sizeof(*sql_lock->locks));
@@ -277,70 +285,66 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count,
                                                      sql_lock->lock_count,
                                                      sql_lock->lock_count,
                                                      thd->lock_id)];
-    if (rc > 1)                                 /* a timeout or a deadlock */
+    if (rc)                                     /* Locking failed */
     {
       VOID(unlock_external(thd, sql_lock->table, sql_lock->table_count));
-      my_error(rc, MYF(0));
-      my_free((uchar*) sql_lock,MYF(0));
-      sql_lock= 0;
-      break;
+      if (rc > 1)
+      {
+        /* a timeout or a deadlock */
+        my_error(rc, MYF(0));
+        break;
+      }
+      /* We where aborted and should try again from upper level*/
+      thd->some_tables_deleted= 1;
     }
-    else if (rc == 1)                           /* aborted */
+    else
     {
       /*
-        reset_lock_data is required here. If thr_multi_lock fails it
-        resets lock type for tables, which were locked before (and
-        including) one that caused error. Lock type for other tables
-        preserved.
+        Lock worked. Now check that nothing happend while we where waiting
+        to get the lock that would require us to free it.
       */
-      reset_lock_data(sql_lock);
-      thd->some_tables_deleted=1;		// Try again
-      sql_lock->lock_count= 0;                  // Locks are already freed
-    }
-    else if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
-    {
-      /*
-        Thread was killed or lock aborted. Let upper level close all
-        used tables and retry or give error.
-      */
-      thd->locked=0;
-      break;
-    }
-    else if (!thd->open_tables)
-    {
-      // Only using temporary tables, no need to unlock
-      thd->some_tables_deleted=0;
-      thd->locked=0;
-      break;
-    }
-    thd_proc_info(thd, 0);
+      error= 0;
+      if (!thd->some_tables_deleted || (flags & MYSQL_LOCK_IGNORE_FLUSH))
+      {
+        /*
+          Table was not signaled for deletion or we don't care if it was.
+          Return with table as locked.
+        */
+        break;
+      }
+      else if (!thd->open_tables && !(flags & MYSQL_LOCK_NOT_TEMPORARY))
+      {
+        /*
+          Only using temporary tables, no need to unlock.
+          We need the flag as open_tables is not enough to distingush if
+          we are only using temporary tables for tables used trough
+          the HANDLER interface.
 
-    /* some table was altered or deleted. reopen tables marked deleted */
-    mysql_unlock_tables(thd,sql_lock);
-    thd->locked=0;
+          We reset some_tables_deleted as it doesn't make sense to have this
+          one when we are only using temporary tables.
+        */
+        thd->some_tables_deleted=0;
+        break;
+      }
+      /* some table was altered or deleted. reopen tables marked deleted */
+      error= 1;
+      mysql_unlock_tables(thd, sql_lock, 0);
+    }
+
 retry:
-    sql_lock=0;
     if (flags & MYSQL_LOCK_NOTIFY_IF_NEED_REOPEN)
     {
       *need_reopen= TRUE;
       break;
     }
     if (wait_for_tables(thd))
-      break;					// Couldn't open tables
-  }
-  thd_proc_info(thd, 0);
-  if (thd->killed)
-  {
-    thd->send_kill_message();
-    if (sql_lock)
-    {
-      mysql_unlock_tables(thd,sql_lock);
-      sql_lock=0;
-    }
+      break;                                // Couldn't open tables
+    reset_lock_data(sql_lock, 0);           // Set org locks and retry
   }
 
+  thd_proc_info(thd, 0);
   thd->set_time_after_lock();
-  DBUG_RETURN (sql_lock);
+  DBUG_RETURN(error);
 }
 
 
@@ -380,15 +384,15 @@ static int lock_external(THD *thd, TABLE **tables, uint count)
   DBUG_RETURN(0);
 }
 
-
-void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock)
+void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock, bool free_lock)
 {
   DBUG_ENTER("mysql_unlock_tables");
   if (sql_lock->table_count)
     VOID(unlock_external(thd,sql_lock->table,sql_lock->table_count));
   if (sql_lock->lock_count)
     thr_multi_unlock(sql_lock->locks,sql_lock->lock_count, 0);
-  my_free((uchar*) sql_lock,MYF(0));
+  if (free_lock)
+    my_free((uchar*) sql_lock,MYF(0));
   DBUG_VOID_RETURN;
 }
 
@@ -847,12 +851,12 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
   @param write_lock_used   Store pointer to last table with WRITE_ALLOW_WRITE
 */
 
-static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
-				 uint flags, TABLE **write_lock_used)
+MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
+                          uint flags, TABLE **write_lock_used)
 {
   uint i,tables,lock_count;
   MYSQL_LOCK *sql_lock;
-  THR_LOCK_DATA **locks, **locks_buf, **locks_start;
+  THR_LOCK_DATA **locks, **locks_buf;
   TABLE **to, **table_buf;
   DBUG_ENTER("get_lock_data");
 
@@ -891,7 +895,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   {
     TABLE *table;
     enum thr_lock_type lock_type;
-
+    THR_LOCK_DATA **locks_start;
     if ((table=table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
     lock_type= table->reginfo.lock_type;
@@ -904,12 +908,11 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 	my_error(ER_OPEN_AS_READONLY,MYF(0),table->alias.c_ptr());
         /* Clear the lock type of the lock data that are stored already. */
         sql_lock->lock_count= (uint) (locks - sql_lock->locks);
-        reset_lock_data(sql_lock);
+        reset_lock_data(sql_lock, 1);
 	my_free((uchar*) sql_lock,MYF(0));
 	DBUG_RETURN(0);
       }
     }
-    THR_LOCK_DATA **org_locks = locks;
     locks_start= locks;
     locks= table->file->store_lock(thd, locks,
                                    (flags & GET_LOCK_UNLOCK) ? TL_IGNORE :
@@ -922,8 +925,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     }
     *to++= table;
     if (locks)
-      for ( ; org_locks != locks ; org_locks++)
-	(*org_locks)->debug_print_param= (void *) table;
+    {
+      for ( ; locks_start != locks ; locks_start++)
+      {
+	(*locks_start)->debug_print_param= (void *) table;
+	(*locks_start)->org_type= (*locks_start)->type;
+      }
+    }
   }
   /*
     We do not use 'tables', because there are cases where store_lock()
@@ -964,10 +972,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
   Clear the lock type of all lock data. This ensures that the next
   lock request will set its lock type properly.
 
-  @param sql_lock                  The MySQL lock.
+  @param sql_lock               The MySQL lock.
+  @param unlock			If set, then set lock type to TL_UNLOCK,
+  				otherwise set to original lock type from
+				get_store_lock().
 */
 
-static void reset_lock_data(MYSQL_LOCK *sql_lock)
+static void reset_lock_data(MYSQL_LOCK *sql_lock, bool unlock)
 {
   THR_LOCK_DATA **ldata;
   THR_LOCK_DATA **ldata_end;
@@ -975,10 +986,7 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock)
   for (ldata= sql_lock->locks, ldata_end= ldata + sql_lock->lock_count;
        ldata < ldata_end;
        ldata++)
-  {
-    /* Reset lock type. */
-    (*ldata)->type= TL_UNLOCK;
-  }
+    (*ldata)->type= unlock ? TL_UNLOCK : (*ldata)->org_type;
 }
 
 

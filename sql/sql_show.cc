@@ -1942,8 +1942,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           pthread_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
 #ifndef EMBEDDED_LIBRARY
-        thd_info->state_info= (char*) (tmp->locked ? "Locked" :
-                                       tmp->net.reading_or_writing ?
+        thd_info->state_info= (char*) (tmp->net.reading_or_writing ?
                                        (tmp->net.reading_or_writing == 2 ?
                                         "Writing to net" :
                                         thd_info->command == COM_SLEEP ? "" :
@@ -2068,8 +2067,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
       table->field[5]->store(utime / 1000000, TRUE);
       /* STATE */
 #ifndef EMBEDDED_LIBRARY
-      val= (char*) (tmp->locked ? "Locked" :
-                    tmp->net.reading_or_writing ?
+      val= (char*) (tmp->net.reading_or_writing ?
                     (tmp->net.reading_or_writing == 2 ?
                      "Writing to net" :
                      tmp->command == COM_SLEEP ? "" :

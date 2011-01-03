@@ -28,6 +28,7 @@
 #include "events.h"
 #include "sql_trigger.h"
 #include "debug_sync.h"
+#include "sql_handler.h"
 
 #ifdef WITH_ARIA_STORAGE_ENGINE
 #include "../storage/maria/ha_maria.h"

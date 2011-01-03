@@ -19,7 +19,7 @@
 
 #include "mysql_priv.h"
 #include "sql_trigger.h"
-
+#include "sql_handler.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);

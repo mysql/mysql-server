@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_handler.h"
 
 /**
   Implement DELETE SQL word.

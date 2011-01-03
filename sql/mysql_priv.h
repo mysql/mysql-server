@@ -1487,15 +1487,6 @@ void mysqld_stmt_reset(THD *thd, char *packet);
 void mysql_stmt_get_longdata(THD *thd, char *pos, ulong packet_length);
 void reinit_stmt_before_use(THD *thd, LEX *lex);
 
-/* sql_handler.cc */
-bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
-bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
-bool mysql_ha_read(THD *, TABLE_LIST *,enum enum_ha_read_modes,char *,
-                   List<Item> *,enum ha_rkey_function,Item *,ha_rows,ha_rows);
-void mysql_ha_flush(THD *thd);
-void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables, bool is_locked);
-void mysql_ha_cleanup(THD *thd);
-
 /* sql_base.cc */
 #define TMP_TABLE_KEY_EXTRA 8
 void set_item_name(Item *item,char *pos,uint length);
@@ -2194,6 +2185,10 @@ extern struct st_VioSSLFd * ssl_acceptor_fd;
 
 MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
                               uint flags, bool *need_reopen);
+bool mysql_lock_tables(THD *thd, MYSQL_LOCK *sql_lock,
+                       bool write_lock_used,
+                       uint flags, bool *need_reopen);
+
 /* mysql_lock_tables() and open_table() flags bits */
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
@@ -2201,8 +2196,12 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_OPEN_TEMPORARY_ONLY               0x0008
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0010
 #define MYSQL_LOCK_PERF_SCHEMA                  0x0020
+#define MYSQL_LOCK_NOT_TEMPORARY		0x0040
+/* flags for get_lock_data */
+#define GET_LOCK_UNLOCK         1
+#define GET_LOCK_STORE_LOCKS    2
 
-void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock);
+void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock, bool free_lock= 1);
 void mysql_unlock_read_tables(THD *thd, MYSQL_LOCK *sql_lock);
 void mysql_unlock_some_tables(THD *thd, TABLE **table,uint count);
 void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table,
@@ -2223,6 +2222,8 @@ bool make_global_read_lock_block_commit(THD *thd);
 bool set_protect_against_global_read_lock(void);
 void unset_protect_against_global_read_lock(void);
 void broadcast_refresh(void);
+MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
+                          uint flags, TABLE **write_lock_used);
 
 /* Lock based on name */
 int lock_and_wait_for_table_name(THD *thd, TABLE_LIST *table_list);
