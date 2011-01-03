@@ -1629,3 +1629,7 @@ max-time: 300
 cmd: testDict
 args: -n Bug58277 T1
 
+max-time: 300
+cmd: testDict
+args: -n Bug57057 T1
+
