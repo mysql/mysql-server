@@ -136,7 +136,7 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
      count == 0){
     
     for (int number = 0; number < NO_OF_BLOCKS; ++number){
-      cnt += log(SLM_ON, number, logMode);
+      cnt += log(SLM_ON, MIN_BLOCK_NO + number, logMode);
     }
   } else {
     for (int i = 0; i < count; ++i){
