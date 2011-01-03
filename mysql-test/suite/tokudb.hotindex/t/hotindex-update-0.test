@@ -33,4 +33,4 @@ reap;
 disconnect conn1;
 
 #cleanup
-#drop table s;
+drop table s;
