@@ -303,4 +303,21 @@ include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+BEGIN;
+# Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+# zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+# Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+# affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+SELECT * FROM t1;
+id	data
+0	2
+SELECT * FROM t1;
+id	data
+0	2
+DROP TABLE t1;
 include/rpl_end.inc

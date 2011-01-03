@@ -36,7 +36,7 @@
 --source include/save_master_pos.inc
 
 --let $rpl_connection_name= slave
-if (`SELECT '$sync_slave_connection' != ''`)
+if ($sync_slave_connection)
 {
   --let $rpl_connection_name= $sync_slave_connection
 }
