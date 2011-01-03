@@ -26,14 +26,16 @@ send create index i_a on s(a);
 connection conn1;
 set tokudb_write_lock_wait=1;
 set tokudb_read_lock_wait=1;
-let $a = 10000;
-while ($a) {
-    eval update s set a=20000+$a where a=$a;
-    dec $a;
+let $b=10000;
+while ($b) {
+    eval insert into s values (1000000000,$b);
+    dec $b;
 }
 
 connection default;
 reap;
+select count(*) from s;
+select count(*) from s use index(i_a);
 disconnect conn1;
 
 #cleanup
