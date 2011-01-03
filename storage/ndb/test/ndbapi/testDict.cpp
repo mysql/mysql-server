@@ -4234,7 +4234,8 @@ runBug58277errtest(NDBT_Context* ctx, NDBT_Step* step)
       12008, 909,  // TuxNoFreeScanOp
       12009, 4259  // InvalidBounds
     };
-    for (int i = 0; i < sizeof(errins)/sizeof(errins[0]); i += 2)
+    const int errcnt = (int)(sizeof(errins)/sizeof(errins[0]));
+    for (int i = 0; i < errcnt; i += 2)
     {
       const int ei = errins[i + 0];
       const int ec = errins[i + 1];
