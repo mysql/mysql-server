@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,10 +35,6 @@
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "sql_select.h"
-
-#ifndef THREAD
-#define SKIP_DBUG_IN_FILESORT
-#endif
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class Bounded_queue<uchar, uchar>;
