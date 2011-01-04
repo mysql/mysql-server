@@ -185,6 +185,11 @@ foreach my $option (@ARGV)
                  ($option =~ /enable/ ? "1" : "0");
     next;
   }
+  if ($option =~ /with-comment=/)
+  {
+    $cmakeargs = $cmakeargs." \"-DWITH_COMMENT=".substr($option,13)."\""; 
+    next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;

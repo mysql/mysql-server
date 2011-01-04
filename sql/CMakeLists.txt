@@ -50,6 +50,7 @@ SET (SQL_SOURCE
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
+               ../sql-common/client_plugin.c
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -131,7 +132,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql)
+TARGET_LINK_LIBRARIES(mysqld sql mysys)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
@@ -282,7 +283,11 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
   COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
-  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
+  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
 ENDIF()
 ENDIF()
+
+ADD_CUSTOM_TARGET(show-dist-name
+  COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
+)
 

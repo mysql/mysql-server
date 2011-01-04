@@ -101,6 +101,15 @@ public:
   */
   virtual void endup() = 0;
 
+  /** Decimal value of being-aggregated argument */
+  virtual my_decimal *arg_val_decimal(my_decimal * value) = 0;
+  /** Floating point value of being-aggregated argument */
+  virtual double arg_val_real() = 0;
+  /**
+     NULLness of being-aggregated argument; can be called only after
+     arg_val_decimal() or arg_val_real().
+  */
+  virtual bool arg_is_null() = 0;
 };
 
 
@@ -304,6 +313,7 @@ class st_select_lex;
 class Item_sum :public Item_result_field
 {
   friend class Aggregator_distinct;
+  friend class Aggregator_simple;
 
 protected:
   /**
@@ -396,14 +406,22 @@ public:
   Item_sum(THD *thd, Item_sum *item);
   enum Type type() const { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func () const=0;
-  inline bool reset() { aggregator_clear(); return aggregator_add(); };
+  /**
+    Resets the aggregate value to its default and aggregates the current
+    value of its attribute(s).
+  */  
+  inline bool reset_and_add() 
+  { 
+    aggregator_clear(); 
+    return aggregator_add(); 
+  };
 
   /*
     Called when new group is started and results are being saved in
-    a temporary table. Similar to reset(), but must also store value in
-    result_field. Like reset() it is supposed to reset start value to
-    default.
-    This set of methods (reult_field(), reset_field, update_field()) of
+    a temporary table. Similarly to reset_and_add() it resets the 
+    value to its default and aggregates the value of its 
+    attribute(s), but must also store it in result_field. 
+    This set of methods (result_item(), reset_field, update_field()) of
     Item_sum is used only if quick_group is not null. Otherwise
     copy_or_same() is used to obtain a copy of this item.
   */
@@ -446,7 +464,7 @@ public:
       set_aggregator(with_distinct ?
                      Aggregator::DISTINCT_AGGREGATOR :
                      Aggregator::SIMPLE_AGGREGATOR);
-    reset();
+    aggregator_clear();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
   Item *get_tmp_table_item(THD *thd);
@@ -600,6 +618,9 @@ public:
   void clear(); 
   bool add();
   void endup();
+  virtual my_decimal *arg_val_decimal(my_decimal * value);
+  virtual double arg_val_real();
+  virtual bool arg_is_null();
 
   bool unique_walk_function(void *element);
   static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
@@ -623,6 +644,9 @@ public:
   void clear() { item_sum->clear(); }
   bool add() { return item_sum->add(); }
   void endup() {};
+  virtual my_decimal *arg_val_decimal(my_decimal * value);
+  virtual double arg_val_real();
+  virtual bool arg_is_null();
 };
 
 
@@ -970,7 +994,7 @@ class Item_cache;
 class Item_sum_hybrid :public Item_sum
 {
 protected:
-  Item_cache *value;
+  Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
   Item_result hybrid_type;
   enum_field_types hybrid_field_type;
@@ -979,14 +1003,14 @@ protected:
 
   public:
   Item_sum_hybrid(Item *item_par,int sign)
-    :Item_sum(item_par), value(0), cmp(0),
+    :Item_sum(item_par), value(0), arg_cache(0), cmp(0),
     hybrid_type(INT_RESULT), hybrid_field_type(MYSQL_TYPE_LONGLONG),
     cmp_sign(sign), was_values(TRUE)
   { collation.set(&my_charset_bin); }
   Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
-    :Item_sum(thd, item), value(item->value), hybrid_type(item->hybrid_type),
-    hybrid_field_type(item->hybrid_field_type), cmp_sign(item->cmp_sign),
-    was_values(item->was_values)
+    :Item_sum(thd, item), value(item->value), arg_cache(0),
+    hybrid_type(item->hybrid_type), hybrid_field_type(item->hybrid_field_type),
+    cmp_sign(item->cmp_sign), was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
   void setup_hybrid(Item *item, Item *value_arg);

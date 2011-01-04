@@ -1471,11 +1471,6 @@ CREATE TABLE t1 (
 id INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)
 ) ENGINE=InnoDB;
 
-CREATE TABLE t2 (
-id INTEGER NOT NULL,
-FOREIGN KEY (id) REFERENCES t1 (id)
-) ENGINE=InnoDB;
-
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 TRUNCATE t1;
@@ -1488,7 +1483,7 @@ DELETE FROM t1;
 TRUNCATE t1;
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
-DROP TABLE t2, t1;
+DROP TABLE t1;
 
 # Test that foreign keys in temporary tables are not accepted (bug #12084)
 CREATE TABLE t1
@@ -1723,13 +1718,15 @@ update t2 set a=2;
 update t3 set a=2;
 -- error 1452
 update t4 set a=2;
--- error 1451
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t1;
--- error 1451
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t3;
 truncate t2;
 truncate t4;
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t1;
+-- error ER_TRUNCATE_ILLEGAL_FK
 truncate t3;
 
 drop table t4,t3,t2,t1;

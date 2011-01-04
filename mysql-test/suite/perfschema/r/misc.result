@@ -1,14 +1,14 @@
-SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+SELECT EVENT_ID FROM performance_schema.events_waits_current
 WHERE THREAD_ID IN
-(SELECT THREAD_ID FROM performance_schema.THREADS)
+(SELECT THREAD_ID FROM performance_schema.threads)
 AND EVENT_NAME IN
-(SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
+(SELECT NAME FROM performance_schema.setup_instruments
 WHERE NAME LIKE "wait/synch/%")
 LIMIT 1;
 create table test.t1(a int) engine=performance_schema;
-ERROR HY000: Invalid performance_schema usage.
-create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
-ERROR HY000: Invalid performance_schema usage.
+ERROR HY000: Can't create table 'test.t1' (errno: 131)
+create table test.t1 like performance_schema.events_waits_current;
+ERROR HY000: Can't create table 'test.t1' (errno: 131)
 create table performance_schema.t1(a int);
 ERROR 42000: CREATE command denied to user 'root'@'localhost' for table 't1'
 drop table if exists test.ghost;
@@ -22,7 +22,7 @@ a	b
 1	3
 2	4
 drop table test.ghost;
-select * from performance_schema.FILE_INSTANCES
+select * from performance_schema.file_instances
 where file_name like "%ghost%";
 FILE_NAME	EVENT_NAME	OPEN_COUNT
 select * from performance_schema.no_such_table;

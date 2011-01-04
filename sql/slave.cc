@@ -523,7 +523,8 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     if (flush_master_info(mi, TRUE, FALSE))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
-    if (my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
+    if (mi->rli.relay_log.is_open() &&
+        my_sync(mi->rli.relay_log.get_log_file()->file, MYF(MY_WME)))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     if (my_sync(mi->fd, MYF(MY_WME)))
@@ -721,9 +722,17 @@ int start_slave_thread(
     while (start_id == *slave_run_id)
     {
       DBUG_PRINT("sleep",("Waiting for slave thread to start"));
-      const char* old_msg = thd->enter_cond(start_cond,cond_lock,
-                                            "Waiting for slave thread to start");
-      mysql_cond_wait(start_cond, cond_lock);
+      const char *old_msg= thd->enter_cond(start_cond, cond_lock,
+                                           "Waiting for slave thread to start");
+      /*
+        It is not sufficient to test this at loop bottom. We must test
+        it after registering the mutex in enter_cond(). If the kill
+        happens after testing of thd->killed and before the mutex is
+        registered, we could otherwise go waiting though thd->killed is
+        set.
+      */
+      if (!thd->killed)
+        mysql_cond_wait(start_cond, cond_lock);
       thd->exit_cond(old_msg);
       mysql_mutex_lock(cond_lock); // re-acquire it as exit_cond() released
       if (thd->killed)
@@ -881,7 +890,17 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   DBUG_ASSERT(rli->slave_running == 1);// tracking buffer overrun
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    if (thd->transaction.all.modified_non_trans_table && rli->is_in_group())
+    /*
+      The transaction should always be binlogged if OPTION_KEEP_LOG is set
+      (it implies that something can not be rolled back). And such case
+      should be regarded similarly as modifing a non-transactional table
+      because retrying of the transaction will lead to an error or inconsistency
+      as well.
+      Example: OPTION_KEEP_LOG is set if a temporary table is created or dropped.
+    */
+    if ((thd->transaction.all.modified_non_trans_table ||
+         (thd->variables.option_bits & OPTION_KEEP_LOG))
+        && rli->is_in_group())
     {
       char msg_stopped[]=
         "... The slave SQL is stopped, leaving the current group "
@@ -2503,7 +2522,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
     if (slave_trans_retries)
     {
-      int temp_err;
+      int UNINIT_VAR(temp_err);
       if (exec_res && (temp_err= has_temporary_error(thd)))
       {
         const char *errmsg;
@@ -2534,9 +2553,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           else
           {
             exec_res= 0;
-            trans_rollback(thd);
-            close_thread_tables(thd);
-            thd->mdl_context.release_transactional_locks();
+            rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             safe_sleep(thd, min(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                        (CHECK_KILLED_FUNC)sql_slave_killed, (void*)rli);
@@ -3003,7 +3020,7 @@ err:
   sql_print_information("Slave I/O thread exiting, read up to log '%s', position %s",
                   IO_RPL_LOG_NAME, llstr(mi->master_log_pos,llbuff));
   RUN_HOOK(binlog_relay_io, thread_stop, (thd, mi));
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   if (mysql)
   {
@@ -3385,6 +3402,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     request is detected only by the present function, not by events), so we
     must "proactively" clear playgrounds:
   */
+  thd->clear_error();
   rli->cleanup_context(thd, 1);
   /*
     Some extra safety, which should not been needed (normally, event deletion
@@ -3392,7 +3410,7 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
     variables is supposed to set them to 0 before terminating)).
   */
   thd->catalog= 0;
-  thd->set_query(NULL, 0);
+  thd->reset_query();
   thd->reset_db(NULL, 0);
   thd_proc_info(thd, "Waiting for slave mutex on exit");
   mysql_mutex_lock(&rli->run_lock);
@@ -3615,8 +3633,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  rotate_relay_log(mi); /* will take the right mutexes */
-  DBUG_RETURN(0);
+  DBUG_RETURN(rotate_relay_log(mi) /* will take the right mutexes */);
 }
 
 /*
@@ -4727,12 +4744,66 @@ static Log_event* next_event(Relay_log_info* rli)
         DBUG_ASSERT(rli->cur_log_fd == -1);
 
         /*
-          Read pointer has to be at the start since we are the only
-          reader.
-          We must keep the LOCK_log to read the 4 first bytes, as this is a hot
-          log (same as when we call read_log_event() above: for a hot log we
-          take the mutex).
+           When the SQL thread is [stopped and] (re)started the
+           following may happen:
+
+           1. Log was hot at stop time and remains hot at restart
+
+              SQL thread reads again from hot_log (SQL thread was
+              reading from the active log when it was stopped and the
+              very same log is still active on SQL thread restart).
+
+              In this case, my_b_seek is performed on cur_log, while
+              cur_log points to relay_log.get_log_file();
+
+           2. Log was hot at stop time but got cold before restart
+
+              The log was hot when SQL thread stopped, but it is not
+              anymore when the SQL thread restarts.
+
+              In this case, the SQL thread reopens the log, using
+              cache_buf, ie, cur_log points to &cache_buf, and thence
+              its coordinates are reset.
+
+           3. Log was already cold at stop time
+
+              The log was not hot when the SQL thread stopped, and, of
+              course, it will not be hot when it restarts.
+
+              In this case, the SQL thread opens the cold log again,
+              using cache_buf, ie, cur_log points to &cache_buf, and
+              thence its coordinates are reset.
+
+           4. Log was hot at stop time, DBA changes to previous cold
+              log and restarts SQL thread
+
+              The log was hot when the SQL thread was stopped, but the
+              user changed the coordinates of the SQL thread to
+              restart from a previous cold log.
+
+              In this case, at start time, cur_log points to a cold
+              log, opened using &cache_buf as cache, and coordinates
+              are reset. However, as it moves on to the next logs, it
+              will eventually reach the hot log. If the hot log is the
+              same at the time the SQL thread was stopped, then
+              coordinates were not reset - the cur_log will point to
+              relay_log.get_log_file(), and not a freshly opened
+              IO_CACHE through cache_buf. For this reason we need to
+              deploy a my_b_seek before calling check_binlog_magic at
+              this point of the code (see: BUG#55263 for more
+              details).
+          
+          NOTES: 
+            - We must keep the LOCK_log to read the 4 first bytes, as
+              this is a hot log (same as when we call read_log_event()
+              above: for a hot log we take the mutex).
+
+            - Because of scenario #4 above, we need to have a
+              my_b_seek here. Otherwise, we might hit the assertion
+              inside check_binlog_magic.
         */
+
+        my_b_seek(cur_log, (my_off_t) 0);
         if (check_binlog_magic(cur_log,&errmsg))
         {
           if (!hot_log)
@@ -4799,12 +4870,13 @@ err:
   is void).
 */
 
-void rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
   Relay_log_info* rli= &mi->rli;
+  int error= 0;
 
-  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", abort(););
+  DBUG_EXECUTE_IF("crash_before_rotate_relaylog", DBUG_SUICIDE(););
 
   /*
      We need to test inited because otherwise, new_file() will attempt to lock
@@ -4817,7 +4889,8 @@ void rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  rli->relay_log.new_file();
+  if ((error= rli->relay_log.new_file()))
+    goto end;
 
   /*
     We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately
@@ -4834,7 +4907,7 @@ void rotate_relay_log(Master_info* mi)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 

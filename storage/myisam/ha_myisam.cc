@@ -1499,8 +1499,6 @@ bool ha_myisam::check_and_repair(THD *thd)
 {
   int error=0;
   int marked_crashed;
-  char *old_query;
-  uint old_query_length;
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_myisam::check_and_repair");
 
@@ -1511,10 +1509,9 @@ bool ha_myisam::check_and_repair(THD *thd)
     check_opt.flags|=T_QUICK;
   sql_print_warning("Checking table:   '%s'",table->s->path.str);
 
-  old_query= thd->query();
-  old_query_length= thd->query_length();
+  const CSET_STRING query_backup= thd->query_string;
   thd->set_query(table->s->table_name.str,
-                 (uint) table->s->table_name.length);
+                 (uint) table->s->table_name.length, system_charset_info);
 
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
@@ -1527,7 +1524,7 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  thd->set_query(old_query, old_query_length);
+  thd->set_query(query_backup);
   DBUG_RETURN(error);
 }
 
@@ -1786,6 +1783,18 @@ int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 int ha_myisam::delete_all_rows()
 {
   return mi_delete_all_rows(file);
+}
+
+
+/*
+  Intended to support partitioning.
+  Allows a particular partition to be truncated.
+*/
+
+int ha_myisam::truncate()
+{
+  int error= delete_all_rows();
+  return error ? error : reset_auto_increment(0);
 }
 
 int ha_myisam::reset_auto_increment(ulonglong value)

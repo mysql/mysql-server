@@ -18,13 +18,15 @@
 class THD;
 struct TABLE_LIST;
 
-bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref);
-
 /**
   Truncate_statement represents the TRUNCATE statement.
 */
 class Truncate_statement : public Sql_statement
 {
+private:
+  /* Set if a lock must be downgraded after truncate is done. */
+  MDL_ticket *m_ticket_downgrade;
+
 public:
   /**
     Constructor, used to represent a ALTER TABLE statement.
@@ -34,7 +36,7 @@ public:
     : Sql_statement(lex)
   {}
 
-  ~Truncate_statement()
+  virtual ~Truncate_statement()
   {}
 
   /**
@@ -43,7 +45,20 @@ public:
     @return false on success.
   */
   bool execute(THD *thd);
-};
 
+protected:
+  /** Handle locking a base table for truncate. */
+  bool lock_table(THD *, TABLE_LIST *, bool *);
+
+  /** Truncate table via the handler method. */
+  int handler_truncate(THD *, TABLE_LIST *, bool);
+
+  /**
+    Optimized delete of all rows by doing a full regenerate of the table.
+    Depending on the storage engine, it can be accomplished through a
+    drop and recreate or via the handler truncate method.
+  */
+  bool truncate_table(THD *, TABLE_LIST *);
+};
 
 #endif

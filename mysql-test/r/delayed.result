@@ -418,7 +418,47 @@ COMMIT;
 UNLOCK TABLES;
 # Connection con1
 # Reaping: INSERT DELAYED INTO t1 VALUES (5)
+# Connection default
+# Test 5: LOCK TABLES + INSERT DELAYED in one connection.
+# This test has triggered some asserts in metadata locking
+# subsystem at some point in time..
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (7);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 0;
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (8);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 1;
 # Connection con2
 # Connection con1
 # Connection default
 DROP TABLE t1, t2, t3;
+#
+# Test for bug #56251 "Deadlock with INSERT DELAYED and MERGE tables".
+#
+drop table if exists t1, t2, tm;
+create table t1(a int);
+create table t2(a int);
+create table tm(a int) engine=merge union=(t1, t2);
+begin;
+select * from t1;
+a
+# Connection 'con1'.
+# Sending:
+alter table t1 comment 'test';
+# Connection 'default'.
+# Wait until ALTER TABLE blocks and starts waiting
+# for connection 'default'. It should wait with a
+# pending SNW lock on 't1'.
+# Attempt to perform delayed insert into 'tm' should not lead
+# to a deadlock. Instead error ER_DELAYED_NOT_SUPPORTED should
+# be emitted.
+insert delayed into tm values (1);
+ERROR HY000: DELAYED option not supported for table 'tm'
+# Unblock ALTER TABLE.
+commit;
+# Connection 'con1'.
+# Reaping ALTER TABLE:
+# Connection 'default'.
+drop tables tm, t1, t2;

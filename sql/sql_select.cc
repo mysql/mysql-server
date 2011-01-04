@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@
 #include "records.h"             // init_read_record, end_read_record
 #include "filesort.h"            // filesort_free_buffers
 #include "sql_union.h"           // mysql_union
+#include "debug_sync.h"          // DEBUG_SYNC
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
@@ -566,7 +567,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -852,6 +854,7 @@ JOIN::optimize()
   if (optimized)
     DBUG_RETURN(0);
   optimized= 1;
+  DEBUG_SYNC(thd, "before_join_optimize");
 
   thd_proc_info(thd, "optimizing");
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
@@ -1754,6 +1757,9 @@ JOIN::reinit()
       func->clear();
   }
 
+  if (!(select_options & SELECT_DESCRIBE))
+    init_ftfuncs(thd, select_lex, test(order));
+
   DBUG_RETURN(0);
 }
 
@@ -2411,13 +2417,8 @@ JOIN::destroy()
 
   cleanup(1);
  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -2427,6 +2428,19 @@ JOIN::destroy()
   delete procedure;
   DBUG_RETURN(error);
 }
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
+}
+
 
 /**
   An entry point to single-unit select (a select without UNION).
@@ -2503,6 +2517,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
 	{
 	  DBUG_RETURN(TRUE);
 	}
+        /*
+          Original join tabs might be overwritten at first
+          subselect execution. So we need to restore them.
+        */
+        Item_subselect *subselect= select_lex->master_unit()->item;
+        if (subselect && subselect->is_uncacheable() && join->reinit())
+          DBUG_RETURN(TRUE);
       }
       else
       {
@@ -4040,8 +4061,12 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  continue;
       }
 
-#ifdef HAVE_purify
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+#if defined(__GNUC__) && !MY_GNUC_PREREQ(4,4)
+      /*
+        Old gcc used a memcpy(), which is undefined if save_pos==use:
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39480
+      */
       if (save_pos != use)
 #endif
         *save_pos= *use;
@@ -6474,10 +6499,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	{
 	  /* Use quick key read if it's a constant and it's not used
 	     with key reading */
-	  if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
-	      && tab->type != JT_FT && (tab->type != JT_REF ||
-               (uint) tab->ref.key == tab->quick->index))
-	  {
+          if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF &&
+              tab->type != JT_FT &&
+              ((tab->type != JT_CONST && tab->type != JT_REF) ||
+               (uint)tab->ref.key == tab->quick->index))
+          {
+            DBUG_ASSERT(tab->quick->is_valid());
 	    sel->quick=tab->quick;		// Use value from get_quick_...
 	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
@@ -9017,10 +9044,10 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     
   /* Flatten nested joins that can be flattened. */
   TABLE_LIST *right_neighbor= NULL;
-  bool fix_name_res= FALSE;
   li.rewind();
   while ((table= li++))
   {
+    bool fix_name_res= FALSE;
     nested_join= table->nested_join;
     if (nested_join && !table->on_expr)
     {
@@ -10693,6 +10720,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
+      key_part_info->key_part_flag= 0;
       if (!using_unique_constraint)
       {
 	cur_group->buff=(char*) group_buff;
@@ -13421,6 +13449,8 @@ static bool
 list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data)
 {
+  if (table->pos_in_table_list->outer_join)
+    return 0;
   for (uint keynr= 0; keynr < table->s->keys; keynr++)
   {
     if (keynr == table->s->primary_key ||
@@ -13434,7 +13464,7 @@ list_contains_unique_index(TABLE *table,
            key_part < key_part_end;
            key_part++)
       {
-        if (key_part->field->maybe_null() || 
+        if (key_part->field->real_maybe_null() || 
             !find_func(key_part->field, data))
           break;
       }
@@ -13830,7 +13860,7 @@ check_reverse_order:
   SYNOPSIS
    create_sort_index()
      thd		Thread handler
-     tab		Table to sort (in join structure)
+     join		Join with table to sort
      order		How table should be sorted
      filesort_limit	Max number of rows that needs to be sorted
      select_limit	Max number of rows in final output
@@ -13840,8 +13870,8 @@ check_reverse_order:
 
 
   IMPLEMENTATION
-   - If there is an index that can be used, 'tab' is modified to use
-     this index.
+   - If there is an index that can be used, the first non-const join_tab in
+     'join' is modified to use this index.
    - If no index, create with filesort() an index file that can be used to
      retrieve rows in order (should be done with 'read_record').
      The sorted data is stored in tab->table and will be freed when calling
@@ -15210,6 +15240,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*
@@ -15822,7 +15854,7 @@ init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr)
 {
   for (; func_ptr != end_ptr ;func_ptr++)
   {
-    if ((*func_ptr)->reset())
+    if ((*func_ptr)->reset_and_add())
       return 1;
   }
   /* If rollup, calculate the upper sum levels */

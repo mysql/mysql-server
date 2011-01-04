@@ -3,6 +3,7 @@ create table t2 (variable_name text);
 load data infile "MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t1;
 insert into t2 select variable_name from information_schema.global_variables;
 insert into t2 select variable_name from information_schema.session_variables;
+delete from t2 where variable_name='innodb_change_buffering_debug';
 update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
 select variable_name as `There should be *no* long test name listed below:` from t2
 where length(variable_name) > 50;

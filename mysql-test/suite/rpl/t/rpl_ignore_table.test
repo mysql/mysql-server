@@ -174,3 +174,6 @@ SELECT * FROM tmptbl504451f4258$1;
 connection master;
 DROP TABLE t5;
 sync_slave_with_master;
+
+--source include/rpl_end.inc
+--source include/force_restart.inc

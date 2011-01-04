@@ -4147,3 +4147,22 @@ DROP VIEW view_t1;
 DROP TABLE t1;
 
 --echo # End of test BUG#54515
+
+--echo #
+--echo # Bug #57203 Assertion `field_length <= 255' failed.
+--echo #
+
+SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)"))))) 
+UNION ALL 
+SELECT coalesce((avg(distinct (geomfromtext("point(25379 -22010)")))))
+AS foo
+;
+
+CREATE table t1(a text);
+INSERT INTO t1 VALUES (''), ('');
+SELECT avg(distinct(t1.a)) FROM t1, t1 t2
+GROUP BY t2.a ORDER BY t1.a;
+
+DROP TABLE t1;
+
+--echo # End of test BUG#57203

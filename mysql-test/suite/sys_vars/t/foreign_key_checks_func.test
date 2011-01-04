@@ -76,7 +76,7 @@ INSERT INTO t2 values (20,22);
 --echo '---Check when foreign_key_checks is disabled---'
 #===========================================================
 
---Error ER_ROW_IS_REFERENCED_2
+--Error ER_TRUNCATE_ILLEGAL_FK
 TRUNCATE t1;
 
 SET @@session.foreign_key_checks = 0;

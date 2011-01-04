@@ -1941,7 +1941,7 @@ INSERT INTO t2 VALUES (3,2);
 SET AUTOCOMMIT = 0;
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 SELECT * FROM t1;
 id
 1
@@ -1953,7 +1953,7 @@ id
 2
 START TRANSACTION;
 TRUNCATE TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 SELECT * FROM t1;
 id
 1
@@ -1971,7 +1971,7 @@ id
 2
 COMMIT;
 TRUNCATE TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 SELECT * FROM t1;
 id
 1
@@ -1983,9 +1983,12 @@ id
 1
 2
 TRUNCATE TABLE t1;
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`t1_id`) REFERENCES `test`.`t1` (`id`))
 ROLLBACK;
 SELECT * FROM t1;
 id
+1
+2
 TRUNCATE TABLE t2;
 DROP TABLE t2;
 DROP TABLE t1;
@@ -2077,9 +2080,9 @@ i	i
 ** error handling inside a row iteration.
 **
 DROP TRIGGER trg;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
-TRUNCATE TABLE t3;
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t3 VALUES (1),(2),(3),(4);
 INSERT INTO t4 VALUES (3,3),(4,4);
@@ -2105,9 +2108,9 @@ DROP TRIGGER trg;
 **
 ** Induce an error midway through an AFTER-trigger
 **
-TRUNCATE TABLE t4;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t3;
+DELETE FROM t4;
+DELETE FROM t1;
+DELETE FROM t3;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t3 VALUES (1),(2),(3),(4);
 CREATE TRIGGER trg AFTER DELETE ON t1 FOR EACH ROW
@@ -2607,6 +2610,59 @@ rows	3
 Extra	Using index
 DROP TABLE t1;
 #
+#
+# Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+#  is returned
+#
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+CREATE TABLE t2 
+SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+ERROR 22007: Incorrect datetime value: '' for column 'NOW()' at row 2
+DROP TABLE t1;
+SET SQL_MODE=DEFAULT;
+#
+# Bug#56862 Execution of a query that uses index merge returns a wrong result
+#
+CREATE TABLE t1 (
+pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+a int,
+b int,
+INDEX idx(a))
+ENGINE=INNODB;
+INSERT INTO t1(a,b) VALUES
+(11, 1100), (2, 200), (1, 100), (14, 1400), (5, 500),
+(3, 300), (17, 1700), (4, 400), (12, 1200), (8, 800),
+(6, 600), (18, 1800), (9, 900), (10, 1000), (7, 700),
+(13, 1300), (15, 1500), (19, 1900), (16, 1600), (20, 2000);
+INSERT INTO t1(a,b) SELECT a+20, b+2000 FROM t1;
+INSERT INTO t1(a,b) SELECT a+40, b+4000 FROM t1;
+INSERT INTO t1(a,b) SELECT a+80, b+8000 FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1 VALUES (1000000, 0, 0);
+SET SESSION sort_buffer_size = 1024*36;
+EXPLAIN
+SELECT COUNT(*) FROM
+(SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
+WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	DERIVED	t1	index_merge	PRIMARY,idx	idx,PRIMARY	5,4	NULL	1536	Using sort_union(idx,PRIMARY); Using where
+SELECT COUNT(*) FROM
+(SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
+WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+COUNT(*)
+1537
+SET SESSION sort_buffer_size = DEFAULT;
+DROP TABLE t1;
 End of 5.1 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different

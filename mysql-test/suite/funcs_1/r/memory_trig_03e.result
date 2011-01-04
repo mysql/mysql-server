@@ -574,6 +574,7 @@ root@localhost
 show grants;
 Grants for root@localhost
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop trigger trg1_1;
 use priv_db;
 

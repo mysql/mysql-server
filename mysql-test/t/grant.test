@@ -29,7 +29,7 @@ flush privileges;
 grant select on mysqltest.* to mysqltest_1@localhost require cipher "EDH-RSA-DES-CBC3-SHA";
 show grants for mysqltest_1@localhost;
 grant delete on mysqltest.* to mysqltest_1@localhost;
-select * from mysql.user where user="mysqltest_1";
+query_vertical select * from mysql.user where user="mysqltest_1";
 show grants for mysqltest_1@localhost;
 revoke delete on mysqltest.* from mysqltest_1@localhost;
 show grants for mysqltest_1@localhost;
@@ -48,10 +48,10 @@ flush privileges;
 delete from mysql.user where user='mysqltest_1';
 flush privileges;
 grant usage on *.* to mysqltest_1@localhost with max_queries_per_hour 10;
-select * from mysql.user where user="mysqltest_1";
+query_vertical select * from mysql.user where user="mysqltest_1";
 show grants for mysqltest_1@localhost;
 grant usage on *.* to mysqltest_1@localhost with max_updates_per_hour 20 max_connections_per_hour 30;
-select * from mysql.user where user="mysqltest_1";
+query_vertical select * from mysql.user where user="mysqltest_1";
 show grants for mysqltest_1@localhost;
 # This is just to double check that one won't ignore results of selects
 flush privileges;
@@ -1419,11 +1419,6 @@ GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
 connect (connbug33464, localhost, userbug33464, , dbbug33464);
 --source suite/funcs_1/include/show_connection.inc
 
---disable_warnings
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
-
 delimiter //;
 CREATE PROCEDURE sp3(v1 char(20))
 BEGIN
@@ -1577,6 +1572,16 @@ DROP USER 'testbug'@localhost;
 DROP TABLE db2.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+
+--echo #
+--echo # Bug #36742
+--echo #
+grant usage on Foo.* to myuser@Localhost identified by 'foo';
+grant select on Foo.* to myuser@localhost;
+select host,user from mysql.user where User='myuser';
+revoke select on Foo.* from myuser@localhost;
+delete from mysql.user where User='myuser';
+flush privileges;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

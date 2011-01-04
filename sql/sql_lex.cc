@@ -41,6 +41,7 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str= {NULL, 0};
+const LEX_STRING empty_lex_str= {(char *) "", 0};
 /**
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
@@ -382,7 +383,7 @@ void lex_start(THD *thd)
   lex->select_lex.group_list.empty();
   lex->describe= 0;
   lex->subqueries= FALSE;
-  lex->view_prepare_mode= FALSE;
+  lex->context_analysis_only= 0;
   lex->derived_tables= 0;
   lex->safe_to_cache_query= 1;
   lex->leaf_tables_insert= 0;
@@ -416,7 +417,6 @@ void lex_start(THD *thd)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  lex->protect_against_global_read_lock= FALSE;
   /*
     ok, there must be a better solution for this, long-term
     I tried "bzero" in the sql_yacc.yy code, but that for

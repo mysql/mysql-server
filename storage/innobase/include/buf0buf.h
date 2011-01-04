@@ -69,7 +69,7 @@ Created 11/5/1995 Heikki Tuuri
 #define BUF_POOL_WATCH_SIZE 1		/*!< Maximum number of concurrent
 					buffer pool watches */
 
-extern	buf_pool_t*	buf_pool_ptr[MAX_BUFFER_POOLS]; /*!< The buffer pools
+extern	buf_pool_t*	buf_pool_ptr;	/*!< The buffer pools
 					of the database */
 #ifdef UNIV_DEBUG
 extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
@@ -96,7 +96,7 @@ enum buf_page_state {
 	BUF_BLOCK_ZIP_FREE = 0,		/*!< contains a free
 					compressed page */
 	BUF_BLOCK_POOL_WATCH = 0,	/*!< a sentinel for the buffer pool
-					watch, element of buf_pool_watch[] */
+					watch, element of buf_pool->watch[] */
 	BUF_BLOCK_ZIP_PAGE,		/*!< contains a clean
 					compressed page */
 	BUF_BLOCK_ZIP_DIRTY,		/*!< contains a compressed
@@ -1034,6 +1034,15 @@ buf_page_address_fold(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: offset of the page within space */
 	__attribute__((const));
+/********************************************************************//**
+Calculates the index of a buffer pool to the buf_pool[] array.
+@return	the position of the buffer pool in buf_pool[] */
+UNIV_INLINE
+ulint
+buf_pool_index(
+/*===========*/
+	const buf_pool_t*	buf_pool)	/*!< in: buffer pool */
+	__attribute__((nonnull, const));
 /******************************************************************//**
 Returns the buffer pool instance given a page instance
 @return buf_pool */
@@ -1065,8 +1074,9 @@ Returns the buffer pool instance given its array index
 UNIV_INLINE
 buf_pool_t*
 buf_pool_from_array(
-/*====================*/
-	ulint	index);	/*!< in: array index to get buffer pool instance from */
+/*================*/
+	ulint	index);		/*!< in: array index to get
+				buffer pool instance from */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
@@ -1204,16 +1214,21 @@ struct buf_page_struct{
 	unsigned	io_fix:2;	/*!< type of pending I/O operation;
 					also protected by buf_pool->mutex
 					@see enum buf_io_fix */
-	unsigned	buf_fix_count:25;/*!< count of how manyfold this block
+	unsigned	buf_fix_count:19;/*!< count of how manyfold this block
 					is currently bufferfixed */
+	unsigned	buf_pool_index:6;/*!< index number of the buffer pool
+					that this block belongs to */
+# if MAX_BUFFER_POOLS > 64
+#  error "MAX_BUFFER_POOLS > 64; redefine buf_pool_index:6"
+# endif
 	/* @} */
 #endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
 					(but not the data it points to) is
-					also protected by buf_pool_mutex;
+					also protected by buf_pool->mutex;
 					state == BUF_BLOCK_ZIP_PAGE and
 					zip.data == NULL means an active
-					buf_pool_watch */
+					buf_pool->watch */
 #ifndef UNIV_HOTBACKUP
 	buf_page_t*	hash;		/*!< node used in chaining to
 					buf_pool->page_hash or
@@ -1224,15 +1239,16 @@ struct buf_page_struct{
 #endif /* UNIV_DEBUG */
 
 	/** @name Page flushing fields
-	All these are protected by buf_pool_mutex. */
+	All these are protected by buf_pool->mutex. */
 	/* @{ */
 
 	UT_LIST_NODE_T(buf_page_t) list;
 					/*!< based on state, this is a
 					list node, protected either by
-					buf_pool_mutex or by
-					flush_list_mutex, in one of the
-					following lists in buf_pool:
+					buf_pool->mutex or by
+					buf_pool->flush_list_mutex,
+					in one of the following lists in
+					buf_pool:
 
 					- BUF_BLOCK_NOT_USED:	free
 					- BUF_BLOCK_FILE_PAGE:	flush_list
@@ -1242,9 +1258,9 @@ struct buf_page_struct{
 
 					If bpage is part of flush_list
 					then the node pointers are
-					covered by flush_list_mutex.
+					covered by buf_pool->flush_list_mutex.
 					Otherwise these pointers are
-					protected by buf_pool_mutex.
+					protected by buf_pool->mutex.
 
 					The contents of the list node
 					is undefined if !in_flush_list
@@ -1256,17 +1272,18 @@ struct buf_page_struct{
 
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
-					when flush_list_mutex is free, the
-					following should hold: in_flush_list
+					when buf_pool->flush_list_mutex is
+					free, the following should hold:
+					in_flush_list
 					== (state == BUF_BLOCK_FILE_PAGE
 					    || state == BUF_BLOCK_ZIP_DIRTY)
 					Writes to this field must be
 					covered by both block->mutex
-					and flush_list_mutex. Hence
+					and buf_pool->flush_list_mutex. Hence
 					reads can happen while holding
 					any one of the two mutexes */
 	ibool		in_free_list;	/*!< TRUE if in buf_pool->free; when
-					buf_pool_mutex is free, the following
+					buf_pool->mutex is free, the following
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
@@ -1286,7 +1303,7 @@ struct buf_page_struct{
 					modifications are on disk.
 					Writes to this field must be
 					covered by both block->mutex
-					and flush_list_mutex. Hence
+					and buf_pool->flush_list_mutex. Hence
 					reads can happen while holding
 					any one of the two mutexes */
 	/* @} */
@@ -1322,8 +1339,6 @@ struct buf_page_struct{
 					frees a page in buffer pool */
 # endif /* UNIV_DEBUG_FILE_ACCESSES */
 #endif /* !UNIV_HOTBACKUP */
-	buf_pool_t*	buf_pool;	/*!< buffer pool instance this
-					page belongs to */
 };
 
 /** The buffer control block structure */
@@ -1661,20 +1676,13 @@ struct buf_pool_struct{
 	/* @} */
 };
 
-/** mutex protecting the buffer pool struct and control blocks, except the
-read-write lock in them */
-extern mutex_t	buf_pool_mutex;
-/** mutex protecting the control blocks of compressed-only pages
-(of type buf_page_t, not buf_block_t) */
-extern mutex_t	buf_pool_zip_mutex;
-
-/** @name Accessors for buf_pool_mutex.
-Use these instead of accessing buf_pool_mutex directly. */
+/** @name Accessors for buf_pool->mutex.
+Use these instead of accessing buf_pool->mutex directly. */
 /* @{ */
 
-/** Test if buf_pool_mutex is owned. */
+/** Test if a buffer pool mutex is owned. */
 #define buf_pool_mutex_own(b) mutex_own(&b->mutex)
-/** Acquire the buffer pool mutex. */
+/** Acquire a buffer pool mutex. */
 #define buf_pool_mutex_enter(b) do {		\
 	ut_ad(!mutex_own(&b->zip_mutex));	\
 	mutex_enter(&b->mutex);		\

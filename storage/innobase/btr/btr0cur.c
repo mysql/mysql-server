@@ -1071,7 +1071,7 @@ btr_cur_ins_lock_and_undo(
 				not zero, the parameters index and thr
 				should be specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
+	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
 	ibool*		inherit)/*!< out: TRUE if the inserted new record maybe
@@ -1744,7 +1744,7 @@ func_exit:
 See if there is enough place in the page modification log to log
 an update-in-place.
 @return	TRUE if enough place */
-static
+UNIV_INTERN
 ibool
 btr_cur_update_alloc_zip(
 /*=====================*/
@@ -1954,7 +1954,6 @@ btr_cur_optimistic_update(
 	page_t*		page;
 	page_zip_des_t*	page_zip;
 	rec_t*		rec;
-	rec_t*		orig_rec;
 	ulint		max_size;
 	ulint		new_rec_size;
 	ulint		old_rec_size;
@@ -1968,7 +1967,7 @@ btr_cur_optimistic_update(
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
-	orig_rec = rec = btr_cur_get_rec(cursor);
+	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -3249,7 +3248,7 @@ btr_estimate_n_rows_in_range_on_level(
 	performance with this code which is just an estimation. If we read
 	this many pages before reaching slot2->page_no then we estimate the
 	average from the pages scanned so far */
-	#define N_PAGES_READ_LIMIT	10
+#	define N_PAGES_READ_LIMIT	10
 
 	page_no = slot1->page_no;
 	level = slot1->page_level;
@@ -3278,6 +3277,7 @@ btr_estimate_n_rows_in_range_on_level(
 		    || btr_page_get_level_low(page) != level) {
 
 			/* The page got reused for something else */
+			mtr_commit(&mtr);
 			goto inexact;
 		}
 
@@ -3633,8 +3633,6 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
-	dict_index_stat_mutex_enter(index);
-
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
@@ -3663,8 +3661,6 @@ btr_estimate_number_of_different_key_vals(
 
 		index->stat_n_diff_key_vals[j] += add_on;
 	}
-
-	dict_index_stat_mutex_exit(index);
 
 	mem_free(n_diff);
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -3761,9 +3757,10 @@ btr_cur_set_ownership_of_extern_field(
 Marks not updated extern fields as not-owned by this record. The ownership
 is transferred to the updated record which is inserted elsewhere in the
 index tree. In purge only the owner of externally stored field is allowed
-to free the field. */
+to free the field.
+@return TRUE if BLOB ownership was transferred */
 UNIV_INTERN
-void
+ibool
 btr_cur_mark_extern_inherited_fields(
 /*=================================*/
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose uncompressed
@@ -3777,13 +3774,14 @@ btr_cur_mark_extern_inherited_fields(
 	ulint	n;
 	ulint	j;
 	ulint	i;
+	ibool	change_ownership = FALSE;
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
 
 	if (!rec_offs_any_extern(offsets)) {
 
-		return;
+		return(FALSE);
 	}
 
 	n = rec_offs_n_fields(offsets);
@@ -3806,10 +3804,14 @@ btr_cur_mark_extern_inherited_fields(
 
 			btr_cur_set_ownership_of_extern_field(
 				page_zip, rec, index, offsets, i, FALSE, mtr);
+
+			change_ownership = TRUE;
 updated:
 			;
 		}
 	}
+
+	return(change_ownership);
 }
 
 /*******************************************************************//**
@@ -4067,7 +4069,7 @@ Stores the fields in big_rec_vec to the tablespace and puts pointers to
 them in rec.  The extern flags in rec will have to be set beforehand.
 The fields are stored on pages allocated from leaf node
 file segment of the index tree.
-@return	DB_SUCCESS or error */
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
 btr_store_big_rec_extern_fields(
@@ -4557,17 +4559,20 @@ btr_free_externally_stored_field(
 	}
 
 	for (;;) {
+#ifdef UNIV_SYNC_DEBUG
 		buf_block_t*	rec_block;
+#endif /* UNIV_SYNC_DEBUG */
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
 
-		rec_block = buf_page_get(page_get_space_id(
-						 page_align(field_ref)),
-					 rec_zip_size,
-					 page_get_page_no(
-						 page_align(field_ref)),
-					 RW_X_LATCH, &mtr);
+#ifdef UNIV_SYNC_DEBUG
+		rec_block =
+#endif /* UNIV_SYNC_DEBUG */
+		buf_page_get(page_get_space_id(page_align(field_ref)),
+			     rec_zip_size,
+			     page_get_page_no(page_align(field_ref)),
+			     RW_X_LATCH, &mtr);
 		buf_block_dbg_add_level(rec_block, SYNC_NO_ORDER_CHECK);
 		page_no = mach_read_from_4(field_ref + BTR_EXTERN_PAGE_NO);
 

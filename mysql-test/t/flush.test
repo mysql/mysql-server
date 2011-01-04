@@ -546,3 +546,101 @@ disconnect con2;
 connection default;
 drop table t1;
 
+
+--echo #
+--echo # Test for bug #55273 "FLUSH TABLE tm WITH READ LOCK for Merge table
+--echo #                      causes assert failure".
+--echo #
+--disable_warnings
+drop table if exists t1, t2, tm;
+--enable_warnings
+create table t1 (i int);
+create table t2 (i int);
+create table tm (i int) engine=merge union=(t1, t2);
+insert into t1 values (1), (2);
+insert into t2 values (3), (4);
+--echo # The below statement should succeed and lock merge
+--echo # table for read. Only merge table gets flushed and
+--echo # not underlying tables.
+flush tables tm with read lock;
+select * from tm;
+--echo # Check that underlying tables are locked.
+select * from t1;
+select * from t2;
+unlock tables;
+--echo # This statement should succeed as well and flush
+--echo # all tables in the list.
+flush tables tm, t1, t2 with read lock;
+select * from tm;
+--echo # Naturally, underlying tables should be locked in this case too.
+select * from t1;
+select * from t2;
+unlock tables;
+drop tables tm, t1, t2;
+
+
+--echo #
+--echo # Test for bug #57006 "Deadlock between HANDLER and
+--echo #                      FLUSH TABLES WITH READ LOCK".
+--echo #
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connection default;
+create table t1 (i int);
+create table t2 (i int);
+handler t1 open;
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # Sending:
+--send flush tables with read lock
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Wait until FTWRL starts waiting for 't1' to be closed.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table flush"
+  and info = "flush tables with read lock";
+--source include/wait_condition.inc
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # The below statement should not cause deadlock.
+--echo # Sending:
+--send insert into t2 values (1)
+
+--echo # Switching to connection 'con2'.
+connection con2;
+--echo # Wait until INSERT starts to wait for FTWRL to go away.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for global read lock"
+  and info = "insert into t2 values (1)";
+--source include/wait_condition.inc
+
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # FTWRL should be able to continue now.
+--echo # Reap FTWRL.
+--reap
+unlock tables;
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Reap INSERT.
+--reap
+handler t1 close;
+
+--echo # Cleanup.
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
+drop tables t1, t2;

@@ -2888,3 +2888,101 @@ a	hex(b)	c
 DROP TABLE t1;
 set names utf8;
 End for 5.0 tests
+#
+# Start of 5.5 tests
+#
+SET collation_connection=utf8_czech_ci;
+SELECT @@collation_connection;
+@@collation_connection
+utf8_czech_ci
+#
+# Bug#57737 Character sets: search fails with like, contraction, index
+#
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS s1 LIMIT 0;
+INSERT INTO t1 VALUES ('c'),('ce'),('cé'),('ch');
+SELECT * FROM t1 WHERE s1 LIKE 'c%';
+s1
+c
+ce
+cé
+ch
+ALTER TABLE t1 ADD KEY s1 (s1);
+SELECT * FROM t1 WHERE s1 LIKE 'c%';
+s1
+c
+ce
+cé
+ch
+ALTER TABLE t1 DROP KEY s1, ADD KEY(s1(1));
+SELECT * FROM t1 WHERE s1 LIKE 'ch';
+s1
+ch
+DROP TABLE t1;
+SELECT @@collation_connection;
+@@collation_connection
+utf8_czech_ci
+#
+# Bug#57737 Character sets: search fails with like, contraction, index
+# Part#2 - ignorable characters
+#
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS s1 LIMIT 0;
+INSERT INTO t1 VALUES ('a\0\0\0\0\0\t'),('a'),('b'),('c'),('d'),('e');
+SELECT HEX(s1) FROM t1 WHERE s1 LIKE 'a%';
+HEX(s1)
+61000000000009
+61
+ALTER TABLE t1 ADD KEY s1 (s1);
+SELECT HEX(s1) FROM t1 WHERE s1 LIKE 'a%';
+HEX(s1)
+61000000000009
+61
+DROP TABLE t1;
+SET collation_connection=ucs2_czech_ci;
+SELECT @@collation_connection;
+@@collation_connection
+ucs2_czech_ci
+#
+# Bug#57737 Character sets: search fails with like, contraction, index
+#
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS s1 LIMIT 0;
+INSERT INTO t1 VALUES ('c'),('ce'),('cé'),('ch');
+SELECT * FROM t1 WHERE s1 LIKE 'c%';
+s1
+c
+ce
+cé
+ch
+ALTER TABLE t1 ADD KEY s1 (s1);
+SELECT * FROM t1 WHERE s1 LIKE 'c%';
+s1
+c
+ce
+cé
+ch
+ALTER TABLE t1 DROP KEY s1, ADD KEY(s1(1));
+SELECT * FROM t1 WHERE s1 LIKE 'ch';
+s1
+ch
+DROP TABLE t1;
+SELECT @@collation_connection;
+@@collation_connection
+ucs2_czech_ci
+#
+# Bug#57737 Character sets: search fails with like, contraction, index
+# Part#2 - ignorable characters
+#
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS s1 LIMIT 0;
+INSERT INTO t1 VALUES ('a\0\0\0\0\0\t'),('a'),('b'),('c'),('d'),('e');
+SELECT HEX(s1) FROM t1 WHERE s1 LIKE 'a%';
+HEX(s1)
+0061000000000000000000000009
+0061
+ALTER TABLE t1 ADD KEY s1 (s1);
+SELECT HEX(s1) FROM t1 WHERE s1 LIKE 'a%';
+HEX(s1)
+0061000000000000000000000009
+0061
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#

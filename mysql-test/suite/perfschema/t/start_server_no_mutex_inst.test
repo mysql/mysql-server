@@ -23,7 +23,7 @@
 # Expect classes
 show variables like "performance_schema_max_mutex_classes";
 
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS
+select count(*) > 0 from performance_schema.setup_instruments
   where name like "wait/synch/mutex/%";
 
 # Expect no class lost
@@ -32,7 +32,7 @@ show status like "performance_schema_mutex_classes_lost";
 # Expect no instances
 show variables like "performance_schema_max_mutex_instances";
 
-select count(*) from performance_schema.MUTEX_INSTANCES;
+select count(*) from performance_schema.mutex_instances;
 
 # Expect instances lost
 select variable_value > 0 from information_schema.global_status

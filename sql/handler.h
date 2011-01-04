@@ -174,6 +174,8 @@
 /*
   These bits are set if different kinds of indexes can be created
   off-line without re-create of the table (but with a table lock).
+  Partitioning needs both ADD and DROP to be supported by its underlying
+  handlers, due to error handling, see bug#57778.
 */
 #define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
 #define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
@@ -1331,6 +1333,7 @@ public:
   int ha_bulk_update_row(const uchar *old_data, uchar *new_data,
                          uint *dup_key_found);
   int ha_delete_all_rows();
+  int ha_truncate();
   int ha_reset_auto_increment(ulonglong value);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
@@ -1644,8 +1647,33 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
-  /** used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
-  virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  /**
+    Get the list of foreign keys in this table.
+
+    @remark Returns the set of foreign keys where this table is the
+            dependent or child table.
+
+    @param thd  The thread handle.
+    @param f_key_list[out]  The list of foreign keys.
+
+    @return The handler error code or zero for success.
+  */
+  virtual int
+  get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
+  { return 0; }
+  /**
+    Get the list of foreign keys referencing this table.
+
+    @remark Returns the set of foreign keys where this table is the
+            referenced or parent table.
+
+    @param thd  The thread handle.
+    @param f_key_list[out]  The list of foreign keys.
+
+    @return The handler error code or zero for success.
+  */
+  virtual int
+  get_parent_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   { return 0; }
   virtual uint referenced_by_foreign_key() { return 0;}
   virtual void init_table_handle_for_HANDLER()
@@ -2010,16 +2038,34 @@ private:
     This is called to delete all rows in a table
     If the handler don't support this, then this function will
     return HA_ERR_WRONG_COMMAND and MySQL will delete the rows one
-    by one. It should reset auto_increment if
-    thd->lex->sql_command == SQLCOM_TRUNCATE.
+    by one.
   */
   virtual int delete_all_rows()
   { return (my_errno=HA_ERR_WRONG_COMMAND); }
   /**
+    Quickly remove all rows from a table.
+
+    @remark This method is responsible for implementing MySQL's TRUNCATE
+            TABLE statement, which is a DDL operation. As such, a engine
+            can bypass certain integrity checks and in some cases avoid
+            fine-grained locking (e.g. row locks) which would normally be
+            required for a DELETE statement.
+
+    @remark Typically, truncate is not used if it can result in integrity
+            violation. For example, truncate is not used when a foreign
+            key references the table, but it might be used if foreign key
+            checks are disabled.
+
+    @remark Engine is responsible for resetting the auto-increment counter.
+
+    @remark The table is locked in exclusive mode.
+  */
+  virtual int truncate()
+  { return HA_ERR_WRONG_COMMAND; }
+  /**
     Reset the auto-increment counter to the given value, i.e. the next row
-    inserted will get the given value. This is called e.g. after TRUNCATE
-    is emulated by doing a 'DELETE FROM t'. HA_ERR_WRONG_COMMAND is
-    returned by storage engines that don't support this operation.
+    inserted will get the given value. HA_ERR_WRONG_COMMAND is returned by
+    storage engines that don't support this operation.
   */
   virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }

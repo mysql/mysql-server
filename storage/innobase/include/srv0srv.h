@@ -57,6 +57,15 @@ extern const char	srv_mysql50_table_name_prefix[9];
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;
 
+/* The monitor thread waits on this event. */
+extern os_event_t	srv_monitor_event;
+
+/* The lock timeout thread waits on this event. */
+extern os_event_t	srv_timeout_event;
+
+/* The error monitor thread waits on this event. */
+extern os_event_t	srv_error_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -224,6 +233,8 @@ extern ulong	srv_n_free_tickets_to_enter;
 extern ulong	srv_thread_sleep_delay;
 extern ulong	srv_spin_wait_delay;
 extern ibool	srv_priority_boost;
+
+extern ulint	srv_truncated_status_writes;
 
 extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
@@ -710,11 +721,12 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;		/*!< srv_n_rows_inserted */
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
+	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 };
 
 /** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
-  
+
 /** Thread table is an array of slots */
 typedef srv_slot_t	srv_table_t;
 

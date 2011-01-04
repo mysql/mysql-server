@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1416,6 +1416,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   double val_result();
   longlong val_int_result();
+  bool val_bool_result();
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();
@@ -1594,7 +1595,7 @@ public:
        join_key(0), ft_handler(0), table(0), master(0), concat_ws(0) { }
   void cleanup()
   {
-    DBUG_ENTER("Item_func_match");
+    DBUG_ENTER("Item_func_match::cleanup");
     Item_real_func::cleanup();
     if (!master && ft_handler)
       ft_handler->please->close_search(ft_handler);

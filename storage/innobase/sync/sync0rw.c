@@ -1002,7 +1002,7 @@ rw_lock_debug_print(
 
 	rwt	  = info->lock_type;
 
-	fprintf(stderr, "Locked: thread %ld file %s line %ld  ",
+	fprintf(stderr, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {

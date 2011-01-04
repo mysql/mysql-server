@@ -430,6 +430,8 @@ SELECT table_name, table_comment FROM information_schema.tables
 WHERE table_schema= 'test' AND table_name= 't1';
 table_name	table_comment
 t1	Lock wait timeout exceeded; try restarting transaction
+Warnings:
+Warning	1205	Lock wait timeout exceeded; try restarting transaction
 # Connection default
 UNLOCK TABLES;
 # Connection con3

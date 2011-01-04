@@ -20,6 +20,7 @@
 #include "sql_priv.h"
 #include "probes_mysql.h"
 #include "sql_class.h"                          // SSV
+#include "sql_table.h"
 #include <myisam.h>
 
 #include "ha_archive.h"
@@ -256,7 +257,7 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
   char *frm_ptr;
   MY_STAT file_stat; 
 
-  fn_format(az_file, name, db, ARZ, MY_REPLACE_EXT | MY_UNPACK_FILENAME);
+  build_table_filename(az_file, sizeof(az_file) - 1, db, name, ARZ, 0);
 
   if (!(my_stat(az_file, &file_stat, MYF(0))))
     goto err;
@@ -1650,9 +1651,9 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::delete_all_rows()
+int ha_archive::truncate()
 {
-  DBUG_ENTER("ha_archive::delete_all_rows");
+  DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 

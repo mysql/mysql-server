@@ -236,11 +236,20 @@ static Sys_var_charptr Sys_basedir(
        IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_ulong Sys_binlog_cache_size(
-       "binlog_cache_size", "The size of the cache to "
-       "hold the SQL statements for the binary log during a "
-       "transaction. If you often use big, multi-statement "
-       "transactions you can increase this to get more performance",
+       "binlog_cache_size", "The size of the transactional cache for "
+       "updates to transactional engines for the binary log. "
+       "If you often use transactions containing many statements, "
+       "you can increase this to get more performance",
        GLOBAL_VAR(binlog_cache_size),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
+
+static Sys_var_ulong Sys_binlog_stmt_cache_size(
+       "binlog_stmt_cache_size", "The size of the statement cache for "
+       "updates to non-transactional engines for the binary log. "
+       "If you often use statements updating a great number of rows, "
+       "you can increase this to get more performance",
+       GLOBAL_VAR(binlog_stmt_cache_size),
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONG_MAX), DEFAULT(32768), BLOCK_SIZE(IO_SIZE));
 
@@ -1031,9 +1040,16 @@ static Sys_var_ulong Sys_max_allowed_packet(
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
-       "Can be used to restrict the total size used to cache a "
-       "multi-transaction query",
+       "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
+       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
+       BLOCK_SIZE(IO_SIZE));
+
+static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
+       "max_binlog_stmt_cache_size",
+       "Sets the total size of the statement cache",
+       GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
        DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE));
@@ -1419,6 +1435,14 @@ static Sys_var_uint Sys_protocol_version(
        READ_ONLY GLOBAL_VAR(protocol_version), NO_CMD_LINE,
        VALID_RANGE(0, ~0), DEFAULT(PROTOCOL_VERSION), BLOCK_SIZE(1));
 
+static Sys_var_proxy_user Sys_proxy_user(
+       "proxy_user", "The proxy user account name used when logging in",
+       IN_SYSTEM_CHARSET);
+
+static Sys_var_external_user Sys_exterenal_user(
+       "external_user", "The external user account used when logging in",
+       IN_SYSTEM_CHARSET);
+
 static Sys_var_ulong Sys_read_buff_size(
        "read_buffer_size",
        "Each thread that does a sequential scan allocates a buffer of "
@@ -1428,7 +1452,6 @@ static Sys_var_ulong Sys_read_buff_size(
        VALID_RANGE(IO_SIZE*2, INT_MAX32), DEFAULT(128*1024),
        BLOCK_SIZE(IO_SIZE));
 
-static my_bool read_only;
 static bool check_read_only(sys_var *self, THD *thd, set_var *var)
 {
   /* Prevent self dead-lock */
@@ -1512,6 +1535,16 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type type)
   read_only= opt_readonly;
   DBUG_RETURN(result);
 }
+
+
+/**
+  The read_only boolean is always equal to the opt_readonly boolean except
+  during fix_read_only(); when that function is entered, opt_readonly is
+  the pre-update value and read_only is the post-update value.
+  fix_read_only() compares them and runs needed operations for the
+  transition (especially when transitioning from false to true) and
+  synchronizes both booleans in the end.
+*/
 static Sys_var_mybool Sys_readonly(
        "read_only",
        "Make all non-temporary tables read-only, with the exception for "
@@ -2005,15 +2038,6 @@ static Sys_var_ulong Sys_thread_cache_size(
        "How many threads we should keep in a cache for reuse",
        GLOBAL_VAR(thread_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
-
-#if HAVE_POOL_OF_THREADS == 1
-static Sys_var_ulong Sys_thread_pool_size(
-       "thread_pool_size",
-       "How many threads we should create to handle query requests in "
-       "case of 'thread_handling=pool-of-threads'",
-       GLOBAL_VAR(thread_pool_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 16384), DEFAULT(20), BLOCK_SIZE(0));
-#endif
 
 /**
   Can't change the 'next' tx_isolation if we are already in a
@@ -2935,11 +2959,8 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
-                        "The current value for master_heartbeat_period"
-                        " exceeds the new value of `slave_net_timeout' sec."
-                        " A sensible value for the period should be"
-                        " less than the timeout.");
+                        ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
+                        ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
   return false;
 }

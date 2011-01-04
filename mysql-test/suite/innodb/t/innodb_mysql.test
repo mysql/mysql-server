@@ -151,14 +151,14 @@ INSERT INTO t2 VALUES (3,2);
 SET AUTOCOMMIT = 0;
 
 START TRANSACTION;
---error ER_ROW_IS_REFERENCED_2
+--error ER_TRUNCATE_ILLEGAL_FK
 TRUNCATE TABLE t1;
 SELECT * FROM t1;
 COMMIT;
 SELECT * FROM t1;
 
 START TRANSACTION;
---error ER_ROW_IS_REFERENCED_2
+--error ER_TRUNCATE_ILLEGAL_FK
 TRUNCATE TABLE t1;
 SELECT * FROM t1;
 ROLLBACK;
@@ -170,13 +170,14 @@ START TRANSACTION;
 SELECT * FROM t1;
 COMMIT;
 
---error ER_ROW_IS_REFERENCED_2
+--error ER_TRUNCATE_ILLEGAL_FK
 TRUNCATE TABLE t1;
 SELECT * FROM t1;
 DELETE FROM t2 WHERE id = 3;
 
 START TRANSACTION;
 SELECT * FROM t1;
+--error ER_TRUNCATE_ILLEGAL_FK
 TRUNCATE TABLE t1;
 ROLLBACK;
 SELECT * FROM t1;
@@ -275,9 +276,9 @@ SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
 --echo ** error handling inside a row iteration.
 --echo **
 DROP TRIGGER trg;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t2;
-TRUNCATE TABLE t3;
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
 
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t3 VALUES (1),(2),(3),(4);
@@ -304,9 +305,9 @@ DROP TRIGGER trg;
 --echo **
 --echo ** Induce an error midway through an AFTER-trigger
 --echo **
-TRUNCATE TABLE t4;
-TRUNCATE TABLE t1;
-TRUNCATE TABLE t3;
+DELETE FROM t4;
+DELETE FROM t1;
+DELETE FROM t3;
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 INSERT INTO t3 VALUES (1),(2),(3),(4);
 delimiter ||;
@@ -771,6 +772,63 @@ DROP TABLE t1;
 
 --echo #
 
+--echo #
+--echo # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+--echo #  is returned
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE t2 
+  SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+DROP TABLE t1;  
+SET SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug#56862 Execution of a query that uses index merge returns a wrong result
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  a int,
+  b int,
+  INDEX idx(a))
+ENGINE=INNODB;
+
+INSERT INTO t1(a,b) VALUES
+  (11, 1100), (2, 200), (1, 100), (14, 1400), (5, 500),
+  (3, 300), (17, 1700), (4, 400), (12, 1200), (8, 800),
+  (6, 600), (18, 1800), (9, 900), (10, 1000), (7, 700),
+  (13, 1300), (15, 1500), (19, 1900), (16, 1600), (20, 2000);
+INSERT INTO t1(a,b) SELECT a+20, b+2000 FROM t1;
+INSERT INTO t1(a,b) SELECT a+40, b+4000 FROM t1;
+INSERT INTO t1(a,b) SELECT a+80, b+8000 FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1(a,b) SELECT a,b FROM t1;
+INSERT INTO t1 VALUES (1000000, 0, 0);
+
+SET SESSION sort_buffer_size = 1024*36;
+
+EXPLAIN
+SELECT COUNT(*) FROM
+  (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
+     WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+
+SELECT COUNT(*) FROM
+  (SELECT * FROM t1 FORCE INDEX (idx,PRIMARY)
+     WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
+
+SET SESSION sort_buffer_size = DEFAULT;
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests
 

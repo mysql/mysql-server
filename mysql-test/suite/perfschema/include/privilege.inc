@@ -32,48 +32,48 @@ drop table if exists test.t1;
 ## drop table performance_schema.t1;
 ##
 ## --error ER_DBACCESS_DENIED_ERROR
-## create table performance_schema.SETUP_INSTRUMENTS(a int);
+## create table performance_schema.setup_instruments(a int);
 ##
 ## --error ER_DBACCESS_DENIED_ERROR
-## create table performance_schema.EVENTS_WAITS_CURRENT(a int);
+## create table performance_schema.events_waits_current(a int);
 ##
 ## --error ER_DBACCESS_DENIED_ERROR
-## create table performance_schema.FILE_INSTANCES(a int);
+## create table performance_schema.file_instances(a int);
 ##
 ## --error ER_DBACCESS_DENIED_ERROR
-## drop table performance_schema.SETUP_INSTRUMENTS;
+## drop table performance_schema.setup_instruments;
 ##
 ## --error ER_DBACCESS_DENIED_ERROR
-## drop table performance_schema.EVENTS_WAITS_CURRENT;
+## drop table performance_schema.events_waits_current;
 ##
 ## --error ER_DBACCESS_DENIED_ERROR
-## drop table performance_schema.FILE_INSTANCES;
+## drop table performance_schema.file_instances;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.SETUP_INSTRUMENTS to test.t1;
+rename table performance_schema.setup_instruments to test.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.EVENTS_WAITS_CURRENT to test.t1;
+rename table performance_schema.events_waits_current to test.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.FILE_INSTANCES to test.t1;
+rename table performance_schema.file_instances to test.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.SETUP_INSTRUMENTS to performance_schema.t1;
+rename table performance_schema.setup_instruments to performance_schema.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.EVENTS_WAITS_CURRENT to performance_schema.t1;
+rename table performance_schema.events_waits_current to performance_schema.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.FILE_INSTANCES to performance_schema.t1;
+rename table performance_schema.file_instances to performance_schema.t1;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.SETUP_INSTRUMENTS
-  to performance_schema.EVENTS_WAITS_CURRENT;
+rename table performance_schema.setup_instruments
+  to performance_schema.events_waits_current;
 
 --error ER_DBACCESS_DENIED_ERROR
-rename table performance_schema.EVENTS_WAITS_CURRENT
-  to performance_schema.SETUP_INSTRUMENTS;
+rename table performance_schema.events_waits_current
+  to performance_schema.setup_instruments;
 
 --error ER_DBACCESS_DENIED_ERROR
 create procedure performance_schema.my_proc() begin end;
@@ -87,108 +87,93 @@ do begin end;
 
 --error ER_DBACCESS_DENIED_ERROR
 create trigger performance_schema.bi_setup_instruments
-  before insert on performance_schema.SETUP_INSTRUMENTS
+  before insert on performance_schema.setup_instruments
   for each row begin end;
 
 --error ER_DBACCESS_DENIED_ERROR
 create trigger performance_schema.bi_events_waits_current
-  before insert on performance_schema.EVENTS_WAITS_CURRENT
+  before insert on performance_schema.events_waits_current
   for each row begin end;
 
 --error ER_DBACCESS_DENIED_ERROR
 create trigger performance_schema.bi_file_instances
-  before insert on performance_schema.FILE_INSTANCES
+  before insert on performance_schema.file_instances
   for each row begin end;
 
---error ER_WRONG_PERFSCHEMA_USAGE
+--error ER_CANT_CREATE_TABLE
 create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
 
---error ER_WRONG_PERFSCHEMA_USAGE
-create table test.t1 like performance_schema.SETUP_INSTRUMENTS;
+--error ER_CANT_CREATE_TABLE
+create table test.t1 like performance_schema.setup_instruments;
 
---error ER_WRONG_PERFSCHEMA_USAGE
-create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+--error ER_CANT_CREATE_TABLE
+create table test.t1 like performance_schema.events_waits_current;
 
---error ER_WRONG_PERFSCHEMA_USAGE
-create table test.t1 like performance_schema.FILE_INSTANCES;
+--error ER_CANT_CREATE_TABLE
+create table test.t1 like performance_schema.file_instances;
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.SETUP_INSTRUMENTS
+insert into performance_schema.setup_instruments
   set name="foo";
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.EVENTS_WAITS_CURRENT
+insert into performance_schema.events_waits_current
   set name="foo";
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.FILE_INSTANCES
+insert into performance_schema.file_instances
   set name="foo";
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_INSTRUMENTS;
+delete from performance_schema.setup_instruments;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_CURRENT;
+delete from performance_schema.events_waits_current;
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.FILE_INSTANCES;
+delete from performance_schema.file_instances;
 
-lock table performance_schema.SETUP_INSTRUMENTS read;
+lock table performance_schema.setup_instruments read;
 unlock tables;
 
-lock table performance_schema.SETUP_INSTRUMENTS write;
+lock table performance_schema.setup_instruments write;
 unlock tables;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-lock table performance_schema.EVENTS_WAITS_CURRENT read;
+lock table performance_schema.events_waits_current read;
 unlock tables;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-lock table performance_schema.EVENTS_WAITS_CURRENT write;
+lock table performance_schema.events_waits_current write;
 unlock tables;
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-lock table performance_schema.FILE_INSTANCES read;
+lock table performance_schema.file_instances read;
 unlock tables;
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-lock table performance_schema.FILE_INSTANCES write;
+lock table performance_schema.file_instances write;
 unlock tables;
 
 --echo #
 --echo # WL#4818, NFS2: Can use grants to give normal user access
---echo #                to view data from _CURRENT and _HISTORY tables
+--echo #                to view data from _current and _history tables
 --echo #
 --echo # Should work as pfs_user_1 and pfs_user_2, but not as pfs_user_3.
---echo # (Except for EVENTS_WAITS_CURRENT, which is granted.)
+--echo # (Except for events_waits_current, which is granted.)
 
 # Errors here will be caught by the diff afterwards
 --disable_abort_on_error
 
---replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
-SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY LIMIT 1;
+SELECT "can select" FROM performance_schema.events_waits_history LIMIT 1;
 
---replace_result '\'events_waits_history_long' '\'EVENTS_WAITS_HISTORY_LONG'
-SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY_LONG LIMIT 1;
+SELECT "can select" FROM performance_schema.events_waits_history_long LIMIT 1;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
-SELECT "can select" FROM performance_schema.EVENTS_WAITS_CURRENT LIMIT 1;
+SELECT "can select" FROM performance_schema.events_waits_current LIMIT 1;
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
-SELECT "can select" FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE LIMIT 1;
+SELECT "can select" FROM performance_schema.events_waits_summary_by_instance LIMIT 1;
 
---replace_result '\'file_summary_by_instance' '\'FILE_SUMMARY_BY_INSTANCE'
-SELECT "can select" FROM performance_schema.FILE_SUMMARY_BY_INSTANCE LIMIT 1;
+SELECT "can select" FROM performance_schema.file_summary_by_instance LIMIT 1;
 
 --enable_abort_on_error
 

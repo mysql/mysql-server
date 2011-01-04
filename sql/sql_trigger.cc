@@ -24,8 +24,6 @@
 #include "parse_file.h"
 #include "sp.h"
 #include "sql_base.h"                          // find_temporary_table
-#include "lock.h"                    // wait_if_global_read_lock,
-                                     // start_waiting_global_read_lock
 #include "sql_show.h"                // append_definer, append_identifier
 #include "sql_table.h"                        // build_table_filename,
                                               // check_n_cut_mysql50_prefix
@@ -391,15 +389,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    We don't want perform our operations while global read lock is held
-    so we have to wait until its end and then prevent it from occurring
-    again until we are done, unless we are under lock tables.
-  */
-  if (!thd->locked_tables_mode &&
-      thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-    DBUG_RETURN(TRUE);
-
   if (!create)
   {
     bool if_exists= thd->lex->drop_if_exists;
@@ -458,7 +447,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   DBUG_ASSERT(tables->next_global == 0);
 
   /* We do not allow creation of triggers on temporary tables. */
-  if (create && find_temporary_table(thd, tables->db, tables->table_name))
+  if (create && find_temporary_table(thd, tables))
   {
     my_error(ER_TRG_ON_VIEW_OR_TEMP_TABLE, MYF(0), tables->alias);
     goto end;
@@ -546,9 +535,6 @@ end:
   /* Restore the query table list. Used only for drop trigger. */
   if (!create)
     thd->lex->restore_backup_query_tables_list(&backup);
-
-  if (thd->global_read_lock.has_protection())
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (!result)
     my_ok(thd);
@@ -1874,6 +1860,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
 
   @param[in,out] thd Thread context
   @param[in] db Old database of subject table
+  @param[in] old_alias Old alias of subject table
   @param[in] old_table Old name of subject table
   @param[in] new_db New database for subject table
   @param[in] new_table New name of subject table
@@ -1890,6 +1877,7 @@ Table_triggers_list::change_table_name_in_trignames(const char *old_db_name,
 */
 
 bool Table_triggers_list::change_table_name(THD *thd, const char *db,
+                                            const char *old_alias,
                                             const char *old_table,
                                             const char *new_db,
                                             const char *new_table)
@@ -1911,7 +1899,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
                                              MDL_EXCLUSIVE));
 
   DBUG_ASSERT(my_strcasecmp(table_alias_charset, db, new_db) ||
-              my_strcasecmp(table_alias_charset, old_table, new_table));
+              my_strcasecmp(table_alias_charset, old_alias, new_table));
 
   if (Table_triggers_list::check_n_load(thd, db, old_table, &table, TRUE))
   {
@@ -1920,7 +1908,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   }
   if (table.triggers)
   {
-    LEX_STRING old_table_name= { (char *) old_table, strlen(old_table) };
+    LEX_STRING old_table_name= { (char *) old_alias, strlen(old_alias) };
     LEX_STRING new_table_name= { (char *) new_table, strlen(new_table) };
     /*
       Since triggers should be in the same schema as their subject tables
