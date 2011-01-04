@@ -115,7 +115,7 @@ public:
   int close(void);
   int write_row(uchar * buf);
   int real_write_row(uchar *buf, azio_stream *writer);
-  int delete_all_rows();
+  int truncate();
   int rnd_init(bool scan=1);
   int rnd_next(uchar *buf);
   int rnd_pos(uchar * buf, uchar *pos);

@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 
 /* 
   Seek to a position in a file.
@@ -42,8 +43,7 @@
                        actual error.
 */
 
-my_off_t my_seek(File fd, my_off_t pos, int whence,
-		 myf MyFlags __attribute__((unused)))
+my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
 {
   os_off_t newpos= -1;
   DBUG_ENTER("my_seek");
@@ -63,7 +63,9 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
   if (newpos == (os_off_t) -1)
   {
     my_errno= errno;
-    DBUG_PRINT("error",("lseek: %llu  errno: %d", (ulonglong) newpos,errno));
+    if (MyFlags & MY_WME)
+      my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno);
+    DBUG_PRINT("error", ("lseek: %llu  errno: %d", (ulonglong) newpos, errno));
     DBUG_RETURN(MY_FILEPOS_ERROR);
   }
   if ((my_off_t) newpos != pos)
@@ -77,7 +79,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence,
 	/* Tell current position of file */
 	/* ARGSUSED */
 
-my_off_t my_tell(File fd, myf MyFlags __attribute__((unused)))
+my_off_t my_tell(File fd, myf MyFlags)
 {
   os_off_t pos;
   DBUG_ENTER("my_tell");
@@ -89,7 +91,12 @@ my_off_t my_tell(File fd, myf MyFlags __attribute__((unused)))
   pos= my_seek(fd, 0L, MY_SEEK_CUR,0);
 #endif
   if (pos == (os_off_t) -1)
+  {
     my_errno= errno;
+    if (MyFlags & MY_WME)
+      my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno);
+    DBUG_PRINT("error", ("tell: %llu  errno: %d", (ulonglong) pos, my_errno));
+  }
   DBUG_PRINT("exit",("pos: %llu", (ulonglong) pos));
   DBUG_RETURN((my_off_t) pos);
 } /* my_tell */

@@ -85,7 +85,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
-                                 MDL_EXCLUSIVE);
+                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout,
@@ -110,9 +110,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     }
     table= &tmp_table;
   }
-
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
@@ -150,6 +147,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   ext= table->file->bas_ext();
   if (!ext[0] || !ext[1])
     goto end;					// No data file
+
+  /* A MERGE table must not come here. */
+  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -231,6 +231,26 @@ end:
 }
 
 
+/**
+  Check if a given error is something that could occur during
+  open_and_lock_tables() that does not indicate table corruption.
+
+  @param  sql_errno  Error number to check.
+
+  @retval TRUE       Error does not indicate table corruption.
+  @retval FALSE      Error could indicate table corruption.
+*/
+
+static inline bool table_not_corrupt_error(uint sql_errno)
+{
+  return (sql_errno == ER_NO_SUCH_TABLE ||
+          sql_errno == ER_FILE_NOT_FOUND ||
+          sql_errno == ER_LOCK_WAIT_TIMEOUT ||
+          sql_errno == ER_LOCK_DEADLOCK ||
+          sql_errno == ER_CANT_LOCK_LOG_TABLE ||
+          sql_errno == ER_OPEN_AS_READONLY);
+}
+
 
 /*
   RETURN VALUES
@@ -311,7 +331,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables= table;
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
-      thd->no_warnings_for_error= no_warnings_for_error;
+      /*
+        Under locked tables, we know that the table can be opened,
+        so any errors opening the table are logical errors.
+        In these cases it makes sense to report them.
+      */
+      if (!thd->locked_tables_mode)
+        thd->no_warnings_for_error= no_warnings_for_error;
       if (view_operator_func == NULL)
         table->required_type=FRMTYPE_TABLE;
 
@@ -320,6 +346,14 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       table->next_global= save_next_global;
       table->next_local= save_next_local;
       thd->open_options&= ~extra_open_options;
+
+      /*
+        If open_and_lock_tables() failed, close_thread_tables() will close
+        the table and table->table can therefore be invalid.
+      */
+      if (open_error)
+        table->table= NULL;
+
       /*
         Under locked tables, we know that the table can be opened,
         so any errors opening the table are logical errors.
@@ -418,9 +452,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->stmt_da->is_error() &&
-          (thd->stmt_da->sql_errno() == ER_NO_SUCH_TABLE ||
-           thd->stmt_da->sql_errno() == ER_FILE_NOT_FOUND))
-        /* A missing table is just issued as a failed command */
+          table_not_corrupt_error(thd->stmt_da->sql_errno()))
         result_code= HA_ADMIN_FAILED;
       else
         /* Default failure code is corrupt table */

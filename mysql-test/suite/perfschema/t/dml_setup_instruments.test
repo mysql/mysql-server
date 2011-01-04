@@ -26,19 +26,19 @@
 # - valgrind coverage
 
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
+select * from performance_schema.setup_instruments;
 --enable_result_log
 
 # DEBUG_SYNC::mutex is dependent on the build (DEBUG only)
 
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Mutex/sql/%'
   and name not in ('wait/synch/mutex/sql/DEBUG_SYNC::mutex')
   order by name limit 10;
 
 # CRYPTO_dynlock_value::lock is dependent on the build (SSL)
 
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
   order by name limit 10;
@@ -46,7 +46,7 @@ select * from performance_schema.SETUP_INSTRUMENTS
 # COND_handler_count is dependent on the build (Windows only)
 # DEBUG_SYNC::cond is dependent on the build (DEBUG only)
 
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
     'wait/synch/cond/sql/COND_handler_count',
@@ -54,50 +54,46 @@ select * from performance_schema.SETUP_INSTRUMENTS
   order by name limit 10;
 
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
   where name='Wait';
 --enable_result_log
 
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS
+select * from performance_schema.setup_instruments
   where enabled='YES';
 --enable_result_log
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.SETUP_INSTRUMENTS
+insert into performance_schema.setup_instruments
   set name='FOO', enabled='YES', timed='YES';
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_WRONG_PERFSCHEMA_USAGE
-update performance_schema.SETUP_INSTRUMENTS
+update performance_schema.setup_instruments
   set name='FOO';
 
-update performance_schema.SETUP_INSTRUMENTS
+update performance_schema.setup_instruments
   set enabled='NO';
 
-update performance_schema.SETUP_INSTRUMENTS
+update performance_schema.setup_instruments
   set timed='NO';
 
 --disable_result_log
-select * from performance_schema.SETUP_INSTRUMENTS;
+select * from performance_schema.setup_instruments;
 --enable_result_log
 
-update performance_schema.SETUP_INSTRUMENTS
+update performance_schema.setup_instruments
   set enabled='YES', timed='YES';
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_INSTRUMENTS;
+delete from performance_schema.setup_instruments;
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_INSTRUMENTS
+delete from performance_schema.setup_instruments
   where name like 'Wait/Synch/%';
 
-LOCK TABLES performance_schema.SETUP_INSTRUMENTS READ;
+LOCK TABLES performance_schema.setup_instruments READ;
 UNLOCK TABLES;
 
-LOCK TABLES performance_schema.SETUP_INSTRUMENTS WRITE;
+LOCK TABLES performance_schema.setup_instruments WRITE;
 UNLOCK TABLES;
 

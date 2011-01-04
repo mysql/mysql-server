@@ -7,15 +7,27 @@
 # force lower-case-table-names=1 (linux/macosx have different defaults)
 # force symbolic-links=0 (valgrind build has a different default)
 #
+
 exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>&1;
 
+# The inline perl code below will copy $MYSQL_TMP_DIR/mysqld--help.txt
+# to output, but filter away some variable stuff (e.g. paths).
+
 perl;
+  # Variables which we don't want to display in the result file since
+  # their paths may vary:
   @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
                log-slow-queries pid-file slow-query-log-file
-			   datadir slave-load-tmpdir tmpdir/;
+			   datadir slave-load-tmpdir tmpdir socket/;
+
+  # Plugins which may or may not be there:
   @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
-  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR /;
+
+  # And substitute the content some environment variables with their
+  # names:
+  @env=qw/MYSQLTEST_VARDIR MYSQL_TEST_DIR MYSQL_LIBDIR MYSQL_CHARSETSDIR MYSQL_SHAREDIR/;
+
   $re1=join('|', @skipvars, @plugins);
   $re2=join('|', @plugins);
   $skip=0;

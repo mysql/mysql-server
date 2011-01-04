@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -746,9 +746,9 @@ int set_var_password::check(THD *thd)
   }
   if (!user->user.str)
   {
-    DBUG_ASSERT(thd->security_ctx->priv_user);
-    user->user.str= (char *) thd->security_ctx->priv_user;
-    user->user.length= strlen(thd->security_ctx->priv_user);
+    DBUG_ASSERT(thd->security_ctx->user);
+    user->user.str= (char *) thd->security_ctx->user;
+    user->user.length= strlen(thd->security_ctx->user);
   }
   /* Returns 1 as the function sends error to client */
   return check_change_password(thd, user->host.str, user->user.str,

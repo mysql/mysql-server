@@ -225,3 +225,4 @@ sync_slave_with_master;
 SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
 
 # END 5.1 Test Case
+--source include/rpl_end.inc

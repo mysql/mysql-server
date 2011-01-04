@@ -13,17 +13,29 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
-# Read value for a variable from configure.in
+#
+# Global constants, only to be changed between major releases.
+#
+
+SET(SHARED_LIB_MAJOR_VERSION "16")
+SET(PROTOCOL_VERSION "10")
+SET(DOT_FRM_VERSION "6")
+
+# Generate "something" to trigger cmake rerun when VERSION changes
+CONFIGURE_FILE(
+  ${CMAKE_SOURCE_DIR}/VERSION
+  ${CMAKE_BINARY_DIR}/VERSION.dep
+)
+
+# Read value for a variable from VERSION.
 
 MACRO(MYSQL_GET_CONFIG_VALUE keyword var)
  IF(NOT ${var})
-   IF (EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
-     FILE (STRINGS  ${CMAKE_SOURCE_DIR}/configure.in str  REGEX  "^[ ]*${keyword}=")
-    IF(str)
-      STRING(REPLACE "${keyword}=" "" str ${str})
-      STRING(REGEX REPLACE  "[ ].*" ""  str ${str})
-      SET(${var} ${str} CACHE INTERNAL "Config variable")
-    ENDIF()
+   FILE (STRINGS ${CMAKE_SOURCE_DIR}/VERSION str REGEX "^[ ]*${keyword}=")
+   IF(str)
+     STRING(REPLACE "${keyword}=" "" str ${str})
+     STRING(REGEX REPLACE  "[ ].*" ""  str "${str}")
+     SET(${var} ${str})
    ENDIF()
  ENDIF()
 ENDMACRO()
@@ -32,57 +44,32 @@ ENDMACRO()
 # Read mysql version for configure script
 
 MACRO(GET_MYSQL_VERSION)
+  MYSQL_GET_CONFIG_VALUE("MYSQL_VERSION_MAJOR" MAJOR_VERSION)
+  MYSQL_GET_CONFIG_VALUE("MYSQL_VERSION_MINOR" MINOR_VERSION)
+  MYSQL_GET_CONFIG_VALUE("MYSQL_VERSION_PATCH" PATCH_VERSION)
+  MYSQL_GET_CONFIG_VALUE("MYSQL_VERSION_EXTRA" EXTRA_VERSION)
 
-  IF(NOT VERSION_STRING)
-    IF(EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
-      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  str REGEX "AM_INIT_AUTOMAKE")
-      STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][^ \\)]+" VERSION_STRING "${str}")
-      IF(NOT VERSION_STRING)
-        STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+" VERSION_STRING "${str}")
-        IF(NOT VERSION_STRING)
-          FILE(STRINGS  configure.in  str REGEX "AC_INIT\\(")
-          STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+[-][a-zAZ0-9]+" VERSION_STRING "${str}")
-        ENDIF()
-      ENDIF()
-    ENDIF()
+  IF(NOT MAJOR_VERSION OR NOT MINOR_VERSION OR NOT PATCH_VERSION)
+    MESSAGE(FATAL_ERROR "VERSION file cannot be parsed.")
   ENDIF()
 
-  
-  IF(NOT VERSION_STRING)
-    MESSAGE(FATAL_ERROR 
-  "VERSION_STRING cannot be parsed, please specify -DVERSION_STRING=major.minor.patch-extra"
-  "when calling cmake")
-  ENDIF()
-  
-  SET(VERSION ${VERSION_STRING})
-  STRING(REPLACE "-" "_" MYSQL_U_SCORE_VERSION "${VERSION_STRING}")
-  
-  # Remove trailing (non-numeric) part of the version string
-  STRING(REGEX REPLACE "[^\\.0-9].*" "" VERSION_STRING ${VERSION_STRING})
- 
-  STRING(REGEX REPLACE "([0-9]+)\\.[0-9]+\\.[0-9]+" "\\1" MAJOR_VERSION "${VERSION_STRING}")
-  STRING(REGEX REPLACE "[0-9]+\\.([0-9]+)\\.[0-9]+" "\\1" MINOR_VERSION "${VERSION_STRING}")
-  STRING(REGEX REPLACE "[0-9]+\\.[0-9]+\\.([0-9]+)" "\\1" PATCH "${VERSION_STRING}")
+  SET(VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}${EXTRA_VERSION}")
+  MESSAGE("-- MySQL ${VERSION}")
   SET(MYSQL_BASE_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}" CACHE INTERNAL "MySQL Base version")
-  SET(MYSQL_NO_DASH_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH}")
-  MATH(EXPR MYSQL_VERSION_ID "10000*${MAJOR_VERSION} + 100*${MINOR_VERSION} + ${PATCH}")
+  SET(MYSQL_NO_DASH_VERSION "${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}")
+  STRING(REPLACE "-" "_" MYSQL_RPM_VERSION "${VERSION}")
+  MATH(EXPR MYSQL_VERSION_ID "10000*${MAJOR_VERSION} + 100*${MINOR_VERSION} + ${PATCH_VERSION}")
   MARK_AS_ADVANCED(VERSION MYSQL_VERSION_ID MYSQL_BASE_VERSION)
   SET(CPACK_PACKAGE_VERSION_MAJOR ${MAJOR_VERSION})
   SET(CPACK_PACKAGE_VERSION_MINOR ${MINOR_VERSION})
-  SET(CPACK_PACKAGE_VERSION_PATCH ${PATCH})
+  SET(CPACK_PACKAGE_VERSION_PATCH ${PATCH_VERSION})
 ENDMACRO()
 
 # Get mysql version and other interesting variables
 GET_MYSQL_VERSION()
 
-MYSQL_GET_CONFIG_VALUE("PROTOCOL_VERSION" PROTOCOL_VERSION)
-MYSQL_GET_CONFIG_VALUE("DOT_FRM_VERSION" DOT_FRM_VERSION)
-MYSQL_GET_CONFIG_VALUE("MYSQL_TCP_PORT_DEFAULT" MYSQL_TCP_PORT_DEFAULT)
-MYSQL_GET_CONFIG_VALUE("MYSQL_UNIX_ADDR_DEFAULT" MYSQL_UNIX_ADDR_DEFAULT)
-MYSQL_GET_CONFIG_VALUE("SHARED_LIB_MAJOR_VERSION" SHARED_LIB_MAJOR_VERSION)
-IF(NOT MYSQL_TCP_PORT_DEFAULT)
- SET(MYSQL_TCP_PORT_DEFAULT "3306")
-ENDIF()
+SET(MYSQL_TCP_PORT_DEFAULT "3306")
+
 IF(NOT MYSQL_TCP_PORT)
   SET(MYSQL_TCP_PORT ${MYSQL_TCP_PORT_DEFAULT})
   SET(MYSQL_TCP_PORT_DEFAULT "0")
@@ -130,9 +117,8 @@ ENDIF()
 # Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
 # for more info.
 IF(MSVC)
-  GET_TARGET_PROPERTY(location gen_versioninfo LOCATION)
-  IF(NOT location)
     GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
+	
     SET(FILETYPE VFT_APP)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in 
     ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
@@ -140,31 +126,14 @@ IF(MSVC)
     SET(FILETYPE VFT_DLL)
     CONFIGURE_FILE(${MYSQL_CMAKE_SCRIPT_DIR}/versioninfo.rc.in  
       ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
-
-    ADD_CUSTOM_COMMAND(
-      OUTPUT ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
-       ${CMAKE_BINARY_DIR}/versioninfo_dll.res
-    COMMAND ${CMAKE_RC_COMPILER} versioninfo_exe.rc
-    COMMAND ${CMAKE_RC_COMPILER} versioninfo_dll.rc
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-   )
-   ADD_CUSTOM_TARGET(gen_versioninfo
-      DEPENDS 
-     ${CMAKE_BINARY_DIR}/versioninfo_exe.res 
-     ${CMAKE_BINARY_DIR}/versioninfo_dll.res
-   )
-  ENDIF()
-  
-  FUNCTION(ADD_VERSION_INFO target)
-    GET_TARGET_PROPERTY(target_type ${target} TYPE)
-    ADD_DEPENDENCIES(${target} gen_versioninfo)
-    IF(target_type MATCHES "SHARED" OR target_type MATCHES "MODULE")
-       SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
-        "\"${CMAKE_BINARY_DIR}/versioninfo_dll.res\"")
-    ELSEIF(target_type MATCHES "EXE")
-      SET_PROPERTY(TARGET ${target} APPEND PROPERTY LINK_FLAGS 
-      "${target_link_flags} \"${CMAKE_BINARY_DIR}/versioninfo_exe.res\"")
+	  
+  FUNCTION(ADD_VERSION_INFO target target_type sources_var)
+    IF("${target_type}" MATCHES "SHARED" OR "${target_type}" MATCHES "MODULE")
+      SET(rcfile ${CMAKE_BINARY_DIR}/versioninfo_dll.rc)
+    ELSEIF("${target_type}" MATCHES "EXE")
+      SET(rcfile ${CMAKE_BINARY_DIR}/versioninfo_exe.rc)
     ENDIF()
+    SET(${sources_var} ${${sources_var}} ${rcfile} PARENT_SCOPE)
   ENDFUNCTION()
 ELSE()
   FUNCTION(ADD_VERSION_INFO)

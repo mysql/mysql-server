@@ -426,6 +426,18 @@ void TABLE_SHARE::destroy()
       info_it->flags= 0;
     }
   }
+  if (ha_data_destroy)
+  {
+    ha_data_destroy(ha_data);
+    ha_data_destroy= NULL;
+  }
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (ha_part_data_destroy)
+  {
+    ha_part_data_destroy(ha_part_data);
+    ha_part_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /*
     Make a copy since the share is allocated in its own root,
     and free_root() updates its argument after freeing the memory.
@@ -1704,11 +1716,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   delete handler_file;
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
+  {
     share->ha_data_destroy(share->ha_data);
+    share->ha_data_destroy= NULL;
+  }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (share->ha_part_data_destroy)
+  {
     share->ha_part_data_destroy(share->ha_part_data);
-#endif
+    share->ha_data_destroy= NULL;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -3085,30 +3103,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     holding a write-lock on MDL_lock::m_rwlock.
   */
   if (gvisitor->m_lock_open_count++ == 0)
-  {
-    /*
-      To circumvent bug #56405 "Deadlock in the MDL deadlock detector"
-      we don't try to lock LOCK_open mutex if some thread doing
-      deadlock detection already owns it and current search depth is
-      greater than 0. Instead we report a deadlock.
-
-      TODO/FIXME: The proper fix for this bug is to use rwlocks for
-                  protection of table shares/instead of LOCK_open.
-                  Unfortunately it requires more effort/has significant
-                  performance effect.
-    */
-    mysql_mutex_lock(&LOCK_dd_owns_lock_open);
-    if (gvisitor->m_current_search_depth > 0 && dd_owns_lock_open > 0)
-    {
-      mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
-      --gvisitor->m_lock_open_count;
-      gvisitor->abort_traversal(src_ctx);
-      return TRUE;
-    }
-    ++dd_owns_lock_open;
-    mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
     mysql_mutex_lock(&LOCK_open);
-  }
 
   I_P_List_iterator <TABLE, TABLE_share> tables_it(used_tables);
 
@@ -3123,12 +3118,8 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     goto end;
   }
 
-  ++gvisitor->m_current_search_depth;
   if (gvisitor->enter_node(src_ctx))
-  {
-    --gvisitor->m_current_search_depth;
     goto end;
-  }
 
   while ((table= tables_it++))
   {
@@ -3151,16 +3142,10 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
 
 end_leave_node:
   gvisitor->leave_node(src_ctx);
-  --gvisitor->m_current_search_depth;
 
 end:
   if (gvisitor->m_lock_open_count-- == 1)
-  {
     mysql_mutex_unlock(&LOCK_open);
-    mysql_mutex_lock(&LOCK_dd_owns_lock_open);
-    --dd_owns_lock_open;
-    mysql_mutex_unlock(&LOCK_dd_owns_lock_open);
-  }
 
   return result;
 }
@@ -3253,6 +3238,65 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     DBUG_ASSERT(0);
     return TRUE;
   }
+}
+
+
+/**
+  Initialize TABLE instance (newly created, or coming either from table
+  cache or THD::temporary_tables list) and prepare it for further use
+  during statement execution. Set the 'alias' attribute from the specified
+  TABLE_LIST element. Remember the TABLE_LIST element in the
+  TABLE::pos_in_table_list member.
+
+  @param thd  Thread context.
+  @param tl   TABLE_LIST element.
+*/
+
+void TABLE::init(THD *thd, TABLE_LIST *tl)
+{
+  DBUG_ASSERT(s->ref_count > 0 || s->tmp_table != NO_TMP_TABLE);
+
+  if (thd->lex->need_correct_ident())
+    alias_name_used= my_strcasecmp(table_alias_charset,
+                                   s->table_name.str,
+                                   tl->alias);
+  /* Fix alias if table name changes. */
+  if (strcmp(alias, tl->alias))
+  {
+    uint length= (uint) strlen(tl->alias)+1;
+    alias= (char*) my_realloc((char*) alias, length, MYF(MY_WME));
+    memcpy((char*) alias, tl->alias, length);
+  }
+
+  tablenr= thd->current_tablenr++;
+  used_fields= 0;
+  const_table= 0;
+  null_row= 0;
+  maybe_null= 0;
+  force_index= 0;
+  force_index_order= 0;
+  force_index_group= 0;
+  status= STATUS_NO_RECORD;
+  insert_values= 0;
+  fulltext_searched= 0;
+  file->ft_handler= 0;
+  reginfo.impossible_range= 0;
+
+  /* Catch wrong handling of the auto_increment_field_not_null. */
+  DBUG_ASSERT(!auto_increment_field_not_null);
+  auto_increment_field_not_null= FALSE;
+
+  if (timestamp_field)
+    timestamp_field_type= timestamp_field->get_auto_set_type();
+
+  pos_in_table_list= tl;
+
+  clear_column_bitmaps();
+
+  DBUG_ASSERT(key_read == 0);
+
+  /* Tables may be reused in a sub statement. */
+  DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 }
 
 
@@ -4047,11 +4091,8 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot_no_password(view_sctx,
-                                definer.user.str,
-                                definer.host.str,
-                                definer.host.str,
-                                thd->db))
+    if (acl_getroot(view_sctx, definer.user.str, definer.host.str,
+                                definer.host.str, thd->db))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -4070,10 +4111,15 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
         }
         else
         {
-           my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
-                    thd->security_ctx->priv_user,
-                    thd->security_ctx->priv_host,
-                    (thd->password ?  ER(ER_YES) : ER(ER_NO)));
+          if (thd->password == 2)
+            my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
+                     thd->security_ctx->priv_user,
+                     thd->security_ctx->priv_host);
+          else
+            my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
+                     thd->security_ctx->priv_user,
+                     thd->security_ctx->priv_host,
+                     (thd->password ?  ER(ER_YES) : ER(ER_NO)));
         }
         DBUG_RETURN(TRUE);
       }
@@ -5173,7 +5219,8 @@ void init_mdl_requests(TABLE_LIST *table_list)
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ,
+                                 MDL_TRANSACTION);
 }
 
 

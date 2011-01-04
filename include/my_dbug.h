@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef _dbug_h
-#define _dbug_h
+#ifndef MY_DBUG_INCLUDED
+#define MY_DBUG_INCLUDED
+
+#ifndef __WIN__
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <signal.h>
+#endif  /* not __WIN__ */
 
 #ifdef  __cplusplus
 extern "C" {
@@ -111,6 +121,21 @@ extern  const char* _db_get_func_(void);
 #define DBUG_CRASH_VOID_RETURN \
   DBUG_CHECK_CRASH (_db_get_func_(), "_crash_return")
 
+/*
+  Make the program fail, without creating a core file.
+  abort() will send SIGABRT which (most likely) generates core.
+  Use SIGKILL instead, which cannot be caught.
+  We also pause the current thread, until the signal is actually delivered.
+  An alternative would be to use _exit(EXIT_FAILURE),
+  but then valgrind would report lots of memory leaks.
+ */
+#ifdef __WIN__
+#define DBUG_SUICIDE() DBUG_ABORT()
+#else
+extern void _db_suicide_();
+#define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
+#endif
+
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -139,10 +164,11 @@ extern  const char* _db_get_func_(void);
 #define DBUG_EXPLAIN_INITIAL(buf,len)
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
-#define DBUG_ABORT()                    abort()
+#define DBUG_ABORT()                    do { } while(0)
 #define DBUG_CRASH_ENTER(func)
 #define DBUG_CRASH_RETURN(val)          do { return(val); } while(0)
 #define DBUG_CRASH_VOID_RETURN          do { return; } while(0)
+#define DBUG_SUICIDE()                  do { } while(0)
 
 #endif
 
@@ -164,4 +190,5 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #ifdef	__cplusplus
 }
 #endif
-#endif
+
+#endif /* MY_DBUG_INCLUDED */

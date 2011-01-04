@@ -21,8 +21,19 @@
 #    and slave are diverging.
 #    
 ########################################################################################
-
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+let $old_max_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_cache_size", Value, 1);
+let $old_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_cache_size", Value, 1);
+let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1);
+let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1);
+
+SET GLOBAL max_binlog_cache_size = 4096;
+SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
+disconnect master;
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
@@ -38,25 +49,22 @@ connection master;
 
 --echo *** Single statement on transactional table ***
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval INSERT INTO t1 (a, data) VALUES (1,
      CONCAT($data, $data, $data, $data, $data));
 --enable_query_log
 
 --echo *** Single statement on non-transactional table ***
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval INSERT INTO t2 (a, data) VALUES (2,
        CONCAT($data, $data, $data, $data, $data, $data));
 --enable_query_log
 
-connection slave;
---source include/wait_for_slave_sql_to_stop.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
---source include/wait_for_slave_sql_to_start.inc
-
-connection master;
+# Incident event
+# 1590=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 1590
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 --disable_query_log
 eval INSERT INTO t1 (a, data) VALUES (3, $data);
@@ -69,28 +77,18 @@ eval INSERT INTO t2 (a, data) VALUES (5, $data);
 
 --echo *** Single statement on both transactional and non-transactional tables. ***
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
 
-connection slave;
---source include/wait_for_slave_sql_to_stop.inc
+# 1590=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 1590
+--let $slave_skip_counter= `SELECT IF(@@binlog_format = 'ROW', 2, 1)`
+--source include/wait_for_slave_sql_error_and_skip.inc
 
-if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
-{
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-}
-if (`SELECT @@binlog_format = 'ROW'`)
-{
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2;
-}
-START SLAVE SQL_THREAD;
---source include/wait_for_slave_sql_to_start.inc
-connection master;
-
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                             2 - BEGIN - IMPLICIT COMMIT by DDL
@@ -106,11 +104,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -133,9 +131,9 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (14, $data);
 --eval INSERT INTO t1 (a, data) VALUES (15, $data);
 --eval INSERT INTO t1 (a, data) VALUES (16, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (17, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (18, $data);
 --eval INSERT INTO t1 (a, data) VALUES (19, 's');
 --eval INSERT INTO t2 (a, data) VALUES (20, 's');
@@ -151,7 +149,7 @@ if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 if (`SELECT @@binlog_format = 'ROW'`)
 {
   --disable_query_log
-  --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+  --error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
   CREATE TABLE t4 SELECT * FROM t1;
   --enable_query_log
 }
@@ -165,9 +163,9 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (22, $data);
 --eval INSERT INTO t1 (a, data) VALUES (23, $data);
 --eval INSERT INTO t1 (a, data) VALUES (24, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (25, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (26, $data);
 --eval INSERT INTO t1 (a, data) VALUES (27, 's');
 --eval INSERT INTO t2 (a, data) VALUES (28, 's');
@@ -178,19 +176,9 @@ BEGIN;
 CREATE TABLE t5 (a int);
 --enable_query_log
 
-if (`SELECT @@binlog_format = 'ROW'`)
-{
-  connection slave;
-  --source include/wait_for_slave_sql_to_stop.inc
-
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-  START SLAVE SQL_THREAD;
-  --source include/wait_for_slave_sql_to_start.inc
-  connection master;
-}
-
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                     3 - BEGIN - COMMIT
@@ -206,11 +194,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -218,8 +206,9 @@ BEGIN;
 --enable_query_log
 COMMIT;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                      4 - BEGIN - ROLLBACK
@@ -235,11 +224,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -247,8 +236,9 @@ BEGIN;
 --enable_query_log
 ROLLBACK;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                         5 - PROCEDURE 
@@ -282,7 +272,7 @@ TRUNCATE TABLE t1;
 
 BEGIN;
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval CALL p1($data);
 --enable_query_log
 COMMIT;
@@ -291,13 +281,14 @@ TRUNCATE TABLE t1;
 
 BEGIN;
 --disable_query_log
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 eval CALL p1($data);
 --enable_query_log
 ROLLBACK;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                           6 - XID
@@ -313,12 +304,12 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (1, $data);
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t1 (a, data) VALUES (3, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
 SAVEPOINT sv;
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
 --eval INSERT INTO t1 (a, data) VALUES (7, 's');
 --eval INSERT INTO t2 (a, data) VALUES (8, 's');
@@ -327,8 +318,9 @@ SAVEPOINT sv;
 ROLLBACK TO sv;
 COMMIT;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo ########################################################################################
 --echo #                                        7 - NON-TRANS TABLE
@@ -345,11 +337,11 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (2, $data);
 --eval INSERT INTO t2 (a, data) VALUES (3, $data);
 --eval INSERT INTO t1 (a, data) VALUES (4, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (5, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (6, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (7, $data);
 --eval UPDATE t2 SET data= CONCAT($data, $data);
 --eval INSERT INTO t1 (a, data) VALUES (8, 's');
@@ -365,13 +357,89 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (16, $data);
 --eval INSERT INTO t2 (a, data) VALUES (17, $data);
 --eval INSERT INTO t1 (a, data) VALUES (18, $data);
---error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
+--error ER_TRANS_CACHE_FULL, ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
 --eval INSERT INTO t1 (a, data) VALUES (19, $data);
 --enable_query_log
 COMMIT;
 
-let $diff_statement= SELECT * FROM t1;
---source include/diff_master_slave.inc
+--sync_slave_with_master
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
+
+--echo ########################################################################
+--echo #      8 - Bug#55375(Regression Bug) Transaction bigger than
+--echo #          max_binlog_cache_size crashes slave
+--echo ########################################################################
+
+--echo # [ On Slave ]
+SET GLOBAL max_binlog_cache_size = 4096;
+SET GLOBAL binlog_cache_size = 4096;
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
+
+source include/stop_slave.inc;
+source include/start_slave.inc;
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_stmt_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
+
+connection master;
+TRUNCATE t1;
+
+sync_slave_with_master;
+--let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+connection master;
+--replace_result $old_max_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size
+--replace_result $old_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_cache_size= $old_binlog_cache_size
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
+disconnect master;
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--let $n=128
+BEGIN;
+--disable_query_log
+--echo Repeat statement 'INSERT INTO t1 VALUES(\$n, repeat("a", 32))' $n times
+while ($n)
+{
+  --eval INSERT INTO t1 VALUES ($n, repeat("a", 32))
+  --dec $n
+}
+--enable_query_log
+COMMIT;
+
+--connection slave
+--let $slave_sql_errno= 1197
+if (`SELECT @@binlog_format = 'ROW'`)
+{
+  --let $slave_sql_errno= 1534
+}
+source include/wait_for_slave_sql_error.inc;
+
+SELECT count(*) FROM t1;
+source include/show_binlog_events.inc;
+
+--replace_result $old_max_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size
+--replace_result $old_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_cache_size= $old_binlog_cache_size
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
+
+source include/stop_slave.inc;
+source include/start_slave.inc;
+
+connection master;
+sync_slave_with_master;
+SELECT count(*) FROM t1;
 
 --echo ########################################################################################
 --echo #                                        CLEAN
@@ -381,8 +449,10 @@ connection master;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+# t4 exists only if binlog_format!=row, so so a warning is generated
+# if binog_format=row
+--disable_warnings
 DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
+--enable_warnings
+DROP TABLE t5;
 DROP PROCEDURE p1;
-sync_slave_with_master;

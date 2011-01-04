@@ -1635,12 +1635,7 @@ CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
 INSERT INTO t1 VALUES (1234567);
 SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
 SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
-if (`SELECT @@character_set_connection != 'ucs2'`)
-{
-  # Temporarily disable for ucs2
-  # For details, see Bug#55744 GROUP_CONCAT + CASE + ucs return garbage
-  SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
-}
+SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
 --enable_metadata
 SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
 --disable_metadata
@@ -1725,6 +1720,21 @@ DROP TABLE t1;
 --echo #
 --echo # End of Bug#54916
 --echo #
+
+
+--echo #
+--echo # Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+--echo #
+SELECT @@collation_connection;
+CREATE TABLE t1 (
+  id INT(11) DEFAULT NULL,
+  date_column DATE DEFAULT NULL,
+  KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+DROP TABLE t1;
 
 
 --echo #

@@ -28,7 +28,8 @@ extern char *	mysql_unix_port;
                              CLIENT_PROTOCOL_41 | \
                              CLIENT_SECURE_CONNECTION | \
                              CLIENT_MULTI_RESULTS | \
-                             CLIENT_PS_MULTI_RESULTS)
+                             CLIENT_PS_MULTI_RESULTS | \
+                             CLIENT_PLUGIN_AUTH)
 
 sig_handler my_pipe_sig_handler(int sig);
 void read_user_name(char *name);
@@ -67,7 +68,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt);
 int cli_read_binary_rows(MYSQL_STMT *stmt);
 int cli_unbuffered_fetch(MYSQL *mysql, char **row);
 const char * cli_read_statistics(MYSQL *mysql);
-int cli_read_change_user_result(MYSQL *mysql, char *buff, const char *passwd);
+int cli_read_change_user_result(MYSQL *mysql);
 
 #ifdef EMBEDDED_LIBRARY
 int init_embedded_server(int argc, char **argv, char **groups);

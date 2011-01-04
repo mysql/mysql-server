@@ -903,7 +903,8 @@ static void
 my_fill_mb2(CHARSET_INFO *cs __attribute__((unused)),
             char *s, size_t l, int fill)
 {
-  for ( ; l >= 2; s[0]= 0, s[1]= fill, s+= 2, l-= 2);
+  DBUG_ASSERT(fill <= 0xFFFF);
+  for ( ; l >= 2; s[0]= (fill >> 8), s[1]= (fill & 0xFF), s+= 2, l-= 2);
 }
 
 
@@ -1205,12 +1206,10 @@ my_strnncoll_utf16(CHARSET_INFO *cs,
                    my_bool t_is_prefix)
 {
   int s_res, t_res;
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while (s < se && t < te)
   {
@@ -1271,11 +1270,9 @@ my_strnncollsp_utf16(CHARSET_INFO *cs,
                      my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
@@ -1451,17 +1448,15 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
                        my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t s_wc,t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   while ( s < se && t < te )
   {
     s_res= my_utf16_uni(cs,&s_wc, s, se);
     t_res= my_utf16_uni(cs,&t_wc, t, te);
-    
+
     if (s_res <= 0 || t_res <= 0)
     {
       /* Incorrect string, compare by char value */
@@ -1469,9 +1464,9 @@ my_strnncoll_utf16_bin(CHARSET_INFO *cs,
     }
     if (s_wc != t_wc)
     {
-      return  my_bincmp(s, s + s_res, t, t + t_res);
+      return s_wc > t_wc ? 1 : -1;
     }
-    
+
     s+= s_res;
     t+= t_res;
   }
@@ -1486,10 +1481,8 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
                          my_bool diff_if_only_endspace_difference)
 {
   int res;
-  my_wc_t s_wc, t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se= s + slen, *te= t + tlen;
-  LINT_INIT(s_wc);
-  LINT_INIT(t_wc);
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
@@ -1511,7 +1504,7 @@ my_strnncollsp_utf16_bin(CHARSET_INFO *cs,
 
     if (s_wc != t_wc)
     {
-      return my_bincmp(s, s + s_res, t, t + t_res);
+      return s_wc > t_wc ? 1 : -1;
     }
 
     s+= s_res;
@@ -1571,98 +1564,6 @@ my_hash_sort_utf16_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-/**
-   Calculate min_str and max_str that ranges a LIKE string.
-
-   @param ptr        Pointer to LIKE pattern.
-   @param ptr_length Length of LIKE pattern.
-   @param escape     Escape character in LIKE.  (Normally '\').
-                     All escape characters should be removed
-                     from min_str and max_str.
-   @param res_length Length of min_str and max_str.
-   @param min_str    Smallest case sensitive string that ranges LIKE.
-                     Should be space padded to res_length.
-   @param max_str    Largest case sensitive string that ranges LIKE.
-                     Normally padded with the biggest character sort value.
-
-   @return Optimization status.
-     @retval FALSE if LIKE pattern can be optimized
-     @rerval TRUE if LIKE can't be optimized.
-*/
-
-my_bool
-my_like_range_utf16(CHARSET_INFO *cs,
-                    const char *ptr, size_t ptr_length,
-                    pbool escape, pbool w_one, pbool w_many,
-                    size_t res_length,
-                    char *min_str,char *max_str,
-                    size_t *min_length,size_t *max_length)
-{
-  const char *end=ptr+ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-  size_t charlen= res_length / cs->mbmaxlen;
-  
-  for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
-        ; ptr+=2, charlen--)
-  {
-    if (ptr[0] == '\0' && ptr[1] == escape && ptr + 1 < end)
-    {
-      ptr+=2;                                        /* Skip escape */
-      *min_str++= *max_str++ = ptr[0];
-      *min_str++= *max_str++ = ptr[1];
-      continue;
-    }
-    if (ptr[0] == '\0' && ptr[1] == w_one)        /* '_' in SQL */
-    {
-      *min_str++= (char) (cs->min_sort_char >> 8);
-      *min_str++= (char) (cs->min_sort_char & 255);
-      *max_str++= (char) (cs->max_sort_char >> 8);
-      *max_str++= (char) (cs->max_sort_char & 255);
-      continue;
-    }
-    if (ptr[0] == '\0' && ptr[1] == w_many)        /* '%' in SQL */
-    {
-      /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
-      */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      do {
-        *min_str++ = 0;
-        *min_str++ = 0;
-        *max_str++ = (char) (cs->max_sort_char >> 8);
-        *max_str++ = (char) (cs->max_sort_char & 255);
-      } while (min_str + 1 < min_end);
-      return FALSE;
-    }
-    *min_str++= *max_str++ = ptr[0];
-    *min_str++= *max_str++ = ptr[1];
-  }
-
-  /* Temporary fix for handling w_one at end of string (key compression) */
-  {
-    char *tmp;
-    for (tmp= min_str ; tmp-1 > min_org && tmp[-1] == '\0' && tmp[-2]=='\0';)
-    {
-      *--tmp=' ';
-      *--tmp='\0';
-    }
-  }
-  
-  *min_length= *max_length = (size_t) (min_str - min_org);
-  while (min_str + 1 < min_end)
-  {
-    *min_str++ = *max_str++ = '\0';
-    *min_str++ = *max_str++ = ' ';      /* Because if key compression */
-  }
-  return FALSE;
-}
-
-
 static MY_COLLATION_HANDLER my_collation_utf16_general_ci_handler =
 {
   NULL,                /* init */
@@ -1670,7 +1571,7 @@ static MY_COLLATION_HANDLER my_collation_utf16_general_ci_handler =
   my_strnncollsp_utf16,
   my_strnxfrm_unicode,
   my_strnxfrmlen_simple,
-  my_like_range_utf16,
+  my_like_range_generic,
   my_wildcmp_utf16_ci,
   my_strcasecmp_mb2_or_mb4,
   my_instr_mb,
@@ -1686,7 +1587,7 @@ static MY_COLLATION_HANDLER my_collation_utf16_bin_handler =
   my_strnncollsp_utf16_bin,
   my_strnxfrm_unicode_full_bin,
   my_strnxfrmlen_unicode_full_bin,
-  my_like_range_utf16,
+  my_like_range_generic,
   my_wildcmp_utf16_bin,
   my_strcasecmp_mb2_or_mb4,
   my_instr_mb,
@@ -2559,113 +2460,6 @@ my_strnncollsp_utf32_bin(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-/**
-   Calculate min_str and max_str that ranges a LIKE string.
-
-   @param ptr        Pointer to LIKE pattern.
-   @param ptr_length Length of LIKE pattern.
-   @param escape     Escape character in LIKE.  (Normally '\').
-                     All escape characters should be removed
-                     from min_str and max_str.
-   @param res_length Length of min_str and max_str.
-   @param min_str    Smallest case sensitive string that ranges LIKE.
-                     Should be space padded to res_length.
-   @param max_str    Largest case sensitive string that ranges LIKE.
-                     Normally padded with the biggest character sort value.
-
-   @return Optimization status.
-     @retval FALSE if LIKE pattern can be optimized
-     @rerval TRUE if LIKE can't be optimized.
-*/
-
-my_bool
-my_like_range_utf32(CHARSET_INFO *cs,
-                    const char *ptr, size_t ptr_length,
-                    pbool escape, pbool w_one, pbool w_many,
-                    size_t res_length,
-                    char *min_str,char *max_str,
-                    size_t *min_length,size_t *max_length)
-{
-  const char *end= ptr + ptr_length;
-  char *min_org= min_str;
-  char *min_end= min_str + res_length;
-  char *max_end= max_str + res_length;
-  size_t charlen= res_length / cs->mbmaxlen;
-  
-  DBUG_ASSERT((res_length % 4) == 0);
-  
-  for ( ; charlen > 0; ptr+= 4, charlen--)
-  {
-    my_wc_t wc;
-    int res;
-    if ((res= my_utf32_uni(cs, &wc, (uchar*) ptr, (uchar*) end)) < 0)
-    {
-      my_fill_utf32(cs, min_str, min_end - min_str, cs->min_sort_char);
-      my_fill_utf32(cs, max_str, min_end - min_str, cs->max_sort_char);
-      /* min_length and max_legnth are not important */
-      return TRUE;
-    }
-    
-    if (wc == (my_wc_t) escape)
-    {
-      ptr+= 4;                                  /* Skip escape */
-      if ((res= my_utf32_uni(cs, &wc, (uchar*) ptr, (uchar*) end)) < 0)
-      {
-        my_fill_utf32(cs, min_str, min_end - min_str, cs->min_sort_char);
-        my_fill_utf32(cs, max_str, max_end - min_str, cs->max_sort_char);
-        /* min_length and max_length are not important */
-        return TRUE;
-      }
-      if (my_uni_utf32(cs, wc, (uchar*) min_str, (uchar*) min_end) != 4 ||
-          my_uni_utf32(cs, wc, (uchar*) max_str, (uchar*) max_end) != 4)
-        goto pad_set_lengths;
-      *min_str++= 4;
-      *max_str++= 4;
-      continue;
-    }
-    
-    if (wc == (my_wc_t) w_one)
-    {
-      if (my_uni_utf32(cs, cs->min_sort_char, (uchar*) min_str, (uchar*) min_end) != 4 ||
-          my_uni_utf32(cs, cs->max_sort_char, (uchar*) max_str, (uchar*) max_end) != 4)
-        goto pad_set_lengths;
-      min_str+= 4;
-      max_str+= 4;
-      continue;
-    }
-    
-    if (wc == (my_wc_t) w_many)
-    {
-      /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
-      */
-      *min_length= ((cs->state & MY_CS_BINSORT) ?
-                    (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      goto pad_min_max;
-    }
-    
-    /* Normal character */
-    if (my_uni_utf32(cs, wc, (uchar*) min_str, (uchar*) min_end) != 4 ||
-        my_uni_utf32(cs, wc, (uchar*) max_str, (uchar*) max_end) != 4)
-      goto pad_set_lengths;
-    min_str+= 4;
-    max_str+= 4;
-  }
-
-pad_set_lengths:
-  *min_length= *max_length= (size_t) (min_str - min_org);
-
-pad_min_max:
-  my_fill_utf32(cs, min_str, min_end - min_str, cs->min_sort_char);
-  my_fill_utf32(cs, max_str, max_end - max_str, cs->max_sort_char);
-  return FALSE;
-}
-
-
 static size_t
 my_scan_utf32(CHARSET_INFO *cs,
               const char *str, const char *end, int sequence_type)
@@ -2697,7 +2491,7 @@ static MY_COLLATION_HANDLER my_collation_utf32_general_ci_handler =
   my_strnncollsp_utf32,
   my_strnxfrm_unicode,
   my_strnxfrmlen_utf32,
-  my_like_range_utf32,
+  my_like_range_generic,
   my_wildcmp_utf32_ci,
   my_strcasecmp_mb2_or_mb4,
   my_instr_mb,
@@ -2713,7 +2507,7 @@ static MY_COLLATION_HANDLER my_collation_utf32_bin_handler =
   my_strnncollsp_utf32_bin,
   my_strnxfrm_unicode_full_bin,
   my_strnxfrmlen_unicode_full_bin,
-  my_like_range_utf32,
+  my_like_range_generic,
   my_wildcmp_utf32_bin,
   my_strcasecmp_mb2_or_mb4,
   my_instr_mb,
@@ -2899,7 +2693,10 @@ static int my_uni_ucs2(CHARSET_INFO *cs __attribute__((unused)) ,
 {
   if ( r+2 > e ) 
     return MY_CS_TOOSMALL2;
-  
+
+  if (wc > 0xFFFF) /* UCS2 does not support characters outside BMP */
+    return MY_CS_ILUNI;
+
   r[0]= (uchar) (wc >> 8);
   r[1]= (uchar) (wc & 0xFF);
   return 2;
@@ -3260,120 +3057,6 @@ void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
   }
 }
 
-/*
-** Calculate min_str and max_str that ranges a LIKE string.
-** Arguments:
-** ptr		Pointer to LIKE string.
-** ptr_length	Length of LIKE string.
-** escape	Escape character in LIKE.  (Normally '\').
-**		All escape characters should be removed from min_str and max_str
-** res_length	Length of min_str and max_str.
-** min_str	Smallest case sensitive string that ranges LIKE.
-**		Should be space padded to res_length.
-** max_str	Largest case sensitive string that ranges LIKE.
-**		Normally padded with the biggest character sort value.
-**
-** The function should return 0 if ok and 1 if the LIKE string can't be
-** optimized !
-*/
-
-my_bool my_like_range_ucs2(CHARSET_INFO *cs,
-			   const char *ptr, size_t ptr_length,
-			   pbool escape, pbool w_one, pbool w_many,
-			   size_t res_length,
-			   char *min_str,char *max_str,
-			   size_t *min_length,size_t *max_length)
-{
-  const char *end=ptr+ptr_length;
-  char *min_org=min_str;
-  char *min_end=min_str+res_length;
-  size_t charlen= res_length / cs->mbmaxlen;
-  const char *contraction_flags= cs->contractions ?
-             ((const char*) cs->contractions) + 0x40*0x40 : NULL;
-  
-  for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
-        ; ptr+=2, charlen--)
-  {
-    if (ptr[0] == '\0' && ptr[1] == escape && ptr + 1 < end)
-    {
-      ptr+=2;					/* Skip escape */
-      *min_str++= *max_str++ = ptr[0];
-      *min_str++= *max_str++ = ptr[1];
-      continue;
-    }
-    if (ptr[0] == '\0' && ptr[1] == w_one)	/* '_' in SQL */
-    {
-      *min_str++= (char) (cs->min_sort_char >> 8);
-      *min_str++= (char) (cs->min_sort_char & 255);
-      *max_str++= (char) (cs->max_sort_char >> 8);
-      *max_str++= (char) (cs->max_sort_char & 255);
-      continue;
-    }
-    if (ptr[0] == '\0' && ptr[1] == w_many)	/* '%' in SQL */
-    {
-fill_max_and_min:
-      /*
-        Calculate length of keys:
-        'a\0\0... is the smallest possible string when we have space expand
-        a\ff\ff... is the biggest possible string
-      */
-      *min_length= ((cs->state & MY_CS_BINSORT) ? (size_t) (min_str - min_org) :
-                    res_length);
-      *max_length= res_length;
-      do {
-        *min_str++ = 0;
-	*min_str++ = 0;
-	*max_str++ = (char) (cs->max_sort_char >> 8);
-	*max_str++ = (char) (cs->max_sort_char & 255);
-      } while (min_str + 1 < min_end);
-      return 0;
-    }
-
-    if (contraction_flags && ptr + 3 < end &&
-        ptr[0] == '\0' && contraction_flags[(uchar) ptr[1]])
-    {
-      /* Contraction head found */
-      if (ptr[2] == '\0' && (ptr[3] == w_one || ptr[3] == w_many))
-      {
-        /* Contraction head followed by a wildcard, quit */
-        goto fill_max_and_min;
-      }
-      
-      /*
-        Check if the second letter can be contraction part,
-        and if two letters really produce a contraction.
-      */
-      if (ptr[2] == '\0' && contraction_flags[(uchar) ptr[3]] &&
-          cs->contractions[(ptr[1]-0x40)*0x40 + ptr[3] - 0x40])
-      {
-        /* Contraction found */
-        if (charlen == 1 || min_str + 2 >= min_end)
-        {
-          /* Full contraction doesn't fit, quit */
-          goto fill_max_and_min;
-        }
-        
-        /* Put contraction head */
-        *min_str++= *max_str++= *ptr++;
-        *min_str++= *max_str++= *ptr++;
-        charlen--;
-      }
-    }
-    /* Put contraction tail, or a single character */
-    *min_str++= *max_str++ = ptr[0];
-    *min_str++= *max_str++ = ptr[1];
-  }
-
-  *min_length= *max_length = (size_t) (min_str - min_org);
-  while (min_str + 1 < min_end)
-  {
-    *min_str++ = *max_str++ = '\0';
-    *min_str++ = *max_str++ = ' ';      /* Because if key compression */
-  }
-  return 0;
-}
-
-
 
 static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
 {
@@ -3382,7 +3065,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_general_ci_handler =
     my_strnncollsp_ucs2,
     my_strnxfrm_unicode,
     my_strnxfrmlen_simple,
-    my_like_range_ucs2,
+    my_like_range_generic,
     my_wildcmp_ucs2_ci,
     my_strcasecmp_mb2_or_mb4,
     my_instr_mb,
@@ -3398,7 +3081,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
     my_strnncollsp_ucs2_bin,
     my_strnxfrm_unicode,
     my_strnxfrmlen_simple,
-    my_like_range_ucs2,
+    my_like_range_generic,
     my_wildcmp_ucs2_bin,
     my_strcasecmp_mb2_or_mb4,
     my_instr_mb,

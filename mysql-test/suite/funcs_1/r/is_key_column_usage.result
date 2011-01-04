@@ -106,6 +106,10 @@ def	mysql	PRIMARY	def	mysql	procs_priv	Db
 def	mysql	PRIMARY	def	mysql	procs_priv	User
 def	mysql	PRIMARY	def	mysql	procs_priv	Routine_name
 def	mysql	PRIMARY	def	mysql	procs_priv	Routine_type
+def	mysql	PRIMARY	def	mysql	proxies_priv	Host
+def	mysql	PRIMARY	def	mysql	proxies_priv	User
+def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_host
+def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_user
 def	mysql	PRIMARY	def	mysql	servers	Server_name
 def	mysql	PRIMARY	def	mysql	tables_priv	Host
 def	mysql	PRIMARY	def	mysql	tables_priv	Db

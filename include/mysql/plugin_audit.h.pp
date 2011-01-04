@@ -215,6 +215,27 @@ struct mysql_event_general
   unsigned long long general_time;
   unsigned long long general_rows;
 };
+struct mysql_event_connection
+{
+  unsigned int event_class;
+  unsigned int event_subclass;
+  int status;
+  unsigned long thread_id;
+  const char *user;
+  unsigned int user_length;
+  const char *priv_user;
+  unsigned int priv_user_length;
+  const char *external_user;
+  unsigned int external_user_length;
+  const char *proxy_user;
+  unsigned int proxy_user_length;
+  const char *host;
+  unsigned int host_length;
+  const char *ip;
+  unsigned int ip_length;
+  const char *database;
+  unsigned int database_length;
+};
 struct st_mysql_audit
 {
   int interface_version;

@@ -680,5 +680,17 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	8	const	1	Using index
 DROP TABLE t1,t2;
 #
+# Bug#57095: Wrongly chosen expression cache type led to a wrong
+#            result.
+#
+CREATE TABLE t1 (`b` datetime );
+INSERT INTO t1 VALUES ('2010-01-01 00:00:00'), ('2010-01-01 00:00:00');
+SELECT * FROM t1 WHERE b <= coalesce(NULL, now());
+b
+2010-01-01 00:00:00
+2010-01-01 00:00:00
+DROP TABLE t1;
+#
+#
 # End of 5.5 tests
 #
