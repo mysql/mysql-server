@@ -56,6 +56,32 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 
+# Check that we do not push an operation if this prevents us from using
+# 'join buffer'.
+explain extended 
+select count(*) 
+from t1 as x1 
+join t1 as x2 on x1.d > x2.a + 1000 
+join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
+select count(*) 
+from t1 as x1 
+join t1 as x2 on x1.d > x2.a + 1000 
+join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
+
+# Check that we do not push an operation if this prevents us from using
+# 'join buffer'.
+explain extended select * 
+from t1 as x1 
+join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b 
+join t1 as x3 
+join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
+--sorted_result
+select * 
+from t1 as x1 
+join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b 
+join t1 as x3 
+join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
+
 explain extended
 select *
 from t1

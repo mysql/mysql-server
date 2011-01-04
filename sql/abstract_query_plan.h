@@ -213,6 +213,8 @@ namespace AQP
 
     bool is_fixed_ordered_index() const;
 
+    bool uses_join_cache() const;
+
   private:
 
     /** Backref. to the Join_plan which this Table_access is part of */

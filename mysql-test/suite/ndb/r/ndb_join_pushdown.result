@@ -45,6 +45,86 @@ a	b	c	d	a	b	c	d
 4	1	4	5	1	4	2	3
 4	3	1	2	3	1	1	2
 4	4	4	4	4	4	4	4
+explain extended 
+select count(*) 
+from t1 as x1 
+join t1 as x2 on x1.d > x2.a + 1000 
+join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	16	100.00	
+1	SIMPLE	x2	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where; Using join buffer
+1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	
+Warnings:
+Note	1644	Can't push table 'x2' as child, 'type' must be a 'ref' access
+Note	1644	Cannot push table 'x3' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
+Note	1644	Cannot push table 'x3' as child of 'x2', since it referes to column 'x1.c' which will be stored in a join buffer.
+Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x3`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`d` > (`test`.`x2`.`a` + 1000)))
+select count(*) 
+from t1 as x1 
+join t1 as x2 on x1.d > x2.a + 1000 
+join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
+count(*)
+0
+explain extended select * 
+from t1 as x1 
+join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b 
+join t1 as x3 
+join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x1	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	Child of pushed join@1
+1	SIMPLE	x3	ALL	NULL	NULL	NULL	NULL	16	100.00	Using join buffer
+1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	8	test.x3.c,test.x1.d	1	100.00	
+Warnings:
+Note	1644	Can't push table 'x3' as child, 'type' must be a 'ref' access
+Note	1644	Cannot push table 'x4' as child of table 'x1'. Doing so would prevent using join buffer for table 'x3'.
+Note	1644	Cannot push table 'x4' as child of 'x3', since it referes to column 'x1.d' which will be stored in a join buffer.
+Note	1003	select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x1`.`d` AS `d`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c`,`test`.`x2`.`d` AS `d`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b`,`test`.`x3`.`c` AS `c`,`test`.`x3`.`d` AS `d`,`test`.`x4`.`a` AS `a`,`test`.`x4`.`b` AS `b`,`test`.`x4`.`c` AS `c`,`test`.`x4`.`d` AS `d` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4` where ((`test`.`x2`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`a` = 1) and (`test`.`x2`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`a` = `test`.`x3`.`c`))
+select * 
+from t1 as x1 
+join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b 
+join t1 as x3 
+join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
+a	b	c	d	a	b	c	d	a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+1	1	1	1	1	1	1	1	1	3	1	2	1	1	1	1
+1	1	1	1	1	1	1	1	1	4	2	3	2	1	3	4
+1	1	1	1	1	1	1	1	2	1	3	4	3	1	1	2
+1	1	1	1	1	1	1	1	2	2	2	2	2	1	3	4
+1	1	1	1	1	1	1	1	2	3	4	5	4	1	4	5
+1	1	1	1	1	1	1	1	3	1	1	2	1	1	1	1
+1	1	1	1	1	1	1	1	3	2	2	3	2	1	3	4
+1	1	1	1	1	1	1	1	3	3	3	3	3	1	1	2
+1	1	1	1	1	1	1	1	3	4	3	4	3	1	1	2
+1	1	1	1	1	1	1	1	4	1	4	5	4	1	4	5
+1	1	1	1	1	1	1	1	4	3	1	2	1	1	1	1
+1	1	1	1	1	1	1	1	4	4	4	4	4	1	4	5
+1	3	1	2	1	2	5	1	1	1	1	1	1	2	5	1
+1	3	1	2	1	2	5	1	1	3	1	2	1	2	5	1
+1	3	1	2	1	2	5	1	1	4	2	3	2	2	2	2
+1	3	1	2	1	2	5	1	2	1	3	4	3	2	2	3
+1	3	1	2	1	2	5	1	2	2	2	2	2	2	2	2
+1	3	1	2	1	2	5	1	2	3	4	5	4	2	5	1
+1	3	1	2	1	2	5	1	3	1	1	2	1	2	5	1
+1	3	1	2	1	2	5	1	3	2	2	3	2	2	2	2
+1	3	1	2	1	2	5	1	3	3	3	3	3	2	2	3
+1	3	1	2	1	2	5	1	3	4	3	4	3	2	2	3
+1	3	1	2	1	2	5	1	4	1	4	5	4	2	5	1
+1	3	1	2	1	2	5	1	4	3	1	2	1	2	5	1
+1	3	1	2	1	2	5	1	4	4	4	4	4	2	5	1
+1	4	2	3	2	3	4	5	1	1	1	1	1	3	1	2
+1	4	2	3	2	3	4	5	1	3	1	2	1	3	1	2
+1	4	2	3	2	3	4	5	1	4	2	3	2	3	4	5
+1	4	2	3	2	3	4	5	2	1	3	4	3	3	3	3
+1	4	2	3	2	3	4	5	2	2	2	2	2	3	4	5
+1	4	2	3	2	3	4	5	2	3	4	5	4	3	1	2
+1	4	2	3	2	3	4	5	3	1	1	2	1	3	1	2
+1	4	2	3	2	3	4	5	3	2	2	3	2	3	4	5
+1	4	2	3	2	3	4	5	3	3	3	3	3	3	3	3
+1	4	2	3	2	3	4	5	3	4	3	4	3	3	3	3
+1	4	2	3	2	3	4	5	4	1	4	5	4	3	1	2
+1	4	2	3	2	3	4	5	4	3	1	2	1	3	1	2
+1	4	2	3	2	3	4	5	4	4	4	4	4	3	1	2
 explain extended
 select *
 from t1
@@ -397,11 +477,12 @@ from (t1 as x cross join t1 as y)
 join t1 as z on z.a=x.a and z.b=y.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	
-1	SIMPLE	y	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
-1	SIMPLE	z	eq_ref	PRIMARY	PRIMARY	8	test.x.a,test.y.b	1	100.00	Child of pushed join@1
+1	SIMPLE	y	ALL	NULL	NULL	NULL	NULL	16	100.00	Using join buffer
+1	SIMPLE	z	eq_ref	PRIMARY	PRIMARY	8	test.x.a,test.y.b	1	100.00	
 Warnings:
 Note	1644	Can't push table 'y' as child, 'type' must be a 'ref' access
-Note	1644	Can't push table 'z' as child of 'x', column 'y.b' is outside scope of pushable join
+Note	1644	Cannot push table 'z' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
+Note	1644	Cannot push table 'z' as child of 'y', since it referes to column 'x.a' which will be stored in a join buffer.
 Note	1003	select straight_join `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d`,`test`.`z`.`a` AS `a`,`test`.`z`.`b` AS `b`,`test`.`z`.`c` AS `c`,`test`.`z`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` join `test`.`t1` `z` where ((`test`.`z`.`b` = `test`.`y`.`b`) and (`test`.`z`.`a` = `test`.`x`.`a`))
 select straight_join *
 from (t1 as x cross join t1 as y)
@@ -4443,13 +4524,15 @@ on table2.pk =  table3.pk )
 on table1.a =  table4.pk
 where  table2.pk != 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	6	33.33	Parent of 2 pushed join@1; Using temporary
-1	SIMPLE	table2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Parent of 2 pushed join@2; Using where with pushed condition: (`test`.`table2`.`pk` <> 6); Distinct
-1	SIMPLE	table3	eq_ref	PRIMARY	PRIMARY	4	test.table2.pk	1	100.00	Child of pushed join@2; Distinct
-1	SIMPLE	table4	eq_ref	PRIMARY	PRIMARY	4	test.table1.a	1	100.00	Child of pushed join@1; Using where; Distinct
+1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	6	33.33	Using temporary
+1	SIMPLE	table2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`table2`.`pk` <> 6); Distinct; Using join buffer
+1	SIMPLE	table3	eq_ref	PRIMARY	PRIMARY	4	test.table2.pk	1	100.00	Child of pushed join@1; Distinct
+1	SIMPLE	table4	eq_ref	PRIMARY	PRIMARY	4	test.table1.a	1	100.00	Using where; Distinct
 Warnings:
 Note	1644	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	1644	Can't push table 'table3' as child of 'table1', column 'table2.pk' is outside scope of pushable join
+Note	1644	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1644	Cannot push table 'table4' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1644	Cannot push table 'table4' as child of 'table2', since it referes to column 'table1.a' which will be stored in a join buffer.
 Note	1003	select straight_join distinct `test`.`table1`.`pk` AS `pk` from `test`.`t` `table1` join `test`.`t` `table2` join `test`.`t` `table3` join `test`.`t` `table4` where ((`test`.`table3`.`pk` = `test`.`table2`.`pk`) and (`test`.`table4`.`a` = `test`.`table2`.`pk`) and (`test`.`table4`.`pk` = `test`.`table1`.`a`) and (`test`.`table2`.`pk` <> 6))
 select distinct straight_join table1.pk FROM 
 t as table1  join
@@ -4708,32 +4791,32 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	260
+LOCAL_TABLE_SCANS_SENT	226
 PRUNED_RANGE_SCANS_RECEIVED	17
-RANGE_SCANS_RECEIVED	722
-READS_NOT_FOUND	405
+RANGE_SCANS_RECEIVED	718
+READS_NOT_FOUND	404
 READS_RECEIVED	61
-SCAN_ROWS_RETURNED	70269
-TABLE_SCANS_RECEIVED	260
+SCAN_ROWS_RETURNED	69724
+TABLE_SCANS_RECEIVED	226
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-29150
+28877
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2425
+2414
 pruned_scan_count
 8
 sorted_scan_count
 9
 pushed_queries_defined
-352
+350
 pushed_queries_dropped
 11
 pushed_queries_executed
-556
+537
 set ndb_join_pushdown = @save_ndb_join_pushdown;
