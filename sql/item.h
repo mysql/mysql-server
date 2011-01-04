@@ -966,11 +966,11 @@ public:
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
   /*
-    Check if an expression value depends on the current timezone. Used by
-    partitioning code to reject timezone-dependent expressions in a
-    (sub)partitioning function.
+    Check if an expression value has allowed arguments, like DATE/DATETIME
+    for date functions. Also used by partitioning code to reject
+    timezone-dependent expressions in a (sub)partitioning function.
   */
-  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return FALSE;
   }
