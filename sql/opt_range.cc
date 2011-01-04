@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5796,6 +5796,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   */
   if (field->result_type() == STRING_RESULT &&
+      ((Field_str*) field)->match_collation_to_optimize_range() &&
       value->result_type() == STRING_RESULT &&
       key_part->image_type == Field::itRAW &&
       ((Field_str*)field)->charset() != conf_func->compare_collation() &&
@@ -8277,7 +8278,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   if (unique == NULL)
   {
-    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", abort(); );
+    DBUG_EXECUTE_IF("index_merge_may_not_create_a_Unique", DBUG_ABORT(); );
     DBUG_EXECUTE_IF("only_one_Unique_may_be_created", 
                     DBUG_SET("+d,index_merge_may_not_create_a_Unique"); );
 
@@ -11390,7 +11391,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result()
 
   min_functions_it->rewind();
   while ((min_func= (*min_functions_it)++))
-    min_func->reset();
+    min_func->reset_and_add();
 }
 
 
@@ -11422,7 +11423,7 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_max_result()
 
   max_functions_it->rewind();
   while ((max_func= (*max_functions_it)++))
-    max_func->reset();
+    max_func->reset_and_add();
 }
 
 

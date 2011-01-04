@@ -49,6 +49,7 @@ Created 7/19/1997 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "btr0btr.h"
+#include "row0upd.h"
 #include "sync0sync.h"
 #include "dict0boot.h"
 #include "fut0lst.h"
@@ -191,6 +192,11 @@ access order rules. */
 
 /** Operations that can currently be buffered. */
 UNIV_INTERN ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+UNIV_INTERN uint	ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** The insert buffer control structure */
 UNIV_INTERN ibuf_t*	ibuf			= NULL;
@@ -1297,12 +1303,11 @@ ibuf_rec_get_op_type(
 	const rec_t*	rec)	/*!< in: ibuf record */
 {
 	ulint		len;
-	const byte*	field;
 
 	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
-	field = rec_get_nth_field_old(rec, 1, &len);
+	(void) rec_get_nth_field_old(rec, 1, &len);
 
 	if (len > 1) {
 		/* This is a < 4.1.x format record */
@@ -1358,11 +1363,11 @@ ibuf_add_ops(
 	const ulint*	ops)	/*!< in: operation counts */
 
 {
+	ulint	i;
+
 #ifndef HAVE_ATOMIC_BUILTINS
 	ut_ad(mutex_own(&ibuf_mutex));
 #endif /* !HAVE_ATOMIC_BUILTINS */
-
-	ulint	i;
 
 	for (i = 0; i < IBUF_OP_COUNT; i++) {
 #ifdef HAVE_ATOMIC_BUILTINS
@@ -2762,9 +2767,8 @@ ibuf_get_volume_buffered_count(
 
 	switch (ibuf_op) {
 	case IBUF_OP_INSERT:
-		/* Inserts can be done by
-		btr_cur_set_deleted_flag_for_ibuf().  Because
-		delete-mark and insert operations can be pointing to
+		/* Inserts can be done by updating a delete-marked record.
+		Because delete-mark and insert operations can be pointing to
 		the same records, we must not count duplicates. */
 	case IBUF_OP_DELETE_MARK:
 		/* There must be a record to delete-mark.
@@ -3749,9 +3753,80 @@ During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer. */
 static
 void
+ibuf_insert_to_index_page_low(
+/*==========================*/
+	const dtuple_t*	entry,	/*!< in: buffered entry to insert */
+	buf_block_t*	block,	/*!< in/out: index page where the buffered
+				entry should be placed */
+	dict_index_t*	index,	/*!< in: record descriptor */
+	mtr_t*		mtr,	/*!< in/out: mtr */
+	page_cur_t*	page_cur)/*!< in/out: cursor positioned on the record
+				after which to insert the buffered entry */
+{
+	const page_t*	page;
+	ulint		space;
+	ulint		page_no;
+	ulint		zip_size;
+	const page_t*	bitmap_page;
+	ulint		old_bits;
+
+	if (UNIV_LIKELY
+	    (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL)) {
+		return;
+	}
+
+	/* If the record did not fit, reorganize */
+
+	btr_page_reorganize(block, index, mtr);
+	page_cur_search(block, index, entry, PAGE_CUR_LE, page_cur);
+
+	/* This time the record must fit */
+
+	if (UNIV_LIKELY
+	    (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL)) {
+		return;
+	}
+
+	page = buf_block_get_frame(block);
+
+	ut_print_timestamp(stderr);
+
+	fprintf(stderr,
+		"  InnoDB: Error: Insert buffer insert fails;"
+		" page free %lu, dtuple size %lu\n",
+		(ulong) page_get_max_insert_size(page, 1),
+		(ulong) rec_get_converted_size(index, entry, 0));
+	fputs("InnoDB: Cannot insert index record ", stderr);
+	dtuple_print(stderr, entry);
+	fputs("\nInnoDB: The table where this index record belongs\n"
+	      "InnoDB: is now probably corrupt. Please run CHECK TABLE on\n"
+	      "InnoDB: that table.\n", stderr);
+
+	space = page_get_space_id(page);
+	zip_size = buf_block_get_zip_size(block);
+	page_no = page_get_page_no(page);
+
+	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
+	old_bits = ibuf_bitmap_page_get_bits(bitmap_page, page_no, zip_size,
+					     IBUF_BITMAP_FREE, mtr);
+
+	fprintf(stderr,
+		"InnoDB: space %lu, page %lu, zip_size %lu, bitmap bits %lu\n",
+		(ulong) space, (ulong) page_no,
+		(ulong) zip_size, (ulong) old_bits);
+
+	fputs("InnoDB: Submit a detailed bug report"
+	      " to http://bugs.mysql.com\n", stderr);
+}
+
+/************************************************************************
+During merge, inserts to an index page a secondary index entry extracted
+from the insert buffer. */
+static
+void
 ibuf_insert_to_index_page(
 /*======================*/
-	dtuple_t*	entry,	/*!< in: buffered entry to insert */
+	const dtuple_t*	entry,	/*!< in: buffered entry to insert */
 	buf_block_t*	block,	/*!< in/out: index page where the buffered entry
 				should be placed */
 	dict_index_t*	index,	/*!< in: record descriptor */
@@ -3761,11 +3836,10 @@ ibuf_insert_to_index_page(
 	ulint		low_match;
 	page_t*		page		= buf_block_get_frame(block);
 	rec_t*		rec;
-	page_t*		bitmap_page;
-	ulint		old_bits;
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
+	ut_ad(!buf_block_align(page)->is_hashed);
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {
@@ -3779,17 +3853,11 @@ ibuf_insert_to_index_page(
 	rec = page_rec_get_next(page_get_infimum_rec(page));
 
 	if (page_rec_is_supremum(rec)) {
-		/* Empty pages can result from buffered delete operations.
-		The first record from the free list can be used to find the
-		father node. */
-		rec = page_header_get_ptr(page, PAGE_FREE);
-		if (UNIV_UNLIKELY(rec == NULL)) {
-			fputs("InnoDB: Trying to insert a record from"
-			      " the insert buffer to an index page\n"
-			      "InnoDB: but the index page is empty!\n",
-			      stderr);
-			goto dump;
-		}
+		fputs("InnoDB: Trying to insert a record from"
+		      " the insert buffer to an index page\n"
+		      "InnoDB: but the index page is empty!\n",
+		      stderr);
+		goto dump;
 	}
 
 	if (UNIV_UNLIKELY(rec_get_n_fields(rec, index)
@@ -3817,71 +3885,87 @@ dump:
 	low_match = page_cur_search(block, index, entry,
 				    PAGE_CUR_LE, &page_cur);
 
-	if (low_match == dtuple_get_n_fields(entry)) {
+	if (UNIV_UNLIKELY(low_match == dtuple_get_n_fields(entry))) {
+		mem_heap_t*	heap;
+		upd_t*		update;
+		ulint*		offsets;
 		page_zip_des_t*	page_zip;
 
 		rec = page_cur_get_rec(&page_cur);
+
+		/* This is based on
+		row_ins_sec_index_entry_by_modify(BTR_MODIFY_LEAF). */
+		ut_ad(rec_get_deleted_flag(rec, page_is_comp(page)));
+
+		heap = mem_heap_create(1024);
+
+		offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED,
+					  &heap);
+		update = row_upd_build_sec_rec_difference_binary(
+			index, entry, rec, NULL, heap);
+
 		page_zip = buf_block_get_page_zip(block);
 
-		btr_cur_set_deleted_flag_for_ibuf(rec, page_zip, FALSE, mtr);
-	} else {
-		rec = page_cur_tuple_insert(&page_cur, entry, index, 0, mtr);
-
-		if (UNIV_LIKELY(rec != NULL)) {
+		if (update->n_fields == 0) {
+			/* The records only differ in the delete-mark.
+			Clear the delete-mark, like we did before
+			Bug #56680 was fixed. */
+			btr_cur_set_deleted_flag_for_ibuf(
+				rec, page_zip, FALSE, mtr);
+updated_in_place:
+			mem_heap_free(heap);
 			return;
 		}
 
-		/* If the record did not fit, reorganize */
+		/* Copy the info bits. Clear the delete-mark. */
+		update->info_bits = rec_get_info_bits(rec, page_is_comp(page));
+		update->info_bits &= ~REC_INFO_DELETED_FLAG;
 
-		btr_page_reorganize(block, index, mtr);
-		page_cur_search(block, index, entry, PAGE_CUR_LE, &page_cur);
-
-		/* This time the record must fit */
-		if (UNIV_UNLIKELY
-		    (!page_cur_tuple_insert(&page_cur, entry, index,
-					    0, mtr))) {
-			ulint	space;
-			ulint	page_no;
-			ulint	zip_size;
-
-			ut_print_timestamp(stderr);
-
-			fprintf(stderr,
-				"  InnoDB: Error: Insert buffer insert"
-				" fails; page free %lu,"
-				" dtuple size %lu\n",
-				(ulong) page_get_max_insert_size(
-					page, 1),
-				(ulong) rec_get_converted_size(
-					index, entry, 0));
-			fputs("InnoDB: Cannot insert index record ",
-			      stderr);
-			dtuple_print(stderr, entry);
-			fputs("\nInnoDB: The table where"
-			      " this index record belongs\n"
-			      "InnoDB: is now probably corrupt."
-			      " Please run CHECK TABLE on\n"
-			      "InnoDB: that table.\n", stderr);
-
-			space = page_get_space_id(page);
-			zip_size = buf_block_get_zip_size(block);
-			page_no = page_get_page_no(page);
-
-			bitmap_page = ibuf_bitmap_get_map_page(
-				space, page_no, zip_size, mtr);
-			old_bits = ibuf_bitmap_page_get_bits(
-				bitmap_page, page_no, zip_size,
-				IBUF_BITMAP_FREE, mtr);
-
-			fprintf(stderr,
-				"InnoDB: space %lu, page %lu,"
-				" zip_size %lu, bitmap bits %lu\n",
-				(ulong) space, (ulong) page_no,
-				(ulong) zip_size, (ulong) old_bits);
-
-			fputs("InnoDB: Submit a detailed bug report"
-			      " to http://bugs.mysql.com\n", stderr);
+		/* We cannot invoke btr_cur_optimistic_update() here,
+		because we do not have a btr_cur_t or que_thr_t,
+		as the insert buffer merge occurs at a very low level. */
+		if (!row_upd_changes_field_size_or_external(index, offsets,
+							    update)
+		    && (!page_zip || btr_cur_update_alloc_zip(
+				page_zip, block, index,
+				rec_offs_size(offsets), FALSE, mtr))) {
+			/* This is the easy case. Do something similar
+			to btr_cur_update_in_place(). */
+			row_upd_rec_in_place(rec, index, offsets,
+					     update, page_zip);
+			goto updated_in_place;
 		}
+
+		/* A collation may identify values that differ in
+		storage length.
+		Some examples (1 or 2 bytes):
+		utf8_turkish_ci: I = U+0131 LATIN SMALL LETTER DOTLESS I
+		utf8_general_ci: S = U+00DF LATIN SMALL LETTER SHARP S
+		utf8_general_ci: A = U+00E4 LATIN SMALL LETTER A WITH DIAERESIS
+
+		latin1_german2_ci: SS = U+00DF LATIN SMALL LETTER SHARP S
+
+		Examples of a character (3-byte UTF-8 sequence)
+		identified with 2 or 4 characters (1-byte UTF-8 sequences):
+
+		utf8_unicode_ci: 'II' = U+2171 SMALL ROMAN NUMERAL TWO
+		utf8_unicode_ci: '(10)' = U+247D PARENTHESIZED NUMBER TEN
+		*/
+
+		/* Delete the different-length record, and insert the
+		buffered one. */
+
+		lock_rec_store_on_page_infimum(block, rec);
+		page_cur_delete_rec(&page_cur, index, offsets, mtr);
+		page_cur_move_to_prev(&page_cur);
+		mem_heap_free(heap);
+
+		ibuf_insert_to_index_page_low(entry, block, index, mtr,
+					      &page_cur);
+		lock_rec_restore_from_page_infimum(block, rec, block);
+	} else {
+		ibuf_insert_to_index_page_low(entry, block, index, mtr,
+					      &page_cur);
 	}
 }
 
@@ -3913,9 +3997,32 @@ ibuf_set_del_mark(
 		rec = page_cur_get_rec(&page_cur);
 		page_zip = page_cur_get_page_zip(&page_cur);
 
-		btr_cur_set_deleted_flag_for_ibuf(rec, page_zip, TRUE, mtr);
+		/* Delete mark the old index record. According to a
+		comment in row_upd_sec_index_entry(), it can already
+		have been delete marked if a lock wait occurred in
+		row_ins_index_entry() in a previous invocation of
+		row_upd_sec_index_entry(). */
+
+		if (UNIV_LIKELY
+		    (!rec_get_deleted_flag(
+			    rec, dict_table_is_comp(index->table)))) {
+			btr_cur_set_deleted_flag_for_ibuf(rec, page_zip,
+							  TRUE, mtr);
+		}
 	} else {
-		/* This can happen benignly in some situations. */
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: unable to find a record to delete-mark\n",
+		      stderr);
+		fputs("InnoDB: tuple ", stderr);
+		dtuple_print(stderr, entry);
+		fputs("\n"
+		      "InnoDB: record ", stderr);
+		rec_print(stderr, page_cur_get_rec(&page_cur), index);
+		putc('\n', stderr);
+		fputs("\n"
+		      "InnoDB: Submit a detailed bug report"
+		      " to http://bugs.mysql.com\n", stderr);
+		ut_ad(0);
 	}
 }
 
@@ -3990,10 +4097,7 @@ ibuf_delete(
 			mem_heap_free(heap);
 		}
 	} else {
-		/* This can happen benignly in some situations: either when
-		we crashed at just the right time, or on database startup
-		when we redo some old log entries (due to worse stored
-		position granularity on disk than in memory). */
+		/* The record must have been purged already. */
 	}
 }
 

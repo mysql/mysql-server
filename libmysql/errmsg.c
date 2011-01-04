@@ -5,8 +5,7 @@
    the Free Software Foundation.
 
    There are special exceptions to the terms and conditions of the GPL as it
-   is applied to this software. View the full text of the exception in file
-   EXCEPTIONS-CLIENT in the directory of this software distribution.
+   is applied to this software.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -84,7 +83,8 @@ const char *client_errors[]=
   "Lost connection to MySQL server at '%s', system error: %d",
   "Statement closed indirectly because of a preceeding %s() call",
   "The number of columns in the result set differs from the number of bound buffers. You must reset the statement, rebind the result set columns, and execute the statement again",
-  "This handle is already connected. Use a separate handle for each connection."
+  "This handle is already connected. Use a separate handle for each connection.",
+  "Authentication plugin '%s' cannot be loaded: %s",
   ""
 };
 

@@ -30,6 +30,7 @@
 #include <my_pthread.h>
 #include <my_getopt.h>
 #include "sql_audit.h"
+#include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
@@ -41,9 +42,8 @@ extern struct st_mysql_plugin *mysql_mandatory_plugins[];
   @note The order of the enumeration is critical.
   @see construct_options
 */
-static const char *global_plugin_typelib_names[]=
-  { "OFF", "ON", "FORCE", NULL };
-enum enum_plugin_load_policy {PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE};
+const char *global_plugin_typelib_names[]=
+  { "OFF", "ON", "FORCE", "FORCE_PLUS_PERMANENT", NULL };
 static TYPELIB global_plugin_typelib=
   { array_elements(global_plugin_typelib_names)-1,
     "", global_plugin_typelib_names, NULL };
@@ -65,6 +65,7 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
   { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
+  { C_STRING_WITH_LEN("AUTHENTICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -81,13 +82,13 @@ extern int finalize_audit_plugin(st_plugin_int *plugin);
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_initialize_handlerton,0,0,initialize_schema_table,
-  initialize_audit_plugin
+  initialize_audit_plugin,0,0
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_finalize_handlerton,0,0,finalize_schema_table,
-  finalize_audit_plugin
+  finalize_audit_plugin,0,0
 };
 
 #ifdef HAVE_DLOPEN
@@ -110,7 +111,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
-  MYSQL_REPLICATION_INTERFACE_VERSION
+  MYSQL_REPLICATION_INTERFACE_VERSION,
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -120,7 +122,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_DAEMON_INTERFACE_VERSION,
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
-  MYSQL_REPLICATION_INTERFACE_VERSION
+  MYSQL_REPLICATION_INTERFACE_VERSION,
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -277,6 +280,26 @@ static void report_error(int where_to, uint error, ...)
   }
 }
 
+/**
+   Check if the provided path is valid in the sense that it does cause
+   a relative reference outside the directory.
+
+   @note Currently, this function only check if there are any
+   characters in FN_DIRSEP in the string, but it might change in the
+   future.
+
+   @code
+   check_valid_path("../foo.so") -> true
+   check_valid_path("foo.so") -> false
+   @endcode
+ */
+bool check_valid_path(const char *path, size_t len)
+{
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  return  prefix < len;
+}
+
+
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
 ****************************************************************************/
@@ -405,13 +428,15 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
+  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
+                       dl->str, (int) dl->length));
   plugin_dir_len= strlen(opt_plugin_dir);
   /*
     Ensure that the dll doesn't have a path.
     This is done to ensure that only approved libraries from the
     plugin directory are used (to make this even remotely secure).
   */
-  if (my_strchr(files_charset_info, dl->str, dl->str + dl->length, FN_LIBCHAR) ||
+  if (check_valid_path(dl->str, dl->length) ||
       check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
@@ -796,6 +821,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       tmp.name.length= name_len;
       tmp.ref_count= 0;
       tmp.state= PLUGIN_IS_UNINITIALIZED;
+      tmp.load_option= PLUGIN_ON;
       if (test_plugin_options(tmp_root, &tmp, argc, argv))
         tmp.state= PLUGIN_IS_DISABLED;
 
@@ -1237,7 +1263,7 @@ int plugin_init(int *argc, char **argv, int flags)
       tmp.name.str= (char *)plugin->name;
       tmp.name.length= strlen(plugin->name);
       tmp.state= 0;
-      tmp.is_mandatory= mandatory;
+      tmp.load_option= mandatory ? PLUGIN_FORCE : PLUGIN_ON;
 
       /*
         If the performance schema is compiled in,
@@ -1256,7 +1282,7 @@ int plugin_init(int *argc, char **argv, int flags)
           to work, by using '--skip-performance-schema' (the plugin)
       */
       if (!my_strcasecmp(&my_charset_latin1, plugin->name, "PERFORMANCE_SCHEMA"))
-        tmp.is_mandatory= true;
+        tmp.load_option= PLUGIN_FORCE;
 
       free_root(&tmp_root, MYF(MY_MARK_BLOCKS_FREE));
       if (test_plugin_options(&tmp_root, &tmp, argc, argv))
@@ -1334,7 +1360,8 @@ int plugin_init(int *argc, char **argv, int flags)
   while ((plugin_ptr= *(--reap)))
   {
     mysql_mutex_unlock(&LOCK_plugin);
-    if (plugin_ptr->is_mandatory)
+    if (plugin_ptr->load_option == PLUGIN_FORCE ||
+        plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
       reaped_mandatory_plugin= TRUE;
     plugin_deinitialize(plugin_ptr, true);
     mysql_mutex_lock(&LOCK_plugin);
@@ -1733,7 +1760,11 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
-  my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL);
+  if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL))
+  {
+    report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
+    goto err;
+  }
   error= plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
   if (argv)
     free_defaults(argv);
@@ -1842,6 +1873,11 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  WARN_PLUGIN_DELETE_BUILTIN, ER(WARN_PLUGIN_DELETE_BUILTIN));
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
+    goto err;
+  }
+  if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
+  {
+    my_error(ER_PLUGIN_IS_PERMANENT, MYF(0), name->str);
     goto err;
   }
 
@@ -3054,7 +3090,8 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
                                                   plugin_dash.length + 1);
   strxmov(plugin_name_with_prefix_ptr, plugin_dash.str, plugin_name_ptr, NullS);
 
-  if (!tmp->is_mandatory)
+  if (tmp->load_option != PLUGIN_FORCE &&
+      tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
   {
     /* support --skip-plugin-foo syntax */
     options[0].name= plugin_name_ptr;
@@ -3314,7 +3351,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
 {
   struct sys_var_chain chain= { NULL, NULL };
   bool disable_plugin;
-  enum_plugin_load_policy plugin_load_policy= tmp->is_mandatory ? PLUGIN_FORCE : PLUGIN_ON;
+  enum_plugin_load_option plugin_load_option= tmp->load_option;
 
   MEM_ROOT *mem_root= alloc_root_inited(&tmp->mem_root) ?
                       &tmp->mem_root : &plugin_mem_root;
@@ -3335,7 +3372,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   */
   if (!(my_strcasecmp(&my_charset_latin1, tmp->name.str, "federated") &&
       my_strcasecmp(&my_charset_latin1, tmp->name.str, "ndbcluster")))
-    plugin_load_policy= PLUGIN_OFF;
+    plugin_load_option= PLUGIN_OFF;
 
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
     count+= 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */
@@ -3359,8 +3396,9 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
       We adjust the default value to account for the hardcoded exceptions
       we have set for the federated and ndbcluster storage engines.
     */
-    if (!tmp->is_mandatory)
-      opts[0].def_value= opts[1].def_value= plugin_load_policy;
+    if (tmp->load_option != PLUGIN_FORCE &&
+        tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
+      opts[0].def_value= opts[1].def_value= plugin_load_option;
 
     error= handle_options(argc, &argv, opts, NULL);
     (*argc)++; /* add back one for the program name */
@@ -3375,12 +3413,13 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
      Set plugin loading policy from option value. First element in the option
      list is always the <plugin name> option value.
     */
-    if (!tmp->is_mandatory)
-      plugin_load_policy= (enum_plugin_load_policy)*(ulong*)opts[0].value;
+    if (tmp->load_option != PLUGIN_FORCE &&
+        tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
+      plugin_load_option= (enum_plugin_load_option) *(ulong*) opts[0].value;
   }
 
-  disable_plugin= (plugin_load_policy == PLUGIN_OFF);
-  tmp->is_mandatory= (plugin_load_policy == PLUGIN_FORCE);
+  disable_plugin= (plugin_load_option == PLUGIN_OFF);
+  tmp->load_option= plugin_load_option;
 
   /*
     If the plugin is disabled it should not be initialized.

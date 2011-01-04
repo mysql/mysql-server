@@ -371,8 +371,8 @@ UNIV_INTERN
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
-	const dtuple_t*	entry,	/*!< in: index entry, where the memory buffers
-				for sys fields are already allocated:
+	dtuple_t*	entry,	/*!< in/out: index entry, where the memory
+				buffers for sys fields are already allocated:
 				the function just copies the new values to
 				them */
 	dict_index_t*	index,	/*!< in: clustered index */
@@ -466,8 +466,11 @@ row_upd_changes_field_size_or_external(
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
-Replaces the new column values stored in the update vector to the record
-given. No field size changes are allowed. */
+Replaces the new column values stored in the update vector to the
+record given. No field size changes are allowed. This function is
+usually invoked on a clustered index. The only use case for a
+secondary index is row_ins_sec_index_entry_by_modify() or its
+counterpart in ibuf_insert_to_index_page(). */
 UNIV_INTERN
 void
 row_upd_rec_in_place(
@@ -1612,12 +1615,12 @@ static
 ulint
 row_upd_clust_rec_by_insert(
 /*========================*/
-	upd_node_t*	node,	/*!< in: row update node */
+	upd_node_t*	node,	/*!< in/out: row update node */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	que_thr_t*	thr,	/*!< in: query thread */
 	ibool		referenced,/*!< in: TRUE if index may be referenced in
 				a foreign key constraint */
-	mtr_t*		mtr)	/*!< in: mtr; gets committed here */
+	mtr_t*		mtr)	/*!< in/out: mtr; gets committed here */
 {
 	mem_heap_t*	heap	= NULL;
 	btr_pcur_t*	pcur;
@@ -1626,6 +1629,7 @@ row_upd_clust_rec_by_insert(
 	dict_table_t*	table;
 	dtuple_t*	entry;
 	ulint		err;
+	ibool		change_ownership = FALSE;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -1658,10 +1662,11 @@ row_upd_clust_rec_by_insert(
 		index = dict_table_get_first_index(table);
 		offsets = rec_get_offsets(rec, index, offsets_,
 					  ULINT_UNDEFINED, &heap);
-		btr_cur_mark_extern_inherited_fields(
+		change_ownership = btr_cur_mark_extern_inherited_fields(
 			btr_cur_get_page_zip(btr_cur),
 			rec, index, offsets, node->update, mtr);
 		if (referenced) {
+
 			/* NOTE that the following call loses
 			the position of pcur ! */
 
@@ -1694,10 +1699,11 @@ row_upd_clust_rec_by_insert(
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	if (node->upd_ext) {
+	if (change_ownership) {
 		/* If we return from a lock wait, for example, we may have
 		extern fields marked as not-owned in entry (marked in the
-		if-branch above). We must unmark them. */
+		if-branch above). We must unmark them, take the ownership
+		back. */
 
 		btr_cur_unmark_dtuple_extern_fields(entry);
 

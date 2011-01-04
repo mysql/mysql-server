@@ -18,38 +18,33 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 #
-select * from performance_schema.FILE_INSTANCES limit 1;
+--disable_result_log
+select * from performance_schema.file_instances limit 1;
 
-select * from performance_schema.FILE_INSTANCES
+select * from performance_schema.file_instances
   where file_name='FOO';
+--enable_result_log
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.FILE_INSTANCES
+insert into performance_schema.file_instances
   set file_name='FOO', event_name='BAR', open_count=12;
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.FILE_INSTANCES
+update performance_schema.file_instances
   set file_name='FOO';
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.FILE_INSTANCES
+delete from performance_schema.file_instances
   where event_name like "wait/%";
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.FILE_INSTANCES;
+delete from performance_schema.file_instances;
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.FILE_INSTANCES READ;
+LOCK TABLES performance_schema.file_instances READ;
 UNLOCK TABLES;
 
---replace_result '\'file_instances' '\'FILE_INSTANCES'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.FILE_INSTANCES WRITE;
+LOCK TABLES performance_schema.file_instances WRITE;
 UNLOCK TABLES;
 

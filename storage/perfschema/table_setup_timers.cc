@@ -57,7 +57,7 @@ table_setup_timers::m_field_def=
 PFS_engine_table_share
 table_setup_timers::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_TIMERS") },
+  { C_STRING_WITH_LEN("setup_timers") },
   &pfs_updatable_acl,
   &table_setup_timers::create,
   NULL, /* write_row */
@@ -164,7 +164,6 @@ int table_setup_timers::update_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 1: /* TIMER_NAME */
         value= get_field_enum(f);

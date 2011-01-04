@@ -481,6 +481,18 @@ RAND(i)
 0.15522042769493574
 DROP TABLE t1;
 #
+# Bug#57477 SIGFPE when dividing a huge number a negative number
+#
+SELECT -9999999999999999991 DIV -1;
+ERROR 22003: BIGINT value is out of range in '(-(9999999999999999991) DIV -(1))'
+SELECT -9223372036854775808 DIV -1;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) DIV -(1))'
+SELECT -9223372036854775808 MOD -1;
+-9223372036854775808 MOD -1
+0
+SELECT -9223372036854775808999 MOD -1;
+-9223372036854775808999 MOD -1
+0
 select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;
 ERROR 22003: BIGINT value is out of range in '(123456789012345678901234567890.123456789012345678901234567890 DIV 1)'
 select "123456789012345678901234567890.123456789012345678901234567890" div 1 as x;
@@ -489,6 +501,19 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1292	Truncated incorrect DECIMAL value: ''
 Error	1690	BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
+#
+# Bug#57810 case/when/then : Assertion failed: length || !scale
+#
+SELECT CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END;
+CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END
+NULL
+CREATE TABLE t1 SELECT CAST((CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1)) END) AS CHAR) as C;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `C` varchar(23) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
 End of 5.1 tests
 #
 # Bug #8433: Overflow must be an error
@@ -600,3 +625,19 @@ NULL
 SELECT -9223372036854775808 MOD -1;
 -9223372036854775808 MOD -1
 0
+#
+# Bug #57209 valgrind + Assertion failed: dst > buf 
+#
+SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
+as foo;
+foo
+2
+#
+# Bug #58137 char(0) column cause:
+#            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
+#
+CREATE TABLE t1(a char(0));
+INSERT INTO t1 (SELECT -pi());
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+DROP TABLE t1;

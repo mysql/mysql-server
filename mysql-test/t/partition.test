@@ -15,6 +15,46 @@ drop table if exists t1, t2;
 --enable_warnings
 
 --echo #
+--echo # Bug#57778: failed primary key add to partitioned innodb table
+--echo #            inconsistent and crashes
+--echo #
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL)
+PARTITION BY KEY (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (0,1), (0,2);
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+UPDATE t1 SET a = 1, b = 1 WHERE a = 0 AND b = 2;
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+SELECT * FROM t1;
+ALTER TABLE t1 DROP PRIMARY KEY;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57113: ha_partition::extra(ha_extra_function):
+--echo #            Assertion `m_extra_cache' failed
+CREATE TABLE t1
+(id INT NOT NULL PRIMARY KEY,
+ name VARCHAR(16) NOT NULL,
+ year YEAR,
+ INDEX name (name(8))
+)
+PARTITION BY HASH(id) PARTITIONS 2;
+
+INSERT INTO t1 VALUES ( 1, 'FooBar', '1924' );
+
+CREATE TABLE t2 (id INT);
+
+INSERT INTO t2 VALUES (1),(2);
+
+UPDATE t1, t2 SET t1.year = '1955' WHERE t1.name = 'FooBar';
+
+DROP TABLE t1, t2;
+
+
+--echo #
 --echo # Bug#55458: Partitioned MyISAM table gets crashed by multi-table update 
 --echo #
 CREATE TABLE t1 (
@@ -458,12 +498,12 @@ drop table t1;
 #
 # BUG 16002: Handle unsigned integer functions properly
 #
---error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+--error ER_VALUES_IS_NOT_INT_TYPE_ERROR
 create table t1 (a bigint)
 partition by range (a)
 (partition p0 values less than (0xFFFFFFFFFFFFFFFF),
  partition p1 values less than (10));
---error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+--error ER_VALUES_IS_NOT_INT_TYPE_ERROR
 create table t1 (a bigint)
 partition by list (a)
 (partition p0 values in (0xFFFFFFFFFFFFFFFF),

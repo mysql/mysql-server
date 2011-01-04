@@ -41,7 +41,7 @@
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 
 
-RPL_STATUS rpl_status=RPL_NULL;
+ulong rpl_status=RPL_NULL;
 mysql_mutex_t LOCK_rpl_status;
 mysql_cond_t COND_rpl_status;
 HASH slave_list;
@@ -68,7 +68,7 @@ static Slave_log_event* find_slave_event(IO_CACHE* log,
   functions like register_slave()) are working.
 */
 
-void change_rpl_status(RPL_STATUS from_status, RPL_STATUS to_status)
+void change_rpl_status(ulong from_status, ulong to_status)
 {
   mysql_mutex_lock(&LOCK_rpl_status);
   if (rpl_status == from_status || rpl_status == RPL_ANY)

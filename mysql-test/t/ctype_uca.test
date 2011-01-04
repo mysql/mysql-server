@@ -545,3 +545,19 @@ set collation_connection=ucs2_unicode_ci;
 set names utf8;
 
 -- echo End for 5.0 tests
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+#
+# Test my_like_range and contractions
+#
+SET collation_connection=utf8_czech_ci;
+--source include/ctype_czech.inc
+--source include/ctype_like_ignorable.inc
+SET collation_connection=ucs2_czech_ci;
+--source include/ctype_czech.inc
+--source include/ctype_like_ignorable.inc
+--echo #
+--echo # End of 5.5 tests
+--echo #

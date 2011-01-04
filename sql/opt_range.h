@@ -279,6 +279,7 @@ public:
 
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
+  virtual bool clustered_pk_range() { return false; }
 
   enum {
     QS_TYPE_RANGE = 0,
@@ -334,6 +335,13 @@ public:
     uses field which is marked in passed bitmap.
   */
   virtual bool is_keys_used(const MY_BITMAP *fields);
+
+  /**
+    Simple sanity check that the quick select has been set up
+    correctly. Function is overridden by quick selects that merge
+    indices.
+   */
+  virtual bool is_valid() { return index != MAX_KEY; };
 
   /*
     rowid of last row retrieved by this quick select. This is used only when
@@ -553,6 +561,24 @@ public:
   THD *thd;
   int read_keys_and_merge();
 
+  bool clustered_pk_range() { return test(pk_quick_select); }
+
+  virtual bool is_valid()
+  {
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    bool valid= true;
+    while ((quick= it++))
+    {
+      if (!quick->is_valid())
+      {
+        valid= false;
+        break;
+      }
+    }
+    return valid;
+  }
+
   /* used to get rows collected in Unique */
   READ_RECORD read_record;
 };
@@ -605,6 +631,22 @@ public:
   */
   List<QUICK_RANGE_SELECT> quick_selects;
 
+  virtual bool is_valid()
+  {
+    List_iterator_fast<QUICK_RANGE_SELECT> it(quick_selects);
+    QUICK_RANGE_SELECT *quick;
+    bool valid= true;
+    while ((quick= it++))
+    {
+      if (!quick->is_valid())
+      {
+        valid= false;
+        break;
+      }
+    }
+    return valid;
+  }
+
   /*
     Merged quick select that uses Clustered PK, if there is one. This quick
     select is not used for row retrieval, it is used for row retrieval.
@@ -654,6 +696,22 @@ public:
   bool push_quick_back(QUICK_SELECT_I *quick_sel_range);
 
   List<QUICK_SELECT_I> quick_selects; /* Merged quick selects */
+
+  virtual bool is_valid()
+  {
+    List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
+    QUICK_SELECT_I *quick;
+    bool valid= true;
+    while ((quick= it++))
+    {
+      if (!quick->is_valid())
+      {
+        valid= false;
+        break;
+      }
+    }
+    return valid;
+  }
 
   QUEUE queue;    /* Priority queue for merge operation */
   MEM_ROOT alloc; /* Memory pool for this and merged quick selects data. */

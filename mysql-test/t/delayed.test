@@ -539,6 +539,21 @@ connection con1;
 --echo # Reaping: INSERT DELAYED INTO t1 VALUES (5)
 --reap
 
+--echo # Connection default
+connection default;
+
+--echo # Test 5: LOCK TABLES + INSERT DELAYED in one connection.
+--echo # This test has triggered some asserts in metadata locking
+--echo # subsystem at some point in time..
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (7);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 0;
+LOCK TABLE t1 WRITE;
+INSERT DELAYED INTO t2 VALUES (8);
+UNLOCK TABLES;
+SET AUTOCOMMIT= 1;
+
 --echo # Connection con2
 connection con2;
 disconnect con2;
@@ -552,3 +567,52 @@ disconnect con1;
 connection default;
 DROP TABLE t1, t2, t3;
 --enable_ps_protocol
+
+
+--echo #
+--echo # Test for bug #56251 "Deadlock with INSERT DELAYED and MERGE tables".
+--echo #
+connect (con1,localhost,root,,);
+connection default;
+--disable_warnings
+drop table if exists t1, t2, tm;
+--enable_warnings
+create table t1(a int);
+create table t2(a int);
+create table tm(a int) engine=merge union=(t1, t2);
+begin;
+select * from t1;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Sending:
+--send alter table t1 comment 'test'
+
+--echo # Connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE blocks and starts waiting
+--echo # for connection 'default'. It should wait with a
+--echo # pending SNW lock on 't1'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "alter table t1 comment 'test'";
+--source include/wait_condition.inc
+--echo # Attempt to perform delayed insert into 'tm' should not lead
+--echo # to a deadlock. Instead error ER_DELAYED_NOT_SUPPORTED should
+--echo # be emitted.
+--error ER_DELAYED_NOT_SUPPORTED
+insert delayed into tm values (1);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Connection 'con1'.
+connection con1;
+--echo # Reaping ALTER TABLE:
+--reap
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+--echo # Connection 'default'.
+connection default;
+drop tables tm, t1, t2;

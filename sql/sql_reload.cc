@@ -33,7 +33,11 @@
   @param thd Thread handler (can be NULL!)
   @param options What should be reset/reloaded (tables, privileges, slave...)
   @param tables Tables to flush (if any)
-  @param write_to_binlog True if we can write to the binlog.
+  @param write_to_binlog < 0 if there was an error while interacting with the binary log inside
+                         reload_acl_and_cache,
+                         0 if we should not write to the binary log,
+                         > 0 if we can write to the binlog.
+
                
   @note Depending on 'options', it may be very bad to write the
     query to the binlog (e.g. FLUSH SLAVE); this is a
@@ -47,11 +51,11 @@
 */
 
 bool reload_acl_and_cache(THD *thd, unsigned long options,
-                          TABLE_LIST *tables, bool *write_to_binlog)
+                          TABLE_LIST *tables, int *write_to_binlog)
 {
   bool result=0;
   select_errors=0;				/* Write if more errors */
-  bool tmp_write_to_binlog= 1;
+  int tmp_write_to_binlog= *write_to_binlog= 1;
 
   DBUG_ASSERT(!thd || !thd->in_sub_stmt);
 
@@ -136,13 +140,17 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     */
     tmp_write_to_binlog= 0;
     if (mysql_bin_log.is_open())
-      mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
+    {
+      if (mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE))
+        *write_to_binlog= -1;
+    }
   }
   if (options & REFRESH_RELAY_LOG)
   {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
-    rotate_relay_log(active_mi);
+    if (rotate_relay_log(active_mi))
+      *write_to_binlog= -1;
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
   }
@@ -274,7 +282,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #endif
  if (options & REFRESH_USER_RESOURCES)
    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
- *write_to_binlog= tmp_write_to_binlog;
+ if (*write_to_binlog != -1)
+   *write_to_binlog= tmp_write_to_binlog;
  /*
    If the query was killed then this function must fail.
  */
@@ -328,7 +337,6 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   -------------------------------------
   - you can't flush WITH READ LOCK a non-existent table
   - you can't flush WITH READ LOCK under LOCK TABLES
-  - currently incompatible with the GRL (@todo: fix)
 
   Effect on views and temporary tables.
   ------------------------------------
@@ -337,6 +345,13 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   If a temporary table with such name exists, it's ignored:
   if there is a base table, it's used, otherwise ER_NO_SUCH_TABLE
   is returned.
+
+  Handling of MERGE tables
+  ------------------------
+  For MERGE table this statement will open and lock child tables
+  for read (it is impossible to lock parent table without it).
+  Child tables won't be flushed unless they are explicitly present
+  in the statement's table list.
 
   Implicit commit
   ---------------
@@ -354,7 +369,6 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
 {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
   TABLE_LIST *table_list;
-  MDL_request_list mdl_requests;
 
   /*
     This is called from SQLCOM_FLUSH, the transaction has
@@ -368,17 +382,13 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
   }
 
   /*
-    Acquire SNW locks on tables to be flushed. We can't use
-    lock_table_names() here as this call will also acquire global IX
-    and database-scope IX locks on the tables, and this will make
+    Acquire SNW locks on tables to be flushed. Don't acquire global
+    IX and database-scope IX locks on the tables as this will make
     this statement incompatible with FLUSH TABLES WITH READ LOCK.
   */
-  for (table_list= all_tables; table_list;
-       table_list= table_list->next_global)
-    mdl_requests.push_front(&table_list->mdl_request);
-
-  if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                     thd->variables.lock_wait_timeout))
+  if (lock_table_names(thd, all_tables, NULL,
+                       thd->variables.lock_wait_timeout,
+                       MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK))
     goto error;
 
   DEBUG_SYNC(thd,"flush_tables_with_read_lock_after_acquire_locks");
@@ -390,21 +400,24 @@ bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
     tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                      table_list->db,
                      table_list->table_name, FALSE);
-
-    /* Skip views and temporary tables. */
-    table_list->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
-    table_list->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+    /* Reset ticket to satisfy asserts in open_tables(). */
+    table_list->mdl_request.ticket= NULL;
   }
 
   /*
     Before opening and locking tables the below call also waits
     for old shares to go away, so the fact that we don't pass
     MYSQL_LOCK_IGNORE_FLUSH flag to it is important.
+    Also we don't pass MYSQL_OPEN_HAS_MDL_LOCK flag as we want
+    to open underlying tables if merge table is flushed.
+    For underlying tables of the merge the below call has to
+    acquire SNW locks to ensure that they can be locked for
+    read without further waiting.
   */
-  if  (open_and_lock_tables(thd, all_tables, FALSE,
-                            MYSQL_OPEN_HAS_MDL_LOCK,
-                            &lock_tables_prelocking_strategy) ||
-       thd->locked_tables_list.init_locked_tables(thd))
+  if (open_and_lock_tables(thd, all_tables, FALSE,
+                           MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,
+                           &lock_tables_prelocking_strategy) ||
+      thd->locked_tables_list.init_locked_tables(thd))
   {
     goto error;
   }

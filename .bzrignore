@@ -9,15 +9,20 @@
 *.core
 *.d
 *.da
+*.dll
+*.dylib
 *.exe
+*.exp
 *.gcda
 *.gcno
 *.gcov
 *.idb
+*.ilk
 *.la
 *.lai
 *.lib
 *.lo
+*.manifest
 *.map
 *.o
 *.obj
@@ -148,6 +153,7 @@ Makefile
 Makefile.in
 Makefile.in'
 PENDING/*
+scripts/scripts
 TAGS
 VC++Files/client/mysql_amd64.dsp
 ac_available_languages_fragment
@@ -606,6 +612,7 @@ include/mysql_version.h
 include/mysqld_ername.h
 include/mysqld_error.h
 include/openssl
+include/probes_mysql_dtrace.h
 include/readline
 include/readline/*.h
 include/readline/readline.h
@@ -1981,6 +1988,7 @@ sql-bench/test-transactions
 sql-bench/test-wisconsin
 sql/*.cpp
 sql/*.ds?
+sql/*.def
 sql/*.vcproj
 sql/.deps/client.Po
 sql/.deps/derror.Po
@@ -2116,6 +2124,7 @@ sql/.libs/udf_example.lai
 sql/.libs/udf_example.so.0
 sql/.libs/udf_example.so.0.0.0
 sql/client.c
+sql/cmake_dummy.cc
 sql/Doxyfile
 sql/f.c
 sql/gen_lex_hash
@@ -3046,6 +3055,7 @@ vio/viotest.cpp
 win/configure.data
 win/vs71cache.txt
 win/vs8cache.txt
+win/nmake_cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
@@ -3105,3 +3115,4 @@ libmysqld/mysqlserver_depends.c
 libmysqld/examples/mysql_embedded
 sql/.empty
 mysys/thr_lock
+VERSION.dep

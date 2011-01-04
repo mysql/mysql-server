@@ -228,7 +228,6 @@ int ha_perfschema::write_row(uchar *buf)
     result= m_table_share->m_write_row(table, buf, table->field);
   else
   {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
     result= HA_ERR_WRONG_COMMAND;
   }
 
@@ -339,10 +338,14 @@ int ha_perfschema::delete_all_rows(void)
     result= m_table_share->m_delete_all_rows();
   else
   {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
     result= HA_ERR_WRONG_COMMAND;
   }
   DBUG_RETURN(result);
+}
+
+int ha_perfschema::truncate()
+{
+  return delete_all_rows();
 }
 
 THR_LOCK_DATA **ha_perfschema::store_lock(THD *thd,
@@ -365,7 +368,6 @@ int ha_perfschema::delete_table(const char *name)
 int ha_perfschema::rename_table(const char * from, const char * to)
 {
   DBUG_ENTER("ha_perfschema::rename_table ");
-  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
@@ -390,7 +392,37 @@ int ha_perfschema::create(const char *name, TABLE *table_arg,
     This is not a general purpose engine.
     Failure to CREATE TABLE is the expected result.
   */
-  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+}
+
+void ha_perfschema::print_error(int error, myf errflag)
+{
+  switch (error)
+  {
+    case HA_ERR_TABLE_NEEDS_UPGRADE:
+      /*
+        The error message for ER_TABLE_NEEDS_UPGRADE refers to REPAIR table,
+        which does not apply to performance schema tables.
+      */
+      my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
+               table_share->db.str, table_share->table_name.str);
+      break;
+    case HA_ERR_WRONG_COMMAND:
+      /*
+        The performance schema is not a general purpose storage engine,
+        some operations are not supported, by design.
+        We do not want to print "Command not supported",
+        which gives the impression that a command implementation is missing,
+        and that the failure should be considered a bug.
+        We print "Invalid performance_schema usage." instead,
+        to emphasise that the operation attempted is not meant to be legal,
+        and that the failure returned is indeed the expected result.
+      */
+      my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
+      break;
+    default:
+     handler::print_error(error, errflag);
+     break;
+  }
 }
 

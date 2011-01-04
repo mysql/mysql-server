@@ -1032,7 +1032,7 @@ public:
     return (void*) my_malloc((uint)size, MYF(MY_WME|MY_FAE));
   }
 
-  static void operator delete(void *ptr, size_t size)
+  static void operator delete(void *ptr, size_t)
   {
     my_free(ptr);
   }
@@ -1846,7 +1846,9 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  Slave_log_event(const char* buf, uint event_len);
+  Slave_log_event(const char* buf,
+                  uint event_len,
+                  const Format_description_log_event *description_event);
   ~Slave_log_event();
   int get_data_size();
   bool is_valid() const { return master_host != 0; }
@@ -2504,7 +2506,7 @@ class Xid_log_event: public Log_event
    my_xid xid;
 
 #ifdef MYSQL_SERVER
-  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg,0,0), xid(x) {}
+  Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, TRUE), xid(x) {}
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */
@@ -3665,16 +3667,13 @@ protected:
   int write_row(const Relay_log_info *const, const bool);
 
   // Unpack the current row into m_table->record[0]
-  int unpack_current_row(const Relay_log_info *const rli,
-                         const bool abort_on_warning= TRUE)
-  { 
+  int unpack_current_row(const Relay_log_info *const rli)
+  {
     DBUG_ASSERT(m_table);
 
-    bool first_row= (m_curr_row == m_rows_buf);
     ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
     int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
-                                   &m_curr_row_end, &m_master_reclength,
-                                   abort_on_warning, first_row);
+                                   &m_curr_row_end, &m_master_reclength);
     if (m_curr_row_end > m_rows_end)
       my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
     ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);

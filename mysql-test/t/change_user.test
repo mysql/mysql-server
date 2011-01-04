@@ -1,4 +1,52 @@
 #
+# functional change user tests
+#
+
+grant select on test.* to test_nopw;
+grant select on test.* to test_oldpw identified by password "09301740536db389";
+grant select on test.* to test_newpw identified by "newpw";
+
+select user(), current_user(), database();
+#
+# massaging the data for tests to pass in the embedded server,
+# that has authentication completely disabled.
+#
+
+--replace_result <@> <test_nopw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+   
+
+change_user test_nopw;
+--replace_result <@> <test_nopw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_oldpw, oldpw;
+--replace_result <@> <test_oldpw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_newpw, newpw;
+--replace_result <@> <test_newpw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user root;
+--replace_result <@> <root@localhost> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+change_user test_nopw,,test;
+--replace_result <@> <test_nopw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_oldpw,oldpw,test;
+--replace_result <@> <test_oldpw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user test_newpw,newpw,test;
+--replace_result <@> <test_newpw@%> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+change_user root,,test;
+--replace_result <@> <root@localhost> @> @localhost>
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+drop user test_nopw;
+drop user test_oldpw;
+drop user test_newpw;
+
+#
 # Bug#20023 mysql_change_user() resets the value of SQL_BIG_SELECTS
 #
 
@@ -69,7 +117,7 @@ let $before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
 
 let $after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
 
-if (`select $after != $before`){
+if ($after != $before){
   SHOW GLOBAL STATUS LIKE 'com_select';
   die The value of com_select changed during change_user;
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,7 +197,7 @@ extern void my_large_free(uchar *ptr);
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
 #else
-#define my_alloca(SZ) my_malloc(SZ,MYF(0))
+#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
 #define my_afree(PTR) my_free(PTR)
 #endif /* HAVE_ALLOCA */
 
@@ -256,7 +256,7 @@ extern my_bool  my_disable_locking, my_disable_async_io,
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */
-extern char *my_defaults_extra_file;
+extern const char *my_defaults_extra_file;
 extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 
@@ -456,7 +456,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   IO_CACHE_CALLBACK pre_close;
   /*
     Counts the number of times, when we were forced to use disk. We use it to
-    increase the binlog_cache_disk_use status variable.
+    increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
+    variables.
   */
   ulong disk_writes;
   void* arg;				/* for use by pre/post_read */
@@ -826,6 +827,10 @@ extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
                                 size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
+static inline char *safe_strdup_root(MEM_ROOT *root, const char *str)
+{
+  return str ? strdup_root(root, str) : 0;
+}
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,

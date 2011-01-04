@@ -15,6 +15,7 @@ ndb_binlog_index
 plugin
 proc
 procs_priv
+proxies_priv
 servers
 slow_log
 tables_priv
@@ -48,6 +49,7 @@ ndb_binlog_index
 plugin
 proc
 procs_priv
+proxies_priv
 servers
 slow_log
 tables_priv
@@ -89,6 +91,7 @@ ndb_binlog_index
 plugin
 proc
 procs_priv
+proxies_priv
 servers
 slow_log
 tables_priv

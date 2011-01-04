@@ -120,11 +120,6 @@ UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
-/** Mutex protecting the ios count */
-static mutex_t		ios_mutex;
-/** Count of I/O operations in io_handler_thread() */
-static ulint		ios;
-
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers */
@@ -151,11 +146,6 @@ UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register ios_mutex_key with performance schema */
-UNIV_INTERN mysql_pfs_key_t	ios_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
@@ -477,7 +467,6 @@ io_handler_thread(
 			the aio array */
 {
 	ulint	segment;
-	ulint	i;
 
 	segment = *((ulint*)arg);
 
@@ -490,15 +479,9 @@ io_handler_thread(
 	pfs_register_thread(io_handler_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	for (i = 0;; i++) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		fil_aio_wait(segment);
-
-		mutex_enter(&ios_mutex);
-		ios++;
-		mutex_exit(&ios_mutex);
 	}
-
-	thr_local_free(os_thread_get_curr_id());
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.
@@ -1001,10 +984,6 @@ skip_size_check:
 				srv_data_file_is_raw_partition[i] != 0);
 	}
 
-	ios = 0;
-
-	mutex_create(ios_mutex_key, &ios_mutex, SYNC_NO_ORDER_CHECK);
-
 	return(DB_SUCCESS);
 }
 
@@ -1334,7 +1313,26 @@ innobase_start_or_create_for_mysql(void)
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);
 
+	/* Print time to initialize the buffer pool */
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Initializing buffer pool, size =");
+
+	if (srv_buf_pool_size >= 1024 * 1024 * 1024) {
+		fprintf(stderr,
+			" %.1fG\n",
+			((double) srv_buf_pool_size) / (1024 * 1024 * 1024));
+	} else {
+		fprintf(stderr,
+			" %.1fM\n",
+			((double) srv_buf_pool_size) / (1024 * 1024));
+	}
+
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Completed initialization of buffer pool\n");
 
 	if (err != DB_SUCCESS) {
 		fprintf(stderr,
@@ -1852,7 +1850,7 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB %s started; "
+			"  InnoDB: %s started; "
 			"log sequence number %llu\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,8 +162,16 @@ enum enum_server_command
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
 
+#define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
+
+#ifdef HAVE_COMPRESS
+#define CAN_CLIENT_COMPRESS CLIENT_COMPRESS
+#else
+#define CAN_CLIENT_COMPRESS 0
+#endif
 
 /* Gather all possible capabilites (flags) supported by the server */
 #define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD | \
@@ -186,7 +194,8 @@ enum enum_server_command
                            CLIENT_MULTI_RESULTS | \
                            CLIENT_PS_MULTI_RESULTS | \
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
-                           CLIENT_REMEMBER_OPTIONS)
+                           CLIENT_REMEMBER_OPTIONS | \
+                           CLIENT_PLUGIN_AUTH)
 
 /*
   Switch off the flags that are optional and depending on build flags
@@ -246,7 +255,11 @@ enum enum_server_command
 #define SERVER_STATUS_CLEAR_SET (SERVER_QUERY_NO_GOOD_INDEX_USED| \
                                  SERVER_QUERY_NO_INDEX_USED|\
                                  SERVER_MORE_RESULTS_EXISTS|\
-                                 SERVER_STATUS_METADATA_CHANGED)
+                                 SERVER_STATUS_METADATA_CHANGED |\
+                                 SERVER_QUERY_WAS_SLOW |\
+                                 SERVER_STATUS_DB_DROPPED |\
+                                 SERVER_STATUS_CURSOR_EXISTS|\
+                                 SERVER_STATUS_LAST_ROW_SENT)
 
 #define MYSQL_ERRMSG_SIZE	512
 #define NET_READ_TIMEOUT	30		/* Timeout on read */
@@ -518,14 +531,14 @@ void create_random_string(char *to, unsigned int length, struct rand_struct *ran
 void hash_password(unsigned long *to, const char *password, unsigned int password_len);
 void make_scrambled_password_323(char *to, const char *password);
 void scramble_323(char *to, const char *message, const char *password);
-my_bool check_scramble_323(const char *, const char *message,
+my_bool check_scramble_323(const unsigned char *reply, const char *message,
                            unsigned long *salt);
 void get_salt_from_password_323(unsigned long *res, const char *password);
 void make_password_from_salt_323(char *to, const unsigned long *salt);
 
 void make_scrambled_password(char *to, const char *password);
 void scramble(char *to, const char *message, const char *password);
-my_bool check_scramble(const char *reply, const char *message,
+my_bool check_scramble(const unsigned char *reply, const char *message,
                        const unsigned char *hash_stage2);
 void get_salt_from_password(unsigned char *res, const char *password);
 void make_password_from_salt(char *to, const unsigned char *hash_stage2);

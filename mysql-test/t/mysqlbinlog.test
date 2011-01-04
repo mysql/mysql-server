@@ -487,3 +487,43 @@ diff_files $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn $MYSQLTEST_VARDIR/tmp/mysqlbin
 # Cleanup for this part of test
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn.empty;
 remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn;
+
+#
+# WL#5625: Deprecate mysqlbinlog options --base64-output=always and --base64-output
+#
+--echo # Expect deprecation warning.
+--exec $MYSQL_BINLOG --base64-output=always std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+--cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+--echo # Expect deprecation warning again.
+--exec $MYSQL_BINLOG --base64-output std_data/master-bin.000001 > /dev/null 2> $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+--cat_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+# Clean up this part of the test.
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog.warn
+
+# BUG#50914
+# This test verifies if the approach of the mysqlbinlog prints
+# "use $database" statements to its output stream will cause
+# "No Database Selected" error when dropping and recreating
+# that database.
+#
+RESET MASTER;
+CREATE DATABASE test1;
+USE test1;
+CREATE TABLE t1(id int);
+DROP DATABASE test1;
+CREATE DATABASE test1;
+USE test1;
+CREATE TABLE t1(id int);
+DROP TABLE t1;
+DROP DATABASE test1;
+let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
+FLUSH LOGS;
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/$master_binlog | $MYSQL test 2>&1;
+
+let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
+source include/show_binlog_events.inc;
+

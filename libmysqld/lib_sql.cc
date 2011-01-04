@@ -35,7 +35,6 @@ C_MODE_START
 #include <mysql.h>
 #undef ER
 #include "errmsg.h"
-#include <sql_common.h>
 #include "embedded_priv.h"
 
 extern unsigned int mysql_server_last_errno;
@@ -414,11 +413,10 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
   return mysql_store_result(mysql);
 }
 
-int emb_read_change_user_result(MYSQL *mysql, 
-				char *buff __attribute__((unused)),
-				const char *passwd __attribute__((unused)))
+int emb_read_change_user_result(MYSQL *mysql)
 {
-  return mysql_errno(mysql);
+  mysql->net.read_pos= (uchar*)""; // fake an OK packet
+  return mysql_errno(mysql) ? packet_error : 1 /* length of the OK packet */;
 }
 
 MYSQL_METHODS embedded_methods= 
@@ -429,6 +427,7 @@ MYSQL_METHODS embedded_methods=
   emb_store_result,
   emb_fetch_lengths, 
   emb_flush_use_result,
+  emb_read_change_user_result,
   emb_list_fields,
   emb_read_prepare_result,
   emb_stmt_execute,
@@ -437,7 +436,6 @@ MYSQL_METHODS embedded_methods=
   emb_free_embedded_thd,
   emb_read_statistics,
   emb_read_query_result,
-  emb_read_change_user_result,
   emb_read_rows_from_cursor
 };
 
@@ -508,7 +506,8 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   orig_argc= *argcp;
   orig_argv= *argvp;
-  load_defaults("my", (const char **)groups, argcp, argvp);
+  if (load_defaults("my", (const char **)groups, argcp, argvp))
+    return 1;
   defaults_argc= *argcp;
   defaults_argv= *argvp;
   remaining_argc= argc;
@@ -605,6 +604,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   THD *thd = (THD *)mysql->thd;
   thd->mysql= mysql;
   mysql->server_version= server_version;
+  mysql->client_flag= client_flag;
   init_alloc_root(&mysql->field_alloc, 8192, 0);
 }
 
@@ -668,14 +668,20 @@ err:
 int check_embedded_connection(MYSQL *mysql, const char *db)
 {
   int result;
+  LEX_STRING db_str = { (char*)db, db ? strlen(db) : 0 };
   THD *thd= (THD*)mysql->thd;
   thd_init_client_charset(thd, mysql->charset->number);
   thd->update_charset();
   Security_context *sctx= thd->security_ctx;
   sctx->host_or_ip= sctx->host= (char*) my_localhost;
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
-  sctx->priv_user= sctx->user= my_strdup(mysql->user, MYF(0));
-  result= check_user(thd, COM_CONNECT, NULL, 0, db, true);
+  strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
+  sctx->user= my_strdup(mysql->user, MYF(0));
+  sctx->proxy_user[0]= 0;
+  sctx->master_access= GLOBAL_ACLS;       // Full rights
+  /* Change database if necessary */
+  if (!(result= (db && db[0] && mysql_change_db(thd, &db_str, FALSE))))
+    my_ok(thd);
   thd->protocol->end_statement();
   emb_read_query_result(mysql);
   return result;
@@ -684,14 +690,15 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 #else
 int check_embedded_connection(MYSQL *mysql, const char *db)
 {
+  /*
+    we emulate a COM_CHANGE_USER user here,
+    it's easier than to emulate the complete 3-way handshake
+  */
+  char buf[USERNAME_LENGTH + SCRAMBLE_LENGTH + 1 + 2*NAME_LEN + 2], *end;
+  NET *net= &mysql->net;
   THD *thd= (THD*)mysql->thd;
   Security_context *sctx= thd->security_ctx;
-  int result;
-  char scramble_buff[SCRAMBLE_LENGTH];
-  int passwd_len;
 
-  thd_init_client_charset(thd, mysql->charset->number);
-  thd->update_charset();
   if (mysql->options.client_ip)
   {
     sctx->host= my_strdup(mysql->options.client_ip, MYF(0));
@@ -702,37 +709,43 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   sctx->host_or_ip= sctx->host;
 
   if (acl_check_host(sctx->host, sctx->ip))
-  {
-    result= ER_HOST_NOT_PRIVILEGED;
     goto err;
-  }
 
-  sctx->user= my_strdup(mysql->user, MYF(0));
+  /* construct a COM_CHANGE_USER packet */
+  end= strmake(buf, mysql->user, USERNAME_LENGTH) + 1;
+
+  memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
+  thd->scramble[SCRAMBLE_LENGTH]= 0;
+
   if (mysql->passwd && mysql->passwd[0])
   {
-    memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
-    thd->scramble[SCRAMBLE_LENGTH]= 0;
-    scramble(scramble_buff, thd->scramble, mysql->passwd);
-    passwd_len= SCRAMBLE_LENGTH;
+    *end++= SCRAMBLE_LENGTH;
+    scramble(end, thd->scramble, mysql->passwd);
+    end+= SCRAMBLE_LENGTH;
   }
   else
-    passwd_len= 0;
+    *end++= 0;
 
-  if((result= check_user(thd, COM_CONNECT, 
-			 scramble_buff, passwd_len, db, true)))
-     goto err;
+  end= strmake(end, db ? db : "", NAME_LEN) + 1;
 
+  int2store(end, (ushort) mysql->charset->number);
+  end+= 2;
+
+  /* acl_authenticate() takes the data from thd->net->read_pos */
+  thd->net.read_pos= (uchar*)buf;
+
+  if (acl_authenticate(thd, 0, end - buf))
+  {
+    x_free(thd->security_ctx->user);
+    goto err;
+  }
   return 0;
 err:
-  {
-    NET *net= &mysql->net;
-    strmake(net->last_error, thd->stmt_da->message(),
-            sizeof(net->last_error)-1);
-    memcpy(net->sqlstate,
-           mysql_errno_to_sqlstate(thd->stmt_da->sql_errno()),
-           sizeof(net->sqlstate)-1);
-  }
-  return result;
+  strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
+  memcpy(net->sqlstate,
+         mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
+         sizeof(net->sqlstate)-1);
+  return 1;
 }
 #endif
 

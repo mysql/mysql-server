@@ -8127,7 +8127,7 @@ MY_COLLATION_HANDLER my_collation_ucs2_uca_handler =
   my_strnncollsp_ucs2_uca,
   my_strnxfrm_ucs2_uca,
   my_strnxfrmlen_simple,
-  my_like_range_ucs2,
+  my_like_range_generic,
   my_wildcmp_uca,
   NULL,
   my_instr_mb,
@@ -9461,7 +9461,7 @@ CHARSET_INFO my_charset_utf8_sinhala_uca_ci=
     8,                   /* strxfrm_multiply */
     1,                   /* caseup_multiply  */
     1,                   /* casedn_multiply  */
-    3,                   /* mbminlen     */
+    1,                   /* mbminlen     */
     3,                   /* mbmaxlen     */
     9,                   /* min_sort_char */
     0xFFFF,              /* max_sort_char */
@@ -10134,7 +10134,7 @@ MY_COLLATION_HANDLER my_collation_utf32_uca_handler =
     my_strnncollsp_any_uca,
     my_strnxfrm_any_uca,
     my_strnxfrmlen_simple,
-    my_like_range_utf32,
+    my_like_range_generic,
     my_wildcmp_uca,
     NULL,
     my_instr_mb,
@@ -10801,7 +10801,7 @@ MY_COLLATION_HANDLER my_collation_utf16_uca_handler =
     my_strnncollsp_any_uca,
     my_strnxfrm_any_uca,
     my_strnxfrmlen_simple,
-    my_like_range_utf16,
+    my_like_range_generic,
     my_wildcmp_uca,
     NULL,
     my_instr_mb,

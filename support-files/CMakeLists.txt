@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  SET(localstatedir "C:\\mysql\\data")
+  SET(localstatedir "C:\\\\mysql\\\\data\\\\")
   SET(ini_file_extension "ini")
 ELSE()
   SET(localstatedir "${MYSQL_DATADIR}")
@@ -48,25 +48,23 @@ FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
 ENDFOREACH()
 
 IF(UNIX)
-  # XXX: again, used elsewhere (scripts/), should be standardised in
-  # XXX: install_layout.cmake
-  IF(INSTALL_LAYOUT MATCHES "STANDALONE")
-    SET(prefix ".")
-  ELSE()
-    SET(prefix ${CMAKE_INSTALL_PREFIX})
-  ENDIF()
- 
+  SET(prefix ${CMAKE_INSTALL_PREFIX})
   FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
     config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
+    IF(script MATCHES ".ini")
+      SET(comp IniFiles)
+    ELSE()
+      SET(comp Server_Scripts)
+    ENDIF()
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${script} 
-       DESTINATION ${inst_location}
+       DESTINATION ${inst_location} COMPONENT ${comp}
        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
   ENDFOREACH()
   IF(INSTALL_SUPPORTFILESDIR)
-    INSTALL(FILES magic DESTINATION ${inst_location})
+    INSTALL(FILES magic DESTINATION ${inst_location} COMPONENT SupportFiles)
   ENDIF()
 
   INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
@@ -83,7 +81,7 @@ IF(UNIX)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql.server.sh 
                  ${CMAKE_CURRENT_BINARY_DIR}/mysql.server @ONLY)
   INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql.server 
-    DESTINATION ${inst_location}
+    DESTINATION ${inst_location} COMPONENT SupportFiles
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 ENDIF()

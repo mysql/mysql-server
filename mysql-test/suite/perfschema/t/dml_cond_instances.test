@@ -18,38 +18,33 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 #
-select * from performance_schema.COND_INSTANCES limit 1;
+--disable_result_log
+select * from performance_schema.cond_instances limit 1;
 
-select * from performance_schema.COND_INSTANCES
+select * from performance_schema.cond_instances
   where name='FOO';
+--enable_result_log
 
---replace_result '\'cond_instances' '\'COND_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.COND_INSTANCES
+insert into performance_schema.cond_instances
   set name='FOO', object_instance_begin=12;
 
---replace_result '\'cond_instances' '\'COND_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.COND_INSTANCES
+update performance_schema.cond_instances
   set name='FOO';
 
---replace_result '\'cond_instances' '\'COND_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.COND_INSTANCES
+delete from performance_schema.cond_instances
   where name like "wait/%";
 
---replace_result '\'cond_instances' '\'COND_INSTANCES'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.COND_INSTANCES;
+delete from performance_schema.cond_instances;
 
---replace_result '\'cond_instances' '\'COND_INSTANCES'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.COND_INSTANCES READ;
+LOCK TABLES performance_schema.cond_instances READ;
 UNLOCK TABLES;
 
---replace_result '\'cond_instances' '\'COND_INSTANCES'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.COND_INSTANCES WRITE;
+LOCK TABLES performance_schema.cond_instances WRITE;
 UNLOCK TABLES;
 

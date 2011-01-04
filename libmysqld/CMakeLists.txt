@@ -26,7 +26,6 @@ ${CMAKE_SOURCE_DIR}/regex
 ${ZLIB_INCLUDE_DIR}
 ${SSL_INCLUDE_DIRS}
 ${SSL_INTERNAL_INCLUDE_DIRS}
-${NDB_CLUSTER_INCLUDES}
 ${CMAKE_SOURCE_DIR}/sql/backup
 )
 
@@ -42,6 +41,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
+           ../sql-common/client_plugin.c
            ../sql/password.c ../sql/discover.cc ../sql/derror.cc 
            ../sql/field.cc ../sql/field_conv.cc
            ../sql/filesort.cc ../sql/gstream.cc
@@ -109,7 +109,7 @@ SET(LIBS
   dbug strings regex mysys vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${MYSQLD_STATIC_PLUGIN_LIBS} ${NDB_CLIENT_LIBS}
+  ${MYSQLD_STATIC_PLUGIN_LIBS}
   sql_embedded
 )
 

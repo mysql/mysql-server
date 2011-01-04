@@ -1,0 +1,411 @@
+--source include/have_plugin_auth.inc
+--source include/not_embedded.inc
+--source include/mysql_upgrade_preparation.inc
+
+query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
+  FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
+
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+
+SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
+
+--echo ## test plugin auth
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(plug_con,localhost,plug,plug_dest);
+--enable_query_log
+
+GRANT PROXY ON plug_dest TO plug;
+--echo test proxies_priv columns
+--replace_column 1 xx 7 xx
+SELECT * FROM mysql.proxies_priv;
+--echo test mysql.proxies_priv;
+SHOW CREATE TABLE mysql.proxies_priv;
+
+connect(plug_con,localhost,plug,plug_dest);
+
+connection plug_con;
+select USER(),CURRENT_USER();
+
+--echo ## test SET PASSWORD
+#--error ER_SET_PASSWORD_AUTH_PLUGIN
+SET PASSWORD = PASSWORD('plug_dest');
+
+connection default;
+disconnect plug_con;
+
+--echo ## test bad credentials
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(plug_con,localhost,plug,bad_credentials);
+--enable_query_log
+
+--echo ## test bad default plugin : should get CR_AUTH_PLUGIN_CANNOT_LOAD
+--disable_result_log
+--disable_query_log
+--error 2059
+connect(plug_con_wrongp,localhost,plug,plug_dest,,,,,wrong_plugin_name);
+--enable_query_log
+--enable_result_log
+
+--echo ## test correct default plugin
+connect(plug_con_rightp,localhost,plug,plug_dest,,,,,auth_test_plugin);
+connection plug_con_rightp;
+select USER(),CURRENT_USER();
+connection default;
+disconnect plug_con_rightp;
+
+--echo ## test no_auto_create_user sql mode with plugin users
+SET @@sql_mode=no_auto_create_user;
+GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
+SET @@sql_mode=default;
+DROP USER grant_user;
+
+--echo ## test utf-8 user name
+CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+
+GRANT PROXY ON plug_dest TO `Ÿ`;
+
+connect(non_ascii,localhost,Ÿ,plug_dest);
+connection non_ascii;
+select USER(),CURRENT_USER();
+
+connection default;
+disconnect non_ascii;
+DROP USER `Ÿ`;
+
+--echo ## test GRANT ... IDENTIFIED WITH/BY ...
+
+CREATE DATABASE test_grant_db;
+
+--echo # create new user via GRANT WITH
+GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
+  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+
+GRANT PROXY ON plug_dest TO new_grant_user;  
+
+connect(plug_con_grant,localhost,new_grant_user,plug_dest);
+connection plug_con_grant;
+select USER(),CURRENT_USER();
+USE test_grant_db;
+CREATE TABLE t1 (a INT);
+DROP TABLE t1;
+connection default;
+disconnect plug_con_grant;
+REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
+
+--echo # try re-create existing user via GRANT IDENTIFIED BY
+GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
+  IDENTIFIED BY 'unused_password';
+
+--echo # make sure password doesn't take precendence
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(plug_con_grant_deny,localhost,new_grant_user,unused_password);
+--enable_query_log
+
+--echo #make sure plugin auth still available
+connect(plug_con_grant,localhost,new_grant_user,plug_dest);
+connection plug_con_grant;
+select USER(),CURRENT_USER();
+USE test_grant_db;
+CREATE TABLE t1 (a INT);
+DROP TABLE t1;
+connection default;
+disconnect plug_con_grant;
+
+DROP USER new_grant_user;
+
+--echo # try re-create existing user via GRANT IDENTIFIED WITH
+
+--error ER_GRANT_PLUGIN_USER_EXISTS
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
+  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+
+--error ER_GRANT_PLUGIN_USER_EXISTS
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
+  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+
+--error ER_PARSE_ERROR
+REVOKE SELECT on test_grant_db.* FROM joro 
+  INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+
+--error ER_PARSE_ERROR
+REVOKE SELECT on test_grant_db.* FROM joro 
+  INDENTIFIED BY 'plug_dest_passwd';
+
+--error ER_PARSE_ERROR
+REVOKE SELECT on test_grant_db.* FROM joro 
+  INDENTIFIED BY PASSWORD 'plug_dest_passwd';
+
+DROP DATABASE test_grant_db;
+
+--echo ## GRANT PROXY tests
+
+CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
+  AS 'grant_plug_dest';
+CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
+CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
+
+--echo # ALL PRIVILEGES doesn't include PROXY
+GRANT ALL PRIVILEGES ON *.* TO grant_plug;
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(grant_plug_con,localhost,grant_plug,grant_plug_dest);
+--enable_query_log
+
+--error ER_PARSE_ERROR : this should fail : can't combine PROXY
+GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
+
+--echo this should fail : can't combine PROXY
+--error ER_PARSE_ERROR
+GRANT ALL SELECT,PROXY ON grant_plug_dest TO grant_plug;
+
+--echo # this should fail : no such grant
+--error ER_NONEXISTING_GRANT
+REVOKE PROXY ON grant_plug_dest FROM grant_plug;
+
+connect(grant_plug_dest_con,localhost,grant_plug_dest,grant_plug_dest_passwd);
+connection grant_plug_dest_con;
+--echo in grant_plug_dest_con
+
+--echo ## testing what an ordinary user can grant 
+--echo this should fail : no rights to grant all
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+GRANT PROXY ON ''@'' TO grant_plug;
+
+--echo this should fail : not the same user
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+GRANT PROXY ON grant_plug TO grant_plug_dest;
+
+--echo this should fail : same user, but on a different host
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+GRANT PROXY ON grant_plug_dest TO grant_plug;
+
+--echo this should work : same user
+GRANT PROXY ON grant_plug_dest@localhost TO grant_plug_dest2;
+REVOKE PROXY ON grant_plug_dest@localhost FROM grant_plug_dest2;
+
+--echo this should work : same user
+GRANT PROXY ON grant_plug_dest@localhost TO grant_plug WITH GRANT OPTION;
+REVOKE PROXY ON grant_plug_dest@localhost FROM grant_plug;
+
+--echo this should fail : can't create users
+--error ER_CANT_CREATE_USER_WITH_GRANT
+GRANT PROXY ON grant_plug_dest@localhost TO grant_plug@localhost;
+
+connection default;
+--echo in default connection
+disconnect grant_plug_dest_con;
+
+--echo # test what root can grant
+
+--echo should work : root has PROXY to all users
+GRANT PROXY ON ''@'' TO grant_plug;
+REVOKE PROXY ON ''@'' FROM grant_plug;
+
+--echo should work : root has PROXY to all users
+GRANT PROXY ON ''@'' TO proxy_admin IDENTIFIED BY 'test' 
+  WITH GRANT OPTION;
+
+--echo need USAGE : PROXY doesn't contain it.
+GRANT USAGE on *.* TO proxy_admin;
+
+connect (proxy_admin_con,localhost,proxy_admin,test);
+connection proxy_admin_con;
+--echo in proxy_admin_con;
+
+--echo should work : proxy_admin has proxy to ''@''
+GRANT PROXY ON future_user TO grant_plug;
+
+connection default;
+--echo in default connection
+disconnect proxy_admin_con;
+
+SHOW GRANTS FOR grant_plug;
+REVOKE PROXY ON future_user FROM grant_plug;
+SHOW GRANTS FOR grant_plug;
+
+--echo ## testing drop user
+CREATE USER test_drop@localhost;
+GRANT PROXY ON future_user TO test_drop@localhost;
+SHOW GRANTS FOR test_drop@localhost;
+DROP USER test_drop@localhost;
+SELECT * FROM mysql.proxies_priv WHERE Host = 'test_drop' AND User = 'localhost';
+
+DROP USER proxy_admin;
+
+DROP USER grant_plug,grant_plug_dest,grant_plug_dest2;
+
+--echo ## END GRANT PROXY tests
+
+--echo ## cleanup
+DROP USER plug;
+DROP USER plug_dest;
+
+--echo ## @@proxy_user tests
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+GRANT PROXY ON plug_dest TO plug;
+
+SELECT USER(),CURRENT_USER(),@@LOCAL.proxy_user;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@GLOBAL.proxy_user;
+SELECT @@LOCAL.proxy_user;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL proxy_user = 'test';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET LOCAL proxy_user = 'test';
+SELECT @@LOCAL.proxy_user;
+
+connect(plug_con,localhost,plug,plug_dest);
+connection plug_con;
+--echo # in connection plug_con
+SELECT @@LOCAL.proxy_user;
+connection default;
+--echo # in connection default
+disconnect plug_con;
+
+--echo ## cleanup
+DROP USER plug;
+DROP USER plug_dest;
+--echo ## END @@proxy_user tests
+
+--echo ## @@external_user tests
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
+GRANT PROXY ON plug_dest TO plug;
+SELECT USER(),CURRENT_USER(),@@LOCAL.external_user;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@GLOBAL.external_user;
+SELECT @@LOCAL.external_user;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL external_user = 'test';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET LOCAL external_user = 'test';
+SELECT @@LOCAL.external_user;
+
+connect(plug_con,localhost,plug,plug_dest);
+connection plug_con;
+--echo # in connection plug_con
+SELECT @@LOCAL.external_user;
+connection default;
+--echo # in connection default
+disconnect plug_con;
+
+--echo ## cleanup
+DROP USER plug;
+DROP USER plug_dest;
+--echo ## END @@external_user tests
+
+--echo #
+--echo #  Bug #56798 : Wrong credentials assigned when using a proxy user.
+--echo #
+
+GRANT ALL PRIVILEGES ON *.* TO power_user;
+GRANT USAGE ON anonymous_db.* TO ''@''
+  IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
+GRANT PROXY ON power_user TO ''@'';
+CREATE DATABASE confidential_db;
+
+connect(plug_con,localhost, test_login_user, power_user, confidential_db);
+SELECT user(),current_user(),@@proxy_user;
+
+connection default;
+disconnect plug_con;
+
+DROP USER power_user;
+DROP USER ''@'';
+DROP DATABASE confidential_db;
+
+--echo # Test case #2 (crash with double grant proxy)
+
+CREATE USER ''@'' IDENTIFIED WITH 'test_plugin_server' AS 'standard_user';
+CREATE USER standard_user;
+CREATE DATABASE shared;
+GRANT ALL PRIVILEGES ON shared.* TO standard_user;
+GRANT PROXY ON standard_user TO ''@'';
+--echo #should not crash
+GRANT PROXY ON standard_user TO ''@'';
+
+DROP USER ''@'';
+DROP USER standard_user;
+DROP DATABASE shared;
+
+
+--echo #
+--echo # Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
+--echo #
+
+CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
+
+DROP TABLE mysql.proxies_priv;
+
+--echo # Must come back with mysql.proxies_priv absent.
+--source include/restart_mysqld.inc
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.proxies_priv;
+
+CREATE USER u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+
+CREATE USER u2@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u2@localhost;
+
+--echo # access denied because of no privileges to root
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+GRANT PROXY ON u2@localhost TO u1@localhost;
+
+--echo # access denied because of no privileges to root
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+
+--echo # go try graning proxy on itself, so that it will need the table
+connect(proxy_granter_con,localhost,u2,);
+connection proxy_granter_con;
+
+--error ER_NO_SUCH_TABLE
+GRANT PROXY ON u2@localhost TO u1@localhost;
+--error ER_NO_SUCH_TABLE
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+
+connection default;
+disconnect proxy_granter_con;
+
+--echo # test if REVOKE works without the proxies_priv table
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
+
+--echo # test if DROP USER work without the proxies_priv table
+DROP USER u1@localhost,u2@localhost;
+
+--echo # test if FLUSH PRIVILEGES works without the proxies_priv table
+FLUSH PRIVILEGES;
+
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--query_vertical SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv
+
+FLUSH PRIVILEGES;
+
+--echo #
+--echo # Bug#58139 : default-auth option not recognized in MySQL standardi
+--echo #             command line clients
+--echo #
+
+--echo # Executing 'mysql'
+--exec $MYSQL -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT -e "SELECT 1"
+
+--echo # Executing 'mysqladmin'
+--exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT ping
+
+--echo # Executing 'mysqldump'
+--exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
+
+--echo End of 5.5 tests

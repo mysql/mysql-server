@@ -269,6 +269,49 @@ ENDIF()
 #
 FIND_PACKAGE (Threads)
 
+FUNCTION(MY_CHECK_PTHREAD_ONCE_INIT)
+  CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
+  IF(NOT HAVE_WERROR_FLAG)
+    RETURN()
+  ENDIF()
+  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
+  CHECK_C_SOURCE_COMPILES("
+    #include <pthread.h>
+    void foo(void) {}
+    int main()
+    {
+      pthread_once_t once_control = PTHREAD_ONCE_INIT;
+      pthread_once(&once_control, foo);
+      return 0;
+    }"
+    HAVE_PTHREAD_ONCE_INIT
+  )
+  # http://bugs.opensolaris.org/bugdatabase/printableBug.do?bug_id=6611808
+  IF(NOT HAVE_PTHREAD_ONCE_INIT)
+    CHECK_C_SOURCE_COMPILES("
+      #include <pthread.h>
+      void foo(void) {}
+      int main()
+      {
+        pthread_once_t once_control = { PTHREAD_ONCE_INIT };
+        pthread_once(&once_control, foo);
+        return 0;
+      }"
+      HAVE_ARRAY_PTHREAD_ONCE_INIT
+    )
+  ENDIF()
+  IF(HAVE_PTHREAD_ONCE_INIT)
+    SET(PTHREAD_ONCE_INITIALIZER "PTHREAD_ONCE_INIT" PARENT_SCOPE)
+  ENDIF()
+  IF(HAVE_ARRAY_PTHREAD_ONCE_INIT)
+    SET(PTHREAD_ONCE_INITIALIZER "{ PTHREAD_ONCE_INIT }" PARENT_SCOPE)
+  ENDIF()
+ENDFUNCTION()
+
+IF(CMAKE_USE_PTHREADS_INIT)
+  MY_CHECK_PTHREAD_ONCE_INIT()
+ENDIF()
+
 #
 # Tests for functions
 #
@@ -299,7 +342,8 @@ CHECK_FUNCTION_EXISTS (dlopen HAVE_DLOPEN)
 CHECK_FUNCTION_EXISTS (fchmod HAVE_FCHMOD)
 CHECK_FUNCTION_EXISTS (fcntl HAVE_FCNTL)
 CHECK_FUNCTION_EXISTS (fconvert HAVE_FCONVERT)
-CHECK_SYMBOL_EXISTS(fdatasync "unistd.h" HAVE_FDATASYNC)
+CHECK_FUNCTION_EXISTS (fdatasync HAVE_FDATASYNC)
+CHECK_SYMBOL_EXISTS(fdatasync "unistd.h" HAVE_DECL_FDATASYNC)
 CHECK_FUNCTION_EXISTS (fesetround HAVE_FESETROUND)
 CHECK_FUNCTION_EXISTS (fpsetmask HAVE_FPSETMASK)
 CHECK_FUNCTION_EXISTS (fseeko HAVE_FSEEKO)
@@ -346,7 +390,6 @@ CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_init HAVE_PTHREAD_INIT)
 CHECK_FUNCTION_EXISTS (pthread_key_delete HAVE_PTHREAD_KEY_DELETE)
 CHECK_FUNCTION_EXISTS (pthread_rwlock_rdlock HAVE_PTHREAD_RWLOCK_RDLOCK)
-CHECK_FUNCTION_EXISTS (pthread_rwlockattr_setkind_np HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
 CHECK_FUNCTION_EXISTS (pthread_sigmask HAVE_PTHREAD_SIGMASK)
 CHECK_FUNCTION_EXISTS (pthread_threadmask HAVE_PTHREAD_THREADMASK)
 CHECK_FUNCTION_EXISTS (pthread_yield_np HAVE_PTHREAD_YIELD_NP)

@@ -513,7 +513,7 @@ start:
     arg_count= max(arg_count, arg_index);
     goto start;
   }
-  DBUG_ASSERT(0);
+
   return 0;
 }
 

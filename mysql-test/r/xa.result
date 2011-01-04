@@ -131,3 +131,14 @@ XA START 'xid1';
 XA END 'xid1';
 XA ROLLBACK 'xid1';
 DROP TABLE t1;
+#
+# Bug#56448 Assertion failed: ! is_set() with second xa end
+#
+XA START 'x';
+XA END 'x';
+XA END 'x';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+XA PREPARE 'x';
+XA PREPARE 'x';
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  PREPARED state
+XA ROLLBACK 'x';

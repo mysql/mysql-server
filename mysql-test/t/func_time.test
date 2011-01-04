@@ -832,4 +832,33 @@ INSERT INTO t1 VALUES (0),(9.216e-096);
 SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #52160: crash and inconsistent results when grouping
+--echo #             by a function and column
+--echo #
+
+CREATE TABLE t1(a CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
+DROP TABLE t1;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#57039: constant subtime expression returns incorrect result.
+--echo #
+CREATE TABLE t1 (`date_date` datetime NOT NULL);
+INSERT INTO t1 VALUES ('2008-01-03 00:00:00'), ('2008-01-03 00:00:00');
+SELECT * FROM t1 WHERE date_date >= subtime(now(), "00:30:00");
+SELECT * FROM t1 WHERE date_date <= addtime(date_add("2000-1-1", INTERVAL "1:1:1" HOUR_SECOND), "00:20:00");
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#57512 str_to_date crash...
+--echo #
+
+SELECT WEEK(STR_TO_DATE(NULL,0));
+SELECT SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR);
+
+--echo #
+

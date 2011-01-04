@@ -100,9 +100,6 @@ public:
   double scan_time(void)
   { return 1.0; }
 
-  double read_time(ha_rows)
-  { return 1.0; }
-
   int open(const char *name, int mode, uint test_if_locked);
 
   int close(void);
@@ -127,6 +124,8 @@ public:
 
   int delete_all_rows(void);
 
+  int truncate();
+
   int delete_table(const char *from);
 
   int rename_table(const char * from, const char * to);
@@ -146,6 +145,8 @@ public:
     *engine_callback= 0;
     return FALSE;
   }
+
+  virtual void print_error(int error, myf errflags);
 
 private:
   /** MySQL lock */

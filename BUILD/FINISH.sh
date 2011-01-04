@@ -1,11 +1,27 @@
+# Copyright (C) 2000, 2005 MySQL AB, 2008 Sun Microsystems, Inc.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this library; if not, write to the Free
+# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA
+
 cflags="$c_warnings $extra_flags"
 cxxflags="$cxx_warnings $base_cxxflags $extra_flags"
 extra_configs="$extra_configs $local_infile_configs"
 configure="./configure $base_configs $extra_configs"
 
 commands="\
-$make -k maintainer-clean || true 
-/bin/rm -rf */.deps/*.P configure config.cache storage/*/configure storage/*/config.cache autom4te.cache storage/*/autom4te.cache;
+/bin/rm -rf configure;
 /bin/rm -rf CMakeCache.txt CMakeFiles/
 
 path=`dirname $0`

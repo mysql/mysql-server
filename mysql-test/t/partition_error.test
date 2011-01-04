@@ -5,10 +5,107 @@
 -- source include/have_partition.inc
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1, t2;
 --enable_warnings
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo # Bug#50036: Inconsistent errors when using TIMESTAMP
+--echo #            columns/expressions
+
+--echo # 1. correct and appropriate errors in light of
+--echo #    the fix for BUG#42849:
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (TO_DAYS(c))
+(PARTITION p0 VALUES LESS THAN (10000),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+CREATE TABLE t2 (c TIMESTAMP);
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+ALTER TABLE t2
+PARTITION BY RANGE (TO_DAYS(c))
+(PARTITION p0 VALUES LESS THAN (10000),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE COLUMNS(c)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+ALTER TABLE t2 PARTITION BY RANGE COLUMNS(c)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+DROP TABLE t2;
+
+--echo # 2. These errors where questionable before the fix:
+
+--echo # VALUES clause are checked first, clearified the error message.
+--error ER_VALUES_IS_NOT_INT_TYPE_ERROR
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (c)
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+
+--echo # TIMESTAMP is not INT (e.g. UNIX_TIMESTAMP).
+--error ER_VALUES_IS_NOT_INT_TYPE_ERROR
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (UNIX_TIMESTAMP(c))
+(PARTITION p0 VALUES LESS THAN ('2000-01-01 00:00:00'),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY RANGE (UNIX_TIMESTAMP(c))
+(PARTITION p0 VALUES LESS THAN (UNIX_TIMESTAMP('2000-01-01 00:00:00')),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+DROP TABLE t1;
+
+--echo # Changed error from ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
+CREATE TABLE t1 (c TIMESTAMP)
+PARTITION BY HASH (c) PARTITIONS 4;
+
+--echo # Added test with existing TIMESTAMP partitioning (when it was allowed).
+
+CREATE TABLE t1 (a TIMESTAMP)
+PARTITION BY HASH (UNIX_TIMESTAMP(a));
+INSERT INTO t1 VALUES ('2000-01-02 03:04:05');
+--sorted_result
+SELECT * FROM t1;
+FLUSH TABLES;
+--echo # replacing t1.frm with TO_DAYS(a) which was allowed earlier.
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/parts/t1TIMESTAMP.frm $MYSQLD_DATADIR/test/t1.frm
+--echo # Disable warnings, since the result would differ when running with
+--echo # --ps-protocol (only for the 'SELECT * FROM t1' statement).
+--disable_warnings
+--sorted_result
+SELECT * FROM t1;
+--enable_warnings
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES ('2001-02-03 04:05:06');
+--sorted_result
+SELECT * FROM t1;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+ALTER TABLE t1
+PARTITION BY RANGE (TO_DAYS(a))
+(PARTITION p0 VALUES LESS THAN (10000),
+ PARTITION p1 VALUES LESS THAN (MAXVALUE));
+SHOW CREATE TABLE t1;
+CREATE TABLE t2 LIKE t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t2;
+CREATE TABLE t2 SELECT * FROM t1;
+DROP TABLE t2;
+ALTER TABLE t1 PARTITION BY HASH (UNIX_TIMESTAMP(a));
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SHOW CREATE TABLE t1;
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
@@ -536,7 +633,7 @@ partitions 2
 #
 # Partition by range, inconsistent partition function and constants
 #
---error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+--error ER_VALUES_IS_NOT_INT_TYPE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -849,7 +946,7 @@ partitions 2
 #
 # Partition by list, wrong constant result type (not INT)
 #
---error ER_INCONSISTENT_TYPE_OF_FUNCTIONS_ERROR
+--error ER_VALUES_IS_NOT_INT_TYPE_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -939,13 +1036,13 @@ PARTITION pmax VALUES LESS THAN MAXVALUE);
 # Check that allowed arithmetic/math functions involving TIMESTAMP values result
 # in ER_PARTITION_FUNC_NOT_ALLOWED_ERROR when used as a partitioning function
 
---error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 CREATE TABLE new (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (a) (
 PARTITION p VALUES LESS THAN (20080819),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
 
---error ER_PARTITION_FUNC_NOT_ALLOWED_ERROR
+--error ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 ALTER TABLE old
 PARTITION BY RANGE (a) (
 PARTITION p VALUES LESS THAN (20080819),
@@ -1283,5 +1380,19 @@ PARTITION p VALUES LESS THAN (1219089600),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
 
 DROP TABLE old;
+
+--echo #
+--echo # Bug #56709: Memory leaks at running the 5.1 test suite
+--echo # 
+
+CREATE TABLE t1 (a TIMESTAMP NOT NULL PRIMARY KEY);
+
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+ALTER TABLE t1
+PARTITION BY RANGE (EXTRACT(DAY FROM a)) (
+PARTITION p VALUES LESS THAN (18),
+PARTITION pmax VALUES LESS THAN MAXVALUE);
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests

@@ -452,6 +452,65 @@ public:
   { return type != STRING_RESULT; }
 };
 
+
+class Sys_var_proxy_user: public sys_var
+{
+public:
+  Sys_var_proxy_user(const char *name_arg,
+          const char *comment, enum charset_enum is_os_charset_arg)
+    : sys_var(&all_sys_vars, name_arg, comment,
+              sys_var::READONLY+sys_var::ONLY_SESSION, 0, -1,
+              NO_ARG, SHOW_CHAR, 0, NULL, VARIABLE_NOT_IN_BINLOG,
+              NULL, NULL, 0, NULL, PARSE_NORMAL)
+  {
+    is_os_charset= is_os_charset_arg == IN_FS_CHARSET;
+    option.var_type= GET_STR;
+  }
+  bool do_check(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return false;
+  }
+  void session_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+  bool check_update_type(Item_result type)
+  { return true; }
+protected:
+  virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    return thd->security_ctx->proxy_user[0] ?
+      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+  }
+};
+
+class Sys_var_external_user : public Sys_var_proxy_user
+{
+public:
+  Sys_var_external_user(const char *name_arg, const char *comment_arg, 
+          enum charset_enum is_os_charset_arg) 
+    : Sys_var_proxy_user (name_arg, comment_arg, is_os_charset_arg)
+  {}
+
+protected:
+  virtual uchar *session_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    return thd->security_ctx->proxy_user[0] ?
+      (uchar *) &(thd->security_ctx->proxy_user[0]) : NULL;
+  }
+};
+
 /**
   The class for string variables. Useful for strings that aren't necessarily
   \0-terminated. Otherwise the same as Sys_var_charptr.
@@ -1132,7 +1191,8 @@ public:
   void global_save_default(THD *thd, set_var *var)
   {
     LEX_STRING pname;
-    pname.str= *(char**)option.def_value;
+    char **default_value= reinterpret_cast<char**>(option.def_value);
+    pname.str= *default_value;
     pname.length= strlen(pname.str);
 
     plugin_ref plugin;
@@ -1497,7 +1557,10 @@ public:
   void session_save_default(THD *thd, set_var *var)
   { var->save_result.ptr= global_var(void*); }
   void global_save_default(THD *thd, set_var *var)
-  { var->save_result.ptr= *(void**)option.def_value; }
+  {
+    void **default_value= reinterpret_cast<void**>(option.def_value);
+    var->save_result.ptr= *default_value;
+  }
   bool check_update_type(Item_result type)
   { return type != INT_RESULT && type != STRING_RESULT; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)

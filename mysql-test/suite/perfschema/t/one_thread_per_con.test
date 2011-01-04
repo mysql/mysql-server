@@ -28,7 +28,7 @@
 # The point is not to test myisam, but to test that each
 # connection is properly instrumented, with one-thread-per-connection
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
 
 --disable_warnings
@@ -37,7 +37,7 @@ drop table if exists test.t2;
 drop table if exists test.t3;
 --enable_warnings
 
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_history_long;
 
 show variables like "thread_handling";
 

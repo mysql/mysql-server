@@ -2084,6 +2084,8 @@ SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
 TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 def	test	tm1	BASE TABLE	NULL	NULL	NULL	#	#	#	#	#	#	#	#	#	#	NULL	#	#	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+Warnings:
+Warning	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 DROP TABLE tm1;
 CREATE TABLE t1(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
 CREATE TABLE t2(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
@@ -2358,6 +2360,48 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t2, t1;
+#
+# Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+#
+DROP TABLE IF EXISTS m1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'm1' was locked with a READ lock and can't be updated
+test.m1	repair	status	Operation failed
+UNLOCK TABLES;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1,t1;
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Warning	Can't open table
+test.m1	repair	error	Corrupt
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.m1' doesn't exist
+test.m1	repair	error	Corrupt
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+m1	repair	error	Cannot repair temporary table from .frm file
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
 End of 5.1 tests
 #
 # An additional test case for Bug#27430 Crash in subquery code
@@ -2677,7 +2721,7 @@ OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	Error	Table 'test.t_not_exists' doesn't exist
 test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
-test.t1	optimize	note	The storage engine for the table doesn't support optimize
+test.t1	optimize	error	Corrupt
 DROP TABLE t1;
 #
 # Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine
@@ -3444,7 +3488,7 @@ ALTER TABLE m1 ADD INDEX (c1);
 UNLOCK TABLES;
 DROP TABLE m1, t1;
 #
-# If children are to be altered, they need an explicit lock.
+# Locking the merge table won't implicitly lock children.
 #
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
@@ -3576,4 +3620,60 @@ ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'm1
 drop view v1;
 drop temporary table tmp;
 drop table t1, t2, t3, m1, m2;
+#
+# Bug#56494 Segfault in upgrade_shared_lock_to_exclusive() for
+#           REPAIR of merge table
+#
+DROP TABLE IF EXISTS t1, t2, t_not_exists;
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 engine= MERGE UNION (t_not_exists);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	analyze	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	analyze	error	Corrupt
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	check	error	Corrupt
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	NULL
+Warnings:
+Error	1146	Table 'test.t_not_exists' doesn't exist
+Error	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	optimize	error	Corrupt
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Table 'test.t_not_exists' doesn't exist
+test.t1	repair	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	repair	error	Corrupt
+REPAIR TABLE t1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Warning	Can't open table
+test.t1	repair	error	Corrupt
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT) engine= MERGE UNION (t1);
+REPAIR TABLE t2 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE t1, t2;
+#
+# Bug#57002 Assert in upgrade_shared_lock_to_exclusive()
+#           for ALTER TABLE + MERGE tables
+#
+DROP TABLE IF EXISTS t1, m1;
+CREATE TABLE t1(a INT) engine=myisam;
+CREATE TABLE m1(a INT) engine=merge UNION(t1);
+LOCK TABLES t1 READ, m1 WRITE;
+ALTER TABLE t1 engine=myisam;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+DROP TABLE m1, t1;
 End of 6.0 tests

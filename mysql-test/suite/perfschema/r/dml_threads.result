@@ -1,27 +1,24 @@
-select * from performance_schema.THREADS
+select * from performance_schema.threads
 where name like 'Thread/%' limit 1;
-THREAD_ID	ID	NAME
-#	#	#
-select * from performance_schema.THREADS
+select * from performance_schema.threads
 where name='FOO';
-THREAD_ID	ID	NAME
-insert into performance_schema.THREADS
-set name='FOO', thread_id=1, id=2;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'THREADS'
-update performance_schema.THREADS
+insert into performance_schema.threads
+set name='FOO', thread_id=1, processlist_id=2;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'threads'
+update performance_schema.threads
 set thread_id=12;
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'THREADS'
-update performance_schema.THREADS
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'threads'
+update performance_schema.threads
 set thread_id=12 where name like "FOO";
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'THREADS'
-delete from performance_schema.THREADS
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'threads'
+delete from performance_schema.threads
 where id=1;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'THREADS'
-delete from performance_schema.THREADS;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'THREADS'
-LOCK TABLES performance_schema.THREADS READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'THREADS'
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'threads'
+delete from performance_schema.threads;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'threads'
+LOCK TABLES performance_schema.threads READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'threads'
 UNLOCK TABLES;
-LOCK TABLES performance_schema.THREADS WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'THREADS'
+LOCK TABLES performance_schema.threads WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'threads'
 UNLOCK TABLES;

@@ -1,23 +1,20 @@
-select * from performance_schema.MUTEX_INSTANCES limit 1;
-NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
-#	#	#
-select * from performance_schema.MUTEX_INSTANCES
+select * from performance_schema.mutex_instances limit 1;
+select * from performance_schema.mutex_instances
 where name='FOO';
-NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
-insert into performance_schema.MUTEX_INSTANCES
+insert into performance_schema.mutex_instances
 set name='FOO', object_instance_begin=12;
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'MUTEX_INSTANCES'
-update performance_schema.MUTEX_INSTANCES
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'mutex_instances'
+update performance_schema.mutex_instances
 set name='FOO';
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'MUTEX_INSTANCES'
-delete from performance_schema.MUTEX_INSTANCES
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'mutex_instances'
+delete from performance_schema.mutex_instances
 where name like "wait/%";
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'MUTEX_INSTANCES'
-delete from performance_schema.MUTEX_INSTANCES;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'MUTEX_INSTANCES'
-LOCK TABLES performance_schema.MUTEX_INSTANCES READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'MUTEX_INSTANCES'
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'mutex_instances'
+delete from performance_schema.mutex_instances;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'mutex_instances'
+LOCK TABLES performance_schema.mutex_instances READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'mutex_instances'
 UNLOCK TABLES;
-LOCK TABLES performance_schema.MUTEX_INSTANCES WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'MUTEX_INSTANCES'
+LOCK TABLES performance_schema.mutex_instances WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'mutex_instances'
 UNLOCK TABLES;

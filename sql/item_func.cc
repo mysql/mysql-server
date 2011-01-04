@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -180,7 +180,14 @@ Item_func::fix_fields(THD *thd, Item **ref)
   used_tables_cache= not_null_tables_cache= 0;
   const_item_cache=1;
 
-  if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
+  /*
+    Use stack limit of STACK_MIN_SIZE * 2 since
+    on some platforms a recursive call to fix_fields
+    requires more than STACK_MIN_SIZE bytes (e.g. for
+    MIPS, it takes about 22kB to make one recursive
+    call to Item_func::fix_fields())
+  */
+  if (check_stack_overrun(thd, STACK_MIN_SIZE * 2, buff))
     return TRUE;				// Fatal error if flag is set!
   if (arg_count)
   {						// Print purify happy
@@ -1538,9 +1545,14 @@ void Item_func_div::fix_length_and_dec()
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
     set_if_smaller(decimals, NOT_FIXED_DEC);
-    max_length=args[0]->max_length - args[0]->decimals + decimals;
     uint tmp=float_length(decimals);
-    set_if_smaller(max_length,tmp);
+    if (decimals == NOT_FIXED_DEC)
+      max_length= tmp;
+    else
+    {
+      max_length=args[0]->max_length - args[0]->decimals + decimals;
+      set_if_smaller(max_length,tmp);
+    }
     break;
   }
   case INT_RESULT:
@@ -2555,7 +2567,7 @@ void Item_func_min_max::fix_length_and_dec()
     stored to the value pointer, if latter is provided.
 
   RETURN
-   0	If one of arguments is NULL
+   0	If one of arguments is NULL or there was a execution error
    #	index of the least/greatest argument
 */
 
@@ -2569,6 +2581,14 @@ uint Item_func_min_max::cmp_datetimes(ulonglong *value)
     Item **arg= args + i;
     bool is_null;
     longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+
+    /* Check if we need to stop (because of error or KILL)  and stop the loop */
+    if (thd->is_error())
+    {
+      null_value= 1;
+      return 0;
+    }
+
     if ((null_value= args[i]->null_value))
       return 0;
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
@@ -2597,6 +2617,12 @@ String *Item_func_min_max::val_str(String *str)
     if (null_value)
       return 0;
     str_res= args[min_max_idx]->val_str(str);
+    if (args[min_max_idx]->null_value)
+    {
+      // check if the call to val_str() above returns a NULL value
+      null_value= 1;
+      return NULL;
+    }
     str_res->set_charset(collation.collation);
     return str_res;
   }
@@ -3679,47 +3705,91 @@ longlong Item_master_pos_wait::val_int()
 }
 
 
+/**
+  Enables a session to wait on a condition until a timeout or a network
+  disconnect occurs.
+
+  @remark The connection is polled every m_interrupt_interval nanoseconds.
+*/
+
+class Interruptible_wait
+{
+  THD *m_thd;
+  struct timespec m_abs_timeout;
+  static const ulonglong m_interrupt_interval;
+
+  public:
+    Interruptible_wait(THD *thd)
+    : m_thd(thd) {}
+
+    ~Interruptible_wait() {}
+
+  public:
+    /**
+      Set the absolute timeout.
+
+      @param timeout The amount of time in nanoseconds to wait
+    */
+    void set_timeout(ulonglong timeout)
+    {
+      /*
+        Calculate the absolute system time at the start so it can
+        be controlled in slices. It relies on the fact that once
+        the absolute time passes, the timed wait call will fail
+        automatically with a timeout error.
+      */
+      set_timespec_nsec(m_abs_timeout, timeout);
+    }
+
+    /** The timed wait. */
+    int wait(mysql_cond_t *, mysql_mutex_t *);
+};
+
+
+/** Time to wait before polling the connection status. */
+const ulonglong Interruptible_wait::m_interrupt_interval= 5 * ULL(1000000000);
+
 
 /**
-  Wait for a given condition to be signaled within the specified timeout.
+  Wait for a given condition to be signaled.
 
-  @param cond the condition variable to wait on
-  @param lock the associated mutex
-  @param abstime the amount of time in seconds to wait
+  @param cond   The condition variable to wait on.
+  @param mutex  The associated mutex.
+
+  @remark The absolute timeout is preserved across calls.
 
   @retval return value from mysql_cond_timedwait
 */
 
-#define INTERRUPT_INTERVAL (5 * ULL(1000000000))
-
-static int interruptible_wait(THD *thd, mysql_cond_t *cond,
-                              mysql_mutex_t *lock, double time)
+int Interruptible_wait::wait(mysql_cond_t *cond, mysql_mutex_t *mutex)
 {
   int error;
-  struct timespec abstime;
-  ulonglong slice, timeout= (ulonglong) (time * 1000000000.0);
+  struct timespec timeout;
 
-  do
+  while (1)
   {
     /* Wait for a fixed interval. */
-    if (timeout > INTERRUPT_INTERVAL)
-      slice= INTERRUPT_INTERVAL;
-    else
-      slice= timeout;
+    set_timespec_nsec(timeout, m_interrupt_interval);
 
-    timeout-= slice;
-    set_timespec_nsec(abstime, slice);
-    error= mysql_cond_timedwait(cond, lock, &abstime);
+    /* But only if not past the absolute timeout. */
+    if (cmp_timespec(timeout, m_abs_timeout) > 0)
+      timeout= m_abs_timeout;
+
+    error= mysql_cond_timedwait(cond, mutex, &timeout);
     if (error == ETIMEDOUT || error == ETIME)
     {
       /* Return error if timed out or connection is broken. */
-      if (!timeout || !thd->is_connected())
+      if (!cmp_timespec(timeout, m_abs_timeout) || !m_thd->is_connected())
         break;
     }
-  } while (error && timeout);
+    /* Otherwise, propagate status to the caller. */
+    else
+      break;
+  }
 
   return error;
 }
+
 
 /**
   Get a user level lock.  If the thread has an old lock this is first released.
@@ -3736,10 +3806,11 @@ longlong Item_func_get_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res=args[0]->val_str(&value);
-  double timeout= args[1]->val_real();
+  ulonglong timeout= args[1]->val_int();
   THD *thd=current_thd;
   User_level_lock *ull;
   int error;
+  Interruptible_wait timed_cond(thd);
   DBUG_ENTER("Item_func_get_lock::val_int");
 
   /*
@@ -3800,12 +3871,14 @@ longlong Item_func_get_lock::val_int()
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
+  timed_cond.set_timeout(timeout * ULL(1000000000));
+
   error= 0;
   while (ull->locked && !thd->killed)
   {
     DBUG_PRINT("info", ("waiting on lock"));
     thd_wait_begin(thd, THD_WAIT_USER_LOCK);
-    error= interruptible_wait(thd, &ull->cond, &LOCK_user_locks, timeout);
+    error= timed_cond.wait(&ull->cond, &LOCK_user_locks);
     thd_wait_end(thd);
     if (error == ETIMEDOUT || error == ETIME)
     {
@@ -4001,6 +4074,7 @@ void Item_func_benchmark::print(String *str, enum_query_type query_type)
 longlong Item_func_sleep::val_int()
 {
   THD *thd= current_thd;
+  Interruptible_wait timed_cond(thd);
   mysql_cond_t cond;
   double timeout;
   int error;
@@ -4020,6 +4094,8 @@ longlong Item_func_sleep::val_int()
   if (timeout < 0.00001)
     return 0;
 
+  timed_cond.set_timeout((ulonglong) (timeout * 1000000000.0));
+
   mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
   mysql_mutex_lock(&LOCK_user_locks);
 
@@ -4031,7 +4107,7 @@ longlong Item_func_sleep::val_int()
   while (!thd->killed)
   {
     thd_wait_begin(thd, THD_WAIT_SLEEP);
-    error= interruptible_wait(thd, &cond, &LOCK_user_locks, timeout);
+    error= timed_cond.wait(&cond, &LOCK_user_locks);
     thd_wait_end(thd);
     if (error == ETIMEDOUT || error == ETIME)
       break;
@@ -4266,7 +4342,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       length--;					// Fix length change above
       entry->value[length]= 0;			// Store end \0
     }
-    memcpy(entry->value,ptr,length);
+    memmove(entry->value, ptr, length);
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
@@ -4627,6 +4703,14 @@ longlong Item_func_set_user_var::val_int_result()
   check(TRUE);
   update();					// Store expression
   return entry->val_int(&null_value);
+}
+
+bool Item_func_set_user_var::val_bool_result()
+{
+  DBUG_ASSERT(fixed == 1);
+  check(TRUE);
+  update();					// Store expression
+  return entry->val_int(&null_value) != 0;
 }
 
 String *Item_func_set_user_var::str_result(String *str)
@@ -5007,7 +5091,7 @@ void Item_func_get_user_var::fix_length_and_dec()
       decimals=0;
       break;
     case STRING_RESULT:
-      max_length= MAX_BLOB_WIDTH;
+      max_length= MAX_BLOB_WIDTH - 1;
       break;
     case DECIMAL_RESULT:
       fix_char_length(DECIMAL_MAX_STR_LENGTH);
@@ -5661,7 +5745,17 @@ void Item_func_match::init_search(bool no_order)
 
   /* Check if init_search() has been called before */
   if (ft_handler)
+  {
+    /*
+      We should reset ft_handler as it is cleaned up
+      on destruction of FT_SELECT object
+      (necessary in case of re-execution of subquery).
+      TODO: FT_SELECT should not clean up ft_handler.
+    */
+    if (join_key)
+      table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
+  }
 
   if (key == NO_SUCH_KEY)
   {
@@ -6409,7 +6503,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view
