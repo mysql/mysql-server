@@ -285,7 +285,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&checkpoint_lock_key, "checkpoint_lock", 0},
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
-	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0}
+	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
+	{&dict_table_stats_latch_key, "dict_table_stats", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
 
