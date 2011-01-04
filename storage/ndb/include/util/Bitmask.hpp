@@ -492,7 +492,7 @@ BitmaskImpl::toArray(Uint8* dst, Uint32 len,
       bit ++;
     }
   }
-  return dst - save;
+  return (Uint32)(dst - save);
 }
 
 /**
