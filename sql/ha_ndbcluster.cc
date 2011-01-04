@@ -957,7 +957,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                            const AQP::Table_access*& parent)
 {
   DBUG_ENTER("is_pushable_as_child");
-  uint tab_no = table->get_access_no();
+  const uint tab_no = table->get_access_no();
   parent= NULL;
 
   DBUG_ASSERT (join_root() < table);
@@ -1005,6 +1005,20 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                      table->get_table()->alias);
     m_tables[tab_no].m_maybe_pushable &= ~PUSHABLE_AS_CHILD; // Permanently dissable
     DBUG_RETURN(false);
+  }
+
+  for (uint i = tab_no - 1; i >= join_root()->get_access_no() && i < ~uint(0); 
+       i--)
+  {
+    if (m_plan.get_table_access(i)->uses_join_cache())
+    {
+      EXPLAIN_NO_PUSH("Cannot push table '%s' as child of table '%s'. Doing so "
+                      "would prevent using join buffer for table '%s'.",
+                      table->get_table()->alias,
+                      join_root()->get_table()->alias,
+                      m_plan.get_table_access(i+1)->get_table()->alias);
+      DBUG_RETURN(false);
+    }
   }
 
   DBUG_PRINT("info", ("Table:%d, Checking %d REF keys", tab_no, 
@@ -1171,6 +1185,33 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       // This key item is const. and did not cause the set of possible parents
       // to be recalculated. Reuse what we had before this key item.
       DBUG_ASSERT(parents.is_clear_all());
+      /** 
+       * Scan queries cannot be pushed if the pushed query may refer column 
+       * values (paramValues) from rows stored in a join cache.  
+       */
+      if (!is_lookup_operation(root_type))
+      {
+        const st_table* const referred_tab = key_item_field->field->table;
+        uint access_no = tab_no;
+        do
+        {
+          DBUG_ASSERT(access_no > 0);
+          access_no--;
+          if (m_plan.get_table_access(access_no)->uses_join_cache())
+          {
+            EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s', since "
+                            "it referes to column '%s.%s' which will be stored "
+                            "in a join buffer.",
+                            table->get_table()->alias, 
+                            join_root()->get_table()->alias,
+                            get_referred_table_access_name(key_item_field),
+                            get_referred_field_name(key_item_field));
+            DBUG_RETURN(false);
+          }
+        } while (m_plan.get_table_access(access_no)->get_table() 
+                 != referred_tab);
+
+      } // if (!is_lookup_operation(root_type)
       parents= old_parents;
     }
     else
@@ -1221,11 +1262,12 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
   }
   else // scan operation
   {
-    for (parent_no= tab_no-1;
-         parent_no >= join_root()->get_access_no() && !parents.contain_table(m_plan.get_table_access(parent_no));
-         parent_no--)
-    {}
-
+    parent_no= tab_no-1;
+    while (!parents.contain_table(m_plan.get_table_access(parent_no)))
+    {
+      DBUG_ASSERT(parent_no > join_root()->get_access_no());
+      parent_no--;
+    }
     /**
      * If parent already has a scan descendant:
      *   appending 'table' will make this a 'bushy scan' which we don't yet nativily support as a pushed operation.
@@ -2136,20 +2178,6 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
 
     DBUG_RETURN(true);
   }
-  case HA_PUSH_BLOCK_JOINCACHE:
-    /**
-     * Join cache is blocked for pushed join root if the 
-     * pushed join may refer column values (paramValues)
-     * from rows stored in the join cache.
-     */
-    if (m_pushed_join &&
-         (m_pushed_join->get_field_referrences_count() > 0 || // Childs has field refs
-         !m_pushed_join->get_query_def().isScanQuery()))      // Roots lookup keys may refer joincache
-    {
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(false);
-
   case HA_PUSH_MULTIPLE_DEPENDENCY:
     /**
      * If any child operation within this pushed join refer 

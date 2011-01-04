@@ -534,6 +534,16 @@ namespace AQP
   }
 
   /**
+    Check if the results from this operation will joined with results 
+    from the next operation using a join buffer (instead of plain nested loop).
+    @return True if using a join buffer. 
+  */
+  bool Table_access::uses_join_cache() const
+  {
+    return get_join_tab()->next_select == sub_select_cache;
+  }
+
+  /**
     @param plan Iterate over fields within this plan.
     @param field_item Iterate over Item_fields equal to this.
   */

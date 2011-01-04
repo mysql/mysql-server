@@ -429,11 +429,6 @@ enum ha_push_flag {
   /* Handler want to block const table optimization */
   HA_PUSH_BLOCK_CONST_TABLE
 
-  /* Handler want to block 'Using join buffer' on the pushed join
-     having this handler instance as *root*.
-   */
-  ,HA_PUSH_BLOCK_JOINCACHE
-
   /* Handler reports a pushed join as having multiple dependencies 
      if its results does not only depend on the root operation:
      ie. results from some child operations does not only depend

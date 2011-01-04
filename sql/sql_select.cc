@@ -1687,19 +1687,6 @@ make_pushed_join(THD *thd, JOIN *join)
       }
       active_pushed_joins--;
     }
-
-    // Disable 'Using join buffer' if there are active pushed join sequence
-    // across the scope of the join buffer.
-    //  -- OR --
-    // the handler for the next JOIN_TAB (having cur. as source) has requested
-    // join caching to be disabled.
-    //
-    if (tab->next_select == sub_select_cache && 
-        (active_pushed_joins > 0 ||
-         (i+1 < join->tables && tab[1].table->file->test_push_flag(HA_PUSH_BLOCK_JOINCACHE))))
-    {
-      tab->next_select=sub_select;
-    }
   }
 
   /* If we just pushed a join containing an ORDER BY and/or a GROUP BY clause,
