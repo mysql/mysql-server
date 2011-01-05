@@ -176,7 +176,7 @@ end|
 ERROR HY000: You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
 set global log_bin_trust_routine_creators=1;
 Warnings:
-Warning	1287	The syntax '@@log_bin_trust_routine_creators' is deprecated and will be removed in MySQL 5.6. Please use '@@log_bin_trust_function_creators' instead
+Warning	1287	'@@log_bin_trust_routine_creators' is deprecated and will be removed in a future release. Please use '@@log_bin_trust_function_creators' instead
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 set global log_bin_trust_function_creators=1;
