@@ -84,64 +84,64 @@ CrundDriver::initProperties() {
 
     aStart = toInt(props[L"aStart"], 256, 0);
     if (aStart < 1) {
-        msg << "[ignored] aStart:            '"
+        msg << "[ignored] aStart:               '"
             << toString(props[L"aStart"]) << "'" << endl;
         aStart = 256;
     }
     aEnd = toInt(props[L"aEnd"], aStart, 0);
     if (aEnd < aStart) {
-        msg << "[ignored] aEnd:              '"
+        msg << "[ignored] aEnd:                 '"
             << toString(props[L"aEnd"]) << "'" << endl;
         aEnd = aStart;
     }
     aScale = toInt(props[L"aScale"], 2, 0);
     if (aScale < 2) {
-        msg << "[ignored] aScale:            '"
+        msg << "[ignored] aScale:               '"
             << toString(props[L"aScale"]) << "'" << endl;
         aScale = 2;
     }
 
     bStart = toInt(props[L"bStart"], aStart, 0);
     if (bStart < 1) {
-        msg << "[ignored] bStart:            '"
+        msg << "[ignored] bStart:               '"
             << toString(props[L"bStart"]) << "'" << endl;
         bStart = aStart;
     }
     bEnd = toInt(props[L"bEnd"], bStart, 0);
     if (bEnd < bStart) {
-        msg << "[ignored] bEnd:              '"
+        msg << "[ignored] bEnd:                 '"
             << toString(props[L"bEnd"]) << "'" << endl;
         bEnd = bStart;
     }
     bScale = toInt(props[L"bScale"], 2, 0);
     if (bScale < 2) {
-        msg << "[ignored] bScale:            '"
+        msg << "[ignored] bScale:               '"
             << toString(props[L"bScale"]) << "'" << endl;
         bScale = 2;
     }
 
     maxVarbinaryBytes = toInt(props[L"maxVarbinaryBytes"], 100, 0);
     if (maxVarbinaryBytes < 1) {
-        msg << "[ignored] maxVarbinaryBytes: '"
+        msg << "[ignored] maxVarbinaryBytes:    '"
             << toString(props[L"maxVarbinaryBytes"]) << "'" << endl;
         maxVarbinaryBytes = 100;
     }
     maxVarcharChars = toInt(props[L"maxVarcharChars"], 100, 0);
     if (maxVarcharChars < 1) {
-        msg << "[ignored] maxVarcharChars:   '"
+        msg << "[ignored] maxVarcharChars:      '"
             << toString(props[L"maxVarcharChars"]) << "'" << endl;
         maxVarcharChars = 100;
     }
 
     maxBlobBytes = toInt(props[L"maxBlobBytes"], 1000, 0);
     if (maxBlobBytes < 1) {
-        msg << "[ignored] maxBlobBytes:      '"
+        msg << "[ignored] maxBlobBytes:         '"
             << toString(props[L"maxBlobBytes"]) << "'" << endl;
         maxBlobBytes = 1000;
     }
     maxTextChars = toInt(props[L"maxTextChars"], 1000, 0);
     if (maxTextChars < 1) {
-        msg << "[ignored] maxTextChars:      '"
+        msg << "[ignored] maxTextChars:         '"
             << toString(props[L"maxTextChars"]) << "'" << endl;
         maxTextChars = 1000;
     }
@@ -166,7 +166,7 @@ CrundDriver::initProperties() {
         exclude.insert(toString(s));
     }
 
-    if (msg.tellp() == 0) {
+    if (!msg.tellp()) {
         cout << "    [ok: "
              << "A=" << aStart << ".." << aEnd
              << ", B=" << bStart << ".." << bEnd << "]" << endl;
