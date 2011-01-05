@@ -123,11 +123,6 @@ if we are compiling on Windows. */
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 
-# if !defined(__GNUC__) && !(defined(__SUNPRO_C) || defined(__SUNPRO_CC))
-#  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
-#  define UNIV_MUST_NOT_INLINE
-# endif
-
 # ifdef HAVE_PREAD
 #  define HAVE_PWRITE
 # endif
@@ -270,14 +265,14 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INLINE static __inline__
 #endif
 
-#else
+#else /* !UNIV_MUST_NOT_INLINE */
 /* If we want to compile a noninlined version we use the following macro
 definitions: */
 
 #define UNIV_NONINL
 #define UNIV_INLINE	UNIV_INTERN
 
-#endif	/* UNIV_DEBUG */
+#endif /* !UNIV_MUST_NOT_INLINE */
 
 #ifdef _WIN32
 #define UNIV_WORD_SIZE		4
