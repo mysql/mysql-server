@@ -30,7 +30,7 @@ TFPool::init(size_t mem, size_t page_sz)
   for (size_t i = 0; i + page_sz < mem; i += page_sz)
   {
     TFPage * p = (TFPage*)(ptr + i);
-    p->m_size = page_sz - offsetof(TFPage, m_data);
+    p->m_size = (Uint16)(page_sz - offsetof(TFPage, m_data));
     p->init();
     p->m_next = m_first_free;
     m_first_free = p;
