@@ -1,3 +1,8 @@
+2011-01-04	The InnoDB Team
+	* dict/dict0dict.c:
+	Fix Bug#59197 double quote in field comment prevents foreign
+	key constraint creation
+
 2010-12-21	The InnoDB Team
 	* include/btr0cur.h, include/row0upd.h, btr/btr0cur.c,
 	row/row0umod.c, row/row0upd.c:
