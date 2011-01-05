@@ -96,6 +96,8 @@ SELECT * FROM t2;
 a
 2
 ROLLBACK;
+Warnings:
+Warning	1726	The creation of some temporary tables could not be rolled back.
 SELECT * FROM temp;
 a
 DROP TABLE temp;

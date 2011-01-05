@@ -84,13 +84,13 @@ private:
 class binlog_cache_data
 {
 public:
-  binlog_cache_data(): m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF),
-  incident(FALSE), changes_to_non_trans_temp_table_flag(FALSE),
-  saved_max_binlog_cache_size(0), ptr_binlog_cache_use(0),
+
+  binlog_cache_data(): m_pending(0),
+  incident(FALSE), saved_max_binlog_cache_size(0), ptr_binlog_cache_use(0),
   ptr_binlog_cache_disk_use(0)
   { }
   
-  ~binlog_cache_data()
+  virtual ~binlog_cache_data()
   {
     DBUG_ASSERT(empty());
     close_cached_file(&cache_log);
@@ -121,23 +121,11 @@ public:
     return(incident);
   }
 
-  void set_changes_to_non_trans_temp_table()
-  {
-    changes_to_non_trans_temp_table_flag= TRUE;    
-  }
-
-  bool changes_to_non_trans_temp_table()
-  {
-    return (changes_to_non_trans_temp_table_flag);    
-  }
-
-  void reset()
+  virtual void reset()
   {
     compute_statistics();
     truncate(0);
-    changes_to_non_trans_temp_table_flag= FALSE;
     incident= FALSE;
-    before_stmt_pos= MY_OFF_T_UNDEF;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -147,33 +135,6 @@ public:
     */
     cache_log.disk_writes= 0;
     DBUG_ASSERT(empty());
-  }
-
-  my_off_t get_byte_position() const
-  {
-    return my_b_tell(&cache_log);
-  }
-
-  my_off_t get_prev_position()
-  {
-     return(before_stmt_pos);
-  }
-
-  void set_prev_position(my_off_t pos)
-  {
-     before_stmt_pos= pos;
-  }
-  
-  void restore_prev_position()
-  {
-    truncate(before_stmt_pos);
-  }
-
-  void restore_savepoint(my_off_t pos)
-  {
-    truncate(pos);
-    if (pos < before_stmt_pos)
-      before_stmt_pos= MY_OFF_T_UNDEF;
   }
 
   void set_binlog_cache_info(ulong param_max_binlog_cache_size,
@@ -211,6 +172,23 @@ public:
   */
   IO_CACHE cache_log;
 
+protected:
+  /*
+    It truncates the cache to a certain position. This includes deleting the
+    pending event.
+   */
+  void truncate(my_off_t pos)
+  {
+    DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
+    if (pending())
+    {
+      delete pending();
+      set_pending(0);
+    }
+    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
+    cache_log.end_of_file= saved_max_binlog_cache_size;
+  }
+
 private:
   /*
     Pending binrows event. This event is the event where the rows are currently
@@ -219,21 +197,10 @@ private:
   Rows_log_event *m_pending;
 
   /*
-    Binlog position before the start of the current statement.
-  */
-  my_off_t before_stmt_pos;
- 
-  /*
     This indicates that some events did not get into the cache and most likely
     it is corrupted.
   */ 
   bool incident;
-
-  /*
-    This flag indicates if the cache has changes to temporary tables.
-    @TODO This a temporary fix and should be removed after BUG#54562.
-  */
-  bool changes_to_non_trans_temp_table_flag;
 
   /**
     This function computes binlog cache and disk usage.
@@ -269,24 +236,73 @@ private:
   */
   ulong *ptr_binlog_cache_disk_use;
 
-  /*
-    It truncates the cache to a certain position. This includes deleting the
-    pending event.
-   */
-  void truncate(my_off_t pos)
-  {
-    DBUG_PRINT("info", ("truncating to position %lu", (ulong) pos));
-    if (pending())
-    {
-      delete pending();
-      set_pending(0);
-    }
-    reinit_io_cache(&cache_log, WRITE_CACHE, pos, 0, 0);
-    cache_log.end_of_file= saved_max_binlog_cache_size;
-  }
- 
   binlog_cache_data& operator=(const binlog_cache_data& info);
   binlog_cache_data(const binlog_cache_data& info);
+};
+
+class binlog_trx_cache_data : public binlog_cache_data
+{
+public:
+  binlog_trx_cache_data() : m_cannot_rollback(FALSE),
+  before_stmt_pos(MY_OFF_T_UNDEF)
+  {}
+
+  void reset()
+  {
+    m_cannot_rollback= FALSE;
+    before_stmt_pos= MY_OFF_T_UNDEF;
+    binlog_cache_data::reset();
+  }
+
+  bool cannot_rollback()
+  {
+    return m_cannot_rollback;
+  }
+
+  void set_cannot_rollback()
+  {
+    m_cannot_rollback= TRUE;
+  }
+
+  my_off_t get_byte_position() const
+  {
+    return my_b_tell(&cache_log);
+  }
+
+  my_off_t get_prev_position()
+  {
+     return(before_stmt_pos);
+  }
+
+  void set_prev_position(my_off_t pos)
+  {
+     before_stmt_pos= pos;
+  }
+
+  void restore_prev_position()
+  {
+    truncate(before_stmt_pos);
+    before_stmt_pos= MY_OFF_T_UNDEF;
+  }
+
+  void restore_savepoint(my_off_t pos)
+  {
+    truncate(pos);
+    if (pos < before_stmt_pos)
+      before_stmt_pos= MY_OFF_T_UNDEF;
+  }
+
+private:
+  /*
+    It will be set TRUE if any statement which cannot be rolled back safely
+    is put in trx_cache.
+  */
+  bool m_cannot_rollback;
+
+  /*
+    Binlog position before the start of the current statement.
+  */
+  my_off_t before_stmt_pos;
 };
 
 class binlog_cache_mngr {
@@ -298,17 +314,32 @@ public:
                     ulong *param_ptr_binlog_cache_use,
                     ulong *param_ptr_binlog_cache_disk_use)
   {
-     stmt_cache.set_binlog_cache_info(param_max_binlog_stmt_cache_size,
-                                      param_ptr_binlog_stmt_cache_use,
-                                      param_ptr_binlog_stmt_cache_disk_use);
-     trx_cache.set_binlog_cache_info(param_max_binlog_cache_size,
-                                     param_ptr_binlog_cache_use,
-                                     param_ptr_binlog_cache_disk_use);
+    stmt_cache.set_binlog_cache_info(param_max_binlog_stmt_cache_size,
+                                     param_ptr_binlog_stmt_cache_use,
+                                     param_ptr_binlog_stmt_cache_disk_use);
+    trx_cache.set_binlog_cache_info(param_max_binlog_cache_size,
+                                    param_ptr_binlog_cache_use,
+                                    param_ptr_binlog_cache_disk_use);
   }
 
-  void reset_cache(binlog_cache_data* cache_data)
+  void reset_stmt_cache()
   {
-    cache_data->reset();
+    stmt_cache.reset();
+  }
+
+  void reset_trx_cache()
+  {
+    trx_cache.reset();
+  }
+
+  void set_trx_cache_cannot_rollback()
+  {
+    trx_cache.set_cannot_rollback();
+  }
+
+  bool trx_cache_cannot_rollback()
+  {
+    return trx_cache.cannot_rollback();
   }
 
   binlog_cache_data* get_binlog_cache_data(bool is_transactional)
@@ -323,7 +354,7 @@ public:
 
   binlog_cache_data stmt_cache;
 
-  binlog_cache_data trx_cache;
+  binlog_trx_cache_data trx_cache;
 
 private:
 
@@ -635,7 +666,7 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
 
     thd->clear_binlog_table_maps();
 
-    cache_mngr->reset_cache(&cache_mngr->trx_cache);
+    cache_mngr->reset_trx_cache();
   }
   /*
     If rolling back a statement in a transaction, we truncate the
@@ -679,11 +710,11 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
   DBUG_PRINT("debug",
-             ("all: %d, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
+             ("all: %d, in_transaction: %s, all.cannot_safely_rollback(): %s, stmt.cannot_safely_rollback(): %s",
               all,
               YESNO(thd->in_multi_stmt_transaction_mode()),
-              YESNO(thd->transaction.all.modified_non_trans_table),
-              YESNO(thd->transaction.stmt.modified_non_trans_table)));
+              YESNO(thd->transaction.all.cannot_safely_rollback()),
+              YESNO(thd->transaction.stmt.cannot_safely_rollback())));
 
   if (!cache_mngr->stmt_cache.empty())
   {
@@ -695,7 +726,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     /*
       we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
     */
-    cache_mngr->reset_cache(&cache_mngr->trx_cache);
+    cache_mngr->reset_trx_cache();
     DBUG_RETURN(error);
   }
 
@@ -733,10 +764,10 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-  DBUG_PRINT("debug", ("all: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
+  DBUG_PRINT("debug", ("all: %s, all.cannot_safely_rollback(): %s, stmt.cannot_safely_rollback(): %s",
                        YESNO(all),
-                       YESNO(thd->transaction.all.modified_non_trans_table),
-                       YESNO(thd->transaction.stmt.modified_non_trans_table)));
+                       YESNO(thd->transaction.all.cannot_safely_rollback()),
+                       YESNO(thd->transaction.stmt.cannot_safely_rollback())));
 
   /*
     If an incident event is set we do not flush the content of the statement
@@ -745,7 +776,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   if (cache_mngr->stmt_cache.has_incident())
   {
     error= mysql_bin_log.write_incident(thd, TRUE);
-    cache_mngr->reset_cache(&cache_mngr->stmt_cache);
+    cache_mngr->reset_stmt_cache();
   }
   else if (!cache_mngr->stmt_cache.empty())
   {
@@ -757,7 +788,7 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     /*
       we're here because cache_log was flushed in MYSQL_BIN_LOG::log_xid()
     */
-    cache_mngr->reset_cache(&cache_mngr->trx_cache);
+    cache_mngr->reset_trx_cache();
     DBUG_RETURN(error);
   }
 
@@ -775,55 +806,23 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
       a cache and need to be rolled back.
     */
     error |= binlog_truncate_trx_cache(thd, cache_mngr, all);
+    DBUG_RETURN(error);
   }
-  else if (!error)
-  {  
-    /*
-      We flush the cache wrapped in a beging/rollback if:
-        . aborting a single or multi-statement transaction and;
-        . the format is STMT and non-trans engines were updated or;
-        . the OPTION_KEEP_LOG is activate.
-        . the OPTION_KEEP_LOG is active or;
-        . the format is STMT and a non-trans table was updated or;
-        . the format is MIXED and a temporary non-trans table was
-          updated or;
-        . the format is MIXED, non-trans table was updated and
-          aborting a single statement transaction;
-     */
-     if (ending_trans(thd, all) &&
-         ((thd->variables.option_bits & OPTION_KEEP_LOG) ||
-          (trans_has_updated_non_trans_table(thd) &&
-          thd->variables.binlog_format == BINLOG_FORMAT_STMT) ||
-         (cache_mngr->trx_cache.changes_to_non_trans_temp_table() &&
-          thd->variables.binlog_format == BINLOG_FORMAT_MIXED) ||
-         (trans_has_updated_non_trans_table(thd) &&
-          ending_single_stmt_trans(thd,all) &&
-          thd->variables.binlog_format == BINLOG_FORMAT_MIXED)))
-      error= binlog_rollback_flush_trx_cache(thd, cache_mngr);
 
-    /*
-      Truncate the cache if:
-        . aborting a single or multi-statement transaction or;
-        . the OPTION_KEEP_LOG is not activate and;
-        . the format is not STMT or no non-trans were updated.
-        . the OPTION_KEEP_LOG is not active and;
-        . the format is not STMT or no non-trans was updated and;
-        . the format is not MIXED or no temporary non-trans was
-          updated.
-     */
-     else if (ending_trans(thd, all) ||
-              (!(thd->variables.option_bits & OPTION_KEEP_LOG) &&
-              (!stmt_has_updated_non_trans_table(thd) ||
-               thd->variables.binlog_format != BINLOG_FORMAT_STMT) &&
-              (!cache_mngr->trx_cache.changes_to_non_trans_temp_table() ||
-               thd->variables.binlog_format != BINLOG_FORMAT_MIXED)))
-      error= binlog_truncate_trx_cache(thd, cache_mngr, all);
+  if (cache_mngr->trx_cache_cannot_rollback())
+  {
+    if (ending_trans(thd, all))
+    {
+      error= binlog_rollback_flush_trx_cache(thd, cache_mngr);
+    }
+    else
+    {
+      /* The statement should be kept in trx_cache. */
+      cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
+    }
   }
-  /* 
-    This is part of the stmt rollback.
-  */
-  if (!all)
-    cache_mngr->trx_cache.set_prev_position(MY_OFF_T_UNDEF);
+  else
+    error= binlog_truncate_trx_cache(thd, cache_mngr, all);
 
   DBUG_RETURN(error);
 }
@@ -895,8 +894,10 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(trans_has_updated_non_trans_table(thd) ||
-               (thd->variables.option_bits & OPTION_KEEP_LOG)))
+  binlog_cache_mngr *const cache_mngr=
+    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+
+  if (unlikely(cache_mngr->trx_cache_cannot_rollback()))
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
@@ -1160,31 +1161,15 @@ bool ending_single_stmt_trans(THD* thd, const bool all)
 }
 
 /**
-  This function checks if a non-transactional table was updated by
-  the current transaction.
-
-  @param thd The client thread that executed the current statement.
-  @return
-    @c true if a non-transactional table was updated, @c false
-    otherwise.
-*/
-bool trans_has_updated_non_trans_table(const THD* thd)
-{
-  return (thd->transaction.all.modified_non_trans_table ||
-          thd->transaction.stmt.modified_non_trans_table);
-}
-
-/**
-  This function checks if a non-transactional table was updated by the
-  current statement.
+  This function checks if current statement cannot be rollded back safely.
 
   @param thd The client thread that executed the current statement.
   @return
     @c true if a non-transactional table was updated, @c false otherwise.
 */
-bool stmt_has_updated_non_trans_table(const THD* thd)
+bool stmt_cannot_safely_rollback(const THD* thd)
 {
-  return (thd->transaction.stmt.modified_non_trans_table);
+  return thd->transaction.stmt.cannot_safely_rollback();
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -3266,7 +3251,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     {
       set_write_error(thd, is_transactional);
       if (check_write_error(thd) && cache_data &&
-          stmt_has_updated_non_trans_table(thd))
+          stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
       DBUG_RETURN(1);
     }
@@ -3287,9 +3272,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 {
   THD *thd= event_info->thd;
   bool error= 1;
-  bool is_trans_cache= FALSE;
   DBUG_ENTER("MYSQL_BIN_LOG::write(Log_event *)");
-  binlog_cache_data *cache_data= 0;
 
   if (thd->binlog_evt_union.do_union)
   {
@@ -3336,6 +3319,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 #endif /* HAVE_REPLICATION */
 
     IO_CACHE *file= NULL;
+    binlog_cache_mngr *cache_mngr= NULL;
+    binlog_cache_data *cache_data= 0;
+    bool is_trans_cache= FALSE;
 
     if (event_info->use_direct_logging())
     {
@@ -3347,15 +3333,10 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       if (thd->binlog_setup_trx_data())
         goto err;
 
-      binlog_cache_mngr *const cache_mngr=
-        (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
-
+      cache_mngr= (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
       is_trans_cache= use_trans_cache(thd, event_info->use_trans_cache());
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);
       cache_data= cache_mngr->get_binlog_cache_data(is_trans_cache);
-
-      if (thd->lex->stmt_accessed_non_trans_temp_table())
-        cache_data->set_changes_to_non_trans_temp_table();
 
       thd->binlog_start_trans_and_stmt();
     }
@@ -3439,6 +3420,8 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
     error= 0;
 
+    if (is_trans_cache && stmt_cannot_safely_rollback(thd))
+      cache_mngr->set_trx_cache_cannot_rollback();
 err:
     if (event_info->use_direct_logging())
     {
@@ -3465,7 +3448,7 @@ unlock:
     {
       set_write_error(thd, is_trans_cache);
       if (check_write_error(thd) && cache_data &&
-          stmt_has_updated_non_trans_table(thd))
+          stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
     }
   }

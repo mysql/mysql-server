@@ -2000,7 +2000,7 @@ mysql_execute_command(THD *thd)
 
   status_var_increment(thd->status_var.com_stat[lex->sql_command]);
 
-  DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table == FALSE);
+  DBUG_ASSERT(thd->transaction.stmt.cannot_safely_rollback() == FALSE);
 
   /*
     End a active transaction so that this command will have it's
@@ -2453,10 +2453,6 @@ case SQLCOM_PREPARE:
         */
         lex->unlink_first_table(&link_to_local);
 
-        /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-        if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-          thd->variables.option_bits|= OPTION_KEEP_LOG;
-
         /*
           select_create is currently not re-execution friendly and
           needs to be created for every execution of a PS/SP.
@@ -2482,9 +2478,6 @@ case SQLCOM_PREPARE:
     }
     else
     {
-      /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
-      if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
-        thd->variables.option_bits|= OPTION_KEEP_LOG;
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -3008,11 +3001,6 @@ end_with_restore_list:
     {
       if (check_table_access(thd, DROP_ACL, all_tables, FALSE, UINT_MAX, FALSE))
 	goto error;				/* purecov: inspected */
-    }
-    else
-    {
-      /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
-      thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
     /* DDL and binlog write order are protected by metadata locks. */
     res= mysql_rm_table(thd, first_table, lex->drop_if_exists,
@@ -4388,7 +4376,6 @@ finish:
   DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
                thd->in_multi_stmt_transaction_mode());
 
-
   if (! thd->in_sub_stmt)
   {
     /* report error issued during command execution */
@@ -5267,15 +5254,9 @@ void THD::reset_for_next_command()
     beginning of each SQL statement.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
-  /*
-    If in autocommit mode and not in a transaction, reset
-    OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
-    in ha_rollback_trans() about some tables couldn't be rolled back.
-  */
   if (!thd->in_multi_stmt_transaction_mode())
   {
-    thd->variables.option_bits&= ~OPTION_KEEP_LOG;
-    thd->transaction.all.modified_non_trans_table= FALSE;
+    thd->transaction.all.reset_unsafe_rollback_flags();
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
   thd->thread_specific_used= FALSE;

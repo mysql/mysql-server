@@ -1770,6 +1770,32 @@ public:
       xid_state.xid.null();
       init_sql_alloc(&mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
     }
+    void push_unsafe_rollback_warnings(THD *thd)
+    {
+      if (all.has_modified_non_trans_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+
+      if (all.has_created_temp_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
+
+      if (all.has_dropped_temp_table())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
+                     ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
+    }
+    void merge_unsafe_rollback_flags()
+    {
+      /*
+        Merge stmt.unsafe_rollback_flags to all.unsafe_rollback_flags. If
+        the statement cannot be rolled back safely, the transaction including
+        this statement definitely cannot rolled back safely.
+      */
+      all.add_unsafe_rollback_flags(stmt.get_unsafe_rollback_flags());
+    }
   } transaction;
   Global_read_lock global_read_lock;
   Field      *dup_field;
@@ -2576,7 +2602,7 @@ public:
   inline bool really_abort_on_warning()
   {
     return (abort_on_warning &&
-            (!transaction.stmt.modified_non_trans_table ||
+            (!transaction.stmt.cannot_safely_rollback() ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();

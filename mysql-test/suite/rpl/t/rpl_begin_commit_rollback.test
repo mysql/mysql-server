@@ -171,6 +171,160 @@ SELECT * FROM db1.t2 WHERE s LIKE '% savepoint %';
 --echo # Verify INSERT statements on the Innodb table are rolled back;
 SELECT * FROM db1.t1 WHERE a IN (30, 40);
 
+--echo
+--echo # BUG#55798 Slave SQL retry on transaction inserts extra data into
+--echo # non-transaction table
+--echo # ----------------------------------------------------------------
+--echo # To verify that SQL thread does not retry a transaction which can
+--echo # not be rolled back safely, even though only a temporary error is
+--echo # encountered.
+--echo
+--echo # [ on master ]
+connection master;
+USE db1;
+DROP TABLE t1, t2;
+CREATE TABLE t1(c1 INT KEY, c2 CHAR(100)) ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3(c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, "master");
+
+SET @@session.binlog_direct_non_transactional_updates= FALSE;
+
+sync_slave_with_master;
+
+--echo # [ on slave ]
+USE db1;
+
+let $timeout_old= `SELECT @@GLOBAL.innodb_lock_wait_timeout`;
+SET GLOBAL innodb_lock_wait_timeout= 1;
+
+STOP SLAVE SQL_THREAD;
+source include/wait_for_slave_sql_to_stop.inc;
+START SLAVE SQL_THREAD;
+source include/wait_for_slave_sql_to_start.inc;
+
+--echo # Verify the SQL thread don't retry the transaction when different
+--echo # sort of statements has modified a non-transactional table.
+--echo # ----------------------------------------------------------------
+--echo
+--echo # INSERT statement inserts a row to a non-transactional table.
+let $statement= INSERT INTO t2 VALUES(1);
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # INSERT ... SELECT statement inserts a row to a non-transactional table.
+let $statement= INSERT INTO t2 SELECT 2;
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # UPDATE statement updates a row to a non-transactional table.
+connection master;
+let $statement= UPDATE t2 SET c1= 3;
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # MULTI-UPDATE statement updates a row to a non-transactional table.
+connection master;
+let $statement= UPDATE t2, t3 SET t2.c1=4, t3.c1= 4;
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # DELETE statement deletes a row from a non-transactional table.
+connection master;
+let $statement= DELETE FROM t2;
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # CREATE TEMPORARY TABLE statement in the transaction
+let $statement= CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT);
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # DROP TEMPORARY TABLE statement in the transaction
+let $statement= DROP TEMPORARY TABLE IF EXISTS temp_t;
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # Verify the SQL thread don't retry the transaction if one of the
+--echo # sub-statement has modified a non-transactional table.
+--echo # ----------------------------------------------------------------
+
+connection master;
+--delimiter |
+
+CREATE FUNCTION f_insert()
+RETURNS INT
+BEGIN
+  INSERT INTO t2 VALUES(1);
+  RETURN 2;
+END|
+
+CREATE FUNCTION f_insert_select()
+RETURNS INT
+BEGIN
+  INSERT INTO t2 SELECT 2;
+  RETURN 2;
+END|
+
+CREATE FUNCTION f_update()
+RETURNS INT
+BEGIN
+  UPDATE t2 SET c1=3;
+  RETURN 2;
+END |
+
+CREATE TABLE t4 (c1 INT);
+INSERT INTO t4 VAlUES(1),(2);
+CREATE FUNCTION f_multi_update()
+RETURNS INT
+BEGIN
+  UPDATE t2, t4 SET t2.c1=4, t4.c1= 4;
+  RETURN 2;
+END |
+
+CREATE FUNCTION f_delete()
+RETURNS INT
+BEGIN
+  DELETE FROM t2;
+  RETURN 2;
+END |
+--delimiter ;
+
+--echo
+--echo # The INSERT statement in a function inserts a row into a
+--echo # non-transactional table.
+let $statement= INSERT INTO t3 VALUES(f_insert());
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # The INSERT ... SELECT statement in a function inserts a row into a
+--echo # non-transactional table.
+let $statement= INSERT INTO t3 VALUES(f_insert());
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # The UPDATE statement in a function updates a row of a
+--echo # non-transactional table.
+connection master;
+let $statement= INSERT INTO t3 VALUES(f_update());
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # The MULTI-UPDATE statement in a function updates a row of a
+--echo # non-transactional table.
+connection master;
+let $statement= INSERT INTO t3 VALUES(f_multi_update());
+source extra/rpl_tests/rpl_temp_error.test;
+
+--echo
+--echo # The DELETE statement in a function deletes a row from a
+--echo # non-transactional table.
+connection master;
+let $statement= INSERT INTO t3 VALUES(f_delete());
+source extra/rpl_tests/rpl_temp_error.test;
+
+eval SET GLOBAL innodb_lock_wait_timeout= $timeout_old;
+
 --echo #
 --echo # Clean up
 --echo #

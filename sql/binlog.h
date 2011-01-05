@@ -287,8 +287,7 @@ bool stmt_has_updated_trans_table(const THD *thd);
 bool use_trans_cache(const THD* thd, bool is_transactional);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
-bool trans_has_updated_non_trans_table(const THD* thd);
-bool stmt_has_updated_non_trans_table(const THD* thd);
+bool stmt_cannot_safely_rollback(const THD* thd);
 
 int log_loaded_block(IO_CACHE* file);
 File open_binlog(IO_CACHE *log, const char *log_file_name,

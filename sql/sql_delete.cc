@@ -374,11 +374,10 @@ cleanup:
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
-    thd->transaction.stmt.modified_non_trans_table=
-      thd->transaction.all.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.modified_non_trans_table();
   
   /* See similar binlogging code in sql_update.cc, for comments */
-  if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
+  if ((error < 0) || thd->transaction.stmt.cannot_safely_rollback())
   {
     if (mysql_bin_log.is_open())
     {
@@ -405,7 +404,7 @@ cleanup:
       }
     }
   }
-  DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
+  DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.cannot_safely_rollback());
   free_underlaid_joins(thd, select_lex);
   if (error < 0 || 
       (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
@@ -729,7 +728,7 @@ bool multi_delete::send_data(List<Item> &values)
       {
         deleted++;
         if (!table->file->has_transactions())
-          thd->transaction.stmt.modified_non_trans_table= TRUE;
+          thd->transaction.stmt.modified_non_trans_table();
         if (table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
@@ -776,15 +775,12 @@ void multi_delete::abort_result_set()
 
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
-      (!thd->transaction.stmt.modified_non_trans_table && !deleted))
+      (!thd->transaction.stmt.cannot_safely_rollback() && !deleted))
     DBUG_VOID_RETURN;
 
   /* Something already deleted so we have to invalidate cache */
   if (deleted)
     query_cache_invalidate3(thd, delete_tables, 1);
-
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
 
   /*
     If rows from the first table only has been deleted and it is
@@ -806,7 +802,7 @@ void multi_delete::abort_result_set()
     DBUG_VOID_RETURN;
   }
   
-  if (thd->transaction.stmt.modified_non_trans_table)
+  if (thd->transaction.stmt.cannot_safely_rollback())
   {
     /* 
        there is only side effects; to binlog with the error
@@ -943,7 +939,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
     }
   }
   if (last_deleted != deleted && !table->file->has_transactions())
-    thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.modified_non_trans_table();
 
   end_read_record(&info);
 
@@ -971,9 +967,6 @@ bool multi_delete::send_eof()
   /* reset used flags */
   thd_proc_info(thd, "end");
 
-  if (thd->transaction.stmt.modified_non_trans_table)
-    thd->transaction.all.modified_non_trans_table= TRUE;
-
   /*
     We must invalidate the query cache before binlog writing and
     ha_autocommit_...
@@ -982,7 +975,7 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
+  if ((local_error == 0) || thd->transaction.stmt.cannot_safely_rollback())
   {
     if (mysql_bin_log.is_open())
     {

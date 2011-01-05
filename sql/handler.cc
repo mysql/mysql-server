@@ -1414,19 +1414,17 @@ int ha_rollback_trans(THD *thd, bool all)
     thd->transaction_rollback_request= FALSE;
 
   /*
-    If a non-transactional table was updated, warn; don't warn if this is a
-    slave thread (because when a slave thread executes a ROLLBACK, it has
+    If the transaction cannot be rolled back safely, warn; don't warn if this
+    is a slave thread (because when a slave thread executes a ROLLBACK, it has
     been read from the binary log, so it's 100% sure and normal to produce
     error ER_WARNING_NOT_COMPLETE_ROLLBACK. If we sent the warning to the
     slave SQL thread, it would not stop the thread but just be printed in
     the error log; but we don't want users to wonder why they have this
     message in the error log, so we don't send it.
   */
-  if (is_real_trans && thd->transaction.all.modified_non_trans_table &&
+  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
-    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                 ER_WARNING_NOT_COMPLETE_ROLLBACK,
-                 ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
+    thd->transaction.push_unsafe_rollback_warnings(thd);
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   DBUG_RETURN(error);
 }

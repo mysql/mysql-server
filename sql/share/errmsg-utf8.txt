@@ -6439,6 +6439,7 @@ ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
 ER_PARTITION_EXCHANGE_FOREIGN_KEY
   eng "Table to exchange with partition has foreign key references: '%-.64s'"
   swe "Tabellen att byta ut mot partition har foreign key referenser: '%-.64s'"
+
 ER_NO_SUCH_KEY_VALUE
   eng "Key value '%-.192s' was not found in table '%-.192s.%-.192s'"
 ER_RPL_INFO_DATA_TOO_LONG
@@ -6454,3 +6455,9 @@ ER_STMT_CACHE_FULL
         eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
+
+ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE
+  eng "The creation of some temporary tables could not be rolled back."
+
+ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE
+  eng "Some temporary tables were dropped, but these operations could not be rolled back."

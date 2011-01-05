@@ -869,6 +869,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
   {
     --enable_query_log
     --error 0, ER_GET_ERRMSG
+    --replace_column 2 #
     eval ROLLBACK;
     --disable_query_log
   }

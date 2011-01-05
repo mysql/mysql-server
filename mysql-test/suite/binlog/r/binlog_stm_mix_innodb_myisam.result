@@ -233,6 +233,8 @@ commit;
 begin;
 create temporary table ti (a int) engine=innodb;
 rollback;
+Warnings:
+Warning	#	The creation of some temporary tables could not be rolled back.
 insert into ti values(1);
 set autocommit=0;
 create temporary table t1 (a int) engine=myisam;
@@ -336,7 +338,8 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 ROLLBACK;
 Warnings:
-Warning	1196	Some non-transactional changed tables couldn't be rolled back
+Warning	#	Some non-transactional changed tables couldn't be rolled back
+Warning	#	The creation of some temporary tables could not be rolled back.
 INSERT INTO t1 values (8,8);
 CREATE TEMPORARY TABLE IF NOT EXISTS t2 (primary key (a)) engine=innodb select * from t1;
 Warnings:

@@ -3775,7 +3775,7 @@ Default database: '%s'. Query: '%s'",
                     if (strcmp("COMMIT", query) != 0 &&
                         strcmp("BEGIN", query) != 0)
                     {
-                      if (thd->transaction.all.modified_non_trans_table)
+                      if (thd->transaction.all.cannot_safely_rollback())
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;
                     };);
   }
@@ -7918,7 +7918,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       has not yet modified anything. Note, all.modified is reset
       by mysql_reset_thd_for_next_command.
     */
-    thd->transaction.stmt.modified_non_trans_table= FALSE;
+    thd->transaction.stmt.reset_unsafe_rollback_flags();
     /*
       This is a row injection, so we flag the "statement" as
       such. Note that this code is called both when the slave does row
@@ -8161,8 +8161,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       m_curr_row= m_curr_row_end;
  
       if (error == 0 && !transactional_table)
-        thd->transaction.all.modified_non_trans_table=
-          thd->transaction.stmt.modified_non_trans_table= TRUE;
+      {
+        thd->transaction.all.modified_non_trans_table();
+        thd->transaction.stmt.modified_non_trans_table();
+      }
 
       if (m_curr_row == m_rows_end)
         break;
@@ -8180,7 +8182,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
          to shutdown trying to finish incomplete events group.
      */
       DBUG_EXECUTE_IF("stop_slave_middle_group",
-                      if (thd->transaction.all.modified_non_trans_table)
+                      if (thd->transaction.all.cannot_safely_rollback())
                         const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     }
 

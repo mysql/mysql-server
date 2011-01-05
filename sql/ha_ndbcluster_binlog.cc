@@ -267,7 +267,7 @@ static void run_query(THD *thd, char *buf, char *end,
   bzero((char*) &thd->net, sizeof(NET));
   thd->set_query(buf, (uint) (end - buf));
   thd->variables.pseudo_thread_id= thread_id;
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
+  thd->transaction.stmt.reset_unsafe_rollback_flags();
   if (disable_binlog)
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
     
