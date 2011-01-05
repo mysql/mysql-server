@@ -48,7 +48,7 @@
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
-                              "index_merge"
+                              "index_merge","hash"
 };
 
 struct st_sargable_param;
@@ -752,6 +752,8 @@ JOIN::optimize()
   optimized= 1;
 
   thd_proc_info(thd, "optimizing");
+
+  set_allowed_join_cache_types();
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   if (convert_join_subqueries_to_semijoins(this))
@@ -2985,7 +2987,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
           TODO. Apply single row substitution to null complemented inner tables
           for nested outer join operations. 
 	*/              
-        while (keyuse->table == table)
+        while (keyuse->table == table && !keyuse->is_for_hash_join())
         {
           if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting)
@@ -3030,6 +3032,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	s->type= JT_REF;
 	while (keyuse->table == table)
 	{
+          if (keyuse->is_for_hash_join())
+	  {
+            keyuse++;
+            continue;
+          }
 	  start_keyuse=keyuse;
 	  key=keyuse->key;
 	  s->keys.set_bit(key);               // TODO: remove this ?
@@ -3493,21 +3500,27 @@ static uint get_semi_join_select_list_index(Field *field)
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
+add_key_field(JOIN *join,
+              KEY_FIELD **key_fields,uint and_level, Item_func *cond,
               Field *field, bool eq_func, Item **value, uint num_values,
               table_map usable_tables, SARGABLE_PARAM **sargables)
 {
-  uint exists_optimize= 0;
-  if (!(field->flags & PART_KEY_FLAG))
+  uint optimize= 0;  
+  if (eq_func && join->is_allowed_hash_join_access() &&
+      field->hash_join_is_possible())
+  {
+    optimize= KEY_OPTIMIZE_EQ;
+  }   
+  if (!(field->flags & PART_KEY_FLAG) && !optimize)
   {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
         !field->table->maybe_null || field->null_ptr)
       return;					// Not a key. Skip it
-    exists_optimize= KEY_OPTIMIZE_EXISTS;
+    optimize= KEY_OPTIMIZE_EXISTS;
     DBUG_ASSERT(num_values == 1);
   }
-  else
+  if (optimize != KEY_OPTIMIZE_EXISTS)
   {
     table_map used_tables=0;
     bool optimizable=0;
@@ -3524,7 +3537,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
       if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
           !field->table->maybe_null || field->null_ptr)
 	return;					// Can't use left join optimize
-      exists_optimize= KEY_OPTIMIZE_EXISTS;
+      optimize= KEY_OPTIMIZE_EXISTS;
     }
     else
     {
@@ -3544,7 +3557,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
          Field BETWEEN ...
          Field IN ...
       */
-      stat[0].key_dependent|=used_tables;
+      if (field->flags & PART_KEY_FLAG)
+        stat[0].key_dependent|=used_tables;
 
       bool is_const=1;
       for (uint i=0; i<num_values; i++)
@@ -3622,8 +3636,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   (*key_fields)->field=		field;
   (*key_fields)->eq_func=	eq_func;
   (*key_fields)->val=		*value;
-  (*key_fields)->level=		and_level;
-  (*key_fields)->optimize=	exists_optimize;
+  (*key_fields)->level=         and_level;
+  (*key_fields)->optimize=      optimize;
   /*
     If the condition has form "tbl.keypart = othertbl.field" and 
     othertbl.field can be NULL, there will be no matches if othertbl.field 
@@ -3670,14 +3684,14 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
 */
 
 static void
-add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
+add_key_equal_fields(JOIN *join, KEY_FIELD **key_fields, uint and_level,
                      Item_func *cond, Item_field *field_item,
                      bool eq_func, Item **val,
                      uint num_values, table_map usable_tables,
                      SARGABLE_PARAM **sargables)
 {
   Field *field= field_item->field;
-  add_key_field(key_fields, and_level, cond, field,
+  add_key_field(join, key_fields, and_level, cond, field,
                 eq_func, val, num_values, usable_tables, sargables);
   Item_equal *item_equal= field_item->item_equal;
   if (item_equal)
@@ -3692,7 +3706,7 @@ add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
     {
       if (!field->eq(item->field))
       {
-        add_key_field(key_fields, and_level, cond, item->field,
+        add_key_field(join, key_fields, and_level, cond, item->field,
                       eq_func, val, num_values, usable_tables,
                       sargables);
       }
@@ -3825,7 +3839,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         values--;
       DBUG_ASSERT(cond_func->functype() != Item_func::IN_FUNC ||
                   cond_func->argument_count() != 2);
-      add_key_equal_fields(key_fields, *and_level, cond_func,
+      add_key_equal_fields(join, key_fields, *and_level, cond_func,
                            (Item_field*) (cond_func->key_item()->real_item()),
                            0, values, 
                            cond_func->argument_count()-1,
@@ -3840,7 +3854,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         if (is_local_field (cond_func->arguments()[i]))
         {
           field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
-          add_key_equal_fields(key_fields, *and_level, cond_func,
+          add_key_equal_fields(join, key_fields, *and_level, cond_func,
                                field_item, 0, values, 1, usable_tables, 
                                sargables);
         }
@@ -3855,7 +3869,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
 
     if (is_local_field (cond_func->arguments()[0]))
     {
-      add_key_equal_fields(key_fields, *and_level, cond_func,
+      add_key_equal_fields(join, key_fields, *and_level, cond_func,
 	                (Item_field*) (cond_func->arguments()[0])->real_item(),
 		           equal_func,
                            cond_func->arguments()+1, 1, usable_tables,
@@ -3864,7 +3878,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
     if (is_local_field (cond_func->arguments()[1]) &&
 	cond_func->functype() != Item_func::LIKE_FUNC)
     {
-      add_key_equal_fields(key_fields, *and_level, cond_func, 
+      add_key_equal_fields(join, key_fields, *and_level, cond_func, 
                        (Item_field*) (cond_func->arguments()[1])->real_item(),
 		           equal_func,
                            cond_func->arguments(),1,usable_tables,
@@ -3880,7 +3894,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       Item *tmp=new Item_null;
       if (unlikely(!tmp))                       // Should never be true
 	return;
-      add_key_equal_fields(key_fields, *and_level, cond_func,
+      add_key_equal_fields(join, key_fields, *and_level, cond_func,
 		    (Item_field*) (cond_func->arguments()[0])->real_item(),
 		    cond_func->functype() == Item_func::ISNULL_FUNC,
 			   &tmp, 1, usable_tables, sargables);
@@ -3900,7 +3914,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       */   
       while ((item= it++))
       {
-        add_key_field(key_fields, *and_level, cond_func, item->field,
+        add_key_field(join, key_fields, *and_level, cond_func, item->field,
                       TRUE, &const_item, 1, usable_tables, sargables);
       }
     }
@@ -3921,7 +3935,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
           if (!field->eq(item->field))
           {
             Item *tmp_item= item;
-            add_key_field(key_fields, *and_level, cond_func, field,
+            add_key_field(join, key_fields, *and_level, cond_func, field,
                           TRUE, &tmp_item, 1, usable_tables,
                           sargables);
           }
@@ -3942,6 +3956,58 @@ max_part_bit(key_part_map bits)
   return found;
 }
 
+
+/**
+  Add a new keuse to the specified array of KEYUSE objects
+
+  @param[in,out]  keyuse_array  array of keyuses to be extended 
+  @param[in]      key_field     info on the key use occurrence
+  @param[in]      key           key number for the keyse to be added
+  @param[in]      part          key part for the keyuse to be added
+
+  @note
+  The function builds a new KEYUSE object for a key use utilizing the info
+  on the left anf right parts of the given key use  extracted from the 
+  structure key_field, the key number and key part for this key use. 
+  The built object is added to the dynamic array keyuse_array.
+
+  @retval         0             the built object is succesfully added 
+  @retval         1             otherwise
+*/
+
+static bool
+add_keyuse(DYNAMIC_ARRAY *keyuse_array, KEY_FIELD *key_field,
+          uint key, uint part)
+{
+  KEYUSE keyuse;
+  Field *field= key_field->field;
+
+  keyuse.table= field->table;
+  keyuse.val= key_field->val;
+  keyuse.key= key;
+  if (!is_hash_join_key_no(key))
+  {
+    keyuse.keypart=part;
+    keyuse.keypart_map= (key_part_map) 1 << part;
+  }
+  else
+  {
+    /* 
+      If this is a key use for hash join then keypart of
+      the added element actually contains the field number.
+    */
+    keyuse.keypart= field->field_index;
+    keyuse.keypart_map= (key_part_map) 0;
+  }
+  keyuse.used_tables= key_field->val->used_tables();
+  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+  keyuse.null_rejecting= key_field->null_rejecting;
+  keyuse.cond_guard= key_field->cond_guard;
+  keyuse.sj_pred_no= key_field->sj_pred_no;
+  return (insert_dynamic(keyuse_array,(uchar*) &keyuse));
+}
+
+
 /*
   Add all keys with uses 'field' for some keypart
   If field->and_level != and_level then only mark key_part as const_part
@@ -3952,11 +4018,10 @@ max_part_bit(key_part_map bits)
 */
 
 static bool
-add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
+add_key_part(DYNAMIC_ARRAY *keyuse_array, KEY_FIELD *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
-  KEYUSE keyuse;
 
   if (key_field->eq_func && !(key_field->optimize & KEY_OPTIMIZE_EXISTS))
   {
@@ -3972,21 +4037,23 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
 	{
-	  keyuse.table= field->table;
-	  keyuse.val =  key_field->val;
-	  keyuse.key =  key;
-	  keyuse.keypart=part;
-	  keyuse.keypart_map= (key_part_map) 1 << part;
-	  keyuse.used_tables=key_field->val->used_tables();
-	  keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
-          keyuse.ref_table_rows= 0;
-          keyuse.null_rejecting= key_field->null_rejecting;
-          keyuse.cond_guard= key_field->cond_guard;
-          keyuse.sj_pred_no= key_field->sj_pred_no;
-	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
+          if (add_keyuse(keyuse_array, key_field, key, part))
             return TRUE;
 	}
       }
+    }
+    if (field->hash_join_is_possible() &&
+        (key_field->optimize & KEY_OPTIMIZE_EQ) &&
+        key_field->val->used_tables())
+    {
+      /* 
+        If a key use is extracted from an equi-join predicate then it is
+        added not only as a key use for every index whose component can
+        be evalusted utilizing this key use, but also as a key use for
+        hash join. Such key uses are marked with a special key number. 
+      */    
+      if (add_keyuse(keyuse_array, key_field, get_hash_join_key_no(), 0))
+        return TRUE;
     }
   }
   return FALSE;
@@ -4300,6 +4367,18 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     found_eq_constant=0;
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
+      if (use->is_for_hash_join())
+      {
+        if (!use->table->reginfo.join_tab->keyuse)
+	  use->table->reginfo.join_tab->keyuse= save_pos;
+#ifdef HAVE_valgrind
+      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+      if (save_pos != use)
+#endif
+        *save_pos= *use;
+        save_pos++;
+        continue;
+      }
       if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
 	use->table->const_key_parts[use->key]|= use->keypart_map;
       if (use->keypart != FT_KEYPART)
@@ -4518,16 +4597,21 @@ best_access_path(JOIN      *join,
   double tmp;
   ha_rows rec;
   bool best_uses_jbuf= FALSE;
+  MY_BITMAP *eq_join_set= &s->table->eq_join_set;
+  KEYUSE *start_key=0;
+  KEYUSE *hj_start_key= 0;
 
   Loose_scan_opt loose_scan_opt;
   DBUG_ENTER("best_access_path");
   
+  bitmap_clear_all(eq_join_set);
+
   loose_scan_opt.init(join, s, remaining_tables);
   
   if (s->keyuse)
   {                                            /* Use key if possible */
     TABLE *table= s->table;
-    KEYUSE *keyuse,*start_key=0;
+    KEYUSE *keyuse;
     double best_records= DBL_MAX;
     uint max_key_part=0;
 
@@ -4535,15 +4619,29 @@ best_access_path(JOIN      *join,
     rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
     for (keyuse=s->keyuse ; keyuse->table == table ;)
     {
+      KEY *keyinfo;
       key_part_map found_part= 0;
       table_map found_ref= 0;
       uint key= keyuse->key;
-      KEY *keyinfo= table->key_info+key;
       bool ft_key=  (keyuse->keypart == FT_KEYPART);
       /* Bitmap of keyparts where the ref access is over 'keypart=const': */
       key_part_map const_part= 0;
       /* The or-null keypart in ref-or-null access: */
       key_part_map ref_or_null_part= 0;
+      if (is_hash_join_key_no(key))
+      {
+        if (!(remaining_tables & keyuse->used_tables) &&
+            idx > join->const_tables)
+        {
+          if (!hj_start_key)
+            hj_start_key= keyuse;
+          bitmap_set_bit(eq_join_set, keyuse->keypart);
+        }
+        keyuse++;
+        continue;
+      }
+
+      keyinfo= table->key_info+key;
 
       /* Calculate how many key segments of the current key we can use */
       start_key= keyuse;
@@ -4884,6 +4982,41 @@ best_access_path(JOIN      *join,
     records= best_records;
   }
 
+  /* 
+    If there is no key to access the table, but there is an equi-join
+    predicate connecting the table with the privious tables then we
+    consider the possibility of using hash join.
+  */  
+  if (idx >= join->const_tables && best_key == 0 && 
+     !bitmap_is_clear_all(eq_join_set) &&  !disable_jbuf &&
+      (!s->emb_sj_nest ||
+       join->allowed_semijoin_with_cache) &&
+      (!(s->table->map & join->outer_join) ||
+       join->allowed_outer_join_with_cache))
+  {
+    double join_sel= 0.1;
+    /* Estimate the cost of  the hash join access to the table */
+    ha_rows rnd_records= s->found_records;
+    if (found_constraint)
+      rnd_records-= rnd_records/4;
+    if (s->table->quick_condition_rows != s->found_records)
+      rnd_records= s->table->quick_condition_rows;
+
+    tmp= s->table->file->scan_time();
+    /* We read the table as many times as join buffer becomes full. */
+    tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
+                          record_count /
+                          (double) thd->variables.join_buff_size));
+    tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+    best_time= tmp + 
+               (record_count*join_sel) / TIME_FOR_COMPARE * rnd_records;
+    best= tmp;
+    records= rows2double(rnd_records);
+    best_key= hj_start_key;
+    best_ref_depends_map= 0;
+    best_uses_jbuf= test(!disable_jbuf);
+   }
+
   /*
     Don't test table scan if it can't be better.
     Prefer key lookup if we would use the same key for scanning.
@@ -5001,7 +5134,8 @@ best_access_path(JOIN      *join,
     */
     if (best == DBL_MAX ||
         (tmp  + record_count/(double) TIME_FOR_COMPARE*rnd_records <
-         best + record_count/(double) TIME_FOR_COMPARE*records))
+         (best_key->is_for_hash_join() ? best_time :
+          best + record_count/(double) TIME_FOR_COMPARE*records)))
     {
       /*
         If the table has a range (s->quick is set) make_join_select()
@@ -5770,7 +5904,7 @@ best_extension_by_limited_search(JOIN      *join,
           if (best_record_count >= current_record_count &&
               best_read_time >= current_read_time &&
               /* TODO: What is the reasoning behind this condition? */
-              (!(s->key_dependent & remaining_tables) ||
+              (!(s->key_dependent & allowed_tables & remaining_tables) ||
                join->positions[idx].records_read < 2.0))
           {
             best_record_count= current_record_count;
@@ -5980,39 +6114,6 @@ void JOIN_TAB::calc_used_field_length(bool max_fl)
 }
 
 
-/**
-  @brief
-  Check whether hash join algorithm can be used to join this table   
-
-  @details
-  This function finds out whether the ref items that have been chosen
-  by the planner to access this table can be used for hash join algorithms.
-  The answer depends on a certain property of the the fields of the
-  joined tables on which the hash join key is built. If hash join is
-  allowed for all these fields the answer is positive.
-  
-  @note
-  The function is supposed to be called now only after the function
-  get_best_combination has been called.
-
-  @retval TRUE    it's possible to use hash join to join this table
-  @retval FALSE   otherwise
-*/
-
-bool JOIN_TAB::hash_join_is_possible()
-{
-  if (type != JT_REF && type != JT_EQ_REF)
-    return FALSE;
-  KEY *keyinfo= &table->key_info[ref.key];
-  for (uint i= 0; i < ref.key_parts; i++)
-  {
-    if (!keyinfo->key_part[i].field->hash_join_is_possible())
-      return FALSE;
-  }
-  return TRUE;
-}
-
-
 /* 
   @brief
   Extract pushdown conditions for a table scan
@@ -6050,6 +6151,37 @@ int JOIN_TAB::make_scan_filter()
      cache_select->read_tables=join->const_table_map;
   }
   DBUG_RETURN(0);
+}
+
+
+/**
+  @brief
+  Check whether hash join algorithm can be used to join this table   
+
+  @details
+  This function finds out whether the ref items that have been chosen
+  by the planner to access this table can be used for hash join algorithms.
+  The answer depends on a certain property of the the fields of the
+  joined tables on which the hash join key is built.
+  
+  @note
+  At present the function is supposed to be called only after the function
+  get_best_combination has been called.
+
+  @retval TRUE    it's possible to use hash join to join this table
+  @retval FALSE   otherwise
+*/
+
+bool JOIN_TAB::hash_join_is_possible()
+{
+  if (type != JT_REF && type != JT_EQ_REF)
+    return FALSE;
+  if (!is_ref_for_hash_join())
+  {
+    KEY *keyinfo= table->key_info + ref.key;
+    return keyinfo->key_part[0].field->hash_join_is_possible();
+  }
+  return TRUE;
 }
 
 
@@ -6216,7 +6348,7 @@ get_best_combination(JOIN *join)
 
     if (j->type == JT_SYSTEM)
       continue;
-    if (j->keys.is_clear_all() || !(keyuse= join->best_positions[tablenr].key) || 
+    if ( !(keyuse= join->best_positions[tablenr].key) || 
         (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN))
     {
       j->type=JT_ALL;
@@ -6234,22 +6366,108 @@ get_best_combination(JOIN *join)
   DBUG_RETURN(0);
 }
 
+/**
+  Create a descriptor of hash join key to access a given join table  
 
-static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
-			       table_map used_tables)
+  @param   join         join which the join table belongs to
+  @param   join_tab     the join table to access
+  @param   org_keyuse   beginning of the key uses to join this table
+  @param   used_tables  bitmap of the previous tables
+
+  @details
+  This function first finds key uses that can be utilized by the hash join
+  algorithm to join join_tab to the previous tables marked in the bitmap 
+  used_tables.  The tested key uses are taken from the array of all key uses
+  for 'join' starting from the position org_keyuse. After all interesting key
+  uses have been found the function builds a descriptor of the corresponding
+  key that is used by the hash join algorithm would it be chosen to join
+  the table join_tab.
+
+  @retval  FALSE  the descriptor for a hash join key is successfully created
+  @retval  TRUE   otherwise
+*/
+
+static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
+                                    KEYUSE *org_keyuse, table_map used_tables)
 {
-  KEYUSE *keyuse=org_keyuse;
-  bool ftkey=(keyuse->keypart == FT_KEYPART);
+  KEY *keyinfo;
+  KEY_PART_INFO *key_part_info;
+  KEYUSE *keyuse= org_keyuse;
+  uint key_parts= 0;
   THD  *thd= join->thd;
-  uint keyparts,length,key;
+  TABLE *table= join_tab->table;
+  bool first_keyuse= TRUE;
+  DBUG_ENTER("create_hj_key_for_table");
+
+  do
+  {
+    if (!(~used_tables & keyuse->used_tables) &&
+	(first_keyuse || keyuse->keypart != (keyuse-1)->keypart))
+      key_parts++;
+    first_keyuse= FALSE;
+    keyuse++;
+  } while (keyuse->table == table && keyuse->is_for_hash_join());
+  if (!key_parts)
+    DBUG_RETURN(TRUE);
+  if (!(keyinfo= (KEY *) thd->alloc(sizeof(KEY))) ||
+      !(key_part_info = (KEY_PART_INFO *) thd->alloc(sizeof(KEY_PART_INFO)*
+                                                     key_parts)))
+    DBUG_RETURN(TRUE);
+  keyinfo->usable_key_parts= keyinfo->key_parts = key_parts;
+  keyinfo->key_part= key_part_info;
+  keyinfo->key_length=0;
+  keyinfo->algorithm= HA_KEY_ALG_UNDEF;
+  keyinfo->flags= HA_GENERATED_KEY;
+  keyinfo->name= (char *) "hj_key";
+  keyinfo->rec_per_key= (ulong*) thd->alloc(sizeof(ulong)*key_parts);
+  if (!keyinfo->rec_per_key)
+    DBUG_RETURN(TRUE);
+  bzero(keyinfo->rec_per_key, sizeof(ulong)*key_parts);
+  keyinfo->key_part= key_part_info;
+
+  first_keyuse= TRUE;
+  keyuse= org_keyuse;
+  do
+  {
+    if (!(~used_tables & keyuse->used_tables) &&
+        (first_keyuse || keyuse->keypart != (keyuse-1)->keypart))
+    {
+      Field *field= table->field[keyuse->keypart];
+      table->create_key_part_by_field(keyinfo, key_part_info, field);
+      first_keyuse= FALSE;
+      key_part_info++;
+    }
+    keyuse++;
+  } while (keyuse->table == table && keyuse->is_for_hash_join());
+
+  join_tab->hj_key= keyinfo;
+
+  DBUG_RETURN(FALSE);
+}
+
+
+static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
+                               KEYUSE *org_keyuse, table_map used_tables)
+{
+  uint keyparts, length, key;
   TABLE *table;
   KEY *keyinfo;
+  KEYUSE *keyuse= org_keyuse;
+  bool ftkey= (keyuse->keypart == FT_KEYPART);
+  THD *thd= join->thd;
   DBUG_ENTER("create_ref_for_key");
 
   /*  Use best key from find_best */
-  table=j->table;
-  key=keyuse->key;
-  keyinfo=table->key_info+key;
+  table= j->table;
+  key= keyuse->key;
+  if (!is_hash_join_key_no(key))
+    keyinfo= table->key_info+key;
+  else
+  {
+    if (create_hj_key_for_table(join, j, org_keyuse, used_tables))
+      DBUG_RETURN(TRUE);
+    keyinfo= j->hj_key;
+  }
 
   if (ftkey)
   {
@@ -6272,12 +6490,18 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     {
       if (!(~used_tables & keyuse->used_tables))
       {
-	if (keyparts == keyuse->keypart &&
-	    !(found_part_ref_or_null & keyuse->optimize))
-	{
+	if (is_hash_join_key_no(key) && 
+	    (keyparts == 0 || keyuse->keypart != (keyuse-1)->keypart))
+	{ 
+	  length+= keyinfo->key_part[keyparts].store_length;
 	  keyparts++;
+	}
+	else if (!is_hash_join_key_no(key) && keyparts == keyuse->keypart &&
+	         !(found_part_ref_or_null & keyuse->optimize))
+	{
 	  length+= keyinfo->key_part[keyuse->keypart].store_length;
 	  found_part_ref_or_null|= keyuse->optimize;
+	  keyparts++;
 	}
       }
       keyuse++;
@@ -6285,14 +6509,13 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   } /* not ftkey */
 
   /* set up fieldref */
-  keyinfo=table->key_info+key;
-  j->ref.key_parts=keyparts;
-  j->ref.key_length=length;
-  j->ref.key=(int) key;
+  j->ref.key_parts= keyparts;
+  j->ref.key_length= length;
+  j->ref.key= (int) key;
   if (!(j->ref.key_buff= (uchar*) thd->calloc(ALIGN_SIZE(length)*2)) ||
       !(j->ref.key_copy= (store_key**) thd->alloc((sizeof(store_key*) *
-						   (keyparts+1)))) ||
-      !(j->ref.items=    (Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
+						          (keyparts+1)))) ||
+      !(j->ref.items=(Item**) thd->alloc(sizeof(Item*)*keyparts)) ||
       !(j->ref.cond_guards= (bool**) thd->alloc(sizeof(uint*)*keyparts)))
   {
     DBUG_RETURN(TRUE);
@@ -6322,9 +6545,11 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
     uint i;
     for (i=0 ; i < keyparts ; keyuse++,i++)
     {
-      while (keyuse->keypart != i ||
-	     ((~used_tables) & keyuse->used_tables))
-	keyuse++;				/* Skip other parts */
+      while (((~used_tables) & keyuse->used_tables) || 
+	     (keyuse->keypart != 
+              (is_hash_join_key_no(key) ?
+                 keyinfo->key_part[i].field->field_index : i))) 
+	 keyuse++;                              	/* Skip other parts */ 
 
       uint maybe_null= test(keyinfo->key_part[i].null_bit);
       j->ref.items[i]=keyuse->val;		// Save for cond removal
@@ -6335,10 +6560,12 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       if (!keyuse->used_tables &&
 	  !(join->select_options & SELECT_DESCRIBE))
       {					// Compare against constant
-	store_key_item tmp(thd, keyinfo->key_part[i].field,
+	store_key_item tmp(thd, 
+                           keyinfo->key_part[i].field,
                            key_buff + maybe_null,
                            maybe_null ?  key_buff : 0,
-                           keyinfo->key_part[i].length, keyuse->val,
+                           keyinfo->key_part[i].length,
+                           keyuse->val,
                            FALSE);
 	if (thd->is_fatal_error)
 	  DBUG_RETURN(TRUE);
@@ -6356,7 +6583,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       */
       if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null)
 	null_ref_key= key_buff;
-      key_buff+=keyinfo->key_part[i].store_length;
+      key_buff+= keyinfo->key_part[i].store_length;
     }
   } /* not ftkey */
   *ref_key=0;				// end_marker
@@ -7331,6 +7558,12 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
       don't do join buffering for the first table in sjm nest. 
     */
     join_tab[-1].next_select= sub_select;
+    if (join_tab->type == JT_REF && join_tab->is_ref_for_hash_join())
+    {
+      join_tab->type= JT_ALL;
+      join_tab->ref.key_parts= 0;
+      join_tab->join->return_tab= join_tab;
+    }
   }
 }
 
@@ -7649,14 +7882,16 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   ha_rows rows;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
-  uint cache_level= join->thd->variables.join_cache_level;
+  uint cache_level= join->max_allowed_join_cache_level;
   bool force_unlinked_cache=
-    !optimizer_flag(join->thd, OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL);
-  bool no_hashed_cache= 
-    !optimizer_flag(join->thd, OPTIMIZER_SWITCH_JOIN_CACHE_HASHED);
+         !(join->allowed_join_cache_types & JOIN_CACHE_INCREMENTAL_BIT);
+  bool no_hashed_cache=
+         !(join->allowed_join_cache_types & JOIN_CACHE_HASHED_BIT);
   bool no_bka_cache= 
-    !optimizer_flag(join->thd, OPTIMIZER_SWITCH_JOIN_CACHE_BKA);
+         !(join->allowed_join_cache_types & JOIN_CACHE_BKA_BIT);
   uint i= tab - join->join_tab;
+
+  join->return_tab= 0;
 
   *icp_other_tables_ok= TRUE;
   *idx_cond_fact_out= TRUE;
@@ -7676,10 +7911,10 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
 
   if (tab->is_inner_table_of_semi_join_with_first_match() &&
-      !optimizer_flag(join->thd, OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE))
+      !join->allowed_semijoin_with_cache)
     goto no_join_cache;
   if (tab->is_inner_table_of_outer_join() &&
-      !optimizer_flag(join->thd, OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE))
+      !join->allowed_outer_join_with_cache)
     goto no_join_cache;
 
   /*
@@ -7731,8 +7966,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       goto no_join_cache; 
   }       
 
-  if (!force_unlinked_cache)
-    prev_cache= prev_tab->cache;
+  prev_cache= prev_tab->cache;
 
   switch (tab->type) {
   case JT_ALL:
@@ -7751,25 +7985,25 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_EQ_REF:
     if (cache_level <=2 || (no_hashed_cache && no_bka_cache))
       goto no_join_cache;
-    flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;
-    if (tab->table->covering_keys.is_set(tab->ref.key))
-      flags|= HA_MRR_INDEX_ONLY;
-    rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
-                                                  tab->ref.key_parts,
-                                                  &bufsz, &flags, &cost);
+    if (!tab->is_ref_for_hash_join())
+    {
+      flags= HA_MRR_NO_NULL_ENDPOINTS | HA_MRR_SINGLE_POINT;
+      if (tab->table->covering_keys.is_set(tab->ref.key))
+        flags|= HA_MRR_INDEX_ONLY;
+      rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
+                                                    tab->ref.key_parts,
+                                                    &bufsz, &flags, &cost);
+    }
 
     if ((cache_level <=4 && !no_hashed_cache) || no_bka_cache ||
-	((flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6))
+	((flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6) || 
+          tab->is_ref_for_hash_join())
     {
       if (!tab->hash_join_is_possible() ||
           tab->make_scan_filter())
         goto no_join_cache;
       if (cache_level == 3)
-      {
-        if (prev_tab->cache)
-          goto no_join_cache;
         prev_cache= 0;
-      }
       if ((tab->cache= new JOIN_CACHE_BNLH(join, tab, prev_cache)) &&
           ((options & SELECT_DESCRIBE) || !tab->cache->init()))
       {
@@ -7814,6 +8048,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   }
 
 no_join_cache:
+  if (tab->type != JT_ALL && tab->is_ref_for_hash_join())
+    tab->type= JT_ALL;
   revise_cache_usage(tab); 
   return 0;
 }
@@ -7845,12 +8081,16 @@ static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   uint i;
+
+  DBUG_ENTER("make_join_readinfo");
+
+restart:
+
   uint jcl= 0;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool sorted= 1;
   uint first_sjm_table= MAX_TABLES;
   uint last_sjm_table= MAX_TABLES;
-  DBUG_ENTER("make_join_readinfo");
 
 
   if (!join->select_lex->sj_nests.is_empty() &&
@@ -7947,6 +8187,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         break;
     }
 
+    if (join->return_tab)
+      goto restart;
+
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join 
     case JT_CONST:				// Only happens with left join
@@ -7959,7 +8202,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         table->key_read=1;
         table->file->extra(HA_EXTRA_KEYREAD);
       }
-      else if (!jcl || jcl > 4)
+      else if ((!jcl || jcl > 4) && !tab->is_ref_for_hash_join()) 
         push_index_cond(tab, tab->ref.key, 
                        icp_other_tables_ok, idx_cond_fact_out);
         break;
@@ -7972,7 +8215,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
-      else if (!jcl || jcl > 4) 
+      else if ((!jcl || jcl > 4) && !tab->is_ref_for_hash_join()) 
         push_index_cond(tab, tab->ref.key,
                         icp_other_tables_ok, idx_cond_fact_out);
       break;
@@ -7988,7 +8231,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
         table->enable_keyread();
-      else if (!jcl || jcl > 4)
+      else if ((!jcl || jcl > 4) &&!tab->is_ref_for_hash_join())
         push_index_cond(tab, tab->ref.key, 
                         icp_other_tables_ok, idx_cond_fact_out);
       break;
@@ -9894,7 +10137,7 @@ static void update_const_equal_items(COND *cond, JOIN_TAB *tab)
           TABLE *tab= field->table;
           KEYUSE *use;
           for (use= stat->keyuse; use && use->table == tab; use++)
-            if (possible_keys.is_set(use->key) && 
+            if (!use->is_for_hash_join() && possible_keys.is_set(use->key) && 
                 tab->key_info[use->key].key_part[use->keypart].field ==
                 field)
               tab->const_key_parts[use->key]|= use->keypart_map;
@@ -11435,7 +11678,9 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   bitmap_init(&table->tmp_set,
               (my_bitmap_map*) (bitmaps+ 2*bitmap_buffer_size(field_count)),
               field_count, FALSE);
-
+  bitmap_init(&table->eq_join_set,
+              (my_bitmap_map*) (bitmaps+ 3*bitmap_buffer_size(field_count)),
+              field_count, FALSE);
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
   table->s->all_set= table->def_read_set;
@@ -11589,7 +11834,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &tmpname, (uint) strlen(tmp_table_name)+1,
                         &group_buff, (group && ! using_unique_constraint ?
                                       param->group_length : 0),
-                        &bitmaps, bitmap_buffer_size(field_count)*3,
+                        &bitmaps, bitmap_buffer_size(field_count)*4,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -12248,7 +12493,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         &share, sizeof(*share),
                         &field, (field_count + 1) * sizeof(Field*),
                         &blob_field, (field_count+1) *sizeof(uint),
-                        &bitmaps, bitmap_buffer_size(field_count)*3,
+                        &bitmaps, bitmap_buffer_size(field_count)*4,
                         NullS))
     return 0;
 
@@ -14899,6 +15144,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
   JOIN_TAB *join_tab= field->table->reginfo.join_tab;
   // No need to change const test
   if (!field->table->const_table && join_tab &&
+      !join_tab->is_ref_for_hash_join() &&
       (!join_tab->first_inner ||
        *join_tab->first_inner->on_expr_ref == root_cond))
   {
@@ -15215,19 +15461,22 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
 static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
-  if (!table->reginfo.join_tab)
+  JOIN_TAB *join_tab= table->reginfo.join_tab;
+  if (!join_tab)
     return (Item*) 0;             // field from outer non-select (UPDATE,...)
 
-  uint ref_parts=table->reginfo.join_tab->ref.key_parts;
+  uint ref_parts= join_tab->ref.key_parts;
   if (ref_parts)
   {
-    KEY_PART_INFO *key_part=
-      table->key_info[table->reginfo.join_tab->ref.key].key_part;
+    
+    uint key= join_tab->ref.key;
+    KEY *key_info= join_tab->get_keyinfo_by_key_no(key);
+    KEY_PART_INFO *key_part= key_info->key_part;
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
-	return table->reginfo.join_tab->ref.items[part];
+	return join_tab->ref.items[part];
   }
   return (Item*) 0;
 }
@@ -18795,6 +19044,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  tab->type = JT_RANGE;
       }
 
+      if (tab->cache && tab->cache->get_join_alg() == JOIN_CACHE::BNLH_JOIN_ALG)
+        tab->type= JT_HASH;
+
       /* table */
       if (table->derived_select_number)
       {
@@ -18858,7 +19110,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       /* Build "key", "key_len", and "ref" values and add them to item_list */
       if (tab->ref.key_parts)
       {
-	KEY *key_info=table->key_info+ tab->ref.key;
+	KEY *key_info= tab->get_keyinfo_by_key_no(tab->ref.key);
         register uint length;
 	item_list.push_back(new Item_string(key_info->name,
 					    strlen(key_info->name),
@@ -18942,7 +19194,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         ha_rows examined_rows;
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
-        else if (tab->type == JT_NEXT || tab->type == JT_ALL)
+        else if (tab->type == JT_NEXT || tab->type == JT_ALL ||
+                 tab->type == JT_HASH)
         {
           if (tab->limit)
             examined_rows= tab->limit;
@@ -19682,6 +19935,40 @@ bool JOIN::change_result(select_result *res)
   }
   DBUG_RETURN(FALSE);
 }
+
+
+/**
+  @brief
+  Set allowed types of join caches that can be used for join operations
+
+  @details
+  The function sets a bitmap of allowed join buffers types in the field
+  allowed_join_cache_types of this JOIN structure:
+    bit 1 is set if tjoin buffers are allowed to be incremental
+    bit 2 is set if the join buffers are allowed to be hashed
+    but 3 is set if the join buffers are allowed to be used for BKA
+  join algorithms.
+  The allowed types are read from system variables.
+  Besides the function sets maximum allowed join cache level that is
+  also read from a system variable.
+*/
+
+void JOIN::set_allowed_join_cache_types()
+{
+  allowed_join_cache_types= 0;
+  if (optimizer_flag(thd, OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL))
+    allowed_join_cache_types|= JOIN_CACHE_INCREMENTAL_BIT;
+  if (optimizer_flag(thd, OPTIMIZER_SWITCH_JOIN_CACHE_HASHED))
+    allowed_join_cache_types|= JOIN_CACHE_HASHED_BIT;
+  if (optimizer_flag(thd, OPTIMIZER_SWITCH_JOIN_CACHE_BKA))
+    allowed_join_cache_types|= JOIN_CACHE_BKA_BIT;
+  allowed_semijoin_with_cache=
+    optimizer_flag(thd, OPTIMIZER_SWITCH_SEMIJOIN_WITH_CACHE);
+  allowed_outer_join_with_cache=
+    optimizer_flag(thd, OPTIMIZER_SWITCH_OUTER_JOIN_WITH_CACHE);
+  max_allowed_join_cache_level= thd->variables.join_cache_level;
+}
+
 
 /**
   @} (end of group Query_Optimizer)

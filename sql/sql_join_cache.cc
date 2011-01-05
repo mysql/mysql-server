@@ -1052,9 +1052,8 @@ bool JOIN_CACHE::check_emb_key_usage()
   CACHE_FIELD *copy;
   CACHE_FIELD *copy_end;
   uint len= 0;
-  TABLE *table= join_tab->table;
   TABLE_REF *ref= &join_tab->ref;
-  KEY *keyinfo= table->key_info+ref->key;
+  KEY *keyinfo= join_tab->get_keyinfo_by_key_no(ref->key);
 
   /* 
     If some of the key arguments are not from the local cache the key
@@ -2520,7 +2519,7 @@ int JOIN_CACHE_HASHED::init()
   pack_length+= get_size_of_rec_offset(); 
   pack_length_with_blob_ptrs+= get_size_of_rec_offset();
 
-  ref_key_info= join_tab->table->key_info+join_tab->ref.key;
+  ref_key_info= join_tab->get_keyinfo_by_key_no(join_tab->ref.key);
   ref_used_key_parts= join_tab->ref.key_parts;
 
   hash_func= &JOIN_CACHE_HASHED::get_hash_idx_simple;
@@ -3427,7 +3426,7 @@ uchar *JOIN_CACHE_BNLH::get_matching_chain_by_join_key()
   uchar *key_ref_ptr;
   TABLE *table= join_tab->table;
   TABLE_REF *ref= &join_tab->ref;
-  KEY *keyinfo= table->key_info+ref->key;
+  KEY *keyinfo= join_tab->get_keyinfo_by_key_no(ref->key);
   /* Build the join key value out of the record in the record buffer */
   key_copy(key_buff, table->record[0], keyinfo, key_length, TRUE);
   /* Look for this key in the join buffer */

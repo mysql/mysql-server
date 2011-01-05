@@ -82,6 +82,60 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
         CountryLanguage.Percentage > 50;
 
+set join_cache_level=3;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=4;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
 set join_cache_level=default;
 
 set join_buffer_size=256;
@@ -114,6 +168,60 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         CountryLanguage.Percentage > 50;
 
 set join_cache_level=2;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=3;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=4;
 show variables like 'join_cache_level';
 
 EXPLAIN
@@ -2642,13 +2750,13 @@ SET SESSION optimizer_switch = 'outer_join_with_cache=on';
 
 SET SESSION join_cache_level = 6;
 EXPLAIN
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 
 SET SESSION join_cache_level = 5;
 EXPLAIN
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 
 SET SESSION optimizer_switch = 'outer_join_with_cache=off';
 SET SESSION join_cache_level = DEFAULT;

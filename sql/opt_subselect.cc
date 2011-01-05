@@ -1326,13 +1326,19 @@ static uint get_tmp_table_rec_length(List<Item> &items)
 bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
 {
   KEYUSE *keyuse= table->reginfo.join_tab->keyuse;
-  uint key;
 
   if (keyuse)
   {
     while (1) /* For each key */
     {
-      key= keyuse->key;
+      if (keyuse->is_for_hash_join())
+      {
+        keyuse++;
+        if (keyuse->table != table)
+          return FALSE;
+        continue;
+      }
+      uint key= keyuse->key;
       KEY *keyinfo= table->key_info + key;
       key_part_map bound_parts= 0;
       if (keyinfo->flags & HA_NOSAME)

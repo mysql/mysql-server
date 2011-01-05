@@ -1031,10 +1031,10 @@ explain select t21.* from t21,t22 where t21.a = t22.a and
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	8	Using temporary; Using filesort
-1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (flat, BNL join)
-1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer (incremental, BNL join)
+1	PRIMARY	t21	hash	NULL	hj_key	4	test.t11.a	26	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	t22	hash	NULL	hj_key	4	test.t21.a	26	Using where; Using join buffer (incremental, BNLH join)
 2	SUBQUERY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where
-2	SUBQUERY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	t12	hash	NULL	hj_key	4	test.t11.a	8	Using where; Using join buffer (flat, BNLH join)
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -1151,11 +1151,11 @@ set @@optimizer_switch='firstmatch=off,materialization=off';
 set @@max_heap_table_size= 16384;
 explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	E	ALL	NULL	NULL	NULL	NULL	5	Start temporary
+1	PRIMARY	E	ALL	NULL	NULL	NULL	NULL	5	Using where; Start temporary
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (incremental, BNL join)
 1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (incremental, BNL join)
-1	PRIMARY	D	ALL	NULL	NULL	NULL	NULL	10	Using where; End temporary; Using join buffer (incremental, BNL join)
+1	PRIMARY	D	hash	NULL	hj_key	5	test.E.a	10	Using where; End temporary; Using join buffer (incremental, BNLH join)
 flush status;
 select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 count(*)
@@ -1192,12 +1192,12 @@ insert into t3 select * from t1;
 insert into t3 values (1),(2);
 explain select * from t2 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t1	hash	NULL	hj_key	4	test.t2.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
 explain select * from t2 where a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t2	hash	NULL	hj_key	5	test.t2.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
 explain select * from t2 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
@@ -1211,8 +1211,8 @@ create table t1 (a decimal);
 insert into t1 values (1),(2);
 explain select * from t1 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t1	hash	NULL	hj_key	6	test.t1.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
 drop table t1;
 set @@optimizer_switch=@save_optimizer_switch;
 create table t1 (a int);
