@@ -2816,7 +2816,6 @@ static my_bool write_block_record(MARIA_HA *info,
   DBUG_PRINT("info", ("Used head length on page: %u  header_length: %u",
                       head_length,
                       (uint) (flag & ROW_FLAG_TRANSID ? TRANSID_SIZE : 0)));
-  DBUG_ASSERT(data <= end_of_data);
   if (head_length < share->base.min_block_length)
   {
     /* Extend row to be of size min_block_length */
@@ -2825,6 +2824,7 @@ static my_bool write_block_record(MARIA_HA *info,
     data+= diff_length;
     head_length= share->base.min_block_length;
   }
+  DBUG_ASSERT(data <= end_of_data);
   /*
     If this is a redo entry (ie, undo_lsn != LSN_ERROR) then we should have
     written exactly head_length bytes (same as original record).
@@ -3492,7 +3492,9 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
 
   /* page will be pinned & locked by get_head_or_tail_page */
   if (get_head_or_tail_page(info, blocks->block, info->buff,
-                            row->space_on_head_page, HEAD_PAGE,
+                            max(row->space_on_head_page,
+                                info->s->base.min_block_length),
+                            HEAD_PAGE,
                             PAGECACHE_LOCK_WRITE, &row_pos))
     goto err;
   row->lastpos= ma_recordpos(blocks->block->page, row_pos.rownr);
