@@ -4609,8 +4609,8 @@ void ha_ndbcluster::transaction_checks(THD *thd)
   {
     m_transaction_on= FALSE;
     /* Would be simpler if has_transactions() didn't always say "yes" */
-    thd->transaction.all.modified_non_trans_table=
-      thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.all.modified_non_trans_table();
+    thd->transaction.stmt.modified_non_trans_table();
   }
   else if (!thd->transaction.on)
     m_transaction_on= FALSE;

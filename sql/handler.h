@@ -830,36 +830,93 @@ struct THD_TRANS
   /* storage engines that registered in this transaction */
   Ha_trx_info *ha_list;
   /* 
-    The purpose of this flag is to keep track of non-transactional
-    tables that were modified in scope of:
-    - transaction, when the variable is a member of
-    THD::transaction.all
+    The purpose of this flag is to keep track of statements which cannot be
+    rolled back safely(completely). For example, statements that modified
+    non-transactional tables, 'DROP TEMPORARY TABLE' and
+    'CREATE TEMPORARY TABLE' statements. The tracked statements are
+    modified in scope of:
+    - transaction, when the variable is a member of THD::transaction.all
     - top-level statement or sub-statement, when the variable is a
     member of THD::transaction.stmt
     This member has the following life cycle:
-    * stmt.modified_non_trans_table is used to keep track of
-    modified non-transactional tables of top-level statements. At
-    the end of the previous statement and at the beginning of the session,
-    it is reset to FALSE.  If such functions
-    as mysql_insert, mysql_update, mysql_delete etc modify a
-    non-transactional table, they set this flag to TRUE.  At the
-    end of the statement, the value of stmt.modified_non_trans_table 
-    is merged with all.modified_non_trans_table and gets reset.
-    * all.modified_non_trans_table is reset at the end of transaction
-    
-    * Since we do not have a dedicated context for execution of a
-    sub-statement, to keep track of non-transactional changes in a
-    sub-statement, we re-use stmt.modified_non_trans_table. 
-    At entrance into a sub-statement, a copy of the value of
-    stmt.modified_non_trans_table (containing the changes of the
-    outer statement) is saved on stack. Then 
-    stmt.modified_non_trans_table is reset to FALSE and the
-    substatement is executed. Then the new value is merged with the
-    saved value.
-  */
-  bool modified_non_trans_table;
+    * stmt.unsafe_rollback_flags is used to keep track of top-level statements
+    which cannot be rolled back safely. At the end of the previous statement
+    and at the beginning of the session, it is reset to 0.  If such functions
+    as mysql_insert, mysql_update, mysql_delete etc modify a non-transactional
+    table, flag MODIFIED_NON_TRANS_TABLE is set.  After 'CREATE TEMPORARY TABLE'
+    creates a table successfully, flag CREATED_TEMP_TABLE is set. After
+    'DROP TEMPORARY TABLE' drops a temporary table, flag DROPPED_TEMP_TABLE is
+    set.  At the end of the statement, the value of stmt.unsafe_rollback_flags
+    is merged with all.unsafe_rollback_flags and gets reset.
+    * all.cannot_safely_rollback is reset at the end of transaction
 
-  void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+    * Since we do not have a dedicated context for execution of a sub-statement,
+    to keep track of non-transactional changes in a sub-statement, we re-use
+    stmt.unsafe_rollback_flags.  At entrance into a sub-statement, a copy of the
+    value of stmt.unsafe_rollback_flags (containing the changes of the outer
+    statement) is saved on stack.  Then stmt.unsafe_rollback_flags is reset
+    to FALSE and the substatement is executed. Then the new value is merged with
+    the saved value.
+  */
+private:
+  unsigned int unsafe_rollback_flags;
+  /*
+    Define the type of statemens which cannot be rolled back safely.
+    Each type occupies one bit in unsafe_rollback_flags.
+  */
+  enum
+  {
+    MODIFIED_NON_TRANS_TABLE= 0x01,
+    CREATED_TEMP_TABLE= 0x02,
+    DROPPED_TEMP_TABLE= 0x04
+  };
+public:
+  bool cannot_safely_rollback() const
+  {
+    return unsafe_rollback_flags > 0;
+  }
+  unsigned int get_unsafe_rollback_flags() const
+  {
+    return unsafe_rollback_flags;
+  }
+  void set_unsafe_rollback_flags(unsigned int flags)
+  {
+    unsafe_rollback_flags= flags;
+  }
+  void add_unsafe_rollback_flags(unsigned int flags)
+  {
+    unsafe_rollback_flags|= flags;
+  }
+  void reset_unsafe_rollback_flags()
+  {
+    unsafe_rollback_flags= 0;
+  }
+  void modified_non_trans_table()
+  {
+    unsafe_rollback_flags|= MODIFIED_NON_TRANS_TABLE;
+  }
+  bool has_modified_non_trans_table() const
+  {
+    return unsafe_rollback_flags & MODIFIED_NON_TRANS_TABLE;
+  }
+  void created_temp_table()
+  {
+    unsafe_rollback_flags|= CREATED_TEMP_TABLE;
+  }
+  bool has_created_temp_table() const
+  {
+    return unsafe_rollback_flags & CREATED_TEMP_TABLE;
+  }
+  void dropped_temp_table()
+  {
+    unsafe_rollback_flags|= DROPPED_TEMP_TABLE;
+  }
+  bool has_dropped_temp_table() const
+  {
+    return unsafe_rollback_flags & DROPPED_TEMP_TABLE;
+  }
+
+  void reset() { no_2pc= FALSE; reset_unsafe_rollback_flags(); }
   bool is_empty() const { return ha_list == NULL; }
 };
 

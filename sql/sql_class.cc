@@ -938,8 +938,8 @@ void THD::init(void)
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
 
-  transaction.all.modified_non_trans_table=
-    transaction.stmt.modified_non_trans_table= FALSE;
+  transaction.all.reset_unsafe_rollback_flags();
+  transaction.stmt.reset_unsafe_rollback_flags();
   open_options=ha_open_options;
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
@@ -3255,7 +3255,7 @@ extern "C" int thd_slave_thread(const MYSQL_THD thd)
 
 extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 {
-  return(thd->transaction.all.modified_non_trans_table);
+  return thd->transaction.all.has_modified_non_trans_table();
 }
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)

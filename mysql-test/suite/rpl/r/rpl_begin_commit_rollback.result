@@ -172,6 +172,310 @@ in savepoint mixed_cases
 # Verify INSERT statements on the Innodb table are rolled back;
 SELECT * FROM db1.t1 WHERE a IN (30, 40);
 a
+
+# BUG#55798 Slave SQL retry on transaction inserts extra data into
+# non-transaction table
+# ----------------------------------------------------------------
+# To verify that SQL thread does not retry a transaction which can
+# not be rolled back safely, even though only a temporary error is
+# encountered.
+
+# [ on master ]
+USE db1;
+DROP TABLE t1, t2;
+CREATE TABLE t1(c1 INT KEY, c2 CHAR(100)) ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3(c1 INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, "master");
+SET @@session.binlog_direct_non_transactional_updates= FALSE;
+# [ on slave ]
+USE db1;
+SET GLOBAL innodb_lock_wait_timeout= 1;
+STOP SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_stop.inc
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+# Verify the SQL thread don't retry the transaction when different
+# sort of statements has modified a non-transactional table.
+# ----------------------------------------------------------------
+
+# INSERT statement inserts a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t2 VALUES(1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='INSERT INTO t2 VALUES(1)' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t2 VALUES(1)' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# INSERT ... SELECT statement inserts a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t2 SELECT 2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='INSERT INTO t2 SELECT 2' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t2 SELECT 2' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# UPDATE statement updates a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+UPDATE t2 SET c1= 3;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='UPDATE t2 SET c1= 3' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='UPDATE t2 SET c1= 3' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# MULTI-UPDATE statement updates a row to a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+UPDATE t2, t3 SET t2.c1=4, t3.c1= 4;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='UPDATE t2, t3 SET t2.c1=4, t3.c1= 4' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='UPDATE t2, t3 SET t2.c1=4, t3.c1= 4' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# DELETE statement deletes a row from a non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+DELETE FROM t2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
+UPDATE t1 SET c2='DELETE FROM t2' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='DELETE FROM t2' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# CREATE TEMPORARY TABLE statement in the transaction
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT);
+UPDATE t1 SET c2='CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT)' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='CREATE TEMPORARY TABLE IF NOT EXISTS temp_t(c1 INT)' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# DROP TEMPORARY TABLE statement in the transaction
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+DROP TEMPORARY TABLE IF EXISTS temp_t;
+UPDATE t1 SET c2='DROP TEMPORARY TABLE IF EXISTS temp_t' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='DROP TEMPORARY TABLE IF EXISTS temp_t' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# Verify the SQL thread don't retry the transaction if one of the
+# sub-statement has modified a non-transactional table.
+# ----------------------------------------------------------------
+CREATE FUNCTION f_insert()
+RETURNS INT
+BEGIN
+INSERT INTO t2 VALUES(1);
+RETURN 2;
+END|
+CREATE FUNCTION f_insert_select()
+RETURNS INT
+BEGIN
+INSERT INTO t2 SELECT 2;
+RETURN 2;
+END|
+CREATE FUNCTION f_update()
+RETURNS INT
+BEGIN
+UPDATE t2 SET c1=3;
+RETURN 2;
+END |
+CREATE TABLE t4 (c1 INT);
+INSERT INTO t4 VAlUES(1),(2);
+CREATE FUNCTION f_multi_update()
+RETURNS INT
+BEGIN
+UPDATE t2, t4 SET t2.c1=4, t4.c1= 4;
+RETURN 2;
+END |
+CREATE FUNCTION f_delete()
+RETURNS INT
+BEGIN
+DELETE FROM t2;
+RETURN 2;
+END |
+
+# The INSERT statement in a function inserts a row into a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_insert());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The INSERT ... SELECT statement in a function inserts a row into a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_insert());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_insert())' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The UPDATE statement in a function updates a row of a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_update());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_update())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_update())' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The MULTI-UPDATE statement in a function updates a row of a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_multi_update());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_multi_update())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_multi_update())' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+
+# The DELETE statement in a function deletes a row from a
+# non-transactional table.
+# [ on slave ]
+BEGIN;
+# It will lock table t1 on the row in which c1 is 1 until COMMIT or ROLLBACK
+UPDATE t1 SET c2= "slave" WHERE c1= 1;
+# [ on master ]
+BEGIN;
+INSERT INTO t3 VALUES(1);
+INSERT INTO t3 VALUES(f_delete());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement accesses nontransactional table as well as transactional or temporary table, and writes to any of them.
+UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_delete())' WHERE c1= 1;
+COMMIT;
+# [ on slave ]
+include/wait_for_slave_sql_error.inc [errno=1205]
+Last_SQL_Error = 'Error 'Lock wait timeout exceeded; try restarting transaction' on query. Default database: 'db1'. Query: 'UPDATE t1 SET c2='INSERT INTO t3 VALUES(f_delete())' WHERE c1= 1''
+ROLLBACK;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_to_start.inc
+SET GLOBAL innodb_lock_wait_timeout= 50;
 #
 # Clean up
 #
