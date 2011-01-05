@@ -248,7 +248,7 @@ UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 /* the number of purge threads to use from the worker pool (currently 0 or 1).*/
 UNIV_INTERN ulong srv_n_purge_threads = 0;
 
-/* the number of records to purge in one batch */
+/* the number of UNDO log pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
 
 /* variable counts amount of data read in total (in bytes) */
@@ -2737,14 +2737,14 @@ srv_purge_coordinator_thread(
 				is purely guess work and needs to be tuned
 				properly after some benchmarking. */
 				if (srv_check_activity(count)) {
-					sleep_ms = 1000000;
+					sleep_ms = 60000;
 					batch_size = srv_purge_batch_size;
 				} else if (n_pages_purged == 0) {
-					sleep_ms = 5000000;
+					sleep_ms = 120000;
 					batch_size = srv_purge_batch_size;
 				} else {
 					sleep_ms = 0;
-					batch_size = 5000;
+					batch_size = 500;
 				}
 
 				/* No point in sleeping during shutdown. */
@@ -2755,8 +2755,8 @@ srv_purge_coordinator_thread(
 				}
 
 				/* Take snapshot to check for user
-				activity later every 3 seconds. */
-				if (ut_time() - last_time > 1) {
+				activity at every second. */
+				if (ut_time() - last_time >= 1) {
 					count = srv_sys->activity_count;
 					last_time = ut_time();
 				}
@@ -2794,22 +2794,22 @@ srv_purge_coordinator_thread(
 				is purely guess work and needs to be tuned
 				properly after some benchmarking. */
 				if (!srv_check_activity(count)
-				    && trx_sys->rseg_history_len > 5000) {
+				    && trx_sys->rseg_history_len > 500) {
 					sleep_ms = 0;
-					batch_size = 5000;
+					batch_size = 500;
 				} else {
-					sleep_ms = 1000000;
+					sleep_ms = 60000;
 
 					if (n_pages_purged > 0) {
-						sleep_ms = 100000;
+						sleep_ms = 150000;
 					}
 
 					batch_size = srv_purge_batch_size;
 				}
 
 				/* Take snapshot to check for user
-				activity later every second. */
-				if (ut_time() - last_time > 1) {
+				activity at every second. */
+				if (ut_time() - last_time >= 1) {
 					count = srv_sys->activity_count;
 					last_time = ut_time();
 				}
