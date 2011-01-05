@@ -7879,7 +7879,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 {
   uint flags;
   COST_VECT cost;
-  ha_rows rows;
+  ha_rows rows= 0;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
   uint cache_level= join->max_allowed_join_cache_level;
