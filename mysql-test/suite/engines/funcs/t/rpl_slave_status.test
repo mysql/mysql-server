@@ -40,12 +40,10 @@ stop slave;
 start slave;
 
 # 5. Make sure Slave_IO_Running = No
---replace_result $MASTER_MYPORT MASTER_MYPORT
-# Column 1 is replaced, since the output can be either
-# "Connecting to master" or "Waiting for master update"
---replace_column 1 # 7 # 8 # 9 # 22 # 23 # 35 # 36 #
 --vertical_results
-show slave status;
+#checking show slave status
+let $status_items = Master_Host,Master_User,Connect_Retry,Master_Log_File,Relay_Master_Log_File,Slave_IO_Running,Slave_SQL_Running,Replicate_Do_DB,Replicate_Ignore_DB,Replicate_Do_Table,Replicate_Ignore_Table,Replicate_Wild_Do_Table,Replicate_Wild_Ignore_Table,Last_Errno,Last_Error,Skip_Counter,Until_Condition,Until_Log_File,Until_Log_Pos,Master_SSL_Allowed,Master_SSL_CA_File,Master_SSL_CA_Path,Master_SSL_Cert,Master_SSL_Cipher,Master_SSL_Key,Seconds_Behind_Master,Master_SSL_Verify_Server_Cert,Last_SQL_Errno,Last_SQL_Error,Replicate_Ignore_Server_Ids,Master_Server_Id;
+source include/show_slave_status.inc;
 
 # Cleanup (Note that slave IO thread is not running)
 connection slave;

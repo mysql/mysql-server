@@ -78,8 +78,9 @@ utf8_esperanto_ci	utf8	209		#	#
 utf8_hungarian_ci	utf8	210		#	#
 utf8_sinhala_ci	utf8	211		#	#
 utf8_german2_ci	utf8	212		#	#
+utf8_croatian_ci	utf8	213		#	#
 utf8_unicode_520_ci	utf8	214		#	#
-utf8_general_cs	utf8	254		#	#
+utf8_vietnamese_ci	utf8	215		#	#
 ucs2_general_ci	ucs2	35	Yes	#	#
 ucs2_bin	ucs2	90		#	#
 ucs2_unicode_ci	ucs2	128		#	#
@@ -103,7 +104,9 @@ ucs2_esperanto_ci	ucs2	145		#	#
 ucs2_hungarian_ci	ucs2	146		#	#
 ucs2_sinhala_ci	ucs2	147		#	#
 ucs2_german2_ci	ucs2	148		#	#
+ucs2_croatian_ci	ucs2	149		#	#
 ucs2_unicode_520_ci	ucs2	150		#	#
+ucs2_vietnamese_ci	ucs2	151		#	#
 cp866_general_ci	cp866	36	Yes	#	#
 cp866_bin	cp866	68		#	#
 keybcs2_general_ci	keybcs2	37	Yes	#	#
@@ -141,7 +144,9 @@ utf8mb4_esperanto_ci	utf8mb4	241		#	#
 utf8mb4_hungarian_ci	utf8mb4	242		#	#
 utf8mb4_sinhala_ci	utf8mb4	243		#	#
 utf8mb4_german2_ci	utf8mb4	244		#	#
+utf8mb4_croatian_ci	utf8mb4	245		#	#
 utf8mb4_unicode_520_ci	utf8mb4	246		#	#
+utf8mb4_vietnamese_ci	utf8mb4	247		#	#
 cp1251_bulgarian_ci	cp1251	14		#	#
 cp1251_ukrainian_ci	cp1251	23		#	#
 cp1251_bin	cp1251	50		#	#
@@ -170,7 +175,11 @@ utf16_esperanto_ci	utf16	118		#	#
 utf16_hungarian_ci	utf16	119		#	#
 utf16_sinhala_ci	utf16	120		#	#
 utf16_german2_ci	utf16	121		#	#
+utf16_croatian_ci	utf16	122		#	#
 utf16_unicode_520_ci	utf16	123		#	#
+utf16_vietnamese_ci	utf16	124		#	#
+utf16le_general_ci	utf16le	56	Yes	#	#
+utf16le_bin	utf16le	62		#	#
 cp1256_general_ci	cp1256	57	Yes	#	#
 cp1256_bin	cp1256	67		#	#
 cp1257_lithuanian_ci	cp1257	29		#	#
@@ -199,7 +208,9 @@ utf32_esperanto_ci	utf32	177		#	#
 utf32_hungarian_ci	utf32	178		#	#
 utf32_sinhala_ci	utf32	179		#	#
 utf32_german2_ci	utf32	180		#	#
+utf32_croatian_ci	utf32	181		#	#
 utf32_unicode_520_ci	utf32	182		#	#
+utf32_vietnamese_ci	utf32	183		#	#
 binary	binary	63	Yes	#	#
 geostd8_general_ci	geostd8	92	Yes	#	#
 geostd8_bin	geostd8	93		#	#
@@ -1797,44 +1808,6 @@ ALTER SCHEMA d10 DEFAULT COLLATE utf8_hungarian_ci;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
 def	d10	utf8	utf8_hungarian_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	latin1	latin1_swedish_ci	NULL
-def	mysql	latin1	latin1_swedish_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
-def	test	latin1	latin1_swedish_ci	NULL
-DROP DATABASE d10;
-CREATE DATABASE d10 DEFAULT CHARACTER SET utf8;
-SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d10	utf8	utf8_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	latin1	latin1_swedish_ci	NULL
-def	mysql	latin1	latin1_swedish_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
-def	test	latin1	latin1_swedish_ci	NULL
-ALTER SCHEMA d10   COLLATE utf8_unicode_520_ci;
-SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d10	utf8	utf8_unicode_520_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	latin1	latin1_swedish_ci	NULL
-def	mysql	latin1	latin1_swedish_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
-def	test	latin1	latin1_swedish_ci	NULL
-DROP DATABASE d10;
-CREATE DATABASE d10 DEFAULT CHARACTER SET utf8;
-SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d10	utf8	utf8_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	latin1	latin1_swedish_ci	NULL
-def	mysql	latin1	latin1_swedish_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
-def	test	latin1	latin1_swedish_ci	NULL
-ALTER SCHEMA d10 DEFAULT COLLATE utf8_unicode_520_ci;
-SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d10	utf8	utf8_unicode_520_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
