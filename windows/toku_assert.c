@@ -18,6 +18,8 @@ static void *backtrace_pointers[N_POINTERS];
 #endif
 
 int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize);  // tentative definition: if linked to ydb, will have non-zero value
+void (*toku_maybe_set_env_panic_p)(int code, char* msg);  // tentative definition: if linked to ydb, will have non-zero value
+
 
 void (*do_assert_hook)(void) = NULL;
 
@@ -69,15 +71,33 @@ toku_do_backtrace_abort(void) {
     abort();
 }
 
+
+static void
+set_panic_if_not_panicked(int caller_errno, char * msg) {
+    int code = caller_errno ? caller_errno : -1;
+    if (toku_maybe_set_env_panic_p) {
+	toku_maybe_set_env_panic_p(code, msg);
+    }
+}
+
+
+#define MSGLEN 1024
+
 void 
 toku_do_assert_fail (const char *expr_as_string, const char *function, const char *file, int line, int caller_errno) {
-    fprintf(stderr, "%s:%d %s: Assertion `%s' failed (errno=%d)\n", file, line, function, expr_as_string, caller_errno);
+    char msg[MSGLEN];
+    snprintf(msg, MSGLEN, "%s:%d %s: Assertion `%s' failed (errno=%d)\n", file, line, function, expr_as_string, caller_errno);
+    fprintf(stderr, "%s", msg);
+    set_panic_if_not_panicked(caller_errno, msg);
     toku_do_backtrace_abort();
 }
 
 void 
 toku_do_assert_zero_fail (uintptr_t expr, const char *expr_as_string, const char *function, const char *file, int line, int caller_errno) {
-    fprintf(stderr, "%s:%d %s: Assertion `%s == 0' failed (errno=%d) (%s=%"PRIuPTR")\n", file, line, function, expr_as_string, caller_errno, expr_as_string, expr);
+    char msg[MSGLEN];
+    snprintf(msg, MSGLEN, "%s:%d %s: Assertion `%s == 0' failed (errno=%d) (%s=%"PRIuPTR")\n", file, line, function, expr_as_string, caller_errno, expr_as_string, expr);
+    fprintf(stderr, "%s", msg);
+    set_panic_if_not_panicked(caller_errno, msg);
     toku_do_backtrace_abort();
 }
 

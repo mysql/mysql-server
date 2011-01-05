@@ -2108,9 +2108,12 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 }
 
 static int toku_maybe_get_engine_status_text (char* buff, int buffsize);
+static void toku_maybe_set_env_panic(int code, char * msg);
 
-// assign value to global pointer so that other files can access via tentative definition if linked to this library (.so)
+// assign values to global pointers so that other files can access via tentative definition if linked to this library (.so)
 int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = toku_maybe_get_engine_status_text;
+void (*toku_maybe_set_env_panic_p)(int code, char* msg) = toku_maybe_set_env_panic;
+
 
 // intended for use by toku_assert logic, when env is not known
 static int 
@@ -2127,6 +2130,18 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
     return r;
 }
 
+// Set panic code and panic string if not already panicked,
+// intended for use by toku_assert when about to abort().
+static void 
+toku_maybe_set_env_panic(int code, char * msg) {
+    DB_ENV * env = most_recent_env;
+    if (env) {
+	if (env->i->is_panicked == 0) {
+	    env->i->is_panicked = code;
+	    env->i->panic_string = toku_strdup(msg);
+	}
+    }
+}
 
 
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
