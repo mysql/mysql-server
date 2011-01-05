@@ -2217,7 +2217,7 @@ dict_scan_to(
 			quote = '\0';
 		} else if (quote) {
 			/* Within quotes: do nothing. */
-		} else if (*ptr == '`' || *ptr == '"') {
+		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
 		} else {
