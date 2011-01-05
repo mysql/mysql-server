@@ -183,6 +183,11 @@ public:
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
   static inline Uint32 count_bits(Uint32 x);
 
+  /**
+   * store each set bit in <em>dst</em> and return bits found
+   */
+  static Uint32 toArray(Uint8* dst, Uint32 len,
+                        unsigned size, const Uint32 data[]);
 private:
   static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
   static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
@@ -465,6 +470,31 @@ BitmaskImpl::count_bits(Uint32 x)
   return x;
 }
 
+inline
+Uint32
+BitmaskImpl::toArray(Uint8* dst, Uint32 len,
+                     unsigned size, const Uint32 * data)
+{
+  assert(len >= size * 32);
+  assert(32 * size <= 256); // Uint8
+  Uint8 * save = dst;
+  for (Uint32 i = 0; i<size; i++)
+  {
+    Uint32 val = * data++;
+    Uint32 bit = 0;
+    while (val)
+    {
+      if (val & (1 << bit))
+      {
+        * dst++ = 32 * i + bit;
+        val &= ~(1 << bit);
+      }
+      bit ++;
+    }
+  }
+  return (Uint32)(dst - save);
+}
+
 /**
  * Bitmasks.  The size is number of 32-bit words (Uint32).
  * Unused bits in the last word must be zero.
@@ -650,6 +680,8 @@ public:
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
 
+  static Uint32 toArray(Uint8 * dst, Uint32 len, const Uint32 data[]);
+  Uint32 toArray(Uint8 * dst, Uint32 len);
 };
 
 template <unsigned size>
@@ -993,6 +1025,22 @@ inline bool
 BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 {
   return BitmaskPOD<size>::overlaps(this->rep.data, that.rep.data);
+}
+
+template <unsigned size>
+inline
+Uint32
+BitmaskPOD<size>::toArray(Uint8* dst, Uint32 len, const Uint32 data[])
+{
+  return BitmaskImpl::toArray(dst, len, size, data);
+}
+
+template <unsigned size>
+inline
+Uint32
+BitmaskPOD<size>::toArray(Uint8* dst, Uint32 len)
+{
+  return BitmaskImpl::toArray(dst, len, size, this->rep.data);
 }
 
 template <unsigned size>

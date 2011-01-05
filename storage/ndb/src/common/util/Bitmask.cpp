@@ -189,6 +189,18 @@ TAPTEST(Bitmask)
     printf("getPrettyTextShort(d 1): %s\n",
            BaseString::getPrettyTextShort(d).c_str());
     OK(d.count() == 3);
+    {
+      Uint8 tmp[32];
+      Uint32 len = d.toArray(tmp, sizeof(tmp));
+      printf("toArray(): ");
+      for (Uint32 i = 0; i < len; i++)
+        printf("%u ", (Uint32)tmp[i]);
+      printf("\n");
+      OK(len == 3);
+      OK(tmp[0] == 1);
+      OK(tmp[1] == 3);
+      OK(tmp[2] == 4);
+    }
     d.bitNOT();
     printf("getPrettyTextShort(d 2): %s\n",
            BaseString::getPrettyTextShort(d).c_str());
@@ -204,7 +216,23 @@ TAPTEST(Bitmask)
       parse_mask
     */
     Bitmask<8> mask;
-    OK(parse_mask("1,2,5-7", mask) == 5);
+    OK(parse_mask("1,2,5-7,255", mask) == 6);
+
+    {
+      Uint8 tmp[8 * 32];
+      Uint32 len = mask.toArray(tmp, sizeof(tmp));
+      printf("toArray(): ");
+      for (Uint32 i = 0; i < len; i++)
+        printf("%u ", (Uint32)tmp[i]);
+      printf("\n");
+      OK(len == 6);
+      OK(tmp[0] == 1);
+      OK(tmp[1] == 2);
+      OK(tmp[2] == 5);
+      OK(tmp[3] == 6);
+      OK(tmp[4] == 7);
+      OK(tmp[5] == 255);
+    }
 
     // Check all specified bits set
     OK(mask.get(1));
@@ -212,6 +240,7 @@ TAPTEST(Bitmask)
     OK(mask.get(5));
     OK(mask.get(6));
     OK(mask.get(7));
+    OK(mask.get(255));
 
     // Check some random bits not set
     OK(!mask.get(0));
@@ -219,6 +248,7 @@ TAPTEST(Bitmask)
     OK(!mask.get(3));
     OK(!mask.get(8));
     OK(!mask.get(22));
+    OK(!mask.get(254));
 
     // Parse at the limit
     OK(parse_mask("254", mask) == 1);

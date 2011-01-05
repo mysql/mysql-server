@@ -255,7 +255,15 @@ NdbOperation::postExecuteRelease()
   }				
   theRequest = NULL;
   theLastKEYINFO = NULL;
-
+#ifdef TODO
+  /**
+   * Compute correct #cnt signals between theFirstATTRINFO/theCurrentATTRINFO
+   */
+  if (theFirstATTRINFO)
+  {
+    theNdb->releaseSignals(1, theFirstATTRINFO, theCurrentATTRINFO);
+  }
+#else
   tSignal = theFirstATTRINFO;
   while (tSignal != NULL)
   {
@@ -263,6 +271,7 @@ NdbOperation::postExecuteRelease()
     tSignal = tSignal->next();
     theNdb->releaseSignal(tSaveSignal);
   }
+#endif
   theFirstATTRINFO = NULL;
   theCurrentATTRINFO = NULL;
 
