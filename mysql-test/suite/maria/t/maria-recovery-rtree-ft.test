@@ -6,6 +6,7 @@
 # Binary must be compiled with debug for crash to occur
 --source include/have_debug.inc
 --source include/have_maria.inc
+--source include/long_test.inc
 
 set global aria_log_file_size=4294967295;
 let $MARIA_LOG=.;

@@ -1643,8 +1643,8 @@ prototype_redo_exec_hook(REDO_FREE_BLOCKS)
   }
 
   buff= log_record_buffer.str;
-  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn,
-                                 buff + FILEID_STORE_SIZE))
+  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn, rec->lsn,
+                                 buff))
     goto end;
   error= 0;
 end:
@@ -3015,10 +3015,11 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     page= page_korr(rec->header + FILEID_STORE_SIZE);
     llstr(page, llbuf);
     break;
+  case LOGREC_REDO_FREE_BLOCKS:
     /*
-      For REDO_FREE_BLOCKS, no need to look at dirty pages list: it does not
-      read data pages, only reads/modifies bitmap page(s) which is cheap.
+      We are checking against the dirty pages in _ma_apply_redo_free_blocks()
     */
+    break;
   default:
     break;
   }

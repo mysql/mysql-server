@@ -2624,3 +2624,19 @@ KEY (v3)
 INSERT INTO t1 ( f1 , f2 , f3 , f4 ) SELECT f1 , f4 , f1 , f4 FROM t1;
 DELETE FROM t1;
 drop table t1;
+create table t1 (a int not null primary key, b blob) engine=maria transactional=1;
+insert into t1 values(1,repeat('a',8000));
+insert into t1 values(2,repeat('b',8000));
+insert into t1 values(3,repeat('c',8000));
+flush tables;
+delete from t1 where a>1;
+insert into t1 values(1,repeat('d',8000*3));
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+flush tables;
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+repair table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+drop table t1;

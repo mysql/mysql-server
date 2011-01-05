@@ -1,3 +1,5 @@
+--source include/long_test.inc
+
 #
 # Test of update statement that uses many tables.
 #

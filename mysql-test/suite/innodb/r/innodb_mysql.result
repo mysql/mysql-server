@@ -2617,6 +2617,13 @@ rows	3
 Extra	Using index
 DROP TABLE t1;
 #
+# ALTER TABLE IGNORE didn't ignore duplicates for unique add index
+#
+create table t1 (a int primary key, b int) engine = innodb;
+insert into t1 values (1,1),(2,1);
+alter ignore table t1 add unique `main` (b);
+drop table t1;
+#
 End of 5.1 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different
