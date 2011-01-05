@@ -30,6 +30,8 @@ CLOSE cur1;
 CLOSE cur2;
 END//
 CALL sp1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
