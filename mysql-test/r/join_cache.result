@@ -6200,4 +6200,24 @@ a	a	b
 2	NULL	42
 SET SESSION join_cache_level = DEFAULT;
 DROP TABLE t1,t2;
+#
+# Bug #697557: hash join on a varchar field 
+#
+CREATE TABLE t1 ( f1 varchar(10) , f2 int(11) , KEY (f1));
+INSERT INTO t1 VALUES ('r',1), ('m',2);
+CREATE TABLE t2 ( f1 varchar(10) , f2 int(11) , KEY (f1));
+INSERT INTO t2 VALUES
+('hgtofubn',1), ('GDOXZ',91), ('n',2), ('fggxgalh',88),
+('hgtofu',1), ('GDO',101), ('n',3), ('fggxga',55),
+('hgtofu',3), ('GDO',33), ('nn',3), ('fggxgarrr',77);
+SET SESSION join_cache_level=3;
+EXPLAIN 
+SELECT * FROM t1,t2 WHERE t2.f1 = t1.f1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	f1	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ref	f1	f1	13	test.t1.f1	2	Using join buffer (flat, BNLH join)
+SELECT * FROM t1,t2 WHERE t2.f1 = t1.f1;
+f1	f2	f1	f2
+SET SESSION join_cache_level = DEFAULT;
+DROP TABLE t1,t2;
 set @@optimizer_switch=@save_optimizer_switch;
