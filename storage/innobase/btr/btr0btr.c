@@ -610,7 +610,7 @@ btr_page_get_father_for_rec(
 		      "InnoDB: corruption. If the crash happens at "
 		      "the database startup, see\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "forcing-recovery.html about\n"
+		      "forcing-innodb-recovery.html about\n"
 		      "InnoDB: forcing recovery. "
 		      "Then dump + drop + reimport.\n", stderr);
 	}
