@@ -345,7 +345,15 @@ private:
     int delete_or_rename_table (const char* from_name, const char* to_name, bool is_delete);
     int delete_or_rename_dictionary( const char* from_name, const char* to_name, const char* index_name, bool is_key, DB_TXN* txn, bool is_delete);
     int truncate_dictionary( uint keynr, DB_TXN* txn );
-    int create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, u_int32_t keynr);
+    int create_secondary_dictionary(
+        const char* name, 
+        TABLE* form, 
+        KEY* key_info, 
+        DB_TXN* txn, 
+        KEY_AND_COL_INFO* kc_info, 
+        u_int32_t keynr, 
+        bool is_hot_index
+        );
     int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info);
     void trace_create_table_info(const char *name, TABLE * form);
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);

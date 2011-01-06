@@ -5593,10 +5593,11 @@ int toku_dbt_up(DB*,
     return 0;
 }
 
-static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN* txn, uint32_t block_size) {
+static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN* txn, uint32_t block_size, bool is_hot_index) {
     TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
     DB *file = NULL;
+    u_int32_t create_flags;
     
     
     error = db_create(&file, db_env, 0);
@@ -5619,8 +5620,9 @@ static int create_sub_table(const char *table_name, DBT* row_descriptor, DB_TXN*
             goto exit;
         }
     }
-    
-    error = file->open(file, txn, table_name, NULL, DB_BTREE, DB_THREAD | DB_CREATE | DB_EXCL, my_umask);
+
+    create_flags = DB_THREAD | DB_CREATE | DB_EXCL | (is_hot_index ? DB_IS_HOT_INDEX : 0);    
+    error = file->open(file, txn, table_name, NULL, DB_BTREE, create_flags, my_umask);
     if (error) {
         DBUG_PRINT("error", ("Got error: %d when opening table '%s'", error, table_name));
         goto exit;
@@ -5728,7 +5730,15 @@ void ha_tokudb::trace_create_table_info(const char *name, TABLE * form) {
 //
 // creates dictionary for secondary index, with key description key_info, all using txn
 //
-int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, u_int32_t keynr) {
+int ha_tokudb::create_secondary_dictionary(
+    const char* name, TABLE* form, 
+    KEY* key_info, 
+    DB_TXN* txn, 
+    KEY_AND_COL_INFO* kc_info, 
+    u_int32_t keynr,
+    bool is_hot_index
+    ) 
+{
     int error;
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
@@ -5803,7 +5813,7 @@ int ha_tokudb::create_secondary_dictionary(const char* name, TABLE* form, KEY* k
         block_size = get_tokudb_block_size(thd);
     }
 
-    error = create_sub_table(newname, &row_descriptor, txn, block_size);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, is_hot_index);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -5882,7 +5892,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     }
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, &row_descriptor, txn, block_size);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, false);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -5968,7 +5978,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
     for (uint i = 0; i < form->s->keys; i++) {
         if (i != primary_key) {
-            error = create_secondary_dictionary(name, form, &form->key_info[i], txn, &kc_info, i);
+            error = create_secondary_dictionary(name, form, &form->key_info[i], txn, &kc_info, i, false);
             if (error) {
                 goto cleanup;
             }
@@ -6567,6 +6577,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     u_int32_t mult_db_flags[MAX_KEY + 1] = {0};
     u_int32_t mult_put_flags[MAX_KEY + 1];
     u_int32_t mult_dbt_flags[MAX_KEY + 1];
+    bool creating_hot_index = false;
     bool incremented_numDBs = false;
     struct loader_context lc;
     memset(&lc, 0, sizeof lc);
@@ -6622,6 +6633,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     // open all the DB files and set the appropriate variables in share
     // they go to the end of share->key_file
     //
+    creating_hot_index = use_hot_index && num_of_keys == 1 && (key_info[0].flags & HA_NOSAME) == 0;
     curr_index = curr_num_DBs;
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
         if (key_info[i].flags & HA_CLUSTERING) {
@@ -6647,7 +6659,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         }
 
 
-        error = create_secondary_dictionary(share->table_name, table_arg, &key_info[i], txn, &share->kc_info, curr_index);
+        error = create_secondary_dictionary(share->table_name, table_arg, &key_info[i], txn, &share->kc_info, curr_index, creating_hot_index);
         if (error) { goto cleanup; }
 
         error = open_secondary_dictionary(
@@ -6660,7 +6672,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         if (error) { goto cleanup; }
     }
     
-    if (use_hot_index && num_of_keys == 1 && (key_info[0].flags & HA_NOSAME) == 0) {
+    if (creating_hot_index) {
         if (share->num_DBs > curr_num_DBs) {
             //
             // already have hot index in progress, get out
@@ -7146,7 +7158,8 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
             &table_share->key_info[keynr], 
             txn,
             &share->kc_info,
-            keynr
+            keynr,
+            false
             );
     }
     if (error) { goto cleanup; }
