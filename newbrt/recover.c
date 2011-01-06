@@ -637,7 +637,7 @@ static int toku_recover_fcreate (struct logtype_fcreate *l, RECOVER_ENV renv) {
     toku_free(iname);
 
     BOOL must_create = TRUE;
-    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn, 0);
+    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn, l->nodesize);
     return r;
 }
 
@@ -646,40 +646,7 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *UU(l), RECOVER
     return 0;
 }
 
-static int toku_recover_fcreate2 (struct logtype_fcreate2 *l, RECOVER_ENV renv) {
-    int r;
 
-    TOKUTXN txn = NULL;
-    r = toku_txnid2txn(renv->logger, l->xid, &txn);
-    assert(r == 0);
-
-    // assert that filenum is closed
-    struct file_map_tuple *tuple = NULL;
-    r = file_map_find(&renv->fmap, l->filenum, &tuple);
-    assert(r==DB_NOTFOUND);
-
-    assert(txn!=NULL);
-
-    //unlink if it exists (recreate from scratch).
-    char *iname = fixup_fname(&l->iname);
-    r = unlink(iname);
-    if (r != 0 && errno != ENOENT) {
-        fprintf(stderr, "Tokudb recovery %s:%d unlink %s %d\n", __FUNCTION__, __LINE__, iname, errno);
-        toku_free(iname);
-        return r;
-    }
-    assert(strcmp(iname, ROLLBACK_CACHEFILE_NAME)); //Creation of rollback cachefile never gets logged.
-    toku_free(iname);
-
-    BOOL must_create = TRUE;
-    r = internal_recover_fopen_or_fcreate(renv, must_create, l->mode, &l->iname, l->filenum, l->treeflags, l->descriptor_version, &l->descriptor, txn, l->nodesize);
-    return r;
-}
-
-static int toku_recover_backward_fcreate2 (struct logtype_fcreate2 *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
 
 static int toku_recover_fopen (struct logtype_fopen *l, RECOVER_ENV renv) {
     int r;
