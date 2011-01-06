@@ -158,6 +158,7 @@ static void print_defines (void) {
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
     printf("#define DB_PRELOCKED_FILE_READ 0x00200000\n"); // private tokudb
+    printf("#define DB_IS_HOT_INDEX 0x00100000\n"); // private tokudb
 
     {
         //dbt flags
