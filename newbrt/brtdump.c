@@ -26,6 +26,53 @@ print_item (bytevec val, ITEMLEN len) {
 }
 
 static void
+simple_hex_dump(unsigned char *vp, u_int64_t size) {
+    for (u_int64_t i = 0; i < size; i++) {
+        unsigned char c = vp[i];
+        printf("%2.2X", c);
+    }
+}
+
+static void
+hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
+    u_int64_t n = size / 32;
+    for (u_int64_t i = 0; i < n; i++) {
+        printf("%"PRIu64": ", offset);
+	for (u_int64_t j = 0; j < 32; j++) {
+	    unsigned char c = vp[j];
+	    printf("%2.2X", c);
+	    if (((j+1) % 4) == 0)
+	        printf(" ");
+	}
+	for (u_int64_t j = 0; j < 32; j++) {
+            unsigned char c = vp[j];
+	    printf("%c", isprint(c) ? c : ' ');
+	}
+	printf("\n");
+	vp += 32;
+	offset += 32;
+    }
+    size = size % 32;
+    for (u_int64_t i=0; i<size; i++) {
+        if ((i % 32) == 0)
+            printf("%"PRIu64": ", offset+i);
+        printf("%2.2X", vp[i]);
+        if (((i+1) % 4) == 0)
+            printf(" ");
+        if (((i+1) % 32) == 0)
+            printf("\n");
+    }
+    printf("\n");
+}
+
+static void
+dump_descriptor(DESCRIPTOR d) {
+    printf(" descriptor version %u size %u ", d->version, d->dbt.size);
+    simple_hex_dump(d->dbt.data, d->dbt.size);
+    printf("\n");
+}
+
+static void
 dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     struct brt_header *h;
     int r;
@@ -39,6 +86,7 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     printf(" nodesize=%u\n", h->nodesize);
     printf(" unnamed_root=%" PRId64 "\n", h->root.b);
     printf(" flags=%u\n", h->flags);
+    dump_descriptor(&h->descriptor);
     *header = h;
 }
 
@@ -217,7 +265,7 @@ sub_block_deserialize(struct sub_block *sb, unsigned char *sub_block_header) {
 }
 
 static void
-verify_block(unsigned char *cp, u_int64_t size) {
+verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
     // verify the header checksum
     const size_t node_header = 8 + sizeof (u_int32_t) + sizeof (u_int32_t);
     unsigned char *sub_block_header = &cp[node_header];
@@ -249,7 +297,7 @@ verify_block(unsigned char *cp, u_int64_t size) {
         u_int32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
-            printf(" fail %u", xsum);
+            printf(" fail %u offset %"PRIu64, xsum, file_offset + offset);
         printf("\n");
         offset += sub_block[i].compressed_size;
     }
@@ -267,49 +315,21 @@ dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
     u_int64_t r = pread(f, vp, size, offset);
     if (r == (u_int64_t)size) {
         printf("%.8s layout_version=%u %u\n", (char*)vp, get_unaligned_uint32(vp+8), get_unaligned_uint32(vp+12));
-        verify_block(vp, size);
+        verify_block(vp, offset, size);
     }
     toku_free(vp);
 }
 
 static void
-hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
-    u_int64_t n = size / 32;
-    for (u_int64_t i = 0; i < n; i++) {
-        printf("%"PRIu64": ", offset);
-	for (u_int64_t j = 0; j < 32; j++) {
-	    unsigned char c = vp[j];
-	    printf("%2.2X", c);
-	    if (((j+1) % 4) == 0)
-	        printf(" ");
-	}
-	for (u_int64_t j = 0; j < 32; j++) {
-            unsigned char c = vp[j];
-	    printf("%c", isprint(c) ? c : ' ');
-	}
-	printf("\n");
-	vp += 32;
-	offset += 32;
-    }
-    size = size % 32;
-    for (u_int64_t i=0; i<size; i++) {
-        if ((i % 32) == 0)
-            printf("%"PRIu64": ", offset+i);
-        printf("%2.2X", vp[i]);
-        if (((i+1) % 4) == 0)
-            printf(" ");
-        if (((i+1) % 32) == 0)
-            printf("\n");
-    }
-    printf("\n");
-}
-
-static void
-dump_file(int f, u_int64_t offset, u_int64_t size) {
+dump_file(int f, u_int64_t offset, u_int64_t size, FILE *outfp) {
     unsigned char *vp = toku_malloc(size);
     u_int64_t r = pread(f, vp, size, offset);
-    if (r == size) 
-        hex_dump(vp, offset, size);
+    if (r == size) {
+        if (outfp == stdout)
+            hex_dump(vp, offset, size);
+        else
+            fwrite(vp, size, 1, outfp);
+    }
     toku_free(vp);
 }
 
@@ -359,7 +379,7 @@ interactive_help(void) {
     fprintf(stderr, "bx OFFSET | block_translation OFFSET\n");
     fprintf(stderr, "dumpdata 0|1\n");
     fprintf(stderr, "fragmentation\n");
-    fprintf(stderr, "file OFFSET SIZE\n");
+    fprintf(stderr, "file OFFSET SIZE [outfilename]\n");
     fprintf(stderr, "quit\n");
 }
 
@@ -435,10 +455,13 @@ main (int argc, const char *const argv[]) {
 	        dump_block_translation(h, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
 	        dump_fragmentation(f, h);
-            } else if (strcmp(fields[0], "file") == 0 && nfields == 3) {
+            } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
                 u_int64_t offset = getuint64(fields[1]);
                 u_int64_t size = getuint64(fields[2]);
-                dump_file(f, offset, size);
+                FILE *outfp = stdout;
+                if (nfields >= 4)
+                    outfp = fopen(fields[3], "w");
+                dump_file(f, offset, size, outfp);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
             }

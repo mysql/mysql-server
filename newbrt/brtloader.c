@@ -2272,6 +2272,28 @@ static void drain_writer_q(QUEUE q) {
     }
 }
 
+static void cleanup_maxkey(DBT *maxkey) {
+    if (maxkey->flags == DB_DBT_REALLOC) {
+        toku_free(maxkey->data);
+        maxkey->data = NULL;
+        maxkey->flags = 0;
+    }
+}
+
+static void update_maxkey(DBT *maxkey, DBT *key) {
+    cleanup_maxkey(maxkey);
+    *maxkey = *key;
+}
+
+static int copy_maxkey(DBT *maxkey) {
+    DBT newkey;
+    toku_init_dbt_flags(&newkey, DB_DBT_REALLOC);
+    int r = toku_dbt_set(maxkey->size, maxkey->data, &newkey, NULL);
+    if (r == 0)
+        update_maxkey(maxkey, &newkey);
+    return r;
+}
+
 CILK_BEGIN
 static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 const DESCRIPTOR descriptor,
@@ -2349,7 +2371,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
 
-    uint64_t  used_estimate = 0; // how much diskspace have we used up?
+    uint64_t  used_estimate = 0;  // how much diskspace have we used up?
+
+    DBT maxkey = make_dbt(0, 0); // keep track of the max key of the current node
 
     while (result == 0) {
 	void *item;
@@ -2394,7 +2418,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
 		n_pivots++;
 
-		if ((r = bl_write_dbt(&key, pivots_stream, NULL, bl))) {
+                invariant(maxkey.data != NULL);
+		if ((r = bl_write_dbt(&maxkey, pivots_stream, NULL, bl))) {
 		    brt_loader_set_panic(bl, r, TRUE); // error after cilk sync
                     if (result == 0) result = r;
 		    break;
@@ -2414,14 +2439,19 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	
 	    add_pair_to_leafnode(lbuf, (unsigned char *) key.data, key.size, (unsigned char *) val.data, val.size);
 	    n_rows_remaining--;
+
+            update_maxkey(&maxkey, &key); // set the new maxkey to the current key
 	}
 
+        result = copy_maxkey(&maxkey); // make a copy of maxkey before the rowset is destroyed
 	destroy_rowset(output_rowset);
 	toku_free(output_rowset);
 
         if (result == 0)
             result = brt_loader_get_error(&bl->error_callback); // check if an error was posted and terminate this quickly
     }
+
+    cleanup_maxkey(&maxkey);
 
     if (lbuf) {
         struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
