@@ -57,6 +57,13 @@ Bitmask_t_LDADD = \
 	libgeneral.la \
 	$(top_builddir)/mysys/libmysyslt.la
 
+#Bitmask_p_SOURCES = Bitmask.cpp
+#Bitmask_p_CXXFLAGS = -DBENCH_BITMASK
+#Bitmask_p_LDADD = \
+#	libgeneral.la \
+#        ../portlib/libportlib.la \
+#	$(top_builddir)/mysys/libmysyslt.la
+
 SparseBitmask_t_SOURCES = SparseBitmask.cpp
 SparseBitmask_t_CXXFLAGS = -DTEST_SPARSEBITMASK
 SparseBitmask_t_LDADD = \
