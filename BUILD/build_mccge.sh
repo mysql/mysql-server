@@ -1161,7 +1161,7 @@ set_with_debug_flags()
 {
   if test "x$with_debug_flag" = "xyes" ; then
     if test "x$developer_flag" = "xyes" ; then
-      loc_debug_flags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+      loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
       compiler_flags="$compiler_flags $loc_debug_flags"
     fi
     compiler_flags="$compiler_flags $extra_debug_flags"
