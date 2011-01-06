@@ -213,6 +213,9 @@ static struct my_option my_long_options[] =
   {"silent", 's', "Print less information during apply/undo phase",
    &opt_silent, &opt_silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tables-to-redo", 'T',
+   "List of tables sepearated with , that we should apply REDO on. Use this if you only want to recover some tables",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Print more information during apply/undo phase",
    &maria_recovery_verbose, &maria_recovery_verbose, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -245,7 +248,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2007 MySQL AB");
+  puts("Copyright (C) 2007 MySQL AB, 2009-2011 Monty Program Ab");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
@@ -266,10 +269,18 @@ static void usage(void)
 
 #include <help_end.h>
 
+static uchar* my_hash_get_string(const uchar *record, size_t *length,
+                                my_bool first __attribute__ ((unused)))
+{
+  *length= (size_t) (strcend((const char*) record,',')- (const char*) record);
+  return (uchar*) record;
+}
+
+
 static my_bool
 get_one_option(int optid __attribute__((unused)),
                const struct my_option *opt __attribute__((unused)),
-               char *argument __attribute__((unused)))
+               char *argument)
 {
   switch (optid) {
   case '?':
@@ -278,6 +289,23 @@ get_one_option(int optid __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'T':
+  {
+    char *pos;
+    if (!my_hash_inited(&tables_to_redo))
+    {
+      my_hash_init2(&tables_to_redo, 16, &my_charset_bin,
+                    16, 0, 0, my_hash_get_string, 0, HASH_UNIQUE);
+    }
+    do
+    {
+      pos= strcend(argument, ',');
+      if (pos != argument)                      /* Skip empty strings */
+        my_hash_insert(&tables_to_redo, (uchar*) argument);
+      argument= pos+1;
+    } while (*(pos++));
+    break;
+  }
 #ifndef DBUG_OFF
   case '#':
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
@@ -290,6 +318,7 @@ get_one_option(int optid __attribute__((unused)),
 static void get_options(int *argc,char ***argv)
 {
   int ho_error;
+  my_bool need_help= 0;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -297,8 +326,23 @@ static void get_options(int *argc,char ***argv)
   if (!opt_apply)
     opt_apply_undo= FALSE;
 
-  if (((opt_display_only + opt_apply) != 1) || (*argc > 0))
+  if (*argc > 0)
   {
+    need_help= 1;
+    fprintf(stderr, "Too many arguments given\n");
+  }
+  if ((opt_display_only + opt_apply) != 1)
+  {
+    need_help= 1;
+    fprintf(stderr,
+            "You must use one and only one of the options 'display-only' or "
+            "'apply'\n");
+  }
+
+  if (need_help)
+  {
+    fflush(stderr);
+    need_help =1;
     usage();
     exit(1);
   }

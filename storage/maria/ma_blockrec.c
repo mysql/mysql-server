@@ -4934,7 +4934,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
       goto err;
   }
 #ifdef EXTRA_DEBUG
-  if (share->calc_checksum)
+  if (share->calc_checksum && !info->in_check_table)
   {
     /* Esnure that row checksum is correct */
     DBUG_ASSERT(((share->calc_checksum)(info, record) & 255) ==
@@ -6705,21 +6705,23 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
       uint      page_range;
       pgcache_page_no_t page, start_page;
       uchar     *buff;
+      uint	data_on_page= data_size;
 
       start_page= page= page_korr(header);
       header+= PAGE_STORE_SIZE;
       page_range= pagerange_korr(header);
       header+= PAGERANGE_STORE_SIZE;
 
-      for (i= page_range; i-- > 0 ; page++)
+      for (i= page_range; i-- > 0 ; page++, data+= data_on_page)
       {
         MARIA_PINNED_PAGE page_link;
         enum pagecache_page_lock unlock_method;
         enum pagecache_page_pin unpin_method;
-        uint length;
 
         set_if_smaller(first_page2, page);
         set_if_bigger(last_page2, page);
+        if (i == 0 && sub_ranges == 0)
+          data_on_page= data_size - empty_space; /* data on last page */
         if (_ma_redo_not_needed_for_page(sid, redo_lsn, page, FALSE))
           continue;
 
@@ -6798,19 +6800,16 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         lsn_store(buff, lsn);
         buff[PAGE_TYPE_OFFSET]= BLOB_PAGE;
 
-        length= data_size;
-        if (i == 0 && sub_ranges == 0)
+        if (data_on_page != data_size)
         {
           /*
             Last page may be only partly filled. We zero the rest, like
             write_full_pages() does.
           */
-          length-= empty_space;
           bzero(buff + share->block_size - PAGE_SUFFIX_SIZE - empty_space,
                 empty_space);
         }
-        memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, length);
-        data+= length;
+        memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, data_on_page);
         if (pagecache_write(share->pagecache,
                             &info->dfile, page, 0,
                             buff, PAGECACHE_PLAIN_PAGE,
