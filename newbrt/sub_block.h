@@ -106,6 +106,8 @@ decompress_worker(void *arg);
 int
 decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores, struct toku_thread_pool *pool);
 
+extern int verbose_decompress_sub_block;
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }
 #endif

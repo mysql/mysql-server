@@ -334,6 +334,11 @@ dump_file(int f, u_int64_t offset, u_int64_t size, FILE *outfp) {
 }
 
 static void
+set_file(int f, u_int64_t offset, unsigned char newc) {
+    toku_os_pwrite(f, &newc, sizeof newc, offset);
+}
+
+static void
 readline (char *line, int maxline) {
     int i = 0;
     int c;
@@ -412,7 +417,7 @@ main (int argc, const char *const argv[]) {
     if (argc != 1) return usage(arg0);
 
     const char *n = argv[0];
-    int f = open(n, O_RDONLY + O_BINARY);  assert(f>=0);
+    int f = open(n, O_RDWR + O_BINARY);  assert(f>=0);
     struct brt_header *h;
     // create a cachefile for the header
     int r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
@@ -462,6 +467,10 @@ main (int argc, const char *const argv[]) {
                 if (nfields >= 4)
                     outfp = fopen(fields[3], "w");
                 dump_file(f, offset, size, outfp);
+            } else if (strcmp(fields[0], "setfile") == 0 && nfields == 3) {
+                u_int64_t offset = getuint64(fields[1]);
+                unsigned char newc = getuint64(fields[2]);
+                set_file(f, offset, newc);
             } else if (strcmp(fields[0], "quit") == 0 || strcmp(fields[0], "q") == 0) {
                 break;
             }

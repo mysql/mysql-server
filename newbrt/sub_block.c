@@ -221,21 +221,30 @@ decompress_work_init(struct decompress_work *dw,
     dw->error = 0;
 }
 
+int verbose_decompress_sub_block = 1;
+
 // decompress one block
 int
 decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompress_ptr, u_int32_t uncompress_size, u_int32_t expected_xsum) {
+    int result = 0;
+
     // verify checksum
     u_int32_t xsum = x1764_memory(compress_ptr, compress_size);
-    if (xsum != expected_xsum)
-        return EINVAL;
+    if (xsum != expected_xsum) {
+        if (verbose_decompress_sub_block) fprintf(stderr, "%s:%d xsum %u expected %u\n", __FUNCTION__, __LINE__, xsum, expected_xsum);
+        result = EINVAL;
+    } else {
 
-    // decompress
-    uLongf destlen = uncompress_size;
-    int r = uncompress(uncompress_ptr, &destlen, compress_ptr, compress_size);
-    if (r != Z_OK || destlen != uncompress_size)
-        return EINVAL;
+        // decompress
+        uLongf destlen = uncompress_size;
+        int r = uncompress(uncompress_ptr, &destlen, compress_ptr, compress_size);
+        if (r != Z_OK || destlen != uncompress_size) {
+            if (verbose_decompress_sub_block) fprintf(stderr, "%s:%d uncompress %d %lu %u\n", __FUNCTION__, __LINE__, r, destlen, uncompress_size);
+            result = EINVAL;
+        }
+    }
 
-    return 0;
+    return result;
 }
 
 // decompress blocks until there is no more work to do
