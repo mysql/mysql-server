@@ -5173,6 +5173,8 @@ int ha_partition::handle_ordered_prev(uchar *buf)
 
 int ha_partition::info(uint flag)
 {
+  uint no_lock_flag= flag & HA_STATUS_NO_LOCK;
+  uint extra_var_flag= flag & HA_STATUS_VARIABLE_EXTRA;
   DBUG_ENTER("ha_partition::info");
 
   if (flag & HA_STATUS_AUTO)
@@ -5204,7 +5206,7 @@ int ha_partition::info(uint flag)
         do
         {
           file= *file_array;
-          file->info(HA_STATUS_AUTO);
+          file->info(HA_STATUS_AUTO | no_lock_flag);
           set_if_bigger(auto_increment_value,
                         file->stats.auto_increment_value);
         } while (*(++file_array));
@@ -5258,7 +5260,7 @@ int ha_partition::info(uint flag)
       if (bitmap_is_set(&(m_part_info->used_partitions), (file_array - m_file)))
       {
         file= *file_array;
-        file->info(HA_STATUS_VARIABLE);
+        file->info(HA_STATUS_VARIABLE | no_lock_flag | extra_var_flag);
         stats.records+= file->stats.records;
         stats.deleted+= file->stats.deleted;
         stats.data_file_length+= file->stats.data_file_length;
@@ -5340,7 +5342,7 @@ int ha_partition::info(uint flag)
       if (!(flag & HA_STATUS_VARIABLE) ||
           !bitmap_is_set(&(m_part_info->used_partitions),
                          (file_array - m_file)))
-        file->info(HA_STATUS_VARIABLE);
+        file->info(HA_STATUS_VARIABLE | no_lock_flag | extra_var_flag);
       if (file->stats.records > max_records)
       {
         max_records= file->stats.records;
@@ -5350,7 +5352,7 @@ int ha_partition::info(uint flag)
     } while (*(++file_array));
 
     file= m_file[handler_instance];
-    file->info(HA_STATUS_CONST);
+    file->info(HA_STATUS_CONST | no_lock_flag);
     stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
@@ -5366,7 +5368,7 @@ int ha_partition::info(uint flag)
       Note: all engines does not support HA_STATUS_ERRKEY, so set errkey.
     */
     file->errkey= errkey;
-    file->info(HA_STATUS_ERRKEY);
+    file->info(HA_STATUS_ERRKEY | no_lock_flag);
     errkey= file->errkey;
   }
   if (flag & HA_STATUS_TIME)
@@ -5383,7 +5385,7 @@ int ha_partition::info(uint flag)
     do
     {
       file= *file_array;
-      file->info(HA_STATUS_TIME);
+      file->info(HA_STATUS_TIME | no_lock_flag);
       if (file->stats.update_time > stats.update_time)
 	stats.update_time= file->stats.update_time;
     } while (*(++file_array));
@@ -5397,7 +5399,7 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 {
   handler *file= m_file[part_id];
   file->info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
-             HA_STATUS_NO_LOCK);
+             HA_STATUS_VARIABLE_EXTRA | HA_STATUS_NO_LOCK);
 
   stat_info->records=              file->stats.records;
   stat_info->mean_rec_length=      file->stats.mean_rec_length;

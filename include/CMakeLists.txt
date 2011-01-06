@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,6 @@ SET(HEADERS
   my_xml.h
   mysql_embed.h
   my_pthread.h
-  my_no_pthread.h 
   decimal.h
   errmsg.h
   my_global.h

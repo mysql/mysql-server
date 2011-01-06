@@ -18,6 +18,10 @@ sync_with_master;
 reset master;
 connection master;
 
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 connect (con1,localhost,root,,);
 
 #added on 2007/5/18
@@ -62,7 +66,9 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 
 connection con1;
 create temporary table t3(f int);
+--disable_warnings
 insert into t3 select * from t1 where f<6;
+--enable_warnings
 sleep 1;
 
 connection con2;
@@ -70,11 +76,15 @@ create temporary table t3(f int);
 sleep 1;
 
 connection con1;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 sleep 1;
 
 connection con2;
+--disable_warnings
 insert into t3 select * from t1 where f>=4;
+--enable_warnings
 sleep 1;
 
 connection con1;
@@ -82,7 +92,9 @@ drop temporary table t3;
 sleep 1;
 
 connection con2;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 drop temporary table t3;
 
 select * from t2 ORDER BY f;
@@ -107,22 +119,30 @@ SET @@session.pseudo_thread_id=1;
 create temporary table t3(f int);
 SET TIMESTAMP=1040323952;
 SET @@session.pseudo_thread_id=1;
+--disable_warnings
 insert into t3 select * from t1 where f<6;
+--enable_warnings
 SET TIMESTAMP=1040324145;
 SET @@session.pseudo_thread_id=2;
 create temporary table t3(f int);
 SET TIMESTAMP=1040324186;
 SET @@session.pseudo_thread_id=1;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 SET TIMESTAMP=1040324200;
 SET @@session.pseudo_thread_id=2;
+--disable_warnings
 insert into t3 select * from t1 where f>=4;
+--enable_warnings
 SET TIMESTAMP=1040324211;
 SET @@session.pseudo_thread_id=1;
 drop temporary table t3;
 SET TIMESTAMP=1040324219;
 SET @@session.pseudo_thread_id=2;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 SET TIMESTAMP=1040324224;
 SET @@session.pseudo_thread_id=2;
 drop temporary table t3;
@@ -149,7 +169,9 @@ create table t5 (f int);
 # find dumper's $id
 select id from information_schema.processlist where command='Binlog Dump' into @id;
 kill @id; # to stimulate reconnection by slave w/o timeout
+--disable_warnings
 insert into t5 select * from t4;
+--enable_warnings
 save_master_pos;
 
 connection slave;
