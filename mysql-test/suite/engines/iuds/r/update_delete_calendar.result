@@ -791,6 +791,9 @@ Warning	1292	Truncated incorrect datetime value: '2009-01-10 23:60:59'
 SELECT count(*) FROM t1 WHERE c2='2001-01-11 23:59:60' /* returns 0 */;
 count(*)
 0
+Warnings:
+Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
 0000-00-00 00:00:00	0000-00-00 00:00:00	6
