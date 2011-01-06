@@ -92,8 +92,10 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
       setErrorCodeAbort(4231);
       return -1;
     }
-    m_no_disk_flag &= 
-      (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+    if (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK)
+    {
+      m_flags &= ~(Uint8)OF_NO_DISK;
+    }
     return tNdbColumnImpl->m_attrId;
   } else {
     if (theNdbCon->theCommitStatus == NdbTransaction::Started)
@@ -145,8 +147,10 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
       setErrorCodeAbort(4231);
       return -1;
     }
-    m_no_disk_flag &= 
-      (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+    if (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK)
+    {
+      m_flags &= ~(Uint8)OF_NO_DISK;
+    }
     return tNdbColumnImpl->m_attrId;
   } else {
     if (theNdbCon->theCommitStatus == NdbTransaction::Started)
@@ -196,8 +200,10 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
       setErrorCodeAbort(4231);
       return -1;
     }
-    m_no_disk_flag &= 
-      (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+    if (tNdbColumnImpl->m_storageType == NDB_STORAGETYPE_DISK)
+    {
+      m_flags &= ~(Uint8)OF_NO_DISK;
+    }
     return tNdbColumnImpl->m_attrId;
   } else {
     if (theNdbCon->theCommitStatus == NdbTransaction::Started)
@@ -1120,7 +1126,10 @@ NdbOperation::branch_col(Uint32 type,
     }
   }
 
-  m_no_disk_flag &= (col->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+  if (col->m_storageType == NDB_STORAGETYPE_DISK)
+  {
+    m_flags &= ~(Uint8)OF_NO_DISK;
+  }
 
   Uint32 tempData[ NDB_MAX_TUPLE_SIZE_IN_WORDS ];
   if (((UintPtr)val & 3) != 0) {

@@ -23,16 +23,21 @@
 
 struct AllocMemReq
 {
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
 
   enum RequestType
   {
-    RT_INIT = 0
+    RT_MAP    = 0, // Map any unmapped chunk
+    RT_EXTEND = 1, // extend heap with bytes_hi/lo
+
+    RT_MEMLOCK = 1 << 8
   };
 
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 requestInfo;
+  Uint32 bytes_hi;
+  Uint32 bytes_lo;
 };
 
 struct AllocMemRef
@@ -47,11 +52,13 @@ struct AllocMemRef
 
 struct AllocMemConf
 {
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
 
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 requestInfo;
+  Uint32 bytes_hi;
+  Uint32 bytes_lo;
 };
 
 #endif

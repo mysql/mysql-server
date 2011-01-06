@@ -43,7 +43,8 @@ static bool is_mgmd(Uint32 nodeId,
 bool
 IPCConfig::configureTransporters(Uint32 nodeId,
                                  const struct ndb_mgm_configuration & config,
-                                 class TransporterRegistry & tr)
+                                 class TransporterRegistry & tr,
+                                 bool transporter_to_self)
 {
   bool result= true;
 
@@ -98,6 +99,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   }
 
   TransporterConfiguration conf;
+  TransporterConfiguration loopback_conf;
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
     
@@ -109,6 +111,11 @@ IPCConfig::configureTransporters(Uint32 nodeId,
 
     if(nodeId1 != nodeId && nodeId2 != nodeId) continue;
     remoteNodeId = (nodeId == nodeId1 ? nodeId2 : nodeId1);
+
+    if (nodeId1 == nodeId && nodeId2 == nodeId)
+    {
+      transporter_to_self = false; // One already present..ignore extra arg
+    }
 
     {
       const char * host1= 0, * host2= 0;
@@ -260,6 +267,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
 			  "maxReceiveSize = %d", conf.tcp.sendBufferSize,
 			  conf.tcp.maxReceiveSize));
+      loopback_conf = conf; // reuse it...
       break;
     default:
       ndbout << "Unknown transporter type from: " << nodeId << 
@@ -267,6 +275,21 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       break;
     } // switch
   } // for
+
+  if (transporter_to_self)
+  {
+    loopback_conf.remoteNodeId = nodeId;
+    loopback_conf.localNodeId = nodeId;
+    loopback_conf.serverNodeId = 0; // always client
+    loopback_conf.remoteHostName = "localhost";
+    loopback_conf.localHostName = "localhost";
+    loopback_conf.s_port = 1; // prevent asking ndb_mgmd for port...
+    if (!tr.configureTransporter(&loopback_conf))
+    {
+      ndbout_c("Failed to configure Loopback Transporter");
+      result= false;
+    }
+  }
 
   DBUG_RETURN(result);
 }

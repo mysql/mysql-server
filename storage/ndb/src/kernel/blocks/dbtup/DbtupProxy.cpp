@@ -368,6 +368,14 @@ DbtupProxy::disk_restart_undo_callback(Signal* signal, Uint32, Uint32 page_id)
       ndbrequire(page_type == File_formats::PT_Tup_fixsize_page ||
                  page_type == File_formats::PT_Tup_varsize_page);
 
+      Uint64 page_lsn = (Uint64(header.m_page_lsn_hi) << 32) + header.m_page_lsn_lo;
+      if (! (undo.m_lsn <= page_lsn))
+      {
+        jam();
+        undo.m_actions |= Proxy_undo::NoExecute;
+        undo.m_actions |= Proxy_undo::SendUndoNext;
+      }
+
       undo.m_table_id = page->m_table_id;
       undo.m_fragment_id = page->m_fragment_id;
       D("proxy: callback" << V(undo.m_table_id) << V(undo.m_fragment_id));

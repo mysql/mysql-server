@@ -254,13 +254,19 @@ bool TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket)
 bool
 TCP_Transporter::send_is_possible(int timeout_millisec) const
 {
+  return send_is_possible(theSocket, timeout_millisec);
+}
+
+bool
+TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
+{
   ndb_socket_poller poller;
 
-  if (!my_socket_valid(theSocket))
+  if (!my_socket_valid(fd))
     return false;
 
   poller.clear();
-  poller.add(theSocket, false, true, false);
+  poller.add(fd, false, true, false);
 
   if (poller.poll_unsafe(timeout_millisec) <= 0)
     return false; // Timeout or error occured

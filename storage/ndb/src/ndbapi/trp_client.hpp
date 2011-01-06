@@ -47,18 +47,30 @@ public:
 
   void forceSend(int val = 1);
 
-  int sendSignal(NdbApiSignal * signal, Uint32 nodeId);
-  int sendSignal(NdbApiSignal*, Uint32, const LinearSectionPtr p[3], Uint32 s);
-  int sendSignal(NdbApiSignal*, Uint32, const GenericSectionPtr p[3], Uint32 s);
-  int sendFragmentedSignal(NdbApiSignal*, Uint32,
-			   const LinearSectionPtr ptr[3], Uint32 secs);
-  int sendFragmentedSignal(NdbApiSignal*, Uint32,
-                           const GenericSectionPtr ptr[3], Uint32 secs);
+  int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId);
+  int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId,
+                     const LinearSectionPtr ptr[3], Uint32 secs);
+  int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId,
+                     const GenericSectionPtr ptr[3], Uint32 secs);
+  int raw_sendFragmentedSignal(const NdbApiSignal*, Uint32 nodeId,
+                               const LinearSectionPtr ptr[3], Uint32 secs);
+  int raw_sendFragmentedSignal(const NdbApiSignal*, Uint32 nodeId,
+                               const GenericSectionPtr ptr[3], Uint32 secs);
 
   const trp_node & getNodeInfo(Uint32 i) const;
 
   void lock();
   void unlock();
+
+  Uint32 getOwnNodeId() const;
+
+  /**
+   * This sendSignal variant can be called on any trp_client
+   *   but perform the send on the trp_client-object that
+   *   is currently receiving
+   */
+  int safe_sendSignal(const NdbApiSignal*, Uint32 nodeId);
+
 private:
   Uint32 m_blockNo;
   TransporterFacade * m_facade;
@@ -110,8 +122,8 @@ inline
 void
 trp_client::lock()
 {
-  assert(m_poll.m_locked == false);
   NdbMutex_Lock(m_facade->theMutexPtr);
+  assert(m_poll.m_locked == false);
   m_poll.m_locked = true;
 }
 
@@ -120,47 +132,60 @@ void
 trp_client::unlock()
 {
   assert(m_poll.m_locked == true);
-  NdbMutex_Unlock(m_facade->theMutexPtr);
   m_poll.m_locked = false;
+  NdbMutex_Unlock(m_facade->theMutexPtr);
 }
 
 inline
 int
-trp_client::sendSignal(NdbApiSignal * signal, Uint32 nodeId)
+trp_client::raw_sendSignal(const NdbApiSignal * signal, Uint32 nodeId)
 {
+  assert(m_poll.m_locked);
   return m_facade->sendSignal(signal, nodeId);
 }
 
 inline
 int
-trp_client::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
-                       const LinearSectionPtr ptr[3], Uint32 secs)
+trp_client::raw_sendSignal(const NdbApiSignal * signal, Uint32 nodeId,
+                           const LinearSectionPtr ptr[3], Uint32 secs)
 {
+  assert(m_poll.m_locked);
   return m_facade->sendSignal(signal, nodeId, ptr, secs);
 }
 
 inline
 int
-trp_client::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
-                       const GenericSectionPtr ptr[3], Uint32 secs)
+trp_client::raw_sendSignal(const NdbApiSignal * signal, Uint32 nodeId,
+                           const GenericSectionPtr ptr[3], Uint32 secs)
 {
+  assert(m_poll.m_locked);
   return m_facade->sendSignal(signal, nodeId, ptr, secs);
 }
 
 inline
 int
-trp_client::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
-                                 const LinearSectionPtr ptr[3], Uint32 secs)
+trp_client::raw_sendFragmentedSignal(const NdbApiSignal * signal, Uint32 nodeId,
+                                     const LinearSectionPtr ptr[3], Uint32 secs)
 {
+  assert(m_poll.m_locked);
   return m_facade->sendFragmentedSignal(signal, nodeId, ptr, secs);
 }
 
 inline
 int
-trp_client::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
-                                 const GenericSectionPtr ptr[3], Uint32 secs)
+trp_client::raw_sendFragmentedSignal(const NdbApiSignal * signal, Uint32 nodeId,
+                                     const GenericSectionPtr ptr[3],
+                                     Uint32 secs)
 {
+  assert(m_poll.m_locked);
   return m_facade->sendFragmentedSignal(signal, nodeId, ptr, secs);
+}
+
+inline
+int
+trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
+{
+  return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
 }
 
 #endif

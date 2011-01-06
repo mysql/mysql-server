@@ -387,6 +387,7 @@ private:
   bool theGetFlag;
   char* theGetBuf;
   bool theSetFlag;
+  bool theSetValueInPreExecFlag;
   const char* theSetBuf;
   Uint32 theGetSetBytes;
   // pending ops
@@ -493,6 +494,7 @@ private:
   int insertPart(const char* buf, Uint32 part, const Uint16& len);
   int updateParts(const char* buf, Uint32 part, Uint32 count);
   int updatePart(const char* buf, Uint32 part, const Uint16& len);
+  int deletePartsThrottled(Uint32 part, Uint32 count);
   int deleteParts(Uint32 part, Uint32 count);
   int deletePartsUnknown(Uint32 part);
   // pending ops

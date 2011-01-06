@@ -400,7 +400,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_CHECK_FUNCS(pthread_self \
     sched_get_priority_min sched_get_priority_max sched_setaffinity \
     sched_setscheduler processor_bind epoll_create \
-    posix_memalign memalign sysconf directio atomic_swap_32)
+    posix_memalign memalign sysconf directio atomic_swap_32 mlock)
 
   AC_MSG_CHECKING(for Linux scheduling and locking support)
   AC_TRY_LINK(

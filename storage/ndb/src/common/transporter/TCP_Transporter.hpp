@@ -45,6 +45,7 @@ struct ReceiveBuffer {
 
 class TCP_Transporter : public Transporter {
   friend class TransporterRegistry;
+  friend class Loopback_Transporter;
 private:
   // Initialize member variables
   TCP_Transporter(TransporterRegistry&, const TransporterConfiguration* conf);
@@ -128,6 +129,7 @@ private:
   virtual int pre_connect_options(NDB_SOCKET_TYPE aSocket);
   
   bool send_is_possible(int timeout_millisec) const;
+  bool send_is_possible(NDB_SOCKET_TYPE fd, int timeout_millisec) const;
 
   /**
    * Statistics

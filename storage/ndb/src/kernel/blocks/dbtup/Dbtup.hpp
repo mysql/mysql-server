@@ -1202,6 +1202,9 @@ ArrayPool<TupTriggerData> c_triggerPool;
 typedef Ptr<storedProc> StoredProcPtr;
 
 ArrayPool<storedProc> c_storedProcPool;
+RSS_AP_SNAPSHOT(c_storedProcPool);
+Uint32 c_storedProcCountNonAPI;
+void storedProcCountNonAPI(BlockReference apiBlockref, int add_del);
 
 /* **************************** TABLE_DESCRIPTOR RECORD ******************************** */
 /* THIS VARIABLE IS USED TO STORE TABLE DESCRIPTIONS. A TABLE DESCRIPTION IS STORED AS A */

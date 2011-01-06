@@ -425,6 +425,7 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   out << "[ScanOp " << hex << &scan;
   out << " [state " << dec << scan.m_state << "]";
   out << " [lockwait " << dec << scan.m_lockwait << "]";
+  out << " [errorCode " << dec << scan.m_errorCode << "]";
   out << " [indexId " << dec << scan.m_indexId << "]";
   out << " [fragId " << dec << scan.m_fragId << "]";
   out << " [transId " << hex << scan.m_transId1 << " " << scan.m_transId2 << "]";

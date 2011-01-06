@@ -58,15 +58,20 @@
 #define RG_TRANSPORTER_BUFFERS  6
 
 /**
+ * Disk page buffer
+ */
+#define RG_DISK_PAGE_BUFFER     7
+
+/**
  * Query memory
  */
-#define RG_QUERY_MEMORY         7
+#define RG_QUERY_MEMORY         8
 
 /**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                7
+#define RG_COUNT                9
 
 /**
  * Record types

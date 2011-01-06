@@ -229,6 +229,15 @@ extern "C" {
 #define ATTRIBUTE_NORETURN
 #endif
 
+/**
+ *  __attribute__((noinline)) was introduce in gcc 3.1
+ */
+#if (GCC_VERSION >= 3001)
+#define ATTRIBUTE_NOINLINE __attribute__((noinline))
+#else
+#define ATTRIBUTE_NOINLINE
+#endif
+
 /*
  * require is like a normal assert, only it's always on (eg. in release)
  */

@@ -472,7 +472,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   Uint8 tCommitIndicator = theCommitIndicator;
   Uint8 tStartIndicator = theStartIndicator;
   Uint8 tInterpretIndicator = theInterpretIndicator;
-  Uint8 tNoDisk = m_no_disk_flag;
+  Uint8 tNoDisk = (m_flags & OF_NO_DISK) != 0;
+  Uint8 tQueable = (m_flags & OF_QUEUEABLE) != 0;
 
   /**
    * A dirty read, can not abort the transaction
@@ -490,6 +491,7 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setStartFlag(tReqInfo, tStartIndicator);
   tcKeyReq->setInterpretedFlag(tReqInfo, tInterpretIndicator);
   tcKeyReq->setNoDiskFlag(tReqInfo, tNoDisk);
+  tcKeyReq->setQueueOnRedoProblemFlag(tReqInfo, tQueable);
 
   OperationType tOperationType = theOperationType;
   Uint8 abortOption = (ao == DefaultAbortOption) ? (Uint8) m_abortOption : (Uint8) ao;
@@ -960,7 +962,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
   attrInfoRemain= 0;
   theATTRINFOptr= NULL;
 
-  no_disk_flag= m_no_disk_flag;
+  no_disk_flag = (m_flags & OF_NO_DISK) != 0;
 
   /* If we have an interpreted program then we add 5 words
    * of section length information at the start of the
@@ -1076,7 +1078,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     }
   }
 
-  if (m_use_any_value && 
+  if (((m_flags & OF_USE_ANY_VALUE) != 0) &&
       (tOpType == DeleteRequest))
   {
     /* Special hack for delete and ANYVALUE pseudo-column
@@ -1335,7 +1337,7 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       (tOpType == UpdateRequest))
   {
     /* Handle setAnyValue() for all cases except delete */
-    if (m_use_any_value)
+    if ((m_flags & OF_USE_ANY_VALUE) != 0)
     {
       res= insertATTRINFOHdr_NdbRecord(AttributeHeader::ANY_VALUE, 4);
       if(res)
