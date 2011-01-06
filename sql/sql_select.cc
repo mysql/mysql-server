@@ -7877,8 +7877,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
                             bool *icp_other_tables_ok,
                             bool *idx_cond_fact_out)
 {
-  uint flags;
   COST_VECT cost;
+  uint flags= 0;
   ha_rows rows= 0;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
@@ -7996,8 +7996,8 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     }
 
     if ((cache_level <=4 && !no_hashed_cache) || no_bka_cache ||
-	((flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6) || 
-          tab->is_ref_for_hash_join())
+        tab->is_ref_for_hash_join() ||
+	((flags & HA_MRR_NO_ASSOCIATION) && cache_level <=6))
     {
       if (!tab->hash_join_is_possible() ||
           tab->make_scan_filter())

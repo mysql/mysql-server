@@ -689,20 +689,12 @@ ulong key_hashnr(KEY *key_info, uint used_key_parts, const uchar *key)
       pack_length= 0;
       break;
     case HA_KEYTYPE_VARTEXT1:
-      cs= key_part->field->charset();
-      length= (uint)(pos[0]);
-      pack_length= 1;
-      break;
-    case HA_KEYTYPE_VARBINARY1:
-      cs= &my_charset_bin;
-      length= (uint)(pos[0]);
-      pack_length= 1;
-      break;
     case HA_KEYTYPE_VARTEXT2:
       cs= key_part->field->charset();
       length= uint2korr(pos);
       pack_length= 2;
       break;
+    case HA_KEYTYPE_VARBINARY1:
     case HA_KEYTYPE_VARBINARY2:
       cs= &my_charset_bin;
       length= uint2korr(pos);
@@ -806,23 +798,13 @@ bool key_buf_cmp(KEY *key_info, uint used_key_parts,
       pack_length= 0;
       break;
     case HA_KEYTYPE_VARTEXT1:
-      cs= key_part->field->charset();
-      length1= (uint)(pos1[0]);
-      length2= (uint)(pos2[0]);
-      pack_length= 1;
-      break;
-    case HA_KEYTYPE_VARBINARY1:
-      cs= &my_charset_bin;
-      length1= (uint)(pos1[0]);
-      length2= (uint)(pos2[0]);
-      pack_length= 1;
-      break;
     case HA_KEYTYPE_VARTEXT2:
       cs= key_part->field->charset();
       length1= uint2korr(pos1);
       length2= uint2korr(pos2);
       pack_length= 2;
       break;
+    case HA_KEYTYPE_VARBINARY1:
     case HA_KEYTYPE_VARBINARY2:
       cs= &my_charset_bin;
       length1= uint2korr(pos1);
