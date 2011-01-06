@@ -31,6 +31,7 @@ class NodeStateRep {
    * Sender(s)
    */
   friend class Ndbcntr;
+  friend class Cmvmi;
   
   /**
    * Reciver
@@ -42,7 +43,7 @@ public:
   STATIC_CONST( SignalLength = NodeState::DataLength );
 private:
   
-  NodeState nodeState;
+  NodeStatePOD nodeState;
 };
 
 /**

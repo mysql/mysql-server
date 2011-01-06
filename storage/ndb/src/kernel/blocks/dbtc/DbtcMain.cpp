@@ -2321,7 +2321,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->m_transaction_nodes.clear();
   regApiPtr->singleUserMode = 0;
   // Trigger data
-  releaseFiredTriggerData(&regApiPtr->theFiredTriggers),
+  releaseFiredTriggerData(&regApiPtr->theFiredTriggers);
   // Index data
   regApiPtr->indexOpReturn = false;
   regApiPtr->noIndexOp = 0;
@@ -2786,6 +2786,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
   const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo); 
+  const Uint8 Tqueue        = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
 
   if (Treorg)
   {
@@ -2805,6 +2806,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
   regCachePtr->m_no_disk_flag = TNoDiskFlag;
   regCachePtr->viaSPJFlag = TViaSPJFlag;
+  regCachePtr->m_op_queue = Tqueue;
 
   //-------------------------------------------------------------
   // The next step is to read the upto three conditional words.
@@ -3555,6 +3557,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   LqhKeyReq::setSimpleFlag(Tdata10, sig0);
   LqhKeyReq::setOperation(Tdata10, sig1);
   LqhKeyReq::setNoDiskFlag(Tdata10, regCachePtr->m_no_disk_flag);
+  LqhKeyReq::setQueueOnRedoProblemFlag(Tdata10, regCachePtr->m_op_queue);
 
   /* ----------------------------------------------------------------------- 
    * If we are sending a short LQHKEYREQ, then there will be some AttrInfo

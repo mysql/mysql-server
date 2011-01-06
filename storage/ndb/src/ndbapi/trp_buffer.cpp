@@ -24,13 +24,13 @@ TFPool::TFPool()
 }
 
 bool
-TFPool::init(size_t mem)
+TFPool::init(size_t mem, size_t page_sz)
 {
   unsigned char * ptr = (m_alloc_ptr = (unsigned char*)malloc(mem));
-  for (size_t i = 0; i + 32768 < mem; i += 32768)
+  for (size_t i = 0; i + page_sz < mem; i += page_sz)
   {
     TFPage * p = (TFPage*)(ptr + i);
-    p->m_size = 32768 - offsetof(TFPage, m_data);
+    p->m_size = (Uint16)(page_sz - offsetof(TFPage, m_data));
     p->init();
     p->m_next = m_first_free;
     m_first_free = p;

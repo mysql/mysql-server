@@ -353,6 +353,25 @@ public:
                  bool fetchAllowed, 
                  bool forceSend);
 
+  /*
+   * Alternate NdbRecord version of nextResult.
+   *
+   * When 0 is returned, this method copies data from the result
+   * to the output buffer. The buffer must be long enough for the
+   * result NdbRecord row as returned by
+   * NdbDictionary::getRecordRowLength(const NdbRecord* record);
+   * The NdbRecord object defining the row format was specified in the
+   * NdbTransaction::scanTable (or scanIndex) call.
+   * @return
+   * -  -1: if unsuccessful
+   * -   0: if another tuple was received
+   * -   1: if there are no more tuples to scan
+   * -   2: if there are no more cached records in NdbApi
+   */
+  int nextResultCopyOut(char * buffer,
+                 bool fetchAllowed,
+                 bool forceSend);
+
   /**
    * Close scan
    */

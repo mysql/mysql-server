@@ -76,6 +76,11 @@ int NdbMem_MemLockAll(int);
  */
 int NdbMem_MemUnlockAll(void);
 
+/**
+ * Memlock region
+ */
+int NdbMem_MemLock(const void * ptr, size_t len);
+
 #ifdef	__cplusplus
 }
 #endif

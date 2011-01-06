@@ -911,6 +911,18 @@ public:
    */
   int releaseLockHandle(const NdbLockHandle* lockHandle);
 
+  /* Get maximum number of pending Blob read/write bytes before
+   * an automatic execute() occurs 
+   */
+  Uint32 getMaxPendingBlobReadBytes() const;
+  Uint32 getMaxPendingBlobWriteBytes() const;
+
+  /* Set maximum number of pending Blob read/write bytes before
+   * an automatic execute() occurs
+   */
+  void setMaxPendingBlobReadBytes(Uint32 bytes);
+  void setMaxPendingBlobWriteBytes(Uint32 bytes);
+
 private:						
   /**
    * Release completed operations
@@ -1162,10 +1174,13 @@ private:
   // optim: any blobs
   bool theBlobFlag;
   Uint8 thePendingBlobOps;
-
+  Uint32 maxPendingBlobReadBytes;
+  Uint32 maxPendingBlobWriteBytes;
+  Uint32 pendingBlobReadBytes;
+  Uint32 pendingBlobWriteBytes;
   inline bool hasBlobOperation() { return theBlobFlag; }
 
-  static void sendTC_COMMIT_ACK(class TransporterFacade *, NdbApiSignal *,
+  static void sendTC_COMMIT_ACK(class NdbImpl *, NdbApiSignal *,
 				Uint32 transId1, Uint32 transId2, 
 				Uint32 aBlockRef);
 

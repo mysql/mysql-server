@@ -43,13 +43,15 @@ struct NdbApiConfig
     m_scan_batch_size(MAX_SCAN_BATCH_SIZE),
     m_batch_byte_size(SCAN_BATCH_SIZE),
     m_batch_size(DEF_BATCH_SIZE),
-    m_waitfor_timeout(120000)
+    m_waitfor_timeout(120000),
+    m_default_queue_option(0)
     {}
 
   Uint32 m_scan_batch_size;
   Uint32 m_batch_byte_size;
   Uint32 m_batch_size;
   Uint32 m_waitfor_timeout; // in milli seconds...
+  Uint32 m_default_queue_option;
 };
 
 class Ndb_cluster_connection_impl : public Ndb_cluster_connection

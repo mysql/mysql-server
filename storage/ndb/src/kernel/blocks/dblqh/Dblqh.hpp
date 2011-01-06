@@ -316,6 +316,7 @@ class Lgman;
 #define ZDROP_TABLE_IN_PROGRESS 1226
 #define ZINVALID_SCHEMA_VERSION 1227
 #define ZTABLE_READ_ONLY 1233
+#define ZREDO_IO_PROBLEM 1234
 
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES ADDED IN VERSION 2.X                                    */
@@ -1022,6 +1023,54 @@ public:
     Uint32 m_outstanding;
   }; // Size 76 bytes
   typedef Ptr<LcpRecord> LcpRecordPtr;
+
+  struct IOTracker
+  {
+    STATIC_CONST( SAMPLE_TIME = 128 );              // millis
+    STATIC_CONST( SLIDING_WINDOW_LEN = 1024 );      // millis
+    STATIC_CONST( SLIDING_WINDOW_HISTORY_LEN = 8 );
+
+    void init(Uint32 partNo);
+    Uint32 m_log_part_no;
+    Uint32 m_current_time;
+
+    /**
+     * Keep sliding window of measurement
+     */
+    Uint32 m_save_pos; // current pos in array
+    Uint32 m_save_written_bytes[SLIDING_WINDOW_HISTORY_LEN];
+    Uint32 m_save_elapsed_millis[SLIDING_WINDOW_HISTORY_LEN];
+
+    /**
+     * Current sum of sliding window
+     */
+    Uint32 m_curr_written_bytes;
+    Uint32 m_curr_elapsed_millis;
+
+    /**
+     * Currently outstanding bytes
+     */
+    Uint32 m_sum_outstanding_bytes;
+
+    /**
+     * How many times did we pass lag-threshold
+     */
+    Uint32 m_lag_cnt;
+
+    /**
+     * bytes send during current sample
+     */
+    Uint32 m_sample_sent_bytes;
+
+    /**
+     * bytes completed during current sample
+     */
+    Uint32 m_sample_completed_bytes;
+
+    int tick(Uint32 now, Uint32 maxlag, Uint32 maxlag_cnt);
+    void send_io(Uint32 bytes);
+    void complete_io(Uint32 bytes);
+  };
     
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -1062,11 +1111,7 @@ public:
       SR_THIRD_PHASE_COMPLETED = 5,
       SR_FOURTH_PHASE_STARTED = 6,    ///< Finding the log tail and head 
                                       ///< is the fourth phase.
-      SR_FOURTH_PHASE_COMPLETED = 7,
-      FILE_CHANGE_PROBLEM = 8         ///< For some reason the write to 
-                                      ///< page zero in file zero have not   
-                                      ///< finished after 15 mbyte of 
-                                      ///< log data have been written
+      SR_FOURTH_PHASE_COMPLETED = 7
     };
     enum WaitWriteGciLog {
       WWGL_TRUE = 0,
@@ -1128,10 +1173,6 @@ public:
      *       Contains a reference to the first log file, file number 0.
      */
     UintR firstLogfile;
-    /**
-     *       The head of the operations queued for logging.
-     */
-    UintR firstLogQueue;
     /** 
      *       This variable contains the oldest operation in this log
      *       part which have not been committed yet.
@@ -1154,10 +1195,25 @@ public:
      *       are in memory and which are not.
      */
     UintR lastPageRef;
+
+    struct OperationQueue
+    {
+      void init() { firstElement = lastElement = RNIL;}
+      bool isEmpty() const { return firstElement == RNIL; }
+      Uint32 firstElement;
+      Uint32 lastElement;
+    };
+
     /**
-     *       The tail of the operations queued for logging.                   
+     * operations queued waiting on REDO to prepare
      */
-    UintR lastLogQueue;
+    struct OperationQueue m_log_prepare_queue;
+
+    /**
+     * operations queued waiting on REDO to commit/abort
+     */
+    struct OperationQueue m_log_complete_queue;
+
     /**
      *       This variable contains the newest operation in this log
      *       part which have not been committed yet.
@@ -1202,7 +1258,12 @@ public:
     /**
      * does current log-part have tail-problem (i.e 410)
      */
-    bool m_tail_problem;
+    enum {
+      P_TAIL_PROBLEM        = 0x1,// 410
+      P_REDO_IO_PROBLEM     = 0x2,// 1234
+      P_FILE_CHANGE_PROBLEM = 0x4 // 1220
+    };
+    Uint32 m_log_problems;
 
     /**
      *       A timer that is set every time a log page is sent to disk.
@@ -1354,6 +1415,11 @@ public:
      *       For MT LQH the log part (0-3).
      */
     Uint16 logPartNo;
+
+    /**
+     * IO tracker...
+     */
+    struct IOTracker m_io_tracker;
   }; // Size 164 Bytes
   typedef Ptr<LogPartRecord> LogPartRecordPtr;
   
@@ -2344,7 +2410,7 @@ private:
                    LogFileRecordPtr* parLogFilePtr);
   void findPageRef(Signal* signal, CommitLogRecord* commitLogRecord);
   int  findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec, UintR hi);
-  void getFirstInLogQueue(Signal* signal);
+  void getFirstInLogQueue(Signal* signal, Ptr<TcConnectionrec>&dst);
   bool getFragmentrec(Signal* signal, Uint32 fragId);
   void initialiseAddfragrec(Signal* signal);
   void initialiseFragrec(Signal* signal);
@@ -2376,7 +2442,7 @@ private:
   void initReqinfoExecSr(Signal* signal);
   bool insertFragrec(Signal* signal, Uint32 fragId);
   void linkFragQueue(Signal* signal);
-  void linkWaitLog(Signal* signal, LogPartRecordPtr regLogPartPtr);
+  void linkWaitLog(Signal*, LogPartRecordPtr, LogPartRecord::OperationQueue &);
   void logNextStart(Signal* signal);
   void moveToPageRef(Signal* signal);
   void readAttrinfo(Signal* signal);
@@ -2468,6 +2534,8 @@ private:
   void abort_scan(Signal* signal, Uint32 scan_ptr_i, Uint32 errcode);
   void localAbortStateHandlerLab(Signal* signal);
   void logLqhkeyreqLab(Signal* signal);
+  void logLqhkeyreqLab_problems(Signal* signal);
+  void update_log_problem(Signal*, LogPartRecordPtr, Uint32 problem, bool);
   void lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length);
   void rwConcludedAiLab(Signal* signal);
   void aiStateErrorCheckLab(Signal* signal, Uint32* dataPtr, Uint32 length);
@@ -3167,6 +3235,8 @@ public:
 
   } c_Counters;
 
+  Uint32 c_max_redo_lag;
+  Uint32 c_max_redo_lag_counter;
   Uint64 cTotalLqhKeyReqCount;
 
   inline bool getAllowRead() const {

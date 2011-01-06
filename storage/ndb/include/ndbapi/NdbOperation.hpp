@@ -1039,7 +1039,10 @@ public:
                  OO_INTERPRETED  = 0x10,
                  OO_ANYVALUE     = 0x20,
                  OO_CUSTOMDATA   = 0x40,
-                 OO_LOCKHANDLE   = 0x80 };
+                 OO_LOCKHANDLE   = 0x80,
+                 OO_QUEUABLE     = 0x100,
+                 OO_NOT_QUEUABLE = 0x200
+    };
 
     /* An operation-specific abort option.
      * Only necessary if the default abortoption behaviour
@@ -1428,12 +1431,20 @@ protected:
                                  // Note that scan operations always have this
                                  // set true
   Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
-  Uint8  m_no_disk_flag;          
-  /*
-    For NdbRecord, this flag indicates that we need to send the Event-attached
-    word set by setAnyValue().
-  */
-  Uint8 m_use_any_value;
+
+  enum OP_FLAGS {
+    OF_NO_DISK = 0x1,
+
+    /*
+      For NdbRecord, this flag indicates that we need to send the Event-attached
+      word set by setAnyValue().
+    */
+    OF_USE_ANY_VALUE = 0x2,
+    OF_QUEUEABLE = 0x4
+  };
+  Uint8  m_flags;
+
+  Uint8 _unused1;
 
   Uint16 m_tcReqGSN;
   Uint16 m_keyInfoGSN;

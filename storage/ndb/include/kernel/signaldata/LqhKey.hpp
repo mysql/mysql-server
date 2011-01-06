@@ -153,6 +153,9 @@ private:
   static UintR getNrCopyFlag(const UintR & requestInfo);
   static void setNrCopyFlag(UintR & requestInfo, UintR val);
 
+  static UintR getQueueOnRedoProblemFlag(const UintR & requestInfo);
+  static void setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val);
+
   /**
    * Do normal protocol (LQHKEYCONF/REF) even if doing dirty read
    */
@@ -190,8 +193,9 @@ private:
  * z = Use rowid for insert   - 1  Bit (31)
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
- * P = Do normal protocol even if dirty-read - 1 Bit (14)
+ * q = Queue on redo problem  - 1  Bit (14)
  * A = CorrFactor flag        - 1  Bit (24)
+ * P = Do normal protocol even if dirty-read - 1 Bit (25)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -202,7 +206,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgnPpdisooorrA  cumxz
+ *             llgnqpdisooorrAP cumxz
  *
  */
 
@@ -229,8 +233,9 @@ private:
 #define RI_ROWID_SHIFT       (31)
 #define RI_GCI_SHIFT         (12)
 #define RI_NR_COPY_SHIFT     (13)
-#define RI_NORMAL_DIRTY      (14)
+#define RI_QUEUE_REDO_SHIFT  (14)
 #define RI_CORR_FACTOR_VALUE (24)
+#define RI_NORMAL_DIRTY      (25)
 
 /**
  * Scan Info
@@ -626,6 +631,20 @@ table_version_major_lqhkeyreq(Uint32 x)
 {
   // LQHKEYREQ only contains 16-bit schema version...
   return x & 0xFFFF;
+}
+
+
+inline
+void
+LqhKeyReq::setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setQueueOnRedoProblem");
+  requestInfo |= (val << RI_QUEUE_REDO_SHIFT);
+}
+
+inline
+UintR
+LqhKeyReq::getQueueOnRedoProblemFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_QUEUE_REDO_SHIFT) & 1;
 }
 
 class LqhKeyConf {

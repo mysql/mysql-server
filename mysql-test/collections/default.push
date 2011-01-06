@@ -1,3 +1,3 @@
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=embedded --vardir=var-emebbed  --embedded --experimental=collections/default.experimental
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=funcs_1 --vardir=var-funcs_1 --suite=funcs_1 --experimental=collections/default.experimental
-perl mysql-test-run.pl --timer --force --para=auto --comment=std --vardir=var-std 
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=std --vardir=var-std 

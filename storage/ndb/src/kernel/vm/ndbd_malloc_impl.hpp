@@ -42,6 +42,13 @@ struct Alloc_page
   Uint32 m_data[BITMAP_WORDS];
 };
 
+struct InitChunk
+{
+  Uint32 m_cnt;
+  Uint32 m_start;
+  Alloc_page* m_ptr;
+};
+
 struct Free_page_data 
 {
   Uint32 m_list;
@@ -61,6 +68,7 @@ public:
   bool get_resource_limit(Uint32 id, Resource_limit& rl) const;
 
   bool init(Uint32 *watchCounter, bool allow_alloc_less_than_requested = true);
+  void map(Uint32 * watchCounter, bool memlock = false, Uint32 resources[] = 0);
   void* get_memroot() const { return (void*)m_base_page;}
   
   void dump() const ;
@@ -87,7 +95,7 @@ public:
 private:
   void grow(Uint32 start, Uint32 cnt);
 
-#define XX_RL_COUNT 8
+#define XX_RL_COUNT 9
   /**
    * Return pointer to free page data on page
    */
@@ -110,6 +118,12 @@ private:
   void alloc(AllocZone, Uint32* ret, Uint32 *pages, Uint32 min_requested);
   void alloc_impl(Uint32 zone, Uint32* ret, Uint32 *pages, Uint32 min);
   void release(Uint32 start, Uint32 cnt);
+
+  /**
+   * This is memory that has been allocated
+   *   but not yet mapped (i.e it is not possible to get it using alloc_page(s)
+   */
+  Vector<InitChunk> m_unmapped_chunks;
 };
 
 inline

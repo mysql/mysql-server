@@ -25,23 +25,36 @@
 #include <signaldata/TestOrd.hpp>
 
 
-SimpleSignal::SimpleSignal(bool dealloc){
-  memset(this, 0, sizeof(* this));
+SimpleSignal::SimpleSignal(bool dealloc)
+  : header((BlockReference)0)
+{
+  memset(ptr, 0, sizeof(ptr));
   deallocSections = dealloc;
 }
 
 SimpleSignal::SimpleSignal(const SimpleSignal& src)
+  : header(src.header)
 {
-  this->operator=(src);
+  deallocSections = true;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
 }
+
 
 SimpleSignal&
 SimpleSignal::operator=(const SimpleSignal& src)
 {
   deallocSections = true;
   header = src.header;
-  memcpy(theData, src.theData, sizeof(theData));
-
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
   {
     ptr[i].p = 0;
@@ -70,12 +83,9 @@ SimpleSignal::~SimpleSignal(){
 
 void 
 SimpleSignal::set(class SignalSender& ss,
-		  Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len){
-  
-  header.theTrace                = trace;
-  header.theReceiversBlockNumber = recBlock;
-  header.theVerId_signalNumber   = gsn;
-  header.theLength               = len;
+		  Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len)
+{
+  header.set(trace, recBlock, gsn, len);
   header.theSendersBlockRef      = refToBlock(ss.getOwnRef());
 }
 
@@ -83,7 +93,7 @@ void
 SimpleSignal::print(FILE * out) const {
   fprintf(out, "---- Signal ----------------\n");
   SignalLoggerManager::printSignalHeader(out, header, 0, 0, false);
-  SignalLoggerManager::printSignalData(out, header, theData);
+  SignalLoggerManager::printSignalData(out, header, getDataPtr());
   for(Uint32 i = 0; i<header.m_noOfSections; i++){
     Uint32 len = ptr[i].sz;
     fprintf(out, " --- Section %d size=%d ---\n", i, len);
@@ -183,7 +193,6 @@ SignalSender::sendSignal(Uint16 nodeId,
   return sendSignal(nodeId, &sig);
 }
 
-
 int
 SignalSender::sendFragmentedSignal(Uint16 nodeId,
                                    SimpleSignal& sig,
@@ -191,18 +200,33 @@ SignalSender::sendFragmentedSignal(Uint16 nodeId,
                                    Uint32 len)
 {
   sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
-  if (nodeId == theFacade->ownId())
-  {
-    // No need to fragment when sending to own node
-    return sendSignal(nodeId, &sig);
-  }
 
-  return theFacade->sendFragmentedSignal((NdbApiSignal*)&sig.header,
-                                         nodeId,
-                                         &sig.ptr[0],
-                                         sig.header.m_noOfSections);
+  int ret = raw_sendFragmentedSignal(&sig.header,
+                                     nodeId,
+                                     &sig.ptr[0],
+                                     sig.header.m_noOfSections);
+  if (ret == 0)
+  {
+    forceSend();
+    return SEND_OK;
+  }
+  return SEND_DISCONNECTED;
 }
 
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
+{
+  int ret = raw_sendSignal((NdbApiSignal*)&s->header,
+                           nodeId,
+                           s->ptr,
+                           s->header.m_noOfSections);
+  if (ret == 0)
+  {
+    forceSend();
+    return SEND_OK;
+  }
+  return SEND_DISCONNECTED;
+}
 
 template<class T>
 SimpleSignal *
@@ -214,6 +238,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     {
       return 0;
     }
+    assert(s->header.theLength > 0);
     return s;
   }
 
@@ -234,6 +259,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
       {
         return 0;
       }
+      assert(s->header.theLength > 0);
       return s;
     }
     
@@ -272,7 +298,6 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
 {
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
-  memcpy(&s->theData[0], signal->getDataPtr(), 4 * s->header.theLength);
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){
     s->ptr[i].p = new Uint32[ptr[i].sz];
     s->ptr[i].sz = ptr[i].sz;
@@ -304,6 +329,7 @@ ok:
   {
     // node shutdown complete
     s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
+    s->header.theLength = NFCompleteRep::SignalLength;
     NFCompleteRep *rep = (NFCompleteRep *)s->getDataPtrSend();
     rep->blockNo = 0;
     rep->nodeId = 0;
@@ -315,6 +341,7 @@ ok:
   {
     // node failure
     s->header.theVerId_signalNumber = GSN_NODE_FAILREP;
+    s->header.theLength = NodeFailRep::SignalLength;
     NodeFailRep *rep = (NodeFailRep *)s->getDataPtrSend();
     rep->failNo = 0;
     rep->masterNodeId = 0;

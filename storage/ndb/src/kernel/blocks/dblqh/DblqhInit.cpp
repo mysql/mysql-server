@@ -87,6 +87,8 @@ void Dblqh::initData()
   c_free_mb_tail_problem_limit = 4;
 
   cTotalLqhKeyReqCount = 0;
+  c_max_redo_lag = 30; // seconds
+  c_max_redo_lag_counter = 3; // 3 strikes and you're out
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 

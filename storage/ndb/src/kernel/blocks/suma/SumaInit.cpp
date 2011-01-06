@@ -135,6 +135,7 @@ Suma::Suma(Block_context& ctx) :
                &Suma::execDROP_NODEGROUP_IMPL_REQ);
 
   c_current_seq = 0;
+  c_outstanding_drop_trig_req = 0;
   c_restart.m_ref = 0;
   c_startup.m_restart_server_node_id = RNIL; // Server for my NR
   c_shutdown.m_wait_handover = false;

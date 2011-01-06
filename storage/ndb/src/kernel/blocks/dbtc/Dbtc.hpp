@@ -917,6 +917,7 @@ public:
       Uint8  m_special_hash; // collation or distribution key
       Uint8  m_no_hash;      // Hash not required for LQH (special variant)
       Uint8  m_no_disk_flag; 
+      Uint8  m_op_queue;
       Uint8  lenAiInTckeyreq;  /* LENGTH OF ATTRIBUTE INFORMATION IN TCKEYREQ */
     
       Uint8  fragmentDistributionKey;  /* DIH generation no */

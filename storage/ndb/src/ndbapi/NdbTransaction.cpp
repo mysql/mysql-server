@@ -80,6 +80,10 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
   thePendingBlobOps(0),
+  maxPendingBlobReadBytes(~Uint32(0)),
+  maxPendingBlobWriteBytes(~Uint32(0)),
+  pendingBlobReadBytes(0),
+  pendingBlobWriteBytes(0),
   m_theFirstLockHandle(NULL),
   m_theLastLockHandle(NULL)
 {
@@ -162,6 +166,8 @@ NdbTransaction::init()
   thePendingBlobOps = 0;
   m_theFirstLockHandle    = NULL;
   m_theLastLockHandle     = NULL;
+  pendingBlobReadBytes = 0;
+  pendingBlobWriteBytes = 0;
   if (theId == NdbObjectIdMap::InvalidId)
   {
     theId = theNdb->theImpl->theNdbObjectIdMap.map(this);
@@ -597,11 +603,10 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
     }
   }
   thePendingBlobOps = 0;
-  if (theReturnStatus == ReturnFailure) {
-    DBUG_RETURN(-1);
-  }//if
+  pendingBlobReadBytes = 0;
+  pendingBlobWriteBytes = 0;
   DBUG_RETURN(0);
-}//NdbTransaction::execute()
+}//NdbTransaction::executeNoBlobs()
 
 /** 
  * Get the first query in the current transaction that has a lookup operation
@@ -2846,7 +2851,35 @@ NdbTransaction::scanIndex(const NdbRecord *key_record,
   return op;
 } // ::scanIndex();
 
+Uint32
+NdbTransaction::getMaxPendingBlobReadBytes() const
+{
+  /* 0 == max */
+  return (maxPendingBlobReadBytes == 
+          (~Uint32(0)) ? 0 : maxPendingBlobReadBytes);
+};
 
+Uint32
+NdbTransaction::getMaxPendingBlobWriteBytes() const
+{
+  /* 0 == max */
+  return (maxPendingBlobWriteBytes == 
+          (~Uint32(0)) ? 0 : maxPendingBlobWriteBytes);
+};
+
+void
+NdbTransaction::setMaxPendingBlobReadBytes(Uint32 bytes)
+{
+  /* 0 == max */
+  maxPendingBlobReadBytes = (bytes?bytes : (~ Uint32(0)));
+}
+
+void
+NdbTransaction::setMaxPendingBlobWriteBytes(Uint32 bytes)
+{
+  /* 0 == max */
+  maxPendingBlobWriteBytes = (bytes?bytes : (~ Uint32(0)));
+}
 
 #ifdef VM_TRACE
 #define CASE(x) case x: ndbout << " " << #x; break
