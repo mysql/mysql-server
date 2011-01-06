@@ -173,10 +173,22 @@ int test_main (int argc, char * const argv[]) {
     CKERR(r);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     
-    DB *db;
+    DB* db;
+    DB* db2;
 
     DB_TXN* txna = NULL;
     DB_TXN* txnb = NULL;
+
+
+    //
+    // transactionally create dictionary
+    //
+    r = env->txn_begin(env, NULL, &txna, 0); CKERR(r);
+    r = db_create(&db2, env, 0); CKERR(r);
+    r = db2->open(db2, txna, "foo2.db", NULL, DB_BTREE, DB_CREATE|DB_IS_HOT_INDEX, 0666); CKERR(r);
+    verify_excl_ops_fail(env, db2);
+    r = txna->commit(txna, 0); CKERR(r);
+
 
     //
     // transactionally create dictionary
@@ -326,6 +338,7 @@ int test_main (int argc, char * const argv[]) {
     r = txnb->abort(txnb); CKERR(r);
 
     r = db->close(db, 0); CKERR(r);
+    r = db2->close(db2, 0); CKERR(r);
     r = env->close(env, 0); CKERR(r);
     
     return 0;
