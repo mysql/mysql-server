@@ -632,7 +632,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
