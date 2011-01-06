@@ -47,6 +47,142 @@
 #define MAX_LOG_BUFFER_SIZE 1024
 #define MAX_TIME_SIZE 32
 
+static
+const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
+{
+  {
+    { C_STRING_WITH_LEN("start_time") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("user_host") },
+    { C_STRING_WITH_LEN("mediumtext") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("query_time") },
+    { C_STRING_WITH_LEN("time") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("lock_time") },
+    { C_STRING_WITH_LEN("time") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("rows_sent") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("rows_examined") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("db") },
+    { C_STRING_WITH_LEN("varchar(512)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("last_insert_id") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("insert_id") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("server_id") },
+    { C_STRING_WITH_LEN("int(10) unsigned") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("sql_text") },
+    { C_STRING_WITH_LEN("mediumtext") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("thread_id") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0 }
+  }
+};
+
+static const TABLE_FIELD_DEF
+  slow_query_log_table_def= {SQLT_FIELD_COUNT, slow_query_log_table_fields};
+
+class Slow_query_log_table_intact : public Table_check_intact
+{
+protected:
+  void report_error(uint, const char *fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    error_log_print(ERROR_LEVEL, fmt, args);
+    va_end(args);
+  }
+};
+
+/** In case of an error, a message is printed to the error log. */
+static Slow_query_log_table_intact sqlt_intact;
+
+static
+const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
+{
+  {
+    { C_STRING_WITH_LEN("event_time") },
+    { C_STRING_WITH_LEN("timestamp") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("user_host") },
+    { C_STRING_WITH_LEN("mediumtext") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("thread_id") },
+    { C_STRING_WITH_LEN("int(11)") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("server_id") },
+    { C_STRING_WITH_LEN("int(10) unsigned") },
+    { NULL, 0 }
+  },
+  {
+    { C_STRING_WITH_LEN("command_type") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { C_STRING_WITH_LEN("utf8") }
+  },
+  {
+    { C_STRING_WITH_LEN("argument") },
+    { C_STRING_WITH_LEN("mediumtext") },
+    { C_STRING_WITH_LEN("utf8") }
+  }
+};
+
+static const TABLE_FIELD_DEF
+  general_log_table_def= {GLT_FIELD_COUNT, general_log_table_fields};
+
+class General_log_table_intact : public Table_check_intact
+{
+protected:
+  void report_error(uint, const char *fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    error_log_print(ERROR_LEVEL, fmt, args);
+    va_end(args);
+  }
+};
+
+/** In case of an error, a message is printed to the error log. */
+static General_log_table_intact glt_intact;
+
 LOGGER logger;
 
 static bool test_if_number(const char *str,
@@ -274,7 +410,7 @@ bool Log_to_csv_event_handler::
                             TL_WRITE_CONCURRENT_INSERT);
 
   /*
-    1) open_log_table generates an error of the
+    1) open_log_table generates an error if the
     table can not be opened or is corrupted.
     2) "INSERT INTO general_log" can generate warning sometimes.
 
@@ -291,6 +427,9 @@ bool Log_to_csv_event_handler::
     goto err;
 
   need_close= TRUE;
+
+  if (glt_intact.check(table_list.table, &general_log_table_def))
+    goto err;
 
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
@@ -315,35 +454,40 @@ bool Log_to_csv_event_handler::
   if (table->s->fields < 6)
     goto err;
 
-  DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
+  DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
 
-  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
-                                                        event_time);
+  ((Field_timestamp*) table->field[GLT_FIELD_EVENT_TIME])->store_timestamp(
+      (my_time_t) event_time);
 
   /* do a write */
-  if (table->field[1]->store(user_host, user_host_len, client_cs) ||
-      table->field[2]->store((longlong) thread_id, TRUE) ||
-      table->field[3]->store((longlong) server_id, TRUE) ||
-      table->field[4]->store(command_type, command_type_len, client_cs))
+  if (table->field[GLT_FIELD_USER_HOST]->store(user_host, user_host_len,
+                                               client_cs) ||
+      table->field[GLT_FIELD_THREAD_ID]->store((longlong) thread_id, TRUE) ||
+      table->field[GLT_FIELD_SERVER_ID]->store((longlong) server_id, TRUE) ||
+      table->field[GLT_FIELD_COMMAND_TYPE]->store(command_type,
+                                                  command_type_len, client_cs))
     goto err;
 
   /*
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
-  table->field[5]->flags|= FIELDFLAG_HEX_ESCAPE;
-  if (table->field[5]->store(sql_text, sql_text_len, client_cs) < 0)
+  table->field[GLT_FIELD_ARGUMENT]->flags|= FIELDFLAG_HEX_ESCAPE;
+  if (table->field[GLT_FIELD_ARGUMENT]->store(sql_text, sql_text_len,
+                                              client_cs) < 0)
     goto err;
 
   /* mark all fields as not null */
-  table->field[1]->set_notnull();
-  table->field[2]->set_notnull();
-  table->field[3]->set_notnull();
-  table->field[4]->set_notnull();
-  table->field[5]->set_notnull();
+  table->field[GLT_FIELD_USER_HOST]->set_notnull();
+  table->field[GLT_FIELD_THREAD_ID]->set_notnull();
+  table->field[GLT_FIELD_SERVER_ID]->set_notnull();
+  table->field[GLT_FIELD_COMMAND_TYPE]->set_notnull();
+  table->field[GLT_FIELD_ARGUMENT]->set_notnull();
 
   /* Set any extra columns to their default values */
-  for (field_index= 6 ; field_index < table->s->fields ; field_index++)
+  for (field_index= GLT_FIELD_COUNT ;
+       field_index < table->s->fields ;
+       field_index++)
   {
     table->field[field_index]->set_default();
   }
@@ -438,6 +582,9 @@ bool Log_to_csv_event_handler::
 
   need_close= TRUE;
 
+  if (sqlt_intact.check(table_list.table, &slow_query_log_table_def))
+    goto err;
+
   if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
@@ -449,15 +596,12 @@ bool Log_to_csv_event_handler::
 
   restore_record(table, s->default_values);    // Get empty record
 
-  /* check that all columns exist */
-  if (table->s->fields < 11)
-    goto err;
-
   /* store the time and user values */
-  DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
-  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
-                                                        current_time);
-  if (table->field[1]->store(user_host, user_host_len, client_cs))
+  DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+  ((Field_timestamp*) table->field[SQLT_FIELD_START_TIME])->store_timestamp(
+      (my_time_t) current_time);
+  if (table->field[SQLT_FIELD_USER_HOST]->store(user_host, user_host_len,
+                                                client_cs))
     goto err;
 
   if (query_start_arg)
@@ -474,42 +618,43 @@ bool Log_to_csv_event_handler::
 
     /* fill in query_time field */
     calc_time_from_sec(&t, (long) min(query_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
-    if (table->field[2]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+    if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* lock_time */
     calc_time_from_sec(&t, (long) min(lock_time, (longlong) TIME_MAX_VALUE_SECONDS), 0);
-    if (table->field[3]->store_time(&t, MYSQL_TIMESTAMP_TIME))
+    if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t, MYSQL_TIMESTAMP_TIME))
       goto err;
     /* rows_sent */
-    if (table->field[4]->store((longlong) thd->sent_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_SENT]->store((longlong) thd->sent_row_count, TRUE))
       goto err;
     /* rows_examined */
-    if (table->field[5]->store((longlong) thd->examined_row_count, TRUE))
+    if (table->field[SQLT_FIELD_ROWS_EXAMINED]->store((longlong) thd->examined_row_count, TRUE))
       goto err;
   }
   else
   {
-    table->field[2]->set_null();
-    table->field[3]->set_null();
-    table->field[4]->set_null();
-    table->field[5]->set_null();
+    table->field[SQLT_FIELD_QUERY_TIME]->set_null();
+    table->field[SQLT_FIELD_LOCK_TIME]->set_null();
+    table->field[SQLT_FIELD_ROWS_SENT]->set_null();
+    table->field[SQLT_FIELD_ROWS_EXAMINED]->set_null();
   }
   /* fill database field */
   if (thd->db)
   {
-    if (table->field[6]->store(thd->db, thd->db_length, client_cs))
+    if (table->field[SQLT_FIELD_DATABASE]->store(thd->db, thd->db_length,
+                                                 client_cs))
       goto err;
-    table->field[6]->set_notnull();
+    table->field[SQLT_FIELD_DATABASE]->set_notnull();
   }
 
   if (thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt)
   {
     if (table->
-        field[7]->store((longlong)
+        field[SQLT_FIELD_LAST_INSERT_ID]->store((longlong)
                         thd->first_successful_insert_id_in_prev_stmt_for_binlog,
                         TRUE))
       goto err;
-    table->field[7]->set_notnull();
+    table->field[SQLT_FIELD_LAST_INSERT_ID]->set_notnull();
   }
 
   /*
@@ -521,22 +666,27 @@ bool Log_to_csv_event_handler::
   if (thd->auto_inc_intervals_in_cur_stmt_for_binlog.nb_elements() > 0)
   {
     if (table->
-        field[8]->store((longlong)
+        field[SQLT_FIELD_INSERT_ID]->store((longlong)
           thd->auto_inc_intervals_in_cur_stmt_for_binlog.minimum(), TRUE))
       goto err;
-    table->field[8]->set_notnull();
+    table->field[SQLT_FIELD_INSERT_ID]->set_notnull();
   }
 
-  if (table->field[9]->store((longlong) server_id, TRUE))
+  if (table->field[SQLT_FIELD_SERVER_ID]->store((longlong) server_id, TRUE))
     goto err;
-  table->field[9]->set_notnull();
+  table->field[SQLT_FIELD_SERVER_ID]->set_notnull();
 
   /*
     Column sql_text.
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
-  if (table->field[10]->store(sql_text, sql_text_len, client_cs) < 0)
+  if (table->field[SQLT_FIELD_SQL_TEXT]->store(sql_text, sql_text_len,
+                                               client_cs) < 0)
+    goto err;
+
+  if (table->field[SQLT_FIELD_THREAD_ID]->store((longlong) thd->thread_id,
+                                                TRUE))
     goto err;
 
   /* log table entries are not replicated */
@@ -1764,12 +1914,8 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         if (my_b_write(&log_file, (uchar*) buff, buff_len))
           tmp_errno= errno;
       }
-      const uchar uh[]= "# User@Host: ";
-      if (my_b_write(&log_file, uh, sizeof(uh) - 1))
-        tmp_errno= errno;
-      if (my_b_write(&log_file, (uchar*) user_host, user_host_len))
-        tmp_errno= errno;
-      if (my_b_write(&log_file, (uchar*) "\n", 1))
+      buff_len= my_snprintf(buff, 14, "  Id: %5ld\n", (long) thd->thread_id);
+      if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff))
         tmp_errno= errno;
     }
     /* For slow query log */
