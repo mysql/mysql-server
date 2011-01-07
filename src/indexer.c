@@ -384,12 +384,10 @@ maybe_call_poll_func(DB_INDEXER *indexer, uint64_t loop_count) {
         // what happens if estimate_rows fails?
         //   - currently does not modify estimate, which is probably sufficient
         float progress;
-        if ( indexer->i->estimated_rows == 0 ) {
+        if ( indexer->i->estimated_rows == 0  || loop_count > indexer->i->estimated_rows)
             progress = 1.0;
-        } 
-        else {
+        else
             progress = (float)loop_count / (float)indexer->i->estimated_rows;
-        }
         result = indexer->i->poll_func(indexer->i->poll_extra, progress);
     }
     return result;
