@@ -1,4 +1,4 @@
-/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3930,6 +3930,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       /* If info() fails, then there's nothing else to do */
       if ((info_error= file->info(HA_STATUS_VARIABLE |
                                   HA_STATUS_TIME |
+                                  HA_STATUS_VARIABLE_EXTRA |
                                   HA_STATUS_AUTO)) != 0)
         goto err;
 
@@ -7804,7 +7805,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   /*
     Open the table by name in order to load Table_triggers_list object.
   */
-  if (open_tables(thd, &lst, &num_tables,
+  if (open_tables(thd, &lst, &num_tables, MYSQL_OPEN_SKIP_TEMPORARY |
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),

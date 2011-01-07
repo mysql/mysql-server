@@ -1325,9 +1325,6 @@ DROP TABLE t1;
 disconnect con1;
 
 
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
-
 --echo #
 --echo # Bug#57306 SHOW PROCESSLIST does not display string literals well.
 --echo #
@@ -1355,3 +1352,27 @@ SELECT RELEASE_LOCK('t');
 --connection default
 SET NAMES latin1;
 
+
+--echo #
+--echo # Bug#58996 SHOW CREATE TRIGGER fails when subject table is shadowed by
+--echo #           a temporary table.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+
+CREATE TEMPORARY TABLE t1 (b INT);
+# Should still work
+SHOW CREATE TRIGGER t1_bi;
+
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
