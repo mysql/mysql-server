@@ -1,9 +1,0 @@
-
-adoInsertRecs.cpp - the original evaluation program
-
-InsertRecs.cpp - replaced ado with ndb api, still windows only
-
-msa.cpp - removed windows and exceptions, portable
-
-
-
