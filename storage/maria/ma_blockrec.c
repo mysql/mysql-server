@@ -4181,6 +4181,13 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                                 log_data, NULL))
         DBUG_RETURN(1);
     }
+    /*
+      Mark that this page must be written to disk by page cache, even
+      if we could call pagecache_delete() on it.
+      This is needed to ensure that repair finds the empty page on disk
+      and not old data.
+    */
+    pagecache_set_write_on_delete_by_link(page_link.link);
     DBUG_ASSERT(empty_space >= share->bitmap.sizes[0]);
   }
 
