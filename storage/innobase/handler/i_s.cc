@@ -759,7 +759,7 @@ fill_innodb_locks_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_locks_row_t*	row;
-		char			buf[MAX_FULL_NAME_LEN];
+		char			buf[MAX_FULL_NAME_LEN + 1];
 		const char*		bufend;
 
 		char			lock_trx_id[TRX_ID_MAX_LEN + 1];
