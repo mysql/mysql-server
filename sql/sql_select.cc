@@ -5078,7 +5078,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 
     All other cases are in-between these two extremes. Thus the parameter
     'search_depth' controlls the exhaustiveness of the search. The higher the
-    value, the longer the optimizaton time and possibly the better the
+    value, the longer the optimization time and possibly the better the
     resulting plan. The lower the value, the fewer alternative plans are
     estimated, but the more likely to get a bad QEP.
 

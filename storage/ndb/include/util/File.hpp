@@ -31,7 +31,7 @@ public:
    * Returns time for last contents modification of a file.
    *
    * @param aFileName a filename to check.
-   * @return the time for last contents modificaton of the file.
+   * @return the time for last contents modification of the file.
    */
   static time_t mtime(const char* aFileName);      
 
