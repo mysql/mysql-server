@@ -3052,6 +3052,45 @@ next_rec:
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL);
 
+	/* Create new FTS auxiliary tables with the new_id, and
+	drop the old index later, only if everything runs successful. */
+	if (dict_table_has_fts_index(table)) {
+		dict_table_t	fts_table;
+		ulint		i;
+
+		fts_table.name = table->name;
+		fts_table.id = new_id;
+
+		err = fts_create_common_tables(trx, &fts_table, table->name,
+					       FALSE);
+
+		if (err == DB_SUCCESS) {
+			for (i = 0; i < ib_vector_size(table->fts->indexes);
+			     i++) {
+				dict_index_t*	fts_index;
+
+				fts_index = ib_vector_getp(
+					table->fts->indexes, i);
+
+				fts_create_index_tables_low(
+					trx, fts_index, table->name, new_id);
+			}
+		}
+
+		if (err != DB_SUCCESS) {
+			trx->error_state = DB_SUCCESS;
+			trx_general_rollback_for_mysql(trx, NULL);
+			trx->error_state = DB_SUCCESS;
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Unable to truncate FTS index for"
+			      " table", stderr);
+			ut_print_name(stderr, trx, TRUE, table->name);
+			fputs("\n", stderr);
+
+			goto funct_exit;
+		}
+	}
+
 	info = pars_info_create();
 
 	pars_info_add_int4_literal(info, "space", (lint) table->space);
@@ -3084,8 +3123,23 @@ next_rec:
 		fputs("\n"
 		      "InnoDB: after truncating it.  Background processes"
 		      " may corrupt the table!\n", stderr);
+
+		/* Fail to update the table id, so drop the new
+		FTS auxiliary tables */
+		if (dict_table_has_fts_index(table)) {
+			dict_table_t	fts_table;
+
+			fts_table.name = table->name;
+			fts_table.id = new_id;
+
+			fts_drop_tables(trx, &fts_table);
+		}
+
 		err = DB_ERROR;
 	} else {
+		/* Drop the old FTS index */
+		fts_drop_tables(trx, table);
+
 		dict_table_change_id_in_cache(table, new_id);
 	}
 
@@ -3474,14 +3528,7 @@ check_next_foreign:
 		}
 
 		if (dict_table_has_fts_index(table)) {
-			fts_table_t     fts_table;
-
-			fts_table.suffix = NULL;
-			fts_table.table_id = table->id;
-			fts_table.parent = table->name;
-			fts_table.type = FTS_COMMON_TABLE;
-
-			err = fts_drop_tables(trx, table->fts, &fts_table);
+			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
 				ut_print_timestamp(stderr);

@@ -205,17 +205,29 @@ fts_create_common_tables(
 	ibool		skip_doc_id_index);
 					/* in: Skip index on doc id */
 /********************************************************************
-Creates the column specific ancillary tables needed for supporting an
-FTS index on the given table. row_mysql_lock_data_dictionary must have
-been called before this. */
-
+Wrapper function of fts_create_index_tables_low(), create auxiliary
+tables for an FTS index
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_create_index_tables(
 /*====================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction handle */
+	trx_t*			trx,	/*!< in: transaction handle */
+	const dict_index_t*	index);	/*!< in: the FTS index instance */
+/********************************************************************
+Creates the column specific ancillary tables needed for supporting an
+FTS index on the given table. row_mysql_lock_data_dictionary must have
+been called before this.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+fts_create_index_tables_low(
+/*========================*/
+	trx_t*		trx,		/*!< in: transaction handle */
 	const dict_index_t*
-			index);		/* in: the FTS index instance */
+			index,		/*!< in: the FTS index instance */
+	const char*	table_name,	/*!< in: the table name */
+	table_id_t	table_id);	/*!< in: the table id */
 /********************************************************************
 Add the FTS document id hidden column. */
 
@@ -223,18 +235,17 @@ void
 fts_add_doc_id_column(
 /*==================*/
 	dict_table_t*	table);		/* in/out: Table with FTS index */
-/********************************************************************
+/*********************************************************************//**
 Drops the ancillary tables needed for supporting an FTS index on the
 given table. row_mysql_lock_data_dictionary must have been called before
-this. */
-
+this.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_drop_tables(
 /*============*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction handle */
-	fts_t*		fts,		/* in: FTS instance */
-	fts_table_t*	fts_table);	/* in: fts common table id */
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	table);		/*!< in: table has the FTS index */
 /********************************************************************
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV. */

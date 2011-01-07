@@ -1199,29 +1199,30 @@ fts_drop_index_tables(
 	return(error);
 }
 
-/********************************************************************
-Drops the ancillary tables needed for supporting an FTS indexe.
-row_mysql_lock_data_dictionary must have been called before this.
-
-Precondition: The add thread must not be running. The table must
-be deregistered from the optimize queue. */
-
+/*********************************************************************//**
+Drops the ancillary tables needed for supporting an FTS index on a
+given table. row_mysql_lock_data_dictionary must have been called before
+this. 
+@return DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
 fts_drop_tables(
 /*============*/
-						/* out: DB_SUCCESS
-						or error code */
-	trx_t*		trx,			/* in: transaction */
-	fts_t*		fts,			/* in: fts instance */
-	fts_table_t*	fts_table)		/* in: table with an FTS
-						index */
+	trx_t*		trx,		/*!< in: transaction */
+	dict_table_t*	table)		/*!< in: table has the FTS index */
 {
 	ulint		error;
+	fts_table_t	fts_table;
 
-	error = fts_drop_common_tables(trx, fts_table);
+	fts_table.suffix = NULL;
+	fts_table.table_id = table->id;
+	fts_table.parent = table->name;
+	fts_table.type = FTS_COMMON_TABLE;
+
+	error = fts_drop_common_tables(trx, &fts_table);
 
 	if (error == DB_SUCCESS) {
-		error = fts_drop_index_tables(trx, fts);
+		error = fts_drop_index_tables(trx, table->fts);
 	}
 
 	return(error);
@@ -1344,34 +1345,32 @@ func_exit:
 	return(error);
 }
 
-/********************************************************************
-Creates the column specific ancillary tables needed for supporting an
-FTS index on the given table. row_mysql_lock_data_dictionary must have
-been called before this. */
-
+/*************************************************************//**
+Wrapper function of fts_create_index_tables_low(), create auxiliary
+tables for an FTS index
+@return: DB_SUCCESS or error code */
+UNIV_INTERN
 ulint
-fts_create_index_tables(
-/*====================*/
-					/* out: DB_SUCCESS or error code */
-	trx_t*		trx,		/* in: transaction */
+fts_create_index_tables_low(
+/*========================*/
+	trx_t*		trx,		/*!< in: transaction */
 	const dict_index_t*
-			index)		/* in: the index instance */
+			index,		/*!< in: the index instance */
+	const char*	table_name,	/*!< in: the table name */
+	table_id_t	table_id)	/*!< in: the table id */
+
 {
 	ulint		i;
 	char*		sql;
 	que_t*		graph;
-	dict_table_t*	table;
 	fts_table_t	fts_table;
 	ulint		error = DB_SUCCESS;
 	mem_heap_t*	heap = mem_heap_create(1024);
 
-	table = dict_table_get_low(index->table_name);
-	ut_a(table != NULL);
-
 	fts_table.type = FTS_INDEX_TABLE;
 	fts_table.index_id = index->id;
-	fts_table.table_id = table->id;
-	fts_table.parent = table->name;
+	fts_table.table_id = table_id;
+	fts_table.parent = table_name;
 
 	/* Create the FTS auxiliary tables that are specific
 	to an FTS index. */
@@ -1409,7 +1408,7 @@ fts_create_index_tables(
 
 		trx_general_rollback_for_mysql(trx, NULL);
 
-		row_drop_table_for_mysql(index->table->name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE);
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -1419,6 +1418,25 @@ fts_create_index_tables(
 	return(error);
 }
 
+/******************************************************************//**
+Creates the column specific ancillary tables needed for supporting an
+FTS index on the given table. row_mysql_lock_data_dictionary must have
+been called before this.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+ulint
+fts_create_index_tables(
+/*====================*/
+	trx_t*			trx,	/*!< in: transaction */
+	const dict_index_t*	index)	/*!< in: the index instance */
+{
+	dict_table_t*	table;
+
+	table = dict_table_get_low(index->table_name);
+	ut_a(table != NULL);
+
+	return(fts_create_index_tables_low(trx, index, table->name, table->id));
+}
 #if 0
 /********************************************************************
 Return string representation of state. */
