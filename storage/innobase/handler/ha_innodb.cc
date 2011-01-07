@@ -7837,14 +7837,14 @@ ha_innobase::info_low(
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
 		See Bug#38185. */
-		if (flag & HA_STATUS_NO_LOCK ||
-                    !(flag & HA_STATUS_VARIABLE_EXTRA)) {
+		if (flag & HA_STATUS_NO_LOCK
+		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
 			/* We do not update delete_length if no
 			locking is requested so the "old" value can
 			remain. delete_length is initialized to 0 in
 			the ha_statistics' constructor. Also we only
-                        need delete_length to be set when
-                        HA_STATUS_VARIABLE_EXTRA is set */
+			need delete_length to be set when
+			HA_STATUS_VARIABLE_EXTRA is set */
 		} else if (UNIV_UNLIKELY
 			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
 			/* Avoid accessing the tablespace if
