@@ -495,8 +495,16 @@ fill_innodb_trx_from_cache(
 			   row->trx_mysql_thread_id));
 
 		/* trx_query */
-		OK(field_store_string(fields[IDX_TRX_QUERY],
-				      row->trx_query));
+		if (row->trx_query) {
+			/* store will do appropriate character set
+			conversion check */
+			fields[IDX_TRX_QUERY]->store(
+				row->trx_query, strlen(row->trx_query),
+				row->trx_query_cs);
+			fields[IDX_TRX_QUERY]->set_notnull();
+		} else {
+			fields[IDX_TRX_QUERY]->set_null();
+		}
 
 		/* trx_operation_state */
 		OK(field_store_string(fields[IDX_TRX_OPERATION_STATE],
