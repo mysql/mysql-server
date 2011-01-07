@@ -158,6 +158,7 @@ struct st_pagecache_hash_link
 #define PCBLOCK_IN_FLUSH   16 /* block is in flush operation                 */
 #define PCBLOCK_CHANGED    32 /* block buffer contains a dirty page          */
 #define PCBLOCK_DIRECT_W   64 /* possible direct write to the block          */
+#define PCBLOCK_DEL_WRITE 128 /* should be written on delete                 */
 
 /* page status, returned by find_block */
 #define PAGE_READ               0
@@ -1215,7 +1216,7 @@ static void link_to_file_list(PAGECACHE *pagecache,
   link_changed(block, &pagecache->file_blocks[FILE_HASH(*file)]);
   if (block->status & PCBLOCK_CHANGED)
   {
-    block->status&= ~PCBLOCK_CHANGED;
+    block->status&= ~(PCBLOCK_CHANGED | PCBLOCK_DEL_WRITE);
     block->rec_lsn= LSN_MAX;
     pagecache->blocks_changed--;
     pagecache->global_blocks_changed--;
@@ -3473,6 +3474,31 @@ no_key_cache:					/* Key cache is not used */
 
 
 /*
+  @brief Set/reset flag that page always should be flushed on delete
+
+  @param pagecache      pointer to a page cache data structure
+  @param link           direct link to page (returned by read or write)
+  @param write          write on delete flag value
+
+*/
+
+void pagecache_set_write_on_delete_by_link(PAGECACHE_BLOCK_LINK *block)
+{
+  DBUG_ENTER("pagecache_set_write_on_delete_by_link");
+  DBUG_PRINT("enter", ("fd: %d block 0x%lx  %d -> TRUE",
+                       block->hash_link->file.file,
+                       (ulong) block,
+                       (int) block->status & PCBLOCK_DEL_WRITE));
+  DBUG_ASSERT(block->pins); /* should be pinned */
+  DBUG_ASSERT(block->wlocks); /* should be write locked */
+
+  block->status|= PCBLOCK_DEL_WRITE;
+
+  DBUG_VOID_RETURN;
+}
+
+
+/*
   @brief Delete page from the buffer (common part for link and file/page)
 
   @param pagecache      pointer to a page cache data structure
@@ -3501,6 +3527,7 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
   }
   if (block->status & PCBLOCK_CHANGED)
   {
+    flush= (flush || (block->status & PCBLOCK_DEL_WRITE));
     if (flush)
     {
       /* The block contains a dirty page - push it out of the cache */

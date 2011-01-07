@@ -574,10 +574,17 @@ public:
   Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
   /*
-    should be used in case where we are sure that we do not need
+    This method should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
+    Usually this method is used by the optimizer when it has to create a new
+    item out of other already fixed items. For example, if the optimizer has
+    to create a new Item_func for an inferred equality whose left and right
+    parts are already fixed items. In some cases the optimizer cannot use
+    directly fixed items as the arguments of the created functional item, 
+    but rather uses intermediate type conversion items. Then the method is
+    supposed to be applied recursively.  
   */
-  inline void quick_fix_field() { fixed= 1; }
+  virtual inline void quick_fix_field() { fixed= 1; }
   /* Function returns 1 on overflow and -1 on fatal errors */
   int save_in_field_no_warnings(Field *field, bool no_conversions);
   virtual int save_in_field(Field *field, bool no_conversions);

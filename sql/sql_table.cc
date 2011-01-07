@@ -7228,6 +7228,16 @@ view_err:
           /* Non-primary unique key. */
           needed_online_flags|=  HA_ONLINE_ADD_UNIQUE_INDEX;
           needed_fast_flags|= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
+          if (ignore)
+          {
+            /*
+              If ignore is used, we have to remove all duplicate rows,
+              which require a full table copy.
+            */
+            need_copy_table= ALTER_TABLE_DATA_CHANGED;
+            pk_changed= 2;                      // Don't change need_copy_table
+            break;
+          }
         }
       }
       else

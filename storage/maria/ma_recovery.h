@@ -30,4 +30,6 @@ int maria_apply_log(LSN lsn, LSN lsn_end, enum maria_apply_log_way apply,
                     FILE *trace_file,
                     my_bool execute_undo_phase, my_bool skip_DDLs,
                     my_bool take_checkpoints, uint *warnings_count);
+/* Table of tables to recover */
+extern HASH tables_to_redo;
 C_MODE_END

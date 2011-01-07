@@ -38,6 +38,7 @@ STOP SLAVE SQL_THREAD;
 [ On Slave1 ]
 # To resume slave SQL thread
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
@@ -63,6 +64,7 @@ STOP SLAVE SQL_THREAD;
 [ On Slave1 ]
 # To resume slave SQL thread
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
@@ -89,6 +91,7 @@ STOP SLAVE SQL_THREAD;
 [ On Slave1 ]
 # To resume slave SQL thread
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
@@ -115,6 +118,7 @@ STOP SLAVE SQL_THREAD;
 [ On Slave1 ]
 # To resume slave SQL thread
 SET DEBUG_SYNC= 'now SIGNAL signal.continue';
+SET DEBUG_SYNC= 'now WAIT_FOR signal.continued';
 SET DEBUG_SYNC= 'RESET';
 
 [ On Slave ]
