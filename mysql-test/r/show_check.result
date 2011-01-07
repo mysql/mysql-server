@@ -1540,3 +1540,19 @@ RELEASE_LOCK('t')
 óóóó
 1
 SET NAMES latin1;
+#
+# Bug#58996 SHOW CREATE TRIGGER fails when subject table is shadowed by
+#           a temporary table.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci
+CREATE TEMPORARY TABLE t1 (b INT);
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
