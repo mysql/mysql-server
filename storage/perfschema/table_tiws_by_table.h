@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,16 +38,8 @@
 */
 struct row_tiws_by_table
 {
-  /** Column OBJECT_TYPE. */
-  enum_object_type m_object_type;
-  /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
-  /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
+  PFS_object_row m_object;
   /** Columns COUNT/SUM/MIN/AVG/MAX (+_READ, +WRITE). */
   PFS_table_io_stat_row m_stat;
 };

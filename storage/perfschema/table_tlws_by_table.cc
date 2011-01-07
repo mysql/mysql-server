@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_tlws_by_table.h"
 #include "pfs_global.h"
+#include "pfs_visitor.h"
 
 THR_LOCK table_tlws_by_table::m_table_lock;
 
@@ -482,48 +483,24 @@ table_tlws_by_table::rnd_pos(const void *pos)
 void table_tlws_by_table::make_row(PFS_table_share *share)
 {
   pfs_lock lock;
-  PFS_table_lock_stat cumulated_stat;
 
   m_row_exists= false;
 
   share->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type= share->get_object_type();
-  memcpy(m_row.m_schema_name, share->m_schema_name, share->m_schema_name_length);
-  m_row.m_schema_name_length= share->m_schema_name_length;
-  memcpy(m_row.m_object_name, share->m_table_name, share->m_table_name_length);
-  m_row.m_object_name_length= share->m_table_name_length;
+  if (m_row.m_object.make_row(share))
+    return;
 
-  /** Aggregate global stats */
-  cumulated_stat.aggregate(& share->m_table_stat.m_lock_stat);
+  PFS_table_lock_stat_visitor visitor;
+  PFS_object_iterator::visit_tables(share, & visitor);
 
   if (! share->m_lock.end_optimistic_lock(&lock))
     return;
 
   m_row_exists= true;
 
-  if (share->get_refcount() > 1)
-  {
-    /* For all the table handles still opened ... */
-    PFS_table *table= table_array;
-    PFS_table *table_last= table_array + table_max;
-    for ( ; table < table_last ; table++)
-    {
-      if ((table->m_share == share) && (table->m_lock.is_populated()))
-      {
-        /*
-          If the opened table handle is for this table share,
-          aggregate the table handle statistics.
-        */
-
-        /** Aggregate global stats */
-        cumulated_stat.aggregate(& table->m_table_stat.m_lock_stat);
-      }
-    }
-  }
-
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
 }
 
 int table_tlws_by_table::read_row_values(TABLE *table,
@@ -547,15 +524,9 @@ int table_tlws_by_table::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* OBJECT_TYPE */
-        set_field_object_type(f, m_row.m_object_type);
-        break;
       case 1: /* SCHEMA_NAME */
-        set_field_varchar_utf8(f, m_row.m_schema_name,
-                               m_row.m_schema_name_length);
-        break;
       case 2: /* OBJECT_NAME */
-        set_field_varchar_utf8(f, m_row.m_object_name,
-                               m_row.m_object_name_length);
+        m_row.m_object.set_field(f->field_index, f);
         break;
       case 3: /* COUNT_STAR */
         set_field_ulonglong(f, m_row.m_stat.m_all.m_count);

@@ -39,9 +39,7 @@
 struct row_ews_global_by_event_name
 {
   /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
+  PFS_event_name_row m_event_name;
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
   PFS_stat_row m_stat;
 };
