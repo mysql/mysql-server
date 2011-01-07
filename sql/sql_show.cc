@@ -1,4 +1,4 @@
-/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3925,6 +3925,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       /* If info() fails, then there's nothing else to do */
       if ((info_error= file->info(HA_STATUS_VARIABLE |
                                   HA_STATUS_TIME |
+                                  HA_STATUS_VARIABLE_EXTRA |
                                   HA_STATUS_AUTO)) != 0)
         goto err;
 
