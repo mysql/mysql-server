@@ -33,6 +33,7 @@ latin7	ISO 8859-13 Baltic	latin7_general_ci	1
 utf8mb4	UTF-8 Unicode	utf8mb4_general_ci	4
 cp1251	Windows Cyrillic	cp1251_general_ci	1
 utf16	UTF-16 Unicode	utf16_general_ci	4
+utf16le	UTF-16LE Unicode	utf16le_general_ci	4
 cp1256	Windows Arabic	cp1256_general_ci	1
 cp1257	Windows Baltic	cp1257_general_ci	1
 utf32	UTF-32 Unicode	utf32_general_ci	4
