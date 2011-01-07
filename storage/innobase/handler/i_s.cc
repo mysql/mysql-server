@@ -2965,14 +2965,13 @@ i_s_fts_index_table_fill_one_index(
 
 	/* Iterate through each auxiliary table as described in
 	fts_index_selector */
-	for (ulint selected = 0; selected < 4; selected++) {
+	for (ulint selected = 0; fts_index_selector[selected].ch; selected++) {
 		i_s_fts_index_table_fill_selected(index, words, selected);
 	}
 
 	/* Go through each word in the index cache */
 	for (ulint i = 0; i < ib_vector_size(words); i++) {
 		fts_word_t*	word;
-		doc_id_t	doc_id = 0;
 
 		word = (fts_word_t*) ib_vector_get(words, i);
 
@@ -2983,6 +2982,7 @@ i_s_fts_index_table_fill_one_index(
 			fts_node_t*	node;
 			byte*		ptr;
 			ulint		decoded = 0;
+			doc_id_t	doc_id = 0;
 
 			node = static_cast<fts_node_t*> (ib_vector_get(
 				word->nodes, i));
