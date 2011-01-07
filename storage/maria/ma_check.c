@@ -2039,6 +2039,8 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
   bzero((char*) param->tmp_key_crc,
         share->base.keys * sizeof(param->tmp_key_crc[0]));
 
+  info->in_check_table= 1;       /* Don't assert on checksum errors */
+
   switch (share->data_file_type) {
   case BLOCK_RECORD:
     error= check_block_record(param, info, extend, record);
@@ -2053,6 +2055,8 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
     error= check_compressed_record(param, info, extend, record);
     break;
   } /* switch */
+
+  info->in_check_table= 0;
 
   if (error)
     goto err;

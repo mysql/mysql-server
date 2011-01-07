@@ -570,6 +570,7 @@ struct st_maria_handler
   my_bool was_locked;			/* Was locked in panic */
   my_bool append_insert_at_end;		/* Set if concurrent insert */
   my_bool quick_mode;
+  my_bool in_check_table;                /* We are running check tables */
   /* Marker if key_del_changed */
   /* If info->keyread_buff can't be used for rnext */
   my_bool page_changed;
