@@ -38,20 +38,8 @@
 */
 struct row_tiws_by_index_usage
 {
-  /** Column OBJECT_TYPE. */
-  enum_object_type m_object_type;
-  /** Column SCHEMA_NAME. */
-  char m_schema_name[NAME_LEN];
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
-  /** Column OBJECT_NAME. */
-  char m_object_name[NAME_LEN];
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
-  /** Column INDEX_NAME. */
-  char m_index_name[NAME_LEN];
-  /** Length in bytes of @c m_index_name. */
-  uint m_index_name_length;
+  /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME. */
+  PFS_index_row m_index;
   /** Columns COUNT/SUM/MIN/AVG/MAX (+_READ, +WRITE). */
   PFS_table_io_stat_row m_stat;
 };

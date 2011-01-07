@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "pfs_column_types.h"
 #include "pfs_stat.h"
 #include "pfs_timer.h"
+#include "pfs_engine_table.h"
+#include "pfs_instr_class.h"
 
 /**
   @file storage/perfschema/table_helper.h
@@ -53,6 +55,64 @@ struct PFS_object_view_constants
   static const uint VIEW_FUNCTION= 4;
 };
 
+/** Row fragment for column EVENT_NAME. */
+struct PFS_event_name_row
+{
+  /** Column EVENT_NAME. */
+  const char *m_name;
+  /** Length in bytes of @c m_name. */
+  uint m_name_length;
+
+  /** Build a row from a memory buffer. */
+  inline void make_row(PFS_instr_class *pfs)
+  {
+    m_name= pfs->m_name;
+    m_name_length= pfs->m_name_length;
+  }
+
+  /** Set a table field from the row. */
+  inline void set_field(Field *f)
+  {
+    PFS_engine_table::set_field_varchar_utf8(f, m_name, m_name_length);
+  }
+};
+
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
+struct PFS_object_row
+{
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_table_share *pfs);
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, INDEX_NAME. */
+struct PFS_index_row
+{
+  PFS_object_row m_object_row;
+  /** Column INDEX_NAME. */
+  char m_index_name[NAME_LEN];
+  /** Length in bytes of @c m_index_name. */
+  uint m_index_name_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(PFS_table_share *pfs, uint table_index);
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
+/** Row fragment for single statistics columns (COUNT, SUM, MIN, AVG, MAX) */
 struct PFS_stat_row
 {
   /** Column COUNT_STAR. */
@@ -66,6 +126,7 @@ struct PFS_stat_row
   /** Column MAX_TIMER_WAIT. */
   ulonglong m_max;
 
+  /** Build a row from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_single_stat *stat)
   {
     m_count= stat->m_count;
@@ -75,7 +136,7 @@ struct PFS_stat_row
       m_sum= normalizer->wait_to_pico(stat->m_sum);
       m_min= normalizer->wait_to_pico(stat->m_min);
       m_max= normalizer->wait_to_pico(stat->m_max);
-      m_avg= normalizer->wait_to_pico(stat->m_sum / stat->m_count);
+      m_avg= normalizer->wait_to_pico(stat->m_sum / m_count);
     }
     else
     {
@@ -85,8 +146,34 @@ struct PFS_stat_row
       m_max= 0;
     }
   }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f)
+  {
+    switch (index)
+    {
+      case 0: /* COUNT */
+        PFS_engine_table::set_field_ulonglong(f, m_count);
+        break;
+      case 1: /* SUM */
+        PFS_engine_table::set_field_ulonglong(f, m_sum);
+        break;
+      case 2: /* MIN */
+        PFS_engine_table::set_field_ulonglong(f, m_min);
+        break;
+      case 3: /* AVG */
+        PFS_engine_table::set_field_ulonglong(f, m_avg);
+        break;
+      case 4: /* MAX */
+        PFS_engine_table::set_field_ulonglong(f, m_max);
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
+  }
 };
 
+/** Row fragment for table io statistics columns. */
 struct PFS_table_io_stat_row
 {
   PFS_stat_row m_all;
@@ -97,6 +184,7 @@ struct PFS_table_io_stat_row
   PFS_stat_row m_update;
   PFS_stat_row m_delete;
 
+  /** Build a row from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_table_io_stat *stat)
   {
     PFS_single_stat all_read;
@@ -124,6 +212,7 @@ struct PFS_table_io_stat_row
   }
 };
 
+/** Row fragment for table lock statistics columns. */
 struct PFS_table_lock_stat_row
 {
   PFS_stat_row m_all;
@@ -141,6 +230,7 @@ struct PFS_table_lock_stat_row
   PFS_stat_row m_write_normal;
   PFS_stat_row m_write_external;
 
+  /** Build a row from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_table_lock_stat *stat)
   {
     PFS_single_stat all_read;

@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_tiws_by_index_usage.h"
 #include "pfs_global.h"
+#include "pfs_visitor.h"
 
 THR_LOCK table_tiws_by_index_usage::m_table_lock;
 
@@ -330,53 +331,24 @@ table_tiws_by_index_usage::rnd_pos(const void *pos)
 void table_tiws_by_index_usage::make_row(PFS_table_share *share, uint index)
 {
   pfs_lock lock;
-  PFS_table_io_stat cumulated_stat;
 
   m_row_exists= false;
 
   share->m_lock.begin_optimistic_lock(&lock);
 
-  m_row.m_object_type= share->get_object_type();
-  memcpy(m_row.m_schema_name, share->m_schema_name, share->m_schema_name_length);
-  m_row.m_schema_name_length= share->m_schema_name_length;
-  memcpy(m_row.m_object_name, share->m_table_name, share->m_table_name_length);
-  m_row.m_object_name_length= share->m_table_name_length;
-  if (index < MAX_KEY)
-  {
-    PFS_table_key *key= &share->m_keys[index];
-    memcpy(m_row.m_index_name, key->m_name, key->m_name_length);
-    m_row.m_index_name_length= key->m_name_length;
-  }
-  else
-    m_row.m_index_name_length= 0;
+  if (m_row.m_index.make_row(share, index))
+    return;
 
-  cumulated_stat= share->m_table_stat.m_index_stat[index];
+  PFS_index_io_stat_visitor visitor;
+  PFS_object_iterator::visit_table_indexes(share, index, & visitor);
 
   if (! share->m_lock.end_optimistic_lock(&lock))
     return;
 
   m_row_exists= true;
 
-  if (share->get_refcount() > 1)
-  {
-    /* For all the table handles still opened ... */
-    PFS_table *table= table_array;
-    PFS_table *table_last= table_array + table_max;
-    for ( ; table < table_last ; table++)
-    {
-      if ((table->m_share == share) && (table->m_lock.is_populated()))
-      {
-        /*
-          If the opened table handle is for this table share,
-          aggregate the table handle statistics.
-        */
-        cumulated_stat.aggregate(&table->m_table_stat.m_index_stat[index]);
-      }
-    }
-  }
-
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
 }
 
 int table_tiws_by_index_usage::read_row_values(TABLE *table,
@@ -400,22 +372,10 @@ int table_tiws_by_index_usage::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* OBJECT_TYPE */
-        set_field_object_type(f, m_row.m_object_type);
-        break;
       case 1: /* SCHEMA_NAME */
-        set_field_varchar_utf8(f, m_row.m_schema_name,
-                               m_row.m_schema_name_length);
-        break;
       case 2: /* OBJECT_NAME */
-        set_field_varchar_utf8(f, m_row.m_object_name,
-                               m_row.m_object_name_length);
-        break;
       case 3: /* INDEX_NAME */
-        if (m_row.m_index_name_length > 0)
-          set_field_varchar_utf8(f, m_row.m_index_name,
-                                 m_row.m_index_name_length);
-        else
-          f->set_null();
+        m_row.m_index.set_field(f->field_index, f);
         break;
       case 4: /* COUNT_STAR */
         set_field_ulonglong(f, m_row.m_stat.m_all.m_count);
