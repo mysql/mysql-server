@@ -1,3 +1,13 @@
+2011-01-06	The InnoDB Team
+	* row/row0merge.c:
+	Fix Bug#59312 Examine MAX_FULL_NAME_LEN in InnoDB to address
+	possible insufficient name buffer
+
+2011-01-06	The InnoDB Team
+	* dict/dict0dict.c, handler/ha_innodb.cc, handler/i_s.cc,
+	include/univ.i: 
+	Fix Bug#58643 InnoDB: too long table name
+
 2010-11-11	The InnoDB Team
 	* thr/thr0loc.c, trx/trx0i_s.c:
 	Fix Bug#57802 Empty ASSERTION parameter passed to the HASH_SEARCH macro
