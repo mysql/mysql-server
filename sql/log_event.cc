@@ -2894,7 +2894,12 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
-  if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
+  if ((flags & LOG_EVENT_SUPPRESS_USE_F))
+  {
+    if (!is_trans_keyword())
+      print_event_info->db[0]= '\0';
+  }
+  else if (db)
   {
     different_db= memcmp(print_event_info->db, db, db_len + 1);
     if (different_db)
