@@ -1,3 +1,8 @@
+2011-01-06	The InnoDB Team
+	* handler/i_s.cc, include/trx0i_s.h, trx/trx0i_s.c:
+	Fix Bug#55397 cannot select from innodb_trx when trx_query contains
+	blobs that aren't strings
+
 2011-01-04	The InnoDB Team
 	* dict/dict0dict.c:
 	Fix Bug#59197 double quote in field comment prevents foreign
