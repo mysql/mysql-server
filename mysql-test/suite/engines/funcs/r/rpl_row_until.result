@@ -12,39 +12,193 @@ create table t2(n int not null auto_increment primary key);
 insert into t2 values (1),(2);
 insert into t2 values (3),(4);
 drop table t2;
-start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+start slave until master_log_file='master-bin.000001', master_log_pos=311;
 select * from t1;
 n
 1
 2
 3
 4
-start slave until master_log_file='master-no-such-bin.000001', master_log_pos=MASTER_LOG_POS;
+show slave status;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_MYPORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	slave-relay-bin.000004
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	#
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	Master
+Until_Log_File	master-bin.000001
+Until_Log_Pos	311
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
 select * from t1;
-n
-1
-2
-3
-4
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=RELAY_LOG_POS;
+n	1
+n	2
+n	3
+n	4
+show slave status;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_MYPORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	slave-relay-bin.000004
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	#
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	Master
+Until_Log_File	master-no-such-bin.000001
+Until_Log_Pos	291
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=728;
 select * from t2;
-n
-1
-2
+show slave status;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_MYPORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	slave-relay-bin.000004
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	#
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	Relay
+Until_Log_File	slave-relay-bin.000004
+Until_Log_Pos	728
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
 start slave;
 stop slave;
-start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
-start slave until master_log_file='master-bin', master_log_pos=MASTER_LOG_POS;
+start slave until master_log_file='master-bin.000001', master_log_pos=740;
+show slave status;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_MYPORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	slave-relay-bin.000004
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	No
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	Master
+Until_Log_File	master-bin.000001
+Until_Log_Pos	740
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	0
+Last_IO_Error	
+Last_SQL_Errno	0
+Last_SQL_Error	
+start slave until master_log_file='master-bin', master_log_pos=561;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
-start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS, relay_log_pos=RELAY_LOG_POS;
+start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 start slave until master_log_file='master-bin.000001';
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 start slave until relay_log_file='slave-relay-bin.000002';
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
-start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=MASTER_LOG_POS;
+start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 start slave sql_thread;
-start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+start slave until master_log_file='master-bin.000001', master_log_pos=740;
 Warnings:
-Note	1254	Slave is already running
+Level	Note
+Code	1254
+Message	Slave is already running
