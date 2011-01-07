@@ -6651,8 +6651,8 @@ create_table_def(
 		push_warning_printf(
 			(THD*) trx->mysql_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_TABLE_NAME,
-			"InnoDB: Failed to create table %s. Table Name"
-			" or Database Name is too long", table_name);
+			"InnoDB: Table Name or Database Name is too long");
+
 		DBUG_RETURN(ER_TABLE_NAME);
 	}
 
