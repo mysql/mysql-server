@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,9 @@
 
 /*
   This file is the net layer API for the MySQL client/server protocol,
-  which is a tightly coupled, proprietary protocol owned by MySQL AB.
+  which is a tightly coupled, proprietary protocol owned by Oracle.
   Any re-implementations of this protocol must also be under GPL
-  unless one has got an license from MySQL AB stating otherwise.
+  unless one has got an license from Oracle stating otherwise.
 */
 
 /*
