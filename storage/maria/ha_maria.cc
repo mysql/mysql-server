@@ -2058,6 +2058,7 @@ bool ha_maria::check_and_repair(THD *thd)
   DBUG_ENTER("ha_maria::check_and_repair");
 
   check_opt.init();
+  check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
 
   error= 1;
   if ((file->s->state.changed &
@@ -2078,7 +2079,6 @@ bool ha_maria::check_and_repair(THD *thd)
     DBUG_RETURN(error);
 
   error= 0;
-  check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
   // Don't use quick if deleted rows
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
