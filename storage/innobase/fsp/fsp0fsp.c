@@ -3321,7 +3321,7 @@ fseg_free_page_low(
 			"InnoDB: database!\n", (ulong) page);
 crash:
 		fputs("InnoDB: Please refer to\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html\n"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 		      "InnoDB: about forcing recovery.\n", stderr);
 		ut_error;
 	}
