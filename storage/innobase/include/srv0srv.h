@@ -71,8 +71,8 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
-/* This is set to TRUE if the MySQL user has set it in MySQL */
-extern ibool	srv_lower_case_table_names;
+/* This is set to the MySQL server value for this variable. */
+extern uint	srv_lower_case_table_names;
 
 /* Mutex for locking srv_monitor_file */
 extern mutex_t	srv_monitor_file_mutex;
@@ -475,6 +475,14 @@ Returns the calling thread type.
 enum srv_thread_type
 srv_get_thread_type(void);
 /*=====================*/
+/*********************************************************************//**
+Check whether thread type has reserved a slot.
+@return	slot number or UNDEFINED if not found*/
+UNIV_INTERN
+ulint
+srv_thread_has_reserved_slot(
+/*=========================*/
+	enum srv_thread_type	type);	/*!< in: thread type to check */
 /*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
