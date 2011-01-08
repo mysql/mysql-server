@@ -293,6 +293,8 @@
   <target name="compile.driver" depends="set.compile,init">
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
 	   includes="com/mysql/cluster/crund/*Driver.java"/>
+    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
+	   includes="com/mysql/cluster/crund/*Processor.java"/>
   </target>
 
   <!-- compiles the benchmark drivers with optimizations -->
