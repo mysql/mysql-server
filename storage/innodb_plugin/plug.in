@@ -17,6 +17,9 @@
 MYSQL_STORAGE_ENGINE(innodb_plugin,, [InnoDB Storage Engine],
         [Transactional Tables using InnoDB], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(innodb_plugin, [storage/innodb_plugin])
+# Enable if you know what you are doing (trying to link both InnoDB and
+# InnoDB Plugin statically into MySQL does not work).
+#MYSQL_PLUGIN_STATIC(innodb_plugin, [libinnobase.a])
 MYSQL_PLUGIN_DYNAMIC(innodb_plugin,  [ha_innodb_plugin.la])
 MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
   AC_CHECK_HEADERS(sched.h)
@@ -136,17 +139,24 @@ MYSQL_PLUGIN_ACTIONS(innodb_plugin,  [
   )
 
   AC_MSG_CHECKING(whether Solaris libc atomic functions are available)
-  # either define HAVE_IB_SOLARIS_ATOMICS or not
-  AC_CHECK_FUNCS(atomic_cas_ulong \
+  # Define HAVE_IB_SOLARIS_ATOMICS if _all_ of the following
+  # functions are present.
+  AC_CHECK_FUNCS(atomic_add_long_nv \
 		 atomic_cas_32 \
 		 atomic_cas_64 \
-		 atomic_add_long_nv \
-		 atomic_swap_uchar,
+		 atomic_cas_ulong \
+		 atomic_swap_uchar)
 
-		 AC_DEFINE([HAVE_IB_SOLARIS_ATOMICS], [1],
-			   [Define to 1 if Solaris libc atomic functions \
-			    are available])
-  )
+  if test "${ac_cv_func_atomic_add_long_nv}" = "yes" -a \
+          "${ac_cv_func_atomic_cas_32}" = "yes" -a \
+          "${ac_cv_func_atomic_cas_64}" = "yes" -a \
+          "${ac_cv_func_atomic_cas_ulong}" = "yes" -a \
+          "${ac_cv_func_atomic_swap_uchar}" = "yes" ; then
+
+    AC_DEFINE([HAVE_IB_SOLARIS_ATOMICS], [1],
+      [Define to 1 if Solaris libc atomic functions are available]
+    )
+  fi
 
   AC_MSG_CHECKING(whether pthread_t can be used by Solaris libc atomic functions)
   # either define HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS or not
