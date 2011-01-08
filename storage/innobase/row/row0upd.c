@@ -1196,20 +1196,21 @@ row_upd_changes_ord_field_binary(
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
+	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+				stored columns in the old row */
 	dict_index_t*	index,	/*!< in: index of the record */
 	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
 				field numbers in this MUST be clustered index
 				positions! */
 {
-	ulint		n_unique;
-	ulint		n_upd_fields;
-	ulint		i, j;
-	dict_index_t*	clust_index;
+	ulint			n_unique;
+	ulint			i;
+	const dict_index_t*	clust_index;
 
-	ut_ad(update && index);
+	ut_ad(update);
+	ut_ad(index);
 
 	n_unique = dict_index_get_n_unique(index);
-	n_upd_fields = upd_get_n_fields(update);
 
 	clust_index = dict_table_get_first_index(index->table);
 
@@ -1217,33 +1218,72 @@ row_upd_changes_ord_field_binary(
 
 		const dict_field_t*	ind_field;
 		const dict_col_t*	col;
-		ulint			col_pos;
 		ulint			col_no;
+		const upd_field_t*	upd_field;
+		const dfield_t*		dfield;
+		dfield_t		dfield_ext;
+		ulint			dfield_len;
+		const byte*		buf;
 
 		ind_field = dict_index_get_nth_field(index, i);
 		col = dict_field_get_col(ind_field);
-		col_pos = dict_col_get_clust_pos(col, clust_index);
 		col_no = dict_col_get_no(col);
 
-		for (j = 0; j < n_upd_fields; j++) {
+		upd_field = upd_get_field_by_field_no(
+			update, dict_col_get_clust_pos(col, clust_index));
 
-			const upd_field_t*	upd_field
-				= upd_get_nth_field(update, j);
+		if (upd_field == NULL) {
+			continue;
+		}
 
-			/* Note that if the index field is a column prefix
-			then it may be that row does not contain an externally
-			stored part of the column value, and we cannot compare
-			the datas */
+		if (row == NULL) {
+			ut_ad(ext == NULL);
+			return(TRUE);
+		}
 
-			if (col_pos == upd_field->field_no
-			    && (row == NULL
-				|| ind_field->prefix_len > 0
-				|| !dfield_datas_are_binary_equal(
-					dtuple_get_nth_field(row, col_no),
-					&(upd_field->new_val)))) {
+		dfield = dtuple_get_nth_field(row, col_no);
 
-				return(TRUE);
+		/* This treatment of column prefix indexes is loosely
+		based on row_build_index_entry(). */
+
+		if (UNIV_LIKELY(ind_field->prefix_len == 0)
+		    || dfield_is_null(dfield)) {
+			/* do nothing special */
+		} else if (UNIV_LIKELY_NULL(ext)) {
+			/* See if the column is stored externally. */
+			buf = row_ext_lookup(ext, col_no, &dfield_len);
+
+			ut_ad(col->ord_part);
+
+			if (UNIV_LIKELY_NULL(buf)) {
+				if (UNIV_UNLIKELY(buf == field_ref_zero)) {
+					/* This should never happen, but
+					we try to fail safe here. */
+					ut_ad(0);
+					return(TRUE);
+				}
+
+				goto copy_dfield;
 			}
+		} else if (dfield_is_ext(dfield)) {
+			dfield_len = dfield_get_len(dfield);
+			ut_a(dfield_len > BTR_EXTERN_FIELD_REF_SIZE);
+			dfield_len -= BTR_EXTERN_FIELD_REF_SIZE;
+			ut_a(dict_index_is_clust(index)
+			     || ind_field->prefix_len <= dfield_len);
+			buf = dfield_get_data(dfield);
+copy_dfield:
+			ut_a(dfield_len > 0);
+			dfield_copy(&dfield_ext, dfield);
+			dfield_set_data(&dfield_ext, buf, dfield_len);
+			dfield = &dfield_ext;
+		}
+
+		if (!dfield_datas_are_binary_equal(
+			    dfield, &upd_field->new_val,
+			    ind_field->prefix_len)) {
+
+			return(TRUE);
 		}
 	}
 
@@ -1327,7 +1367,7 @@ row_upd_changes_first_fields_binary(
 			if (col_pos == upd_field->field_no
 			    && !dfield_datas_are_binary_equal(
 				    dtuple_get_nth_field(entry, i),
-				    &(upd_field->new_val))) {
+				    &upd_field->new_val, 0)) {
 
 				return(TRUE);
 			}
@@ -1596,12 +1636,97 @@ row_upd_sec_step(
 	ut_ad(!dict_index_is_clust(node->index));
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
-	    || row_upd_changes_ord_field_binary(node->row, node->index,
-						node->update)) {
+	    || row_upd_changes_ord_field_binary(node->row, node->ext,
+						node->index, node->update)) {
 		return(row_upd_sec_index_entry(node, thr));
 	}
 
 	return(DB_SUCCESS);
+}
+
+#ifdef UNIV_DEBUG
+# define row_upd_clust_rec_by_insert_inherit(rec,offsets,entry,update)	\
+	row_upd_clust_rec_by_insert_inherit_func(rec,offsets,entry,update)
+#else /* UNIV_DEBUG */
+# define row_upd_clust_rec_by_insert_inherit(rec,offsets,entry,update)	\
+	row_upd_clust_rec_by_insert_inherit_func(entry,update)
+#endif /* UNIV_DEBUG */
+/*******************************************************************//**
+Mark non-updated off-page columns inherited when the primary key is
+updated. We must mark them as inherited in entry, so that they are not
+freed in a rollback. A limited version of this function used to be
+called btr_cur_mark_dtuple_inherited_extern().
+@return TRUE if any columns were inherited */
+static __attribute__((warn_unused_result))
+ibool
+row_upd_clust_rec_by_insert_inherit_func(
+/*=====================================*/
+#ifdef UNIV_DEBUG
+	const rec_t*	rec,	/*!< in: old record, or NULL */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec), or NULL */
+#endif /* UNIV_DEBUG */
+	dtuple_t*	entry,	/*!< in/out: updated entry to be
+				inserted into the clustered index */
+	const upd_t*	update)	/*!< in: update vector */
+{
+	ibool	inherit	= FALSE;
+	ulint	i;
+
+	ut_ad(!rec == !offsets);
+	ut_ad(!rec || rec_offs_any_extern(offsets));
+
+	for (i = 0; i < dtuple_get_n_fields(entry); i++) {
+		dfield_t*	dfield	= dtuple_get_nth_field(entry, i);
+		byte*		data;
+		ulint		len;
+
+		ut_ad(!offsets
+		      || !rec_offs_nth_extern(offsets, i)
+		      == !dfield_is_ext(dfield)
+		      || upd_get_field_by_field_no(update, i));
+		if (!dfield_is_ext(dfield)
+		    || upd_get_field_by_field_no(update, i)) {
+			continue;
+		}
+
+#ifdef UNIV_DEBUG
+		if (UNIV_LIKELY(rec != NULL)) {
+			const byte* rec_data
+				= rec_get_nth_field(rec, offsets, i, &len);
+			ut_ad(len == dfield_get_len(dfield));
+			ut_ad(len != UNIV_SQL_NULL);
+			ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+			rec_data += len - BTR_EXTERN_FIELD_REF_SIZE;
+
+			/* The pointer must not be zero. */
+			ut_ad(memcmp(rec_data, field_ref_zero,
+				     BTR_EXTERN_FIELD_REF_SIZE));
+			/* The BLOB must be owned. */
+			ut_ad(!(rec_data[BTR_EXTERN_LEN]
+				& BTR_EXTERN_OWNER_FLAG));
+		}
+#endif /* UNIV_DEBUG */
+
+		len = dfield_get_len(dfield);
+		ut_a(len != UNIV_SQL_NULL);
+		ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
+		data = dfield_get_data(dfield);
+		data += len - BTR_EXTERN_FIELD_REF_SIZE;
+		/* The pointer must not be zero. */
+		ut_a(memcmp(data, field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
+		/* The BLOB must be owned. */
+		ut_a(!(data[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
+
+		data[BTR_EXTERN_LEN] |= BTR_EXTERN_INHERITED_FLAG;
+		/* The BTR_EXTERN_INHERITED_FLAG only matters in
+		rollback. Purge will always free the extern fields of
+		a delete-marked row. */
+
+		inherit = TRUE;
+	}
+
+	return(inherit);
 }
 
 /***********************************************************//**
@@ -1622,14 +1747,16 @@ row_upd_clust_rec_by_insert(
 				a foreign key constraint */
 	mtr_t*		mtr)	/*!< in/out: mtr; gets committed here */
 {
-	mem_heap_t*	heap	= NULL;
+	mem_heap_t*	heap;
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	trx_t*		trx;
 	dict_table_t*	table;
 	dtuple_t*	entry;
 	ulint		err;
-	ibool		change_ownership = FALSE;
+	ibool		change_ownership	= FALSE;
+	rec_t*		rec;
+	ulint*		offsets			= NULL;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -1639,59 +1766,7 @@ row_upd_clust_rec_by_insert(
 	pcur = node->pcur;
 	btr_cur	= btr_pcur_get_btr_cur(pcur);
 
-	if (node->state != UPD_NODE_INSERT_CLUSTERED) {
-		rec_t*		rec;
-		dict_index_t*	index;
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		ulint*		offsets;
-		rec_offs_init(offsets_);
-
-		err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
-						     btr_cur, TRUE, thr, mtr);
-		if (err != DB_SUCCESS) {
-			mtr_commit(mtr);
-			return(err);
-		}
-
-		/* Mark as not-owned the externally stored fields which the new
-		row inherits from the delete marked record: purge should not
-		free those externally stored fields even if the delete marked
-		record is removed from the index tree, or updated. */
-
-		rec = btr_cur_get_rec(btr_cur);
-		index = dict_table_get_first_index(table);
-		offsets = rec_get_offsets(rec, index, offsets_,
-					  ULINT_UNDEFINED, &heap);
-		change_ownership = btr_cur_mark_extern_inherited_fields(
-			btr_cur_get_page_zip(btr_cur),
-			rec, index, offsets, node->update, mtr);
-		if (referenced) {
-
-			/* NOTE that the following call loses
-			the position of pcur ! */
-
-			err = row_upd_check_references_constraints(
-				node, pcur, table, index, offsets, thr, mtr);
-
-			if (err != DB_SUCCESS) {
-
-				mtr_commit(mtr);
-
-				if (UNIV_LIKELY_NULL(heap)) {
-					mem_heap_free(heap);
-				}
-
-				return(err);
-			}
-		}
-	}
-
-	mtr_commit(mtr);
-
-	if (!heap) {
-		heap = mem_heap_create(500);
-	}
-	node->state = UPD_NODE_INSERT_CLUSTERED;
+	heap = mem_heap_create(1000);
 
 	entry = row_build_index_entry(node->upd_row, node->upd_ext,
 				      index, heap);
@@ -1699,23 +1774,106 @@ row_upd_clust_rec_by_insert(
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	if (change_ownership) {
-		/* If we return from a lock wait, for example, we may have
-		extern fields marked as not-owned in entry (marked in the
-		if-branch above). We must unmark them, take the ownership
-		back. */
+	switch (node->state) {
+	default:
+		ut_error;
+	case UPD_NODE_INSERT_BLOB:
+		/* A lock wait occurred in row_ins_index_entry() in
+		the previous invocation of this function. Mark the
+		off-page columns in the entry inherited. */
 
-		btr_cur_unmark_dtuple_extern_fields(entry);
+		change_ownership = row_upd_clust_rec_by_insert_inherit(
+			NULL, NULL, entry, node->update);
+		ut_a(change_ownership);
+		/* fall through */
+	case UPD_NODE_INSERT_CLUSTERED:
+		/* A lock wait occurred in row_ins_index_entry() in
+		the previous invocation of this function. */
+		break;
+	case UPD_NODE_UPDATE_CLUSTERED:
+		/* This is the first invocation of the function where
+		we update the primary key.  Delete-mark the old record
+		in the clustered index and prepare to insert a new entry. */
+		rec = btr_cur_get_rec(btr_cur);
+		offsets = rec_get_offsets(rec, index, NULL,
+					  ULINT_UNDEFINED, &heap);
+		ut_ad(page_rec_is_user_rec(rec));
 
-		/* We must mark non-updated extern fields in entry as
-		inherited, so that a possible rollback will not free them. */
+		err = btr_cur_del_mark_set_clust_rec(
+			BTR_NO_LOCKING_FLAG, btr_cur_get_block(btr_cur),
+			rec, index, offsets, TRUE, thr, mtr);
+		if (err != DB_SUCCESS) {
+err_exit:
+			mtr_commit(mtr);
+			mem_heap_free(heap);
+			return(err);
+		}
 
-		btr_cur_mark_dtuple_inherited_extern(entry, node->update);
+		/* If the the new row inherits externally stored
+		fields (off-page columns a.k.a. BLOBs) from the
+		delete-marked old record, mark them disowned by the
+		old record and owned by the new entry. */
+
+		if (rec_offs_any_extern(offsets)) {
+			change_ownership = row_upd_clust_rec_by_insert_inherit(
+				rec, offsets, entry, node->update);
+
+			if (change_ownership) {
+				btr_pcur_store_position(pcur, mtr);
+			}
+		}
+
+		if (referenced) {
+			/* NOTE that the following call loses
+			the position of pcur ! */
+
+			err = row_upd_check_references_constraints(
+				node, pcur, table, index, offsets, thr, mtr);
+
+			if (err != DB_SUCCESS) {
+				goto err_exit;
+			}
+		}
 	}
+
+	mtr_commit(mtr);
 
 	err = row_ins_index_entry(index, entry,
 				  node->upd_ext ? node->upd_ext->n_ext : 0,
 				  TRUE, thr);
+	node->state = change_ownership
+		? UPD_NODE_INSERT_BLOB
+		: UPD_NODE_INSERT_CLUSTERED;
+
+	if (err == DB_SUCCESS && change_ownership) {
+		/* Mark the non-updated fields disowned by the old record. */
+
+		/* NOTE: this transaction has an x-lock on the record
+		and therefore other transactions cannot modify the
+		record when we have no latch on the page. In addition,
+		we assume that other query threads of the same
+		transaction do not modify the record in the meantime.
+		Therefore we can assert that the restoration of the
+		cursor succeeds. */
+
+		mtr_start(mtr);
+
+		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
+			ut_error;
+		}
+
+		rec = btr_cur_get_rec(btr_cur);
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &heap);
+		ut_ad(page_rec_is_user_rec(rec));
+
+		btr_cur_disown_inherited_fields(
+			btr_cur_get_page_zip(btr_cur),
+			rec, index, offsets, node->update, mtr);
+
+		mtr_commit(mtr);
+	}
+
 	mem_heap_free(heap);
 
 	return(err);
@@ -1860,8 +2018,9 @@ row_upd_del_mark_clust_rec(
 	/* Mark the clustered index record deleted; we do not have to check
 	locks, because we assume that we have an x-lock on the record */
 
-	err = btr_cur_del_mark_set_clust_rec(BTR_NO_LOCKING_FLAG,
-					     btr_cur, TRUE, thr, mtr);
+	err = btr_cur_del_mark_set_clust_rec(
+		BTR_NO_LOCKING_FLAG, btr_cur_get_block(btr_cur),
+		btr_cur_get_rec(btr_cur), index, offsets, TRUE, thr, mtr);
 	if (err == DB_SUCCESS && referenced) {
 		/* NOTE that the following call loses the position of pcur ! */
 
@@ -2006,7 +2165,8 @@ exit_func:
 
 	row_upd_store_row(node);
 
-	if (row_upd_changes_ord_field_binary(node->row, index, node->update)) {
+	if (row_upd_changes_ord_field_binary(node->row, node->ext, index,
+					     node->update)) {
 
 		/* Update causes an ordering field (ordering fields within
 		the B-tree) of the clustered index record to change: perform
@@ -2076,7 +2236,8 @@ row_upd(
 	}
 
 	if (node->state == UPD_NODE_UPDATE_CLUSTERED
-	    || node->state == UPD_NODE_INSERT_CLUSTERED) {
+	    || node->state == UPD_NODE_INSERT_CLUSTERED
+	    || node->state == UPD_NODE_INSERT_BLOB) {
 
 		log_free_check();
 		err = row_upd_clust_step(node, thr);
