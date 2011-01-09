@@ -362,18 +362,18 @@ inline
 Uint32
 BitmaskImpl::ffs(Uint32 x)
 {
-#if defined(__GNUC__)
-#if defined(__x86_64__) || defined (__i386__)
+#if defined(__GNUC__) && (defined(__x86_64__) || defined (__i386__))
   asm("bsf %1,%0"
       : "=r" (x)
       : "rm" (x));
   return x;
-#elif HAVE___BUILTIN_FFS
+#elif defined HAVE___BUILTIN_FFS
   /**
    * gcc defined ffs(0) == 0, and returned indexes 1-32
    */
   return __builtin_ffs(x) - 1;
-#endif
+#elif defined HAVE_FFS
+  return ::ffs(x) - 1;
 #else
   int b = 0;
   if (!(x & 0xffff))

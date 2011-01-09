@@ -39,8 +39,19 @@ CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS(directio HAVE_DIRECTIO)
 CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP32)
 CHECK_FUNCTION_EXISTS(mlock HAVE_MLOCK)
+CHECK_FUNCTION_EXISTS(ffs HAVE_FFS)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
+
+# Linux scheduling and locking support
+CHECK_C_SOURCE_COMPILES("
+unsigned A = 7;
+int main()
+{
+  unsigned a = __builtin_ffs(A);
+  return 0;
+}"
+HAVE___BUILTIN_FFS)
 
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("
