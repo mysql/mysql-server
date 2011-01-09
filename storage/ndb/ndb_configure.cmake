@@ -43,8 +43,7 @@ CHECK_FUNCTION_EXISTS(ffs HAVE_FFS)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 
-# Linux scheduling and locking support
-CHECK_C_SOURCE_COMPILES("
+CHECK_CXX_SOURCE_COMPILES("
 unsigned A = 7;
 int main()
 {
@@ -52,6 +51,17 @@ int main()
   return 0;
 }"
 HAVE___BUILTIN_FFS)
+
+CHECK_C_SOURCE_COMPILES("
+#include <intrin.h>
+unsigned long A = 7;
+int main()
+{
+  unsigned long a;
+  unsigned char res = _BitScanForward(&a, A);
+  return (int)a;
+}"
+HAVE__BITSCANFORWARD)
 
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("

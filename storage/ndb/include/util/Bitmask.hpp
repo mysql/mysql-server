@@ -21,6 +21,10 @@
 
 #include <ndb_global.h>
 
+#ifdef HAVE__BITSCANFORWARD
+#include <intrin.h>
+#endif
+
 /**
  * Bitmask implementation.  Size (in 32-bit words) is given explicitly
  * (as first argument).  All methods are static.
@@ -372,6 +376,11 @@ BitmaskImpl::ffs(Uint32 x)
    * gcc defined ffs(0) == 0, and returned indexes 1-32
    */
   return __builtin_ffs(x) - 1;
+#elif defined HAVE__BITSCANFORWARD
+  unsigned long r;
+  unsigned char res = _BitScanForward(&r, (unsigned long)x);
+  assert(res > 0);
+  return (Uint32)r;
 #elif defined HAVE_FFS
   return ::ffs(x) - 1;
 #else

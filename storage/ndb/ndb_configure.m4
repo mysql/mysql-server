@@ -172,8 +172,9 @@ AC_DEFUN([NDB_COMPILER_FEATURES],
               [Compiler supports __has_trivial_constructor(typename)])],
     AC_MSG_RESULT([no])
   )
-  AC_LANG_POP([C++])
 
+  # need c++ here, cause c will accept function wo/ prototype
+  # which will later lead to link error
   AC_MSG_CHECKING([checking __builtin_ffs(unsigned)])
   AC_TRY_COMPILE([unsigned A = 7;],[ unsigned a = __builtin_ffs(A)],
     [ AC_MSG_RESULT([yes])
@@ -181,6 +182,8 @@ AC_DEFUN([NDB_COMPILER_FEATURES],
               [Compiler supports __builtin_ffs])],
     AC_MSG_RESULT([no])
   )
+
+  AC_LANG_POP([C++])
 ])
 
 AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
