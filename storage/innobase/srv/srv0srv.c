@@ -69,9 +69,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
-/* This is set to TRUE if the MySQL user has set it in MySQL; currently
-affects only FOREIGN KEY definition parsing */
-UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
+/* This is set to the MySQL server value for this variable.  It is only
+needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
+stored in the server metadata. The server stores and enforces it for
+regular database and table names.*/
+UNIV_INTERN uint	srv_lower_case_table_names	= 0;
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -190,8 +192,8 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
-/* number of mutexes to protect buf_pool->page_hash */
-UNIV_INTERN ulong	srv_n_page_hash_mutexes = 256;
+/* number of locks to protect buf_pool->page_hash */
+UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -246,7 +248,7 @@ UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 /* the number of purge threads to use from the worker pool (currently 0 or 1).*/
 UNIV_INTERN ulong srv_n_purge_threads = 0;
 
-/* the number of records to purge in one batch */
+/* the number of UNDO log pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
 
 /* variable counts amount of data read in total (in bytes) */
@@ -324,6 +326,9 @@ It used to be a non-error for this value to drop below zero temporarily.
 This is no longer true. We'll, however, keep the lint datatype to add
 assertions to catch any corner cases that we may have missed. */
 UNIV_INTERN lint	srv_conc_n_threads	= 0;
+
+/* print all user-level transactions deadlocks to mysqld stderr */
+UNIV_INTERN my_bool	srv_print_all_deadlocks = FALSE;
 
 /* this mutex protects srv_conc data structures */
 static os_fast_mutex_t	srv_conc_mutex;
@@ -465,16 +470,12 @@ UNIV_INTERN ulint	srv_main_thread_id		= 0;
 
 /* The following count work done by srv_master_thread. */
 
-/* Iterations by the 'once per second' loop. */
-static ulint   srv_main_1_second_loops		= 0;
-/* Calls to sleep by the 'once per second' loop. */
-static ulint   srv_main_sleeps			= 0;
-/* Iterations by the 'once per 10 seconds' loop. */
-static ulint   srv_main_10_second_loops		= 0;
-/* Iterations of the loop bounded by the 'background_loop' label. */
-static ulint   srv_main_background_loops	= 0;
-/* Iterations of the loop bounded by the 'flush_loop' label. */
-static ulint   srv_main_flush_loops		= 0;
+/* Iterations of the loop bounded by 'srv_active' label. */
+static ulint   srv_main_active_loops		= 0;
+/* Iterations of the loop bounded by the 'srv_idle' label. */
+static ulint   srv_main_idle_loops		= 0;
+/* Iterations of the loop bounded by the 'srv_shutdown' label. */
+static ulint   srv_main_shutdown_loops		= 0;
 /* Log writes involving flush. */
 static ulint   srv_log_writes_and_flush		= 0;
 
@@ -484,12 +485,20 @@ thread ensures that we flush the log files at least once per
 second. */
 static time_t	srv_last_log_flush_time;
 
-/* The master thread performs various tasks based on the current
-state of IO activity and the level of IO utilization is past
-intervals. Following macros define thresholds for these conditions. */
-#define SRV_PEND_IO_THRESHOLD	(PCT_IO(3))
-#define SRV_RECENT_IO_ACTIVITY	(PCT_IO(5))
-#define SRV_PAST_IO_ACTIVITY	(PCT_IO(200))
+/* Interval in seconds at which various tasks are performed by the
+master thread when server is active. In order to balance the workload,
+we should try to keep intervals such that they are not multiple of
+each other. For example, if we have intervals for various tasks
+defined as 5, 10, 15, 60 then all tasks will be performed when
+current_time % 60 == 0 and no tasks will be performed when
+current_time % 5 != 0. */
+
+# define	SRV_MASTER_CHECKPOINT_INTERVAL		(7)
+# define	SRV_MASTER_PURGE_INTERVAL		(10)
+#ifdef MEM_PERIODIC_CHECK
+# define	SRV_MASTER_MEM_VALIDATE_INTERVAL	(13)
+#endif /* MEM_PERIODIC_CHECK */
+# define	SRV_MASTER_DICT_LRU_INTERVAL		(47)
 
 /** Acquire the system_mutex. */
 #define srv_sys_mutex_enter() do {			\
@@ -636,11 +645,11 @@ srv_print_master_thread_info(
 /*=========================*/
 	FILE  *file)    /* in: output stream */
 {
-	fprintf(file, "srv_master_thread loops: %lu 1_second, %lu sleeps, "
-		"%lu 10_second, %lu background, %lu flush\n",
-		srv_main_1_second_loops, srv_main_sleeps,
-		srv_main_10_second_loops, srv_main_background_loops,
-		srv_main_flush_loops);
+	fprintf(file, "srv_master_thread loops: %lu srv_active, "
+		"%lu srv_shutdown, %lu srv_idle\n",
+		srv_main_active_loops,
+		srv_main_shutdown_loops,
+		srv_main_idle_loops);
 	fprintf(file, "srv_master_thread log flush and writes: %lu\n",
 		srv_log_writes_and_flush);
 }
@@ -856,6 +865,37 @@ srv_release_threads(
 	srv_sys_mutex_exit();
 
 	return(count);
+}
+
+/*********************************************************************//**
+Check whether thread type has reserved a slot. Return the first slot that
+is found. This works because we currently have only 1 thread of each type.
+@return	slot number or ULINT_UNDEFINED if not found*/
+UNIV_INTERN
+ulint
+srv_thread_has_reserved_slot(
+/*=========================*/
+	enum srv_thread_type	type)	/*!< in: thread type to check */
+{
+	ulint			i;
+	ulint			slot_no = ULINT_UNDEFINED;
+
+	srv_sys_mutex_enter();
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		const srv_slot_t*	slot;
+
+		slot = srv_table_get_nth_slot(i);
+
+		if (slot->in_use && slot->type == type) {
+			slot_no = i;
+			break;
+		}
+	}
+
+	srv_sys_mutex_exit();
+
+	return(slot_no);
 }
 
 /*********************************************************************//**
@@ -1350,8 +1390,8 @@ srv_printf_innodb_monitor(
 	current_time = time(NULL);
 
 	/* We add 0.001 seconds to time_elapsed to prevent division
-	by zero if two users happen to call SHOW INNODB STATUS at the same
-	time */
+	by zero if two users happen to call SHOW ENGINE INNODB STATUS at the
+	same time */
 
 	time_elapsed = difftime(current_time, srv_last_monitor_time)
 		+ 0.001;
@@ -2084,9 +2124,21 @@ srv_wake_worker_threads(
 }
 
 /*******************************************************************//**
+Get current server activity count. We don't hold srv_sys::mutex while
+reading this value as it is only used in heuristics.
+@return activity count. */
+UNIV_INTERN
+ulint
+srv_get_activity_count(void)
+/*========================*/
+{
+	return(srv_sys->activity_count);
+}
+
+/*******************************************************************//**
 Check if there has been any activity.
-@return FALSE if no hange in activity counter. */
-UNIV_INLINE
+@return FALSE if no change in activity counter. */
+UNIV_INTERN
 ibool
 srv_check_activity(
 /*===============*/
@@ -2117,17 +2169,21 @@ srv_sync_log_buffer_in_background(void)
 
 /********************************************************************//**
 Do a full purge, reconfigure the purge sub-system if a dynamic
-change is detected. */
+change is detected.
+@return total pages purged */
 static
-void
+ulint
 srv_master_do_purge(void)
 /*=====================*/
 {
 	ulint	n_pages_purged;
+	ulint	total_pages_purged = 0;
 
 	ut_a(srv_n_purge_threads == 0);
 
 	do {
+		srv_main_thread_op_info = "master purging";
+
 		/* Check for shutdown and change in purge config. */
 		if (srv_fast_shutdown
 		    && srv_shutdown_state > SRV_SHUTDOWN_NONE) {
@@ -2138,9 +2194,37 @@ srv_master_do_purge(void)
 			n_pages_purged = trx_purge(0, srv_purge_batch_size);
 		}
 
+		total_pages_purged += n_pages_purged;
 		srv_sync_log_buffer_in_background();
 
 	} while (n_pages_purged > 0);
+
+	return(total_pages_purged);
+}
+
+/********************************************************************//**
+Make room in the table cache by evicting an unused table.
+@return number of tables evicted. */
+static
+ulint
+srv_master_evict_from_table_cache(
+/*==============================*/
+	ulint	pct_check)	/*!< in: max percent to check */
+{
+	ulint	n_tables_evicted = 0;
+
+	rw_lock_x_lock(&dict_operation_lock);
+
+	dict_mutex_enter_for_mysql();
+
+	n_tables_evicted = dict_make_room_in_cache(
+		innobase_get_table_cache_size(), pct_check);
+
+	dict_mutex_exit_for_mysql();
+
+	rw_lock_x_unlock(&dict_operation_lock);
+
+	return(n_tables_evicted);
 }
 
 /*********************************************************************//**
@@ -2201,6 +2285,234 @@ srv_shutdown_print_master_pending(
 }
 
 /*********************************************************************//**
+Perform the tasks that the master thread is supposed to do when the
+server is active. There are two types of tasks. The first category is
+of such tasks which are performed at each inovcation of this function.
+We assume that this function is called roughly every second when the
+server is active. The second category is of such tasks which are
+performed at some interval e.g.: purge, dict_LRU cleanup etc. */
+static
+void
+srv_master_do_active_tasks(void)
+/*============================*/
+{
+	ib_time_t cur_time = ut_time();
+
+	/* First do the tasks that we are suppose to do at each
+	invocation of this function. */
+
+	++srv_main_active_loops;
+
+	/* ALTER TABLE in MySQL requires on Unix that the table handler
+	can drop tables lazily after there no longer are SELECT
+	queries to them. */
+	srv_main_thread_op_info = "doing background drop tables";
+	row_drop_tables_for_mysql_in_background();
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* make sure that there is enough reusable space in the redo
+	log files */
+	srv_main_thread_op_info = "checking free log space";
+	log_free_check();
+
+	/* Do an ibuf merge */
+	srv_main_thread_op_info = "doing insert buffer merge";
+	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+
+	/* Flush logs if needed */
+	srv_main_thread_op_info = "flushing log";
+	srv_sync_log_buffer_in_background();
+
+	/* Now see if various tasks that are performed at defined
+	intervals need to be performed. */
+
+#ifdef MEM_PERIODIC_CHECK
+	/* Check magic numbers of every allocated mem block once in
+	SRV_MASTER_MEM_VALIDATE_INTERVAL seconds */
+	if (cur_time % SRV_MASTER_MEM_VALIDATE_INTERVAL == 0) {
+		mem_validate_all_blocks();
+	}
+#endif
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* Do a purge if we don't have a dedicated purge thread */
+	if (srv_n_purge_threads == 0
+	    && cur_time % SRV_MASTER_PURGE_INTERVAL == 0) {
+		srv_master_do_purge();
+	}
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
+		srv_main_thread_op_info = "enforcing dict cache limit";
+		srv_master_evict_from_table_cache(50);
+	}
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* Make a new checkpoint */
+	if (cur_time % SRV_MASTER_CHECKPOINT_INTERVAL == 0) {
+		srv_main_thread_op_info = "making checkpoint";
+		log_checkpoint(TRUE, FALSE);
+	}
+}
+
+/*********************************************************************//**
+Perform the tasks that the master thread is supposed to do whenever the
+server is idle. We do check for the server state during this function
+and if the server has entered the shutdown phase we may return from
+the function without completing the required tasks.
+Note that the server can move to active state when we are executing this
+function but we don't check for that as we are suppose to perform more
+or less same tasks when server is active. */
+static
+void
+srv_master_do_idle_tasks(void)
+/*==========================*/
+{
+	++srv_main_idle_loops;
+
+	/* ALTER TABLE in MySQL requires on Unix that the table handler
+	can drop tables lazily after there no longer are SELECT
+	queries to them. */
+	srv_main_thread_op_info = "doing background drop tables";
+	row_drop_tables_for_mysql_in_background();
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* make sure that there is enough reusable space in the redo
+	log files */
+	srv_main_thread_op_info = "checking free log space";
+	log_free_check();
+
+	/* Do an ibuf merge */
+	srv_main_thread_op_info = "doing insert buffer merge";
+	ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	srv_main_thread_op_info = "enforcing dict cache limit";
+	srv_master_evict_from_table_cache(100);
+
+	/* Flush logs if needed */
+	srv_sync_log_buffer_in_background();
+
+	/* Do a purge if we don't have a dedicated purge thread */
+	if (srv_n_purge_threads == 0) {
+		srv_master_do_purge();
+	}
+
+	if (srv_shutdown_state > 0) {
+		return;
+	}
+
+	/* Make a new checkpoint */
+	srv_main_thread_op_info = "making checkpoint";
+	log_checkpoint(TRUE, FALSE);
+}
+
+/*********************************************************************//**
+Perform the tasks during shutdown. The tasks that we do at shutdown
+depend on srv_fast_shutdown:
+2 => very fast shutdown => do no book keeping
+1 => normal shutdown => clear drop table queue and make checkpoint
+0 => slow shutdown => in addition to above do complete purge and ibuf
+merge
+@return TRUE if some work was done. FALSE otherwise */
+static
+ibool
+srv_master_do_shutdown_tasks(
+/*=========================*/
+	ib_time_t*	last_print_time)/*!< last time the function
+					print the message */
+{
+	ulint		n_pages_purged = 0;
+	ulint		n_bytes_merged = 0;
+	ulint		n_tables_to_drop = 0;
+
+	++srv_main_shutdown_loops;
+
+	ut_a(srv_shutdown_state > 0);
+
+	/* In very fast shutdown none of the following is necessary */
+	if (srv_fast_shutdown == 2) {
+		return(FALSE);
+	}
+
+	/* ALTER TABLE in MySQL requires on Unix that the table handler
+	can drop tables lazily after there no longer are SELECT
+	queries to them. */
+	srv_main_thread_op_info = "doing background drop tables";
+	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
+
+	/* make sure that there is enough reusable space in the redo
+	log files */
+	srv_main_thread_op_info = "checking free log space";
+	log_free_check();
+
+	/* In case of normal shutdown we don't do ibuf merge or purge */
+	if (srv_fast_shutdown == 1) {
+		goto func_exit;
+	}
+
+	/* Do an ibuf merge */
+	srv_main_thread_op_info = "doing insert buffer merge";
+	n_bytes_merged = ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+
+	/* Flush logs if needed */
+	srv_sync_log_buffer_in_background();
+
+	/* Do a purge if we don't have a dedicated purge thread */
+	if (srv_n_purge_threads == 0) {
+		n_pages_purged = srv_master_do_purge();
+	}
+
+func_exit:
+	/* Make a new checkpoint about once in 10 seconds */
+	srv_main_thread_op_info = "making checkpoint";
+	log_checkpoint(TRUE, FALSE);
+
+	/* Print progress message every 60 seconds during shutdown */
+	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
+		srv_shutdown_print_master_pending(last_print_time,
+						  n_tables_to_drop,
+						  n_pages_purged,
+						  n_bytes_merged);
+	}
+
+	return(n_pages_purged
+	       || n_bytes_merged
+               || n_tables_to_drop);
+}
+
+/*********************************************************************//**
+Puts master thread to sleep. At this point we are using polling to
+service various activities. Master thread sleeps for one second before
+checking the state of the server again */
+static
+void
+srv_master_sleep(void)
+/*==================*/
+{
+	srv_main_thread_op_info = "sleeping";
+	os_thread_sleep(1000000);
+	srv_main_thread_op_info = "";
+}
+
+/*********************************************************************//**
 The master thread controlling the server.
 @return	a dummy parameter */
 UNIV_INTERN
@@ -2212,24 +2524,9 @@ srv_master_thread(
 			os_thread_create */
 {
 	ulint		slot;
-	buf_pool_stat_t buf_stat;
+	ulint		old_activity_count = srv_get_activity_count();
 	os_event_t	event;
-	ulint		old_activity_count;
-	ulint		n_pages_purged	= 0;
-	ulint		n_bytes_merged;
-	ulint		n_pages_flushed;
-	ulint		n_bytes_archived;
-	ulint		n_tables_to_drop;
-	ulint		n_ios;
-	ulint		n_ios_old;
-	ulint		n_ios_very_old;
-	ulint		n_pend_ios;
-	ulint		next_itr_time;
-	ulint		i;
-	ibool		max_modified_ratio_exceeded = FALSE;
 	ib_time_t	last_print_time;
-	ulint		n_tables_evicted;
-	ib_time_t	last_table_lru_flush_time = ut_time();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2254,444 +2551,30 @@ srv_master_thread(
 
 	last_print_time = ut_time();
 loop:
-	/*****************************************************************/
-	/* ---- When there is database activity by users, we cycle in this
-	loop */
-
-
-	/* Try and evict some tables from the table LRU list. */
-	/* Note: The 60 seconds and 50% below are an arbitrary choice. */
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_NONE
-	    && ut_time() - last_table_lru_flush_time > 60) {
-
-		srv_main_thread_op_info = "enforcing dict cache limit";
-
-		rw_lock_x_lock(&dict_operation_lock);
-
-		dict_mutex_enter_for_mysql();
-
-		n_tables_evicted = dict_make_room_in_cache(
-			innobase_get_table_cache_size(), 50);
-
-		dict_mutex_exit_for_mysql();
-
-		rw_lock_x_unlock(&dict_operation_lock);
-
-		last_table_lru_flush_time = ut_time();
-	} else {
-		n_tables_evicted = 0;
-	}
-
-	buf_get_total_stat(&buf_stat);
-	n_ios_very_old = log_sys->n_log_ios + buf_stat.n_pages_read
-		+ buf_stat.n_pages_written;
-
-	srv_main_thread_op_info = "reserving sys mutex";
-
-	srv_sys_mutex_enter();
-
-	/* Store the user activity counter at the start of this loop */
-	old_activity_count = srv_sys->activity_count;
-
-	srv_sys_mutex_exit();
-
 	if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
-
 		goto suspend_thread;
 	}
 
-	/* ---- We run the following loop approximately once per second
-	when there is database activity */
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
-	srv_last_log_flush_time = time(NULL);
+		srv_master_sleep();
 
-	/* Sleep for 1 second on entrying the for loop below the first time. */
-	next_itr_time = ut_time_ms() + 1000;
-
-	for (i = 0; i < 10; i++) {
-		ulint	cur_time = ut_time_ms();
-
-		/* ALTER TABLE in MySQL requires on Unix that the table handler
-		can drop tables lazily after there no longer are SELECT
-		queries to them. */
-
-		srv_main_thread_op_info = "doing background drop tables";
-
-		row_drop_tables_for_mysql_in_background();
-
-		srv_main_thread_op_info = "";
-
-		if (srv_fast_shutdown
-		    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-
-			goto background_loop;
-		}
-
-		buf_get_total_stat(&buf_stat);
-
-		n_ios_old = log_sys->n_log_ios + buf_stat.n_pages_read
-			+ buf_stat.n_pages_written;
-
-		srv_main_thread_op_info = "sleeping";
-		srv_main_1_second_loops++;
-
-		if (next_itr_time > cur_time
-		    && srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-
-			/* Get sleep interval in micro seconds. We use
-			ut_min() to avoid long sleep in case of
-			wrap around. */
-			os_thread_sleep(ut_min(1000000,
-					(next_itr_time - cur_time)
-					 * 1000));
-			srv_main_sleeps++;
-		}
-
-		/* Each iteration should happen at 1 second interval. */
-		next_itr_time = ut_time_ms() + 1000;
-
-		/* Flush logs if needed */
-		srv_sync_log_buffer_in_background();
-
-		srv_main_thread_op_info = "making checkpoint";
-		log_free_check();
-
-		/* If i/os during one second sleep were less than 5% of
-		capacity, we assume that there is free disk i/o capacity
-		available, and it makes sense to do an insert buffer merge. */
-
-		buf_get_total_stat(&buf_stat);
-		n_pend_ios = buf_get_n_pending_ios()
-			+ log_sys->n_pending_writes;
-		n_ios = log_sys->n_log_ios + buf_stat.n_pages_read
-			+ buf_stat.n_pages_written;
-		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
-		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
-			srv_main_thread_op_info = "doing insert buffer merge";
-			ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
-
-			/* Flush logs if needed */
-			srv_sync_log_buffer_in_background();
-		}
-
-		if (UNIV_UNLIKELY(buf_get_modified_ratio_pct()
-				  > srv_max_buf_pool_modified_pct)) {
-
-			/* Try to keep the number of modified pages in the
-			buffer pool under the limit wished by the user */
-
-			srv_main_thread_op_info =
-				"flushing buffer pool pages";
-			n_pages_flushed = buf_flush_list(
-				PCT_IO(100), IB_ULONGLONG_MAX);
-
-			/* Record 100% srv_io_capacity for the buffer
-			flush rate */
-			MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
-		} else if (srv_adaptive_flushing) {
-
-			/* Try to keep the rate of flushing of dirty
-			pages such that redo log generation does not
-			produce bursts of IO at checkpoint time. */
-			ulint n_flush = buf_flush_get_desired_flush_rate();
-
-			if (n_flush) {
-				srv_main_thread_op_info =
-					"flushing buffer pool pages";
-				n_flush = ut_min(PCT_IO(100), n_flush);
-				n_pages_flushed =
-					buf_flush_list(
-						n_flush,
-						IB_ULONGLONG_MAX);
-
-				/* Record the IO capacity percentage used
-				for the flush */
-				MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY,
-					    n_flush * 100 / srv_io_capacity)
-			}
-		}
-
-		if (srv_sys->activity_count == old_activity_count) {
-
-			/* There is no user activity at the moment, go to
-			the background loop */
-
-			goto background_loop;
+		if (srv_check_activity(old_activity_count)) {
+			old_activity_count = srv_get_activity_count();
+			srv_master_do_active_tasks();
+		} else {
+			srv_master_do_idle_tasks();
 		}
 	}
 
-	/* ---- We perform the following code approximately once per
-	10 seconds when there is database activity */
+	while (srv_master_do_shutdown_tasks(&last_print_time)) {
 
-#ifdef MEM_PERIODIC_CHECK
-	/* Check magic numbers of every allocated mem block once in 10
-	seconds */
-	mem_validate_all_blocks();
-#endif
-	/* If i/os during the 10 second period were less than 200% of
-	capacity, we assume that there is free disk i/o capacity
-	available, and it makes sense to flush srv_io_capacity pages.
-
-	Note that this is done regardless of the fraction of dirty
-	pages relative to the max requested by the user. The one second
-	loop above requests writes for that case. The writes done here
-	are not required, and may be disabled. */
-
-	buf_get_total_stat(&buf_stat);
-	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
-	n_ios = log_sys->n_log_ios + buf_stat.n_pages_read
-		+ buf_stat.n_pages_written;
-
-	srv_main_10_second_loops++;
-	if (n_pend_ios < SRV_PEND_IO_THRESHOLD
-	    && (n_ios - n_ios_very_old < SRV_PAST_IO_ACTIVITY)) {
-
-		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_list(PCT_IO(100), IB_ULONGLONG_MAX);
-
-		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
-
-		/* Flush logs if needed */
-		srv_sync_log_buffer_in_background();
+		/* Shouldn't loop here in case of very fast shutdown */
+		ut_ad(srv_fast_shutdown < 2);
 	}
-
-	/* We run a batch of insert buffer merge every 10 seconds,
-	even if the server were active */
-
-	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
-
-	/* Flush logs if needed */
-	srv_sync_log_buffer_in_background();
-
-	if (srv_n_purge_threads == 0) {
-		srv_main_thread_op_info = "master purging";
-
-		srv_master_do_purge();
-
-		if (srv_fast_shutdown
-		    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-
-			goto background_loop;
-		}
-	} 
-
-	srv_main_thread_op_info = "flushing buffer pool pages";
-
-	/* Flush a few oldest pages to make a new checkpoint younger */
-
-	if (buf_get_modified_ratio_pct() > 70) {
-
-		/* If there are lots of modified pages in the buffer pool
-		(> 70 %), we assume we can afford reserving the disk(s) for
-		the time it requires to flush 100 pages */
-
-		n_pages_flushed = buf_flush_list(
-			PCT_IO(100), IB_ULONGLONG_MAX);
-
-		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
-	} else {
-		/* Otherwise, we only flush a small number of pages so that
-		we do not unnecessarily use much disk i/o capacity from
-		other work */
-
-		n_pages_flushed = buf_flush_list(
-			  PCT_IO(10), IB_ULONGLONG_MAX);
-
-		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 10);
-	}
-
-	srv_main_thread_op_info = "making checkpoint";
-
-	/* Make a new checkpoint about once in 10 seconds */
-
-	log_checkpoint(TRUE, FALSE);
-
-	/* ---- When there is database activity, we jump from here back to
-	the start of loop */
-
-	if (srv_check_activity(old_activity_count)) {
-		goto loop;
-	}
-
-	/* If the database is quiet, we enter the background loop */
-
-	/*****************************************************************/
-background_loop:
-	/* ---- In this loop we run background operations when the server
-	is quiet from user activity. Also in the case of a shutdown, we
-	loop here, flushing the buffer pool to the data files. */
-
-	/* The server has been quiet for a while: start running background
-	operations */
-	srv_main_background_loops++;
-	srv_main_thread_op_info = "doing background drop tables";
-
-	n_tables_to_drop = row_drop_tables_for_mysql_in_background();
-
-	if (n_tables_to_drop > 0) {
-		/* Do not monopolize the CPU even if there are tables waiting
-		in the background drop queue. (It is essentially a bug if
-		MySQL tries to drop a table while there are still open handles
-		to it and we had to put it to the background drop queue.) */
-
-		if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-			os_thread_sleep(100000);
-		}
-	}
-
-	if (srv_n_purge_threads == 0) {
-		srv_main_thread_op_info = "master purging";
-
-		srv_master_do_purge();
-	}
-
-
-	/* Try and evict as many tables as possible from the table LRU list. */
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-
-		srv_main_thread_op_info = "enforcing dict cache limit";
-
-		rw_lock_x_lock(&dict_operation_lock);
-
-		dict_mutex_enter_for_mysql();
-
-		n_tables_evicted = dict_make_room_in_cache(
-			innobase_get_table_cache_size(), 100);
-
-		dict_mutex_exit_for_mysql();
-
-		rw_lock_x_unlock(&dict_operation_lock);
-
-		last_table_lru_flush_time = ut_time();
-	} else {
-		n_tables_evicted = 0;
-	}
-
-	if (srv_check_activity(old_activity_count)) {
-		goto loop;
-	}
-
-	srv_main_thread_op_info = "doing insert buffer merge";
-
-	if (srv_fast_shutdown
-	    && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-		n_bytes_merged = 0;
-	} else {
-		/* This should do an amount of IO similar to the number of
-		dirty pages that will be flushed in the call to
-		buf_flush_list below. Otherwise, the system favors
-		clean pages over cleanup throughput. */
-		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
-							   PCT_IO(100));
-	}
-
-	if (srv_check_activity(old_activity_count)) {
-		goto loop;
-	}
-
-flush_loop:
-	srv_main_thread_op_info = "flushing buffer pool pages";
-	srv_main_flush_loops++;
-
-	if (srv_fast_shutdown < 2) {
-		n_pages_flushed = buf_flush_list(
-			  PCT_IO(100), IB_ULONGLONG_MAX);
-
-		MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY, 100);
-
-		if (max_modified_ratio_exceeded) {
-			MONITOR_INC(MONITOR_FLUSH_DIRTY_PAGE_EXCEED);
-		}
-	} else {
-		/* In the fastest shutdown we do not flush the buffer pool
-		to data files: we set n_pages_flushed to 0 artificially. */
-
-		n_pages_flushed = 0;
-	}
-
-	if (srv_check_activity(old_activity_count)) {
-		goto loop;
-	}
-
-	srv_main_thread_op_info = "waiting for buffer pool flush to end";
-	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-
-	/* Flush logs if needed */
-	srv_sync_log_buffer_in_background();
-
-	srv_main_thread_op_info = "making checkpoint";
-
-	log_checkpoint(TRUE, FALSE);
-
-	if (buf_get_modified_ratio_pct() > srv_max_buf_pool_modified_pct) {
-		max_modified_ratio_exceeded = TRUE;
-
-		/* Try to keep the number of modified pages in the
-		buffer pool under the limit wished by the user */
-
-		goto flush_loop;
-	}
-	max_modified_ratio_exceeded = FALSE;
-
-	if (srv_check_activity(old_activity_count)) {
-		goto loop;
-	}
-
-	/*
-	srv_main_thread_op_info = "archiving log (if log archive is on)";
-
-	log_archive_do(FALSE, &n_bytes_archived);
-	*/
-	n_bytes_archived = 0;
-
-	/* Print progress message every 60 seconds during shutdown */
-	if (srv_shutdown_state != SRV_SHUTDOWN_NONE
-	    && srv_print_verbose_log) {
-
-		srv_shutdown_print_master_pending(
-			&last_print_time, n_tables_to_drop,
-			n_pages_purged, n_bytes_merged);
-	}
-
-	/* Keep looping in the background loop if still work to do */
-
-	if (srv_fast_shutdown && srv_shutdown_state != SRV_SHUTDOWN_NONE) {
-		if (n_tables_to_drop + n_pages_flushed
-		    + n_bytes_archived != 0) {
-
-			/* If we are doing a fast shutdown (= the default)
-			we do not do purge or insert buffer merge. But we
-			flush the buffer pool completely to disk.
-			In a 'very fast' shutdown we do not flush the buffer
-			pool to data files: we have set n_pages_flushed to
-			0 artificially. */
-
-			goto background_loop;
-		}
-	} else if (n_tables_to_drop > 0
-		   || n_pages_purged > 0
-		   || n_bytes_merged > 0
-		   || n_pages_flushed > 0
-		   || n_tables_evicted > 0
-		   || n_bytes_archived > 0) {
-		/* In a 'slow' shutdown we run purge and the insert buffer
-		merge to completion */
-
-		goto background_loop;
-	}
-
-	/* There is no work for background operations either: suspend
-	master thread to wait for more server activity */
 
 suspend_thread:
 	srv_main_thread_op_info = "suspending";
-
-	if (row_get_background_drop_list_len_low() > 0) {
-		goto loop;
-	}
 
 	event = srv_suspend_thread();
 
@@ -2710,9 +2593,6 @@ suspend_thread:
 		os_thread_exit(NULL);
 
 	}
-
-	/* When there is user activity, InnoDB will set the event and the
-	main thread goes back to loop. */
 
 	goto loop;
 
@@ -2750,7 +2630,8 @@ srv_task_execute(void)
 
 		que_run_threads(thr);
 
-		os_atomic_inc_ulint(&purge_sys->mutex, &purge_sys->n_completed, 1);
+		os_atomic_inc_ulint(
+			&purge_sys->mutex, &purge_sys->n_completed, 1);
 	}
 
 	os_atomic_dec_ulint(&purge_sys->mutex, &purge_sys->n_executing, 1);
@@ -2795,10 +2676,10 @@ srv_worker_thread(
 
 		os_event_wait(event);
 
+		srv_task_execute();
+
 		/* If there is no task in the queue, wakeup the purge
 		coordinator thread. */
-
-		srv_task_execute();
 
 		srv_wake_purge_thread_if_not_active();
 	}
@@ -2887,14 +2768,14 @@ srv_purge_coordinator_thread(
 				is purely guess work and needs to be tuned
 				properly after some benchmarking. */
 				if (srv_check_activity(count)) {
-					sleep_ms = 1000000;
+					sleep_ms = 60000;
 					batch_size = srv_purge_batch_size;
 				} else if (n_pages_purged == 0) {
-					sleep_ms = 5000000;
+					sleep_ms = 120000;
 					batch_size = srv_purge_batch_size;
 				} else {
 					sleep_ms = 0;
-					batch_size = 5000;
+					batch_size = 500;
 				}
 
 				/* No point in sleeping during shutdown. */
@@ -2905,8 +2786,8 @@ srv_purge_coordinator_thread(
 				}
 
 				/* Take snapshot to check for user
-				activity later every 3 seconds. */
-				if (ut_time() - last_time > 1) {
+				activity at every second. */
+				if (ut_time() - last_time >= 1) {
 					count = srv_sys->activity_count;
 					last_time = ut_time();
 				}
@@ -2944,22 +2825,22 @@ srv_purge_coordinator_thread(
 				is purely guess work and needs to be tuned
 				properly after some benchmarking. */
 				if (!srv_check_activity(count)
-				    && trx_sys->rseg_history_len > 5000) {
+				    && trx_sys->rseg_history_len > 500) {
 					sleep_ms = 0;
-					batch_size = 5000;
+					batch_size = 500;
 				} else {
-					sleep_ms = 1000000;
+					sleep_ms = 60000;
 
 					if (n_pages_purged > 0) {
-						sleep_ms = 100000;
+						sleep_ms = 150000;
 					}
 
 					batch_size = srv_purge_batch_size;
 				}
 
 				/* Take snapshot to check for user
-				activity later every second. */
-				if (ut_time() - last_time > 1) {
+				activity at every second. */
+				if (ut_time() - last_time >= 1) {
 					count = srv_sys->activity_count;
 					last_time = ut_time();
 				}

@@ -342,3 +342,41 @@ SELECT a FROM t2;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#39828 autoinc wraps around when offset and increment > 1
+--echo #
+
+CREATE TABLE t1 (c1 BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY(c1)) engine=MyISAM;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES (18446744073709551601);
+
+SET @@SESSION.AUTO_INCREMENT_INCREMENT=10;
+
+SELECT @@SESSION.AUTO_INCREMENT_OFFSET;
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+SELECT * FROM t1;
+
+SET @@SESSION.AUTO_INCREMENT_INCREMENT=default;
+SET @@SESSION.AUTO_INCREMENT_OFFSET=default;
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests
+
+--echo #
+--echo # Bug#50619 assert in handler::update_auto_increment
+--echo #
+
+CREATE TABLE t1 (pk INT AUTO_INCREMENT, PRIMARY KEY (pk));
+# This triggered the assert
+INSERT INTO t1 VALUES (NULL), (-1), (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Check that that true overflow still gives error
+CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL), (18446744073709551615-1), (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;

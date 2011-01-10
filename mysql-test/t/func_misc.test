@@ -536,6 +536,7 @@ SELECT 1 from t1 HAVING NAME_CONST('', a);
 
 DROP TABLE t1;
 
+
 --echo #
 --echo # End of 5.5 tests
 --echo #

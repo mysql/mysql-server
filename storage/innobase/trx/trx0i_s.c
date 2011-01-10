@@ -443,7 +443,7 @@ i_s_locks_row_validate(
 		/* record lock */
 		ut_ad(!strcmp("RECORD", row->lock_type));
 		ut_ad(row->lock_index != NULL);
-		ut_ad(row->lock_data != NULL);
+		/* row->lock_data == NULL if buf_page_try_get() == NULL */
 		ut_ad(row->lock_page != ULINT_UNDEFINED);
 		ut_ad(row->lock_rec != ULINT_UNDEFINED);
 	}
@@ -462,7 +462,7 @@ fill_trx_row(
 /*=========*/
 	i_s_trx_row_t*		row,		/*!< out: result object
 						that's filled */
-	const trx_t*		trx,		/*!< in: transaction to
+	trx_t*			trx,		/*!< in: transaction to
 						get data from */
 	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
 						corresponding row in
@@ -510,7 +510,6 @@ fill_trx_row(
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
 	if (stmt != NULL) {
-
 		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
 
 		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
@@ -523,6 +522,8 @@ fill_trx_row(
 		row->trx_query = ha_storage_put_memlim(
 			cache->storage, stmt, stmt_len + 1,
 			MAX_ALLOWED_FOR_STORAGE(cache));
+
+		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 
 		if (row->trx_query == NULL) {
 
@@ -554,11 +555,15 @@ thd_done:
 
 	row->trx_tables_locked = trx->mysql_n_tables_locked;
 
+	trx_mutex_enter(trx);
+
 	row->trx_lock_structs = UT_LIST_GET_LEN(trx->lock.trx_locks);
 
 	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock.lock_heap);
 
 	row->trx_rows_locked = lock_number_of_rows_locked(trx);
+
+	trx_mutex_exit(trx);
 
 	row->trx_rows_modified = trx->undo_no;
 
@@ -1166,8 +1171,9 @@ add_trx_relevant_locks_to_cache(
 		lock_queue_iterator_reset(&iter, trx->lock.wait_lock,
 					  ULINT_UNDEFINED);
 
-		curr_lock = lock_queue_iterator_get_prev(&iter);
-		while (curr_lock != NULL) {
+		for (curr_lock = lock_queue_iterator_get_prev(&iter);
+		     curr_lock != NULL;
+		     curr_lock = lock_queue_iterator_get_prev(&iter)) {
 
 			if (lock_has_to_wait(trx->lock.wait_lock,
 					     curr_lock)) {
@@ -1198,8 +1204,6 @@ add_trx_relevant_locks_to_cache(
 					return(FALSE);
 				}
 			}
-
-			curr_lock = lock_queue_iterator_get_prev(&iter);
 		}
 	} else {
 
@@ -1291,13 +1295,10 @@ fetch_data_into_cache(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		trx_mutex_enter(trx);
-
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
-			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1309,7 +1310,6 @@ fetch_data_into_cache(
 		if (trx_row == NULL) {
 
 			cache->is_truncated = TRUE;
-			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1318,11 +1318,8 @@ fetch_data_into_cache(
 			/* memory could not be allocated */
 			cache->innodb_trx.rows_used--;
 			cache->is_truncated = TRUE;
-			trx_mutex_exit(trx);
 			return;
 		}
-
-		trx_mutex_exit(trx);
 	}
 
 	cache->is_truncated = FALSE;

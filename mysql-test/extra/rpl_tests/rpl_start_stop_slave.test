@@ -177,5 +177,3 @@ UNLOCK TABLES;
 --connection master
 DROP TABLE t1;
 sync_slave_with_master;
-
-# End of tests

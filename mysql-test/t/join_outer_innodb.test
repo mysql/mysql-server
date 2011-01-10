@@ -24,3 +24,40 @@ SELECT COUNT(*) FROM t2 LEFT JOIN t1 ON t2.fkey = t1.id
   WHERE t1.name LIKE 'A%' OR FALSE;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#58456: Assertion 0 in QUICK_INDEX_MERGE_SELECT::need_sorted_output
+--echo #            in opt_range.h
+--echo #
+
+CREATE TABLE t1 (
+  col_int INT,
+  col_int_key INT,
+  pk INT NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (NULL,1,1), (6,2,2), (5,3,3), (NULL,4,4);
+INSERT INTO t1 VALUES (1,NULL,6), (8,5,7), (NULL,8,8), (8,NULL,5);
+
+CREATE TABLE t2 (
+  pk INT PRIMARY KEY
+) ENGINE=InnoDB;
+
+let $query=
+SELECT t1.pk
+FROM t2 LEFT JOIN t1 ON t2.pk = t1.col_int
+WHERE t1.col_int_key BETWEEN 5 AND 6 
+      AND t1.pk IS NULL OR t1.pk IN (5)
+ORDER BY pk;
+
+--echo
+--eval EXPLAIN $query
+--echo
+--eval $query
+--echo
+
+DROP TABLE t1,t2;
+
+--echo # End BUG#58456

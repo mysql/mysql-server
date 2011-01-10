@@ -55,6 +55,12 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+ERROR 23000: Duplicate entry 'abc-abc-abc' for key 'PRIMARY'
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
+ERROR 23000: Duplicate entry 'abc-abc-def' for key 'PRIMARY'
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+ERROR 23000: Duplicate entry 'abc-def-def' for key 'PRIMARY'
 SELECT hex(c1),hex(c2),hex(c3) FROM t1;
 hex(c1)	hex(c2)	hex(c3)
 61626300000000000000	61626300000000000000	61626300000000000000

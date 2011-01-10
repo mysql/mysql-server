@@ -51,6 +51,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 extern "C" {
 #include "univ.i"
 #include "buf0lru.h"
+#include "buf0flu.h"
 #include "btr0sea.h"
 #include "os0file.h"
 #include "os0thread.h"
@@ -295,7 +296,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
-	{&trx_sys_rw_lock_key, "trx_sys_lock", 0}
+	{&trx_sys_rw_lock_key, "trx_sys_lock", 0},
+	{&dict_table_stats_latch_key, "dict_table_stats", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -310,7 +312,8 @@ static PSI_thread_info	all_innodb_threads[] = {
 	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
 	{&srv_monitor_thread_key, "srv_monitor_thread", 0},
 	{&srv_master_thread_key, "srv_master_thread", 0},
-	{&srv_purge_thread_key, "srv_purge_thread", 0}
+	{&srv_purge_thread_key, "srv_purge_thread", 0},
+	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0}
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -733,8 +736,8 @@ innobase_flush_logs(
 	handlerton*	hton);		/*!< in: InnoDB handlerton */
 
 /************************************************************************//**
-Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client.
+Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+InnoDB Monitor to the client.
 @return 0 on success */
 static
 int
@@ -765,6 +768,16 @@ innobase_commit_low(
 /*================*/
 	trx_t*	trx);	/*!< in: transaction handle */
 
+/****************************************************************//**
+Parse and enable InnoDB monitor counters during server startup.
+User can enable monitor counters/groups by specifying
+"loose-innodb_enable_monitor_counter = monitor_name1;monitor_name2..."
+in server configuration file or at the command line. */
+static
+void
+innodb_enable_monitor_at_startup(
+/*=============================*/
+	char*	str);	/*!< in: monitor counter enable list */
 
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
@@ -1262,6 +1275,20 @@ innobase_strcasecmp(
 	const char*	b)	/*!< in: second string to compare */
 {
 	return(my_strcasecmp(system_charset_info, a, b));
+}
+
+/******************************************************************//**
+Compares NUL-terminated UTF-8 strings case insensitively. The
+second string contains wildcards.
+@return 0 if a match is found, 1 if not */
+extern "C" UNIV_INTERN
+int
+innobase_wildcasecmp(
+/*=================*/
+	const char*	a,	/*!< in: string to compare */
+	const char*	b)	/*!< in: wildcard string to compare */
+{
+	return(wild_case_compare(system_charset_info, a, b));
 }
 
 /******************************************************************//**
@@ -2027,7 +2054,7 @@ innobase_invalidate_query_cache(
 {
 	/* Note that the sync0sync.h rank of the query cache mutex is just
 	above the InnoDB trx_sys_t::mutex. The caller of this function must
-       	not have latches of a lower rank. */
+	not have latches of a lower rank. */
 
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
@@ -2336,13 +2363,13 @@ innobase_init(
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
-#ifdef UNIV_DEBUG
+#ifndef DBUG_OFF
 	static const char	test_filename[] = "-@";
 	char			test_tablename[sizeof test_filename
 				+ sizeof srv_mysql50_table_name_prefix];
 	if ((sizeof test_tablename) - 1
 			!= filename_to_tablename(test_filename, test_tablename,
-			sizeof test_tablename)
+			sizeof test_tablename, true)
 			|| strncmp(test_tablename,
 			srv_mysql50_table_name_prefix,
 			sizeof srv_mysql50_table_name_prefix)
@@ -2352,7 +2379,7 @@ innobase_init(
 		sql_print_error("tablename encoding has been changed");
 		goto error;
 	}
-#endif /* UNIV_DEBUG */
+#endif /* DBUG_OFF */
 
 	/* Check that values don't overflow on 32-bit systems. */
 	if (sizeof(ulint) == 4) {
@@ -2681,6 +2708,14 @@ innobase_change_buffering_inited_ok:
 
 	memset(innodb_counter_value, 0, sizeof innodb_counter_value);
 
+	/* Do this as late as possible so server is fully starts up,
+	since  we might get some initial stats if user choose to turn
+	on some counters from start up */
+	if (innobase_enable_monitor_counter) {
+		innodb_enable_monitor_at_startup(
+			innobase_enable_monitor_counter);
+	}
+
 	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
@@ -2803,8 +2838,8 @@ innobase_start_trx_and_assign_read_view(
 
 	/* This is just to play safe: release a possible FIFO ticket and
 	search latch. Since we can potentially reserve the trx_sys_t::mutex,
-       	we have to release the search system latch first to obey the latching
-       	order. */
+	we have to release the search system latch first to obey the latching
+	order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -2987,7 +3022,7 @@ innobase_rollback(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3027,7 +3062,7 @@ innobase_rollback_trx(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3068,7 +3103,7 @@ innobase_rollback_to_savepoint(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3139,7 +3174,7 @@ innobase_savepoint(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -3831,6 +3866,7 @@ ha_innobase::open(
 	UT_NOT_USED(test_if_locked);
 
 	thd = ha_thd();
+	srv_lower_case_table_names = lower_case_table_names;
 
 	/* Under some cases MySQL seems to call this function while
 	holding btr_search_latch. This breaks the latching order as
@@ -6894,10 +6930,11 @@ create_clustered_index_when_no_primary(
 /*****************************************************************//**
 Return a display name for the row format
 @return row format name */
-
-const char *get_row_format_name(
-/*============================*/
-enum row_type row_format)		/*!< in: Row Format */
+UNIV_INTERN
+const char*
+get_row_format_name(
+/*================*/
+	enum row_type	row_format)		/*!< in: Row Format */
 {
 	switch (row_format) {
 	case ROW_TYPE_COMPACT:
@@ -6912,11 +6949,37 @@ enum row_type row_format)		/*!< in: Row Format */
 		return("DEFAULT");
 	case ROW_TYPE_FIXED:
 		return("FIXED");
-	default:
+	case ROW_TYPE_PAGE:
+	case ROW_TYPE_NOT_USED:
 		break;
 	}
 	return("NOT USED");
 }
+
+/** If file-per-table is missing, issue warning and set ret false */
+#define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE		\
+	if (!srv_file_per_table) {				\
+		push_warning_printf(				\
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			"InnoDB: ROW_FORMAT=%s requires"	\
+			" innodb_file_per_table.",		\
+			get_row_format_name(row_format));	\
+		ret = FALSE;					\
+	}
+
+/** If file-format is Antelope, issue warning and set ret false */
+#define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
+	if (srv_file_format < DICT_TF_FORMAT_ZIP) {		\
+		push_warning_printf(				\
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
+			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			"InnoDB: ROW_FORMAT=%s requires"	\
+			" innodb_file_format > Antelope.",	\
+			get_row_format_name(row_format));	\
+		ret = FALSE;					\
+	}
+
 
 /*****************************************************************//**
 Validates the create options. We may build on this function
@@ -6935,30 +6998,13 @@ create_options_are_valid(
 {
 	ibool	kbs_specified	= FALSE;
 	ibool	ret		= TRUE;
-	enum row_type	row_type	= form->s->row_type;
+	enum row_type	row_format	= form->s->row_type;
 
 	ut_ad(thd != NULL);
 
 	/* If innodb_strict_mode is not set don't do any validation. */
 	if (!(THDVAR(thd, strict_mode))) {
 		return(TRUE);
-	}
-
-	/* Check for a valid Innodb ROW_FORMAT specifier. For example,
-	ROW_TYPE_FIXED can be sent to Innodb */
-	switch (row_type) {
-	case ROW_TYPE_COMPACT:
-	case ROW_TYPE_COMPRESSED:
-	case ROW_TYPE_DYNAMIC:
-	case ROW_TYPE_REDUNDANT:
-	case ROW_TYPE_DEFAULT:
-		break;
-	default:
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: invalid ROW_FORMAT specifier.");
-		ret = FALSE;
 	}
 
 	ut_ad(form != NULL);
@@ -6973,7 +7019,23 @@ create_options_are_valid(
 		case 4:
 		case 8:
 		case 16:
-			/* Valid value. */
+			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
+			if (!srv_file_per_table) {
+				push_warning(
+					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE requires"
+					" innodb_file_per_table.");
+				ret = FALSE;
+			}
+			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
+				push_warning(
+					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: KEY_BLOCK_SIZE requires"
+					" innodb_file_format > Antelope.");
+					ret = FALSE;
+			}
 			break;
 		default:
 			push_warning_printf(
@@ -6983,72 +7045,43 @@ create_options_are_valid(
 				" Valid values are [1, 2, 4, 8, 16]",
 				create_info->key_block_size);
 			ret = FALSE;
+			break;
 		}
 	}
 	
-	/* If KEY_BLOCK_SIZE was specified, check for its
-	dependencies. */
-	if (kbs_specified && !srv_file_per_table) {
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: KEY_BLOCK_SIZE requires"
-			" innodb_file_per_table.");
-		ret = FALSE;
-	}
-
-	if (kbs_specified && srv_file_format < DICT_TF_FORMAT_ZIP) {
-		push_warning(
-			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_ILLEGAL_HA_CREATE_OPTION,
-			"InnoDB: KEY_BLOCK_SIZE requires"
-			" innodb_file_format > Antelope.");
-		ret = FALSE;
-	}
-
-	switch (row_type) {
+	/* Check for a valid Innodb ROW_FORMAT specifier and
+	other incompatibilities. */
+	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
-	case ROW_TYPE_DYNAMIC:
-		/* These two ROW_FORMATs require srv_file_per_table
-		and srv_file_format > Antelope */
-		if (!srv_file_per_table) {
-			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_per_table.",
-				get_row_format_name(row_type));
-				ret = FALSE;
-		}
-
-		if (srv_file_format < DICT_TF_FORMAT_ZIP) {
-			push_warning_printf(
-				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s requires"
-				" innodb_file_format > Antelope.",
-				get_row_format_name(row_type));
-				ret = FALSE;
-		}
-	default:
+		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE;
+		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		break;
-	}
-
-	switch (row_type) {
-	case ROW_TYPE_REDUNDANT:
-	case ROW_TYPE_COMPACT:
 	case ROW_TYPE_DYNAMIC:
-		/* KEY_BLOCK_SIZE is only allowed with Compressed or Default */
+		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE;
+		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
+		/* fall through since dynamic also shuns KBS */
+	case ROW_TYPE_COMPACT:
+	case ROW_TYPE_REDUNDANT:
 		if (kbs_specified) {
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: cannot specify ROW_FORMAT = %s"
 				" with KEY_BLOCK_SIZE.",
-				get_row_format_name(row_type));
-				ret = FALSE;
+				get_row_format_name(row_format));
+			ret = FALSE;
 		}
-	default:
+		break;
+	case ROW_TYPE_DEFAULT:
+		break;
+	case ROW_TYPE_FIXED:
+	case ROW_TYPE_PAGE:
+	case ROW_TYPE_NOT_USED:
+		push_warning(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,		\
+			"InnoDB: invalid ROW_FORMAT specifier.");
+		ret = FALSE;
 		break;
 	}
 
@@ -7099,7 +7132,7 @@ ha_innobase::create(
 	const ulint	file_format = srv_file_format;
 	const char*	stmt;
 	size_t		stmt_len;
-	enum row_type	row_type;
+	enum row_type	row_format;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -7149,11 +7182,7 @@ ha_innobase::create(
 
 	trx = innobase_trx_allocate(thd);
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
+	srv_lower_case_table_names = lower_case_table_names;
 
 	strcpy(name2, name);
 
@@ -7217,20 +7246,19 @@ ha_innobase::create(
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ignoring"
-				" KEY_BLOCK_SIZE=%lu.",
+				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				create_info->key_block_size);
 		}
 	}
 
-	row_type = form->s->row_type;
+	row_format = form->s->row_type;
 
 	if (flags) {
 		/* if ROW_FORMAT is set to default,
 		automatically change it to COMPRESSED.*/
-		if (row_type == ROW_TYPE_DEFAULT) {
-			row_type = ROW_TYPE_COMPRESSED;
-		} else if (row_type != ROW_TYPE_COMPRESSED) {
+		if (row_format == ROW_TYPE_DEFAULT) {
+			row_format = ROW_TYPE_COMPRESSED;
+		} else if (row_format != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
 			ignores KEY_BLOCK_SIZE.  It does not
 			make sense to reject conflicting
@@ -7247,7 +7275,7 @@ ha_innobase::create(
 		}
 	} else {
 		/* flags == 0 means no KEY_BLOCK_SIZE.*/
-		if (row_type == ROW_TYPE_COMPRESSED) {
+		if (row_format == ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT=COMPRESSED without
 			KEY_BLOCK_SIZE implies half the
 			maximum KEY_BLOCK_SIZE. */
@@ -7262,7 +7290,7 @@ ha_innobase::create(
 		}
 	}
 
-	switch (row_type) {
+	switch (row_format) {
 	case ROW_TYPE_REDUNDANT:
 		break;
 	case ROW_TYPE_COMPRESSED:
@@ -7273,25 +7301,25 @@ ha_innobase::create(
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
-				get_row_format_name(row_type));
+				get_row_format_name(row_format));
 		} else if (file_format < DICT_TF_FORMAT_ZIP) {
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_format > Antelope.",
-				get_row_format_name(row_type));
+				get_row_format_name(row_format));
 		} else {
 			flags |= DICT_TF_COMPACT
-				| (DICT_TF_FORMAT_ZIP
-				   << DICT_TF_FORMAT_SHIFT);
+			         | (DICT_TF_FORMAT_ZIP
+			            << DICT_TF_FORMAT_SHIFT);
 			break;
 		}
 
 		/* fall through */
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
-	default:
+	case ROW_TYPE_PAGE:
 		push_warning(
 			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 			ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7396,7 +7424,7 @@ ha_innobase::create(
 				" table where referencing columns appear"
 				" as the first columns.\n", norm_name);
 			break;
-                }
+		}
 
 		error = convert_error_code_to_mysql(error, flags, NULL);
 
@@ -7432,22 +7460,24 @@ ha_innobase::create(
 	setup at this stage and so we use thd. */
 
 	/* We need to copy the AUTOINC value from the old table if
-	this is an ALTER TABLE or CREATE INDEX because CREATE INDEX
-	does a table copy too. */
+	this is an ALTER|OPTIMIZE TABLE or CREATE INDEX because CREATE INDEX
+	does a table copy too. If query was one of :
+
+		CREATE TABLE ...AUTO_INCREMENT = x; or
+		ALTER TABLE...AUTO_INCREMENT = x;   or
+		OPTIMIZE TABLE t; or
+		CREATE INDEX x on t(...);
+
+	Find out a table definition from the dictionary and get
+	the current value of the auto increment field. Set a new
+	value to the auto increment field if the value is greater
+	than the maximum value in the column. */
 
 	if (((create_info->used_fields & HA_CREATE_USED_AUTO)
 	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE
+	    || thd_sql_command(thd) == SQLCOM_OPTIMIZE
 	    || thd_sql_command(thd) == SQLCOM_CREATE_INDEX)
 	    && create_info->auto_increment_value > 0) {
-
-		/* Query was one of :
-		CREATE TABLE ...AUTO_INCREMENT = x; or
-		ALTER TABLE...AUTO_INCREMENT = x;   or
-		CREATE INDEX x on t(...);
-		Find out a table definition from the dictionary and get
-		the current value of the auto increment field. Set a new
-		value to the auto increment field if the value is greater
-		than the maximum value in the column. */
 
 		auto_inc_value = create_info->auto_increment_value;
 
@@ -7591,11 +7621,7 @@ ha_innobase::delete_table(
 
 	trx = innobase_trx_allocate(thd);
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
+	srv_lower_case_table_names = lower_case_table_names;
 
 	name_len = strlen(name);
 
@@ -7714,11 +7740,7 @@ innobase_rename_table(
 	char*	norm_to;
 	char*	norm_from;
 
-	if (lower_case_table_names) {
-		srv_lower_case_table_names = TRUE;
-	} else {
-		srv_lower_case_table_names = FALSE;
-	}
+	srv_lower_case_table_names = lower_case_table_names;
 
 	// Magic number 64 arbitrary
 	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
@@ -8209,8 +8231,6 @@ ha_innobase::info_low(
 
 	if (flag & HA_STATUS_VARIABLE) {
 
-		dict_table_stats_lock(ib_table, RW_S_LATCH);
-
 		n_rows = ib_table->stat_n_rows;
 
 		/* Because we do not protect stat_n_rows by any mutex in a
@@ -8260,18 +8280,19 @@ ha_innobase::info_low(
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
 
-		dict_table_stats_unlock(ib_table, RW_S_LATCH);
-
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
 		See Bug#38185. */
-		if (flag & HA_STATUS_NO_LOCK) {
+		if (flag & HA_STATUS_NO_LOCK
+		    || !(flag & HA_STATUS_VARIABLE_EXTRA)) {
 			/* We do not update delete_length if no
 			locking is requested so the "old" value can
 			remain. delete_length is initialized to 0 in
-			the ha_statistics' constructor. */
+			the ha_statistics' constructor. Also we only
+			need delete_length to be set when
+			HA_STATUS_VARIABLE_EXTRA is set */
 		} else if (UNIV_UNLIKELY
 			   (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE)) {
 			/* Avoid accessing the tablespace if
@@ -8332,8 +8353,6 @@ ha_innobase::info_low(
 					ib_table->name, num_innodb_index,
 					table->s->keys);
 		}
-
-		dict_table_stats_lock(ib_table, RW_S_LATCH);
 
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
@@ -8396,8 +8415,6 @@ ha_innobase::info_low(
 				  (ulong) rec_per_key;
 			}
 		}
-
-		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -9492,8 +9509,8 @@ innodb_export_status()
 }
 
 /************************************************************************//**
-Implements the SHOW INNODB STATUS command. Sends the output of the InnoDB
-Monitor to the client.
+Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+InnoDB Monitor to the client.
 @return 0 on success */
 static
 int
@@ -10553,7 +10570,7 @@ innobase_xa_prepare(
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys_t::mutex, we have to release the search system
-       	latch first to obey the latching order. */
+	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
 
@@ -11319,9 +11336,180 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+/****************************************************************//**
+Update the monitor counter according to the "set_option",  turn
+on/off or reset specified monitor counter. */
+static
+void
+innodb_monitor_set_option(
+/*======================*/
+	const monitor_info_t* monitor_info,/*!< in: monitor info for the monitor
+					to set */
+	mon_option_t	set_option)	/*!< in: Turn on/off reset the
+					counter */
+{
+	monitor_id_t	monitor_id = monitor_info->monitor_id;
+
+	/* If module type is MONITOR_GROUP_MODULE, it cannot be
+	turned on/off individually. It should never use this
+	function to set options */
+	ut_a(!(monitor_info->monitor_type & MONITOR_GROUP_MODULE));
+
+	switch (set_option) {
+	case MONITOR_TURN_ON:
+		MONITOR_ON(monitor_id);
+		MONITOR_INIT(monitor_id);
+		MONITOR_SET_START(monitor_id);
+
+		/* If the monitor to be turned on uses
+		exisitng monitor counter (status variable),
+		make special processing to remember existing
+		counter value. */
+		if (monitor_info->monitor_type
+		    & MONITOR_EXISTING) {
+			srv_mon_process_existing_counter(
+				monitor_id, MONITOR_TURN_ON);
+		}
+		break;
+
+	case MONITOR_TURN_OFF:
+		if (monitor_info->monitor_type & MONITOR_EXISTING) {
+			srv_mon_process_existing_counter(
+				monitor_id, MONITOR_TURN_OFF);
+		}
+
+		MONITOR_OFF(monitor_id);
+		MONITOR_SET_OFF(monitor_id);
+		break;
+
+	case MONITOR_RESET_VALUE:
+		srv_mon_reset(monitor_id);
+		break;
+
+	case MONITOR_RESET_ALL_VALUE:
+		srv_mon_reset_all(monitor_id);
+		break;
+
+	default:
+		ut_error;
+	}
+}
+
+/****************************************************************//**
+Find matching InnoDB monitor counters and update their status
+according to the "set_option",  turn on/off or reset specified
+monitor counter. */
+static
+void
+innodb_monitor_update_wildcard(
+/*===========================*/
+	const char*	name,		/*!< in: monitor name to match */
+	mon_option_t	set_option)	/*!< in: the set option, whether
+					to turn on/off or reset the counter */
+{
+	ut_a(name);
+
+	for (ulint use = 0; use < NUM_MONITOR; use++) {
+		monitor_type_t	type;
+		monitor_id_t	monitor_id = static_cast<monitor_id_t>(use);
+		monitor_info_t*	monitor_info;
+
+		if (!innobase_wildcasecmp(
+			srv_mon_get_name(monitor_id), name)) {
+			monitor_info = srv_mon_get_info(monitor_id);
+
+			type = monitor_info->monitor_type;
+
+			/* If the monitor counter is of MONITOR_MODULE
+			type, skip it. Except for those also marked with
+			MONITOR_GROUP_MODULE flag, which can be turned
+			on only as a module. */
+			if (!(type & MONITOR_MODULE)
+			     && !(type & MONITOR_GROUP_MODULE)) {
+				innodb_monitor_set_option(monitor_info,
+							  set_option);
+			}
+
+			/* Need to special handle counters marked with
+			MONITOR_GROUP_MODULE, turn on the whole module if
+			any one of it comes here. Currently, only
+			"module_buf_page" is marked with MONITOR_GROUP_MODULE */
+			if (type & MONITOR_GROUP_MODULE) {
+				if ((monitor_id >= MONITOR_MODULE_BUF_PAGE)
+				     && (monitor_id < MONITOR_MODULE_OS)) {
+					if (set_option == MONITOR_TURN_ON
+					    && MONITOR_IS_ON(
+						MONITOR_MODULE_BUF_PAGE)) {
+						continue;
+					}
+
+					srv_mon_set_module_control(
+						MONITOR_MODULE_BUF_PAGE,
+						set_option);
+				} else {
+					/* If new monitor is added with
+					MONITOR_GROUP_MODULE, it needs
+					to be added here. */
+					ut_ad(0);
+				}
+			}
+		}
+	}
+}
+
+/*************************************************************//**
+Given a configuration variable name, find corresponding monitor counter
+and return its monitor ID if found.
+@return	monitor ID if found, MONITOR_NO_MATCH if there is no match */
+static
+ulint
+innodb_monitor_id_by_name_get(
+/*==========================*/
+	const char*	name)	/*!< in: monitor counter namer */
+{
+	ut_a(name);
+
+	/* Search for wild character '%' in the name, if
+	found, we treat it as a wildcard match. We do not search for
+	single character wildcard '_' since our monitor names already contain
+	such character. To avoid confusion, we request user must include
+	at least one '%' character to activate the wildcard search. */
+	if (strchr(name, '%')) {
+		return(MONITOR_WILDCARD_MATCH);
+	}
+
+	/* Not wildcard match, check for an exact match */
+	for (ulint i = 0; i < NUM_MONITOR; i++) {
+		if (!innobase_strcasecmp(
+			name, srv_mon_get_name(static_cast<monitor_id_t>(i)))) {
+			return(i);
+		}
+	}
+
+	return(MONITOR_NO_MATCH);
+}
+/*************************************************************//**
+Validate that the passed in monitor name matches at least one
+monitor counter name with wildcard compare.
+@return	TRUE if at least one monitor name matches */
+static
+ibool
+innodb_monitor_validate_wildcard_name(
+/*==================================*/
+	const char*	name)	/*!< in: monitor counter namer */
+{
+	for (ulint i = 0; i < NUM_MONITOR; i++) {
+		if (!innobase_wildcasecmp(
+			srv_mon_get_name(static_cast<monitor_id_t>(i)), name)) {
+			return(TRUE);
+		}
+	}
+
+	return(FALSE);
+}
 /*************************************************************//**
 Validate the passed in monitor name, find and save the
-corresponding monitor id in the function parameter "save".
+corresponding monitor name in the function parameter "save".
 @return	0 if monitor name is valid */
 static
 int
@@ -11331,43 +11519,56 @@ innodb_monitor_valid_byname(
 					for update function */
 	const char*		name)	/*!< in: incoming monitor name */
 {
-	if (name) {
-		ulint		use;
-		monitor_info_t*	monitor_info;
+	ulint		use;
+	monitor_info_t*	monitor_info;
 
-		for (use = 0; use < NUM_MONITOR; use++) {
-			if (!innobase_strcasecmp(
-				name, srv_mon_get_name((monitor_id_t)use))) {
-				monitor_info = srv_mon_get_info(
-					(monitor_id_t)use);
+	if (!name) {
+		return(1);
+	}
 
-				/* If the monitor counter is marked with
-				MONITOR_GROUP_MODULE flag, then this counter
-				cannot be turned on/off individually, instead
-				it shall be turned on/off as a group using
-				its module name */
-				if ((monitor_info->monitor_type
-				     & MONITOR_GROUP_MODULE)
-				    && (!(monitor_info->monitor_type
-					  & MONITOR_MODULE))) {
-					sql_print_warning(
-						"Monitor counter '%s' cannot"
-						" be turned on/off individually"
-						" . Please use its module name"
-						" to turn on/off the counters"
-						" in the module as a group.\n",
-						name);
+	use = innodb_monitor_id_by_name_get(name);
 
-					return(1);
-				}
+	/* No monitor name matches, nor it is wildcard match */
+	if (use == MONITOR_NO_MATCH) {
+		return(1);
+	}
 
-				*(ulint*) save = use;
-				return(0);
-			}
+	if (use < NUM_MONITOR) {
+		monitor_info = srv_mon_get_info((monitor_id_t)use);
+
+		/* If the monitor counter is marked with
+		MONITOR_GROUP_MODULE flag, then this counter
+		cannot be turned on/off individually, instead
+		it shall be turned on/off as a group using
+		its module name */
+		if ((monitor_info->monitor_type & MONITOR_GROUP_MODULE)
+		    && (!(monitor_info->monitor_type & MONITOR_MODULE))) {
+			sql_print_warning(
+				"Monitor counter '%s' cannot"
+				" be turned on/off individually."
+				" Please use its module name"
+				" to turn on/off the counters"
+				" in the module as a group.\n",
+				name);
+
+			return(1);
+		}
+
+	} else {
+		ut_a(use == MONITOR_WILDCARD_MATCH);
+
+		/* For wildcard match, if there is not a single monitor
+		counter name that matches, treat it as an invalid
+		value for the system configuration variables */
+		if (!innodb_monitor_validate_wildcard_name(name)) {
+			return(1);
 		}
 	}
 
-	return(1);
+	/* Save the configure name for innodb_monitor_update() */
+	*static_cast<const char**>(save) = name;
+
+	return(0);
 }
 /*************************************************************//**
 Validate passed-in "value" is a valid monitor counter name.
@@ -11413,32 +11614,52 @@ innodb_monitor_update(
 						reset the counter */
 {
 	monitor_info_t*	monitor_info;
-	monitor_id_t	monitor_id;
-	ulint		temp_id;
+	ulint		monitor_id;
 	ulint		err_monitor = 0;
+	const char*	name;
 
-	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
 
-	temp_id = *(ulint *) save;
-	ut_a(temp_id <= NUM_MONITOR);
+	name = *static_cast<const char*const*>(save);
 
-	monitor_id = (monitor_id_t) temp_id;
+	if (!name) {
+		monitor_id = MONITOR_DEFAULT_START;
+	} else {
+		monitor_id = innodb_monitor_id_by_name_get(name);
+
+		/* Double check we have a valid monitor ID */
+		if (monitor_id == MONITOR_NO_MATCH) {
+			return;
+		}
+	}
 
 	if (monitor_id == MONITOR_DEFAULT_START) {
 		/* If user set the variable to "default", we will
 		print a message and make this set operation a "noop".
 		The check is being made here is because "set default"
 		does not go through validation function */
-		push_warning_printf(thd,
-				    MYSQL_ERROR::WARN_LEVEL_WARN,
-				    ER_NO_DEFAULT,
-				    "Default value is not defined for "
-				    "this set option. Please specify "
-				    "correct counter or module name.");
-		*(const char**) var_ptr = NULL;
+		if (thd) {
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_NO_DEFAULT,
+				"Default value is not defined for "
+				"this set option. Please specify "
+				"correct counter or module name.");
+		} else {
+			sql_print_error(
+				"Default value is not defined for "
+				"this set option. Please specify "
+				"correct counter or module name.\n");
+		}
+
+		if (var_ptr) {
+			*(const char**) var_ptr = NULL;
+		}
+	} else if (monitor_id == MONITOR_WILDCARD_MATCH) {
+		innodb_monitor_update_wildcard(name, set_option);
 	} else {
-		monitor_info = srv_mon_get_info(monitor_id);
+		monitor_info = srv_mon_get_info(
+			static_cast<monitor_id_t>(monitor_id));
 
 		ut_a(monitor_info);
 
@@ -11451,58 +11672,19 @@ innodb_monitor_update(
 			goto exit;
 		}
 
-		*(const char**) var_ptr = monitor_info->monitor_name;
+		if (var_ptr) {
+			*(const char**) var_ptr = monitor_info->monitor_name;
+		}
 
 		/* Depending on the monitor name is for a module or
 		a counter, process counters in the whole module or
 		individual counter. */
 		if (monitor_info->monitor_type & MONITOR_MODULE) {
-			err_monitor = srv_mon_set_module_control(monitor_id,
-								 set_option);
+			srv_mon_set_module_control(
+				static_cast<monitor_id_t>(monitor_id),
+				set_option);
 		} else {
-			/* If module is marked with MONITOR_GROUP_MODULE
-			status, it cannot be turned on/off individually */
-			ut_a(!(monitor_info->monitor_type &
-			       MONITOR_GROUP_MODULE));
-
-			switch (set_option) {
-			case MONITOR_TURN_ON:
-				MONITOR_ON(monitor_id);
-				MONITOR_INIT(monitor_id);
-				MONITOR_SET_START(monitor_id);
-
-				/* If the monitor to be turned on uses
-				exisitng monitor counter (status variable),
-				make special processing to remember existing
-				counter value. */
-				if (monitor_info->monitor_type
-				    & MONITOR_EXISTING) {
-					srv_mon_process_existing_counter(
-						monitor_id, MONITOR_TURN_ON);
-				}
-			break;
-
-			case MONITOR_TURN_OFF:
-				if (monitor_info->monitor_type
-				    & MONITOR_EXISTING) {
-					srv_mon_process_existing_counter(
-						monitor_id, MONITOR_TURN_OFF);
-				}
-				MONITOR_OFF(monitor_id);
-				MONITOR_SET_OFF(monitor_id);
-				break;
-
-			case MONITOR_RESET_VALUE:
-				srv_mon_reset(monitor_id);
-				break;
-
-			case MONITOR_RESET_ALL_VALUE:
-				srv_mon_reset_all(monitor_id);
-				break;
-
-			default:
-				ut_error;
-			}
+			innodb_monitor_set_option(monitor_info, set_option);
 		}
 	}
 exit:
@@ -11590,6 +11772,46 @@ innodb_reset_all_monitor_update(
 						from check function */
 {
 	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
+}
+
+/****************************************************************//**
+Parse and enable InnoDB monitor counters during server startup.
+User can list the monitor counters/groups to be enable by specifying
+"loose-innodb_enable_monitor_counter=monitor_name1;monitor_name2..."
+in server configuration file or at the command line. The string
+separate could be ";", "," or empty space. */
+static
+void
+innodb_enable_monitor_at_startup(
+/*=============================*/
+	char*	str)	/*!< in/out: monitor counter enable list */
+{
+	static const char*	sep = " ;,";
+	char*			last;
+
+	ut_a(str);
+
+	/* Walk through the string, and separate each monitor counter
+	and/or counter group name, and calling innodb_monitor_update()
+	if successfully updated. Please note that the "str" would be
+	changed by strtok_r() as it walks through it. */
+	for (char* option = strtok_r(str, sep, &last);
+	     option;
+	     option = strtok_r(NULL, sep, &last)) {
+		ulint	ret;
+		char*	option_name;
+
+		ret = innodb_monitor_valid_byname(&option_name, option);
+
+		/* The name is validated if ret == 0 */
+		if (!ret) {
+			innodb_monitor_update(NULL, NULL, &option,
+					      MONITOR_TURN_ON);
+		} else {
+			sql_print_warning("Invalid monitor counter"
+					  " name: '%s'", option);
+		}
+	}
 }
 
 /****************************************************************//**
@@ -11791,7 +12013,7 @@ static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
 
 static MYSQL_SYSVAR_BOOL(status_file, innobase_create_status_file,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
-  "Enable SHOW INNODB STATUS output in the innodb_status.<pid> file",
+  "Enable SHOW ENGINE INNODB STATUS output in the innodb_status.<pid> file",
   NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
@@ -11845,10 +12067,12 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_ULONG(page_hash_mutexes, srv_n_page_hash_mutexes,
+#if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
+static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Number of mutexes protecting buffer pool page_hash. Rounded up to the next power of 2",
-  NULL, NULL, 256, 1, MAX_PAGE_HASH_MUTEXES, 0);
+  "Number of rw_locks protecting buffer pool page_hash. Rounded up to the next power of 2",
+  NULL, NULL, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
+#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -12017,6 +12241,11 @@ static MYSQL_SYSVAR_STR(reset_all_monitor_counter, innobase_reset_all_monitor_co
   innodb_monitor_validate,
   innodb_reset_all_monitor_update, NULL);
 
+static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
+  PLUGIN_VAR_OPCMDARG,
+  "Print all deadlocks to MySQL error log (off by default)",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
@@ -12088,7 +12317,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(reset_all_monitor_counter),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
-  MYSQL_SYSVAR(page_hash_mutexes),
+#if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
+  MYSQL_SYSVAR(page_hash_locks),
+#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+  MYSQL_SYSVAR(print_all_deadlocks),
   NULL
 };
 
@@ -12114,7 +12346,17 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
-i_s_innodb_metrics
+i_s_innodb_buffer_page,
+i_s_innodb_buffer_page_lru,
+i_s_innodb_buffer_stats,
+i_s_innodb_metrics,
+i_s_innodb_sys_tables,
+i_s_innodb_sys_tablestats,
+i_s_innodb_sys_indexes,
+i_s_innodb_sys_columns,
+i_s_innodb_sys_fields,
+i_s_innodb_sys_foreign,
+i_s_innodb_sys_foreign_cols
 
 mysql_declare_plugin_end;
 

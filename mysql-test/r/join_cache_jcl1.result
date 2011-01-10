@@ -1,4 +1,5 @@
 set optimizer_join_cache_level = 1;;
+set optimizer_switch='mrr_cost_based=off';
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 set names utf8;
@@ -449,7 +450,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -756,7 +757,7 @@ SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition
+1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -1019,7 +1020,7 @@ EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition
+1	SIMPLE	City	range	Population,Country	Population	4	NULL	#	Using index condition; Using MRR
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	#	
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
