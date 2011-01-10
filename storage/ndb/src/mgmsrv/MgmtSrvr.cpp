@@ -409,7 +409,8 @@ MgmtSrvr::start_transporter(const Config* config)
     Register ourself at TransporterFacade to be able to receive signals
     and to be notified when a database process has died.
   */
-  if ((_blockNumber= open(theFacade)) == -1)
+  Uint32 res;
+  if ((res = open(theFacade)) == 0)
   {
     g_eventLogger->error("Failed to open block in TransporterFacade");
     theFacade->stop_instance();
@@ -417,6 +418,7 @@ MgmtSrvr::start_transporter(const Config* config)
     theFacade = 0;
     DBUG_RETURN(false);
   }
+  _blockNumber = refToBlock(res);
 
   /**
    * Need to call ->open() prior to actually starting TF
@@ -971,6 +973,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       // Ignore
       continue;
     default:
@@ -1292,6 +1295,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -1884,6 +1888,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -2032,6 +2037,7 @@ retry:
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2091,6 +2097,7 @@ MgmtSrvr::endSchemaTrans(SignalSender& ss, NodeId nodeId,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2186,6 +2193,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2261,6 +2269,7 @@ MgmtSrvr::dropNodegroup(int ng)
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2493,16 +2502,53 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
 
   case GSN_NF_COMPLETEREP:
     break;
-  case GSN_NODE_FAILREP:
-    break;
-
   case GSN_TAMPER_ORD:
     ndbout << "TAMPER ORD" << endl;
     break;
   case GSN_API_REGCONF:
   case GSN_TAKE_OVERTCCONF:
     break;
+  case GSN_CONNECT_REP:{
+    Uint32 nodeId = signal->getDataPtr()[0];
 
+    union {
+      Uint32 theData[25];
+      EventReport repData;
+    };
+    EventReport * rep = &repData;
+    theData[1] = nodeId;
+    rep->setEventType(NDB_LE_Connected);
+
+    if (nodeTypes[nodeId] == NODE_TYPE_DB)
+    {
+      m_started_nodes.push_back(nodeId);
+    }
+    rep->setEventType(NDB_LE_Connected);
+    rep->setNodeId(_ownNodeId);
+    eventReport(theData, 1);
+    return;
+  }
+  case GSN_NODE_FAILREP:
+  {
+    union {
+      Uint32 theData[25];
+      EventReport repData;
+    };
+    EventReport * event = &repData;
+    event->setEventType(NDB_LE_Disconnected);
+    event->setNodeId(_ownNodeId);
+
+    const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
+                                           signal->getDataPtr());
+    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
+         i != NdbNodeBitmask::NotFound;
+         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    {
+      theData[1] = i;
+      eventReport(theData, 1);
+    }
+    return;
+  }
   default:
     g_eventLogger->error("Unknown signal received. SignalNumber: "
                          "%i from (%d, 0x%x)",
@@ -2517,36 +2563,6 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
 void
 MgmtSrvr::trp_node_status(Uint32 nodeId, Uint32 _event)
 {
-  DBUG_ENTER("MgmtSrvr::handleStatus");
-  DBUG_PRINT("enter",("nodeid: %d, event: %u", nodeId, _event));
-
-  union {
-    Uint32 theData[25];
-    EventReport repData;
-  };
-  EventReport * rep = &repData;
-  NS_Event event = (NS_Event)_event;
-
-  theData[1] = nodeId;
-  switch(event){
-  case NS_CONNECTED:
-    DBUG_VOID_RETURN;
-  case NS_NODE_ALIVE:
-    if (nodeTypes[nodeId] == NODE_TYPE_DB)
-    {
-      m_started_nodes.push_back(nodeId);
-    }
-    rep->setEventType(NDB_LE_Connected);
-    break;
-  case NS_NODE_FAILED:
-    rep->setEventType(NDB_LE_Disconnected);
-    break;
-  case NS_NODE_NF_COMPLETE:
-    DBUG_VOID_RETURN;
-  }
-  rep->setNodeId(_ownNodeId);
-  eventReport(theData, 1);
-  DBUG_VOID_RETURN;
 }
 
 enum ndb_mgm_node_type 
@@ -2687,6 +2703,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -3253,6 +3270,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -3642,6 +3660,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
 
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       // Ignore;
       break;
 
@@ -3833,6 +3852,7 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       return;

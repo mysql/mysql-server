@@ -118,15 +118,17 @@ SimpleSignal::print(FILE * out) const {
 SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
 {
   theFacade = facade;
-  m_blockNo = open(theFacade, blockNo);
-  assert(m_blockNo > 0);
+  Uint32 res = open(theFacade, blockNo);
+  assert(res != 0);
+  m_blockNo = refToBlock(res);
 }
 
 SignalSender::SignalSender(Ndb_cluster_connection* connection)
 {
   theFacade = connection->m_impl.m_transporter_facade;
-  m_blockNo = open(theFacade, -1);
-  assert(m_blockNo > 0);
+  Uint32 res = open(theFacade, -1);
+  assert(res != 0);
+  m_blockNo = refToBlock(res);
 }
 
 SignalSender::~SignalSender(){
@@ -306,58 +308,6 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
   m_jobBuffer.push_back(s);
   wakeup();
 }
-  
-void 
-SignalSender::trp_node_status(Uint32 nodeId, Uint32 _event)
-{
-  NS_Event event = (NS_Event)_event;
-  switch(event){
-  case NS_CONNECTED:
-  case NS_NODE_ALIVE:
-    return;
-  case NS_NODE_FAILED:
-  case NS_NODE_NF_COMPLETE:
-    goto ok;
-  }
-  return;
-
-ok:
-  SimpleSignal * s = new SimpleSignal(true);
-
-  // node disconnected
-  if (event == NS_NODE_NF_COMPLETE)
-  {
-    // node shutdown complete
-    s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
-    s->header.theLength = NFCompleteRep::SignalLength;
-    NFCompleteRep *rep = (NFCompleteRep *)s->getDataPtrSend();
-    rep->blockNo = 0;
-    rep->nodeId = 0;
-    rep->failedNodeId = nodeId;
-    rep->unused = 0;
-    rep->from = 0;
-  }
-  else
-  {
-    // node failure
-    s->header.theVerId_signalNumber = GSN_NODE_FAILREP;
-    s->header.theLength = NodeFailRep::SignalLength;
-    NodeFailRep *rep = (NodeFailRep *)s->getDataPtrSend();
-    rep->failNo = 0;
-    rep->masterNodeId = 0;
-    rep->noOfNodes = 1;
-    NdbNodeBitmask::clear(rep->theNodes);
-
-    // Mark ndb nodes as failed in bitmask
-    const trp_node node= getNodeInfo(nodeId);
-    if (node.m_info.getType() ==  NodeInfo::DB)
-      NdbNodeBitmask::set(rep->theNodes, nodeId);
-  }
-
-  m_jobBuffer.push_back(s);
-  wakeup();
-}
-
 
 template<class T>
 NodeId
