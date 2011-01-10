@@ -26,9 +26,159 @@
 #include "table.h"                              /* TABLE_LIST */
 #endif
 #include "mysql_com.h"
+#include <hash.h>
+
 
 class Relay_log_info;
 
+#ifndef MYSQL_CLIENT
+
+/**
+   Hash table used when applying row events on the slave and there is
+   no index on the slave's table.
+ */
+
+typedef struct hash_row_pos_entry
+{
+  /** 
+      Points at the position where the row starts in the
+      event buffer (ie, area in memory before unpacking takes
+      place).
+  */
+  const uchar *bi_start;
+  const uchar *bi_ends;
+
+  const uchar *ai_start;
+  const uchar *ai_ends;
+
+} HASH_ROW_POS_ENTRY;
+
+
+class Hash_slave_rows 
+{
+public:
+
+  /**
+     This member function allocates an entry to be added to the hash
+     table. It should be called before calling member function add.
+     
+     @param bi_start the position to where in the rows buffer the
+                     before image begins.
+     @param bi_ends  the position to where in the rows buffer the
+                     before image ends.
+     @param ai_start the position to where in the rows buffer the 
+                     after image starts (if any).
+     @param ai_ends  the position to where in the rows buffer the
+                     after image ends (if any).
+     @returns NULL if a problem occured, a valid pointer otherwise.
+   */
+  HASH_ROW_POS_ENTRY* make_entry(const uchar *bi_start, const uchar *bi_ends,
+                                 const uchar *ai_start, const uchar *ai_ends);
+
+  /**
+     Member function that puts data into the hash table.
+
+     @param table   The table holding the buffer used to calculate the
+                    key, ie, table->record[0].
+     @param cols    The read_set bitmap signaling which columns are used.
+     @param entry   The entry with the values to store.
+
+     @returns true if something went wrong, false otherwise.
+   */
+  bool put(TABLE* table, MY_BITMAP *cols, HASH_ROW_POS_ENTRY* entry);
+
+  /**
+     This member function gets the entry, from the hash table, that
+     matches the data in table->record[0] and signaled using cols.
+     
+     @param table   The table holding the buffer containing data used to
+                    make the entry lookup.
+     @param cols    Bitmap signaling which columns, from
+                    table->record[0], should be used.
+     @param entry   Pointer that will hold a reference to the entry
+                    fetched. If the entry is not found, then NULL
+                    shall be returned.
+     @returns true if something went wrong, false otherwise.
+   */
+  bool get(TABLE *table, MY_BITMAP *cols, HASH_ROW_POS_ENTRY** entry);
+
+  /**
+     This member function gets the entry that stands next to the one
+     pointed to by *entry. Before calling this member function, the
+     entry that one uses as parameter must have: 1. been obtained
+     through get() or next() invocations; and 2. must have not been
+     used before in a next() operation.
+
+     @param entry[IN/OUT] contains a pointer to an entry that we can
+                          use to search for another adjacent entry
+                          (ie, that shares the same key).
+
+     @returns true if something went wrong, false otherwise. In the
+              case that this entry was already used in a next()
+              operation this member function returns true and does not
+              update the pointer.
+   */
+  bool next(HASH_ROW_POS_ENTRY** entry);
+
+  /**
+     Deletes the entry pointed by entry. This is the only
+     safe way to free memory allocated for the structure
+     pointed to by entry.
+
+     @param entry  Pointer to the entry to be deleted.
+     @returns true if something went wrong, false otherwise.
+   */
+  bool del(HASH_ROW_POS_ENTRY* entry);
+
+  /**
+     Initializes the hash table.
+
+     @returns true if something went wrong, false otherwise.
+   */
+  bool init(void);
+
+  /**
+     De-initializes the hash table.
+
+     @returns true if something went wrong, false otherwise.
+   */
+  bool deinit(void);
+
+  /**
+     Checks if the hash table is empty or not.
+
+     @returns true if the hash table has zero entries, false otherwise.
+   */
+  bool is_empty(void);
+
+  /**
+     Returns the number of entries in the hash table.
+
+     @returns the number of entries in the hash table.
+   */
+  int size();
+  
+private:
+
+  /**
+     The hashtable itself.
+   */
+  HASH m_hash;
+
+  /**
+     Auxiliar and internal method used to create an hash key, based on
+     the data in table->record[0] buffer and signaled as used in cols.
+
+     @param table  The table that is being scanned
+     @param cols   The read_set bitmap signaling which columns are used.
+     @param key    Output parameter where the key will be stored.
+
+     @retuns true if something went wrong, false otherwise.
+   */
+  bool make_hash_key(TABLE *table, MY_BITMAP* cols, my_hash_value_type *key);
+};
+
+#endif
 
 /**
   A table definition from the master.
@@ -275,3 +425,4 @@ CPP_UNNAMED_NS_END
   } while (0)
 
 #endif /* RPL_UTILITY_H */
+

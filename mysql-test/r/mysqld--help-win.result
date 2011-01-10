@@ -644,6 +644,14 @@ The following options may be given as the first argument:
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
+ --slave-rows-search-algorithms=name 
+ Set of searching algorithms that the slave will use while
+ searching for records from the storage engine to either
+ updated or deleted them. Possible values are: INDEX_SCAN,
+ TABLE_SCAN and HASH_SCAN. Any combination is allowed, and
+ the slave will always pick the most suitable algorithm
+ for any given scenario. (Default: INDEX_SCAN,
+ TABLE_SCAN).
  --slave-skip-errors=name 
  Tells the slave thread to continue replication when a
  query event returns an error from the provided list
