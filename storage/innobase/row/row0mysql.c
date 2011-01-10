@@ -552,7 +552,7 @@ handle_new_error:
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
 		      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-		      "forcing-recovery.html"
+		      "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 
 	} else if (err == DB_FOREIGN_EXCEED_MAX_CASCADE) {
