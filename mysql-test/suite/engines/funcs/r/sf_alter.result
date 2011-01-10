@@ -35,6 +35,8 @@ ALTER FUNCTION sf1    #DET#       ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -52,6 +54,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -72,6 +76,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -98,6 +105,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -163,6 +172,8 @@ ALTER FUNCTION sf1    #DET# CONTAINS SQL     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -180,6 +191,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -200,6 +213,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -226,6 +242,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -291,6 +309,8 @@ ALTER FUNCTION sf1    #DET# NO SQL     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -308,6 +328,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -328,6 +350,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -354,6 +379,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -419,6 +446,8 @@ ALTER FUNCTION sf1    #DET# READS SQL DATA     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -436,6 +465,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -456,6 +487,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -482,6 +516,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -547,6 +583,8 @@ ALTER FUNCTION sf1    #DET# MODIFIES SQL DATA     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -564,6 +602,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -584,6 +624,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -610,6 +653,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -675,6 +720,8 @@ ALTER FUNCTION sf1    #DET#     COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -692,6 +739,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -712,6 +761,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -738,6 +790,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -803,6 +857,8 @@ ALTER FUNCTION sf1    #DET# CONTAINS SQL   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -820,6 +876,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -840,6 +898,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -866,6 +927,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -931,6 +994,8 @@ ALTER FUNCTION sf1    #DET# NO SQL   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -948,6 +1013,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -968,6 +1035,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -994,6 +1064,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1059,6 +1131,8 @@ ALTER FUNCTION sf1    #DET# READS SQL DATA   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1076,6 +1150,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1096,6 +1172,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1122,6 +1201,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1187,6 +1268,8 @@ ALTER FUNCTION sf1    #DET# MODIFIES SQL DATA   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1204,6 +1287,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1224,6 +1309,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1250,6 +1338,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1315,6 +1405,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET#       ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1332,6 +1424,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1352,6 +1446,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1378,6 +1475,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1443,6 +1542,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# CONTAINS SQL     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1460,6 +1561,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1480,6 +1583,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1506,6 +1612,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1571,6 +1679,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# NO SQL     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1588,6 +1698,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1608,6 +1720,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1634,6 +1749,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1699,6 +1816,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# READS SQL DATA     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1716,6 +1835,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1736,6 +1857,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1762,6 +1886,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1827,6 +1953,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# MODIFIES SQL DATA     ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1844,6 +1972,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1864,6 +1994,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1890,6 +2023,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1955,6 +2090,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET#     COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1972,6 +2109,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -1992,6 +2131,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2018,6 +2160,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2083,6 +2227,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# CONTAINS SQL   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2100,6 +2246,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2120,6 +2268,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2146,6 +2297,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2211,6 +2364,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# NO SQL   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2228,6 +2383,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2248,6 +2405,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2274,6 +2434,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2339,6 +2501,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# READS SQL DATA   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2356,6 +2520,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2376,6 +2542,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2402,6 +2571,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2467,6 +2638,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# MODIFIES SQL DATA   COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2484,6 +2657,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2504,6 +2679,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2530,6 +2708,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2595,6 +2775,8 @@ ALTER FUNCTION sf1    #DET#   SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2612,6 +2794,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2632,6 +2816,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2658,6 +2845,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2723,6 +2912,8 @@ ALTER FUNCTION sf1    #DET# CONTAINS SQL SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2740,6 +2931,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2760,6 +2953,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2786,6 +2982,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2851,6 +3049,8 @@ ALTER FUNCTION sf1    #DET# NO SQL SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2868,6 +3068,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2888,6 +3090,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2914,6 +3119,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2979,6 +3186,8 @@ ALTER FUNCTION sf1    #DET# READS SQL DATA SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -2996,6 +3205,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3016,6 +3227,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3042,6 +3256,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3107,6 +3323,8 @@ ALTER FUNCTION sf1    #DET# MODIFIES SQL DATA SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3124,6 +3342,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3144,6 +3364,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3170,6 +3393,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3235,6 +3460,8 @@ ALTER FUNCTION sf1    #DET#   SQL SECURITY INVOKER COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3252,6 +3479,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3272,6 +3501,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3298,6 +3530,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3363,6 +3597,8 @@ ALTER FUNCTION sf1    #DET# CONTAINS SQL SQL SECURITY INVOKER COMMENT 'comment' 
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3380,6 +3616,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3400,6 +3638,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3426,6 +3667,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3491,6 +3734,8 @@ ALTER FUNCTION sf1    #DET# NO SQL SQL SECURITY INVOKER COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3508,6 +3753,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3528,6 +3775,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3554,6 +3804,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3619,6 +3871,8 @@ ALTER FUNCTION sf1    #DET# READS SQL DATA SQL SECURITY INVOKER COMMENT 'comment
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3636,6 +3890,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3656,6 +3912,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3682,6 +3941,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3747,6 +4008,8 @@ ALTER FUNCTION sf1    #DET# MODIFIES SQL DATA SQL SECURITY INVOKER COMMENT 'comm
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3764,6 +4027,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3784,6 +4049,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3810,6 +4078,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3875,6 +4145,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET#   SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3892,6 +4164,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3912,6 +4186,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -3938,6 +4215,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4003,6 +4282,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# CONTAINS SQL SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4020,6 +4301,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4040,6 +4323,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4066,6 +4352,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4131,6 +4419,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# NO SQL SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4148,6 +4438,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4168,6 +4460,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4194,6 +4489,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4259,6 +4556,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# READS SQL DATA SQL SECURITY INVOKER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4276,6 +4575,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4296,6 +4597,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4322,6 +4626,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4387,6 +4693,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# MODIFIES SQL DATA SQL SECURITY INVOKER   
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4404,6 +4712,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4424,6 +4734,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4450,6 +4763,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4515,6 +4830,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET#   SQL SECURITY INVOKER COMMENT 'comment' 
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4532,6 +4849,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4552,6 +4871,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4578,6 +4900,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4643,6 +4967,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# CONTAINS SQL SQL SECURITY INVOKER COMMENT
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4660,6 +4986,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4680,6 +5008,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4706,6 +5037,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4771,6 +5104,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# NO SQL SQL SECURITY INVOKER COMMENT 'comm
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4788,6 +5123,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4808,6 +5145,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4834,6 +5174,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4899,6 +5241,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# READS SQL DATA SQL SECURITY INVOKER COMME
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4916,6 +5260,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4936,6 +5282,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -4962,6 +5311,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5027,6 +5378,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# MODIFIES SQL DATA SQL SECURITY INVOKER CO
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5044,6 +5397,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5064,6 +5419,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5090,6 +5448,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5155,6 +5515,8 @@ ALTER FUNCTION sf1    #DET#    SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5172,6 +5534,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5192,6 +5556,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5218,6 +5585,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5283,6 +5652,8 @@ ALTER FUNCTION sf1    #DET# CONTAINS SQL  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5300,6 +5671,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5320,6 +5693,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5346,6 +5722,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5411,6 +5789,8 @@ ALTER FUNCTION sf1    #DET# NO SQL  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5428,6 +5808,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5448,6 +5830,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5474,6 +5859,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5539,6 +5926,8 @@ ALTER FUNCTION sf1    #DET# READS SQL DATA  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5556,6 +5945,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5576,6 +5967,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5602,6 +5996,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5667,6 +6063,8 @@ ALTER FUNCTION sf1    #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5684,6 +6082,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5704,6 +6104,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5730,6 +6133,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5795,6 +6200,8 @@ ALTER FUNCTION sf1    #DET#    SQL SECURITY DEFINER COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5812,6 +6219,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5832,6 +6241,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5858,6 +6270,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5923,6 +6337,8 @@ ALTER FUNCTION sf1    #DET# CONTAINS SQL  SQL SECURITY DEFINER COMMENT 'comment'
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5940,6 +6356,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5960,6 +6378,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -5986,6 +6407,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6051,6 +6474,8 @@ ALTER FUNCTION sf1    #DET# NO SQL  SQL SECURITY DEFINER COMMENT 'comment' ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6068,6 +6493,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6088,6 +6515,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6114,6 +6544,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6179,6 +6611,8 @@ ALTER FUNCTION sf1    #DET# READS SQL DATA  SQL SECURITY DEFINER COMMENT 'commen
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6196,6 +6630,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6216,6 +6652,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6242,6 +6681,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6307,6 +6748,8 @@ ALTER FUNCTION sf1    #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER COMMENT 'com
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6324,6 +6767,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6344,6 +6789,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6370,6 +6818,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6435,6 +6885,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET#    SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6452,6 +6904,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6472,6 +6926,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6498,6 +6955,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6563,6 +7022,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# CONTAINS SQL  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6580,6 +7041,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6600,6 +7063,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6626,6 +7092,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6691,6 +7159,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# NO SQL  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6708,6 +7178,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6728,6 +7200,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6754,6 +7229,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6819,6 +7296,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# READS SQL DATA  SQL SECURITY DEFINER   ;
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6836,6 +7315,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6856,6 +7337,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6882,6 +7366,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6947,6 +7433,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER  
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6964,6 +7452,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -6984,6 +7474,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7010,6 +7503,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7075,6 +7570,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET#    SQL SECURITY DEFINER COMMENT 'comment'
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7092,6 +7589,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7112,6 +7611,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7138,6 +7640,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7203,6 +7707,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# CONTAINS SQL  SQL SECURITY DEFINER COMMEN
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7220,6 +7726,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7240,6 +7748,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7266,6 +7777,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7331,6 +7844,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# NO SQL  SQL SECURITY DEFINER COMMENT 'com
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7348,6 +7863,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7368,6 +7885,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7394,6 +7914,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7459,6 +7981,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# READS SQL DATA  SQL SECURITY DEFINER COMM
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7476,6 +8000,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7496,6 +8022,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7522,6 +8051,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7587,6 +8118,8 @@ ALTER FUNCTION sf1  LANGUAGE SQL #DET# MODIFIES SQL DATA  SQL SECURITY DEFINER C
 SELECT sf1();
 sf1()
 0
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7604,6 +8137,8 @@ id	data
 2	1
 3	3
 INSERT INTO t4 VALUES(sf1());
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7624,6 +8159,9 @@ id	data
 3	3
 3	3
 UPDATE t4 SET i = sf1() + 1 WHERE i = sf1();
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
@@ -7650,6 +8188,8 @@ id	data
 3	3
 3	3
 DELETE FROM t4 WHERE i = sf1() + 1;
+Warnings:
+Error	1329	No data - zero rows fetched, selected, or processed
 SELECT * FROM t1 ORDER BY id;
 id	data
 1	1
