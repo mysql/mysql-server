@@ -32,10 +32,13 @@ NdbMutex* NdbMutex_Create(void)
   if (pNdbMutex == NULL)
     return NULL;
 
-  result = pthread_mutex_init(pNdbMutex, NULL);
-  assert(result == 0);
-
-  return pNdbMutex;
+  result = NdbMutex_Init(pNdbMutex);
+  if (result == 0)
+  {
+    return pNdbMutex;
+  }
+  NdbMem_Free(pNdbMutex);
+  return 0;
 }
 
 int NdbMutex_Init(NdbMutex* pNdbMutex)
@@ -43,9 +46,19 @@ int NdbMutex_Init(NdbMutex* pNdbMutex)
   int result;
   DBUG_ENTER("NdbMutex_Init");
   
-  result = pthread_mutex_init(pNdbMutex, NULL);
+#if defined(VM_TRACE) && \
+  defined(HAVE_PTHREAD_MUTEXATTR_INIT) && \
+  defined(HAVE_PTHREAD_MUTEXATTR_SETTYPE)
+
+  pthread_mutexattr_t t;
+  pthread_mutexattr_init(&t);
+  pthread_mutexattr_settype(&t, PTHREAD_MUTEX_ERRORCHECK);
+  result = pthread_mutex_init(pNdbMutex, &t);
   assert(result == 0);
-			     
+  pthread_mutexattr_destroy(&t);
+#else
+  result = pthread_mutex_init(pNdbMutex, 0);
+#endif
   DBUG_RETURN(result);
 }
 
@@ -72,7 +85,8 @@ int NdbMutex_Lock(NdbMutex* p_mutex)
     return -1;
 
   result = pthread_mutex_lock(p_mutex);
-  
+  assert(result == 0);
+
   return result;
 }
 
@@ -85,7 +99,8 @@ int NdbMutex_Unlock(NdbMutex* p_mutex)
     return -1;
 
   result = pthread_mutex_unlock(p_mutex);
-			     
+  assert(result == 0);
+
   return result;
 }
 
@@ -96,6 +111,7 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
 
   if (p_mutex != NULL) {
     result = pthread_mutex_trylock(p_mutex);
+    assert(result == 0 || result == EBUSY);
   }
 
   return result;

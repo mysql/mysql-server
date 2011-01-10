@@ -231,6 +231,17 @@ AC_DEFUN([NDB_COMPILER_FEATURES],
               [Compiler supports __has_trivial_constructor(typename)])],
     AC_MSG_RESULT([no])
   )
+
+  # need c++ here, cause c will accept function wo/ prototype
+  # which will later lead to link error
+  AC_MSG_CHECKING([checking __builtin_ffs(unsigned)])
+  AC_TRY_COMPILE([unsigned A = 7;],[ unsigned a = __builtin_ffs(A)],
+    [ AC_MSG_RESULT([yes])
+      AC_DEFINE([HAVE___BUILTIN_FFS], [1],
+              [Compiler supports __builtin_ffs])],
+    AC_MSG_RESULT([no])
+  )
+
   AC_LANG_POP([C++])
 ])
 
@@ -542,7 +553,8 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_CHECK_FUNCS(pthread_self \
     sched_get_priority_min sched_get_priority_max sched_setaffinity \
     sched_setscheduler processor_bind epoll_create \
-    posix_memalign memalign sysconf directio atomic_swap_32 mlock)
+    posix_memalign memalign sysconf directio atomic_swap_32 mlock \
+    ffs pthread_mutexattr_init pthread_mutexattr_settype)
 
   AC_MSG_CHECKING(for Linux scheduling and locking support)
   AC_TRY_LINK(
