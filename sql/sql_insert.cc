@@ -1966,6 +1966,11 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       pthread_mutex_lock(&LOCK_thread_count);
       thread_count++;
       pthread_mutex_unlock(&LOCK_thread_count);
+      /*
+        Annotating delayed inserts is not supported.
+      */
+      di->thd.variables.binlog_annotate_rows_events= 0;
+
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name, MYF(MY_WME)), 0);
       if (di->thd.db == NULL || di->thd.query() == NULL)

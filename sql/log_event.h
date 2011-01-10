@@ -250,6 +250,7 @@ struct sql_ex_info
 #define EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN (4 + 4 + 4 + 1)
 #define EXECUTE_LOAD_QUERY_HEADER_LEN  (QUERY_HEADER_LEN + EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN)
 #define INCIDENT_HEADER_LEN    2
+#define ANNOTATE_ROWS_HEADER_LEN  0
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -582,8 +583,14 @@ enum Log_event_type
    */
   INCIDENT_EVENT= 26,
 
+  /* New MySQL/Sun events are to be added right above this comment */
+  MYSQL_EVENTS_END,
+
+  MARIA_EVENTS_BEGIN= 160,
+  /* New Maria event numbers start from here */
+  ANNOTATE_ROWS_EVENT= 160,
+
   /*
-    Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
 
@@ -2986,6 +2993,59 @@ public:
 };
 #endif
 char *str_to_hex(char *to, const char *from, uint len);
+
+/**
+  @class Annotate_rows_log_event
+
+  In row-based mode, if binlog_annotate_rows_events = ON, each group of
+  Table_map_log_events is preceded by an Annotate_rows_log_event which
+  contains the query which caused the subsequent rows operations.
+
+  The Annotate_rows_log_event has no post-header and its body contains
+  the corresponding query (without trailing zero). Note. The query length
+  is to be calculated as a difference between the whole event length and
+  the common header length.
+*/
+class Annotate_rows_log_event: public Log_event
+{
+public:
+#ifndef MYSQL_CLIENT
+  Annotate_rows_log_event(THD*);
+#endif
+  Annotate_rows_log_event(const char *buf, uint event_len,
+                          const Format_description_log_event*);
+  ~Annotate_rows_log_event();
+
+  virtual int get_data_size();
+  virtual Log_event_type get_type_code();
+  virtual bool is_valid() const;
+
+#ifndef MYSQL_CLIENT
+  virtual bool write_data_header(IO_CACHE*);
+  virtual bool write_data_body(IO_CACHE*);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+  virtual void pack_info(Protocol*);
+#endif
+
+#ifdef MYSQL_CLIENT
+  virtual void print(FILE*, PRINT_EVENT_INFO*);
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+private:
+  virtual int do_apply_event(Relay_log_info const*);
+  virtual int do_update_pos(Relay_log_info*);
+  virtual enum_skip_reason do_shall_skip(Relay_log_info*);
+#endif
+
+private:
+  char *m_query_txt;
+  uint  m_query_len;
+  char *m_save_thd_query_txt;
+  uint  m_save_thd_query_len;
+};
 
 /**
   @class Table_map_log_event

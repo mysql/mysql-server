@@ -357,7 +357,8 @@ public:
   void new_file();
 
   void reset_gathered_updates(THD *thd);
-  bool write(Log_event* event_info); // binary log write
+  bool write(Log_event* event_info,
+             my_bool *with_annotate= 0); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
   bool write_incident(THD *thd, bool lock);
   int  write_cache(THD *thd, IO_CACHE *cache, bool lock_log,

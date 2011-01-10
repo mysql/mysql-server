@@ -182,6 +182,9 @@ static sys_var_const            sys_back_log(&vars, "back_log",
                                              OPT_GLOBAL, SHOW_LONG,
                                              (uchar*) &back_log);
 static sys_var_const_os_str       sys_basedir(&vars, "basedir", mysql_home);
+static sys_var_thd_bool
+sys_binlog_annotate_rows_events(&vars, "binlog_annotate_rows_events",
+                            &SV::binlog_annotate_rows_events);
 static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",

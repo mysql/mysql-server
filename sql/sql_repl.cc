@@ -489,7 +489,7 @@ impossible position";
        DBUG_PRINT("info",
                   ("Looked for a Format_description_log_event, found event type %d",
                    (*packet)[EVENT_TYPE_OFFSET+1]));
-       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
+       if ((uchar)(*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
        {
          binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
                                        LOG_EVENT_BINLOG_IN_USE_F);
@@ -557,31 +557,36 @@ impossible position";
 #endif
 
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
+      if ((uchar)(*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
       {
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
                                       LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+1] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
-      else if ((*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
+      else if ((uchar)(*packet)[EVENT_TYPE_OFFSET+1] == STOP_EVENT)
         binlog_can_be_corrupted= FALSE;
 
-      if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+      if ((uchar)(*packet)[EVENT_TYPE_OFFSET+1] != ANNOTATE_ROWS_EVENT ||
+          (flags & BINLOG_SEND_ANNOTATE_ROWS_EVENT))
       {
-	errmsg = "Failed on my_net_write()";
-	my_errno= ER_UNKNOWN_ERROR;
-	goto err;
-      }
+        if (my_net_write(net, (uchar*) packet->ptr(), packet->length()))
+        {
+          errmsg = "Failed on my_net_write()";
+          my_errno= ER_UNKNOWN_ERROR;
+          goto err;
+        }
 
-      DBUG_PRINT("info", ("log event code %d",
-			  (*packet)[LOG_EVENT_OFFSET+1] ));
-      if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
-      {
-	if (send_file(thd))
-	{
-	  errmsg = "failed in send_file()";
-	  my_errno= ER_UNKNOWN_ERROR;
-	  goto err;
-	}
+        DBUG_PRINT("info", ("log event code %d",
+                            (*packet)[LOG_EVENT_OFFSET+1] ));
+        if ((uchar)(*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+        {
+          if (send_file(thd))
+          {
+                  errmsg = "failed in send_file()";
+                  my_errno= ER_UNKNOWN_ERROR;
+                  goto err;
+          }
+        }
       }
       packet->set("\0", 1, &my_charset_bin);
     }
@@ -677,23 +682,27 @@ impossible position";
 
 	if (read_packet)
 	{
-	  thd_proc_info(thd, "Sending binlog event to slave");
-	  if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
-	  {
-	    errmsg = "Failed on my_net_write()";
-	    my_errno= ER_UNKNOWN_ERROR;
-	    goto err;
-	  }
-
-	  if ((*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
-	  {
-	    if (send_file(thd))
+          if ((uchar)(*packet)[EVENT_TYPE_OFFSET+1] != ANNOTATE_ROWS_EVENT ||
+              (flags & BINLOG_SEND_ANNOTATE_ROWS_EVENT))
+          {
+            thd_proc_info(thd, "Sending binlog event to slave");
+            if (my_net_write(net, (uchar*) packet->ptr(), packet->length()) )
 	    {
-	      errmsg = "failed in send_file()";
+              errmsg = "Failed on my_net_write()";
 	      my_errno= ER_UNKNOWN_ERROR;
 	      goto err;
 	    }
-	  }
+
+            if ((uchar)(*packet)[LOG_EVENT_OFFSET+1] == LOAD_EVENT)
+            {
+              if (send_file(thd))
+              {
+                errmsg = "failed in send_file()";
+                my_errno= ER_UNKNOWN_ERROR;
+                goto err;
+              }
+            }
+          }
 	  packet->set("\0", 1, &my_charset_bin);
 	  /*
 	    No need to net_flush because we will get to flush later when
@@ -1774,6 +1783,11 @@ static sys_var_chain vars = { NULL, NULL };
 static sys_var_const    sys_log_slave_updates(&vars, "log_slave_updates",
                                               OPT_GLOBAL, SHOW_MY_BOOL,
                                               (uchar*) &opt_log_slave_updates);
+static sys_var_const
+sys_replicate_annotate_rows_events(&vars,
+                                "replicate_annotate_rows_events",
+                                OPT_GLOBAL, SHOW_MY_BOOL,
+                                (uchar*) &opt_replicate_annotate_rows_events);
 static sys_var_const    sys_relay_log(&vars, "relay_log",
                                       OPT_GLOBAL, SHOW_CHAR_PTR,
                                       (uchar*) &opt_relay_logname);

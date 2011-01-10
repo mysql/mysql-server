@@ -1,7 +1,8 @@
 # depends on the binlog output
 --source include/have_binlog_format_mixed_or_statement.inc
+--source include/binlog_start_pos.inc
 
-let $rename_event_pos= 684;
+let $rename_event_pos= `select @binlog_start_pos + 578`;
 -- source extra/rpl_tests/rpl_flsh_tbls.test
 
 # End of 4.1 tests

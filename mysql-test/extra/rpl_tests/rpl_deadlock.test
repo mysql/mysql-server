@@ -72,7 +72,7 @@ connection slave;
 --source include/stop_slave.inc
 DELETE FROM t2;
 # Set slave position to the BEGIN log event
---replace_result $master_pos_begin MASTER_POS_BEGIN
+--replace_result $master_pos_begin <master_pos_begin>
 eval CHANGE MASTER TO MASTER_LOG_POS=$master_pos_begin; 
 BEGIN;
 # Hold lock
@@ -103,7 +103,7 @@ SET global max_relay_log_size=0;
 --source include/stop_slave.inc
 DELETE FROM t2;
 # Set slave position to the BEGIN log event
---replace_result $master_pos_begin MASTER_POS_BEGIN
+--replace_result $master_pos_begin <master_pos_begin>
 eval CHANGE MASTER TO MASTER_LOG_POS=$master_pos_begin; 
 BEGIN;
 # Hold lock

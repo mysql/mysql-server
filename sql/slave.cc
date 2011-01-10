@@ -1867,6 +1867,9 @@ static int request_dump(MYSQL* mysql, Master_info* mi,
   
   *suppress_warnings= FALSE;
 
+  if (opt_log_slave_updates && opt_replicate_annotate_rows_events)
+    binlog_flags|= BINLOG_SEND_ANNOTATE_ROWS_EVENT;
+
   // TODO if big log files: Change next to int8store()
   int4store(buf, (ulong) mi->master_log_pos);
   int2store(buf + 4, binlog_flags);
@@ -2261,16 +2264,40 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
     exec_res= apply_event_and_update_pos(ev, thd, rli);
 
-    /*
-      Format_description_log_event should not be deleted because it will be
-      used to read info about the relay log's format; it will be deleted when
-      the SQL thread does not need it, i.e. when this thread terminates.
-    */
-    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-    {
-      DBUG_PRINT("info", ("Deleting the event after it has been executed"));
-      delete ev;
+    switch (ev->get_type_code()) {
+      case FORMAT_DESCRIPTION_EVENT:
+        /*
+          Format_description_log_event should not be deleted because it
+          will be used to read info about the relay log's format;
+          it will be deleted when the SQL thread does not need it,
+          i.e. when this thread terminates.
+        */
+        break;
+      case ANNOTATE_ROWS_EVENT:
+        /*
+          Annotate_rows event should not be deleted because after it has
+          been applied, thd->query points to the string inside this event.
+          The thd->query will be used to generate new Annotate_rows event
+          during applying the subsequent Rows events.
+        */
+        rli->set_annotate_event((Annotate_rows_log_event*) ev);
+        break;
+      case DELETE_ROWS_EVENT:
+      case UPDATE_ROWS_EVENT:
+      case WRITE_ROWS_EVENT:
+        /*
+          After the last Rows event has been applied, the saved Annotate_rows
+          event (if any) is not needed anymore and can be deleted.
+        */
+        if (((Rows_log_event*)ev)->get_flags(Rows_log_event::STMT_END_F))
+          rli->free_annotate_event();
+        /* fall through */
+      default:
+        DBUG_PRINT("info", ("Deleting the event after it has been executed"));
+        delete ev;
+        break;
     }
+
 
     /*
       update_log_pos failed: this should not happen, so we don't
@@ -2899,6 +2926,12 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->init_for_queries();
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
+  /*
+    binlog_annotate_rows_events must be TRUE only after an Annotate_rows event
+    has been recieved and only till the last corresponding rbr event has been
+    applied. In all other cases it must be FALSE.
+  */
+  thd->variables.binlog_annotate_rows_events= 0;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -3382,7 +3415,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     If we get Load event, we need to pass a non-reusable buffer
     to read_log_event, so we do a trick
   */
-  if (buf[EVENT_TYPE_OFFSET] == LOAD_EVENT)
+  if ((uchar)buf[EVENT_TYPE_OFFSET] == LOAD_EVENT)
   {
     if (unlikely(!(tmp_buf=(char*)my_malloc(event_len+1,MYF(MY_WME)))))
     {
@@ -3589,13 +3622,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
   LINT_INIT(inc_pos);
 
   if (mi->rli.relay_log.description_event_for_queue->binlog_version<4 &&
-      buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
+      (uchar)buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT /* a way to escape */)
     DBUG_RETURN(queue_old_event(mi,buf,event_len));
 
   LINT_INIT(inc_pos);
   pthread_mutex_lock(&mi->data_lock);
 
-  switch (buf[EVENT_TYPE_OFFSET]) {
+  switch ((uchar)buf[EVENT_TYPE_OFFSET]) {
   case STOP_EVENT:
     /*
       We needn't write this event to the relay log. Indeed, it just indicates a
@@ -3698,9 +3731,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       the master's binlog (i.e. Format_desc, Rotate & Stop) should not increment
       mi->master_log_pos.
     */
-    if (buf[EVENT_TYPE_OFFSET]!=FORMAT_DESCRIPTION_EVENT &&
-        buf[EVENT_TYPE_OFFSET]!=ROTATE_EVENT &&
-        buf[EVENT_TYPE_OFFSET]!=STOP_EVENT)
+    if ((uchar)buf[EVENT_TYPE_OFFSET]!=FORMAT_DESCRIPTION_EVENT &&
+        (uchar)buf[EVENT_TYPE_OFFSET]!=ROTATE_EVENT &&
+        (uchar)buf[EVENT_TYPE_OFFSET]!=STOP_EVENT)
     {
       mi->master_log_pos+= inc_pos;
       memcpy(rli->ign_master_log_name_end, mi->master_log_name, FN_REFLEN);

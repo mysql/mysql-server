@@ -4699,7 +4699,8 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
 /** @brief
    Write table maps for all (manually or automatically) locked tables
-   to the binary log.
+   to the binary log. Also, if binlog_annotate_rows_events is ON,
+   write Annotate_rows event before the first table map.
 
    SYNOPSIS
      write_locked_table_maps()
@@ -4736,6 +4737,9 @@ static int write_locked_table_maps(THD *thd)
     locks[0]= thd->extra_lock;
     locks[1]= thd->lock;
     locks[2]= thd->locked_tables;
+    my_bool with_annotate= thd->variables.binlog_annotate_rows_events &&
+                           thd->query() && thd->query_length();
+
     for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
     {
       MYSQL_LOCK const *const lock= locks[i];
@@ -4753,7 +4757,8 @@ static int write_locked_table_maps(THD *thd)
             check_table_binlog_row_based(thd, table))
         {
           int const has_trans= table->file->has_transactions();
-          int const error= thd->binlog_write_table_map(table, has_trans);
+          int const error= thd->binlog_write_table_map(table, has_trans,
+                                                       &with_annotate);
           /*
             If an error occurs, it is the responsibility of the caller to
             roll back the transaction.

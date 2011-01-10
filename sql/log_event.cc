@@ -649,6 +649,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case BEGIN_LOAD_QUERY_EVENT: return "Begin_load_query";
   case EXECUTE_LOAD_QUERY_EVENT: return "Execute_load_query";
   case INCIDENT_EVENT: return "Incident";
+  case ANNOTATE_ROWS_EVENT: return "Annotate_rows";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -728,7 +729,7 @@ Log_event::Log_event(const char* buf,
     logs are in 4.0 format, until it finds a Format_desc).
   */
   if (description_event->binlog_version==3 &&
-      buf[EVENT_TYPE_OFFSET]<FORMAT_DESCRIPTION_EVENT && log_pos)
+      (uchar)buf[EVENT_TYPE_OFFSET]<FORMAT_DESCRIPTION_EVENT && log_pos)
   {
       /*
         If log_pos=0, don't change it. log_pos==0 is a marker to mean
@@ -746,8 +747,8 @@ Log_event::Log_event(const char* buf,
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
   flags= uint2korr(buf + FLAGS_OFFSET);
-  if ((buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) ||
-      (buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT))
+  if (((uchar)buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT) ||
+      ((uchar)buf[EVENT_TYPE_OFFSET] == ROTATE_EVENT))
   {
     /*
       These events always have a header which stops here (i.e. their
@@ -1168,14 +1169,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
   /* Check the integrity */
   if (event_len < EVENT_LEN_OFFSET ||
-      buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
+      (uchar)buf[EVENT_TYPE_OFFSET] >= ENUM_END_EVENT ||
       (uint) event_len != uint4korr(buf+EVENT_LEN_OFFSET))
   {
     *error="Sanity check failed";		// Needed to free buffer
     DBUG_RETURN(NULL); // general sanity check - will fail on a partial read
   }
 
-  uint event_type= buf[EVENT_TYPE_OFFSET];
+  uint event_type= (uchar)buf[EVENT_TYPE_OFFSET];
   if (event_type > description_event->number_of_event_types &&
       event_type != FORMAT_DESCRIPTION_EVENT)
   {
@@ -1296,6 +1297,9 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case INCIDENT_EVENT:
       ev = new Incident_log_event(buf, event_len, description_event);
+      break;
+    case ANNOTATE_ROWS_EVENT:
+      ev = new Annotate_rows_log_event(buf, event_len, description_event);
       break;
     default:
       DBUG_PRINT("error",("Unknown event code: %d",
@@ -3795,6 +3799,13 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
                       post_header_len[DELETE_ROWS_EVENT-1]= 6;);
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
 
+      // Set header length of the reserved events to 0
+      memset(post_header_len + MYSQL_EVENTS_END - 1, 0,
+             (MARIA_EVENTS_BEGIN - MYSQL_EVENTS_END)*sizeof(uint8));
+
+      // Set header lengths of Maria events
+      post_header_len[ANNOTATE_ROWS_EVENT-1]= ANNOTATE_ROWS_HEADER_LEN;
+
       // Sanity-check that all post header lengths are initialized.
       IF_DBUG({
           int i;
@@ -4439,8 +4450,8 @@ Load_log_event::Load_log_event(const char *buf, uint event_len,
   */
   if (event_len)
     copy_log_event(buf, event_len,
-                   ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
-                    LOAD_HEADER_LEN + 
+                   (((uchar)buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
+                   LOAD_HEADER_LEN + 
                     description_event->common_header_len :
                     LOAD_HEADER_LEN + LOG_EVENT_HEADER_LEN),
                    description_event);
@@ -4477,7 +4488,7 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
   */
   if (!(field_lens= (uchar*)sql_ex.init((char*)buf + body_offset,
                                         buf_end,
-                                        buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
+                                        (uchar)buf[EVENT_TYPE_OFFSET] != LOAD_EVENT)))
     DBUG_RETURN(1);
   
   data_len = event_len - body_offset;
@@ -6172,7 +6183,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
   uint8 create_file_header_len= description_event->post_header_len[CREATE_FILE_EVENT-1];
   if (!(event_buf= (char*) my_memdup(buf, len, MYF(MY_WME))) ||
       copy_log_event(event_buf,len,
-                     ((buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
+                     (((uchar)buf[EVENT_TYPE_OFFSET] == LOAD_EVENT) ?
                       load_header_len + header_len :
                       (fake_base ? (header_len+load_header_len) :
                        (header_len+load_header_len) +
@@ -7921,6 +7932,141 @@ void Rows_log_event::print_helper(FILE *file,
     copy_event_cache_to_file_and_reinit(head, file);
     copy_event_cache_to_file_and_reinit(body, file);
   }
+}
+#endif
+
+/**************************************************************************
+	Annotate_rows_log_event member functions
+**************************************************************************/
+
+#ifndef MYSQL_CLIENT
+Annotate_rows_log_event::Annotate_rows_log_event(THD *thd)
+  : Log_event(thd, 0, true),
+    m_save_thd_query_txt(0),
+    m_save_thd_query_len(0)
+{
+  m_query_txt= thd->query();
+  m_query_len= thd->query_length();
+}
+#endif
+
+Annotate_rows_log_event::Annotate_rows_log_event(const char *buf,
+                                                 uint event_len,
+                                      const Format_description_log_event *desc)
+  : Log_event(buf, desc),
+    m_save_thd_query_txt(0),
+    m_save_thd_query_len(0)
+{
+  m_query_len= event_len - desc->common_header_len;
+  m_query_txt= (char*) buf + desc->common_header_len;
+}
+
+Annotate_rows_log_event::~Annotate_rows_log_event()
+{
+#ifndef MYSQL_CLIENT
+  if (m_save_thd_query_txt)
+    thd->set_query(m_save_thd_query_txt, m_save_thd_query_len);
+#endif
+}
+
+int Annotate_rows_log_event::get_data_size()
+{
+  return m_query_len;
+}
+
+Log_event_type Annotate_rows_log_event::get_type_code()
+{
+  return ANNOTATE_ROWS_EVENT;
+}
+
+bool Annotate_rows_log_event::is_valid() const
+{
+  return (m_query_txt != NULL && m_query_len != 0);
+}
+
+#ifndef MYSQL_CLIENT
+bool Annotate_rows_log_event::write_data_header(IO_CACHE *file)
+{ 
+  return 0;
+}
+#endif
+
+#ifndef MYSQL_CLIENT
+bool Annotate_rows_log_event::write_data_body(IO_CACHE *file)
+{
+  return my_b_safe_write(file, (uchar*) m_query_txt, m_query_len);
+}
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+void Annotate_rows_log_event::pack_info(Protocol* protocol)
+{
+  if (m_query_txt && m_query_len)
+    protocol->store(m_query_txt, m_query_len, &my_charset_bin);
+}
+#endif
+
+#ifdef MYSQL_CLIENT
+void Annotate_rows_log_event::print(FILE *file, PRINT_EVENT_INFO *pinfo)
+{
+  if (pinfo->short_form)
+    return;
+
+  print_header(&pinfo->head_cache, pinfo, TRUE);
+  my_b_printf(&pinfo->head_cache, "\tAnnotate_rows:\n");
+
+  char *pbeg;   // beginning of the next line
+  char *pend;   // end of the next line
+  uint cnt= 0;  // characters counter
+
+  for (pbeg= m_query_txt; ; pbeg= pend)
+  {
+    // skip all \r's and \n's at the beginning of the next line
+    for (;; pbeg++)
+    {
+      if (++cnt > m_query_len)
+        return;
+
+      if (*pbeg != '\r' && *pbeg != '\n')
+        break;
+    }
+
+    // find end of the next line
+    for (pend= pbeg + 1;
+         ++cnt <= m_query_len && *pend != '\r' && *pend != '\n';
+         pend++);
+
+    // print next line
+    my_b_write(&pinfo->head_cache, (const uchar*) "#Q> ", 4);
+    my_b_write(&pinfo->head_cache, (const uchar*) pbeg, pend - pbeg);
+    my_b_write(&pinfo->head_cache, (const uchar*) "\n", 1);
+  }
+}
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+int Annotate_rows_log_event::do_apply_event(Relay_log_info const *rli)
+{
+  m_save_thd_query_txt= thd->query();
+  m_save_thd_query_len= thd->query_length();
+  thd->set_query(m_query_txt, m_query_len);
+  return 0;
+}
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+int Annotate_rows_log_event::do_update_pos(Relay_log_info *rli)
+{
+  rli->inc_event_relay_log_pos();
+  return 0;
+}
+#endif
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+Log_event::enum_skip_reason
+Annotate_rows_log_event::do_shall_skip(Relay_log_info *rli)
+{
+  return continue_group(rli);
 }
 #endif
 

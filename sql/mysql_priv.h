@@ -611,7 +611,11 @@ protected:
 /* BINLOG_DUMP options */
 
 #define BINLOG_DUMP_NON_BLOCK   1
+#endif /* !MYSQL_CLIENT */
 
+#define BINLOG_SEND_ANNOTATE_ROWS_EVENT   2
+
+#ifndef MYSQL_CLIENT
 /* sql_show.cc:show_log_files() */
 #define SHOW_LOG_STATUS_FREE "FREE"
 #define SHOW_LOG_STATUS_INUSE "IN USE"
