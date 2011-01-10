@@ -356,7 +356,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   {
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
-    key.keyinfo= ftbw->keyinfo;
+    info->last_key.keyinfo= key.keyinfo= ftbw->keyinfo;
     key.data= ftbw->word;
     key.data_length= ftbw->len;
     key.ref_length= 0;
@@ -380,7 +380,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
                    max_docid);
     }
 
-    key.keyinfo= ftbw->keyinfo;
+    info->last_key.keyinfo= key.keyinfo= ftbw->keyinfo;
     key.data= lastkey_buf;
     key.data_length= USE_WHOLE_KEY;
     key.ref_length= 0;

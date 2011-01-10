@@ -1593,6 +1593,7 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
+  virtual int can_continue_handler_scan() { return 0; }
   /** used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
   virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   { return 0; }

@@ -50,7 +50,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 
   switch (function) {
   case HA_EXTRA_RESET_STATE:		/* Reset state (don't free buffers) */
-    info->lastinx= 0;			/* Use first index as def */
+    info->lastinx= ~0;			/* Detect index changes */
     info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
     info->page_changed= 1;
 					/* Next/prev gives first/last */
@@ -545,7 +545,7 @@ int maria_reset(MARIA_HA *info)
 #endif
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
   info->quick_mode= 0;
-  info->lastinx= 0;			/* Use first index as def */
+  info->lastinx= ~0;			/* detect index changes */
   info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->page_changed= 1;
   info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |

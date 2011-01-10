@@ -2724,7 +2724,10 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_UNIQUE;
     break;
   case HA_ERR_RECORD_CHANGED:
-    SET_FATAL_ERROR;
+    /*
+      This is not fatal error when using HANDLER interface
+      SET_FATAL_ERROR;
+    */
     textno=ER_CHECKREAD;
     break;
   case HA_ERR_CRASHED:

@@ -548,6 +548,12 @@ retry:
         mode= RLAST;
     }
   }
+  else if (table->file->inited != handler::RND)
+  {
+    /* Convert RNEXT to RFIRST if we haven't started row scan */
+    if (mode == RNEXT)
+      mode= RFIRST;
+  }
 
   if (insert_fields(thd, &thd->lex->select_lex.context,
                     tables->db, tables->alias, &it, 0))
@@ -569,6 +575,8 @@ retry:
     case RNEXT:
       if (table->file->inited != handler::NONE)
       {
+        if ((error= table->file->can_continue_handler_scan()))
+          break;
         if (keyname)
         {
           /* Check if we read from the same index. */
@@ -603,6 +611,8 @@ retry:
       DBUG_ASSERT((uint) keyno == table->file->get_index());
       if (table->file->inited != handler::NONE)
       {
+        if ((error= table->file->can_continue_handler_scan()))
+          break;
         error=table->file->index_prev(table->record[0]);
         break;
       }
@@ -673,8 +683,11 @@ retry:
         continue;
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
-        sql_print_error("mysql_ha_read: Got error %d when reading table '%s'",
-                        error, tables->table_name);
+        /* Don't give error in the log file for some expected problems */
+        if (error != HA_ERR_RECORD_CHANGED && error != HA_ERR_WRONG_COMMAND)
+          sql_print_error("mysql_ha_read: Got error %d when reading "
+                          "table '%s'",
+                          error, tables->table_name);
         table->file->print_error(error,MYF(0));
         goto err;
       }
