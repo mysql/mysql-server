@@ -44,9 +44,14 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
+/* aux macros to convert M into "123" (string) if M is defined like
+#define M 123 */
+#define _IB_TO_STR(s)	#s
+#define IB_TO_STR(s)	_IB_TO_STR(s)
+
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	1
-#define INNODB_VERSION_BUGFIX	4
+#define INNODB_VERSION_BUGFIX	5
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -57,16 +62,14 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-/* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c)	(#a "." #b "." #c)
-#define _INNODB_VERSION(a, b, c)	__INNODB_VERSION(a, b, c)
-
 #define INNODB_VERSION_STR			\
-	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
-			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX)
+	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
+	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
+	IB_TO_STR(INNODB_VERSION_BUGFIX)
 
-#define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
+#define REFMAN "http://dev.mysql.com/doc/refman/"	\
+	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
+	IB_TO_STR(MYSQL_MINOR_VERSION) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
@@ -250,7 +253,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INTERN
 #endif
 
-#if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
+#ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 
 #ifdef __WIN__
