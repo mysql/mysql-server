@@ -514,7 +514,6 @@ public:
                                 int complete_cluster_failure= 0);
   void complete_outof_order_gcis();
   
-  void report_node_connected(Uint32 node_id);
   void report_node_failure_completed(Uint32 node_id);
 
   // used by user thread 

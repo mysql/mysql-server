@@ -56,6 +56,7 @@ public:
   void set_max_api_reg_req_interval(unsigned int millisec) {
     m_max_api_reg_req_interval = millisec;
   }
+  void force_update_connections();
 
 private:
   void threadMain();
@@ -116,7 +117,7 @@ private:
   void execAPI_REGCONF   (const Uint32 * theData);
   void execAPI_REGREF    (const Uint32 * theData);
   void execNODE_FAILREP  (const Uint32 * theData);
-  void execNF_COMPLETEREP(const Uint32 * theData);
+  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 
   void check_wait_for_hb(NodeId nodeId);
 
@@ -147,7 +148,6 @@ public:
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
-  virtual void trp_node_status(Uint32, Uint32);
 };
 
 inline
