@@ -26,18 +26,18 @@ trp_client::~trp_client()
   NdbCondition_Destroy(m_poll.m_condition);
 }
 
-int
+Uint32
 trp_client::open(TransporterFacade* tf, int blockNo)
 {
-  int res = -1;
+  Uint32 res = 0;
   assert(m_facade == 0);
   if (m_facade == 0)
   {
     m_facade = tf;
     res = tf->open_clnt(this, blockNo);
-    if (res >= 0)
+    if (res != 0)
     {
-      m_blockNo = Uint32(res);
+      m_blockNo = refToBlock(res);
     }
     else
     {
