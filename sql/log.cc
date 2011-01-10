@@ -5686,80 +5686,26 @@ void sql_perror(const char *message)
 }
 
 
-#ifdef __WIN__
+/*
+  Change the file associated with two output streams. Used to
+  redirect stdout and stderr to a file. The streams are reopened
+  only for appending (writing at end of file).
+*/
 extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
-  int handle_fd;
-  int err_fd, out_fd;
-  HANDLE osfh;
+  if (outstream && !my_freopen(filename, "a", outstream))
+    return TRUE;
 
-  DBUG_ASSERT(filename && errstream);
+  if (errstream && !my_freopen(filename, "a", errstream))
+    return TRUE;
 
-  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
-  err_fd= _fileno(errstream);
-  if (err_fd < 0)
-  {
-    if (!freopen(filename, "a+", errstream))
-      return TRUE;
-
+  /* The error stream must be unbuffered. */
+  if (errstream)
     setbuf(errstream, NULL);
-    err_fd= _fileno(errstream);
-  }
-
-  if (outstream)
-  {
-    out_fd= _fileno(outstream);
-    if (out_fd < 0)
-    {
-      if (!freopen(filename, "a+", outstream))
-        return TRUE;
-      out_fd= _fileno(outstream);
-    }
-  }
-
-  if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE |
-                        FILE_SHARE_DELETE, NULL,
-                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
-                        NULL)) == INVALID_HANDLE_VALUE)
-    return TRUE;
-
-  if ((handle_fd= _open_osfhandle((intptr_t)osfh,
-                                  _O_APPEND | _O_TEXT)) == -1)
-  {
-    CloseHandle(osfh);
-    return TRUE;
-  }
-
-  if (_dup2(handle_fd, err_fd) < 0)
-  {
-    CloseHandle(osfh);
-    return TRUE;
-  }
-
-  if (outstream && _dup2(handle_fd, out_fd) < 0)
-  {
-    CloseHandle(osfh);
-    return TRUE;
-  }
-
-  _close(handle_fd);
-  return FALSE;
-}
-#else
-extern "C" my_bool reopen_fstreams(const char *filename,
-                                   FILE *outstream, FILE *errstream)
-{
-  if (outstream && !freopen(filename, "a+", outstream))
-    return TRUE;
-
-  if (errstream && !freopen(filename, "a+", errstream))
-    return TRUE;
 
   return FALSE;
 }
-#endif
 
 
 /*

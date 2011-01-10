@@ -515,7 +515,7 @@ row_purge_upd_exist_or_extern(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(NULL, node->index,
+		if (row_upd_changes_ord_field_binary(NULL, NULL, node->index,
 						     node->update)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, NULL,
