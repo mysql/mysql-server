@@ -14061,7 +14061,7 @@ query_specification:
         ;
 
 query_expression_body:
-          query_specification
+          query_specification opt_union_order_or_limit
         | query_expression_body
           UNION_SYM union_option 
           {
@@ -14069,6 +14069,7 @@ query_expression_body:
               MYSQL_YYABORT;
           }
           query_specification
+          opt_union_order_or_limit
           {
             Lex->pop_context();
             $$= $1;
