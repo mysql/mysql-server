@@ -270,14 +270,14 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INLINE static __inline__
 #endif
 
-#else
+#else /* !UNIV_MUST_NOT_INLINE */
 /* If we want to compile a noninlined version we use the following macro
 definitions: */
 
 #define UNIV_NONINL
 #define UNIV_INLINE	UNIV_INTERN
 
-#endif	/* UNIV_DEBUG */
+#endif /* !UNIV_MUST_NOT_INLINE */
 
 #ifdef _WIN32
 #define UNIV_WORD_SIZE		4

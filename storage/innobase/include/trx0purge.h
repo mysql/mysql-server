@@ -142,8 +142,6 @@ struct trx_purge_struct{
 
 	mutex_t		mutex;		/*!< Mutex protecting the fields
 					below */
-	ulint		n_pages_handled;/*!< Approximate number of undo log
-					pages processed in purge */
 	/*-----------------------------*/
 	purge_iter_t	iter;		/* Limit up to which we have read and
 					parsed the UNDO log records.  Not
