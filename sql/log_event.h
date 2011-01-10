@@ -3652,7 +3652,10 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
+  KEY      *m_key_info; /* Pointer to KEY info for m_key_nr */
+  uint      m_key_nr;   /* Key number */
 
+  int find_key(); // Find a best key to use in find_row()
   int find_row(const Relay_log_info *const);
   int write_row(const Relay_log_info *const, const bool);
 

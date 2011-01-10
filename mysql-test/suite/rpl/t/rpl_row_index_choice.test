@@ -1,0 +1,241 @@
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+--source include/have_innodb.inc
+
+# Bug#58997: Row-based replication breaks on table with only fulltext index: 
+connection master;
+CREATE TABLE t1 (a int, b varchar(100), fulltext(b)) engine=MyISAM;
+INSERT INTO t1 VALUES (1,"a"), (2,"b");
+UPDATE t1 SET b='A' WHERE a=1;
+DELETE FROM t1 WHERE a=2;
+
+sync_slave_with_master;
+
+connection slave;
+
+SELECT * FROM t1 ORDER BY a;
+
+connection master;
+DROP TABLE t1;
+
+
+# A utility table used to populate subsequent tables in various ways.
+connection master;
+CREATE TABLE t1 (d INT PRIMARY KEY) ENGINE=myisam;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 SELECT d+1 FROM t1;
+INSERT INTO t1 SELECT d+2 FROM t1;
+INSERT INTO t1 SELECT d+4 FROM t1;
+INSERT INTO t1 SELECT d+8 FROM t1;
+INSERT INTO t1 SELECT d+16 FROM t1;
+INSERT INTO t1 SELECT d+32 FROM t1;
+INSERT INTO t1 SELECT d+64 FROM t1;
+INSERT INTO t1 SELECT d+128 FROM t1;
+INSERT INTO t1 SELECT d+256 FROM t1;
+INSERT INTO t1 SELECT d+512 FROM t1;
+
+# Test that we pick the better multi-column index, even if the
+# single-column index is more selective in the first column.
+CREATE TABLE t2 (a INT, b INT, c INT, d INT,
+                 KEY wrong_key(a),
+                 KEY expected_key(b,c),
+		 KEY wrong_key2(c)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+
+sync_slave_with_master;
+connection slave;
+ANALYZE TABLE t2;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+# Test that we don't pick a unique index with NULLS over a more selective
+# non-unique index.
+connection master;
+DROP TABLE t2;
+CREATE TABLE t2 (a INT, b INT, c INT, d INT NOT NULL, e INT,
+       	     	 UNIQUE wrong_key3(a,e),
+		 KEY wrong_key4(b,c),
+		 UNIQUE expected_key(d)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d, NULL FROM t1;
+
+sync_slave_with_master;
+connection slave;
+ANALYZE TABLE t2;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+# Test that we pick a reasonable index when there is no rec_per_key[]
+# information (no ANALYZE TABLE).
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL,
+       	         KEY wrong_key5(b),
+		 UNIQUE expected_key(d),
+		 KEY wrong_key6(c)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+
+sync_slave_with_master;
+connection slave;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+
+# Also test without ANALYZE when we pick the sub-optimal index.
+# In this case the key on (d) is the best one, but without ANALYZE TABLE we
+# have no information and will pick the first one on (b).
+# (This test should be updated if we improve the index selection, of course).
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL,
+       	         KEY expected_key(b),
+		 KEY wrong_key7(d),
+		 KEY wrong_key8(c)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+
+sync_slave_with_master;
+connection slave;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+
+# Test that we pick the primary key for InnoDB, if available.
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT,
+       	     	 UNIQUE wrong_key9(d),
+		 KEY wrong_key10(a),
+       	         PRIMARY KEY expected_key(c,b)) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+
+sync_slave_with_master;
+connection slave;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan,slave_crash_if_index_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+
+# Test that we pick a good index for InnoDB when primary key is not available.
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT, e INT,
+       	     	 UNIQUE wrong_key11(e),
+		 KEY wrong_key12(a),
+       	         KEY expected_key(c,b)) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d, IF(d<10, d, NULL) FROM t1;
+
+sync_slave_with_master;
+connection slave;
+ANALYZE TABLE t2;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+
+# When there is no ANALYZE TABLE, InnoDB will just report "1" for index
+# cardinality for all indexes in rec_per_key. So currently we cannot choose
+# index to use intelligently. Just test that we work as expected (select
+# first index, remember that unique keys are sorted first by server).
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT, e INT,
+		 KEY wrong_key13(a),
+       	     	 UNIQUE expected_key(e),
+       	         KEY wrong_key14(c,b)) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d, IF(d<10, d, NULL) FROM t1;
+
+sync_slave_with_master;
+connection slave;
+--echo # Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+
+connection master;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+
+# Finally, test behaviour when no indexes are available at all.
+CREATE TABLE t2 (a INT NOT NULL, d INT) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d FROM t1;
+
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+
+sync_slave_with_master;
+connection slave;
+SELECT * FROM t2 WHERE d IN (10042,53);
+
+connection master;
+DROP TABLE t2;
+
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+connection slave;
+SET GLOBAL debug="";

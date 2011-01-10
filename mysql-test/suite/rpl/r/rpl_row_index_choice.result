@@ -1,0 +1,143 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a int, b varchar(100), fulltext(b)) engine=MyISAM;
+INSERT INTO t1 VALUES (1,"a"), (2,"b");
+UPDATE t1 SET b='A' WHERE a=1;
+DELETE FROM t1 WHERE a=2;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	A
+DROP TABLE t1;
+CREATE TABLE t1 (d INT PRIMARY KEY) ENGINE=myisam;
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1 SELECT d+1 FROM t1;
+INSERT INTO t1 SELECT d+2 FROM t1;
+INSERT INTO t1 SELECT d+4 FROM t1;
+INSERT INTO t1 SELECT d+8 FROM t1;
+INSERT INTO t1 SELECT d+16 FROM t1;
+INSERT INTO t1 SELECT d+32 FROM t1;
+INSERT INTO t1 SELECT d+64 FROM t1;
+INSERT INTO t1 SELECT d+128 FROM t1;
+INSERT INTO t1 SELECT d+256 FROM t1;
+INSERT INTO t1 SELECT d+512 FROM t1;
+CREATE TABLE t2 (a INT, b INT, c INT, d INT,
+KEY wrong_key(a),
+KEY expected_key(b,c),
+KEY wrong_key2(c)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d
+4	1	5	10042
+DROP TABLE t2;
+CREATE TABLE t2 (a INT, b INT, c INT, d INT NOT NULL, e INT,
+UNIQUE wrong_key3(a,e),
+KEY wrong_key4(b,c),
+UNIQUE expected_key(d)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d, NULL FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d	e
+4	1	5	10042	NULL
+DROP TABLE t2;
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL,
+KEY wrong_key5(b),
+UNIQUE expected_key(d),
+KEY wrong_key6(c)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d
+4	1	5	10042
+DROP TABLE t2;
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL,
+KEY expected_key(b),
+KEY wrong_key7(d),
+KEY wrong_key8(c)) ENGINE=myisam;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d
+4	1	5	10042
+DROP TABLE t2;
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT,
+UNIQUE wrong_key9(d),
+KEY wrong_key10(a),
+PRIMARY KEY expected_key(c,b)) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d FROM t1;
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan,slave_crash_if_index_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d
+4	1	5	10042
+DROP TABLE t2;
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT, e INT,
+UNIQUE wrong_key11(e),
+KEY wrong_key12(a),
+KEY expected_key(c,b)) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d, IF(d<10, d, NULL) FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d	e
+4	1	5	10042	NULL
+DROP TABLE t2;
+CREATE TABLE t2 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, d INT, e INT,
+KEY wrong_key13(a),
+UNIQUE expected_key(e),
+KEY wrong_key14(c,b)) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d MOD 41, d MOD 37, d, IF(d<10, d, NULL) FROM t1;
+# Slave will crash if using the wrong or no index
+SET GLOBAL debug="+d,slave_crash_if_wrong_index,slave_crash_if_table_scan";
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SET GLOBAL debug="";
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	b	c	d	e
+4	1	5	10042	NULL
+DROP TABLE t2;
+CREATE TABLE t2 (a INT NOT NULL, d INT) ENGINE=innodb;
+INSERT INTO t2 SELECT d DIV 10, d FROM t1;
+UPDATE t2 SET d=10042 WHERE d=42;
+DELETE FROM t2 WHERE d=53;
+SELECT * FROM t2 WHERE d IN (10042,53);
+a	d
+4	10042
+DROP TABLE t2;
+DROP TABLE t1;
+SET GLOBAL debug="";
