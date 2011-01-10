@@ -112,7 +112,7 @@ int mysql_open_cursor(THD *thd, select_result *result,
   MYSQL_QUERY_EXEC_START(thd->query(),
                          thd->thread_id,
                          (char *) (thd->db ? thd->db : ""),
-                         thd->security_ctx->priv_user,
+                         &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip,
                          2);
   rc= mysql_execute_command(thd);

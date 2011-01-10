@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format");
 [on master]
@@ -18,14 +14,17 @@ include/start_slave.inc
 [on master]
 INSERT INTO t1 VALUES ('normal setup', 1);
 [on slave]
+include/sync_slave_io_with_master.inc
 # sleep 1*T
 # Asserted this: Query 1 should not be executed
 # Asserted this: Status should be 'Waiting until MASTER_DELAY...'
 # sleep 1*T
 # sync with master (with timeout 1*T)
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 # Asserted this: Query 1 should be executed
 # Asserted this: Status should be 'Has read all relay log...'
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 ==== Slave lags "naturally" after master ====
 [on master]
 # CREATE FUNCTION delay_on_slave(time_units INT) RETURNS INT BEGIN IF @@server_id = 2 THEN RETURN SLEEP(time_units * T); ELSE RETURN 0; END IF; END
@@ -39,6 +38,7 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 [on slave]
+include/sync_slave_io_with_master.inc
 # sleep 1*T
 # Asserted this: No query executed
 # Asserted this: Status should be 'Waiting until MASTER_DELAY...'
@@ -82,18 +82,22 @@ include/stop_slave.inc
 include/start_slave.inc
 # Asserted this: START SLAVE should finish quickly
 [on slave]
+include/sync_slave_io_with_master.inc
 # sleep 1*T
 # Asserted this: Query 7 should not be executed
 # Asserted this: Status should be 'Waiting until MASTER_DELAY...'
 # sleep 1*T
 # sync with master (with timeout 1*T)
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 # Asserted this: Query 7 should be executed
 # Asserted this: Status should be 'Has read all relay log...'
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 ==== STOP SLAVE / START SLAVE + DDL ====
 This verifies BUG#56442
 [on master]
 CREATE TABLE t_check_dml_not_executed_prematurely (a INT);
+include/save_master_pos.inc
 [on slave]
 # sleep 1*T
 include/stop_slave.inc
@@ -108,9 +112,11 @@ include/start_slave.inc
 # Asserted this: Status should be 'Waiting until MASTER_DELAY...'
 # sleep 1*T
 # sync with master (with timeout 1*T)
+include/wait_for_slave_param.inc [Relay_Master_Log_File]
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 # Asserted this: DDL Query should be executed
 # Asserted this: Status should be 'Has read all relay log...'
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 ==== Change back to no delay ====
 [on slave]
 include/stop_slave.inc
@@ -120,6 +126,7 @@ include/start_slave.inc
 [on master]
 INSERT INTO t1 VALUES ('change back to no delay', 8);
 [on slave]
+include/sync_slave_io_with_master.inc
 # sleep 1*T
 # Asserted this: Query should be executed
 # Asserted this: Status should be 'Slave has read all relay log...'
@@ -155,3 +162,4 @@ include/start_slave.inc
 DROP TABLE t1, t_check_dml_not_executed_prematurely;
 DROP FUNCTION delay_on_slave;
 [on slave]
+include/rpl_end.inc

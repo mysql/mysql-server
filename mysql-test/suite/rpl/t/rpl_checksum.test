@@ -95,22 +95,23 @@ set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
 
 # instruction to the dump thread
-### set @@global.debug='d,simulate_slave_unaware_checksum'; # merge todo: +/- d syntax fails in my clone
 
 connection slave;
-set @@global.debug='d,simulate_slave_unaware_checksum'; # merge todo: +/- d syntax fails in my clone
+set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
 source include/wait_for_slave_io_to_stop.inc;
 
+let $slave_error_date_col= 17;
 let $errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 let $error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
-let $error= `select substring("$error", 17)`;  # todo:  declare a global const let $slave_error_date_col= 17
+let $error= `select substring("$error", $slave_error_date_col)`;
+
 --echo *** Got IO thread error code: $errno, text: $error ***
 
 select count(*) as zero from t1;
 
 ###connection master;
-set @@global.debug=''; # merge todo: +/- d syntax fails in my clone
+set @@global.debug='';
 
 connection slave;
 source include/start_slave.inc;
@@ -122,10 +123,10 @@ source include/start_slave.inc;
 # C1. Failure by a client thread
 connection master;
 set @@global.master_verify_checksum = 1;
-set @@session.debug='d,simulate_checksum_test_failure'; # merge todo deploy +/- syntax
+set @@session.debug='d,simulate_checksum_test_failure';
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events;
-set @@session.debug=''; # merge todo: +/- d syntax fails in my clone
+set @@session.debug='';
 set @@global.master_verify_checksum = default;
 
 #connection master;
@@ -142,14 +143,14 @@ connection slave;
 
 # C2. Failure by IO thread
 # instruction to io thread
-set @@global.debug='d,simulate_checksum_test_failure'; # merge todo deploy +/- syntax
+set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
 source include/wait_for_slave_io_to_stop.inc;
 let $errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 let $error= query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1);
 let $error= `select substring("$error", 17)`;
 --echo *** Got IO thread error code: $errno, text: $error ***
-set @@global.debug=''; # todo: merge
+set @@global.debug='';
 
 # to make IO thread re-read it again w/o the failure
 start slave io_thread;
@@ -161,7 +162,7 @@ source include/wait_for_slave_param.inc;
 # instruction to sql thread;
 set @@global.slave_sql_verify_checksum = 1;
 
-set @@global.debug='d,simulate_checksum_test_failure'; # merge todo deploy +/- syntax
+set @@global.debug='d,simulate_checksum_test_failure';
 
 start slave sql_thread;
 source include/wait_for_slave_sql_to_stop.inc;
@@ -264,4 +265,4 @@ sync_slave_with_master;
 set @@global.binlog_checksum = @slave_save_binlog_checksum;
 set @@global.slave_sql_verify_checksum = @save_slave_sql_verify_checksum;
 
---echo End of tests
+--source include/rpl_end.inc

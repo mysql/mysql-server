@@ -91,23 +91,22 @@ my_bool my_basic_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
-#if defined(THREAD)
   if (my_thread_global_init())
     return 1;
-#  if defined(SAFE_MUTEX)
+
+#if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
-#  endif
 #endif
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+
+#if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
 #endif
-#ifdef THREAD
+
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
   if (my_thread_basic_global_init())
     return 1;
-#endif
 
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
@@ -138,10 +137,9 @@ my_bool my_init(void)
   if (my_basic_init())
     return 1;
 
-#ifdef THREAD
   if (my_thread_global_init())
     return 1;
-#endif /* THREAD */
+
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
@@ -240,7 +238,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   {
     DBUG_END();                /* Must be done before my_thread_end */
   }
-#ifdef THREAD
+
   my_thread_end();
   my_thread_global_end();
 #if defined(SAFE_MUTEX)
@@ -251,7 +249,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   safe_mutex_end((infoflag & (MY_GIVE_INFO | MY_CHECK_ERROR)) ? stderr :
                  (FILE *) 0);
 #endif /* defined(SAFE_MUTEX) */
-#endif /* THREAD */
 
 #ifdef __WIN__
   if (have_tcpip)
@@ -311,6 +308,89 @@ int handle_rtc_failure(int err_type, const char *file, int line,
 #pragma runtime_checks("", restore)
 #endif
 
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define MS 10000000
+
+static void win_init_time(void)
+{
+  /* The following is used by time functions */
+  FILETIME ft;
+  LARGE_INTEGER li, t_cnt;
+
+  DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+
+  if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
+    query_performance_frequency= 0;
+  else
+  {
+    GetSystemTimeAsFileTime(&ft);
+    li.LowPart=  ft.dwLowDateTime;
+    li.HighPart= ft.dwHighDateTime;
+    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+    QueryPerformanceCounter(&t_cnt);
+    query_performance_offset-= (t_cnt.QuadPart /
+                                query_performance_frequency * MS +
+                                t_cnt.QuadPart %
+                                query_performance_frequency * MS /
+                                query_performance_frequency);
+  }
+}
+
+
+/*
+  Open HKEY_LOCAL_MACHINE\SOFTWARE\MySQL and set any strings found
+  there as environment variables
+*/
+static void win_init_registry(void)
+{
+  HKEY key_handle;
+
+  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR)"SOFTWARE\\MySQL",
+                    0, KEY_READ, &key_handle) == ERROR_SUCCESS)
+  {
+    LONG ret;
+    DWORD index= 0;
+    DWORD type;
+    char key_name[256], key_data[1024];
+    DWORD key_name_len= sizeof(key_name) - 1;
+    DWORD key_data_len= sizeof(key_data) - 1;
+
+    while ((ret= RegEnumValue(key_handle, index++,
+                              key_name, &key_name_len,
+                              NULL, &type, (LPBYTE)&key_data,
+                              &key_data_len)) != ERROR_NO_MORE_ITEMS)
+    {
+      char env_string[sizeof(key_name) + sizeof(key_data) + 2];
+
+      if (ret == ERROR_MORE_DATA)
+      {
+        /* Registry value larger than 'key_data', skip it */
+        DBUG_PRINT("error", ("Skipped registry value that was too large"));
+      }
+      else if (ret == ERROR_SUCCESS)
+      {
+        if (type == REG_SZ)
+        {
+          strxmov(env_string, key_name, "=", key_data, NullS);
+
+          /* variable for putenv must be allocated ! */
+          putenv(strdup(env_string)) ;
+        }
+      }
+      else
+      {
+        /* Unhandled error, break out of loop */
+        break;
+      }
+
+      key_name_len= sizeof(key_name) - 1;
+      key_data_len= sizeof(key_data) - 1;
+    }
+
+    RegCloseKey(key_handle);
+  }
+}
+
 
 static void my_win_init(void)
 {
@@ -318,17 +398,18 @@ static void my_win_init(void)
 
 #if defined(_MSC_VER)
 #if _MSC_VER < 1300
-  /* 
+  /*
     Clear the OS system variable TZ and avoid the 100% CPU usage
     Only for old versions of Visual C++
   */
-  _putenv( "TZ=" ); 
-#endif 
+  _putenv("TZ=");
+#endif
 #if _MSC_VER >= 1400
   /* this is required to make crt functions return -1 appropriately */
   _set_invalid_parameter_handler(my_parameter_handler);
 #endif
-#endif  
+#endif
+
 #ifdef __MSVC_RUNTIME_CHECKS
   /*
     Install handler to send RTC (Runtime Error Check) warnings
@@ -339,106 +420,10 @@ static void my_win_init(void)
 
   _tzset();
 
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-  /* The following is used by time functions */
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-#define MS 10000000
-  {
-    FILETIME ft;
-    LARGE_INTEGER li, t_cnt;
-    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
-    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
-      query_performance_frequency= 0;
-    else
-    {
-      GetSystemTimeAsFileTime(&ft);
-      li.LowPart=  ft.dwLowDateTime;
-      li.HighPart= ft.dwHighDateTime;
-      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-      QueryPerformanceCounter(&t_cnt);
-      query_performance_offset-= (t_cnt.QuadPart /
-                                  query_performance_frequency * MS +
-                                  t_cnt.QuadPart %
-                                  query_performance_frequency * MS /
-                                  query_performance_frequency);
-    }
-  }
+  win_init_time();
+  win_init_registry();
 
-  {
-    /*
-      Open HKEY_LOCAL_MACHINE\SOFTWARE\MySQL and set any strings found
-      there as environment variables
-    */
-    HKEY key_handle;
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR)"SOFTWARE\\MySQL",
-                     0, KEY_READ, &key_handle) == ERROR_SUCCESS)
-    {
-      LONG ret;
-      DWORD index= 0;
-      DWORD type;
-      char key_name[256], key_data[1024];
-      DWORD key_name_len= sizeof(key_name) - 1;
-      DWORD key_data_len= sizeof(key_data) - 1;
-
-      while ((ret= RegEnumValue(key_handle, index++,
-                                key_name, &key_name_len,
-                                NULL, &type, (LPBYTE)&key_data,
-                                &key_data_len)) != ERROR_NO_MORE_ITEMS)
-      {
-        char env_string[sizeof(key_name) + sizeof(key_data) + 2];
-
-        if (ret == ERROR_MORE_DATA)
-        {
-          /* Registry value larger than 'key_data', skip it */
-          DBUG_PRINT("error", ("Skipped registry value that was too large"));
-        }
-        else if (ret == ERROR_SUCCESS)
-        {
-          if (type == REG_SZ)
-          {
-            strxmov(env_string, key_name, "=", key_data, NullS);
-
-            /* variable for putenv must be allocated ! */
-            putenv(strdup(env_string)) ;
-          }
-        }
-        else
-        {
-          /* Unhandled error, break out of loop */
-          break;
-        }
-
-        key_name_len= sizeof(key_name) - 1;
-        key_data_len= sizeof(key_data) - 1;
-      }
-
-      RegCloseKey(key_handle) ;
-    }
-  }
-  DBUG_VOID_RETURN ;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -530,7 +515,7 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-#if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
+#if !defined(HAVE_PREAD) && !defined(_WIN32)
   { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)

@@ -1,4 +1,4 @@
-/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -676,7 +676,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* We want to preserve the tree for views. */
-  thd->lex->view_prepare_mode= TRUE;
+  thd->lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
 
   {
     /*
@@ -2259,7 +2259,7 @@ static bool show_status_array(THD *thd, const char *wild,
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG_STATUS:
-          value= ((char *) status_var + (ulonglong) value);
+          value= ((char *) status_var + (ulong) value);
           /* fall through */
         case SHOW_LONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);
@@ -3449,7 +3449,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   uint derived_tables= lex->derived_tables; 
   int error= 1;
   Open_tables_backup open_tables_state_backup;
-  bool save_view_prepare_mode= lex->view_prepare_mode;
+  uint8 save_context_analysis_only= lex->context_analysis_only;
   Query_tables_list query_tables_list_backup;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *sctx= thd->security_ctx;
@@ -3469,7 +3469,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   */
   can_deadlock= thd->mdl_context.has_locks();
 
-  lex->view_prepare_mode= TRUE;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   /*
     Restore Query_tables_list::sql_command value, which was reset
@@ -3699,7 +3699,7 @@ err:
   lex->restore_backup_query_tables_list(&query_tables_list_backup);
   lex->derived_tables= derived_tables;
   lex->all_selects_list= old_all_select_lex;
-  lex->view_prepare_mode= save_view_prepare_mode;
+  lex->context_analysis_only= save_context_analysis_only;
   DBUG_RETURN(error);
 }
 
@@ -3930,6 +3930,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       /* If info() fails, then there's nothing else to do */
       if ((info_error= file->info(HA_STATUS_VARIABLE |
                                   HA_STATUS_TIME |
+                                  HA_STATUS_VARIABLE_EXTRA |
                                   HA_STATUS_AUTO)) != 0)
         goto err;
 
@@ -7804,7 +7805,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   /*
     Open the table by name in order to load Table_triggers_list object.
   */
-  if (open_tables(thd, &lst, &num_tables,
+  if (open_tables(thd, &lst, &num_tables, MYSQL_OPEN_SKIP_TEMPORARY |
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),

@@ -1254,7 +1254,8 @@ static int find_uniq_filename(char *name)
   *end='.';
   length= (size_t) (end - start + 1);
 
-  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
+  if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
+      !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
     DBUG_RETURN(1);
@@ -1281,7 +1282,11 @@ updating the index files.", max_found);
   }
 
   next= max_found + 1;
-  sprintf(ext_buf, "%06lu", next);
+  if (sprintf(ext_buf, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
   *end++='.';
 
   /* 
@@ -1298,7 +1303,11 @@ index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     goto end;
   }
 
-  sprintf(end, "%06lu", next);
+  if (sprintf(end, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
 
   /* print warning if reaching the end of available extensions. */
   if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
@@ -1531,13 +1540,8 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
-        /* 
-          This should be treated as error once propagation of error further
-          up in the stack gets proper handling.
-        */
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                            log_name);
+        my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                        MYF(ME_FATALERROR), log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -2004,80 +2008,26 @@ void sql_perror(const char *message)
 }
 
 
-#ifdef __WIN__
+/*
+  Change the file associated with two output streams. Used to
+  redirect stdout and stderr to a file. The streams are reopened
+  only for appending (writing at end of file).
+*/
 extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
-  int handle_fd;
-  int err_fd, out_fd;
-  HANDLE osfh;
+  if (outstream && !my_freopen(filename, "a", outstream))
+    return TRUE;
 
-  DBUG_ASSERT(filename && errstream);
+  if (errstream && !my_freopen(filename, "a", errstream))
+    return TRUE;
 
-  // Services don't have stdout/stderr on Windows, so _fileno returns -1.
-  err_fd= _fileno(errstream);
-  if (err_fd < 0)
-  {
-    if (!freopen(filename, "a+", errstream))
-      return TRUE;
-
+  /* The error stream must be unbuffered. */
+  if (errstream)
     setbuf(errstream, NULL);
-    err_fd= _fileno(errstream);
-  }
-
-  if (outstream)
-  {
-    out_fd= _fileno(outstream);
-    if (out_fd < 0)
-    {
-      if (!freopen(filename, "a+", outstream))
-        return TRUE;
-      out_fd= _fileno(outstream);
-    }
-  }
-
-  if ((osfh= CreateFile(filename, GENERIC_READ | GENERIC_WRITE,
-                        FILE_SHARE_READ | FILE_SHARE_WRITE |
-                        FILE_SHARE_DELETE, NULL,
-                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
-                        NULL)) == INVALID_HANDLE_VALUE)
-    return TRUE;
-
-  if ((handle_fd= _open_osfhandle((intptr_t)osfh,
-                                  _O_APPEND | _O_TEXT)) == -1)
-  {
-    CloseHandle(osfh);
-    return TRUE;
-  }
-
-  if (_dup2(handle_fd, err_fd) < 0)
-  {
-    CloseHandle(osfh);
-    return TRUE;
-  }
-
-  if (outstream && _dup2(handle_fd, out_fd) < 0)
-  {
-    CloseHandle(osfh);
-    return TRUE;
-  }
-
-  _close(handle_fd);
-  return FALSE;
-}
-#else
-extern "C" my_bool reopen_fstreams(const char *filename,
-                                   FILE *outstream, FILE *errstream)
-{
-  if (outstream && !freopen(filename, "a+", outstream))
-    return TRUE;
-
-  if (errstream && !freopen(filename, "a+", errstream))
-    return TRUE;
 
   return FALSE;
 }
-#endif
 
 
 /*
@@ -2607,7 +2557,7 @@ int TC_LOG_MMAP::sync()
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
+int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
   my_xid *x=(my_xid *)(data+cookie);
@@ -2625,6 +2575,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);
+  return 0;
 }
 
 void TC_LOG_MMAP::close()

@@ -44,9 +44,14 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
+/* aux macros to convert M into "123" (string) if M is defined like
+#define M 123 */
+#define _IB_TO_STR(s)	#s
+#define IB_TO_STR(s)	_IB_TO_STR(s)
+
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	2
-#define INNODB_VERSION_BUGFIX	0
+#define INNODB_VERSION_BUGFIX	1
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -57,16 +62,14 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-/* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c)	(#a "." #b "." #c)
-#define _INNODB_VERSION(a, b, c)	__INNODB_VERSION(a, b, c)
-
 #define INNODB_VERSION_STR			\
-	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
-			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX)
+	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
+	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
+	IB_TO_STR(INNODB_VERSION_BUGFIX)
 
-#define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
+#define REFMAN "http://dev.mysql.com/doc/refman/"	\
+	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
+	IB_TO_STR(MYSQL_MINOR_VERSION) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
@@ -200,6 +203,9 @@ debugging redo log application problems. */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
+#define UNIV_PERF_DEBUG                         /* debug flag that enables
+                                                light weight performance
+                                                related stuff. */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch
 operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */
@@ -253,7 +259,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INTERN
 #endif
 
-#if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
+#ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 
 #ifdef __WIN__
@@ -264,14 +270,14 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INLINE static __inline__
 #endif
 
-#else
+#else /* !UNIV_MUST_NOT_INLINE */
 /* If we want to compile a noninlined version we use the following macro
 definitions: */
 
 #define UNIV_NONINL
 #define UNIV_INLINE	UNIV_INTERN
 
-#endif	/* UNIV_DEBUG */
+#endif /* !UNIV_MUST_NOT_INLINE */
 
 #ifdef _WIN32
 #define UNIV_WORD_SIZE		4

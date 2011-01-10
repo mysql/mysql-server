@@ -971,13 +971,11 @@ longlong Item_func_signed::val_int_from_str(int *error)
   value= cs->cset->strtoll10(cs, start, &end, error);
   if (*error > 0 || end != start+ length)
   {
-    char err_buff[128];
-    String err_tmp(err_buff,(uint32) sizeof(err_buff), system_charset_info);
-    err_tmp.copy(start, length, system_charset_info);
+    ErrConvString err(res);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        err_tmp.c_ptr());
+                        err.ptr());
   }
   return value;
 }
@@ -1563,9 +1561,14 @@ void Item_func_div::fix_length_and_dec()
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
     set_if_smaller(decimals, NOT_FIXED_DEC);
-    max_length=args[0]->max_length - args[0]->decimals + decimals;
     uint tmp=float_length(decimals);
-    set_if_smaller(max_length,tmp);
+    if (decimals == NOT_FIXED_DEC)
+      max_length= tmp;
+    else
+    {
+      max_length=args[0]->max_length - args[0]->decimals + decimals;
+      set_if_smaller(max_length,tmp);
+    }
     break;
   }
   case INT_RESULT:
@@ -6512,7 +6515,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view

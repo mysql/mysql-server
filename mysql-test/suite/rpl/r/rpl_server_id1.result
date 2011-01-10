@@ -1,13 +1,7 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-reset master;
-include/stop_slave.inc
-change master to master_port=SLAVE_PORT;
-start slave;
-*** must be having the replicate-same-server-id IO thread error ***
-Slave_IO_Errno= 1593
-Slave_IO_Error= Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
+include/rpl_init.inc [topology=2->2]
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=1593]
+Last_IO_Error = 'Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).'
+include/stop_slave_sql.inc
+RESET SLAVE;
+include/rpl_end.inc

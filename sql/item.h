@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1273,7 +1273,7 @@ public:
       maybe_null= 1;
     }
     else
-      max_length= max_result_length;
+      max_length= (uint32) max_result_length;
   }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {

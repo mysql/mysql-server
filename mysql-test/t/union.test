@@ -1118,3 +1118,57 @@ DROP TABLE t1,t2;
 
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#57986 ORDER BY clause is not used after a UNION, 
+--echo #           if embedded in a SELECT
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(10) NOT NULL, c2 INT NOT NULL);
+CREATE TABLE t2 (c1 VARCHAR(10) NOT NULL, c2 INT NOT NULL);
+
+
+INSERT INTO t1 (c1, c2) VALUES ('t1a', 1), ('t1a', 2), ('t1a', 3), ('t1b', 2), ('t1b', 1);
+INSERT INTO t2 (c1, c2) VALUES ('t2a', 1), ('t2a', 2), ('t2a', 3), ('t2b', 2), ('t2b', 1);
+
+SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY c2, c1;
+SELECT * FROM t1 UNION (SELECT * FROM t2) ORDER BY c2, c1;
+SELECT * FROM t1 UNION (SELECT * FROM t2 ORDER BY c2, c1);
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  (SELECT c1, c2 FROM t2)
+  ORDER BY c2, c1
+) AS res;
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  (SELECT c1, c2 FROM t2)
+  ORDER BY c2 DESC, c1 LIMIT 1
+) AS res;
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  (SELECT c1, c2 FROM t2 ORDER BY c2 DESC, c1 LIMIT 1)
+) AS res;
+
+SELECT c1, c2 FROM (
+  SELECT c1, c2 FROM t1
+  UNION
+  SELECT c1, c2 FROM t2 
+  ORDER BY c2 DESC, c1 DESC LIMIT 1
+) AS res;
+
+SELECT c1, c2 FROM (
+  (
+   (SELECT c1, c2 FROM t1)
+   UNION
+   (SELECT c1, c2 FROM t2)
+  )
+  ORDER BY c2 DESC, c1 ASC LIMIT 1
+) AS res;
+
+DROP TABLE t1, t2;
