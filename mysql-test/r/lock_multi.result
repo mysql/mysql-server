@@ -162,13 +162,6 @@ ERROR 70100: Query execution was interrupted
 unlock tables;
 drop table t1;
 drop table if exists t1;
-create table t1 (a int) ENGINE=MEMORY;
---> client 2
-handler t1 open;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
---> client 1
-drop table t1;
-drop table if exists t1;
 create table t1 (i int);
 connection: default
 lock tables t1 write;

@@ -43,6 +43,7 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
 
   /* The above changed info->lastkey_buff2. Inform maria_rnext_same(). */
   info->update&= ~HA_STATE_RNEXT_SAME;
+  info->last_key.keyinfo= keyinfo;
 
   DBUG_ASSERT(key.data_length == MARIA_UNIQUE_HASH_LENGTH);
   if (_ma_search(info, &key, SEARCH_FIND, info->s->state.key_root[def->key]))

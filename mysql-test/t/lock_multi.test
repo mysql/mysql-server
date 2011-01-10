@@ -484,22 +484,6 @@ unlock tables;
 connection default;
 drop table t1;
 
-#
-# Bug#25856 HANDLER table OPEN in one connection lock DROP TABLE in another one
-#
---disable_warnings
-drop table if exists t1;
---enable_warnings
-create table t1 (a int) ENGINE=MEMORY;
---echo --> client 2
-connection locker;
---error ER_ILLEGAL_HA
-handler t1 open;
---echo --> client 1
-connection default;
-drop table t1;
-
-
 # Disconnect sessions used in many subtests above
 disconnect locker;
 disconnect reader;
