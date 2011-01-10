@@ -21,6 +21,7 @@
 INCLUDE(CheckFunctionExists)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckCSourceCompiles)
+INCLUDE(CheckCXXSourceCompiles)
 INCLUDE(CheckCXXSourceRuns)
 INCLUDE(ndb_require_variable)
 
@@ -39,8 +40,31 @@ CHECK_FUNCTION_EXISTS(sysconf HAVE_SYSCONF)
 CHECK_FUNCTION_EXISTS(directio HAVE_DIRECTIO)
 CHECK_FUNCTION_EXISTS(atomic_swap_32 HAVE_ATOMIC_SWAP32)
 CHECK_FUNCTION_EXISTS(mlock HAVE_MLOCK)
+CHECK_FUNCTION_EXISTS(ffs HAVE_FFS)
+CHECK_FUNCTION_EXISTS(pthread_mutexattr_init HAVE_PTHREAD_MUTEXATTR_INIT)
+CHECK_FUNCTION_EXISTS(pthread_mutexattr_settype HAVE_PTHREAD_MUTEXATTR_SETTYPE)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
+
+CHECK_CXX_SOURCE_COMPILES("
+unsigned A = 7;
+int main()
+{
+  unsigned a = __builtin_ffs(A);
+  return 0;
+}"
+HAVE___BUILTIN_FFS)
+
+CHECK_C_SOURCE_COMPILES("
+#include <intrin.h>
+unsigned long A = 7;
+int main()
+{
+  unsigned long a;
+  unsigned char res = _BitScanForward(&a, A);
+  return (int)a;
+}"
+HAVE__BITSCANFORWARD)
 
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("
