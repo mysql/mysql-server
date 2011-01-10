@@ -85,6 +85,16 @@ private:
                            const GenericSectionPtr ptr[3], Uint32 secs);
 public:
 
+  /**
+   * These are functions used by ndb_mgmd
+   */
+  void ext_set_max_api_reg_req_interval(Uint32 ms);
+  void ext_update_connections();
+  struct in_addr ext_get_connect_address(Uint32 nodeId);
+  void ext_forceHB();
+  bool ext_isConnected(NodeId aNodeId);
+  void ext_doConnect(int aNodeId);
+
   // Is node available for running transactions
 private:
   bool   get_node_alive(NodeId nodeId) const;
@@ -193,11 +203,8 @@ private:
   friend class trp_client;
   friend class ClusterMgr;
   friend class ArbitMgr;
-  friend class MgmtSrvr;
-  friend class SignalSender;
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
-  friend class NdbImpl;
 
   bool isConnected(NodeId aNodeId);
   void doStop();

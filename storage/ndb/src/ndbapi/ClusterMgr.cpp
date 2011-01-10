@@ -289,6 +289,14 @@ ClusterMgr::forceHB()
 }
 
 void
+ClusterMgr::force_update_connections()
+{
+  theFacade.lock_mutex();
+  theFacade.theTransporterRegistry->update_connections();
+  theFacade.unlock_mutex();
+}
+
+void
 ClusterMgr::threadMain( ){
   NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theFacade.ownId()));
   

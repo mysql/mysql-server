@@ -1404,7 +1404,6 @@ TransporterFacade::sendSignal(const NdbApiSignal* aSignal, NodeId aNode,
 /******************************************************************************
  * CONNECTION METHODS  Etc
  ******************************************************************************/
-
 void
 TransporterFacade::doConnect(int aNodeId){
   theTransporterRegistry->setIOState(aNodeId, NoHalt);
@@ -1969,3 +1968,42 @@ TransporterFacade::get_auto_reconnect() const
 {
   return theClusterMgr->m_auto_reconnect;
 }
+
+void
+TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
+{
+  theClusterMgr->set_max_api_reg_req_interval(interval);
+}
+
+void
+TransporterFacade::ext_update_connections()
+{
+  theClusterMgr->force_update_connections();
+}
+
+struct in_addr
+TransporterFacade::ext_get_connect_address(Uint32 nodeId)
+{
+  return theTransporterRegistry->get_connect_address(nodeId);
+}
+
+void
+TransporterFacade::ext_forceHB()
+{
+  theClusterMgr->forceHB();
+}
+
+bool
+TransporterFacade::ext_isConnected(NodeId aNodeId)
+{
+  return theTransporterRegistry->is_connected(aNodeId);
+}
+
+void
+TransporterFacade::ext_doConnect(int aNodeId)
+{
+  lock_mutex();
+  doConnect(aNodeId);
+  unlock_mutex();
+}
+

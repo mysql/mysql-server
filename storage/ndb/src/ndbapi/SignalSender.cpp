@@ -161,12 +161,6 @@ SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
 }
 
-Uint32
-SignalSender::getNoOfConnectedNodes() const {
-  return theFacade->theClusterMgr->getNoOfConnectedNodes();
-}
-
-
 NodeBitmask
 SignalSender::broadcastSignal(NodeBitmask mask,
                               SimpleSignal& sig,
