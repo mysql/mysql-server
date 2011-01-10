@@ -1,4 +1,34 @@
+2011-01-06	The InnoDB Team
+	* handler/i_s.cc, include/trx0i_s.h, trx/trx0i_s.c:
+	Fix Bug#55397 cannot select from innodb_trx when trx_query contains
+	blobs that aren't strings
+
+2011-01-04	The InnoDB Team
+	* dict/dict0dict.c:
+	Fix Bug#59197 double quote in field comment prevents foreign
+	key constraint creation
+
+2010-12-21	The InnoDB Team
+	* include/btr0cur.h, include/row0upd.h, btr/btr0cur.c,
+	row/row0umod.c, row/row0upd.c:
+	Fix Bug#55284 Double free of off-page columns due to lock wait
+	while updating PRIMARY KEY
+
+2010-12-21	The InnoDB Team
+
+	* include/data0data.h, include/data0data.ic, include/row0upd.h,
+	btr/btr0cur.c, row/row0purge.c, row/row0umod.c, row/row0upd.c,
+	innodb.result, innodb.test:
+	Fix Bug#58912 InnoDB unnecessarily avoids update-in-place
+	on column prefix indexes
+
+2010-12-09	The InnoDB Team
+
+	* buf/buf0lru.c:
+	Fix Bug#57600 output of I/O sum[%lu] can go negative
+
 2010-11-11	The InnoDB Team
+
 	* thr/thr0loc.c, trx/trx0i_s.c:
 	Fix Bug#57802 Empty ASSERTION parameter passed to the HASH_SEARCH macro
 

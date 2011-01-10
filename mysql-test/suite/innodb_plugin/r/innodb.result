@@ -1,5 +1,8 @@
 drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
+CREATE TABLE bug58912 (a BLOB, b TEXT, PRIMARY KEY(a(1))) ENGINE=InnoDB;
+INSERT INTO bug58912 VALUES(REPEAT('a',8000),REPEAT('b',8000));
+UPDATE bug58912 SET a=REPEAT('a',7999);
 create table t1 (id int unsigned not null auto_increment, code tinyint unsigned not null, name char(20) not null, primary key (id), key (code), unique (name)) engine=innodb;
 insert into t1 (code, name) values (1, 'Tim'), (1, 'Monty'), (2, 'David'), (2, 'Erik'), (3, 'Sasha'), (3, 'Jeremy'), (4, 'Matt');
 select id, code, name from t1 order by id;
@@ -1676,10 +1679,10 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1066
+1067
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
-865
+866
 SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
 0
@@ -3239,3 +3242,4 @@ Variable_name	Value
 Handler_update	1
 Variable_name	Value
 Handler_delete	1
+DROP TABLE bug58912;

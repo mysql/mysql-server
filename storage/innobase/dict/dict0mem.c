@@ -87,6 +87,8 @@ dict_mem_table_create(
 
 	table->big_rows = 0;
 
+	table->fk_max_recusive_level = 0;
+
 	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc = 0;
