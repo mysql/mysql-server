@@ -286,10 +286,13 @@ row_upd_changes_ord_field_binary(
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
+	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+				stored columns in the old row */
 	dict_index_t*	index,	/*!< in: index of the record */
-	const upd_t*	update);/*!< in: update vector for the row; NOTE: the
+	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
 				field numbers in this MUST be clustered index
 				positions! */
+	__attribute__((nonnull(3,4), warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -462,11 +465,16 @@ struct upd_node_struct{
 #define UPD_NODE_INSERT_CLUSTERED  3	/* clustered index record should be
 					inserted, old record is already delete
 					marked */
-#define UPD_NODE_UPDATE_ALL_SEC	   4	/* an ordering field of the clustered
+#define UPD_NODE_INSERT_BLOB	   4	/* clustered index record should be
+					inserted, old record is already
+					delete-marked; non-updated BLOBs
+					should be inherited by the new record
+					and disowned by the old record */
+#define UPD_NODE_UPDATE_ALL_SEC	   5	/* an ordering field of the clustered
 					index record was changed, or this is
 					a delete operation: should update
 					all the secondary index records */
-#define	UPD_NODE_UPDATE_SOME_SEC   5	/* secondary index entries should be
+#define UPD_NODE_UPDATE_SOME_SEC   6	/* secondary index entries should be
 					looked at and updated if an ordering
 					field changed */
 
