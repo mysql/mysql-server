@@ -209,7 +209,7 @@ public class LoadTest extends AbstractClusterJModelTest {
         public DynamicEmployee() {}
         
         @Override
-        public String tableName() {
+        public String table() {
             return tablename;
         }
         public int getId() {

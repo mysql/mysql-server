@@ -27,6 +27,7 @@ import com.mysql.clusterj.DynamicObject;
 import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.Query;
 import com.mysql.clusterj.ColumnMetadata.Type;
+import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDomainType;
 
@@ -98,14 +99,18 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
 
     public static class TBasic extends DynamicObject {
         @Override
-        public String tableName() {
+        public String table() {
             return tablename;
         }
     }
 
+    @PersistenceCapable(table="t_basic")
+    public static class AnnotatedTBasic extends DynamicObject {}
+
     public void test() {
         insert();
         find();
+        findAnnotated();
         lookup();
         query();
         badClass(DynamicObjectPrivate.class);
@@ -123,6 +128,11 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
 
     private void find() {
         TBasic instance = session.find(TBasic.class, 0);
+        validateInstance(instance);
+    }
+
+    private void findAnnotated() {
+        AnnotatedTBasic instance = session.find(AnnotatedTBasic.class, 0);
         validateInstance(instance);
     }
 
@@ -146,7 +156,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
         validateInstance(instance);
     }
 
-    private void validateInstance(TBasic instance) {
+    private void validateInstance(DynamicObject instance) {
         int id = (Integer)instance.get(0);
         errorIfNotEqual("validate name", String.valueOf(id), instance.get(1)); // name
         errorIfNotEqual("validate age", id, instance.get(2)); // age
@@ -166,7 +176,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
     public static class DynamicObjectProtectedConstructor extends DynamicObject {
         protected DynamicObjectProtectedConstructor() {}
         @Override
-        public String tableName() {
+        public String table() {
             return "DynamicObjectProtectedConstructor";
         }        
     }
@@ -174,7 +184,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
     private static class DynamicObjectPrivate extends DynamicObject {
         public DynamicObjectPrivate() {}
         @Override
-        public String tableName() {
+        public String table() {
             return "DynamicObjectProtectedConstructor";
         }        
     }
@@ -182,7 +192,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
     public class DynamicObjectNonStatic extends DynamicObject {
         public DynamicObjectNonStatic() {}
         @Override
-        public String tableName() {
+        public String table() {
             return "DynamicObjectProtectedConstructor";
         }        
     }
@@ -190,7 +200,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
     public static class DynamicObjectPrivateConstructor extends DynamicObject {
         private DynamicObjectPrivateConstructor() {}
         @Override
-        public String tableName() {
+        public String table() {
             return "DynamicObjectPrivateConstructor";
         }        
     }
@@ -198,17 +208,13 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
     public static class DynamicObjectTableDoesNotExist extends DynamicObject {
         private DynamicObjectTableDoesNotExist() {}
         @Override
-        public String tableName() {
+        public String table() {
             return "DynamicObjectTableDoesNotExist";
         }        
     }
 
     public static class DynamicObjectNullTableName extends DynamicObject {
         public DynamicObjectNullTableName() {}
-        @Override
-        public String tableName() {
-            return null;
-        }        
     }
 
     protected void checkMetadata() {

@@ -21,7 +21,9 @@ public abstract class DynamicObject {
 
     private DynamicObjectDelegate delegate;
 
-    public abstract String tableName();
+    public String table() {
+        return null;
+    }
 
     public final void delegate(DynamicObjectDelegate delegate) {
         this.delegate = delegate;
