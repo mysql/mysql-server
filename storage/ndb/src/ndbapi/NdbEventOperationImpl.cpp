@@ -2298,12 +2298,6 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
 }
 
 void
-NdbEventBuffer::report_node_connected(Uint32 node_id)
-{
-  return;
-}
-
-void
 NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
 {
   m_alive_node_bit_mask.clear(node_id);

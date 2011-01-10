@@ -73,8 +73,8 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
   waitForHBCond= NdbCondition_Create();
   m_auto_reconnect = -1;
 
-  int ret = this->open(&theFacade, API_CLUSTERMGR);
-  if (unlikely(ret < 0))
+  Uint32 ret = this->open(&theFacade, API_CLUSTERMGR);
+  if (unlikely(ret == 0))
   {
     ndbout_c("Failed to register ClusterMgr! ret: %d", ret);
     abort();
@@ -427,9 +427,8 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
     break;
 
   case GSN_NF_COMPLETEREP:
-    execNF_COMPLETEREP(theData);
+    execNF_COMPLETEREP(sig, ptr);
     break;
-
   case GSN_ARBIT_STARTREQ:
     if (theArbitMgr != NULL)
       theArbitMgr->doStart(theData);
@@ -497,11 +496,6 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
 
   }
   return;
-}
-
-void
-ClusterMgr::trp_node_status(Uint32 nodeId, Uint32 event)
-{
 }
 
 ClusterMgr::Node::Node()
@@ -752,17 +746,19 @@ ClusterMgr::execNODE_FAILREP(const Uint32 * theData){
 }
 
 void
-ClusterMgr::execNF_COMPLETEREP(const Uint32 * theData){
-  const NFCompleteRep * const nfComp = (NFCompleteRep *)theData;
-
+ClusterMgr::execNF_COMPLETEREP(const NdbApiSignal* signal,
+                               const LinearSectionPtr ptr[3])
+{
+  const NFCompleteRep * nfComp = CAST_CONSTPTR(NFCompleteRep,
+                                               signal->getDataPtr());
   const NodeId nodeId = nfComp->failedNodeId;
   assert(nodeId > 0 && nodeId < MAX_NODES);
 
   trp_node & node = theNodes[nodeId];
   if (node.nfCompleteRep == false)
   {
-    theFacade.trp_node_status(nodeId, NS_NODE_NF_COMPLETE);
     node.nfCompleteRep = true;
+    theFacade.for_each(this, signal, ptr);
   }
 }
 
@@ -799,7 +795,13 @@ ClusterMgr::reportConnected(NodeId nodeId)
   theNode.m_state.startLevel = NodeState::SL_NOTHING;
   theNode.minDbVersion = 0;
   
-  theFacade.trp_node_status(nodeId, NS_NODE_ALIVE);
+  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
+  signal.theVerId_signalNumber = GSN_CONNECT_REP;
+  signal.theReceiversBlockNumber = 0;
+  signal.theTrace  = 0;
+  signal.theLength = 1;
+  signal.getDataPtrSend()[0] = nodeId;
+  theFacade.for_each(this, &signal, 0);
   DBUG_VOID_RETURN;
 }
 
@@ -844,7 +846,19 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect)
   
   if (disconnect || report)
   {
-    theFacade.trp_node_status(nodeId, NS_NODE_FAILED);
+    NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
+    signal.theVerId_signalNumber = GSN_NODE_FAILREP;
+    signal.theReceiversBlockNumber = 0;
+    signal.theTrace  = 0;
+    signal.theLength = NodeFailRep::SignalLengthLong;
+
+    NodeFailRep * rep = CAST_PTR(NodeFailRep, signal.getDataPtrSend());
+    rep->failNo = 0;
+    rep->masterNodeId = 0;
+    rep->noOfNodes = 1;
+    NodeBitmask::clear(rep->theNodes);
+    NodeBitmask::set(rep->theNodes, nodeId);
+    theFacade.for_each(this, &signal, 0);
   }
   
   if (noOfConnectedNodes == 0)
@@ -867,14 +881,25 @@ ClusterMgr::reportNodeFailed(NodeId nodeId, bool disconnect)
   theNode.nfCompleteRep = false;
   if (noOfAliveNodes == 0)
   {
-    NFCompleteRep rep;
+    NdbApiSignal signal(numberToRef(API_CLUSTERMGR, getOwnNodeId()));
+    signal.theVerId_signalNumber = GSN_NF_COMPLETEREP;
+    signal.theReceiversBlockNumber = 0;
+    signal.theTrace  = 0;
+    signal.theLength = NFCompleteRep::SignalLength;
+
+    NFCompleteRep * rep = CAST_PTR(NFCompleteRep, signal.getDataPtrSend());
+    rep->blockNo =0;
+    rep->nodeId = getOwnNodeId();
+    rep->unused = 0;
+    rep->from = __LINE__;
+
     for (Uint32 i = 1; i < MAX_NODES; i++)
     {
       trp_node& theNode = theNodes[i];
       if (theNode.defined && theNode.nfCompleteRep == false)
       {
-        rep.failedNodeId = i;
-        execNF_COMPLETEREP((Uint32*)&rep);
+        rep->failedNodeId = i;
+        execNF_COMPLETEREP(&signal, 0);
       }
     }
   }

@@ -37,14 +37,6 @@ class NdbApiSignal;
 class NdbWaiter;
 class trp_client;
 
-enum NS_Event
-{
-  NS_CONNECTED,   // *we* are connected and have nodeId (report as NodeId)
-  NS_NODE_ALIVE,  // *nodeId* is alive (connected and API_REGCONF)
-  NS_NODE_FAILED, // *nodeId* has failed
-  NS_NODE_NF_COMPLETE
-};
-
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
@@ -75,7 +67,7 @@ public:
    * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open_clnt(trp_client*, int blockNo = -1);
+  Uint32 open_clnt(trp_client*, int blockNo = -1);
   int close_clnt(trp_client*);
 
   Uint32 get_active_ndb_objects() const;

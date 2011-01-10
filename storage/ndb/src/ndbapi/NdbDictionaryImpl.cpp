@@ -44,6 +44,7 @@
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateHashMap.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
+#include <signaldata/NodeFailRep.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -2159,6 +2160,18 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_CREATE_HASH_MAP_CONF:
     tmp->execCREATE_HASH_MAP_CONF(signal, ptr);
     break;
+  case GSN_NODE_FAILREP:
+  {
+    const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
+                                           signal->getDataPtr());
+    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
+         i != NdbNodeBitmask::NotFound;
+         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    {
+      tmp->m_impl->theWaiter.nodeFail(i);
+    }
+    break;
+  }
   default:
     abort();
   }
@@ -2167,16 +2180,6 @@ NdbDictInterface::execSignal(void* dictImpl,
 void
 NdbDictInterface::execNodeStatus(void* dictImpl, Uint32 aNode, Uint32 ns_event)
 {
-  NdbDictInterface * tmp = (NdbDictInterface*)dictImpl;
-  NS_Event event = (NS_Event)ns_event;
-  
-  switch(event){
-  case NS_NODE_FAILED:
-    tmp->m_impl->theWaiter.nodeFail(aNode);
-    break;
-  default:
-    break;
-  }
 }
 
 int

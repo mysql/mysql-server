@@ -29,7 +29,7 @@
  */
 struct NodeFailRep {
   STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
-  
+  STATIC_CONST( SignalLengthLong = 3 + NodeBitmask::Size );
   Uint32 failNo;
 
   /**

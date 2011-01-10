@@ -39,6 +39,7 @@
 #include <kernel/ndb_limits.h>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <signaldata/AllocNodeId.hpp>
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -686,38 +687,26 @@ void
 TransporterFacade::connected()
 {
   DBUG_ENTER("TransporterFacade::connected");
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++)
-  {
-    trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
-    {
-      clnt->trp_node_status(numberToRef(indexToNumber(i), theOwnId), NS_CONNECTED);
-    }
-  }
-  DBUG_VOID_RETURN;
-}
+  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theOwnId));
+  signal.theVerId_signalNumber = GSN_ALLOC_NODEID_CONF;
+  signal.theReceiversBlockNumber = 0;
+  signal.theTrace  = 0;
+  signal.theLength = AllocNodeIdConf::SignalLength;
 
-void
-TransporterFacade::trp_node_status(NodeId tNodeId, Uint32 event)
-{
-  DBUG_ENTER("TransporterFacade::ReportNodeDead");
-  DBUG_PRINT("enter",("nodeid= %d", tNodeId));
-  /**
-   * When a node fails we must report this to each Ndb object. 
-   * The function that is used for communicating node failures is called.
-   * This is to ensure that the Ndb objects do not think their connections 
-   * are correct after a failure followed by a restart. 
-   * After the restart the node is up again and the Ndb object 
-   * might not have noticed the failure.
-   */
+  AllocNodeIdConf * rep = CAST_PTR(AllocNodeIdConf, signal.getDataPtrSend());
+  rep->senderRef = 0;
+  rep->senderData = 0;
+  rep->nodeId = theOwnId;
+  rep->secret_lo = 0;
+  rep->secret_hi = 0;
+
   Uint32 sz = m_threads.m_statusNext.size();
   for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, event);
+      clnt->trp_deliver_signal(&signal, 0);
     }
   }
   DBUG_VOID_RETURN;
@@ -744,7 +733,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
   return ret;
 }
 
-int
+Uint32
 TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
@@ -752,7 +741,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   int r= m_threads.open(clnt);
   if (r < 0)
   {
-    DBUG_RETURN(r);
+    DBUG_RETURN(0);
   }
 
   if (unlikely(blockNo != -1))
@@ -766,12 +755,14 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
     m_fixed2dynamic[fixed_index]= r;
   }
 
-#if 1
   if (theOwnId > 0)
   {
-    clnt->trp_node_status(numberToRef(r, theOwnId), NS_CONNECTED);
+    r = numberToRef(r, theOwnId);
   }
-#endif
+  else
+  {
+    r = numberToRef(r, 0);
+  }
   DBUG_RETURN(r);
 }
 
