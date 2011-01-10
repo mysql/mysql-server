@@ -1171,3 +1171,16 @@ SELECT c1, c2 FROM (
 ) AS res;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #58970 Problem Subquery (without referencing a table) 
+--echo #            and Order By
+--echo #
+
+SELECT(SELECT 0 AS a UNION SELECT 1 AS a ORDER BY a ASC  LIMIT 1) AS dev;
+SELECT(SELECT 0 AS a UNION SELECT 1 AS a ORDER BY a DESC LIMIT 1) AS dev;
+SELECT(SELECT 0 AS a FROM dual UNION SELECT 1 AS a FROM dual ORDER BY a ASC  LIMIT 1) AS dev;
+SELECT(SELECT 0 AS a FROM dual UNION SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
+SELECT(SELECT 1 AS a ORDER BY a) AS dev;
+SELECT(SELECT 1 AS a LIMIT 1) AS dev;
+SELECT(SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
