@@ -43,14 +43,13 @@ INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','def','abc');
 INSERT INTO t1 (c1,c2,c3) VALUES('def','abc','def');
 INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
-# Bug#52430 : Uncomment the following lines
-#             when the bug is fixed 
-#--error ER_DUP_ENTRY
-#INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
-#--error ER_DUP_ENTRY
-#INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
-#--error ER_DUP_ENTRY
-#INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
+# Bug#52430 
+--error ER_DUP_ENTRY
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','abc');
+--error ER_DUP_ENTRY
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','abc','def');
+--error ER_DUP_ENTRY
+INSERT INTO t1 (c1,c2,c3) VALUES('abc','def','def');
 --sorted_result
 SELECT hex(c1),hex(c2),hex(c3) FROM t1;
 DROP TABLE t1;
