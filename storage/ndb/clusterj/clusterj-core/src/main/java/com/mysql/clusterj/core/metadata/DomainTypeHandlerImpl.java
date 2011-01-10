@@ -247,10 +247,14 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
 
     protected <O extends DynamicObject> String getTableNameForDynamicObject(Class<O> cls) {
         DynamicObject dynamicObject;
-        String tableName;
+        PersistenceCapable persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
+        String tableName = null;
         try {
             dynamicObject = cls.newInstance();
-            tableName = dynamicObject.tableName();
+            tableName = dynamicObject.table();
+            if (tableName == null  && persistenceCapable != null) {
+                tableName = persistenceCapable.table();
+            }
         } catch (InstantiationException e) {
             throw new ClusterJUserException(local.message("ERR_Dynamic_Object_Instantiation", cls.getName()), e);
         } catch (IllegalAccessException e) {
