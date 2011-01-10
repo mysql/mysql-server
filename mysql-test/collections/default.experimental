@@ -29,6 +29,11 @@ sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Severa
 sys_vars.plugin_dir_basic                     # Bug#52223 2010-11-24 alik Test "plugin_dir_basic" does not support RPM build (test) directory structure
 sys_vars.slow_query_log_func @solaris         # Bug#54819 2010-06-26 alik sys_vars.slow_query_log_func fails sporadically on Solaris 10
 sys_vars.wait_timeout_func                    # Bug#41255 2010-04-26 alik wait_timeout_func fails
+sys_vars.sys_vars # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_enabled_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_timeout_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_trace_level_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_wait_no_slave_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
 
 # BUG #59055 : All ndb tests should be removed from the repository
 # Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests
