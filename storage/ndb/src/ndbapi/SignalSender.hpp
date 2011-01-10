@@ -78,7 +78,6 @@ public:
   int unlock();
 
   Uint32 getOwnRef() const;
-  Uint32 getNoOfConnectedNodes() const;
 
   NodeId find_confirmed_node(const NodeBitmask& mask);
   NodeId find_connected_node(const NodeBitmask& mask);

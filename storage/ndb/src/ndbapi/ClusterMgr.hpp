@@ -56,6 +56,7 @@ public:
   void set_max_api_reg_req_interval(unsigned int millisec) {
     m_max_api_reg_req_interval = millisec;
   }
+  void force_update_connections();
 
 private:
   void threadMain();

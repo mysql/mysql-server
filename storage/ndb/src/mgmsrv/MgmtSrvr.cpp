@@ -437,7 +437,7 @@ MgmtSrvr::start_transporter(const Config* config)
   /**
    * Wait for loopback interface to be enabled
    */
-  while (!theFacade->isConnected(_ownNodeId))
+  while (!theFacade->ext_isConnected(_ownNodeId))
   {
     NdbSleep_MilliSleep(20);
   }
@@ -452,7 +452,7 @@ MgmtSrvr::start_transporter(const Config* config)
     is not dependent on heartbeat settings in the
     configuration
   */
-  theFacade->theClusterMgr->set_max_api_reg_req_interval(100);
+  theFacade->ext_set_max_api_reg_req_interval(100);
 
   DBUG_RETURN(true);
 }
@@ -803,10 +803,10 @@ int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond)
     return WRONG_PROCESS_TYPE;
   // Check if we have contact with it
   if(unCond){
-    if(theFacade->theClusterMgr->getNodeInfo(nodeId).is_confirmed())
+    if (getNodeInfo(nodeId).is_confirmed())
       return 0;
   }
-  else if (theFacade->get_node_alive(nodeId) == true)
+  else if (getNodeInfo(nodeId).m_alive == true)
     return 0;
   return NO_CONTACT_WITH_PROCESS;
 }
@@ -882,7 +882,7 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
-    trp_node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    trp_node node = getNodeInfo(nodeId);
     if(node.is_connected())
     {
       version= node.m_info.m_version;
@@ -1425,7 +1425,7 @@ bool MgmtSrvr::is_any_node_stopping()
   trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    node = getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_STOPPING_1) || 
        (node.m_state.startLevel == NodeState::SL_STOPPING_2) || 
        (node.m_state.startLevel == NodeState::SL_STOPPING_3) || 
@@ -1441,7 +1441,7 @@ bool MgmtSrvr::is_any_node_starting()
   trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    node = getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_STARTING))
       return true; // At least one node was starting
   }
@@ -1454,7 +1454,7 @@ bool MgmtSrvr::is_cluster_single_user()
   trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    node = getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
       return true; // Cluster is in single user modes
   }
@@ -1673,12 +1673,10 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
  * Status
  ****************************************************************************/
 
-#include <ClusterMgr.hpp>
-
 void
 MgmtSrvr::updateStatus()
 {
-  theFacade->theClusterMgr->forceHB();
+  theFacade->ext_forceHB();
 }
 
 int 
@@ -1700,8 +1698,7 @@ MgmtSrvr::status(int nodeId,
     *address= get_connect_address(nodeId);
   }
 
-  const trp_node node =
-    theFacade->theClusterMgr->getNodeInfo(nodeId);
+  const trp_node node = getNodeInfo(nodeId);
 
   if(!node.is_connected()){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
@@ -1807,7 +1804,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
         continue;
       if (okToSendTo(nodeId, true))
       {
-        if (theFacade->theClusterMgr->getNodeInfo(nodeId).is_connected()  == false)
+        if (getNodeInfo(nodeId).is_connected()  == false)
         {
           // node not connected we can safely skip this one
           continue;
@@ -1834,7 +1831,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
     {
       if (nodeTypes[nodeId] != NODE_TYPE_DB)
         continue;
-      if (theFacade->theClusterMgr->getNodeInfo(nodeId).is_connected()  == false)
+      if (getNodeInfo(nodeId).is_connected()  == false)
         continue; // node is not connected, skip
       if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
         nodes.set(nodeId);
@@ -2577,16 +2574,13 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
 const char *MgmtSrvr::get_connect_address(Uint32 node_id)
 {
   if (m_connect_address[node_id].s_addr == 0 &&
-      theFacade && theFacade->theTransporterRegistry &&
-      theFacade->theClusterMgr &&
+      theFacade &&
       getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
   {
-    const trp_node &node=
-      theFacade->theClusterMgr->getNodeInfo(node_id);
+    const trp_node &node= getNodeInfo(node_id);
     if (node.is_connected())
     {
-      m_connect_address[node_id]=
-	theFacade->theTransporterRegistry->get_connect_address(node_id);
+      m_connect_address[node_id] = theFacade->ext_get_connect_address(node_id);
     }
   }
   return inet_ntoa(m_connect_address[node_id]);  
@@ -2595,13 +2589,13 @@ const char *MgmtSrvr::get_connect_address(Uint32 node_id)
 void
 MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 {
-  if (theFacade && theFacade->theClusterMgr)
+  if (theFacade)
   {
     for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
     {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
-	const trp_node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	const trp_node &node= getNodeInfo(i);
 	connected_nodes.bitOR(node.m_state.m_connected_nodes);
       }
     }
@@ -2635,7 +2629,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
     {
       bool next;
       while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-            theFacade->get_node_alive(nodeId) == false);
+            getNodeInfo(nodeId).m_alive == false);
       if (!next)
         return NO_CONTACT_WITH_DB_NODES;
       do_send = 1;
@@ -2670,7 +2664,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
       {
         do_send = 1;
         nodeId = refToNode(ref->masterRef);
-	if (!theFacade->get_node_alive(nodeId))
+	if (!getNodeInfo(nodeId).m_alive)
 	  nodeId = 0;
         if (ref->errorCode != AllocNodeIdRef::NotMaster)
         {
@@ -2911,9 +2905,7 @@ MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
     /**
      * Make sure we're ready to accept connections from this node
      */
-    theFacade->lock_mutex();
-    theFacade->doConnect(id);
-    theFacade->unlock_mutex();
+    theFacade->ext_doConnect(id);
   }
 
   g_eventLogger->info("Mgmt server state: nodeid %d reserved for ip %s, "
@@ -3231,7 +3223,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 	ndbout_c("I'm not master resending to %d", nodeId);
 #endif
 	do_send = 1; // try again
-	if (!theFacade->get_node_alive(nodeId))
+	if (!getNodeInfo(nodeId).m_alive)
 	  m_master_node = nodeId = 0;
 	continue;
       }
@@ -3288,7 +3280,7 @@ MgmtSrvr::abortBackup(Uint32 backupId)
   bool next;
   NodeId nodeId = 0;
   while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-	theFacade->get_node_alive(nodeId) == false);
+	getNodeInfo(nodeId).m_alive == false);
   
   if(!next){
     return NO_CONTACT_WITH_DB_NODES;
@@ -3544,9 +3536,7 @@ bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
     with the new connection.
     Important for correct node id reservation handling
   */
-  theFacade->lock_mutex();
-  tr->update_connections();
-  theFacade->unlock_mutex();
+  theFacade->ext_update_connections();
 
   DBUG_RETURN(true);
 }
