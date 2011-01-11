@@ -7594,16 +7594,15 @@ my_bool is_any_column_signaled_for_table(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("is_any_column_signaled_for_table");
 
-  int nfields_set= 0;
   for (Field **ptr=table->field ;
        *ptr && ((*ptr)->field_index < cols->n_bits);
        ptr++)
   {
     if (bitmap_is_set(cols, (*ptr)->field_index))
-      nfields_set++;
+      DBUG_RETURN(TRUE);
   }
 
-  DBUG_RETURN (nfields_set != 0);
+  DBUG_RETURN (FALSE);
 }
 
 /**
@@ -7720,7 +7719,7 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
         - Skip unique keys with nullable parts
         - Skip primary keys
       */
-      if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
+      if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           (key == table->s->primary_key))
         continue;
       res= are_all_columns_signaled_for_key(keyinfo, bi_cols) ?
@@ -8146,10 +8145,10 @@ INDEX_SCAN:
       goto end;
     }
 
-  /*
-    Don't print debug messages when running valgrind since they can
-    trigger false warnings.
-   */
+    /*
+      Don't print debug messages when running valgrind since they can
+      trigger false warnings.
+     */
 #ifndef HAVE_purify
     DBUG_PRINT("info",("found first matching record"));
     DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
@@ -8333,8 +8332,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       switch (error) {
         case 0:
         {
-          entry= NULL;
-          m_hash.get(table, &m_cols, &entry);
+          entry= m_hash.get(table, &m_cols);
           store_record(table, record[1]);
 
           /**
@@ -8384,7 +8382,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
             
             if ((error= do_apply_row(rli)))
             {
-              if (handle_idempotent_errors(rli, &error) || error)
+              if (handle_idempotent_errors(rli, &error))
                 goto close_table;
 
               do_post_row_operations(rli, error);
@@ -8730,19 +8728,26 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       longer if slave has extra columns. 
      */ 
 
-    DBUG_PRINT_BITSET("debug", "Setting table's write_set from: %s", &m_cols);
+    DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
     
     bitmap_set_all(table->read_set);
-    if (get_type_code() == DELETE_ROWS_EVENT)
+    if (get_type_code() == DELETE_ROWS_EVENT ||
+        get_type_code() == UPDATE_ROWS_EVENT)
         bitmap_intersect(table->read_set,&m_cols);
 
     bitmap_set_all(table->write_set);
     if (!get_flags(COMPLETE_ROWS_F))
     {
       if (get_type_code() == UPDATE_ROWS_EVENT)
+      {
+        DBUG_PRINT_BITSET("debug", "Setting table's write_set from: %s", &m_cols_ai);
         bitmap_intersect(table->write_set,&m_cols_ai);
-      else /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
+      }
+      else /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */      
+      {
+        DBUG_PRINT_BITSET("debug", "Setting table's write_set from: %s", &m_cols_ai);
         bitmap_intersect(table->write_set,&m_cols);
+      }
     }
 
     this->slave_exec_mode= slave_exec_mode_options; // fix the mode

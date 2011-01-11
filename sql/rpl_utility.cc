@@ -1126,6 +1126,33 @@ typedef struct hash_row_pos_preamble
 } HASH_ROW_POS_PREAMBLE;
 
 
+/**
+  Auxiliar and internal member function used to get the pointer for
+  an entry preamble. Dual of @c get_entry.
+   
+  @param the entry from which we are calculating the preamble pointer. 
+  @returns a pointer to the preamble. 
+ */
+static 
+HASH_ROW_POS_PREAMBLE* get_preamble(HASH_ROW_POS_ENTRY* entry)
+{
+  return ((HASH_ROW_POS_PREAMBLE*)entry)-1;
+}
+
+/**
+  Auxiliar and internal member function used to get the entry when
+  given a pointer to a preamble. Dual of @c get_preamble.
+   
+  @param the preamble from which we are calculating the entry pointer. 
+  @returns a pointer to the entry.
+*/
+static 
+HASH_ROW_POS_ENTRY* get_entry(HASH_ROW_POS_PREAMBLE* preamble)
+{
+  return (HASH_ROW_POS_ENTRY*) (preamble+1);
+}
+
+
 static uchar* 
 hash_slave_rows_get_key(const uchar *record, 
                         size_t *length,
@@ -1198,7 +1225,7 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
   if (!preamble)
     DBUG_RETURN(NULL);
 
-  HASH_ROW_POS_ENTRY* entry= (HASH_ROW_POS_ENTRY*) (preamble+1);  
+  HASH_ROW_POS_ENTRY* entry= get_entry(preamble);
   
   /**
      Filling in the preamble.
@@ -1233,7 +1260,7 @@ Hash_slave_rows::put(TABLE *table,
 {
   DBUG_ENTER("Hash_slave_rows::put");
 
-  HASH_ROW_POS_PREAMBLE* preamble= ((HASH_ROW_POS_PREAMBLE*)entry)-1;
+  HASH_ROW_POS_PREAMBLE* preamble= get_preamble(entry);
 
   /**
      Skip blobs from key calculation.
@@ -1241,23 +1268,22 @@ Hash_slave_rows::put(TABLE *table,
      Handle nulled fields.
      Handled fields not signaled.
   */  
-  make_hash_key(table, cols, &preamble->hash_value);
+  preamble->hash_value= make_hash_key(table, cols);
   my_hash_insert(&m_hash, (uchar *) preamble);
   DBUG_PRINT("debug", ("Added record to hash with key=%u", preamble->hash_value));
   DBUG_RETURN(false);
 }
 
-bool
-Hash_slave_rows::get(TABLE *table,
-                     MY_BITMAP *cols,
-                     HASH_ROW_POS_ENTRY** entry)
+HASH_ROW_POS_ENTRY*
+Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 {
   DBUG_ENTER("Hash_slave_rows::get");
   HASH_SEARCH_STATE state;
   HASH_ROW_POS_PREAMBLE* preamble;
   my_hash_value_type key;
+  HASH_ROW_POS_ENTRY* res= NULL;
           
-  make_hash_key(table, cols, &key);
+  key= make_hash_key(table, cols);
 
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash.", key));
 
@@ -1276,51 +1302,57 @@ Hash_slave_rows::get(TABLE *table,
     preamble->search_state= state;
     preamble->is_search_state_inited= true;
     
-    *entry= (HASH_ROW_POS_ENTRY*) (preamble+1);
+    res= get_entry(preamble);
   }
-  else
-    *entry= NULL;
 
-  DBUG_RETURN(false);
+  DBUG_RETURN(res);
 }
 
 bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
 {
   DBUG_ENTER("Hash_slave_rows::next");
 
-  if (*entry)
+  if (*entry == NULL)
+    DBUG_RETURN(true);
+
+  HASH_ROW_POS_PREAMBLE* preamble= get_preamble(*entry);
+
+  if (!preamble->is_search_state_inited)
+    DBUG_RETURN(true);
+
+  my_hash_value_type key= preamble->hash_value;
+  HASH_SEARCH_STATE state= preamble->search_state;
+
+  /*
+    Invalidate search for current preamble, because it is going to be
+    used in the search below (and search state is used in a
+    one-time-only basis).
+   */
+  preamble->search_state= -1;
+  preamble->is_search_state_inited= false;
+  
+  DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
+  
+  /**
+     Do the actual search in the hash table.
+   */
+  preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_next(&m_hash, 
+                                                  (const uchar*) &key, 
+                                                  sizeof(my_hash_value_type),
+                                                  &state);
+  if (preamble)
   {
-    HASH_ROW_POS_PREAMBLE* preamble= 
-      ((HASH_ROW_POS_PREAMBLE*) *entry) - 1;
+    DBUG_PRINT("debug", ("Found record with key=%u in the hash (next).", key));
 
-    if (preamble->is_search_state_inited)
-    {
-      my_hash_value_type key= preamble->hash_value;
-      HASH_SEARCH_STATE state= preamble->search_state;
-      preamble->search_state= -1;
-      preamble->is_search_state_inited= false;
-
-      DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
-      
-      preamble= (HASH_ROW_POS_PREAMBLE*) my_hash_next(&m_hash, 
-                                                      (const uchar*) &key, 
-                                                      sizeof(my_hash_value_type),
-                                                      &state);
-      if (preamble)
-      {
-        DBUG_PRINT("debug", ("Found record with key=%u in the hash (next).", key));
-        preamble->search_state= state;
-        preamble->is_search_state_inited= true;
-        *entry= (HASH_ROW_POS_ENTRY*) (preamble+1);
-      }
-      else
-        *entry= NULL;
-    }
-    else
-      DBUG_RETURN(true);
+    /**
+       Save the search state for next iteration (if any).
+     */
+    preamble->search_state= state;
+    preamble->is_search_state_inited= true;
+    *entry= get_entry(preamble);
   }
   else
-    DBUG_RETURN(true);
+    *entry= NULL;
 
   DBUG_RETURN(false);
 }
@@ -1330,20 +1362,14 @@ Hash_slave_rows::del(HASH_ROW_POS_ENTRY* entry)
 {
   DBUG_ENTER("Hash_slave_rows::del");
   if (entry)
-  {
-    HASH_ROW_POS_PREAMBLE* preamble= 
-      ((HASH_ROW_POS_PREAMBLE*)entry)-1;
-    my_hash_delete(&m_hash, (uchar *) preamble);
-  }
+    my_hash_delete(&m_hash, (uchar *) get_preamble(entry));
   else
     DBUG_RETURN(true);
   DBUG_RETURN(false);
 }
 
-bool
-Hash_slave_rows::make_hash_key(TABLE *table, 
-                               MY_BITMAP *cols, 
-                               my_hash_value_type *key)
+my_hash_value_type
+Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 { 
   DBUG_ENTER("Hash_slave_rows::make_hash_key");
   ha_checksum crc= 0L;
@@ -1407,11 +1433,9 @@ Hash_slave_rows::make_hash_key(TABLE *table,
       record[table->s->null_bytes - 1]= saved_filler;
   }
 
-  DBUG_PRINT("debug", ("Created key=%u", crc));
-
   DBUG_ASSERT(crc > 0);
-  *key= crc;
-  DBUG_RETURN(false);
+  DBUG_PRINT("debug", ("Created key=%u", crc));
+  DBUG_RETURN(crc);
 }
 
 

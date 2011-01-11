@@ -95,12 +95,12 @@ public:
                     make the entry lookup.
      @param cols    Bitmap signaling which columns, from
                     table->record[0], should be used.
-     @param entry   Pointer that will hold a reference to the entry
-                    fetched. If the entry is not found, then NULL
-                    shall be returned.
-     @returns true if something went wrong, false otherwise.
+
+     @returns a pointer that will hold a reference to the entry
+              found. If the entry is not found then NULL shall be
+              returned.
    */
-  bool get(TABLE *table, MY_BITMAP *cols, HASH_ROW_POS_ENTRY** entry);
+  HASH_ROW_POS_ENTRY* get(TABLE *table, MY_BITMAP *cols);
 
   /**
      This member function gets the entry that stands next to the one
@@ -171,11 +171,10 @@ private:
 
      @param table  The table that is being scanned
      @param cols   The read_set bitmap signaling which columns are used.
-     @param key    Output parameter where the key will be stored.
 
-     @retuns true if something went wrong, false otherwise.
+     @retuns the hash key created.
    */
-  bool make_hash_key(TABLE *table, MY_BITMAP* cols, my_hash_value_type *key);
+  my_hash_value_type make_hash_key(TABLE *table, MY_BITMAP* cols);
 };
 
 #endif
