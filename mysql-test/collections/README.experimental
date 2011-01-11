@@ -15,8 +15,12 @@ The syntax is as follows:
    and any subsequent characters are ignored.
 
 4) The full test case name including the suite and execution mode
-   must be specified, for example:
+   may be specified, for example:
         main.alias 'row'     # bug#00000
+
+4b) Now, combinations will also be covered if only the test name is
+    specified, for example:
+        rpl.rpl_ps       # Covers 'row', 'mix' and 'stmt'
 
 5) As an exception to item 4, the last character of the test case
    specification may be an asterisk (*). In that case, all test cases that

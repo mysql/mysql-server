@@ -129,7 +129,8 @@ sub mtr_report_test ($) {
       # Find out if this test case is an experimental one, so we can treat
       # the failure as an expected failure instead of a regression.
       for my $exp ( @$::experimental_test_cases ) {
-        if ( $exp ne $test_name ) {
+	# Include pattern match for combinations
+        if ( $exp ne $test_name && $test_name !~ /^$exp / ) {
           # if the expression is not the name of this test case, but has
           # an asterisk at the end, determine if the characters up to
           # but excluding the asterisk are the same
