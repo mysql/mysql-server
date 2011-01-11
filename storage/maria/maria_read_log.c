@@ -192,6 +192,9 @@ static struct my_option my_long_options[] =
   {"display-only", 'd', "display brief info read from records' header",
    &opt_display_only, &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
+  { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
+    "will not be applied", &opt_end_lsn, &opt_end_lsn,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"maria-log-dir-path", 'l',
     "Path to the directory where to store transactional log",
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
@@ -199,7 +202,7 @@ static struct my_option my_long_options[] =
   { "page-buffer-size", 'P', "",
     &opt_page_buffer_size, &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
-    (long) USE_BUFFER_INIT, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
+    1024L*1024L, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
     (long) IO_SIZE, 0},
   { "start-from-lsn", 'o', "Start reading log from this lsn",
     &opt_start_from_lsn, &opt_start_from_lsn,
@@ -207,18 +210,12 @@ static struct my_option my_long_options[] =
   {"start-from-checkpoint", 'C', "Start applying from last checkpoint",
    &opt_start_from_checkpoint, &opt_start_from_checkpoint, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
-    "will not be applied", &opt_end_lsn, &opt_end_lsn,
-    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
    &opt_silent, &opt_silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tables-to-redo", 'T',
    "List of tables sepearated with , that we should apply REDO on. Use this if you only want to recover some tables",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Print more information during apply/undo phase",
-   &maria_recovery_verbose, &maria_recovery_verbose, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files. Multiple paths can be specified, "
    "separated by "
 #if defined( __WIN__) || defined(__NETWARE__)
@@ -230,6 +227,9 @@ static struct my_option my_long_options[] =
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print more information during apply/undo phase",
+   &maria_recovery_verbose, &maria_recovery_verbose, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
