@@ -11,9 +11,10 @@ SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
 HASH_SCAN
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='INDEX_SCAN';
+ERROR 42000: Variable 'slave_rows_search_algorithms' can't be set to the value of 'INDEX_SCAN'
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
-INDEX_SCAN
+HASH_SCAN
 SET GLOBAL SLAVE_ROWS_SEARCH_ALGORITHMS='TABLE_SCAN,HASH_SCAN';
 SELECT @@global.slave_rows_search_algorithms;
 @@global.slave_rows_search_algorithms
