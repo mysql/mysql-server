@@ -1939,6 +1939,7 @@ ConfigManager::run()
     }
   }
   stop_checkers();
+  ss.unlock();
 }
 
 
