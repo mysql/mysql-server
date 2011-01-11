@@ -191,7 +191,7 @@ static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        "The size of the buffer used for index blocks for Maria tables. "
        "Increase this to get better index handling (for all reads and "
        "multiple writes) to as much as you can afford.", 0, 0,
-       KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, IO_SIZE);
+       KEY_CACHE_SIZE, 8192*16L, ~(ulong) 0, IO_SIZE);
 
 static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
        PLUGIN_VAR_RQCMDARG,
