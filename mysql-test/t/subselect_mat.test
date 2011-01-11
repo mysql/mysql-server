@@ -48,7 +48,7 @@ insert into t2i select * from t2;
 insert into t3i select * from t3;
 
 # force the use of materialization
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 
 /******************************************************************************
 * Simple tests.
@@ -111,22 +111,22 @@ select * from t1 where (a1, a2) in (select b1, min(b2) from t2i limit 1,1);
 
 # test re-optimization/re-execution with different execution methods
 # prepare once, exec with different modes
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 prepare st1 from
 "select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=on';
 execute st1;
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 execute st1;
 
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=on';
 prepare st1 from
 "select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 execute st1;
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=on';
 execute st1;
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 
 # materialize the result of ORDER BY
 # non-indexed fields
@@ -327,7 +327,7 @@ select * from t1 order by (select col from columns limit 1);
   Test that BLOBs are not materialized (except when arguments of some functions).
 */
 # force materialization to be always considered
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 set @prefix_len = 6;
 
 # BLOB == 16 (small blobs that could be stored in HEAP tables)
@@ -680,7 +680,7 @@ insert into t2bit values (b'001', b'101');
 insert into t2bit values (b'010', b'110');
 insert into t2bit values (b'110', b'111');
 
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 
 explain extended select bin(a1), bin(a2)
 from t1bit
@@ -718,7 +718,7 @@ drop table t1, t2, t3, t1i, t2i, t3i, columns;
 /******************************************************************************
 * Test the cache of the left operand of IN.
 ******************************************************************************/
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 
 # Test that default values of Cached_item are not used for comparison
 create table t1 (s1 int);
@@ -812,23 +812,28 @@ drop table t2;
 create table t1 (a1 int key);
 create table t2 (b1 int);
 insert into t1 values (5);
-
+-- echo Only the last query returns correct result. Filed as BUG#40037.
 # Query with group by, executed via materialization
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 # Query with group by, executed via IN=>EXISTS
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 
 # Executed with materialization
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+explain select min(a1) from t1 where 7 in (select b1 from t2);
+select min(a1) from t1 where 7 in (select b1 from t2);
+# Executed via IN=>EXISTS
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
 # Executed with semi-join. Notice, this time we get a different result (NULL).
-# This is the only correct result of all four queries. This difference is
+# This is the only correct result of all five queries. This difference is
 # filed as BUG#40037.
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=off,semijoin=on';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
 drop table t1,t2;
@@ -840,7 +845,7 @@ create table t1 (a char(2), b varchar(10));
 insert into t1 values ('a',  'aaa');
 insert into t1 values ('aa', 'aaaa');
 
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain select a,b from t1 where b in (select a from t1);
 select a,b from t1 where b in (select a from t1);
 prepare st1 from "select a,b from t1 where b in (select a from t1)";
@@ -861,7 +866,7 @@ CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1, 1.789);
 INSERT INTO t2 VALUES (13, 1.454);
 
-SET @@optimizer_switch='default,semijoin=on,materialization=on';
+SET @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 
@@ -883,7 +888,7 @@ INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
 
-SET @@optimizer_switch='default,semijoin=on,materialization=on';
+SET @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
@@ -900,7 +905,7 @@ create table t3(i int);
 insert into t3 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
 set @save_optimizer_switch=@@optimizer_switch;
-set session optimizer_switch='materialization=off';
+set session optimizer_switch='materialization=off,in_to_exists=on';
 select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
 set session optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;

@@ -30,7 +30,7 @@ create index it3i3 on t3i (c1, c2);
 insert into t1i select * from t1;
 insert into t2i select * from t2;
 insert into t3i select * from t3;
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 /******************************************************************************
 * Simple tests.
 ******************************************************************************/
@@ -176,33 +176,33 @@ a1	a2
 1 - 02	2 - 02
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i limit 1,1);
 ERROR 42000: This version of MySQL doesn't yet support 'LIMIT & IN/ALL/ANY/SOME subquery'
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 prepare st1 from
 "select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=on';
 execute st1;
 a1	a2
 1 - 01	2 - 01
 1 - 02	2 - 02
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 execute st1;
 a1	a2
 1 - 01	2 - 01
 1 - 02	2 - 02
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=on';
 prepare st1 from
 "select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1)";
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 execute st1;
 a1	a2
 1 - 01	2 - 01
 1 - 02	2 - 02
-set @@optimizer_switch='default,materialization=off';
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=on';
 execute st1;
 a1	a2
 1 - 01	2 - 01
 1 - 02	2 - 02
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain extended
 select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -549,7 +549,7 @@ a1	a2
 Test that BLOBs are not materialized (except when arguments of some functions).
 */
 # force materialization to be always considered
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 set @prefix_len = 6;
 set @blob_len = 16;
 set @suffix_len = @blob_len - @prefix_len;
@@ -951,7 +951,7 @@ insert into t1bit values (b'010', b'110');
 insert into t2bit values (b'001', b'101');
 insert into t2bit values (b'010', b'110');
 insert into t2bit values (b'110', b'111');
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain extended select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
@@ -994,7 +994,7 @@ drop table t1, t2, t3, t1i, t2i, t3i, columns;
 /******************************************************************************
 * Test the cache of the left operand of IN.
 ******************************************************************************/
-set @@optimizer_switch='semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 create table t1 (s1 int);
 create table t2 (s2 int);
 insert into t1 values (5),(1),(0);
@@ -1136,27 +1136,40 @@ drop table t2;
 create table t1 (a1 int key);
 create table t2 (b1 int);
 insert into t1 values (5);
+Only the last query returns correct result. Filed as BUG#40037.
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
-set @@optimizer_switch='default,materialization=off';
+NULL
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
-set @@optimizer_switch='default,semijoin=off';
+NULL
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
-set @@optimizer_switch='default,materialization=off';
+NULL
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+explain select min(a1) from t1 where 7 in (select b1 from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select min(a1) from t1 where 7 in (select b1 from t2);
+min(a1)
+NULL
+set @@optimizer_switch='materialization=off,in_to_exists=off,semijoin=on';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
@@ -1167,7 +1180,7 @@ drop table t1,t2;
 create table t1 (a char(2), b varchar(10));
 insert into t1 values ('a',  'aaa');
 insert into t1 values ('aa', 'aaaa');
-set @@optimizer_switch='default,semijoin=off';
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
 explain select a,b from t1 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
@@ -1187,7 +1200,7 @@ INSERT INTO t1 (f1, f2) VALUES (10, 1.668);
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1, 1.789);
 INSERT INTO t2 VALUES (13, 1.454);
-SET @@optimizer_switch='default,semijoin=on,materialization=on';
+SET @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE (f1,f2) IN (SELECT f1,f2 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subselect2	ALL	unique_key	NULL	NULL	NULL	2	
@@ -1208,7 +1221,7 @@ PRIMARY KEY (pk)
 INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
-SET @@optimizer_switch='default,semijoin=on,materialization=on';
+SET @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=on';
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
@@ -1237,7 +1250,7 @@ i
 3
 4
 set @save_optimizer_switch=@@optimizer_switch;
-set session optimizer_switch='materialization=off';
+set session optimizer_switch='materialization=off,in_to_exists=on';
 select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
 i
 1

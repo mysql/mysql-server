@@ -439,6 +439,7 @@ public:
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
+  inline void set_master(st_select_lex_node* master_arg) { master= master_arg; }
   virtual void init_query();
   virtual void init_select();
   void include_down(st_select_lex_node *upper);
@@ -446,6 +447,7 @@ public:
   void include_standalone(st_select_lex_node *sel, st_select_lex_node **ref);
   void include_global(st_select_lex_node **plink);
   void exclude();
+  void exclude_from_tree();
 
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
@@ -846,6 +848,15 @@ public:
 
   void clear_index_hints(void) { index_hints= NULL; }
   bool is_part_of_union() { return master_unit()->is_union(); }
+  /*
+    Optimize all subqueries that have not been flattened into semi-joins.
+    This functionality is a method of SELECT_LEX instead of JOIN because
+    some SQL statements as DELETE do not have a corresponding JOIN object.
+  */
+  bool optimize_unflattened_subqueries();
+  /* Set the EXPLAIN type for this subquery. */
+  void set_explain_type();
+
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;

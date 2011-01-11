@@ -2065,6 +2065,18 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
 }
 
 
+bool Item_in_optimizer::is_expensive_processor(uchar *arg)
+{
+  return args[1]->is_expensive_processor(arg);
+}
+
+
+bool Item_in_optimizer::is_expensive()
+{
+  return args[1]->is_expensive();
+}
+
+
 longlong Item_func_eq::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4730,12 +4742,6 @@ Item *and_expressions(Item *a, Item *b, Item **org_item)
 longlong Item_func_isnull::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  /*
-    Handle optimization if the argument can't be null
-    This has to be here because of the test in update_used_tables().
-  */
-  if (!used_tables_cache && !with_subselect)
-    return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
 
@@ -4743,12 +4749,6 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect)
-  {
-    owner->was_null|= (!cached_value);
-    DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
-    DBUG_RETURN(cached_value);
-  }
   if (args[0]->is_null())
   {
     DBUG_PRINT("info", ("null"));
@@ -4765,19 +4765,9 @@ longlong Item_is_not_null_test::val_int()
 void Item_is_not_null_test::update_used_tables()
 {
   if (!args[0]->maybe_null)
-  {
     used_tables_cache= 0;			/* is always true */
-    cached_value= (longlong) 1;
-  }
   else
-  {
     args[0]->update_used_tables();
-    if (!(used_tables_cache=args[0]->used_tables()) && !with_subselect)
-    {
-      /* Remember if the value is always NULL or never NULL */
-      cached_value= (longlong) !args[0]->is_null();
-    }
-  }
 }
 
 
@@ -5453,7 +5443,7 @@ Item *Item_func_nop_all::neg_transformer(THD *thd)
   /* "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...) */
   Item_func_not_all *new_item= new Item_func_not_all(args[0]);
   Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
-  allany->func= allany->func_creator(FALSE);
+  allany->create_comp_func(FALSE);
   allany->all= !allany->all;
   allany->upper_item= new_item;
   return new_item;
@@ -5465,7 +5455,7 @@ Item *Item_func_not_all::neg_transformer(THD *thd)
   Item_func_nop_all *new_item= new Item_func_nop_all(args[0]);
   Item_allany_subselect *allany= (Item_allany_subselect*)args[0];
   allany->all= !allany->all;
-  allany->func= allany->func_creator(TRUE);
+  allany->create_comp_func(TRUE);
   allany->upper_item= new_item;
   return new_item;
 }
@@ -5748,6 +5738,9 @@ longlong Item_equal::val_int()
   Item_field *item_field;
   if (cond_false)
     return 0;
+  /* If there is a single constant and no fields, the equality is TRUE. */
+  if (const_item && !fields.elements)
+    return 1;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
   if ((null_value= item->is_null()))
@@ -5768,6 +5761,15 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first(NULL);
+  if (!item)
+  {
+    /*
+      If there are no fields, there must be at least a constant, in which
+      case Item_equal::val_int evaluates to TRUE.
+    */
+    DBUG_ASSERT(const_item);
+    return;
+  }
   eval_item= cmp_item::get_comparator(item->result_type(),
                                       item->collation.collation);
 }

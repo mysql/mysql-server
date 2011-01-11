@@ -387,6 +387,8 @@ Item::Item():
   decimals= 0; max_length= 0;
   with_subselect= 0;
   cmp_context= IMPOSSIBLE_RESULT;
+   /* Initially this item is not attached to any JOIN_TAB. */
+  join_tab_idx= MAX_TABLES;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
@@ -415,6 +417,7 @@ Item::Item():
   tables.
 */
 Item::Item(THD *thd, Item *item):
+  join_tab_idx(item->join_tab_idx),
   is_expensive_cache(-1),
   rsize(0),
   str_value(item->str_value),
@@ -472,6 +475,7 @@ void Item::cleanup()
   DBUG_ENTER("Item::cleanup");
   fixed=0;
   marker= 0;
+  join_tab_idx= MAX_TABLES;
   if (orig_name)
     name= orig_name;
   DBUG_VOID_RETURN;

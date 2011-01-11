@@ -1735,17 +1735,29 @@ void st_select_lex_node::fast_exclude()
   
 }
 
+
 /*
-  excluding select_lex structure (except first (first select can't be
+  Exclude a node from the tree lex structure, but leave it in the global
+  list of nodes.
+*/
+
+void st_select_lex_node::exclude_from_tree()
+{
+  if ((*prev= next))
+    next->prev= prev;
+}
+
+
+/*
+  Exclude select_lex structure (except first (first select can't be
   deleted, because it is most upper select))
 */
 void st_select_lex_node::exclude()
 {
-  //exclude from global list
+  /* exclude from global list */
   fast_exclude();
-  //exclude from other structures
-  if ((*prev= next))
-    next->prev= prev;
+  /* exclude from other structures */
+  exclude_from_tree();
   /* 
      We do not need following statements, because prev pointer of first 
      list element point to master->slave
@@ -2145,8 +2157,8 @@ void st_select_lex::print_limit(THD *thd,
                     select_limit == 1, and there should be no offset_limit.
                   */
                   (((subs_type == Item_subselect::IN_SUBS) &&
-                    ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::MATERIALIZATION) ?
+                    ((Item_in_subselect*)item)->in_strategy &
+                    SUBS_MATERIALIZATION) ?
                    TRUE :
                    (select_limit->val_int() == 1LL) &&
                    offset_limit == 0));
@@ -3076,6 +3088,70 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
                                             str, length));
 }
 
+
+bool st_select_lex::optimize_unflattened_subqueries()
+{
+  for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
+  {
+    Item_subselect *subquery_predicate= un->item;
+    if (subquery_predicate)
+    {
+      for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
+      {
+        JOIN *inner_join= sl->join;
+        SELECT_LEX *save_select= un->thd->lex->current_select;
+        ulonglong save_options;
+        int res;
+        /* We need only 1 row to determine existence */
+        un->set_limit(un->global_parameters);
+        un->thd->lex->current_select= sl;
+        save_options= inner_join->select_options;
+        if (un->outer_select()->options & SELECT_DESCRIBE)
+        {
+          /* Optimize the subquery in the context of EXPLAIN. */
+          set_explain_type();
+          inner_join->select_options= options;
+        }
+        res= inner_join->optimize();
+        inner_join->select_options= save_options;
+        un->thd->lex->current_select= save_select;
+        if (res)
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+
+/**
+  Set the EXPLAIN type for this subquery.
+*/
+
+void st_select_lex::set_explain_type()
+{
+  SELECT_LEX *first= master_unit()->first_select();
+  /* drop UNCACHEABLE_EXPLAIN, because it is for internal usage only */
+  uint8 is_uncacheable= (uncacheable & ~UNCACHEABLE_EXPLAIN);
+
+  type= ((&master_unit()->thd->lex->select_lex == this) ?
+         (first_inner_unit() || next_select() ?
+          "PRIMARY" : "SIMPLE") :
+         ((this == first) ?
+          ((linkage == DERIVED_TABLE_TYPE) ?
+           "DERIVED" :
+           ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
+            "DEPENDENT SUBQUERY" :
+            (is_uncacheable ? "UNCACHEABLE SUBQUERY" :
+             "SUBQUERY"))) :
+          ((is_uncacheable & UNCACHEABLE_DEPENDENT) ?
+           "DEPENDENT UNION":
+           is_uncacheable ? "UNCACHEABLE UNION":
+           "UNION")));
+  options|= SELECT_DESCRIBE;
+}
+
+
 /**
   A routine used by the parser to decide whether we are specifying a full
   partitioning or if only partitions to add or to split.
@@ -3093,4 +3169,3 @@ bool st_lex::is_partition_management() const
           (alter_info.flags == ALTER_ADD_PARTITION ||
            alter_info.flags == ALTER_REORGANIZE_PARTITION));
 }
-

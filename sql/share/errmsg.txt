@@ -6247,3 +6247,5 @@ ER_UNKNOWN_OPTION
         eng "Unknown option '%-.64s'"
 ER_BAD_OPTION_VALUE
         eng "Incorrect value '%-.64s' for option '%-.64s'"
+ER_ILLEGAL_SUBQUERY_OPTIMIZER_SWITCHES
+        eng "At least one of the 'in_to_exists' or 'materialization' optimizer_switch flags must be 'on'."

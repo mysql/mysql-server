@@ -1,0 +1,324 @@
+#
+# Tets of cost-based choice between the materialization and in-to-exists
+# subquery execution strategies (MWL#89)
+#
+
+--disable_warnings
+drop table if exists t1, t2, t1_1024, t2_1024;
+drop procedure if exists make_t1_indexes;
+drop procedure if exists make_t2_indexes;
+drop procedure if exists remove_t1_indexes;
+drop procedure if exists remove_t2_indexes;
+drop procedure if exists add_materialization_data;
+drop procedure if exists delete_materialization_data;
+drop procedure if exists set_all_columns_not_null;
+drop procedure if exists set_all_columns_nullable;
+--enable_warnings
+
+create table t1 (a1 char(8), a2 char(8), a3 char(8), a4 int);
+insert into t1 values ('1 - 00', '2 - 00', '3 - 00', 0);
+insert into t1 values ('1 - 01', '2 - 01', '3 - 01', 1);
+insert into t1 values ('1 - 02', '2 - 02', '3 - 02', 2);
+
+create table t2 (b1 char(8), b2 char(8), b3 char(8), b4 int);
+insert into t2 values ('1 - 01', '2 - 01', '3 - 01', 1);
+insert into t2 values ('1 - 01', '2 - 01', '3 - 02', 2);
+insert into t2 values ('1 - 02', '2 - 02', '3 - 03', 3);
+insert into t2 values ('1 - 02', '2 - 02', '3 - 04', 4);
+insert into t2 values ('1 - 03', '2 - 03', '3 - 05', 5);
+
+create table t1_1024 (a1 blob(1024), a2 blob(1024));
+insert into t1_1024 values (concat('1 - 00', repeat('x', 1018)), concat('2 - 00', repeat('x', 1018)));
+insert into t1_1024 values (concat('1 - 01', repeat('x', 1018)), concat('2 - 01', repeat('x', 1018)));
+
+create table t2_1024 (b1 blob(1024), b2 blob(1024));
+insert into t2_1024 values (concat('1 - 01', repeat('x', 1018)), concat('2 - 01', repeat('x', 1018)));
+insert into t2_1024 values (concat('1 - 02', repeat('x', 1018)), concat('2 - 02', repeat('x', 1018)));
+insert into t2_1024 values (concat('1 - 03', repeat('x', 1018)), concat('2 - 03', repeat('x', 1018)));
+insert into t2_1024 values (concat('1 - 04', repeat('x', 1018)), concat('2 - 04', repeat('x', 1018)));
+
+delimiter |;
+create procedure make_t1_indexes()
+begin
+  create index it1i1 on t1 (a1);
+  create index it1i2 on t1 (a2);
+  create index it1i3 on t1 (a1, a2);
+  create index it1_1024i1 on t1_1024 (a1(6));
+  create index it1_1024i2 on t1_1024 (a2(6));
+  create index it1_1024i3 on t1_1024 (a1(6), a2(6));
+end|
+
+create procedure make_t2_indexes()
+begin
+  create index it2i1 on t2 (b1);
+  create index it2i2 on t2 (b2);
+  create index it2i3 on t2 (b1, b2);
+  create unique index it2i4 on t2 (b1, b2, b3);
+  create index it2_1024i1 on t2_1024 (b1(6));
+  create index it2_1024i2 on t2_1024 (b2(6));
+  create index it2_1024i3 on t2_1024 (b1(6), b2(6));
+end|
+
+create procedure remove_t1_indexes()
+begin
+  drop index it1i1 on t1;
+  drop index it1i2 on t1;
+  drop index it1i3 on t1;
+  drop index it1_1024i1 on t1_1024;
+  drop index it1_1024i2 on t1_1024;
+  drop index it1_1024i3 on t1_1024;
+end|
+
+create procedure remove_t2_indexes()
+begin
+  drop index it2i1 on t2;
+  drop index it2i2 on t2;
+  drop index it2i3 on t2;
+  drop index it2i4 on t2;
+  drop index it2_1024i1 on t2_1024;
+  drop index it2_1024i2 on t2_1024;
+  drop index it2_1024i3 on t2_1024;
+end|
+
+create procedure add_materialization_data()
+begin
+insert into t1 values ('1 - 03', '2 - 03', '3 - 03', 3);
+insert into t1 values ('1 - 04', '2 - 04', '3 - 04', 4);
+insert into t1 values ('1 - 05', '2 - 05', '3 - 05', 5);
+insert into t1 values ('1 - 06', '2 - 06', '3 - 06', 6);
+insert into t1 values ('1 - 07', '2 - 07', '3 - 07', 7);
+insert into t1_1024 values (concat('1 - 03', repeat('x', 1018)), concat('2 - 03', repeat('x', 1018)));
+end|
+
+create procedure delete_materialization_data()
+begin
+delete from t1 where a1 >= '1 - 03';
+delete from t1_1024 where a1 >= '1 - 03';
+end|
+
+create procedure set_all_columns_not_null()
+begin
+alter table t1 modify a1 char(8) not null, modify a2 char(8) not null, modify a3 char(8) not null;
+alter table t2 modify b1 char(8) not null, modify b2 char(8) not null, modify b3 char(8) not null;
+end|
+
+create procedure set_all_columns_nullable()
+begin
+alter table t1 modify a1 char(8) null, modify a2 char(8) null, modify a3 char(8) null;
+alter table t2 modify b1 char(8) null, modify b2 char(8) null, modify b3 char(8) null;
+end|
+
+delimiter ;|
+-- echo
+
+-- echo /******************************************************************************
+-- echo 1. Both materialization and in-to-exists are ON, make a cost-based choice.
+-- echo ******************************************************************************/
+set @@optimizer_switch='materialization=on,in_to_exists=on';
+-- echo 
+-- echo /* 1.1 In-to-exists is cheaper */
+call make_t1_indexes();
+
+-- echo /* 1.1.1 non-indexed table access */
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 1.1.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 1.1.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+-- source include/subselect_mat_cost.inc
+call set_all_columns_nullable();
+
+-- echo 
+-- echo /* 1.2 Materialization is cheaper */
+# make materialization cheaper
+call add_materialization_data();
+call remove_t1_indexes();
+
+-- echo /* 1.2.1 non-indexed table access */
+call remove_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 1.2.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 1.2.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+-- source include/subselect_mat_cost.inc
+call set_all_columns_nullable();
+
+
+-- echo /******************************************************************************
+-- echo 2. Materialization is OFF, in-to-exists is ON, materialization is cheaper.
+-- echo ******************************************************************************/
+set @@optimizer_switch='materialization=off,in_to_exists=on';
+
+-- echo /* 2.1 non-indexed table access */
+call remove_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 2.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 2.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+-- source include/subselect_mat_cost.inc
+call set_all_columns_nullable();
+
+
+-- echo /******************************************************************************
+-- echo 3. Materialization is ON, in-to-exists is OFF, in-to-exists is cheaper.
+-- echo ******************************************************************************/
+set @@optimizer_switch='materialization=on,in_to_exists=off';
+# make IN-TO-EXISTS cheaper
+call delete_materialization_data();
+call make_t1_indexes();
+
+-- echo /* 3.1 non-indexed table access */
+call remove_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 3.2 indexed table access, nullabale columns. */
+call make_t2_indexes();
+-- source include/subselect_mat_cost.inc
+
+-- echo /* 3.3 indexed table access, non-nullabale columns. */
+call set_all_columns_not_null();
+-- source include/subselect_mat_cost.inc
+call set_all_columns_nullable();
+
+
+drop procedure make_t1_indexes;
+drop procedure make_t2_indexes;
+drop procedure remove_t1_indexes;
+drop procedure remove_t2_indexes;
+drop procedure add_materialization_data;
+drop procedure delete_materialization_data;
+drop procedure set_all_columns_not_null;
+drop procedure set_all_columns_nullable;
+drop table t1, t2, t1_1024, t2_1024;
+
+--echo #
+--echo # LP BUG#643424 valgrind warning in choose_subquery_plan()
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2));
+
+INSERT INTO t1 VALUES (1,NULL,2);
+INSERT INTO t1 VALUES (2,7,9);
+INSERT INTO t1 VALUES (9,NULL,8);
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2));
+
+INSERT INTO t2 VALUES (1,1,7);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+
+SELECT pk FROM t1 WHERE (c2, c1) IN (SELECT c2, c2 FROM t2);
+
+set session optimizer_switch=@save_optimizer_switch;
+
+drop table t1, t2;
+
+
+--echo #
+--echo # LP BUG#652727 Crash in create_ref_for_key()
+--echo #
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk));
+
+INSERT INTO t2 VALUES (10,7);
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (17,NULL);
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  PRIMARY KEY (pk));
+
+INSERT INTO t1 VALUES (15,1);
+INSERT INTO t1 VALUES (19,NULL);
+
+CREATE TABLE t3 (c2 int(11) DEFAULT NULL, KEY c2 (c2));
+INSERT INTO t3 VALUES (1);
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+
+SELECT c2
+FROM t3
+WHERE (2, 6) IN (SELECT t1.c1, t1.c1 FROM t1 STRAIGHT_JOIN t2 ON t2.pk = t1.pk);
+
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;
+
+
+--echo #
+--echo # LP BUG#641245 Crash in Item_equal::contains
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  c3 varchar(1) DEFAULT NULL,
+  c4 varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2),
+  KEY c3 (c3,c2));
+
+INSERT INTO t1 VALUES (10,7,8,'v','v');
+INSERT INTO t1 VALUES (11,1,9,'r','r');
+INSERT INTO t1 VALUES (12,5,9,'a','a');
+
+create table t1a like t1;
+insert into t1a select * from t1;
+
+create table t1b like t1;
+insert into t1b select * from t1;
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  c1 int(11) DEFAULT NULL,
+  c2 int(11) DEFAULT NULL,
+  c3 varchar(1) DEFAULT NULL,
+  c4 varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY c2 (c2),
+  KEY c3 (c3,c2));
+
+INSERT INTO t2 VALUES (1,NULL,2,'w','w');
+INSERT INTO t2 VALUES (2,7,9,'m','m');
+
+set @@optimizer_switch='materialization=off,in_to_exists=on,semijoin=off';
+
+let $query=
+SELECT pk
+FROM t1
+WHERE c1 IN
+      (SELECT t1a.c1
+       FROM (t1b JOIN t2 ON t2.c3 = t1b.c4) LEFT JOIN
+            t1a ON (t1a.c2 = t1b.pk AND 2)
+       WHERE t1.pk) ;
+eval EXPLAIN EXTENDED $query;
+eval $query;
+
+DROP TABLE t1, t1a, t1b, t2;

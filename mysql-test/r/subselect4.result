@@ -483,3 +483,266 @@ pk
 # Restore old value for Index condition pushdown
 SET SESSION engine_condition_pushdown=@old_icp;
 DROP TABLE t1,t2;
+#
+# LP BUG#641203 Query returns rows where no result is expected (impossible WHERE)
+#
+CREATE TABLE t1 (c1 varchar(1) DEFAULT NULL);
+CREATE TABLE t2 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t2 VALUES ('k'), ('d');
+CREATE TABLE t3 (c1 varchar(1) DEFAULT NULL);
+INSERT INTO t3 VALUES ('a'), ('b'), ('c');
+CREATE TABLE t4 (c1 varchar(1) primary key);
+INSERT INTO t4 VALUES ('k'), ('d');
+EXPLAIN
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 RIGHT JOIN t2 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+EXPLAIN
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t2 LEFT JOIN t1 ON t1.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+EXPLAIN
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM (t2 LEFT JOIN t1 ON t1.c1) LEFT JOIN t3 on t3.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1	c1
+EXPLAIN
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t4 LEFT JOIN t2 ON t4.c1 WHERE 's' IN (SELECT c1 FROM t2);
+c1	c1
+drop table t1, t2, t3, t4;
+#
+# LP BUG#675981 Assertion `cache != __null' failed in sub_select_cache()
+#               on EXPLAIN
+#
+CREATE TABLE t1 (f1 int,f2 int) ;
+INSERT IGNORE INTO t1 VALUES ('2','5'),('2',NULL);
+CREATE TABLE t2 (f1 int, f5 int) ;
+INSERT IGNORE INTO t2 VALUES (1,0);
+CREATE TABLE t3 (f4 int) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+set @@optimizer_switch='in_to_exists=on,materialization=off,semijoin=off';
+EXPLAIN
+SELECT * FROM t2
+WHERE f1 IN (SELECT t1.f2 FROM t1 JOIN t3 ON t3.f4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+drop table t1, t2, t3;
+#
+# LP BUG#680005 Second assertion `cache != __null' failed in
+#                sub_select_cache() on EXPLAIN
+#
+CREATE TABLE t1 (f1 int,f2 int,f4 int,f6 int,KEY (f4)) ;
+INSERT IGNORE INTO t1 VALUES
+('1','5','1','0'),('2','1','1','0'),('2','2','2','0'),('0',NULL,'0','0'),
+('2','1','2','0'),('2','0','0','0'),('2','2','2','0'),('2','8','2','0'),
+('2','7','2','0'),('2','5','2','0'),('2',NULL,'1','0');
+CREATE TABLE t2 (f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('7');
+CREATE TABLE t3 (f3 int) ;
+INSERT IGNORE INTO t3 VALUES ('2');
+EXPLAIN
+SELECT t1.f4
+FROM t2 JOIN t1 ON t1.f6
+WHERE
+( t1.f2 ) IN (SELECT SUBQUERY2_t1.f3
+FROM t3 AS SUBQUERY2_t1
+JOIN
+(t1 AS SUBQUERY2_t2
+JOIN
+t1 AS SUBQUERY2_t3 ON SUBQUERY2_t3.f1)
+ON SUBQUERY2_t3.f2)
+GROUP BY t1.f4 ORDER BY t1.f1 LIMIT 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	PRIMARY	t1	index	NULL	f4	5	NULL	10	Using where
+2	DEPENDENT SUBQUERY	SUBQUERY2_t1	system	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	SUBQUERY2_t2	index	NULL	f4	5	NULL	11	Using where; Using index
+2	DEPENDENT SUBQUERY	SUBQUERY2_t3	ALL	NULL	NULL	NULL	NULL	11	Using where; Using join buffer
+drop table t1, t2, t3;
+#
+# LP BUG#680038 bool close_thread_table(THD*, TABLE**):
+#               Assertion `table->key_read == 0' failed in EXPLAIN
+#
+CREATE TABLE t1 (f1 int,f3 int,f4 int) ;
+INSERT IGNORE INTO t1 VALUES (NULL,1,0);
+CREATE TABLE t2 (f2 int,f4 int,f5 int) ;
+INSERT IGNORE INTO t2 VALUES (8,0,0),(5,0,0);
+CREATE TABLE t3 (f4 int,KEY (f4)) ;
+INSERT IGNORE INTO t3 VALUES (0),(0);
+set @@optimizer_switch='semijoin=off';
+EXPLAIN
+SELECT * FROM t1 WHERE
+(SELECT f2 FROM t2
+WHERE f4 <= ALL
+(SELECT SQ1_t1.f4
+FROM t3 AS SQ1_t1 JOIN t3 AS SQ1_t3 ON SQ1_t3.f4
+GROUP BY SQ1_t1.f4));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	SQ1_t1	index	NULL	f4	5	NULL	2	Using index; Using temporary; Using filesort
+3	SUBQUERY	SQ1_t3	index	NULL	f4	5	NULL	2	Using where; Using index; Using join buffer
+drop table t1, t2, t3;
+#
+# BUG#52317: Assertion failing in Field_varstring::store() 
+# 	    at field.cc:6833
+#
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (i INTEGER, KEY k(i));
+INSERT INTO t2 VALUES (1), (2);
+EXPLAIN  
+SELECT i FROM t1 WHERE (1) NOT IN (SELECT i FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	index_subquery	k	k	5	const	2	Using index
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# LP BUG#680846: Crash in clear_tables() with subqueries
+#
+CREATE TABLE t1 (f3 int) ;
+INSERT IGNORE INTO t1 VALUES (0),(0);
+CREATE TABLE t2 (f1 int,f3 int,f4 varchar(32)) ;
+INSERT IGNORE INTO t2 VALUES (1,0,'f');
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+COUNT(t2.f3)	f9
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(t2.f3),
+(SELECT COUNT(f3) FROM t1 WHERE t2.f1) AS f9
+FROM t2 JOIN t1 ON t1.f3
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+COUNT(t2.f3)	f9
+0	2
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+GROUP BY f9;
+COUNT(t2.f3)	f9
+EXPLAIN
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT COUNT(t2.f3),
+(SELECT t2.f1 FROM t1 limit 1) AS f9
+FROM t2 JOIN t1
+WHERE ('v') IN (SELECT f4 FROM t2)
+ORDER BY f9;
+COUNT(t2.f3)	f9
+0	NULL
+drop table t1,t2;
+#
+# LP BUG#682683 Crash in create_tmp_table called from
+#               JOIN::init_execution
+#
+CREATE TABLE t2 (f1 int) ;
+INSERT INTO t2 VALUES (1),(2);
+CREATE TABLE t1 (f1 int) ;
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+field1
+NULL
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+field1
+NULL
+NULL
+INSERT INTO t1 VALUES (1),(2);
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 GROUP BY field1;
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
+SELECT (SELECT f1 FROM t1) AS field1 FROM t2 ORDER BY field1;
+ERROR 21000: Subquery returns more than 1 row
+drop table t1,t2;
+#
+# LP BUG#680943 Assertion `!table || (!table->read_set ||
+# bitmap_is_set(table->read_set, field_index))' failed with subquery
+#
+CREATE TABLE t1 (f1 int,f3 int) ;
+INSERT IGNORE INTO t1 VALUES ('6','0'),('4','0');
+CREATE TABLE t2 (f1 int,f2 int,f3 int) ;
+INSERT IGNORE INTO t2 VALUES ('6','0','0'),('2','0','0');
+SELECT f2
+FROM (SELECT * FROM t2) AS alias1
+WHERE (SELECT SQ2_t2.f1
+FROM t1 JOIN t1 AS SQ2_t2 ON SQ2_t2.f3
+WHERE SQ2_t2.f3 AND alias1.f1)
+ORDER BY f3 ;
+f2
+drop table t1,t2;
