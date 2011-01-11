@@ -82,42 +82,23 @@ CrundDriver::initProperties() {
     logSumOfOps = toBool(props[L"logSumOfOps"], true);
     //allowExtendedPC = toBool(props[L"allowExtendedPC"], false); // not used
 
-    aStart = toInt(props[L"aStart"], 256, 0);
-    if (aStart < 1) {
-        msg << "[ignored] aStart:               '"
-            << toString(props[L"aStart"]) << "'" << endl;
-        aStart = 256;
+    nOpsStart = toInt(props[L"nOpsStart"], 256, 0);
+    if (nOpsStart < 1) {
+        msg << "[ignored] nOpsStart:            '"
+            << toString(props[L"nOpsStart"]) << "'" << endl;
+        nOpsStart = 256;
     }
-    aEnd = toInt(props[L"aEnd"], aStart, 0);
-    if (aEnd < aStart) {
-        msg << "[ignored] aEnd:                 '"
-            << toString(props[L"aEnd"]) << "'" << endl;
-        aEnd = aStart;
+    nOpsEnd = toInt(props[L"nOpsEnd"], nOpsStart, 0);
+    if (nOpsEnd < nOpsStart) {
+        msg << "[ignored] nOpsEnd:              '"
+            << toString(props[L"nOpsEnd"]) << "'" << endl;
+        nOpsEnd = nOpsStart;
     }
-    aScale = toInt(props[L"aScale"], 2, 0);
-    if (aScale < 2) {
-        msg << "[ignored] aScale:               '"
-            << toString(props[L"aScale"]) << "'" << endl;
-        aScale = 2;
-    }
-
-    bStart = toInt(props[L"bStart"], aStart, 0);
-    if (bStart < 1) {
-        msg << "[ignored] bStart:               '"
-            << toString(props[L"bStart"]) << "'" << endl;
-        bStart = aStart;
-    }
-    bEnd = toInt(props[L"bEnd"], bStart, 0);
-    if (bEnd < bStart) {
-        msg << "[ignored] bEnd:                 '"
-            << toString(props[L"bEnd"]) << "'" << endl;
-        bEnd = bStart;
-    }
-    bScale = toInt(props[L"bScale"], 2, 0);
-    if (bScale < 2) {
-        msg << "[ignored] bScale:               '"
-            << toString(props[L"bScale"]) << "'" << endl;
-        bScale = 2;
+    nOpsScale = toInt(props[L"nOpsScale"], 2, 0);
+    if (nOpsScale < 2) {
+        msg << "[ignored] nOpsScale:            '"
+            << toString(props[L"nOpsScale"]) << "'" << endl;
+        nOpsScale = 2;
     }
 
     maxVarbinaryBytes = toInt(props[L"maxVarbinaryBytes"], 100, 0);
@@ -168,8 +149,7 @@ CrundDriver::initProperties() {
 
     if (!msg.tellp()) {
         cout << "    [ok: "
-             << "A=" << aStart << ".." << aEnd
-             << ", B=" << bStart << ".." << bEnd << "]" << endl;
+             << "nOps=" << nOpsStart << ".." << nOpsEnd << "]" << endl;
     } else {
         cout << endl << msg.str() << endl;
     }
@@ -190,12 +170,9 @@ CrundDriver::printProperties() {
     cout << "lockMode:                       " << toStr(lockMode) << endl;
     cout << "logSumOfOps:                    " << logSumOfOps << endl;
     //cout << "allowExtendedPC:                " << allowExtendedPC << endl;
-    cout << "aStart:                         " << aStart << endl;
-    cout << "bStart:                         " << bStart << endl;
-    cout << "aEnd:                           " << aEnd << endl;
-    cout << "bEnd:                           " << bEnd << endl;
-    cout << "aScale:                         " << aScale << endl;
-    cout << "bScale:                         " << bScale << endl;
+    cout << "nOpsStart:                      " << nOpsStart << endl;
+    cout << "nOpsEnd:                        " << nOpsEnd << endl;
+    cout << "nOpsScale:                      " << nOpsScale << endl;
     cout << "maxVarbinaryBytes:              " << maxVarbinaryBytes << endl;
     cout << "maxVarcharChars:                " << maxVarcharChars << endl;
     cout << "maxBlobBytes:                   " << maxBlobBytes << endl;
@@ -213,12 +190,9 @@ CrundDriver::runTests() {
     initConnection();
     initOperations();
 
-    assert(aStart <= aEnd && aScale > 1);
-    assert(bStart <= bEnd && bScale > 1);
-    for (int i = aStart; i <= aEnd; i *= aScale) {
-        for (int j = bStart; j <= bEnd; j *= bScale) {
-            runLoads(i, j);
-        }
+    assert(nOpsStart <= nOpsEnd && nOpsScale > 1);
+    for (int i = nOpsStart; i <= nOpsEnd; i *= nOpsScale) {
+        runLoads(i);
     }
 
     cout << endl
@@ -230,25 +204,20 @@ CrundDriver::runTests() {
 }
 
 void
-CrundDriver::runLoads(int countA, int countB) {
+CrundDriver::runLoads(int nOps) {
     cout << endl
          << "------------------------------------------------------------" << endl;
 
-    if (countA > countB) {
-        cout << "skipping operations ..."
-             << "         [A=" << countA << ", B=" << countB << "]" << endl;
-        return;
-    }
     cout << "running operations ..."
-         << "          [A=" << countA << ", B=" << countB << "]" << endl;
+         << "          [nOps=" << nOps << "]" << endl;
 
     // log buffers
     if (logRealTime) {
-        rtimes << "A=" << countA << ", B=" << countB;
+        rtimes << nOps;
         rta = 0L;
     }
     if (logCpuTime) {
-        ctimes << "A=" << countA << ", B=" << countB;
+        ctimes << nOps;
         cta = 0L;
     }
 
@@ -264,7 +233,7 @@ CrundDriver::runLoads(int countA, int countB) {
     }
     clearData();
 
-    runOperations(countA, countB);
+    runOperations(nOps);
 
     if (logSumOfOps) {
         cout << endl
@@ -301,7 +270,7 @@ CrundDriver::runLoads(int countA, int countB) {
 }
 
 void
-CrundDriver::runOperations(int countA, int countB) {
+CrundDriver::runOperations(int nOps) {
     for (Operations::const_iterator i = operations.begin();
          i != operations.end(); ++i) {
         // no need for pre-tx cleanup with NDBAPI-based loads
@@ -310,16 +279,16 @@ CrundDriver::runOperations(int countA, int countB) {
         //    // any data/result caches before the next transaction
         //    clearPersistenceContext();
         //}
-        runOp(**i, countA, countB);
+        runOp(**i, nOps);
     }
 }
 
 void
-CrundDriver::runOp(const Op& op, int countA, int countB) {
+CrundDriver::runOp(const Op& op, int nOps) {
     const string& name = op.name;
     if (exclude.find(name) == exclude.end()) {
         begin(name);
-        op.run(countA, countB);
+        op.run(nOps);
         commit(name);
     }
 }

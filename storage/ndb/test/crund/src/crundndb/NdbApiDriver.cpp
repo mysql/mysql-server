@@ -167,10 +167,10 @@ struct NdbApiDriver::ADelAllOp : Op {
                      + (OB ? "_batch" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
+    virtual void run(int nOps) const {
         int count;
         ops->delByScan(ops->model->table_A, count, OB);
-        assert(count == countA);
+        assert(count == nOps);
     }
 };
 
@@ -180,10 +180,10 @@ struct NdbApiDriver::B0DelAllOp : Op {
                       + (OB ? "_batch" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
+    virtual void run(int nOps) const {
         int count;
         ops->delByScan(ops->model->table_B0, count, OB);
-        assert(count == countB);
+        assert(count == nOps);
     }
 };
 
@@ -194,8 +194,8 @@ struct NdbApiDriver::AInsOp : Op {
                   + (OB ? "_batch" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
-        ops->ins(ops->model->table_A, 1, countA, OSA, OB);
+    virtual void run(int nOps) const {
+        ops->ins(ops->model->table_A, 1, nOps, OSA, OB);
     }
 };
 
@@ -206,8 +206,8 @@ struct NdbApiDriver::B0InsOp : Op {
                    + (OB ? "_batch" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
-        ops->ins(ops->model->table_B0, 1, countB, OSA, OB);
+    virtual void run(int nOps) const {
+        ops->ins(ops->model->table_B0, 1, nOps, OSA, OB);
     }
 };
 
@@ -219,8 +219,8 @@ struct NdbApiDriver::AByPKOp : Op {
                    + (OB ? "_batch" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
-        (ops->*OF)(ops->model->table_A, 1, countA, OB);
+    virtual void run(int nOps) const {
+        (ops->*OF)(ops->model->table_A, 1, nOps, OB);
     }
 };
 
@@ -232,8 +232,8 @@ struct NdbApiDriver::B0ByPKOp : Op {
                     + (OB ? "_batch" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
-        (ops->*OF)(ops->model->table_B0, 1, countB, OB);
+    virtual void run(int nOps) const {
+        (ops->*OF)(ops->model->table_B0, 1, nOps, OB);
     }
 };
 
@@ -249,8 +249,8 @@ struct NdbApiDriver::LengthOp : Op {
                            length(length) {
     }
 
-    virtual void run(int countA, int countB) const {
-        (ops->*OF)(ops->model->table_B0, 1, countB, OB, length);
+    virtual void run(int nOps) const {
+        (ops->*OF)(ops->model->table_B0, 1, nOps, OB, length);
     }
 };
 
@@ -261,21 +261,21 @@ struct NdbApiDriver::ZeroLengthOp : LengthOp< ON, OF, OB > {
     ZeroLengthOp(int length) : LengthOp< ON, OF, OB >(length) {
     }
 
-    virtual void run(int countA, int countB) const {
-        (ops->*OF)(ops->model->table_B0, 1, countB, OB, 0);
+    virtual void run(int nOps) const {
+        (ops->*OF)(ops->model->table_B0, 1, nOps, OB, 0);
     }
 };
 
 template< const char** ON,
-          void (CrundNdbApiOperations::*OF)(int,int,bool),
+          void (CrundNdbApiOperations::*OF)(int,bool),
           bool OFS >
 struct NdbApiDriver::RelOp : Op {
     RelOp() : Op(string(*ON)
                  + (OFS ? "_forceSend" : "")) {
     }
 
-    virtual void run(int countA, int countB) const {
-        (ops->*OF)(countA, countB, OFS);
+    virtual void run(int nOps) const {
+        (ops->*OF)(nOps, OFS);
     }
 };
 

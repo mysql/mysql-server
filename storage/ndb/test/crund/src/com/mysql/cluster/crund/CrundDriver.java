@@ -61,12 +61,9 @@ abstract public class CrundDriver extends Driver {
     protected boolean renewOperations;
     protected boolean logSumOfOps;
     protected boolean allowExtendedPC;
-    protected int aStart;
-    protected int bStart;
-    protected int aEnd;
-    protected int bEnd;
-    protected int aScale;
-    protected int bScale;
+    protected int nOpsStart;
+    protected int nOpsEnd;
+    protected int nOpsScale;
     protected int maxVarbinaryBytes;
     protected int maxVarcharChars;
     protected int maxBlobBytes;
@@ -100,36 +97,20 @@ abstract public class CrundDriver extends Driver {
         logSumOfOps = parseBoolean("logSumOfOps", true);
         allowExtendedPC = parseBoolean("allowExtendedPC", false);
 
-        aStart = parseInt("aStart", 256);
-        if (aStart < 1) {
-            msg.append("[ignored] aStart:               " + aStart + eol);
-            aStart = 256;
+        nOpsStart = parseInt("nOpsStart", 256);
+        if (nOpsStart < 1) {
+            msg.append("[ignored] nOpsStart:            " + nOpsStart + eol);
+            nOpsStart = 256;
         }
-        aEnd = parseInt("aEnd", aStart);
-        if (aEnd < aStart) {
-            msg.append("[ignored] aEnd:                 "+ aEnd + eol);
-            aEnd = aStart;
+        nOpsEnd = parseInt("nOpsEnd", nOpsStart);
+        if (nOpsEnd < nOpsStart) {
+            msg.append("[ignored] nOpsEnd:              "+ nOpsEnd + eol);
+            nOpsEnd = nOpsStart;
         }
-        aScale = parseInt("aScale", 2);
-        if (aScale < 2) {
-            msg.append("[ignored] aScale:               " + aScale + eol);
-            aScale = 2;
-        }
-
-        bStart = parseInt("bStart", 256);
-        if (bStart < 1) {
-            msg.append("[ignored] bStart:               " + bStart + eol);
-            bStart = 256;
-        }
-        bEnd = parseInt("bEnd", bStart);
-        if (bEnd < bStart) {
-            msg.append("[ignored] bEnd:                 " + bEnd + eol);
-            bEnd = bStart;
-        }
-        bScale = parseInt("bScale", 2);
-        if (bScale < 2) {
-            msg.append("[ignored] bScale:               " + bScale + eol);
-            bScale = 2;
+        nOpsScale = parseInt("nOpsScale", 2);
+        if (nOpsScale < 2) {
+            msg.append("[ignored] nOpsScale:            " + nOpsScale + eol);
+            nOpsScale = 2;
         }
 
         maxVarbinaryBytes = parseInt("maxVarbinaryBytes", 100);
@@ -166,8 +147,7 @@ abstract public class CrundDriver extends Driver {
 
         if (msg.length() == 0) {
             out.println("    [ok: "
-                        + "A=" + aStart + ".." + aEnd
-                        + ", B=" + bStart + ".." + bEnd + "]");
+                        + "nOps=" + nOpsStart + ".." + nOpsEnd + "]");
         } else {
             out.println();
             out.print(msg.toString());
@@ -183,12 +163,9 @@ abstract public class CrundDriver extends Driver {
         out.println("renewOperations:                " + renewOperations);
         out.println("logSumOfOps:                    " + logSumOfOps);
         out.println("allowExtendedPC:                " + allowExtendedPC);
-        out.println("aStart:                         " + aStart);
-        out.println("bStart:                         " + bStart);
-        out.println("aEnd:                           " + aEnd);
-        out.println("bEnd:                           " + bEnd);
-        out.println("aScale:                         " + aScale);
-        out.println("bScale:                         " + bScale);
+        out.println("nOpsStart:                      " + nOpsStart);
+        out.println("nOpsEnd:                        " + nOpsEnd);
+        out.println("nOpsScale:                      " + nOpsScale);
         out.println("maxVarbinaryBytes:              " + maxVarbinaryBytes);
         out.println("maxVarcharChars:                " + maxVarcharChars);
         out.println("maxBlobBytes:                   " + maxBlobBytes);
@@ -208,7 +185,7 @@ abstract public class CrundDriver extends Driver {
 
         public String getName() { return name; }
 
-        public abstract void run(int countA, int countB) throws Exception;
+        public abstract void run(int nOps) throws Exception;
     };
 
     // the list of database operations to be benchmarked
@@ -223,16 +200,13 @@ abstract public class CrundDriver extends Driver {
         initConnection();
         initOperations();
 
-        assert (aStart <= aEnd && aScale > 1);
-        assert (bStart <= bEnd && bScale > 1);
-        for (int i = aStart; i <= aEnd; i *= aScale) {
-            for (int j = bStart; j <= bEnd; j *= bScale) {
-                try {
-                    runLoads(i, j);
-                } catch (Exception ex) {
-                    // already in rollback for database/orm exceptions
-                    throw ex;
-                }
+        assert (nOpsStart <= nOpsEnd && nOpsScale > 1);
+        for (int i = nOpsStart; i <= nOpsEnd; i *= nOpsScale) {
+            try {
+                runLoads(i);
+            } catch (Exception ex) {
+                // already in rollback for database/orm exceptions
+                throw ex;
             }
         }
 
@@ -245,25 +219,20 @@ abstract public class CrundDriver extends Driver {
         closeConnection();
     }
 
-    protected void runLoads(int countA, int countB) throws Exception {
+    protected void runLoads(int nOps) throws Exception {
         out.println();
         out.println("------------------------------------------------------------");
 
-        if (countA > countB) {
-            out.println("skipping operations ..."
-                        + "         [A=" + countA + ", B=" + countB + "]");
-            return;
-        }
         out.println("running operations ..."
-                    + "          [A=" + countA + ", B=" + countB + "]");
+                    + "          [nOps=" + nOps + "]");
 
         // log buffers
         if (logRealTime) {
-            rtimes.append("A=" + countA + ", B=" + countB);
+            rtimes.append(nOps);
             ta = 0;
         }
         if (logMemUsage) {
-            musage.append("A=" + countA + ", B=" + countB);
+            musage.append(nOps);
             ma = 0;
         }
 
@@ -279,7 +248,7 @@ abstract public class CrundDriver extends Driver {
         }
         clearData();
 
-        runOperations(countA, countB);
+        runOperations(nOps);
 
         if (logSumOfOps) {
             out.println();
@@ -316,7 +285,7 @@ abstract public class CrundDriver extends Driver {
         }
     }
 
-    protected void runOperations(int countA, int countB) throws Exception {
+    protected void runOperations(int nOps) throws Exception {
         for (Op op : ops) {
             // pre-tx cleanup
             if (!allowExtendedPC) {
@@ -324,15 +293,15 @@ abstract public class CrundDriver extends Driver {
                 // any data/result caches before the next transaction
                 clearPersistenceContext();
             }
-            runOp(op, countA, countB);
+            runOp(op, nOps);
         }
     }
 
-    protected void runOp(Op op, int countA, int countB) throws Exception {
+    protected void runOp(Op op, int nOps) throws Exception {
         final String name = op.getName();
         if (!exclude.contains(name)) {
             begin(name);
-            op.run(countA, countB);
+            op.run(nOps);
             finish(name);
         }
     }
