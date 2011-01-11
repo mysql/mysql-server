@@ -1978,7 +1978,7 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
   char *buff, *end;
   int res= 1;
 
-  buff= my_alloca(USERNAME_LENGTH + data_len + 1 + NAME_LEN + 2 + NAME_LEN);
+  buff= my_alloca(USERNAME_LENGTH+1 + data_len+1 + NAME_LEN+1 + 2 + NAME_LEN+1);
 
   end= strmake(buff, mysql->user, USERNAME_LENGTH) + 1;
 

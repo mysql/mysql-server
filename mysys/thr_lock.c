@@ -158,15 +158,13 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
-  THR_LOCK_OWNER *UNINIT_VAR(first_owner);
 
   prev= &list->data;
   if (list->data)
   {
-    enum thr_lock_type last_lock_type=list->data->type;
+    enum thr_lock_type last_lock_type= list->data->type;
+    THR_LOCK_OWNER *first_owner= list->data->owner;
 
-    if (same_owner && list->data)
-      first_owner= list->data->owner;
     for (data=list->data; data && count++ < MAX_LOCKS ; data=data->next)
     {
       if (data->type != last_lock_type)
@@ -184,8 +182,8 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
           last_lock_type != TL_WRITE_CONCURRENT_INSERT)
       {
 	fprintf(stderr,
-		"Warning: Found locks from different threads in %s: %s\n",
-		lock_type,where);
+		"Warning: Found locks from different threads in %s at '%s'.  org_lock_type: %d  last_lock_type: %d  new_lock_type: %d\n",
+		lock_type, where, list->data->type, last_lock_type, data->type);
 	return 1;
       }
       if (no_cond && data->cond)

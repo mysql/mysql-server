@@ -12717,6 +12717,7 @@ COUNT(t1.a)
 729
 DROP TABLE t1;
 SET @@join_buffer_size= @save_join_buffer_size;
+flush tables;
 SHOW CREATE TABLE t1;
 ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 SELECT * FROM t1;

@@ -100,6 +100,9 @@ static my_bool _ma_flush_table_files_before_swap(HA_CHECK *param,
 static TrID max_trid_in_system(void);
 static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid);
 void retry_if_quick(MARIA_SORT_PARAM *param, int error);
+static void print_bitmap_description(MARIA_SHARE *share,
+                                     pgcache_page_no_t page,
+                                     uchar *buff);
 
 
 /* Initialize check param with default values */
@@ -1842,6 +1845,8 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       }
       param->used+= block_size;
       param->link_used+= block_size;
+      if (param->verbose > 2)
+        print_bitmap_description(share, page, bitmap_buff);
       continue;
     }
     /* Skip pages marked as empty in bitmap */
@@ -2034,6 +2039,8 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
   bzero((char*) param->tmp_key_crc,
         share->base.keys * sizeof(param->tmp_key_crc[0]));
 
+  info->in_check_table= 1;       /* Don't assert on checksum errors */
+
   switch (share->data_file_type) {
   case BLOCK_RECORD:
     error= check_block_record(param, info, extend, record);
@@ -2048,6 +2055,8 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
     error= check_compressed_record(param, info, extend, record);
     break;
   } /* switch */
+
+  info->in_check_table= 0;
 
   if (error)
     goto err;
@@ -2177,12 +2186,17 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
            llstr(param->del_length, llbuff2));
     printf("Empty space:  %12s    Linkdata:     %10s\n",
            llstr(param->empty, llbuff),llstr(param->link_used, llbuff2));
-    if (param->lost)
-      printf("Lost space:   %12s", llstr(param->lost, llbuff));
-    if (param->max_found_trid)
+    if (share->data_file_type == BLOCK_RECORD)
     {
-      printf("Max trans. id: %11s\n",
-             llstr(param->max_found_trid, llbuff));
+      printf("Full pages:   %12s    Tail count: %12s\n",
+             llstr(param->full_page_count, llbuff),
+             llstr(param->tail_count, llbuff2));
+      printf("Lost space:   %12s\n", llstr(param->lost, llbuff));
+      if (param->max_found_trid)
+      {
+        printf("Max trans. id: %11s\n",
+               llstr(param->max_found_trid, llbuff));
+      }
     }
   }
   my_free(record,MYF(0));
@@ -2616,6 +2630,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   maria_lock_memory(param);			/* Everything is alloced */
 
+  sort_param.sort_info->info->in_check_table= 1;
   /* Re-create all keys, which are set in key_map. */
   while (!(error=sort_get_next_record(&sort_param)))
   {
@@ -2783,6 +2798,7 @@ err:
   VOID(end_io_cache(&sort_info.new_info->rec_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   sort_info.new_info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
+  sort_param.sort_info->info->in_check_table= 0;
   /* this below could fail, shouldn't we detect error? */
   if (got_error)
   {
@@ -3133,7 +3149,8 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   key.keyinfo= keyinfo;
 
   if (!(buff= (uchar*) my_alloca((uint) keyinfo->block_length +
-                                 keyinfo->maxlength)))
+                                 keyinfo->maxlength +
+                                 MARIA_INDEX_OVERHEAD_SIZE)))
   {
     _ma_check_print_error(param,"Not enough memory for key block");
     DBUG_RETURN(-1);
@@ -3232,6 +3249,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
   uint block_size= share->block_size;
   my_bool zero_lsn= (share->base.born_transactional &&
                      !(param->testflag & T_ZEROFILL_KEEP_LSN));
+  int error= 1;
   DBUG_ENTER("maria_zerofill_index");
 
   if (!(param->testflag & T_SILENT))
@@ -3256,7 +3274,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
       _ma_check_print_error(param,
                             "Page %9s: Got error %d when reading index file",
                             llstr(pos, llbuff), my_errno);
-      DBUG_RETURN(1);
+      goto end;
     }
     if (zero_lsn)
       bzero(buff, LSN_SIZE);
@@ -3264,7 +3282,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
     if (share->base.born_transactional)
     {
       uint keynr= _ma_get_keynr(share, buff);
-      if (keynr != MARIA_DELETE_KEY_NR)
+      if (keynr < share->base.keys)
       {
         MARIA_PAGE page;
         DBUG_ASSERT(keynr < share->base.keys);
@@ -3276,7 +3294,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
                                 "Page %9s: Got error %d when reading index "
                                 "file",
                                 llstr(pos, llbuff), my_errno);
-          DBUG_RETURN(1);
+          goto end;
         }
       }
     }
@@ -3290,10 +3308,13 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                              LSN_IMPOSSIBLE, 1, FALSE);
   }
+  error= 0;                                     /* ok */
+
+end:
   if (flush_pagecache_blocks(share->pagecache, &share->kfile,
                              FLUSH_FORCE_WRITE))
     DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 
@@ -4753,7 +4774,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
         DBUG_RETURN(-1);
       }
       /* Retry only if wrong record, not if disk error */
-      if (flag != HA_ERR_WRONG_IN_RECORD)
+      if (flag != HA_ERR_WRONG_IN_RECORD && flag != HA_ERR_WRONG_CRC)
       {
         retry_if_quick(sort_param, flag);
         DBUG_RETURN(flag);
@@ -6443,6 +6464,9 @@ static void change_data_file_descriptor(MARIA_HA *info, File new_file)
 
 static void unuse_data_file_descriptor(MARIA_HA *info)
 {
+  (void) flush_pagecache_blocks(info->s->pagecache,
+                                &info->s->bitmap.file,
+                                FLUSH_IGNORE_CHANGED);
   info->dfile.file= info->s->bitmap.file.file= -1;
   _ma_bitmap_reset_cache(info->s);
 }
@@ -6797,4 +6821,47 @@ void retry_if_quick(MARIA_SORT_PARAM *sort_param, int error)
     param->retry_repair=1;
     param->testflag|=T_RETRY_WITHOUT_QUICK;
   }
+}
+
+/* Print information about bitmap page */
+
+static void print_bitmap_description(MARIA_SHARE *share,
+                                     pgcache_page_no_t page,
+                                     uchar *bitmap_data)
+{
+  uchar *pos, *end;
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  uint count=0, dot_printed= 0;
+  char buff[80], last[80];
+
+  printf("Bitmap page %lu\n", (ulong) page);
+  page++;
+  last[0]=0;
+  for (pos= bitmap_data, end= pos+ bitmap->used_size ; pos < end ; pos+= 6)
+  {
+    ulonglong bits= uint6korr(pos);    /* 6 bytes = 6*8/3= 16 patterns */
+    uint i;
+
+    for (i= 0; i < 16 ; i++, bits>>= 3)
+    {
+      if (count > 60)
+      {
+        buff[count]= 0;
+        if (strcmp(buff, last))
+        {
+          memcpy(last, buff, count+1);
+          printf("%8lu: %s\n", (ulong) page - count, buff);
+          dot_printed= 0;
+        }
+        else if (!(dot_printed++))
+          printf("...\n");
+        count= 0;
+      }
+      buff[count++]= '0' + (uint) (bits & 7);
+      page++;
+    }
+  }
+  buff[count]= 0;
+  printf("%8lu: %s\n", (ulong) page - count, buff);
+  fputs("\n", stdout);
 }

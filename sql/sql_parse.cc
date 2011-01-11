@@ -3187,12 +3187,17 @@ end_with_restore_list:
 
     DBUG_EXECUTE_IF("after_mysql_insert",
                     {
-                      const char act[]=
+                      const char act1[]=
                         "now "
                         "wait_for signal.continue";
+                      const char act2[]=
+                        "now "
+                        "signal signal.continued";
                       DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                         STRING_WITH_LEN(act)));
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act1)));
+                      DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                         STRING_WITH_LEN(act2)));
                     };);
     break;
   }

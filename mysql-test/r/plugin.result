@@ -75,9 +75,9 @@ SET SQL_MODE='IGNORE_BAD_TABLE_OPTIONS';
 #illegal value fixed
 CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
 Warnings:
-Warning	1652	Incorrect value '10000000000000000000' for option 'ULL'
-Warning	1652	Incorrect value 'ttt' for option 'one_or_two'
-Warning	1652	Incorrect value 'SSS' for option 'YESNO'
+Warning	1653	Incorrect value '10000000000000000000' for option 'ULL'
+Warning	1653	Incorrect value 'ttt' for option 'one_or_two'
+Warning	1653	Incorrect value 'SSS' for option 'YESNO'
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

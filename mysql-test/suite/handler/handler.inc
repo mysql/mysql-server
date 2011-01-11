@@ -1,5 +1,7 @@
-# include/handler.inc
+# handler.inc
 #
+# See init.inc for setup of variables for this script
+# 
 # The variables
 #     $engine_type       -- storage engine to be tested
 #     $other_engine_type -- storage engine <> $engine_type
@@ -8,31 +10,19 @@
 #                           2. $other_handler_engine_type must point to an all
 #                              time available storage engine
 #                              2006-08 MySQL 5.1 MyISAM and MEMORY only
-# have to be set before sourcing this script.
--- source include/not_embedded.inc
 #
 # test of HANDLER ...
 #
 # Last update:
 # 2006-07-31 ML test refactored (MySQL 5.1)
 #               code of t/handler.test and t/innodb_handler.test united
-#               main testing code put into include/handler.inc
+#               main testing code put into handler.inc
 #
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
-
---disable_warnings
-drop table if exists t1,t3,t4,t5;
---enable_warnings
-
-create table t1 (a int, b char(10), key a(a), key b(a,b));
-insert into t1 values
-(17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
-(14,"aaa"),(15,"bbb"),(16,"ccc"),(16,"xxx"),
-(20,"ggg"),(21,"hhh"),(22,"iii");
+#
+# Start testing the table created in init.inc
+#
 handler t1 open as t2;
--- error 1064
-handler t2 read a=(SELECT 1);
 handler t2 read a first;
 handler t2 read a next;
 handler t2 read a next;
@@ -65,11 +55,33 @@ handler t1 read a last;
 handler t2 read a=(11);
 handler t2 read a>=(11);
 
+# Search on something we ca nfind
 handler t2 read a=(18);
 handler t2 read a>=(18);
 handler t2 read a>(18);
 handler t2 read a<=(18);
 handler t2 read a<(18);
+
+# Search on something we can't find
+handler t2 read a=(15);
+handler t2 read a>=(15);
+handler t2 read a>(15);
+handler t2 read a<=(15);
+handler t2 read a<(15);
+
+# Search from upper end
+handler t2 read a=(54);
+handler t2 read a>=(54);
+handler t2 read a>(54);
+handler t2 read a<=(54);
+handler t2 read a<(54);
+
+# Search from lower end
+handler t2 read a=(1);
+handler t2 read a>=(1);
+handler t2 read a>(1);
+handler t2 read a<=(1);
+handler t2 read a<(1);
 
 handler t2 read a first limit 5;
 handler t2 read a next  limit 3;
@@ -86,8 +98,6 @@ handler t2 read a=(19) where b="yyy";
 handler t2 read first;
 handler t2 read next;
 handler t2 read next;
---error 1064
-handler t2 read last;
 handler t2 close;
 
 handler t1 open;
@@ -184,7 +194,7 @@ handler t1 close;
 #
 handler t1 open as t2;
 drop table t1;
-create table t1 (a int);
+create table t1 (a int not null);
 insert into t1 values (17);
 --error 1109
 handler t2 read first;
@@ -211,7 +221,7 @@ drop table t1;
 #
 # Test for #751
 #
-create table t1(a int, index(a));
+eval create table t1(a int, index $key_type (a));
 insert into t1 values (1), (2), (3);
 handler t1 open;
 --error 1054
@@ -238,7 +248,7 @@ drop table t1;
 #
 # BUG#3649
 #
-create table t1 ( a int, b int, INDEX a (a) );
+eval create table t1 ( a int, b int, INDEX a $key_type (a) );
 insert into t1 values (1,2), (2,1);
 handler t1 open;
 handler t1 read a=(1) where b=2;
@@ -246,143 +256,6 @@ handler t1 read a=(1) where b=3;
 handler t1 read a=(1) where b=1;
 handler t1 close;
 drop table t1;
-
-#
-# Check if two database names beginning the same are seen as different.
-#
-# This database begins like the usual 'test' database.
-#
---disable_warnings
-drop database if exists test_test;
---enable_warnings
-create database test_test;
-use test_test;
-create table t1(table_id char(20) primary key);
-insert into t1 values ('test_test.t1');
-insert into t1 values ('');
-handler t1 open;
-handler t1 read first limit 9;
-create table t2(table_id char(20) primary key);
-insert into t2 values ('test_test.t2');
-insert into t2 values ('');
-handler t2 open;
-handler t2 read first limit 9;
-#
-# This is the usual 'test' database.
-#
-use test;
---disable_warnings
-drop table if exists t1;
---enable_warnings
-create table t1(table_id char(20) primary key);
-insert into t1 values ('test.t1');
-insert into t1 values ('');
---error 1066
-handler t1 open;
-#
-# Check accesibility of all the tables.
-#
-use test;
---error 1064
-handler test.t1 read first limit 9;
---error 1064
-handler test_test.t1 read first limit 9;
-handler t1 read first limit 9;
---error 1064
-handler test_test.t2 read first limit 9;
-handler t2 read first limit 9;
-
-#
-# Cleanup.
-#
-
---error 1064
-handler test_test.t1 close;
-handler t1 close;
-drop table test_test.t1;
---error 1064
-handler test_test.t2 close;
-handler t2 close;
-drop table test_test.t2;
-drop database test_test;
-
-#
-use test;
---error 1064
-handler test.t1 close;
---error 1109
-handler t1 close;
-drop table test.t1;
-
-#
-# BUG#4335
-#
---disable_warnings
-drop database if exists test_test;
-drop table if exists t1;
-drop table if exists t2;
-drop table if exists t3;
---enable_warnings
-create database test_test;
-use test_test;
-create table t1 (c1 char(20));
-insert into t1 values ('test_test.t1');
-create table t3 (c1 char(20));
-insert into t3 values ('test_test.t3');
-handler t1 open;
-handler t1 read first limit 9;
-handler t1 open h1;
-handler h1 read first limit 9;
-use test;
-create table t1 (c1 char(20));
-create table t2 (c1 char(20));
-create table t3 (c1 char(20));
-insert into t1 values ('t1');
-insert into t2 values ('t2');
-insert into t3 values ('t3');
---error 1066
-handler t1 open;
---error 1066
-handler t2 open t1;
---error 1066
-handler t3 open t1;
-handler t1 read first limit 9;
---error 1064
-handler test.t1 close;
---error 1066
-handler test.t1 open h1;
---error 1066
-handler test_test.t1 open h1;
-handler test_test.t3 open h3;
-handler test.t1 open h2;
-handler t1 read first limit 9;
-handler h1 read first limit 9;
-handler h2 read first limit 9;
-handler h3 read first limit 9;
-handler h2 read first limit 9;
---error 1064
-handler test.h1 close;
-handler t1 close;
-handler h1 close;
-handler h2 close;
---error 1109
-handler t1 read first limit 9;
---error 1109
-handler h1 read first limit 9;
---error 1109
-handler h2 read first limit 9;
-handler h3 read first limit 9;
-handler h3 read first limit 9;
-use test_test;
-handler h3 read first limit 9;
---error 1064
-handler test.h3 read first limit 9;
-handler h3 close;
-use test;
-drop table t3;
-drop table t2;
-drop table t1;
-drop database test_test;
 
 #
 # Test if fix for BUG#4286 correctly closes handler tables.
@@ -484,11 +357,13 @@ reap;
 connection default;
 drop table t1;
 
-CREATE TABLE t1 (  no1 smallint(5) NOT NULL default '0',  no2 int(10) NOT NULL default '0',  PRIMARY KEY  (no1,no2));
+eval CREATE TABLE t1 (  no1 smallint(5) NOT NULL default '0',  no2 int(10) NOT NULL default '0',  PRIMARY KEY $key_type (no1,no2));
 INSERT INTO t1 VALUES (1,274),(1,275),(2,6),(2,8),(4,1),(4,2);
 HANDLER t1 OPEN;
 HANDLER t1 READ `primary` = (1, 1000);
 HANDLER t1 READ `primary` PREV;
+HANDLER t1 READ `primary` = (1, 1000);
+HANDLER t1 READ `primary` NEXT;
 DROP TABLE t1;
 
 # End of 4.1 tests
@@ -542,10 +417,7 @@ drop table if exists t1;
 #
 # Bug#25856 - HANDLER table OPEN in one connection lock DROP TABLE in another one
 #
---disable_warnings
-drop table if exists t1;
---enable_warnings
-eval create table t1 (a int) ENGINE=$other_engine_type;
+eval create table t1 (a int not null) ENGINE=$other_engine_type;
 --echo --> client 2
 connection con2;
 --error 1031
@@ -558,9 +430,6 @@ disconnect con2;
 #
 # Bug#30632 HANDLER read failure causes hang
 #
---disable_warnings
-drop table if exists t1;
---enable_warnings
 create table t1 (a int);
 handler t1 open as t1_alias;
 --error 1176
@@ -575,89 +444,18 @@ handler t1_alias close;
 drop table t1;
 
 #
-# Bug#21587 FLUSH TABLES causes server crash when used with HANDLER statements
-#
-
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
-create table t1 (c1 int);
-create table t2 (c1 int);
-insert into t1 values (1);
-insert into t2 values (2);
---echo connection: default
-handler t1 open;
-handler t1 read first;
-connect (flush,localhost,root,,);
-connection flush;
---echo connection: flush
---send flush tables;
-connection default;
---echo connection: default
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
---source include/wait_condition.inc
-handler t2 open;
-handler t2 read first;
-handler t1 read next;
-handler t1 close;
-handler t2 close;
-connection flush;
-reap;
-connection default;
-drop table t1,t2;
-disconnect flush;
-
-#
-# Bug#31409 RENAME TABLE causes server crash or deadlock when used with HANDLER statements
-#
-
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
-create table t1 (c1 int);
---echo connection: default
-handler t1 open;
-handler t1 read first;
-connect (flush,localhost,root,,);
-connection flush;
---echo connection: flush
---send rename table t1 to t2;
-connection default;
---echo connection: default
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "rename table t1 to t2";
---source include/wait_condition.inc
-handler t2 open;
-handler t2 read first;
---error ER_NO_SUCH_TABLE
-handler t1 read next;
-handler t1 close;
-handler t2 close;
-connection flush;
-reap;
-connection default;
-drop table t2;
-disconnect flush;
-
-#
 # Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
 #
 # Test HANDLER statements in conjunction with temporary tables. While the temporary table
 # is open by a HANDLER, no other statement can access it.
 #
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
+eval create temporary table t1 (a int, b char(1), key a $key_type (a), key b(a,b));
 insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
-                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j"),(9,'k');
 select a,b from t1;
 handler t1 open as a1;
-handler a1 read a first;
+handler a1 read a=(1);
 handler a1 read a next;
 handler a1 read a next;
 --error ER_CANT_REOPEN_TABLE
@@ -668,41 +466,19 @@ handler a1 read a=(6) where b="g";
 handler a1 close;
 select a,b from t1;
 handler t1 open as a2;
-handler a2 read a first;
+handler a2 read a=(9);
+handler a2 read a next;
+handler a2 read a prev limit 2;
+--error 0,1031
 handler a2 read a last;
 handler a2 read a prev;
 handler a2 close;
 drop table t1;
 
-#
-# Bug#31397 Inconsistent drop table behavior of handler tables.
-#
-
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
-create table t1 (a int);
-handler t1 open as t1_alias;
-drop table t1;
-create table t1 (a int);
-handler t1 open as t1_alias;
-flush tables;
-drop table t1;
-create table t1 (a int);
-handler t1 open as t1_alias;
-handler t1_alias close;
-drop table t1;
-create table t1 (a int);
-handler t1 open as t1_alias;
-handler t1_alias read first;
-drop table t1;
---error ER_UNKNOWN_TABLE
-handler t1_alias read next;
-
 # Test that temporary tables associated with handlers are properly dropped.
 
 create table t1 (a int);
-create temporary table t2 (a int, key(a));
+eval create temporary table t2 (a int, key $key_type (a));
 handler t1 open as a1;
 handler t2 open as a2;
 handler a2 read a first;
@@ -714,7 +490,7 @@ handler a1 close;
 
 # Alter table drop handlers
 
-create table t1 (a int, key(a));
+eval create table t1 (a int, key $key_type (a));
 create table t2 like t1;
 handler t1 open as a1;
 handler t2 open as a2;
@@ -728,7 +504,7 @@ drop table t1, t2;
 
 # Rename table drop handlers
 
-create table t1 (a int, key(a));
+eval create table t1 (a int, key $key_type (a));
 handler t1 open as a1;
 handler a1 read a first;
 rename table t1 to t2;
@@ -738,7 +514,7 @@ drop table t2;
 
 # Optimize table drop handlers
 
-create table t1 (a int, key(a));
+eval create table t1 (a int, key $key_type (a));
 create table t2 like t1;
 handler t1 open as a1;
 handler t2 open as a2;
@@ -750,56 +526,14 @@ handler a1 close;
 handler a2 close;
 drop table t1, t2;
 
-# Flush tables causes handlers reopen
-
-create table t1 (a int, b char(1), key a(a), key b(a,b));
-insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
-                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
-handler t1 open;
-handler t1 read a first;
-handler t1 read a next;
-flush tables;
-handler t1 read a next;
-handler t1 read a next;
-flush tables with read lock;
-handler t1 read a next;
-unlock tables;
-drop table t1;
---error ER_UNKNOWN_TABLE
-handler t1 read a next;
-
-#
-# Bug#41110: crash with handler command when used concurrently with alter table
-# Bug#41112: crash in mysql_ha_close_table/get_lock_data with alter table
-#
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
-create table t1 (a int);
-insert into t1 values (1);
-handler t1 open;
-connect(con1,localhost,root,,);
-send alter table t1 engine=memory;
-connection default;
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "rename result table" and info = "alter table t1 engine=memory";
---source include/wait_condition.inc
---error ER_ILLEGAL_HA
-handler t1 read a next;
-handler t1 close;
-connection con1;
---reap
-drop table t1;
-disconnect con1;
---source include/wait_until_disconnected.inc
-connection default;
-
-#
-# Bug#44151 using handler commands on information_schema tables crashes server
-#
-USE information_schema;
---error ER_WRONG_USAGE
-HANDLER COLUMNS OPEN;
-USE test;
+--echo #
+--echo # BUG#51877 - HANDLER interface causes invalid memory read
+--echo #
+eval CREATE TABLE t1(a INT, KEY $key_type (a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+INSERT INTO t1 VALUES(1);
+--error 0,ER_CHECKREAD
+HANDLER t1 READ a NEXT;
+HANDLER t1 CLOSE;
+DROP TABLE t1;

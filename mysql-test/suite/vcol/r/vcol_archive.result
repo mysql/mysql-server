@@ -1,7 +1,7 @@
 SET @@session.storage_engine = 'archive';
 create table t1 (a int, b int as (a+1));
-ERROR HY000: 'Specified storage engine' is not yet supported for computed columns
-create table t1 (a int);
+ERROR HY000: ARCHIVE storage engine does not support computed columns
+create table t1 (a int not null);
 alter table t1 add column b int as (a+1);
-ERROR HY000: 'Specified storage engine' is not yet supported for computed columns
+ERROR HY000: ARCHIVE storage engine does not support computed columns
 drop table t1;

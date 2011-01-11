@@ -84,7 +84,6 @@
 
 extern HASH open_cache;
 
-static void reset_lock_data(MYSQL_LOCK *sql_lock, bool unlock);
 static int lock_external(THD *thd, TABLE **table,uint count);
 static int unlock_external(THD *thd, TABLE **table,uint count);
 static void print_lock_error(int error, const char *);
@@ -978,7 +977,7 @@ MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
 				get_store_lock().
 */
 
-static void reset_lock_data(MYSQL_LOCK *sql_lock, bool unlock)
+void reset_lock_data(MYSQL_LOCK *sql_lock, bool unlock)
 {
   THR_LOCK_DATA **ldata;
   THR_LOCK_DATA **ldata_end;

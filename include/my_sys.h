@@ -197,7 +197,7 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 #define my_large_free(A,B) my_free_lock((A),(B))
 #endif /* HAVE_LARGE_PAGES */
 
-#ifdef HAVE_ALLOCA
+#if defined(HAVE_ALLOCA) && !defined(HAVE_valgrind)
 #if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
 #pragma alloca
 #endif /* _AIX */

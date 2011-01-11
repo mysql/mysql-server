@@ -137,6 +137,7 @@
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
 /* Has automatic checksums and uses the new checksum format */
 #define HA_HAS_NEW_CHECKSUM    (LL(1) << 36)
+#define HA_CAN_VIRTUAL_COLUMNS (LL(1) << 37)
 
 #define HA_MRR_CANT_SORT       (LL(1) << 37)
 #define HA_RECORD_MUST_BE_CLEAN_ON_WRITE (LL(1) << 38)
@@ -2003,6 +2004,7 @@ public:
   { return(NULL);}  /* gets tablespace name from handler */
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
+  virtual int can_continue_handler_scan() { return 0; }
   /** used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
   virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
   { return 0; }

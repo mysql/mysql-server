@@ -31,6 +31,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
   MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo;
   int icp_res= 1;
+  uint update_mask= HA_STATE_NEXT_FOUND;
   DBUG_ENTER("maria_rnext");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -62,6 +63,20 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
       error= _ma_search_first(info, keyinfo, share->state.key_root[inx]);
       break;
     }
+    /*
+      "search first" failed. This means we have no pivot for
+      "search next", or in other words MI_INFO::lastkey is
+      likely uninitialized.
+
+      Normally SQL layer would never request "search next" if
+      "search first" failed. But HANDLER may do anything.
+
+      As mi_rnext() without preceeding mi_rkey()/mi_rfirst()
+      equals to mi_rfirst(), we must restore original state
+      as if failing mi_rfirst() was not called.
+    */
+    if (error)
+      update_mask|= HA_STATE_PREV_FOUND;
   }
   else
   {
@@ -106,7 +121,7 @@ int maria_rnext(MARIA_HA *info, uchar *buf, int inx)
 
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  info->update|= HA_STATE_NEXT_FOUND;
+  info->update|= update_mask;
   
   if (icp_res == 2)
     my_errno=HA_ERR_END_OF_FILE; /* got beyond the end of scanned range */

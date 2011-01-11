@@ -205,6 +205,21 @@ Item_func::fix_fields(THD *thd, Item **ref)
   return FALSE;
 }
 
+void
+Item_func::quick_fix_field()
+{
+  Item **arg,**arg_end;
+  if (arg_count)
+  {
+    for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
+    {
+      if (!(*arg)->fixed)
+        (*arg)->quick_fix_field();
+    }
+  }
+  fixed= 1;
+}
+
 
 void Item_func::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 {

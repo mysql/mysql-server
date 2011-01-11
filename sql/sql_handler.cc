@@ -174,6 +174,11 @@ static void mysql_ha_close_table(SQL_HANDLER *handler,
 
   if (*table_ptr)
   {
+    if (handler->lock)
+    {
+      // Mark it unlocked, like in reset_lock_data()
+      reset_lock_data(handler->lock, 1);
+    }
     table->file->ha_index_or_rnd_end();
     if (! is_locked)
       VOID(pthread_mutex_lock(&LOCK_open));
@@ -607,6 +612,12 @@ mysql_ha_fix_cond_and_key(SQL_HANDLER *handler,
       }
     }
   }
+  else if (table->file->inited != handler::RND)
+  {
+    /* Convert RNEXT to RFIRST if we haven't started row scan */
+    if (mode == RNEXT)
+      mode= RFIRST;
+  }
   handler->mode= mode;                          // Store adjusted mode
   return 0;
 }
@@ -723,6 +734,8 @@ retry:
     case RNEXT:
       if (table->file->inited != handler::NONE)
       {
+        if ((error= table->file->can_continue_handler_scan()))
+          break;
         if (keyname)
         {
           /* Check if we read from the same index. */
@@ -755,7 +768,9 @@ retry:
       DBUG_ASSERT((uint) keyno == table->file->get_index());
       if (table->file->inited != handler::NONE)
       {
-        error=table->file->ha_index_prev(table->record[0]);
+        if ((error= table->file->can_continue_handler_scan()))
+          break;
+        error= table->file->ha_index_prev(table->record[0]);
         break;
       }
       /* else fall through */
@@ -798,8 +813,11 @@ retry:
         continue;
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
-        sql_print_error("mysql_ha_read: Got error %d when reading table '%s'",
-                        error, tables->table_name);
+        /* Don't give error in the log file for some expected problems */
+        if (error != HA_ERR_RECORD_CHANGED && error != HA_ERR_WRONG_COMMAND)
+          sql_print_error("mysql_ha_read: Got error %d when reading "
+                          "table '%s'",
+                          error, tables->table_name);
         table->file->print_error(error,MYF(0));
         goto err;
       }

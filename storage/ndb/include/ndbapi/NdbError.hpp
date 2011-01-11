@@ -66,7 +66,7 @@ struct NdbError {
     
     /**
      * The error code indicates a permanent error.<br>
-     * (Includes classificatons: NdbError::PermanentError, 
+     * (Includes classifications: NdbError::PermanentError, 
      *  NdbError::ApplicationError, NdbError::NoDataFound,
      *  NdbError::ConstraintViolation, NdbError::SchemaError,
      *  NdbError::UserDefinedError, NdbError::InternalError, and, 

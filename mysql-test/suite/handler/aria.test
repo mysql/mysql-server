@@ -1,24 +1,19 @@
-# t/handler_myisam.test
+# t/handler_innodb.test
 #
 # test of HANDLER ...
 #
 # Last update:
 # 2006-07-31 ML test refactored (MySQL 5.1)
 #               code of t/handler.test and t/innodb_handler.test united
-#               main testing code put into include/handler.inc
-#               rename t/handler.test to t/handler_myisam.test
+#               main testing code put into handler.inc
+#               rename t/innodb_handler.test to t/handler_innodb.test
 #
 
-# should work in embedded server after mysqltest is fixed
---source include/not_embedded.inc
+--source include/have_maria.inc
+let $engine_type= Aria;
 
-let $engine_type= MyISAM;
-let $other_engine_type= MEMORY;
-# There is unfortunately no other all time available storage engine
-# which supports the handler interface
-let $other_handler_engine_type= MyISAM;
-
---source include/handler.inc
+--source init.inc
+--source handler.inc
 
 --echo #
 --echo # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
@@ -36,18 +31,6 @@ TRUNCATE t1;
 --error ER_UNKNOWN_TABLE
 HANDLER t1 READ FIRST;
 DROP TABLE t1;
-
---echo #
---echo # BUG#51877 - HANDLER interface causes invalid memory read
---echo #
-CREATE TABLE t1(a INT, KEY(a));
-HANDLER t1 OPEN;
-HANDLER t1 READ a FIRST;
-INSERT INTO t1 VALUES(1);
-HANDLER t1 READ a NEXT;
-HANDLER t1 CLOSE;
-DROP TABLE t1;
-
 
 --echo #
 --echo # Bug #54007: assert in ha_myisam::index_next , HANDLER
@@ -95,6 +78,5 @@ HANDLER t1 READ b NEXT LIMIT 5;
 HANDLER t1 CLOSE;
 
 DROP TABLE t1;
-
 
 --echo End of 5.1 tests

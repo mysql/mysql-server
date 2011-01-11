@@ -2506,7 +2506,7 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
   }
   if (delete_count &&
       pagecache_delete_pages(share->pagecache, &info->dfile,
-                             page, delete_count, PAGECACHE_LOCK_WRITE, 0))
+                             page, delete_count, PAGECACHE_LOCK_WRITE, 1))
     res= 1;
 
   if (share->now_transactional)
@@ -2816,7 +2816,6 @@ static my_bool write_block_record(MARIA_HA *info,
   DBUG_PRINT("info", ("Used head length on page: %u  header_length: %u",
                       head_length,
                       (uint) (flag & ROW_FLAG_TRANSID ? TRANSID_SIZE : 0)));
-  DBUG_ASSERT(data <= end_of_data);
   if (head_length < share->base.min_block_length)
   {
     /* Extend row to be of size min_block_length */
@@ -2825,6 +2824,7 @@ static my_bool write_block_record(MARIA_HA *info,
     data+= diff_length;
     head_length= share->base.min_block_length;
   }
+  DBUG_ASSERT(data <= end_of_data);
   /*
     If this is a redo entry (ie, undo_lsn != LSN_ERROR) then we should have
     written exactly head_length bytes (same as original record).
@@ -3492,7 +3492,9 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
 
   /* page will be pinned & locked by get_head_or_tail_page */
   if (get_head_or_tail_page(info, blocks->block, info->buff,
-                            row->space_on_head_page, HEAD_PAGE,
+                            max(row->space_on_head_page,
+                                info->s->base.min_block_length),
+                            HEAD_PAGE,
                             PAGECACHE_LOCK_WRITE, &row_pos))
     goto err;
   row->lastpos= ma_recordpos(blocks->block->page, row_pos.rownr);
@@ -4179,6 +4181,13 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                                 log_data, NULL))
         DBUG_RETURN(1);
     }
+    /*
+      Mark that this page must be written to disk by page cache, even
+      if we could call pagecache_delete() on it.
+      This is needed to ensure that repair finds the empty page on disk
+      and not old data.
+    */
+    pagecache_set_write_on_delete_by_link(page_link.link);
     DBUG_ASSERT(empty_space >= share->bitmap.sizes[0]);
   }
 
@@ -4932,7 +4941,7 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
       goto err;
   }
 #ifdef EXTRA_DEBUG
-  if (share->calc_checksum)
+  if (share->calc_checksum && !info->in_check_table)
   {
     /* Esnure that row checksum is correct */
     DBUG_ASSERT(((share->calc_checksum)(info, record) & 255) ==
@@ -6485,7 +6494,13 @@ err:
    @param  info            Maria handler
    @param  header          Header (without FILEID)
 
-   @note It marks the pages free in the bitmap
+   Mark the pages free in the bitmap.
+
+   We have to check against _ma_redo_not_needed_for_page()
+   to guard against the case where we first clear a block and after
+   that insert new data into the blocks.  If we would unconditionally
+   clear the bitmap here, future changes would be ignored for the page
+   if it's not in the dirty list (ie, it would be flushed).
 
    @return Operation status
      @retval 0      OK
@@ -6494,19 +6509,25 @@ err:
 
 uint _ma_apply_redo_free_blocks(MARIA_HA *info,
                                 LSN lsn __attribute__((unused)),
+                                LSN redo_lsn,
                                 const uchar *header)
 {
   MARIA_SHARE *share= info->s;
   uint ranges;
+  uint16 sid;
   DBUG_ENTER("_ma_apply_redo_free_blocks");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
                           STATE_NOT_MOVABLE);
 
+  sid= fileid_korr(header);
+  header+= FILEID_STORE_SIZE;
   ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
   DBUG_ASSERT(ranges > 0);
 
+  /** @todo leave bitmap lock to the bitmap code... */
+  pthread_mutex_lock(&share->bitmap.bitmap_lock);
   while (ranges--)
   {
     my_bool res;
@@ -6523,18 +6544,22 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
 
     DBUG_PRINT("info", ("page: %lu  pages: %u", (long) page, page_range));
 
-    /** @todo leave bitmap lock to the bitmap code... */
-    pthread_mutex_lock(&share->bitmap.bitmap_lock);
-    res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, start_page,
-                                         page_range);
-    pthread_mutex_unlock(&share->bitmap.bitmap_lock);
-    if (res)
+    for ( ; page_range-- ; start_page++)
     {
-      _ma_mark_file_crashed(share);
-      DBUG_ASSERT(0);
-      DBUG_RETURN(res);
+      if (_ma_redo_not_needed_for_page(sid, redo_lsn, start_page, FALSE))
+        continue;
+      res= _ma_bitmap_reset_full_page_bits(info, &share->bitmap, start_page,
+                                           1);
+      if (res)
+      {
+        pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+        _ma_mark_file_crashed(share);
+        DBUG_ASSERT(0);
+        DBUG_RETURN(res);
+      }
     }
   }
+  pthread_mutex_unlock(&share->bitmap.bitmap_lock);
   DBUG_RETURN(0);
 }
 
@@ -6687,21 +6712,23 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
       uint      page_range;
       pgcache_page_no_t page, start_page;
       uchar     *buff;
+      uint	data_on_page= data_size;
 
       start_page= page= page_korr(header);
       header+= PAGE_STORE_SIZE;
       page_range= pagerange_korr(header);
       header+= PAGERANGE_STORE_SIZE;
 
-      for (i= page_range; i-- > 0 ; page++)
+      for (i= page_range; i-- > 0 ; page++, data+= data_on_page)
       {
         MARIA_PINNED_PAGE page_link;
         enum pagecache_page_lock unlock_method;
         enum pagecache_page_pin unpin_method;
-        uint length;
 
         set_if_smaller(first_page2, page);
         set_if_bigger(last_page2, page);
+        if (i == 0 && sub_ranges == 0)
+          data_on_page= data_size - empty_space; /* data on last page */
         if (_ma_redo_not_needed_for_page(sid, redo_lsn, page, FALSE))
           continue;
 
@@ -6764,7 +6791,7 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
                                        PAGECACHE_LOCK_WRITE_UNLOCK,
                                        PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
                                        LSN_IMPOSSIBLE, 0, FALSE);
-              continue;
+              goto fix_bitmap;
             }
             DBUG_ASSERT((found_page_type == (uchar) BLOB_PAGE) ||
                         (found_page_type == (uchar) UNALLOCATED_PAGE));
@@ -6780,33 +6807,32 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         lsn_store(buff, lsn);
         buff[PAGE_TYPE_OFFSET]= BLOB_PAGE;
 
-        length= data_size;
-        if (i == 0 && sub_ranges == 0)
+        if (data_on_page != data_size)
         {
           /*
             Last page may be only partly filled. We zero the rest, like
             write_full_pages() does.
           */
-          length-= empty_space;
           bzero(buff + share->block_size - PAGE_SUFFIX_SIZE - empty_space,
                 empty_space);
         }
-        memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, length);
-        data+= length;
+        memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, data_on_page);
         if (pagecache_write(share->pagecache,
                             &info->dfile, page, 0,
                             buff, PAGECACHE_PLAIN_PAGE,
                             unlock_method, unpin_method,
                             PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE))
           goto err;
-      }
+
+    fix_bitmap:
       /** @todo leave bitmap lock to the bitmap code... */
-      pthread_mutex_lock(&share->bitmap.bitmap_lock);
-      res= _ma_bitmap_set_full_page_bits(info, &share->bitmap, start_page,
-                                         page_range);
-      pthread_mutex_unlock(&share->bitmap.bitmap_lock);
-      if (res)
-        goto err;
+        pthread_mutex_lock(&share->bitmap.bitmap_lock);
+        res= _ma_bitmap_set_full_page_bits(info, &share->bitmap, page,
+                                           1);
+        pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+        if (res)
+          goto err;
+      }
     }
   }
   *first_page= first_page2;

@@ -251,6 +251,7 @@ extern void pagecache_unpin(PAGECACHE *pagecache,
 extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
                                     PAGECACHE_BLOCK_LINK *link,
                                     LSN lsn);
+extern void pagecache_set_write_on_delete_by_link(PAGECACHE_BLOCK_LINK *block);
 
 
 /* Results of flush operation (bit field in fact) */

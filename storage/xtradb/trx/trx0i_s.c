@@ -157,10 +157,6 @@ struct trx_i_s_cache_struct {
 	ullint		last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
-	mutex_t		last_read_mutex;/*!< mutex protecting the
-					last_read member - it is updated
-					inside a shared lock of the
-					rw_lock member */
 	i_s_table_cache_t innodb_trx;	/*!< innodb_trx table */
 	i_s_table_cache_t innodb_locks;	/*!< innodb_locks table */
 	i_s_table_cache_t innodb_lock_waits;/*!< innodb_lock_waits table */
@@ -1101,13 +1097,6 @@ can_cache_be_updated(
 {
 	ullint	now;
 
-	/* Here we read cache->last_read without acquiring its mutex
-	because last_read is only updated when a shared rw lock on the
-	whole cache is being held (see trx_i_s_cache_end_read()) and
-	we are currently holding an exclusive rw lock on the cache.
-	So it is not possible for last_read to be updated while we are
-	reading it. */
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
 #endif
@@ -1205,6 +1194,12 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
+	ullint	now;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+#endif
+
 	if (!can_cache_be_updated(cache)) {
 
 		return(1);
@@ -1216,6 +1211,10 @@ trx_i_s_possibly_fetch_data_into_cache(
 	fetch_data_into_cache(cache);
 
 	mutex_exit(&kernel_mutex);
+
+	/* update cache last read time */
+	now = ut_time_us(NULL);
+	cache->last_read = now;
 
 	return(0);
 }
@@ -1247,15 +1246,11 @@ trx_i_s_cache_init(
 	release kernel_mutex
 	release trx_i_s_cache_t::rw_lock
 	acquire trx_i_s_cache_t::rw_lock, S
-	acquire trx_i_s_cache_t::last_read_mutex
-	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
 	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
-
-	mutex_create(&cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
@@ -1307,17 +1302,9 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED));
 #endif
-
-	/* update cache last read time */
-	now = ut_time_us(NULL);
-	mutex_enter(&cache->last_read_mutex);
-	cache->last_read = now;
-	mutex_exit(&cache->last_read_mutex);
 
 	rw_lock_s_unlock(&cache->rw_lock);
 }

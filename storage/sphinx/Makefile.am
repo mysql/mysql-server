@@ -49,6 +49,6 @@ libsphinx_la_CXXFLAGS =	$(AM_CXXFLAGS)
 libsphinx_la_CFLAGS =	$(AM_CFLAGS)
 libsphinx_la_SOURCES=	ha_sphinx.cc
 
-EXTRA_DIST =		CMakeLists.txt
+EXTRA_DIST =		CMakeLists.txt plug.in
 # Don't update the files from bitkeeper
 %::SCCS/s.%

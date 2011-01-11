@@ -130,6 +130,8 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
 
   info.s=share;
   info.cur_row.lastpos= HA_OFFSET_ERROR;
+  /* Impossible first index to force initialization in _ma_check_index() */
+  info.lastinx= ~0;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
   info.opt_flag=READ_CHECK_USED;
   info.this_unique= (ulong) info.dfile.file; /* Uniq number in process */

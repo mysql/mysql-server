@@ -1597,7 +1597,17 @@ TRUNCATE t1;
 INSERT INTO t1 VALUES (1,'init');
 CREATE PROCEDURE p1()
 BEGIN
+# retry the UPDATE in case it times out the lock before con1 has time
+# to COMMIT.
+DECLARE do_retry INT DEFAULT 0;
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET do_retry = 1;
+retry_loop:LOOP
 UPDATE t1 SET b = CONCAT(b, '+con2')  WHERE a = 1;
+IF do_retry = 0 THEN
+LEAVE retry_loop;
+END IF;
+SET do_retry = 0;
+END LOOP;
 INSERT INTO t2 VALUES ();
 END|
 BEGIN;

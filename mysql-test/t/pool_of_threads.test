@@ -4,6 +4,7 @@
 -- source include/have_pool_of_threads.inc
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
+-- source include/long_test.inc
 -- source include/common-tests.inc
 
 
