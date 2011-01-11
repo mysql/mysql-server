@@ -79,7 +79,7 @@ protected:
               bool >
     struct ZeroLengthOp;
     template< const char**,
-              void (CrundNdbApiOperations::*)(int,int,bool),
+              void (CrundNdbApiOperations::*)(int,bool),
               bool >
     struct RelOp;
     virtual void initOperations();

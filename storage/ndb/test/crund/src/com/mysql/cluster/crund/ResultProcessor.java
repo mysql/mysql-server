@@ -56,6 +56,7 @@ public class ResultProcessor {
          * @param	avg	the relative standard deviations
          */
         void report(String tag,
+                    int nTxOps,
                     String[] op,
                     double[] avg,
                     double[] sdev,
@@ -72,12 +73,14 @@ public class ResultProcessor {
          * 
          */
         public void report(String tag,
+                           int nTxOps,
                            String[] op,
                            double[] avg,
                            double[] sdev,
                            double[] rsdev) {
             out.println();
-            out.println("tag   = " + tag);
+            out.println("tag    = " + tag);
+            out.println("nTxOps = " + nTxOps);
             out.println();
 
             // ops with large deviations
@@ -85,10 +88,10 @@ public class ResultProcessor {
             final List<String> problematic = new ArrayList<String>();
 
             for (int i = 0; i < op.length; i++) {
-                out.println("op    = " + op[i]);
-                out.println("avg   = " + df.format(avg[i]));
-                out.println("sdev  = " + df.format(sdev[i]));
-                out.println("rsdev = " + df.format(rsdev[i]) + "%");
+                out.println("op     = " + op[i]);
+                out.println("avg    = " + df.format(avg[i]));
+                out.println("sdev   = " + df.format(sdev[i]));
+                out.println("rsdev  = " + df.format(rsdev[i]) + "%");
                 out.println();
 
                 if (rsdev[i] > thres) {
@@ -124,7 +127,7 @@ public class ResultProcessor {
     // result processor resources
     protected ResultReporter reporter;
     protected String[] header;
-    protected String ltag;
+    protected int nTxOps;
     protected int nval;
     protected double[] ravg;
     protected double[] rdev;
@@ -240,7 +243,6 @@ public class ResultProcessor {
                 }
 
                 header = null;
-                ltag = null;
                 ravg = null;
                 rdev = null;
                 continue;
@@ -252,6 +254,7 @@ public class ResultProcessor {
                 assert (header.length > 0);
 
                 nval = 0;
+                nTxOps = 0;
                 ravg = new double[header.length];
                 rdev = new double[header.length];
                 continue;
@@ -268,18 +271,26 @@ public class ResultProcessor {
             }
             nval++;
 
-            // parse line tag
-            if (ltag == null) {
-                ltag = values[0];
-            } else if (!ltag.equals(values[0])) {
+            // parse nTxOps
+            int n;
+            try {
+                n = Integer.valueOf(values[0]);
+            } catch (NumberFormatException e) {
                 String msg = ("line # " + lineNo
-                              + ": unexpected line tag; "
-                              + "expected: '" + ltag + "'"
-                              + ", found: '" + values[0] + "'");
+                              + ": " + e);
+                throw new ParseException(msg, 0);
+            }
+            if (nTxOps == 0) {
+                nTxOps = n;
+            } else if (nTxOps != n) {
+                String msg = ("line # " + lineNo
+                              + ": unexpected nTxOps; "
+                              + "expected: " + nTxOps
+                              + ", found: " + n);
                 throw new ParseException(msg, 0);
             }
             
-            // parse numbers
+            // parse values
             for (int i = 1; i < values.length; i++) {
                 long l;
                 try {
@@ -317,9 +328,9 @@ public class ResultProcessor {
             sdev[i-1] = Math.sqrt(rdev[i] / nval);
             rsdev[i-1] = (sdev[i-1] * 100.0) / avg[i-1];
         }
-        final String tag = header[0] + ", " + ltag;
+        final String tag = header[0];
 
-        reporter.report(tag, op, avg, sdev, rsdev);
+        reporter.report(tag, nTxOps, op, avg, sdev, rsdev);
     }
     
     // ----------------------------------------------------------------------

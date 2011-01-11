@@ -224,9 +224,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("insA") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final A o = new A();
                         o.setId(i);
                         em.persist(o);
@@ -237,9 +237,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("insB0") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 o = new B0();
                         o.setId(i);
                         em.persist(o);
@@ -250,31 +250,31 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("setAByPK_bulk") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     // OpenJPA 1.2.1 fails to parse a unary '-' operator
                     final int upd = em.createQuery("UPDATE A o SET o.cint = 0-(o.id), o.clong = 0-(o.id), o.cfloat = 0-(o.id), o.cdouble = 0-(o.id)").executeUpdate();
-                    assert upd == countA;
+                    assert upd == nOps;
                     commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("setB0ByPK_bulk") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     // OpenJPA 1.2.1 fails to parse a unary '-' operator
                     final int upd = em.createQuery("UPDATE B0 o SET o.cint = 0-(o.id), o.clong = 0-(o.id), o.cfloat = 0-(o.id), o.cdouble = 0-(o.id)").executeUpdate();
-                    assert upd == countB;
+                    assert upd == nOps;
                     commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("setAByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final A o = em.find(A.class, i);
                         setCommonFields(o, i);
                     }
@@ -284,9 +284,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("setB0ByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 o = em.find(B0.class, i);
                         setCommonFields(o, i);
                     }
@@ -296,9 +296,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("getAByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final A o = em.find(A.class, i);
                         verifyCommonFields(o, i);
                     }
@@ -308,9 +308,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("getB0ByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 o = em.find(B0.class, i);
                         verifyCommonFields(o, i);
                     }
@@ -324,9 +324,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new JpaOp("setVarbinary" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarbinary_def = b; // not detected by OpenJPA
@@ -338,9 +338,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new JpaOp("getVarbinary" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             verify(Arrays.equals(b, o.getCvarbinary_def()));
@@ -351,9 +351,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new JpaOp("clearVarbinary" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarbinary_def = null; // not detected by OpenJPA
@@ -370,9 +370,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new JpaOp("setVarchar" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarchar_def = s; // not detected by OpenJPA
@@ -384,9 +384,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new JpaOp("getVarchar" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             verify(s.equals(o.getCvarchar_def()));
@@ -397,9 +397,9 @@ public class JpaLoad extends CrundDriver {
 
             ops.add(
                 new JpaOp("clearVarchar" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final B0 o = em.find(B0.class, i);
                             assert o != null;
                             //o.cvarchar_def = null; // not detected by OpenJPA
@@ -412,12 +412,12 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("setB0->A") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 b0 = em.find(B0.class, i);
                         assert b0 != null;
-                        int aId = i % countA;
+                        int aId = i % nOps;
                         final A a = em.find(A.class, aId);
                         assert a != null;
                         b0.setA(a);
@@ -428,13 +428,13 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("navB0->A") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 b0 = em.find(B0.class, i);
                         assert b0 != null;
                         final A a = b0.getA();
-                        verifyCommonFields(a, i % countA);
+                        verifyCommonFields(a, i % nOps);
                     }
                     commitTransaction();
                 }
@@ -442,16 +442,16 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("navA->B0") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final A a = em.find(A.class, i);
                         assert a != null;
                         final Collection<B0> b0s = a.getB0s();
                         assert b0s != null;
                         verify(b0s.size() > 0);
                         for (B0 b0 : b0s) {
-                            verifyCommonFields(b0, i % countA);
+                            verifyCommonFields(b0, i % nOps);
                         }
                     }
                     commitTransaction();
@@ -460,9 +460,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("nullB0->A") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 b0 = em.find(B0.class, i);
                         assert b0 != null;
                         b0.setA(null);
@@ -474,9 +474,9 @@ public class JpaLoad extends CrundDriver {
         // JPQL: cannot form a simple_entity_expression from an Id value
         //ops.add(
         //    new JpaOp("setB0->A_bulk") {
-        //        public void run(int countA, int countB) {
+        //        public void run(int nOps) {
         //            // these queries are OK but don't do what we need to:
-        //            final int upd = em.createQuery("UPDATE B0 o SET o.cint = MOD(o.id, :p)").setParameter("p", countA).executeUpdate();
+        //            final int upd = em.createQuery("UPDATE B0 o SET o.cint = MOD(o.id, :p)").setParameter("p", nOps).executeUpdate();
         //            final int upd = em.createQuery("UPDATE B0 o SET o.a = o WHERE o.id = :id").setParameter("id", 1).executeUpdate();
         //        }
         //    });
@@ -487,20 +487,20 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("nullB0->A_bulk") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     // OpenJPA 1.2.1 fails to parse a unary '-' operator
                     final int upd = em.createQuery("UPDATE B0 o SET o.a = NULL").executeUpdate();
-                    assert upd == countB;
+                    assert upd == nOps;
                     commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("delB0ByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 o = em.find(B0.class, i);
                         assert o != null;
                         em.remove(o);
@@ -511,9 +511,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("delAByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final A o = em.find(A.class, i);
                         assert o != null;
                         em.remove(o);
@@ -524,9 +524,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("insA_attr") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final A o = new A();
                         o.setId(i);
                         setCommonFields(o, -i);
@@ -538,9 +538,9 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("insB0_attr") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final B0 o = new B0();
                         o.setId(i);
                         setCommonFields(o, -i);
@@ -552,20 +552,20 @@ public class JpaLoad extends CrundDriver {
 
         ops.add(
             new JpaOp("delAllB0") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     int del = em.createQuery("DELETE FROM B0").executeUpdate();
-                    assert del == countB;
+                    assert del == nOps;
                     commitTransaction();
                 }
             });
 
         ops.add(
             new JpaOp("delAllA") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     int del = em.createQuery("DELETE FROM A").executeUpdate();
-                    assert del == countA;
+                    assert del == nOps;
                     commitTransaction();
                 }
             });

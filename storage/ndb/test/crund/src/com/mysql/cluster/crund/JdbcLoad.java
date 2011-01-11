@@ -169,8 +169,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("insA" + (batch ? "_batch" : ""),
                            "INSERT INTO a (id) VALUES (?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countA; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             if (batch) {
                                 stmt.addBatch();
@@ -192,8 +192,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("insB0" + (batch ? "_batch" : ""),
                            "INSERT INTO b0 (id) VALUES (?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             if (batch) {
                                 stmt.addBatch();
@@ -215,8 +215,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("setAByPK" + (batch ? "_batch" : ""),
                            "UPDATE a a SET a.cint = ?, a.clong = ?, a.cfloat = ?, a.cdouble = ? WHERE (a.id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countA; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             // refactor by numbered args
                             stmt.setInt(1, i);
                             stmt.setInt(2, i);
@@ -243,8 +243,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("setB0ByPK" + (batch ? "_batch" : ""),
                            "UPDATE b0 b0 SET b0.cint = ?, b0.clong = ?, b0.cfloat = ?, b0.cdouble = ? WHERE (b0.id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             // refactor by numbered args
                             stmt.setInt(1, i);
                             stmt.setInt(2, i);
@@ -272,10 +272,10 @@ public class JdbcLoad extends CrundDriver {
                 new JdbcOp((batch ? "getAllA_asc" : "getAByPK"),
                            "SELECT id, cint, clong, cfloat, cdouble FROM a "
                            + (batch ? "ORDER BY id ASC" : "WHERE (id = ?)")) {
-                    public void run(int countA, int countB) throws SQLException {
+                    public void run(int nOps) throws SQLException {
                         if (batch) {
                             ResultSet rs = stmt.executeQuery();
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 rs.next();
                                 final int id = rs.getInt(1);
                                 verify(id == i);
@@ -285,7 +285,7 @@ public class JdbcLoad extends CrundDriver {
                             verify(!rs.next());
                             rs.close();
                         } else {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
                                 rs.next();
@@ -305,10 +305,10 @@ public class JdbcLoad extends CrundDriver {
                 new JdbcOp((batch ? "getAllB0_asc" : "getB0ByPK"),
                            "SELECT id, cint, clong, cfloat, cdouble FROM b0 "
                            + (batch ? "ORDER BY id ASC" : "WHERE (id = ?)")) {
-                    public void run(int countA, int countB) throws SQLException {
+                    public void run(int nOps) throws SQLException {
                         if (batch) {
                             ResultSet rs = stmt.executeQuery();
-                            for (int i = 1; i <= countB; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 rs.next();
                                 final int id = rs.getInt(1);
                                 verify(id == i);
@@ -318,7 +318,7 @@ public class JdbcLoad extends CrundDriver {
                             verify(!rs.next());
                             rs.close();
                         } else {
-                            for (int i = 1; i <= countB; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
                                 rs.next();
@@ -341,9 +341,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("setVarbinary" + l + (batch ? "_batch" : ""),
                                "UPDATE b0 b0 SET b0.cvarbinary_def = ? WHERE (b0.id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setBytes(1, b);
                                 stmt.setInt(2, i);
                                 if (batch) {
@@ -366,9 +366,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("getVarbinary" + l,
                                "SELECT cvarbinary_def FROM b0 WHERE (id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
                                 rs.next();
@@ -384,9 +384,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("clearVarbinary" + l + (batch ? "_batch" : ""),
                                "UPDATE b0 b0 SET b0.cvarbinary_def = NULL WHERE (b0.id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 if (batch) {
                                     stmt.addBatch();
@@ -413,9 +413,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("setVarchar" + l + (batch ? "_batch" : ""),
                                "UPDATE b0 b0 SET b0.cvarchar_def = ? WHERE (b0.id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setString(1, s);
                                 stmt.setInt(2, i);
                                 if (batch) {
@@ -438,9 +438,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("getVarchar" + l,
                                "SELECT cvarchar_def FROM b0 WHERE (id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
                                 rs.next();
@@ -456,9 +456,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("clearVarchar" + l + (batch ? "_batch" : ""),
                                "UPDATE b0 b0 SET b0.cvarchar_def = NULL WHERE (b0.id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 if (batch) {
                                     stmt.addBatch();
@@ -486,9 +486,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("setBlob" + l + (batch ? "_batch" : ""),
                                "UPDATE b0 b0 SET b0.cblob_def = ? WHERE (b0.id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setBytes(1, b);
                                 stmt.setInt(2, i);
                                 if (batch) {
@@ -511,9 +511,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("getBlob" + l,
                                "SELECT cblob_def FROM b0 WHERE (id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
                                 rs.next();
@@ -536,9 +536,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("setText" + l + (batch ? "_batch" : ""),
                                "UPDATE b0 b0 SET b0.ctext_def = ? WHERE (b0.id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setString(1, s);
                                 stmt.setInt(2, i);
                                 if (batch) {
@@ -561,9 +561,9 @@ public class JdbcLoad extends CrundDriver {
                 ops.add(
                     new JdbcOp("getText" + l,
                                "SELECT ctext_def FROM b0 WHERE (id = ?)") {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws SQLException {
-                            for (int i = 1; i <= countA; i++) {
+                            for (int i = 1; i <= nOps; i++) {
                                 stmt.setInt(1, i);
                                 ResultSet rs = stmt.executeQuery();
                                 rs.next();
@@ -581,9 +581,9 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("setB0->A" + (batch ? "_batch" : ""),
                            "UPDATE b0 b0 SET b0.a_id = ? WHERE (b0.id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
-                            int aId = ((i - 1) % countA) + 1;
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
+                            int aId = ((i - 1) % nOps) + 1;
                             stmt.setInt(1, aId);
                             stmt.setInt(2, i);
                             if (batch) {
@@ -606,13 +606,13 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("navB0->A_subsel",
                            "SELECT id, cint, clong, cfloat, cdouble FROM a WHERE id = (SELECT b0.a_id FROM b0 b0 WHERE b0.id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
                             rs.next();
                             final int id = rs.getInt(1);
-                            verify(id == ((i - 1) % countA) + 1);
+                            verify(id == ((i - 1) % nOps) + 1);
                             final int j = getCommonAttributes(rs);
                             verify(j == id);
                             verify(!rs.next());
@@ -625,13 +625,13 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("navB0->A_joinproj",
                            "SELECT a.id, a.cint, a.clong, a.cfloat, a.cdouble FROM a a, b0 b0 WHERE (a.id = b0.a_id AND b0.id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
                             rs.next();
                             final int id = rs.getInt(1);
-                            verify(id == ((i - 1) % countA) + 1);
+                            verify(id == ((i - 1) % nOps) + 1);
                             final int j = getCommonAttributes(rs);
                             verify(j == id);
                             verify(!rs.next());
@@ -658,14 +658,14 @@ public class JdbcLoad extends CrundDriver {
                         super.close();
                     }
 
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             // fetch a.id
                             stmt0.setInt(1, i);
                             ResultSet rs0 = stmt0.executeQuery();
                             rs0.next();
                             int aId = rs0.getInt(1);
-                            verify(aId == ((i - 1) % countA) + 1);
+                            verify(aId == ((i - 1) % nOps) + 1);
                             verify(!rs0.next());
                             rs0.close();
 
@@ -686,21 +686,21 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("navA->B0",
                            "SELECT id, cint, clong, cfloat, cdouble FROM b0 WHERE (a_id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
+                    public void run(int nOps) throws SQLException {
                         int cnt = 0;
-                        for (int i = 1; i <= countA; i++) {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             ResultSet rs = stmt.executeQuery();
                             while (rs.next()) {
                                 final int id = rs.getInt(1);
-                                verify(((id - 1) % countA) + 1 == i);
+                                verify(((id - 1) % nOps) + 1 == i);
                                 final int j = getCommonAttributes(rs);
                                 verify(j == id);
                                 cnt++;
                             }
                             rs.close();
                         }
-                        verify(cnt == countB);
+                        verify(cnt == nOps);
                         conn.commit();
                     }
                 });
@@ -708,8 +708,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("nullB0->A" + (batch ? "_batch" : ""),
                            "UPDATE b0 b0 SET b0.a_id = NULL WHERE (b0.id = ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             if (batch) {
                                 stmt.addBatch();
@@ -732,8 +732,8 @@ public class JdbcLoad extends CrundDriver {
                 // MySQL rejects this syntax: "DELETE FROM b0 b0 WHERE b0.id = ?"
                 new JdbcOp("delB0ByPK" + (batch ? "_batch" : ""),
                            "DELETE FROM b0 WHERE id = ?") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             if (batch) {
                                 stmt.addBatch();
@@ -756,8 +756,8 @@ public class JdbcLoad extends CrundDriver {
                 // MySQL rejects this syntax: "DELETE FROM a a WHERE a.id = ?"
                 new JdbcOp("delAByPK" + (batch ? "_batch" : ""),
                            "DELETE FROM a WHERE id = ?") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countA; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             if (batch) {
                                 stmt.addBatch();
@@ -779,8 +779,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("insA_attr" + (batch ? "_batch" : ""),
                            "INSERT INTO a (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countA; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             setCommonAttributes(stmt, -i);
                             if (batch) {
@@ -803,8 +803,8 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("insB0_attr" + (batch ? "_batch" : ""),
                            "INSERT INTO b0 (id, cint, clong, cfloat, cdouble) VALUES (?, ?, ?, ?, ?)") {
-                    public void run(int countA, int countB) throws SQLException {
-                        for (int i = 1; i <= countB; i++) {
+                    public void run(int nOps) throws SQLException {
+                        for (int i = 1; i <= nOps; i++) {
                             stmt.setInt(1, i);
                             setCommonAttributes(stmt, -i);
                             if (batch) {
@@ -827,9 +827,9 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("delAllB0",
                            "DELETE FROM b0") {
-                    public void run(int countA, int countB) throws SQLException {
+                    public void run(int nOps) throws SQLException {
                         int cnt = stmt.executeUpdate();
-                        verify(cnt == countB);
+                        verify(cnt == nOps);
                         conn.commit();
                     }
                 });
@@ -837,9 +837,9 @@ public class JdbcLoad extends CrundDriver {
             ops.add(
                 new JdbcOp("delAllA",
                            "DELETE FROM a") {
-                    public void run(int countA, int countB) throws SQLException {
+                    public void run(int nOps) throws SQLException {
                         int cnt = stmt.executeUpdate();
-                        verify(cnt == countA);
+                        verify(cnt == nOps);
                         conn.commit();
                     }
                 });
