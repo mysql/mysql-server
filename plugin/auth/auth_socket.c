@@ -79,7 +79,7 @@ mysql_declare_plugin(socket_auth)
 {
   MYSQL_AUTHENTICATION_PLUGIN,
   &socket_auth_handler,
-  "socket_peercred",
+  "auth_socket",
   "Sergei Golubchik",
   "Unix Socket based authentication",
   PLUGIN_LICENSE_GPL,
