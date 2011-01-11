@@ -8036,7 +8036,8 @@ void Annotate_rows_log_event::print(FILE *file, PRINT_EVENT_INFO *pinfo)
     // find end of the next line
     for (pend= pbeg + 1;
          ++cnt <= m_query_len && *pend != '\r' && *pend != '\n';
-         pend++);
+         pend++)
+      ;
 
     // print next line
     my_b_write(&pinfo->head_cache, (const uchar*) "#Q> ", 4);
