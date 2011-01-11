@@ -19,6 +19,10 @@ echo
 echo start ndbd...
 ( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" --initial )
 
+#echo
+#echo start ndbd...
+#( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" --initial )
+
 # need some extra time
 for ((i=0; i<1; i++)) ; do echo "." ; sleep 1; done
 
