@@ -35,3 +35,9 @@
 #cmakedefine HAVE_ATOMIC_H 1
 #cmakedefine HAVE_SUN_PREFETCH_H 1
 #cmakedefine NDB_PORT @NDB_PORT@
+#cmakedefine HAVE_MLOCK 1
+#cmakedefine HAVE_FFS 1
+#cmakedefine HAVE___BUILTIN_FFS 1
+#cmakedefine HAVE__BITSCANFORWARD 1
+#cmakedefine HAVE_PTHREAD_MUTEXATTR_INIT 1
+#cmakedefine HAVE_PTHREAD_MUTEXATTR_SETTYPE 1
