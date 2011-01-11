@@ -121,8 +121,7 @@ public class ResultProcessor {
 
     // result processor settings
     protected final Properties props = new Properties();
-    protected int warmupRuns;
-    protected int hotRuns;
+    protected int nWarmupRuns;
 
     // result processor resources
     protected ResultReporter reporter;
@@ -169,7 +168,7 @@ public class ResultProcessor {
         }
 
         if (propFileNames.size() == 0) {
-            // XXX propFileNames.add("crundResult.properties");
+            propFileNames.add("crundResult.properties");
         }
 
         if (ilogFileNames.size() == 0) {
@@ -223,6 +222,7 @@ public class ResultProcessor {
 
         int lineNo = 1;
         String line;
+        int nIgnored = nWarmupRuns;
         while (true) {
             line = ilog.readLine();
             if (line == null) {
@@ -280,7 +280,7 @@ public class ResultProcessor {
                               + ": " + e);
                 throw new ParseException(msg, 0);
             }
-            if (nTxOps == 0) {
+            if (nval == 1) {
                 nTxOps = n;
             } else if (nTxOps != n) {
                 String msg = ("line # " + lineNo
@@ -289,7 +289,14 @@ public class ResultProcessor {
                               + ", found: " + n);
                 throw new ParseException(msg, 0);
             }
-            
+
+            // skip warmup runs
+            if (nval <= nIgnored) {
+                nval--;
+                nIgnored--;
+                continue;
+            }
+
             // parse values
             for (int i = 1; i < values.length; i++) {
                 long l;
@@ -396,10 +403,10 @@ public class ResultProcessor {
         final StringBuilder msg = new StringBuilder();
         final String eol = System.getProperty("line.separator");
 
-        warmupRuns = parseInt("warmupRuns", 0);
-        if (warmupRuns < 0) {
-            msg.append("[ignored] warmupRuns:           " + warmupRuns + eol);
-            warmupRuns = 0;
+        nWarmupRuns = parseInt("nWarmupRuns", 0);
+        if (nWarmupRuns < 0) {
+            msg.append("[ignored] nWarmupRuns:          " + nWarmupRuns + eol);
+            nWarmupRuns = 0;
         }
 
         if (msg.length() == 0) {
@@ -414,7 +421,7 @@ public class ResultProcessor {
     protected void printProperties() {
         out.println();
         out.println("result processor settings ...");
-        out.println("warmupRuns:                     " + warmupRuns);
+        out.println("nWarmupRuns:                    " + nWarmupRuns);
     }
 
     // ----------------------------------------------------------------------
