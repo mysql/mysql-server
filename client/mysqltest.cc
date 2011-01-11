@@ -474,7 +474,7 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 void var_free(void* v);
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
-void eval_expr(VAR* v, const char *p, const char** p_end, bool backtick= true);
+void eval_expr(VAR* v, const char *p, const char** p_end, bool do_eval= true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -2371,7 +2371,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
         break;
       }
     }
-    eval_expr(var, value, 0);
+    eval_expr(var, value, 0, false);
   }
   dynstr_free(&ds_query);
   mysql_free_result(res);
@@ -2401,12 +2401,16 @@ void var_copy(VAR *dest, VAR *src)
 }
 
 
-void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
+void eval_expr(VAR *v, const char *p, const char **p_end, bool do_eval)
 {
 
   DBUG_ENTER("eval_expr");
   DBUG_PRINT("enter", ("p: '%s'", p));
 
+  /* Skip to treat as pure string if no evaluation */
+  if (! do_eval)
+    goto NO_EVAL;
+  
   if (*p == '$')
   {
     VAR *vp;
@@ -2426,7 +2430,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
     DBUG_VOID_RETURN;
   }
 
-  if (*p == '`' && backtick)
+  if (*p == '`')
   {
     var_query_set(v, p, p_end);
     DBUG_VOID_RETURN;
@@ -2449,6 +2453,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool backtick)
     }
   }
 
+ NO_EVAL:
   {
     int new_val_len = (p_end && *p_end) ?
       (int) (*p_end - p) : (int) strlen(p);
