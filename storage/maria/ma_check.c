@@ -881,6 +881,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   }
 
   info->last_key.keyinfo= tmp_key.keyinfo= keyinfo;
+  info->lastinx= ~0;                            /* Safety */
   tmp_key.data= tmp_key_buff;
   for ( ;; )
   {
@@ -1134,6 +1135,7 @@ static int check_keys_in_record(HA_CHECK *param, MARIA_HA *info, int extend,
       {
         (*keyinfo->make_key)(info, &key, keynr, info->lastkey_buff, record,
                              start_recpos, 0);
+        info->last_key.keyinfo= key.keyinfo;
         if (extend)
         {
           /* We don't need to lock the key tree here as we don't allow
