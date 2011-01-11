@@ -1736,7 +1736,7 @@ typedef struct st_nested_join
 
      2. All child join nest nodes are fully covered.
    */
-  bool is_fully_covered() const { return join_list.elements == counter; }
+  bool is_fully_covered() const { return n_tables == counter; }
 } NESTED_JOIN;
 
 
