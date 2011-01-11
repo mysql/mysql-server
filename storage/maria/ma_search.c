@@ -44,8 +44,12 @@ int _ma_check_index(MARIA_HA *info, int inx)
     info->update= ((info->update & (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED)) |
                    HA_STATE_NEXT_FOUND | HA_STATE_PREV_FOUND);
   }
-  if (info->opt_flag & WRITE_CACHE_USED && flush_io_cache(&info->rec_cache))
+  if ((info->opt_flag & WRITE_CACHE_USED) && flush_io_cache(&info->rec_cache))
+  {
+    if (unlikely(!my_errno))
+      my_errno= HA_ERR_INTERNAL_ERROR;          /* Impossible */
     return(-1);
+  }
   return(inx);
 } /* _ma_check_index */
 
@@ -97,6 +101,7 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
 
    @note
      Position to row is stored in info->lastpos
+     Last used key is stored in info->last_key
 
    @return
    @retval  0   ok (key found)
@@ -122,6 +127,7 @@ static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
                       (ulong) (pos / info->s->block_size),
                       nextflag, (ulong) info->cur_row.lastpos));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, key););
+  DBUG_ASSERT(info->last_key.keyinfo == key->keyinfo);
 
   if (pos == HA_OFFSET_ERROR)
   {

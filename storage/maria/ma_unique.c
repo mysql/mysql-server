@@ -34,6 +34,7 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
   MARIA_KEYDEF *keyinfo= &info->s->keyinfo[def->key];
   uchar *key_buff= info->lastkey_buff2;
   MARIA_KEY key;
+  int error= 0;
   DBUG_ENTER("_ma_check_unique");
   DBUG_PRINT("enter",("unique_hash: %lu", (ulong) unique_hash));
 
@@ -43,14 +44,19 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
 
   /* The above changed info->lastkey_buff2. Inform maria_rnext_same(). */
   info->update&= ~HA_STATE_RNEXT_SAME;
+
+  /* Setup that unique key is active key */
   info->last_key.keyinfo= keyinfo;
+
+  /* any key pointer in data is destroyed */
+  info->lastinx= ~0;
 
   DBUG_ASSERT(key.data_length == MARIA_UNIQUE_HASH_LENGTH);
   if (_ma_search(info, &key, SEARCH_FIND, info->s->state.key_root[def->key]))
   {
     info->page_changed=1;			/* Can't optimize read next */
     info->cur_row.lastpos= lastpos;
-    DBUG_RETURN(0);				/* No matching rows */
+    goto end;
   }
 
   for (;;)
@@ -64,7 +70,8 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
       info->page_changed= 1;			/* Can't optimize read next */
       info->cur_row.lastpos= lastpos;
       DBUG_PRINT("info",("Found duplicate"));
-      DBUG_RETURN(1);				/* Found identical  */
+      error= 1;                                 /* Found identical  */
+      goto end;
     }
     DBUG_ASSERT(info->last_key.data_length == MARIA_UNIQUE_HASH_LENGTH);
     if (_ma_search_next(info, &info->last_key, SEARCH_BIGGER,
@@ -73,9 +80,12 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
     {
       info->page_changed= 1;			/* Can't optimize read next */
       info->cur_row.lastpos= lastpos;
-      DBUG_RETURN(0);				/* end of tree */
+      break;                                    /* end of tree */
     }
   }
+
+end:
+  DBUG_RETURN(error);
 }
 
 

@@ -134,7 +134,6 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
         tmp_key.data_length= key_data_length;
 
         info->cur_row.lastpos= _ma_row_pos_from_key(&tmp_key);
-        info->last_key.keyinfo= keyinfo;
         info->last_key.data_length= key_data_length;
         info->last_key.ref_length=  share->base.rec_reflength;
         info->last_key.flag= 0;
