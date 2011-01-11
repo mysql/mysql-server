@@ -167,9 +167,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("insA") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
                         o.setId(i);
@@ -181,9 +181,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("insB0") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
                         o.setId(i);
@@ -196,9 +196,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("setAByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IA o = session.newInstance(IA.class);
                         o.setId(i);
@@ -215,9 +215,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("setB0ByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IB0 o = session.newInstance(IB0.class);
                         o.setId(i);
@@ -234,9 +234,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("getAByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IA o = session.find(IA.class, i);
                         assert o != null;
                         final int id = o.getId();
@@ -250,9 +250,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("getB0ByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IB0 o = session.find(IB0.class, i);
                         assert o != null;
                         final int id = o.getId();
@@ -270,9 +270,9 @@ public class ClusterjLoad extends CrundDriver {
 
             ops.add(
                 new ClusterjOp("setVarbinary" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
                             o.setId(i);
@@ -286,9 +286,9 @@ public class ClusterjLoad extends CrundDriver {
 
             ops.add(
                 new ClusterjOp("getVarbinary" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final IB0 o = session.find(IB0.class, i);
                             assert o != null;
                             verify(Arrays.equals(b, o.getCvarbinary_def()));
@@ -299,9 +299,9 @@ public class ClusterjLoad extends CrundDriver {
 
             ops.add(
                 new ClusterjOp("clearVarbinary" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
                             o.setId(i);
@@ -320,9 +320,9 @@ public class ClusterjLoad extends CrundDriver {
 
             ops.add(
                 new ClusterjOp("setVarchar" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
                             o.setId(i);
@@ -336,9 +336,9 @@ public class ClusterjLoad extends CrundDriver {
 
             ops.add(
                 new ClusterjOp("getVarchar" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             final IB0 o = session.find(IB0.class, i);
                             assert o != null;
                             verify(s.equals(o.getCvarchar_def()));
@@ -349,9 +349,9 @@ public class ClusterjLoad extends CrundDriver {
 
             ops.add(
                 new ClusterjOp("clearVarchar" + l) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         beginTransaction();
-                        for (int i = 0; i < countB; i++) {
+                        for (int i = 0; i < nOps; i++) {
                             // blind update
                             final IB0 o = session.newInstance(IB0.class);
                             o.setId(i);
@@ -366,14 +366,14 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("setB0->A") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IB0 b0 = session.newInstance(IB0.class);
                         b0.setId(i);
                         assert b0 != null;
-                        final int aId = i % countA;
+                        final int aId = i % nOps;
                         b0.setAid(aId);
                         session.updatePersistent(b0);
                     }
@@ -383,16 +383,16 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("navB0->A") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IB0 b0 = session.find(IB0.class, i);
                         assert b0 != null;
                         int aid = b0.getAid();
                         final IA a = session.find(IA.class, aid);
                         assert a != null;
                         final int id = a.getId();
-                        verify(id == i % countA);
+                        verify(id == i % nOps);
                         final int j = checkFields(a);
                         verify(j == id);
                     }
@@ -413,7 +413,7 @@ public class ClusterjLoad extends CrundDriver {
                     super.close();
                 }
 
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     // QueryBuilder is the sessionFactory for queries
                     final QueryBuilder builder
@@ -424,7 +424,7 @@ public class ClusterjLoad extends CrundDriver {
                     // filter by aid
                     dobj.where(dobj.get("aid").equal(dobj.param("aid")));
                     query = session.createQuery(dobj);
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // find B0s by query
                         query.setParameter("aid", i);
                         // fetch results
@@ -436,7 +436,7 @@ public class ClusterjLoad extends CrundDriver {
                         for (IB0 b0 : b0s) {
                             assert b0 != null;
                             final int id = b0.getId();
-                            verify(id % countA == i);
+                            verify(id % nOps == i);
                             final int j = checkFields(b0);
                             verify(j == id);
                         }
@@ -447,9 +447,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("nullB0->A") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // blind update
                         final IB0 b0 = session.newInstance(IB0.class);
                         b0.setId(i);
@@ -462,9 +462,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("delB0ByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // blind delete
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
@@ -477,9 +477,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("delAByPK") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         // blind delete
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
@@ -492,9 +492,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("insA_attr") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countA; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IA o = session.newInstance(IA.class);
                         assert o != null;
                         o.setId(i);
@@ -510,9 +510,9 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("insB0_attr") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
-                    for (int i = 0; i < countB; i++) {
+                    for (int i = 0; i < nOps; i++) {
                         final IB0 o = session.newInstance(IB0.class);
                         assert o != null;
                         o.setId(i);
@@ -529,20 +529,20 @@ public class ClusterjLoad extends CrundDriver {
 
         ops.add(
             new ClusterjOp("delAllB0") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     int del = session.deletePersistentAll(IB0.class);
-                    assert del == countB;
+                    assert del == nOps;
                     commitTransaction();
                 }
             });
 
         ops.add(
             new ClusterjOp("delAllA") {
-                public void run(int countA, int countB) {
+                public void run(int nOps) {
                     beginTransaction();
                     int del = session.deletePersistentAll(IA.class);
-                    assert del == countA;
+                    assert del == nOps;
                     commitTransaction();
                 }
             });

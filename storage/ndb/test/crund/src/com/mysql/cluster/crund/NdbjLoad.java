@@ -60,7 +60,7 @@ public class NdbjLoad extends NdbBase {
     protected Ndb ndb;
 
     // the benchmark's metadata shortcuts
-    protected Meta meta;
+    protected Model model;
 
     // object representing an NDB database transaction
     protected NdbTransaction tx;
@@ -277,49 +277,49 @@ public class NdbjLoad extends NdbBase {
 
             ops.add(
                 new Op("insA" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        ins(model.table_A, 1, countA, !setAttrs, batch);
+                        ins(model.table_A, 1, nOps, !setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("insB0" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        ins(model.table_B0, 1, countB, !setAttrs, batch);
+                        ins(model.table_B0, 1, nOps, !setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("setAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        setByPK(model.table_A, 1, countA, batch);
+                        setByPK(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("setB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        setByPK(model.table_B0, 1, countB, batch);
+                        setByPK(model.table_B0, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        getByPK(model.table_A, 1, countA, batch);
+                        getByPK(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        getByPK(model.table_B0, 1, countB, batch);
+                        getByPK(model.table_B0, 1, nOps, batch);
                     }
                 });
 
@@ -329,17 +329,17 @@ public class NdbjLoad extends NdbBase {
 
                 ops.add(
                     new Op("setVarbinary" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws NdbApiException {
-                            setVarbinary(model.table_B0, 1, countB, batch, b);
+                            setVarbinary(model.table_B0, 1, nOps, batch, b);
                         }
                     });
 
                 ops.add(
                     new Op("getVarbinary" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws NdbApiException {
-                            getVarbinary(model.table_B0, 1, countB, batch, b);
+                            getVarbinary(model.table_B0, 1, nOps, batch, b);
                         }
                     });
             }
@@ -350,118 +350,118 @@ public class NdbjLoad extends NdbBase {
 
                 ops.add(
                     new Op("setVarchar" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws NdbApiException {
-                            setVarchar(model.table_B0, 1, countB, batch, s);
+                            setVarchar(model.table_B0, 1, nOps, batch, s);
                         }
                     });
 
                 ops.add(
                     new Op("getVarchar" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB)
+                        public void run(int nOps)
                             throws NdbApiException {
-                            getVarchar(model.table_B0, 1, countB, batch, s);
+                            getVarchar(model.table_B0, 1, nOps, batch, s);
                         }
                     });
             }
 
             ops.add(
                 new Op("setB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        setB0ToA(countA, countB, batch);
+                        setB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        navB0ToA(countA, countB, batch);
+                        navB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navB0->A_alt" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        navB0ToAalt(countA, countB, batch);
+                        navB0ToAalt(nOps, batch);
                     }
                 });
 
             // XXX exclude, NDB/J exceptions
             ops.add(
                 new Op("navA->B0" + (forceSend ? "_forceSend" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        navAToB0(countA, countB, forceSend);
+                        navAToB0(nOps, forceSend);
                     }
                 });
 
             // XXX exclude, not implemented yet
             ops.add(
                 new Op("navA->B0_alt" + (forceSend ? "_forceSend" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        navAToB0alt(countA, countB, forceSend);
+                        navAToB0alt(nOps, forceSend);
                     }
                 });
 
             ops.add(
                 new Op("nullB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        nullB0ToA(countA, countB, batch);
+                        nullB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        delByPK(model.table_B0, 1, countB, batch);
+                        delByPK(model.table_B0, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        delByPK(model.table_A, 1, countA, batch);
+                        delByPK(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("insA_attr" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        ins(model.table_A, 1, countA, setAttrs, batch);
+                        ins(model.table_A, 1, nOps, setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("insB0_attr" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
-                        ins(model.table_B0, 1, countB, setAttrs, batch);
+                        ins(model.table_B0, 1, nOps, setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAllB0") {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
                         final int count = delByScan(model.table_B0);
-                        assert count == countB;
+                        assert count == nOps;
                     }
                 });
 
             ops.add(
                 new Op("delAllA") {
-                    public void run(int countA, int countB)
+                    public void run(int nOps)
                         throws NdbApiException {
                         final int count = delByScan(model.table_A);
-                        assert count == countA;
+                        assert count == nOps;
                     }
                 });
         }
@@ -879,11 +879,11 @@ public class NdbjLoad extends NdbBase {
         closeTransaction();
     }
 
-    protected void setB0ToA(int count_A, int count_B,
+    protected void setB0ToA(int nOps,
                             boolean batch)
         throws NdbApiException {
         beginTransaction();
-        for (int i = 1; i <= count_B; i++) {
+        for (int i = 1; i <= nOps; i++) {
             // get an update operation for the table
             final NdbOperation op = tx.getUpdateOperation(model.table_B0);
             assert op != null;
@@ -892,7 +892,7 @@ public class NdbjLoad extends NdbBase {
             op.equalInt(model.name_id, i);
 
             // set a_id attribute
-            int a_id = ((i - 1) % count_A) + 1;
+            int a_id = ((i - 1) % nOps) + 1;
             op.setInt(model.name_B0_a_id, a_id);
 
             // execute the operation now if in non-batching mode
@@ -903,11 +903,11 @@ public class NdbjLoad extends NdbBase {
         closeTransaction();
     }
 
-    protected void nullB0ToA(int count_A, int count_B,
+    protected void nullB0ToA(int nOps,
                              boolean batch)
         throws NdbApiException {
         beginTransaction();
-        for (int i = 1; i <= count_B; i++) {
+        for (int i = 1; i <= nOps; i++) {
             // get an update operation for the table
             final NdbOperation op = tx.getUpdateOperation(model.table_B0);
             assert op != null;
@@ -916,7 +916,7 @@ public class NdbjLoad extends NdbBase {
             op.equalInt(model.name_id, i);
 
             // set a_id attribute
-            int a_id = ((i - 1) % count_A) + 1;
+            int a_id = ((i - 1) % nOps) + 1;
             op.setNull(model.name_B0_a_id);
 
             // execute the operation now if in non-batching mode
@@ -927,14 +927,14 @@ public class NdbjLoad extends NdbBase {
         closeTransaction();
     }
 
-    protected void navB0ToA(int count_A, int count_B,
+    protected void navB0ToA(int nOps,
                             boolean batch)
         throws NdbApiException {
         beginTransaction();
 
         // fetch the foreign keys from B0 and read attributes from A
-        final NdbResultSet[] abs = new NdbResultSet[count_B];
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
+        final NdbResultSet[] abs = new NdbResultSet[nOps];
+        for (int i = 1, j = 0; i <= nOps; i++, j++) {
             // fetch the foreign key value from B0
             NdbResultSet rs;
             {
@@ -961,7 +961,7 @@ public class NdbjLoad extends NdbBase {
 
                 // set key attribute
                 final int a_id = rs.getInt(model.name_B0_a_id);
-                assert a_id == ((i - 1) % count_A) + 1;
+                assert a_id == ((i - 1) % nOps) + 1;
                 op.equalInt(model.name_id, a_id);
 
                 // define fetched attributes
@@ -979,7 +979,7 @@ public class NdbjLoad extends NdbBase {
         commitTransaction();
 
         // check fetched values
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
+        for (int i = 1, j = 0; i <= nOps; i++, j++) {
             final NdbResultSet ab = abs[j];
             final boolean hasNext = ab.next();
             assert hasNext;
@@ -987,7 +987,7 @@ public class NdbjLoad extends NdbBase {
             // check key attribute
             final int id = ab.getInt(model.name_id);
             //out.println("id = " + id + ", i = " + i);
-            verify(id == ((i - 1) % count_A) + 1);
+            verify(id == ((i - 1) % nOps) + 1);
 
             // check other attributes
             final int k = getCommonAttributes(ab);
@@ -998,14 +998,14 @@ public class NdbjLoad extends NdbBase {
         closeTransaction();
     }
 
-    protected void navB0ToAalt(int count_A, int count_B,
+    protected void navB0ToAalt(int nOps,
                                boolean batch)
         throws NdbApiException {
         beginTransaction();
 
         // fetch the foreign key value from B0
-        final NdbResultSet[] a_ids = new NdbResultSet[count_B];
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
+        final NdbResultSet[] a_ids = new NdbResultSet[nOps];
+        for (int i = 1, j = 0; i <= nOps; i++, j++) {
                 // get a read operation for the table
                 NdbOperation op = tx.getSelectOperation(model.table_B0);
                 assert op != null;
@@ -1022,15 +1022,15 @@ public class NdbjLoad extends NdbBase {
         executeOperations(); // start the scan; don't commit yet
 
         // fetch the attributes from A
-        final NdbResultSet[] abs = new NdbResultSet[count_B];
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
+        final NdbResultSet[] abs = new NdbResultSet[nOps];
+        for (int i = 1, j = 0; i <= nOps; i++, j++) {
             // get a read operation for the table
             NdbOperation op = tx.getSelectOperation(model.table_A);
             assert op != null;
 
             // set key attribute
             final int a_id = a_ids[j].getInt(model.name_B0_a_id);
-            assert a_id == ((i - 1) % count_A) + 1;
+            assert a_id == ((i - 1) % nOps) + 1;
             op.equalInt(model.name_id, a_id);
 
             // define fetched attributes
@@ -1047,7 +1047,7 @@ public class NdbjLoad extends NdbBase {
         commitTransaction();
 
         // check fetched values
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
+        for (int i = 1, j = 0; i <= nOps; i++, j++) {
             final NdbResultSet ab = abs[j];
             final boolean hasNext = ab.next();
             assert hasNext;
@@ -1055,7 +1055,7 @@ public class NdbjLoad extends NdbBase {
             // check key attribute
             final int id = ab.getInt(model.name_id);
             //out.println("id = " + id + ", i = " + i);
-            verify(id == ((i - 1) % count_A) + 1);
+            verify(id == ((i - 1) % nOps) + 1);
 
             // check other attributes
             final int k = getCommonAttributes(ab);
@@ -1066,7 +1066,7 @@ public class NdbjLoad extends NdbBase {
         closeTransaction();
     }
 
-    protected void navAToB0(int count_A, int count_B,
+    protected void navAToB0(int nOps,
                             boolean forceSend)
         throws NdbApiException {
 // throws exceptions, see below:
@@ -1074,9 +1074,9 @@ public class NdbjLoad extends NdbBase {
         beginTransaction();
 
         // fetch attributes from B0 by foreign key scan
-        final NdbResultSet[] abs = new NdbResultSet[count_B];
+        final NdbResultSet[] abs = new NdbResultSet[nOps];
         int j = 0;
-        for (int i = 1; i <= count_B; i++) {
+        for (int i = 1; i <= nOps; i++) {
             // get an index scan operation for the table
             // XXX ? no locks (LM_CommittedRead) or shared locks (LM_Read)
             final NdbIndexScanOperation op
@@ -1128,11 +1128,11 @@ public class NdbjLoad extends NdbBase {
                 throw new RuntimeException("stat == " + stat);
         }
         commitTransaction();
-        assert (j++ == count_B);
+        assert (j++ == nOps);
 
         // check fetched values
         j = 0;
-        for (int i = 1; i <= count_B; i++) {
+        for (int i = 1; i <= nOps; i++) {
             final NdbResultSet ab = abs[j++];
             //out.println("j = " + j + ", ab = " + ab);
             //final boolean hasNext = ab.next();
@@ -1176,7 +1176,7 @@ public class NdbjLoad extends NdbBase {
 */
     }
 
-    protected void navAToB0alt(int count_A, int count_B,
+    protected void navAToB0alt(int nOps,
                                boolean forceSend)
         throws NdbApiException {
 // XXX not implemented yet, fix exception in navAToB0() first

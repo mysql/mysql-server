@@ -70,50 +70,28 @@ public class NdbApiLoad extends NdbBase {
     // NDB API operations
     // ----------------------------------------------------------------------
 
-    protected native void delAllA(int countA, int countB,
-                                  boolean batch);
-    protected native void delAllB0(int countA, int countB,
-                                   boolean batch);
-    protected native void insA(int countA, int countB,
-                               boolean setAttrs, boolean batch);
-    protected native void insB0(int countA, int countB,
-                               boolean setAttrs, boolean batch);
-    protected native void delAByPK(int countA, int countB,
-                                   boolean batch);
-    protected native void delB0ByPK(int countA, int countB,
-                                    boolean batch);
-    protected native void setAByPK(int countA, int countB,
-                                   boolean batch);
-    protected native void setB0ByPK(int countA, int countB,
-                                    boolean batch);
-    protected native void getAByPK_bb(int countA, int countB,
-                                      boolean batch);
-    protected native void getB0ByPK_bb(int countA, int countB,
-                                       boolean batch);
-    protected native void getAByPK_ar(int countA, int countB,
-                                      boolean batch);
-    protected native void getB0ByPK_ar(int countA, int countB,
-                                       boolean batch);
-    protected native void setVarbinary(int countA, int countB,
-                                       boolean batch, int length);
-    protected native void getVarbinary(int countA, int countB,
-                                       boolean batch, int length);
-    protected native void setVarchar(int countA, int countB,
-                                     boolean batch, int length);
-    protected native void getVarchar(int countA, int countB,
-                                     boolean batch, int length);
-    protected native void setB0ToA(int countA, int countB,
-                                   boolean batch);
-    protected native void navB0ToA(int countA, int countB,
-                                   boolean batch);
-    protected native void navB0ToAalt(int countA, int countB,
-                                      boolean batch);
-    protected native void navAToB0(int countA, int countB,
-                                   boolean batch);
-    protected native void navAToB0alt(int countA, int countB,
-                                      boolean batch);
-    protected native void nullB0ToA(int countA, int countB,
-                                    boolean batch);
+    protected native void delAllA(int nOps, boolean batch);
+    protected native void delAllB0(int nOps, boolean batch);
+    protected native void insA(int nOps, boolean setAttrs, boolean batch);
+    protected native void insB0(int nOps, boolean setAttrs, boolean batch);
+    protected native void delAByPK(int nOps, boolean batch);
+    protected native void delB0ByPK(int nOps, boolean batch);
+    protected native void setAByPK(int nOps, boolean batch);
+    protected native void setB0ByPK(int nOps, boolean batch);
+    protected native void getAByPK_bb(int nOps, boolean batch);
+    protected native void getB0ByPK_bb(int nOps, boolean batch);
+    protected native void getAByPK_ar(int nOps, boolean batch);
+    protected native void getB0ByPK_ar(int nOps, boolean batch);
+    protected native void setVarbinary(int nOps, boolean batch, int length);
+    protected native void getVarbinary(int nOps, boolean batch, int length);
+    protected native void setVarchar(int nOps, boolean batch, int length);
+    protected native void getVarchar(int nOps, boolean batch, int length);
+    protected native void setB0ToA(int nOps, boolean batch);
+    protected native void navB0ToA(int nOps, boolean batch);
+    protected native void navB0ToAalt(int nOps, boolean batch);
+    protected native void navAToB0(int nOps, boolean batch);
+    protected native void navAToB0alt(int nOps, boolean batch);
+    protected native void nullB0ToA(int nOps, boolean batch);
 
     protected void initOperations() {
         out.print("initializing operations ...");
@@ -127,57 +105,57 @@ public class NdbApiLoad extends NdbBase {
 
             ops.add(
                 new Op("insA" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        insA(countA, countB, !setAttrs, batch);
+                    public void run(int nOps) {
+                        insA(nOps, !setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("insB0" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        insB0(countA, countB, !setAttrs, batch);
+                    public void run(int nOps) {
+                        insB0(nOps, !setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("setAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        setAByPK(countA, countB, batch);
+                    public void run(int nOps) {
+                        setAByPK(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("setB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        setB0ByPK(countA, countB, batch);
+                    public void run(int nOps) {
+                        setB0ByPK(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getAByPK_bb" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getAByPK_bb(countA, countB, batch);
+                    public void run(int nOps) {
+                        getAByPK_bb(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getAByPK_ar" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getAByPK_ar(countA, countB, batch);
+                    public void run(int nOps) {
+                        getAByPK_ar(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getB0ByPK_bb" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getB0ByPK_bb(countA, countB, batch);
+                    public void run(int nOps) {
+                        getB0ByPK_bb(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getB0ByPK_ar" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getB0ByPK_ar(countA, countB, batch);
+                    public void run(int nOps) {
+                        getB0ByPK_ar(nOps, batch);
                     }
                 });
 
@@ -186,22 +164,22 @@ public class NdbApiLoad extends NdbBase {
 
                 ops.add(
                     new Op("setVarbinary" + length + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarbinary(countA, countB, batch, length);
+                        public void run(int nOps) {
+                            setVarbinary(nOps, batch, length);
                         }
                     });
 
                 ops.add(
                     new Op("getVarbinary" + length + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            getVarbinary(countA, countB, batch, length);
+                        public void run(int nOps) {
+                            getVarbinary(nOps, batch, length);
                         }
                     });
 
                 ops.add(
                     new Op("clearVarbinary" + length + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarbinary(countA, countB, batch, 0);
+                        public void run(int nOps) {
+                            setVarbinary(nOps, batch, 0);
                         }
                     });
             }
@@ -211,22 +189,22 @@ public class NdbApiLoad extends NdbBase {
 
                 ops.add(
                     new Op("setVarchar" + length + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarchar(countA, countB, batch, length);
+                        public void run(int nOps) {
+                            setVarchar(nOps, batch, length);
                         }
                     });
 
                 ops.add(
                     new Op("getVarchar" + length + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            getVarchar(countA, countB, batch, length);
+                        public void run(int nOps) {
+                            getVarchar(nOps, batch, length);
                         }
                     });
 
                 ops.add(
                     new Op("clearVarchar" + length + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarchar(countA, countB, batch, 0);
+                        public void run(int nOps) {
+                            setVarchar(nOps, batch, 0);
                         }
                     });
 
@@ -234,88 +212,87 @@ public class NdbApiLoad extends NdbBase {
 
             ops.add(
                 new Op("setB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        setB0ToA(countA, countB, batch);
+                    public void run(int nOps) {
+                        setB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        navB0ToA(countA, countB, batch);
+                    public void run(int nOps) {
+                        navB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navB0->A_alt" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        navB0ToAalt(countA, countB, batch);
+                    public void run(int nOps) {
+                        navB0ToAalt(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navA->B0" + (forceSend ? "_forceSend" : "")) {
-                    public void run(int countA, int countB) {
-                        navAToB0(countA, countB, forceSend);
+                    public void run(int nOps) {
+                        navAToB0(nOps, forceSend);
                     }
                 });
 
             ops.add(
                 new Op("navA->B0_alt" + (forceSend ? "_forceSend" : "")) {
-                    public void run(int countA, int countB) {
-                        navAToB0alt(countA, countB, forceSend);
+                    public void run(int nOps) {
+                        navAToB0alt(nOps, forceSend);
                     }
                 });
 
             ops.add(
                 new Op("nullB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        nullB0ToA(countA, countB, batch);
+                    public void run(int nOps) {
+                        nullB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        delB0ByPK(countA, countB, batch);
+                    public void run(int nOps) {
+                        delB0ByPK(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        delAByPK(countA, countB, batch);
+                    public void run(int nOps) {
+                        delAByPK(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("insA_attr" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        insA(countA, countB, setAttrs, batch);
+                    public void run(int nOps) {
+                        insA(nOps, setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("insB0_attr" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        insB0(countA, countB, setAttrs, batch);
+                    public void run(int nOps) {
+                        insB0(nOps, setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAllB0" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        delAllB0(countA, countB, batch);
+                    public void run(int nOps) {
+                        delAllB0(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAllA" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        delAllA(countA, countB, batch);
+                    public void run(int nOps) {
+                        delAllA(nOps, batch);
                     }
                 });
-
         }
 
         out.println("     [Op: " + ops.size() + "]");

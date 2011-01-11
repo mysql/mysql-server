@@ -854,11 +854,10 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-CrundNdbApiOperations::setB0ToA(int count_A, int count_B,
-                     bool batch)
+CrundNdbApiOperations::setB0ToA(int nOps, bool batch)
 {
     beginTransaction();
-    for (int i = 1; i <= count_B; i++) {
+    for (int i = 1; i <= nOps; i++) {
         // get an update operation for the table
         NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
@@ -871,7 +870,7 @@ CrundNdbApiOperations::setB0ToA(int count_A, int count_B,
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set a_id attribute
-        int a_id = ((i - 1) % count_A) + 1;
+        int a_id = ((i - 1) % nOps) + 1;
         if (op->setValue(model->attr_B0_a_id, (Int32)a_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -884,11 +883,10 @@ CrundNdbApiOperations::setB0ToA(int count_A, int count_B,
 }
 
 void
-CrundNdbApiOperations::nullB0ToA(int count_A, int count_B,
-                      bool batch)
+CrundNdbApiOperations::nullB0ToA(int nOps, bool batch)
 {
     beginTransaction();
-    for (int i = 1; i <= count_B; i++) {
+    for (int i = 1; i <= nOps; i++) {
         // get an update operation for the table
         NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
@@ -913,16 +911,15 @@ CrundNdbApiOperations::nullB0ToA(int count_A, int count_B,
 }
 
 void
-CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
-                     bool batch)
+CrundNdbApiOperations::navB0ToA(int nOps, bool batch)
 {
     // allocate attributes holder
-    CommonAB* const ab = new CommonAB[count_B];
+    CommonAB* const ab = new CommonAB[nOps];
 
     // fetch the foreign keys from B0 and read attributes from A
     beginTransaction();
     CommonAB* pab = ab;
-    for (int i = 1; i <= count_B; i++, pab++) {
+    for (int i = 1; i <= nOps; i++, pab++) {
         // fetch the foreign key value from B0
         Int32 a_id;
         {
@@ -953,7 +950,7 @@ CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
                 ABORT_NDB_ERROR(tx->getNdbError());
 
             // set key attribute
-            assert(a_id == ((i - 1) % count_A) + 1);
+            assert(a_id == ((i - 1) % nOps) + 1);
             if (op->equal(model->attr_id, a_id) != 0)
                 ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -979,10 +976,10 @@ CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
 
     // check fetched values
     pab = ab;
-    for (int i = 1; i <= count_B; i++, pab++) {
+    for (int i = 1; i <= nOps; i++, pab++) {
         // check fetched values
         Int32 id = pab->id;
-        VERIFY(id == ((i - 1) % count_A) + 1);
+        VERIFY(id == ((i - 1) % nOps) + 1);
 
         Int32 j = getCommonAB(pab);
         //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
@@ -994,16 +991,15 @@ CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
 }
 
 void
-CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
-                        bool batch)
+CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
 {
     // allocate foreign key values holder
-    Int32* const a_id = new Int32[count_B];
+    Int32* const a_id = new Int32[nOps];
 
     // fetch the foreign key values from B0
     beginTransaction();
     Int32* pa_id = a_id;
-    for (int i = 1; i <= count_B; i++) {
+    for (int i = 1; i <= nOps; i++) {
         // get a read operation for the table
         NdbOperation* op = tx->getNdbOperation(model->table_B0);
         if (op == NULL)
@@ -1026,12 +1022,12 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
     executeOperations(); // execute the operation; don't commit yet
 
     // allocate attributes holder
-    CommonAB* const ab = new CommonAB[count_B];
+    CommonAB* const ab = new CommonAB[nOps];
 
     // fetch rows from A
     pa_id = a_id;
     CommonAB* pab = ab;
-    for (int i = 1; i <= count_B; i++, pa_id++, pab++) {
+    for (int i = 1; i <= nOps; i++, pa_id++, pab++) {
         // get a read operation for the table
         NdbOperation* op = tx->getNdbOperation(model->table_A);
         if (op == NULL)
@@ -1040,7 +1036,7 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
             ABORT_NDB_ERROR(tx->getNdbError());
 
         // set key attribute
-        assert(*pa_id == ((i - 1) % count_A) + 1);
+        assert(*pa_id == ((i - 1) % nOps) + 1);
         if (op->equal(model->attr_id, (Int32)*pa_id) != 0)
             ABORT_NDB_ERROR(tx->getNdbError());
 
@@ -1068,10 +1064,10 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
 
     // check fetched values
     pab = ab;
-    for (int i = 1; i <= count_B; i++, pab++) {
+    for (int i = 1; i <= nOps; i++, pab++) {
         // check fetched values
         Int32 id = pab->id;
-        VERIFY(id == ((i - 1) % count_A) + 1);
+        VERIFY(id == ((i - 1) % nOps) + 1);
 
         Int32 j = getCommonAB(pab);
         //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
@@ -1083,19 +1079,18 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
 }
 
 void
-CrundNdbApiOperations::navAToB0(int count_A, int count_B,
-                     bool forceSend)
+CrundNdbApiOperations::navAToB0(int nOps, bool forceSend)
 {
     // attributes holder
     CommonAB h;
 
     // allocate attributes holder
-    CommonAB* const ab = new CommonAB[count_B];
+    CommonAB* const ab = new CommonAB[nOps];
 
     // fetch attributes from B0 by foreign key scan
     beginTransaction();
     CommonAB* pab = ab;
-    for (int i = 1; i <= count_A; i++) {
+    for (int i = 1; i <= nOps; i++) {
         // get an index scan operation for the table
         NdbIndexScanOperation* op
             = tx->getNdbIndexScanOperation(model->idx_B0_a_id);
@@ -1136,7 +1131,7 @@ CrundNdbApiOperations::navAToB0(int count_A, int count_B,
         int stat;
         const bool allowFetch = true; // request new batches when exhausted
         while ((stat = op->nextResult(allowFetch, forceSend)) == 0) {
-            assert(ab <= pab && pab < ab + count_B);
+            assert(ab <= pab && pab < ab + nOps);
             *pab++ = h;
         }
         if (stat != 1)
@@ -1147,14 +1142,14 @@ CrundNdbApiOperations::navAToB0(int count_A, int count_B,
     commitTransaction();
     closeTransaction();
     //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
-    assert(pab == ab + count_B);
+    assert(pab == ab + nOps);
 
     // check fetched values
     // XXX this is not the most efficient way of testing...
-    vector<CommonAB> b(ab, ab + count_B);
+    vector<CommonAB> b(ab, ab + nOps);
     sort(b.begin(), b.end(), compare);
     vector<CommonAB>::const_iterator it = b.begin();
-    for (int i = 1; i <= count_B; i++, it++) {
+    for (int i = 1; i <= nOps; i++, it++) {
         Int32 id = getCommonAB(&it[0]);
         //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(id == i);
@@ -1165,23 +1160,22 @@ CrundNdbApiOperations::navAToB0(int count_A, int count_B,
 }
 
 void
-CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
-                        bool forceSend)
+CrundNdbApiOperations::navAToB0alt(int nOps, bool forceSend)
 {
     // number of operations in a multi-scan batch
-    const int nmscans = (count_A < 256 ? count_A : 256);
+    const int nmscans = (nOps < 256 ? nOps : 256);
 
     // attributes holder
     CommonAB h;
 
     // allocate attributes holder
-    CommonAB* const ab = new CommonAB[count_B];
+    CommonAB* const ab = new CommonAB[nOps];
     CommonAB* pab = ab;
 
     // fetch attributes from B0 by foreign key scan
     beginTransaction();
     int a_id = 1;
-    while (a_id <= count_A) {
+    while (a_id <= nOps) {
         // allocate scan operations array
         NdbIndexScanOperation** const op = new NdbIndexScanOperation*[nmscans];
 
@@ -1230,7 +1224,7 @@ CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
             int stat;
             const bool allowFetch = true; // request new batches when exhausted
             while ((stat = op[i]->nextResult(allowFetch, forceSend)) == 0) {
-                assert(ab <= pab && pab < ab + count_B);
+                assert(ab <= pab && pab < ab + nOps);
                 *pab++ = h;
             }
             if (stat != 1)
@@ -1245,15 +1239,15 @@ CrundNdbApiOperations::navAToB0alt(int count_A, int count_B,
     commitTransaction();
     closeTransaction();
     //CDBG << "!!! pab - ab =" << toString(pab-ab) << endl;
-    assert(a_id == count_A + 1);
-    assert(pab == ab + count_B);
+    assert(a_id == nOps + 1);
+    assert(pab == ab + nOps);
 
     // check fetched values
     // XXX this is not the most efficient way of testing...
-    vector<CommonAB> b(ab, ab + count_B);
+    vector<CommonAB> b(ab, ab + nOps);
     sort(b.begin(), b.end(), compare);
     vector<CommonAB>::const_iterator it = b.begin();
-    for (int i = 1; i <= count_B; i++, it++) {
+    for (int i = 1; i <= nOps; i++, it++) {
         Int32 id = getCommonAB(&it[0]);
         //CDBG << "!!! id=" << toString(id) << ", i=" << toString(i) << endl;
         VERIFY(id == i);

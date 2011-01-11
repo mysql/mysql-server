@@ -46,12 +46,9 @@ protected:
     LockMode lockMode;
     bool logSumOfOps;
     //bool allowExtendedPC; // not used
-    int aStart;
-    int bStart;
-    int aEnd;
-    int bEnd;
-    int aScale;
-    int bScale;
+    int nOpsStart;
+    int nOpsEnd;
+    int nOpsScale;
     int maxVarbinaryBytes;
     int maxVarcharChars;
     int maxBlobBytes;
@@ -68,7 +65,7 @@ protected:
     struct Op {
         const string name;
 
-        virtual void run(int countA, int countB) const = 0;
+        virtual void run(int nOps) const = 0;
 
         Op(const string& name) : name(name) {}
 
@@ -81,9 +78,9 @@ protected:
     virtual void initOperations() = 0;
     virtual void closeOperations() = 0;
     virtual void runTests();
-    virtual void runLoads(int countA, int countB);
-    virtual void runOperations(int countA, int countB);
-    virtual void runOp(const Op& op, int countA, int countB);
+    virtual void runLoads(int nOps);
+    virtual void runOperations(int nOps);
+    virtual void runOp(const Op& op, int nOps);
 
     // datastore operations
     virtual void initConnection() = 0;
