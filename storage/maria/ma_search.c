@@ -44,8 +44,12 @@ int _ma_check_index(MARIA_HA *info, int inx)
     info->update= ((info->update & (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED)) |
                    HA_STATE_NEXT_FOUND | HA_STATE_PREV_FOUND);
   }
-  if (info->opt_flag & WRITE_CACHE_USED && flush_io_cache(&info->rec_cache))
+  if ((info->opt_flag & WRITE_CACHE_USED) && flush_io_cache(&info->rec_cache))
+  {
+    if (unlikely(!my_errno))
+      my_errno= HA_ERR_INTERNAL_ERROR;          /* Impossible */
     return(-1);
+  }
   return(inx);
 } /* _ma_check_index */
 
