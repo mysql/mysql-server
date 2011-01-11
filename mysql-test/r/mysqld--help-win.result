@@ -944,6 +944,7 @@ skip-slave-start FALSE
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
+slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
 slave-skip-errors (No default value)
 slave-transaction-retries 10
 slave-type-conversions 
