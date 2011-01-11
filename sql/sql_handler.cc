@@ -657,7 +657,6 @@ bool mysql_ha_read(THD *thd, TABLE_LIST *tables,
   int           error, keyno;
   uint          num_rows;
   uchar		*UNINIT_VAR(key);
-  uint		UNINIT_VAR(key_len);
   bool          need_reopen;
   List_iterator<Item> it;
   DBUG_ENTER("mysql_ha_read");
@@ -784,7 +783,8 @@ retry:
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
       DBUG_ASSERT(keyname != 0);
-      error= table->file->ha_index_next_same(table->record[0], key, key_len);
+      error= table->file->ha_index_next_same(table->record[0], key,
+                                             handler->key_len);
       break;
     case RKEY:
     {

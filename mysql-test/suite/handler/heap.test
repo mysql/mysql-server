@@ -1,0 +1,73 @@
+# test of HANDLER with HEAP tables
+#
+
+let $engine_type= MEMORY;
+let $key_type=using btree;
+
+--source init.inc
+--source handler.inc
+
+#
+# Test what happens if table is changed (Unique test for HEAP)
+#
+
+connect (con1,localhost,root,,);
+connection default;
+
+CREATE TABLE t1(a INT, b INT, KEY(a), KEY b using btree (b), KEY ab using btree(a, b));
+
+INSERT INTO t1 VALUES (2, 20), (2,20), (1, 10), (4, 40), (3, 30), (5,50), (6,50);
+
+HANDLER t1 OPEN;
+HANDLER t1 READ a>=(2) limit 3;
+HANDLER t1 READ a PREV;
+HANDLER t1 READ a PREV;
+HANDLER t1 READ a PREV;
+HANDLER t1 READ b>=(20) limit 3;
+HANDLER t1 READ b PREV;
+HANDLER t1 READ b PREV LIMIT 2;
+HANDLER t1 READ ab=(3,30) limit 3;
+HANDLER t1 READ ab>=(3,30) limit 3;
+
+# Test FIRST/LAST on hash and btree keys
+--error ER_ILLEGAL_HA
+HANDLER t1 READ a FIRST;
+--error ER_ILLEGAL_HA
+HANDLER t1 READ a LAST;
+HANDLER t1 READ b FIRST LIMIT 2;
+HANDLER t1 READ b LAST LIMIT 2; 
+
+# Table scan
+HANDLER t1 READ FIRST LIMIT 10;
+# Index scan
+HANDLER t1 READ b FIRST;
+insert into t1 values (7,50);
+--error ER_CHECKREAD
+HANDLER t1 READ b NEXT;
+
+HANDLER t1 READ b FIRST;
+connection con1;
+insert into t1 values (7,50);
+connection default;
+--error ER_CHECKREAD
+HANDLER t1 READ b NEXT;
+
+HANDLER t1 READ FIRST;
+connection con1;
+insert into t1 values (8,50);
+connection default;
+HANDLER t1 READ NEXT;
+connection con1;
+delete from t1 where a=3;
+connection default;
+HANDLER t1 READ NEXT LIMIT 2;
+connection con1;
+delete from t1;
+connection default;
+--error ER_CHECKREAD
+HANDLER t1 READ NEXT LIMIT 2;
+HANDLER t1 CLOSE;
+DROP TABLE t1;
+disconnect con1;
+
+--echo End of 5.1 tests

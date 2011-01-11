@@ -6,42 +6,42 @@ insert into t1 values
 (14,"aaa"),(16,"ccc"),(16,"xxx"),
 (20,"ggg"),(21,"hhh"),(22,"iii");
 handler t1 open as t2;
-handler t2 read a first;
+handler t2 read b first;
 a	b
 14	aaa
-handler t2 read a next;
+handler t2 read b next;
 a	b
 16	ccc
-handler t2 read a next;
+handler t2 read b next;
 a	b
 16	xxx
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 16	ccc
-handler t2 read a last;
+handler t2 read b last;
 a	b
 22	iii
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 21	hhh
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 20	ggg
-handler t2 read a first;
+handler t2 read b first;
 a	b
 14	aaa
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
-handler t2 read a last;
+handler t2 read b last;
 a	b
 22	iii
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 21	hhh
-handler t2 read a next;
+handler t2 read b next;
 a	b
 22	iii
-handler t2 read a next;
+handler t2 read b next;
 a	b
 handler t2 read a=(15);
 a	b
@@ -66,19 +66,19 @@ a	b
 handler t2 read a>=(11);
 a	b
 14	aaa
-handler t2 read a=(18);
+handler t2 read b=(18);
 a	b
 18	eee
-handler t2 read a>=(18);
+handler t2 read b>=(18);
 a	b
 18	eee
-handler t2 read a>(18);
+handler t2 read b>(18);
 a	b
 19	fff
-handler t2 read a<=(18);
+handler t2 read b<=(18);
 a	b
 18	eee
-handler t2 read a<(18);
+handler t2 read b<(18);
 a	b
 17	ddd
 handler t2 read a=(15);
@@ -119,19 +119,19 @@ handler t2 read a<=(1);
 a	b
 handler t2 read a<(1);
 a	b
-handler t2 read a first limit 5;
+handler t2 read b first limit 5;
 a	b
 14	aaa
 16	ccc
 16	xxx
 17	ddd
 18	eee
-handler t2 read a next  limit 3;
+handler t2 read b next  limit 3;
 a	b
 19	fff
 19	yyy
 20	ggg
-handler t2 read a prev  limit 10;
+handler t2 read b prev  limit 10;
 a	b
 19	yyy
 19	fff
@@ -162,10 +162,10 @@ a	b
 handler t2 read a=(16) limit 1,3;
 a	b
 16	xxx
-handler t2 read a=(19);
+handler t2 read b=(19);
 a	b
 19	fff
-handler t2 read a=(19) where b="yyy";
+handler t2 read b=(19) where b="yyy";
 a	b
 19	yyy
 handler t2 read first;
@@ -557,7 +557,7 @@ handler t1_alias READ a next where inexistent > 0;
 ERROR 42S22: Unknown column 'inexistent' in 'field list'
 handler t1_alias close;
 drop table t1;
-create temporary table t1 (a int, b char(1), key a  (a), key b(a,b));
+create temporary table t1 (a int, b char(1), key a  (a), key b  (a,b));
 insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
 (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j"),(9,'k');
 select a,b from t1;
@@ -609,20 +609,20 @@ a	b
 9	j
 9	k
 handler t1 open as a2;
-handler a2 read a=(9);
+handler a2 read b=(9);
 a	b
 9	j
-handler a2 read a next;
+handler a2 read b next;
 a	b
 9	k
-handler a2 read a prev limit 2;
+handler a2 read b prev limit 2;
 a	b
 9	j
 8	i
-handler a2 read a last;
+handler a2 read b last;
 a	b
 9	k
-handler a2 read a prev;
+handler a2 read b prev;
 a	b
 9	j
 handler a2 close;

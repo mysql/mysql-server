@@ -183,6 +183,19 @@ void ha_heap::set_keys_for_scanning(void)
 }
 
 
+int ha_heap::can_continue_handler_scan()
+{
+  int error= 0;
+  if ((file->key_version != file->s->key_version && inited == INDEX) ||
+      (file->file_version != file->s->file_version && inited == RND))
+  {
+    /* Data changed, not safe to do index or rnd scan */
+    error= HA_ERR_RECORD_CHANGED;
+  }
+  return error;
+}
+
+
 void ha_heap::update_key_stats()
 {
   for (uint i= 0; i < table->s->keys; i++)

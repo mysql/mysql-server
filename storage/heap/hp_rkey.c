@@ -30,6 +30,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
   }
   info->lastinx= inx;
   info->current_record= (ulong) ~0L;		/* For heap_rrnd() */
+  info->key_version= info->s->key_version;
 
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {

@@ -31,6 +31,8 @@ int heap_scan_init(register HP_INFO *info)
   info->current_record= (ulong) ~0L;		/* No current record */
   info->update=0;
   info->next_block=0;
+  info->key_version= info->s->key_version;
+  info->file_version= info->s->file_version;
   DBUG_RETURN(0);
 }
 
