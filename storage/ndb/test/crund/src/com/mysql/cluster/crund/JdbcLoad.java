@@ -478,6 +478,7 @@ public class JdbcLoad extends CrundDriver {
                     });
             }
 
+            if (false) { // works but not implemented in other backends yet
             for (int i = 3, l = 1000; l <= maxBlobBytes; l *= 10, i++) {
                 final byte[] b = bytes[i];
                 assert l == b.length;
@@ -525,7 +526,9 @@ public class JdbcLoad extends CrundDriver {
                         }
                     });
             }
-
+            }
+            
+            if (false) { // works but not implemented in other backends yet
             for (int i = 3, l = 1000; l <= maxTextChars; l *= 10, i++) {
                 final String s = strings[i];
                 assert l == s.length();
@@ -573,7 +576,8 @@ public class JdbcLoad extends CrundDriver {
                         }
                     });
             }
-
+            }
+            
             ops.add(
                 new JdbcOp("setB0->A" + (batch ? "_batch" : ""),
                            "UPDATE b0 b0 SET b0.a_id = ? WHERE (b0.id = ?)") {

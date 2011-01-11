@@ -1,5 +1,5 @@
 #!/bin/bash
-# usage: <ant|make> <run.ndbapi|...|run.driver>
+# usage: <run.ndbapi.opt|...>
 
 touch out.txt
 echo "" >> out.txt 2>&1
@@ -13,9 +13,10 @@ iostat 5 > iostat5.txt 2>&1 &
 #vmstat 5 > vmstat5.txt 2>&1 &
 pid=$!
 echo "" >> out.txt 2>&1
-( cd .. ; $1 $2 ) >> out.txt 2>&1
+( cd .. ; ant $1 ) >> out.txt 2>&1
 mkdir -p results/xxx
 mv -v [a-z]*.txt results/xxx
+mv -v ../log*.txt results/xxx
 cp -v ../*.properties results/xxx
 cp -v ../build.xml results/xxx
 cp -v ../config.ini results/xxx
