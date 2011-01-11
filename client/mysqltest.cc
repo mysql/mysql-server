@@ -468,6 +468,8 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
+/* Points to ds_warning in run_query, so it can be freed */
+DYNAMIC_STRING *ds_warn= 0;
 
 char builtin_echo[FN_REFLEN];
 
@@ -1275,6 +1277,8 @@ void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count]);
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
+  if (ds_warn)
+    dynstr_free(ds_warn);
   free_all_replace();
   my_free(opt_pass);
   free_defaults(default_argv);
@@ -7693,6 +7697,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     die ("Cannot reap on a connection without pending send");
   
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
+  ds_warn= &ds_warnings;
+  
   /*
     Evaluate query if this is an eval command
   */
@@ -7850,6 +7856,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 		     ds, &ds_warnings);
 
   dynstr_free(&ds_warnings);
+  ds_warn= 0;
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
     dynstr_free(&eval_query);
 
