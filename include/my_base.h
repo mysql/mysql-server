@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
+   reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +31,6 @@
 #define EOVERFLOW 84
 #endif
 
-#if !defined(USE_MY_FUNC) && !defined(THREAD)
-#include <my_nosys.h>			/* For faster code, after test */
-#endif	/* USE_MY_FUNC */
 #endif	/* stdin */
 #include <my_list.h>
 
