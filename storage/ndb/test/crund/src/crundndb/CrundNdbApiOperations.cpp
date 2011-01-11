@@ -941,7 +941,7 @@ CrundNdbApiOperations::navB0ToA(int count_A, int count_B,
             if (op->getValue(model->attr_B0_a_id, (char*)&a_id) == NULL)
                 ABORT_NDB_ERROR(tx->getNdbError());
         }
-        executeOperations(); // start the scan; don't commit yet
+        executeOperations(); // execute the operation; don't commit yet
 
         // fetch the attributes from A
         {
@@ -1023,7 +1023,7 @@ CrundNdbApiOperations::navB0ToAalt(int count_A, int count_B,
         if (!batch)
             executeOperations();
     }
-    executeOperations(); // start the scan; don't commit yet
+    executeOperations(); // execute the operation; don't commit yet
 
     // allocate attributes holder
     CommonAB* const ab = new CommonAB[count_B];
