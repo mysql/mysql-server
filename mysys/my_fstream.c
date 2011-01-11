@@ -124,10 +124,9 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
       }
 #endif
 #if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
-#ifdef THREAD
       if (my_thread_var->abort)
 	MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
-#endif
+
       if ((errno == ENOSPC || errno == EDQUOT) &&
           (MyFlags & MY_WAIT_IF_FULL))
       {
