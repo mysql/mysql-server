@@ -149,23 +149,17 @@ public:
     void getVarchar(const NdbDictionary::Table* table,
                     int from, int to, bool batch, int length);
 
-    void setB0ToA(int count_A, int count_B,
-                  bool batch);
+    void setB0ToA(int nOps, bool batch);
 
-    void navB0ToA(int count_A, int count_B,
-                  bool batch);
+    void navB0ToA(int nOps, bool batch);
 
-    void navB0ToAalt(int count_A, int count_B,
-                     bool batch);
+    void navB0ToAalt(int nOps, bool batch);
 
-    void navAToB0(int count_A, int count_B,
-                  bool forceSend);
+    void navAToB0(int nOps, bool forceSend);
 
-    void navAToB0alt(int count_A, int count_B,
-                     bool forceSend);
+    void navAToB0alt(int nOps, bool forceSend);
 
-    void nullB0ToA(int count_A, int count_B,
-                   bool batch);
+    void nullB0ToA(int nOps, bool batch);
 
 protected:
 

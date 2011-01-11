@@ -237,57 +237,57 @@ public class NdbJTieLoad extends NdbBase {
 
             ops.add(
                 new Op("insA" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        ins(model.table_A, 1, countA, !setAttrs, batch);
+                    public void run(int nOps) {
+                        ins(model.table_A, 1, nOps, !setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("insB0" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        ins(model.table_B0, 1, countB, !setAttrs, batch);
+                    public void run(int nOps) {
+                        ins(model.table_B0, 1, nOps, !setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("setAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        setByPK(model.table_A, 1, countA, batch);
+                    public void run(int nOps) {
+                        setByPK(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("setB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        setByPK(model.table_B0, 1, countB, batch);
+                    public void run(int nOps) {
+                        setByPK(model.table_B0, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getAByPK_bb" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getByPK_bb(model.table_A, 1, countA, batch);
+                    public void run(int nOps) {
+                        getByPK_bb(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getAByPK_ar" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getByPK_ar(model.table_A, 1, countA, batch);
+                    public void run(int nOps) {
+                        getByPK_ar(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getB0ByPK_bb" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getByPK_bb(model.table_B0, 1, countB, batch);
+                    public void run(int nOps) {
+                        getByPK_bb(model.table_B0, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("getB0ByPK_ar" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        getByPK_ar(model.table_B0, 1, countB, batch);
+                    public void run(int nOps) {
+                        getByPK_ar(model.table_B0, 1, nOps, batch);
                     }
                 });
 
@@ -297,22 +297,22 @@ public class NdbJTieLoad extends NdbBase {
 
                 ops.add(
                     new Op("setVarbinary" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarbinary(model.table_B0, 1, countB, batch, b);
+                        public void run(int nOps) {
+                            setVarbinary(model.table_B0, 1, nOps, batch, b);
                         }
                     });
 
                 ops.add(
                     new Op("getVarbinary" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            getVarbinary(model.table_B0, 1, countB, batch, b);
+                        public void run(int nOps) {
+                            getVarbinary(model.table_B0, 1, nOps, batch, b);
                         }
                     });
 
                 ops.add(
                     new Op("clearVarbinary" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarbinary(model.table_B0, 1, countB, batch, null);
+                        public void run(int nOps) {
+                            setVarbinary(model.table_B0, 1, nOps, batch, null);
                         }
                     });
             }
@@ -323,109 +323,109 @@ public class NdbJTieLoad extends NdbBase {
 
                 ops.add(
                     new Op("setVarchar" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarchar(model.table_B0, 1, countB, batch, s);
+                        public void run(int nOps) {
+                            setVarchar(model.table_B0, 1, nOps, batch, s);
                         }
                     });
 
                 ops.add(
                     new Op("getVarchar" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            getVarchar(model.table_B0, 1, countB, batch, s);
+                        public void run(int nOps) {
+                            getVarchar(model.table_B0, 1, nOps, batch, s);
                         }
                     });
 
                 ops.add(
                     new Op("clearVarchar" + l + (batch ? "_batch" : "")) {
-                        public void run(int countA, int countB) {
-                            setVarchar(model.table_B0, 1, countB, batch, null);
+                        public void run(int nOps) {
+                            setVarchar(model.table_B0, 1, nOps, batch, null);
                         }
                     });
             }
 
             ops.add(
                 new Op("setB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        setB0ToA(countA, countB, batch);
+                    public void run(int nOps) {
+                        setB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        navB0ToA(countA, countB, batch);
+                    public void run(int nOps) {
+                        navB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navB0->A_alt" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        navB0ToAalt(countA, countB, batch);
+                    public void run(int nOps) {
+                        navB0ToAalt(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("navA->B0" + (forceSend ? "_forceSend" : "")) {
-                    public void run(int countA, int countB) {
-                        navAToB0(countA, countB, forceSend);
+                    public void run(int nOps) {
+                        navAToB0(nOps, forceSend);
                     }
                 });
 
             ops.add(
                 new Op("navA->B0_alt" + (forceSend ? "_forceSend" : "")) {
-                    public void run(int countA, int countB) {
-                        navAToB0alt(countA, countB, forceSend);
+                    public void run(int nOps) {
+                        navAToB0alt(nOps, forceSend);
                     }
                 });
 
             ops.add(
                 new Op("nullB0->A" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        nullB0ToA(countA, countB, batch);
+                    public void run(int nOps) {
+                        nullB0ToA(nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delB0ByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        delByPK(model.table_B0, 1, countB, batch);
+                    public void run(int nOps) {
+                        delByPK(model.table_B0, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAByPK" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        delByPK(model.table_A, 1, countA, batch);
+                    public void run(int nOps) {
+                        delByPK(model.table_A, 1, nOps, batch);
                     }
                 });
 
             ops.add(
                 new Op("insA_attr" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        ins(model.table_A, 1, countA, setAttrs, batch);
+                    public void run(int nOps) {
+                        ins(model.table_A, 1, nOps, setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("insB0_attr" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
-                        ins(model.table_B0, 1, countB, setAttrs, batch);
+                    public void run(int nOps) {
+                        ins(model.table_B0, 1, nOps, setAttrs, batch);
                     }
                 });
 
             ops.add(
                 new Op("delAllB0" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         final int count = delByScan(model.table_B0, batch);
-                        assert count == countB;
+                        assert count == nOps;
                     }
                 });
 
             ops.add(
                 new Op("delAllA" + (batch ? "_batch" : "")) {
-                    public void run(int countA, int countB) {
+                    public void run(int nOps) {
                         final int count = delByScan(model.table_A, batch);
-                        assert count == countA;
+                        assert count == nOps;
                     }
                 });
         }
@@ -855,455 +855,41 @@ public class NdbJTieLoad extends NdbBase {
     protected void setVarchar(TableConst table, int from, int to,
                               boolean batch, String string) {
 // XXX not implemented yet
-/*
-        beginTransaction();
-        for (int i = from; i <= to; i++) {
-            // get an update operation for the table
-            final NdbOperation op = tx.getUpdateOperation(table);
-            assert op != null;
-
-            // set key attribute
-            op.equalInt(model.attr_id, i);
-
-            // set varchar
-            op.setString(model.attr_B0_cvarchar_def, string);
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        commitTransaction();
-        closeTransaction();
-*/
     }
 
     protected void getVarbinary(TableConst table, int from, int to,
                                 boolean batch, byte[] bytes) {
 // XXX not implemented yet
-/*
-        final int count = (to - from) + 1;
-        final int slen = bytes.length;
-        final int sline = (1 + slen);
-        final int sbuf = count * sline;
-        final ByteBuffer buf = ByteBuffer.allocateDirect(sbuf);
-        //buf.order(ByteOrder.nativeOrder());
-
-        beginTransaction();
-        for (int i = 0, j = from; i < count; i++, j++) {
-            // get a read operation for the table
-            NdbOperation op = tx.getNdbOperation(table);
-            if (op == null)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            if (op.readTuple(NdbOperation.LockMode.LM_CommittedRead) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-
-            // set key attribute
-            if (op.equal(model.attr_id, j) != 0)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-
-            // get attributes (not readable until after commit)
-            final int p = buf.position();
-            if (op.getValue(attr_cvar, buf) == null)
-                throw new RuntimeException(toStr(tx.getNdbError()));
-            //out.println("buf.position() == " + p);
-            buf.position(p += sline);
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        commitTransaction();
-
-        // check fetched values
-        buf.rewind();
-
-        // copy (move) the strings to make them aligned and 0-terminated
-        for (int i = 0, j = from; i < count; i++, j++) {
-            // check other attributes
-            final int id1 = verifyCommonAttributes(buf);
-            verify(id1 == j);
-
-            const size_t n = s[0];
-            VERIFY(n < sline);
-
-            // move and 0-terminated string
-            memmove(s, s + 1, n);
-            s[n] = 0;
-
-            // check fetched values
-            //CDBG << "!!! s=" << (void*)s << ", '" << s << "'" << endl;
-            VERIFY(strcmp(s, str) == 0);
-        }
-        closeTransaction();
-*/
     }
 
     protected void getVarchar(TableConst table, int from, int to,
                               boolean batch, String string) {
 // XXX not implemented yet
-/*
-        // operation results
-        final int count = (to - from) + 1;
-        final NdbResultSet[] rss = new NdbResultSet[count];
-
-        beginTransaction();
-        for (int i = 0, j = from; i < count; i++, j++) {
-            // get a read operation for the table
-            NdbOperation op = tx.getSelectOperation(table);
-            assert op != null;
-
-            // set key attribute
-            op.equalInt(model.attr_id, j);
-
-            // define fetched attributes
-            op.getValue(model.attr_B0_cvarchar_def);
-
-            // get attributes (not readable until after commit)
-            rss[i] = op.resultData();
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        //executeOperations();
-        commitTransaction();
-
-        // check fetched values
-        for (int i = 0, j = from; i < count; i++, j++) {
-            final NdbResultSet rs = rss[i];
-            final boolean hasNext = rs.next();
-            assert hasNext;
-
-            // check varchar
-            if (true) {
-                final String cvarchar_def
-                    = rs.getString(model.attr_B0_cvarchar_def);
-                verify(string.equals(cvarchar_def));
-            } else {
-                // verification imposes a string->bytes conversion penalty
-                final byte[] cvarchar_def
-                    = rs.getStringBytes(model.attr_B0_cvarchar_def);
-                verify(Arrays.equals(string.getBytes(), cvarchar_def));
-            }
-
-            assert !rs.next();
-        }
-        closeTransaction();
-*/
     }
 
-    protected void setB0ToA(int count_A, int count_B,
-                            boolean batch) {
+    protected void setB0ToA(int nOps, boolean batch) {
 // XXX not implemented yet
-/*
-        beginTransaction();
-        for (int i = 1; i <= count_B; i++) {
-            // get an update operation for the table
-            final NdbOperation op = tx.getUpdateOperation(model.table_B0);
-            assert op != null;
-
-            // set key attribute
-            op.equalInt(model.attr_id, i);
-
-            // set a_id attribute
-            int a_id = ((i - 1) % count_A) + 1;
-            op.setInt(model.attr_B0_a_id, a_id);
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        commitTransaction();
-        closeTransaction();
-*/
     }
 
-    protected void nullB0ToA(int count_A, int count_B,
-                             boolean batch) {
+    protected void nullB0ToA(int nOps, boolean batch) {
 // XXX not implemented yet
-/*
-        beginTransaction();
-        for (int i = 1; i <= count_B; i++) {
-            // get an update operation for the table
-            final NdbOperation op = tx.getUpdateOperation(model.table_B0);
-            assert op != null;
-
-            // set key attribute
-            op.equalInt(model.attr_id, i);
-
-            // set a_id attribute
-            int a_id = ((i - 1) % count_A) + 1;
-            op.setNull(model.attr_B0_a_id);
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        commitTransaction();
-        closeTransaction();
-*/
     }
 
-    protected void navB0ToA(int count_A, int count_B,
-                            boolean batch) {
+    protected void navB0ToA(int nOps, boolean batch) {
 // XXX not implemented yet
-/*
-        beginTransaction();
-
-        // fetch the foreign keys from B0 and read attributes from A
-        final NdbResultSet[] abs = new NdbResultSet[count_B];
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
-            // fetch the foreign key value from B0
-            NdbResultSet rs;
-            {
-                // get a read operation for the table
-                NdbOperation op = tx.getSelectOperation(model.table_B0);
-                assert op != null;
-
-                // set key attribute
-                op.equalInt(model.attr_id, i);
-
-                // define fetched attributes
-                op.getValue(model.attr_B0_a_id);
-
-                // get attributes (not readable until after commit)
-                rs = op.resultData();
-            }
-            executeOperations(); // start the scan; don't commit yet
-
-            // fetch the attributes from A
-            {
-                // get a read operation for the table
-                NdbOperation op = tx.getSelectOperation(model.table_A);
-                assert op != null;
-
-                // set key attribute
-                final int a_id = rs.getInt(model.attr_B0_a_id);
-                assert a_id == ((i - 1) % count_A) + 1;
-                op.equalInt(model.attr_id, a_id);
-
-                // define fetched attributes
-                op.getValue(model.attr_id);
-                fetchCommonAttributes(op);
-
-                // get attributes (not readable until after commit)
-                abs[j] = op.resultData();
-            }
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        commitTransaction();
-
-        // check fetched values
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
-            final NdbResultSet ab = abs[j];
-            final boolean hasNext = ab.next();
-            assert hasNext;
-
-            // check key attribute
-            final int id = ab.getInt(model.attr_id);
-            //out.println("id = " + id + ", i = " + i);
-            verify(id == ((i - 1) % count_A) + 1);
-
-            // check other attributes
-            final int k = getCommonAttributes(ab);
-            verify(k == id);
-
-            assert !ab.next();
-        }
-        closeTransaction();
-*/
     }
 
-    protected void navB0ToAalt(int count_A, int count_B,
-                               boolean batch) {
+    protected void navB0ToAalt(int nOps, boolean batch) {
 // XXX not implemented yet
-/*
-        beginTransaction();
-
-        // fetch the foreign key value from B0
-        final NdbResultSet[] a_ids = new NdbResultSet[count_B];
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
-                // get a read operation for the table
-                NdbOperation op = tx.getSelectOperation(model.table_B0);
-                assert op != null;
-
-                // set key attribute
-                op.equalInt(model.attr_id, i);
-
-                // define fetched attributes
-                op.getValue(model.attr_B0_a_id);
-
-                // get attributes (not readable until after commit)
-                a_ids[j] = op.resultData();
-        }
-        executeOperations(); // start the scan; don't commit yet
-
-        // fetch the attributes from A
-        final NdbResultSet[] abs = new NdbResultSet[count_B];
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
-            // get a read operation for the table
-            NdbOperation op = tx.getSelectOperation(model.table_A);
-            assert op != null;
-
-            // set key attribute
-            final int a_id = a_ids[j].getInt(model.attr_B0_a_id);
-            assert a_id == ((i - 1) % count_A) + 1;
-            op.equalInt(model.attr_id, a_id);
-
-            // define fetched attributes
-            op.getValue(model.attr_id);
-            fetchCommonAttributes(op);
-
-            // get attributes (not readable until after commit)
-            abs[j] = op.resultData();
-
-            // execute the operation now if in non-batching mode
-            if (!batch)
-                executeOperations();
-        }
-        commitTransaction();
-
-        // check fetched values
-        for (int i = 1, j = 0; i <= count_B; i++, j++) {
-            final NdbResultSet ab = abs[j];
-            final boolean hasNext = ab.next();
-            assert hasNext;
-
-            // check key attribute
-            final int id = ab.getInt(model.attr_id);
-            //out.println("id = " + id + ", i = " + i);
-            verify(id == ((i - 1) % count_A) + 1);
-
-            // check other attributes
-            final int k = getCommonAttributes(ab);
-            verify(k == id);
-
-            assert !ab.next();
-        }
-        closeTransaction();
-*/
     }
 
-    protected void navAToB0(int count_A, int count_B,
-                            boolean forceSend) {
+    protected void navAToB0(int nOps, boolean forceSend) {
 // XXX not implemented yet
-/*
-        beginTransaction();
-
-        // fetch attributes from B0 by foreign key scan
-        final NdbResultSet[] abs = new NdbResultSet[count_B];
-        int j = 0;
-        for (int i = 1; i <= count_B; i++) {
-            // get an index scan operation for the table
-            // XXX ? no locks (LM_CommittedRead) or shared locks (LM_Read)
-            final NdbIndexScanOperation op
-                = tx.getSelectIndexScanOperation(model.idx_B0_a_id,
-                                                 model.table_B0,
-                                                 LockMode.LM_CommittedRead);
-            assert op != null;
-
-            // define the scan's bounds (faster than using a scan filter)
-            // XXX this hardwired column name isn't right
-            //op.setBoundInt("a_id", BoundType.BoundEQ, i);
-            // compare with Operations.cpp:
-            //    if (op->setBound(idx_B0_a_id->getColumn(0)->getAttrId()...
-            //
-            // which translates into
-            //out.println("idx_B0_a_id.getNoOfColumns() = "
-            //            + model.idx_B0_a_id.getNoOfColumns());
-            //out.println("idx_B0_a_id.getColumn(0).getColumnNo() = "
-            //            + model.idx_B0_a_id.getColumn(0).getColumnNo());
-            //op.setBoundInt(model.idx_B0_a_id.getColumn(0).getColumnNo(),
-            //               BoundType.BoundEQ, i);
-            // except that we get the usual error with NDBJ:
-            //[java] idx_B0_a_id.getColumn(0).getColumnNo() = 0
-            //    [java] caught com.mysql.ndbjtie.ndbapi.NdbApiException:
-            //           Invalid attribute name or number
-            //
-            // so we go by column name
-            //out.println("idx_B0_a_id.getColumn(0).getName() = "
-            //            + model.idx_B0_a_id.getColumn(0).getName());
-            //op.setBoundInt(model.idx_B0_a_id.getColumn(0).getName(),
-            //               BoundType.BoundEQ, i);
-            // which is actually "a_id", so, for now, we call
-            op.setBoundInt("a_id", BoundType.BoundEQ, i);
-
-            // define fetched attributes
-            op.getValue(model.attr_id);
-            fetchCommonAttributes(op);
-
-            // start the scan; don't commit yet
-            executeOperations();
-
-            int stat;
-            final boolean allowFetch = true; // request new batches when exhausted
-            while ((stat = op.nextResult(allowFetch, forceSend)) == 0) {
-                // get attributes (not readable until after commit)
-                abs[j++] = op.resultData();
-            }
-            if (stat != 1)
-                throw new RuntimeException("stat == " + stat);
-        }
-        commitTransaction();
-        assert (j++ == count_B);
-
-        // check fetched values
-        j = 0;
-        for (int i = 1; i <= count_B; i++) {
-            final NdbResultSet ab = abs[j++];
-            //out.println("j = " + j + ", ab = " + ab);
-            //final boolean hasNext = ab.next();
-            // throws
-            //[java] j = 1, ab = com.mysql.ndbjtie.ndbapi.NdbResultSetImpl@6f144c
-            //    [java] caught com.mysql.ndbjtie.ndbapi.NdbApiException: Unknown error code
-            //    [java] com.mysql.ndbjtie.ndbapi.NdbApiException: Unknown error code
-            //    [java] at com.mysql.ndbjtie.ndbapi.NdbJTieJNI.NdbScanOperationImpl_nextResult__SWIG_(Native Method)
-            //    [java] at com.mysql.ndbjtie.ndbapi.NdbScanOperationImpl.nextResult(NdbScanOperationImpl.java:93)
-            //    [java] at com.mysql.ndbjtie.ndbapi.NdbResultSetImpl.next(NdbResultSetImpl.java:362)
-            //    [java] at com.mysql.cluster.crund.NdbJTieLoad.navAToB0(NdbJTieLoad.java:1205)
-            //
-            // YYY Frazer: check tx object for error (could be node failure)
-            // Martin: doesn't help much; after ab.next():
-            //out.println("tx.getNdbError() = " + tx.getNdbError().getCode());
-            // returns -1 and
-            //out.println("tx.getNdbError() = " + tx.getNdbError().getMessage());
-            // says "Unknown error code"
-            //
-            // apparently,
-            //final boolean hasNext = ab.next();
-            // is the same as
-            //final boolean hasNext = ab.next(true);
-            // this returns false, but throws no exception:
-            //final boolean hasNext = ab.next(false);
-            out.println("tx.getNdbError() = " + tx.getNdbError().getCode());
-            final boolean hasNext = ab.next();
-            assert hasNext;
-
-            // check key attribute
-            final int id = ab.getInt(model.attr_id);
-            verify(id == i);
-
-            // check other attributes
-            final int id1 = getCommonAttributes(ab);
-            verify(id1 == i);
-
-            assert !ab.next();
-        }
-        closeTransaction();
-*/
     }
 
-    protected void navAToB0alt(int count_A, int count_B,
-                               boolean forceSend) {
-// XXX not implemented yet, fix exception in navAToB0() first
-/*
-        assert false;
-*/
+    protected void navAToB0alt(int nOps, boolean forceSend) {
+// XXX not implemented yet
     }
-
 
     // ----------------------------------------------------------------------
     // NDB JTie datastore operations
