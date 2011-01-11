@@ -3530,11 +3530,11 @@ class Rows_log_event : public Log_event
 {
 public:
   enum row_lookup_mode {
-       ROW_LOOKUP_NOT_NEEDED= 0,
-       ROW_LOOKUP_INDEX_SCAN= 1,
-       ROW_LOOKUP_TABLE_SCAN= 2,
-       ROW_LOOKUP_HASH_SCAN= 3,
-       ROW_LOOKUP_UNDEFINED= 4,
+       ROW_LOOKUP_UNDEFINED= 0,
+       ROW_LOOKUP_NOT_NEEDED= 1,
+       ROW_LOOKUP_INDEX_SCAN= 2,
+       ROW_LOOKUP_TABLE_SCAN= 3,
+       ROW_LOOKUP_HASH_SCAN= 4,
   };
 
   /**
