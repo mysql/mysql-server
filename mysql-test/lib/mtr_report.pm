@@ -396,7 +396,7 @@ sub mtr_report_stats ($$;$) {
 ##############################################################################
 
 sub mtr_print_line () {
-  print '-' x 60 . "\n";
+  print '-' x 74 . "\n";
 }
 
 
@@ -406,13 +406,18 @@ sub mtr_print_thick_line {
 }
 
 
-sub mtr_print_header () {
+sub mtr_print_header ($) {
+  my ($wid) = @_;
   print "\n";
   printf "TEST";
-  print " " x 38;
+  if ($wid) {
+    print " " x 34 . "WORKER ";
+  } else {
+    print " " x 38;
+  }
   print "RESULT   ";
-  print "TIME (ms)" if $timer;
-  print "\n";
+  print "TIME (ms) or " if $timer;
+  print "COMMENT\n";
   mtr_print_line();
   print "\n";
 }

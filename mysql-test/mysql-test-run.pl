@@ -438,7 +438,7 @@ sub main {
 
   mtr_report();
   mtr_print_thick_line();
-  mtr_print_header();
+  mtr_print_header($opt_parallel > 1);
 
   mark_time_used('init');
 
