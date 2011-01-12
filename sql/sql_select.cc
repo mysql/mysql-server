@@ -9672,7 +9672,6 @@ static bool make_join_select(JOIN *join, Item *cond)
           tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
 	  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
               !first_inner_tab)
           {
@@ -15085,7 +15084,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
-    if (field->field->eq_def(result))
+    /*
+      Fields that are used as arguments to the DEFAULT() function already have
+      their data pointers set to the default value during name resulotion. See
+      Item_default_value::fix_fields.
+    */
+    if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
     return result;
   }

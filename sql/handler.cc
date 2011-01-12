@@ -5833,6 +5833,7 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  pushed_cond= NULL;
   const int retval= reset();
   DBUG_RETURN(retval);
 }
