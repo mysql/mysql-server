@@ -1196,9 +1196,12 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
          value of 2000.
   */
   Item *real_item= item->real_item();
-  if (!(real_item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
-        ((Item_field *)real_item)->field->field_length == 4))
+  Field *field= NULL;
+  if (real_item->type() == Item::FIELD_ITEM)
+    field= ((Item_field *)real_item)->field;
+  else if (real_item->type() == Item::CACHE_ITEM)
+    field= ((Item_cache *)real_item)->field();
+  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
   {
     if (value < 70)
       value+= 100;
