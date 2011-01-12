@@ -125,6 +125,13 @@ static void free_loader(DB_LOADER *loader)
 static const char *loader_temp_prefix = "tokuld"; // #2536
 static const char *loader_temp_suffix = "XXXXXX";
 
+
+// loader_flags currently has three possible values:
+//   0                   use brt loader
+//   USE_PUTS            do not use brt loader, use log suppression mechanism (2440)
+//                       which results in recursive call here via toku_db_pre_acquire_table_lock()
+//   DB_PRELOCKED_WRITE  do not use brt loader, this is the recursive (inner) call via 
+//                       toku_db_pre_acquire_table_lock()
 int toku_loader_create_loader(DB_ENV *env, 
                               DB_TXN *txn, 
                               DB_LOADER **blp, 
@@ -136,6 +143,7 @@ int toku_loader_create_loader(DB_ENV *env,
                               uint32_t loader_flags)
 {
     int rval;
+    BOOL use_brt_loader = (loader_flags == 0); 
 
     *blp = NULL;           // set later when created
 
@@ -212,7 +220,7 @@ int toku_loader_create_loader(DB_ENV *env,
 	    loader->i->ekeys = NULL;
 	    loader->i->evals = NULL;
 	    LSN load_lsn;
-            r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn);
+            r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_brt_loader);
 	    if ( r!=0 ) {
 		toku_free(new_inames_in_env);
 		toku_free(brts);

@@ -4325,10 +4325,11 @@ create_iname_hint(const char *dname, char *hint) {
 }
 
 
-// n >= 0 means to include "_L_" with hex value of n in iname
+// n < 0  means to ignore mark and ignore n
+// n >= 0 means to include mark ("_L_" or "_P_") with hex value of n in iname
 // (intended for use by loader, which will create many inames using one txnid).
 static char *
-create_iname(DB_ENV *env, u_int64_t id, char *hint, int n) {
+create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
     int bytes;
     char inamebase[strlen(hint) +
 		   8 +  // hex file format version
@@ -4339,10 +4340,12 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, int n) {
 	bytes = snprintf(inamebase, sizeof(inamebase),
                          "%s_%"PRIx64"_%"PRIx32            ".tokudb",
                          hint, id, BRT_LAYOUT_VERSION);
-    else
+    else {
+	invariant(strlen(mark) == 1);
 	bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%"PRIx64"_%"PRIx32"_L_%"PRIx32".tokudb",
-                         hint, id, BRT_LAYOUT_VERSION, n);
+                         "%s_%"PRIx64"_%"PRIx32"_%s_%"PRIx32".tokudb",
+                         hint, id, BRT_LAYOUT_VERSION, mark, n);
+    }
     assert(bytes>0);
     assert(bytes<=(int)sizeof(inamebase)-1);
     char *rval;
@@ -4436,7 +4439,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
             id = toku_txn_get_txnid(db_txn_struct_i(child)->tokutxn);
         }
         create_iname_hint(dname, hint);
-        iname = create_iname(db->dbenv, id, hint, -1);  // allocated memory for iname
+        iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
         //
         // DB_YESOVERWRITE for performance only, avoid unnecessary query
@@ -6073,9 +6076,11 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 // If the transaction aborts, the old inames will be restored.
 // The new inames are returned to the caller.  
 // It is the caller's responsibility to free them.
+// If "mark_as_loader" is true, then include a mark in the iname
+// to indicate that the file is created by the brt loader.
 // Return 0 on success (could fail if write lock not available).
 int
-ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn) {
+ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
     int rval;
     int i;
     
@@ -6085,6 +6090,13 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     DBT dname_dbt;  // holds dname
     DBT iname_dbt;  // holds new iname
     
+    char * mark;
+
+    if (mark_as_loader)
+	mark = "L";
+    else
+	mark = "P";
+
     for (i=0; i<N; i++) {
 	new_inames_in_env[i] = NULL;
     }
@@ -6101,7 +6113,7 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 	// now create new iname
 	char hint[strlen(dname) + 1];
 	create_iname_hint(dname, hint);
-	char * new_iname = create_iname(env, xid, hint, i);               // allocates memory for iname_in_env
+	char * new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
 	new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
         rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE necessary
@@ -6147,9 +6159,9 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 }
 
 int
-locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn) {
+locked_ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], LSN *load_lsn, BOOL mark_as_loader) {
     toku_ydb_lock();
-    int r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, load_lsn);
+    int r = ydb_load_inames(env, txn, N, dbs, new_inames_in_env, load_lsn, mark_as_loader);
     toku_ydb_unlock();
     return r;
 }
