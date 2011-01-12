@@ -299,6 +299,34 @@ struct fil_system_struct {
 initialized. */
 static fil_system_t*	fil_system	= NULL;
 
+#ifdef UNIV_DEBUG
+/** Try fil_validate() every this many times */
+# define FIL_VALIDATE_SKIP	17
+
+/******************************************************************//**
+Checks the consistency of the tablespace cache some of the time.
+@return	TRUE if ok or the check was skipped */
+static
+ibool
+fil_validate_skip(void)
+/*===================*/
+{
+	/** The fil_validate() call skip counter. Use a signed type
+	because of the race condition below. */
+	static int fil_validate_count = FIL_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly fil_validate() check
+	in debug builds. */
+	if (--fil_validate_count > 0) {
+		return(TRUE);
+	}
+
+	fil_validate_count = FIL_VALIDATE_SKIP;
+	return(fil_validate());
+}
+#endif /* UNIV_DEBUG */
 
 /********************************************************************//**
 NOTE: you must call fil_mutex_enter_and_prepare_for_io() first!
@@ -4307,7 +4335,7 @@ fil_io(
 #if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
 # error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
 #endif
-	ut_ad(fil_validate());
+	ut_ad(fil_validate_skip());
 #ifndef UNIV_HOTBACKUP
 # ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
@@ -4464,7 +4492,7 @@ fil_io(
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_ad(fil_validate());
+		ut_ad(fil_validate_skip());
 	}
 
 	return(DB_SUCCESS);
@@ -4488,7 +4516,7 @@ fil_aio_wait(
 	void*		message;
 	ulint		type;
 
-	ut_ad(fil_validate());
+	ut_ad(fil_validate_skip());
 
 	if (srv_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
@@ -4519,7 +4547,7 @@ fil_aio_wait(
 
 	mutex_exit(&fil_system->mutex);
 
-	ut_ad(fil_validate());
+	ut_ad(fil_validate_skip());
 
 	/* Do the i/o handling */
 	/* IMPORTANT: since i/o handling for reads will read also the insert

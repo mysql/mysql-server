@@ -9396,7 +9396,7 @@ table_factor:
         ;
 
 select_derived_union:
-          select_derived opt_order_clause opt_limit_clause
+          select_derived opt_union_order_or_limit
         | select_derived_union
           UNION_SYM
           union_option
@@ -9412,7 +9412,7 @@ select_derived_union:
              */
             Lex->pop_context();
           }
-          opt_order_clause opt_limit_clause
+          opt_union_order_or_limit
         ;
 
 /* The equivalent of select_init2 for nested queries. */
@@ -13862,6 +13862,11 @@ union_opt:
         | union_order_or_limit { $$= 1; }
         ;
 
+opt_union_order_or_limit:
+	  /* Empty */
+	| union_order_or_limit
+	;
+
 union_order_or_limit:
           {
             THD *thd= YYTHD;
@@ -13909,7 +13914,7 @@ query_specification:
         ;
 
 query_expression_body:
-          query_specification
+          query_specification opt_union_order_or_limit
         | query_expression_body
           UNION_SYM union_option 
           {
@@ -13917,6 +13922,7 @@ query_expression_body:
               MYSQL_YYABORT;
           }
           query_specification
+          opt_union_order_or_limit
           {
             Lex->pop_context();
             $$= $1;
