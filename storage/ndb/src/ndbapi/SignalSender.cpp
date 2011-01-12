@@ -203,7 +203,7 @@ SignalSender::sendFragmentedSignal(Uint16 nodeId,
                                      sig.header.m_noOfSections);
   if (ret == 0)
   {
-    forceSend();
+    do_forceSend();
     return SEND_OK;
   }
   return SEND_DISCONNECTED;
@@ -218,7 +218,7 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
                            s->header.m_noOfSections);
   if (ret == 0)
   {
-    forceSend();
+    do_forceSend();
     return SEND_OK;
   }
   return SEND_DISCONNECTED;

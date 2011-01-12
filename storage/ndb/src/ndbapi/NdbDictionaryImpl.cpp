@@ -5803,7 +5803,7 @@ NdbDictInterface::forceGCPWait(int type)
         continue;
       }
 
-      m_impl->forceSend();
+      m_impl->do_forceSend();
       m_impl->unlock();
     }
     return m_error.code == 0 ? 0 : -1;

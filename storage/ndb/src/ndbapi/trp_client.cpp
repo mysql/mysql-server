@@ -100,7 +100,7 @@ trp_client::cond_wait(Uint32 timeout, NdbMutex* mutexPtr)
 }
 
 void
-trp_client::forceSend(int val)
+trp_client::do_forceSend(int val)
 {
   if (val == 0)
   {
@@ -157,7 +157,7 @@ int PollGuard::wait_scan(int wait_time, Uint32 nodeId, bool forceSend)
 int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 {
   int ret_val;
-  m_clnt->forceSend(forceSend ? 1 : 0);
+  m_clnt->do_forceSend(forceSend ? 1 : 0);
 
   NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
   NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;
