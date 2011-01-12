@@ -5,7 +5,7 @@
 # switched directory after starting the server and am using a relative
 # --defaults-file.
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 --query_vertical SELECT @@global.connect_timeout AS connect_timeout, @@global.local_infile AS local_infile
 
