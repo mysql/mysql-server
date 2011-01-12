@@ -21,7 +21,7 @@ main.outfile_loaddata @solaris           # joro : Bug #46895
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 
-rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
+rpl.rpl_innodb_bug28430   @solaris       # Bug#46029
 rpl.rpl_row_sp011         @solaris       # Joro : Bug #54138
 
 rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
