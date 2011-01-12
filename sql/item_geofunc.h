@@ -183,6 +183,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec()
   {
+    Item_geometry_func::fix_length_and_dec();
     for (unsigned int i= 0; i < arg_count; ++i)
     {
       if (args[i]->fixed && args[i]->field_type() != MYSQL_TYPE_GEOMETRY)
