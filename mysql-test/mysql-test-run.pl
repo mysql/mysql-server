@@ -131,10 +131,6 @@ my $opt_start_dirty;
 my $opt_start_exit;
 my $start_only;
 
-my $auth_interface_fn;          # the name of qa_auth_interface plugin
-my $auth_server_fn;             # the name of qa_auth_server plugin
-my $auth_client_fn;             # the name of qa_auth_client plugin
-my $auth_filename;              # the name of the authentication test plugin
 my $auth_plugin;                # the path to the authentication test plugin
 
 END {
@@ -443,7 +439,7 @@ sub main {
 
   mtr_report();
   mtr_print_thick_line();
-  mtr_print_header();
+  mtr_print_header($opt_parallel > 1);
 
   mark_time_used('init');
 
@@ -1126,27 +1122,7 @@ sub command_line_setup {
                                     "$basedir/sql/share/charsets",
                                     "$basedir/share/charsets");
 
-  # Look for auth test plugins 
-  if (IS_WINDOWS)
-  {
-    $auth_filename = "auth_test_plugin.dll";
-    $auth_interface_fn = "qa_auth_interface.dll";
-    $auth_server_fn = "qa_auth_server.dll";
-    $auth_client_fn = "qa_auth_client.dll";
-  }
-  else
-  {
-    $auth_filename = "auth_test_plugin.so";
-    $auth_interface_fn = "qa_auth_interface.so";
-    $auth_server_fn = "qa_auth_server.so";
-    $auth_client_fn = "qa_auth_client.so";
-  }
-  $auth_plugin=
-  mtr_file_exists(vs_config_dirs('plugin/auth/',$auth_filename),
-    "$basedir/plugin/auth/.libs/" . $auth_filename,
-    "$basedir/lib/mysql/plugin/" . $auth_filename,
-    "$basedir/lib/plugin/" . $auth_filename);
-
+  ($auth_plugin)= find_plugin("auth_test_plugin", "plugin/auth");
 
   if (using_extern())
   {
@@ -1985,6 +1961,53 @@ sub find_plugin($$)
   return $lib_example_plugin;
 }
 
+#
+# Read plugin defintions file
+#
+
+sub read_plugin_defs($)
+{
+  my ($defs_file)= @_;
+
+  open(PLUGDEF, '<', $defs_file)
+    or mtr_error("Can't read plugin defintions file $defs_file");
+
+  while (<PLUGDEF>) {
+    next if /^#/;
+    my ($plug_file, $plug_loc, $plug_var, $plug_names)= split;
+    # Allow empty lines
+    next unless $plug_file;
+    mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
+
+    my ($plugin)= find_plugin($plug_file, $plug_loc);
+
+    # Set env. variables that tests may use, set to empty if plugin
+    # listed in def. file but not found.
+
+    if ($plugin) {
+      $ENV{$plug_var}= basename($plugin);
+      $ENV{$plug_var.'_DIR'}= dirname($plugin);
+      $ENV{$plug_var.'_OPT'}= "--plugin-dir=".dirname($plugin);
+      if ($plug_names) {
+	my $lib_name= basename($plugin);
+	my $load_var= "--plugin_load=";
+	my $semi= '';
+	foreach my $plug_name (split (',', $plug_names)) {
+	  $load_var .= $semi . "$plug_name=$lib_name";
+	  $semi= ';';
+	}
+	$ENV{$plug_var.'_LOAD'}= $load_var;
+      }
+    } else {
+      $ENV{$plug_var}= "";
+      $ENV{$plug_var.'_DIR'}= "";
+      $ENV{$plug_var.'_OPT'}= "";
+      $ENV{$plug_var.'_LOAD'}= "" if $plug_names;
+    }
+  }
+  close PLUGDEF;
+}
+
 sub environment_setup {
 
   umask(022);
@@ -2021,127 +2044,16 @@ sub environment_setup {
   }
 
   # --------------------------------------------------------------------------
-  # Add the path where mysqld will find udf_example.so
+  # Read definitions from include/plugin.defs
+  #
+  # Plugin settings should no longer be added here, instead
+  # place definitions in include/plugin.defs.
+  # See comment in that file for details.
   # --------------------------------------------------------------------------
-  my $udf_example_filename;
-  if (IS_WINDOWS)
-  {
-    $udf_example_filename = "udf_example.dll";
-  }
-  else
-  {
-    $udf_example_filename = "udf_example.so";
-  }
-  my $lib_udf_example=
-    mtr_file_exists(vs_config_dirs('sql', $udf_example_filename),
-		    "$basedir/sql/.libs/$udf_example_filename",);
+  read_plugin_defs("include/plugin.defs");
 
-  if ( $lib_udf_example )
-  {
-    push(@ld_library_paths, dirname($lib_udf_example));
-  }
-
-  $ENV{'UDF_EXAMPLE_LIB'}=
-    ($lib_udf_example ? basename($lib_udf_example) : "");
-  $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
-    ($lib_udf_example ? dirname($lib_udf_example) : "");
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find the auth test plugin (dialog.so/dll)
-  # --------------------------------------------------------------------------
-  if ($auth_plugin)
-  {
-    $ENV{'PLUGIN_AUTH'}= basename($auth_plugin);
-    $ENV{'PLUGIN_AUTH_OPT'}= "--plugin-dir=".dirname($auth_plugin);
-
-    $ENV{'PLUGIN_AUTH_LOAD'}="--plugin_load=test_plugin_server=".$auth_filename;
-    $ENV{'PLUGIN_AUTH_INTERFACE'}="--plugin_load=qa_auth_interface=".$auth_interface_fn;
-    $ENV{'PLUGIN_AUTH_SERVER'}="--plugin_load=qa_auth_server=".$auth_server_fn;
-    $ENV{'PLUGIN_AUTH_CLIENT'}="--plugin_load=qa_auth_client=".$auth_client_fn;
-  }
-  else
-  {
-    $ENV{'PLUGIN_AUTH'}= "";
-    $ENV{'PLUGIN_AUTH_OPT'}="--plugin-dir=";
-    $ENV{'PLUGIN_AUTH_LOAD'}="";
-    $ENV{'PLUGIN_AUTH_INTERFACE'}="";
-    $ENV{'PLUGIN_AUTH_SERVER'}="";
-    $ENV{'PLUGIN_AUTH_CLIENT'}="";
-  }
-  
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find ha_example.so
-  # --------------------------------------------------------------------------
-  if ($mysql_version_id >= 50100) {
-    my ($lib_example_plugin) = find_plugin("ha_example", "storage/example");
-    
-    if($lib_example_plugin) 
-    {  
-      $ENV{'EXAMPLE_PLUGIN'}=
-        ($lib_example_plugin ? basename($lib_example_plugin) : "");
-      $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
-      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
-
-      $ENV{'HA_EXAMPLE_SO'}="'".basename($lib_example_plugin)."'";
-      $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".basename($lib_example_plugin);
-    }
-    else
-    {
-      # Some ".opt" files use some of these variables, so they must be defined
-      $ENV{'EXAMPLE_PLUGIN'}= "";
-      $ENV{'EXAMPLE_PLUGIN_OPT'}= "";
-      $ENV{'HA_EXAMPLE_SO'}= "";
-      $ENV{'EXAMPLE_PLUGIN_LOAD'}= "";
-    }
-  }
- 
-
-  # --------------------------------------------------------------------------
-  # Add the path where mysqld will find semisync plugins
-  # --------------------------------------------------------------------------
-  if (!$opt_embedded_server) {
-
-
-    my ($lib_semisync_master_plugin) = find_plugin("semisync_master", "plugin/semisync");
-    my ($lib_semisync_slave_plugin) = find_plugin("semisync_slave", "plugin/semisync");
-
-
-    if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
-    {
-      $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
-      $ENV{'SEMISYNC_SLAVE_PLUGIN'}= basename($lib_semisync_slave_plugin);
-      $ENV{'SEMISYNC_PLUGIN_OPT'}= "--plugin-dir=".dirname($lib_semisync_master_plugin);
-    }
-    else
-    {
-      $ENV{'SEMISYNC_MASTER_PLUGIN'}= "";
-      $ENV{'SEMISYNC_SLAVE_PLUGIN'}= "";
-      $ENV{'SEMISYNC_PLUGIN_OPT'}="--plugin-dir=";
-    }
-  }
-
-  # ----------------------------------------------------
-  # Add the paths where mysqld will find archive/blackhole/federated plugins.
-  # ----------------------------------------------------
-  $ENV{'ARCHIVE_PLUGIN_DIR'} =
-    dirname(find_plugin("ha_archive", "storage/archive"));
-  $ENV{'BLACKHOLE_PLUGIN_DIR'} =
-    dirname(find_plugin("ha_blackhole", "storage/blackhole"));
-  $ENV{'FEDERATED_PLUGIN_DIR'} =
-    dirname(find_plugin("ha_federated", "storage/federated"));
-
-  # ----------------------------------------------------
-  # Add the path where mysqld will find mypluglib.so
-  # ----------------------------------------------------
-
-  my  ($lib_simple_parser) = find_plugin("mypluglib", "plugin/fulltext"); 
-
-  $ENV{'MYPLUGLIB_SO'}="'".basename($lib_simple_parser)."'";
-  $ENV{'SIMPLE_PARSER'}=
-    ($lib_simple_parser ? basename($lib_simple_parser) : "");
-  $ENV{'SIMPLE_PARSER_OPT'}= "--plugin-dir=".
-    ($lib_simple_parser ? dirname($lib_simple_parser) : "");
+  # Simplify reference to semisync plugins
+  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
 
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
