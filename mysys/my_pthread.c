@@ -18,7 +18,6 @@
 #define DONT_REMAP_PTHREAD_FUNCTIONS
 
 #include "mysys_priv.h"
-#ifdef THREAD
 #include <signal.h>
 #include <m_string.h>
 #include <thr_alarm.h>
@@ -468,4 +467,3 @@ int pthread_dummy(int ret)
 {
   return ret;
 }
-#endif /* THREAD */

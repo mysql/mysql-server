@@ -136,6 +136,16 @@ SELECT * FROM t1 WHERE NULL NOT IN ( SELECT c FROM t2 WHERE c = 1 AND c <> 1 );
 
 DROP TABLE t1, t2, t3, t4, t5;
 
+--echo #
+--echo # Bug#58207: invalid memory reads when using default column value and 
+--echo # tmptable needed
+--echo #
+CREATE TABLE t(a VARCHAR(245) DEFAULT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
+SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
+DROP TABLE t;
+
 
 --echo #
 --echo # End of 5.1 tests.
