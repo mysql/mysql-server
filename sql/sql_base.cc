@@ -2993,6 +2993,11 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->insert_values= 0;
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
+  /*
+    Check that there is no reference to a condtion from an earlier query
+    (cf. Bug#58553). 
+  */
+  DBUG_ASSERT(table->file->pushed_cond == NULL);
   table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
