@@ -2453,7 +2453,6 @@ int ha_federated::index_init(uint keynr, bool sorted)
 {
   DBUG_ENTER("ha_federated::index_init");
   DBUG_PRINT("info", ("table: '%s'  key: %u", table->s->table_name.str, keynr));
-  active_index= keynr;
   DBUG_RETURN(0);
 }
 
@@ -2589,7 +2588,6 @@ int ha_federated::index_end(void)
 {
   DBUG_ENTER("ha_federated::index_end");
   free_result();
-  active_index= MAX_KEY;
   DBUG_RETURN(0);
 }
 

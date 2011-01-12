@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -760,6 +760,8 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   {
     if (blocks < 8)
     {
+      my_message(ENOMEM, "Not enough memory to allocate 8 pagecache pages",
+                 MYF(0));
       my_errno= ENOMEM;
       goto err;
     }
@@ -4214,6 +4216,7 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   DBUG_ASSERT(block->rlocks == 0);
   DBUG_ASSERT(block->rlocks_queue == 0);
   DBUG_ASSERT(block->pins == 0);
+  DBUG_ASSERT((block->status & ~(PCBLOCK_ERROR | PCBLOCK_READ | PCBLOCK_IN_FLUSH | PCBLOCK_CHANGED | PCBLOCK_REASSIGNED)) == 0);
   block->status= 0;
 #ifndef DBUG_OFF
   block->type= PAGECACHE_EMPTY_PAGE;
@@ -4542,6 +4545,7 @@ static int flush_pagecache_blocks_int(PAGECACHE *pagecache,
           KEYCACHE_DBUG_ASSERT(count<= pagecache->blocks_used);
         }
       }
+      count++;    /* Allocate one extra for easy end-of-buffer test */
       /* Allocate a new buffer only if its bigger than the one we have */
       if (count > FLUSH_CACHE &&
           !(cache=
@@ -4579,22 +4583,24 @@ restart:
         DBUG_ASSERT(filter_res == FLUSH_FILTER_OK);
       }
       {
+        DBUG_ASSERT(!(block->status & PCBLOCK_IN_FLUSH));
         /*
-           Mark the block with BLOCK_IN_FLUSH in order not to let
-           other threads to use it for new pages and interfere with
-           our sequence of flushing dirty file pages
+          We care only for the blocks for which flushing was not
+          initiated by other threads as a result of page swapping
         */
-        block->status|= PCBLOCK_IN_FLUSH;
-
         if (! (block->status & PCBLOCK_IN_SWITCH))
         {
-	  /*
-	    We care only for the blocks for which flushing was not
-	    initiated by other threads as a result of page swapping
+          /*
+            Mark the block with BLOCK_IN_FLUSH in order not to let
+            other threads to use it for new pages and interfere with
+            our sequence of flushing dirty file pages
           */
+          block->status|= PCBLOCK_IN_FLUSH;
+
           reg_requests(pagecache, block, 1);
           if (type != FLUSH_IGNORE_CHANGED)
           {
+            *pos++= block;
 	    /* It's not a temporary file */
             if (pos == end)
             {
@@ -4614,7 +4620,6 @@ restart:
               */
               goto restart;
             }
-            *pos++= block;
           }
           else
           {

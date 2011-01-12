@@ -1559,16 +1559,20 @@ public:
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
     if (!(result= index_init(idx, sorted)))
-      inited=INDEX;
-    end_range= NULL;
+    {
+      inited=       INDEX;
+      active_index= idx;
+      end_range= NULL;
+    }
     DBUG_RETURN(result);
   }
   int ha_index_end()
   {
     DBUG_ENTER("ha_index_end");
     DBUG_ASSERT(inited==INDEX);
-    inited=NONE;
-    end_range= NULL;
+    inited=       NONE;
+    active_index= MAX_KEY;
+    end_range=    NULL;
     DBUG_RETURN(index_end());
   }
   /* This is called after index_init() if we need to do a index scan */
@@ -1751,7 +1755,12 @@ public:
     as there may be several calls to this routine.
   */
   virtual void column_bitmaps_signal();
-  uint get_index(void) const { return active_index; }
+  /*
+    We have to check for inited as some engines, like innodb, sets
+    active_index during table scan.
+  */
+  uint get_index(void) const
+  { return inited == INDEX ? active_index : MAX_KEY; }
   virtual int close(void)=0;
 
   /**
@@ -2261,8 +2270,8 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
-  virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
-  virtual int index_end() { active_index= MAX_KEY; return 0; }
+  virtual int index_init(uint idx, bool sorted) { return 0; }
+  virtual int index_end() { return 0; }
   /**
     rnd_init() can be called two times without rnd_end() in between
     (it only makes sense if scan=1).
