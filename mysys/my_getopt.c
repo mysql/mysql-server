@@ -602,6 +602,24 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   }
 }
 
+/**
+   Parse a boolean command line argument
+
+   "ON", "TRUE" and "1" will return true,
+   other values will return false.
+
+   @param[in] argument The value argument
+   @return boolean value
+*/
+static my_bool get_bool_argument(const char *argument)
+{
+  if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "on"))
+    return 1;
+  else
+    return (my_bool) atoi(argument);
+}
+
 /*
   function: setval
 
@@ -629,7 +647,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= (my_bool) atoi(argument) != 0;
+      *((my_bool*) value)= get_bool_argument(argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);

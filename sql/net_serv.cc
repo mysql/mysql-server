@@ -164,17 +164,7 @@ my_bool net_realloc(NET *net, size_t length)
   DBUG_ENTER("net_realloc");
   DBUG_PRINT("enter",("length: %lu", (ulong) length));
 
-  /*
-    When compression is off, net->where_b is always 0.
-    With compression turned on, net->where_b may indicate
-    that we still have a piece of the previous logical
-    packet in the buffer, unprocessed. Take it into account
-    when checking that max_allowed_packet is not exceeded.
-    This ensures that the client treats max_allowed_packet
-    limit identically, regardless of compression being on
-    or off.
-  */
-  if (length >= (net->max_packet_size + net->where_b))
+  if (length >= net->max_packet_size)
   {
     DBUG_PRINT("error", ("Packet too large. Max size: %lu",
                          net->max_packet_size));
