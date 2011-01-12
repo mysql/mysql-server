@@ -536,7 +536,7 @@ buf_page_is_corrupted(
 				"you may have copied the InnoDB\n"
 				"InnoDB: tablespace but not the InnoDB "
 				"log files. See\n"
-				"InnoDB: " REFMAN "forcing-recovery.html\n"
+				"InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 				"InnoDB: for more information.\n",
 				(ulong) mach_read_from_4(read_buf
 							 + FIL_PAGE_OFFSET),
@@ -2742,7 +2742,8 @@ buf_page_get_gen(
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 	ut_ad(ut_is_2pow(zip_size));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside(mtr) || ibuf_page(space, zip_size, offset, NULL));
+	ut_ad(!ibuf_inside(mtr) || ibuf_page_low(space, zip_size, offset,
+					      FALSE, file, line, NULL));
 #endif
 	buf_pool->stat.n_page_gets++;
 	fold = buf_page_address_fold(space, offset);
@@ -4036,7 +4037,7 @@ corrupt:
 			      "InnoDB: TABLE to scan your"
 			      " table for corruption.\n"
 			      "InnoDB: See also "
-			      REFMAN "forcing-recovery.html\n"
+			      REFMAN "forcing-innodb-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
@@ -4791,23 +4792,203 @@ buf_get_modified_ratio_pct(void)
 	return(ratio);
 }
 
+/*******************************************************************//**
+Aggregates a pool stats information with the total buffer pool stats  */
+static
+void
+buf_stats_aggregate_pool_info(
+/*==========================*/
+	buf_pool_info_t*	total_info,	/*!< in/out: the buffer pool
+						info to store aggregated
+						result */
+	const buf_pool_info_t*	pool_info)	/*!< in: individual buffer pool
+						stats info */
+{
+	ut_a(total_info && pool_info);
+
+	/* Nothing to copy if total_info is the same as pool_info */
+	if (total_info == pool_info) {
+		return;
+	}
+
+	total_info->pool_size += pool_info->pool_size;
+	total_info->lru_len += pool_info->lru_len;
+	total_info->old_lru_len += pool_info->old_lru_len;
+	total_info->free_list_len += pool_info->free_list_len;
+	total_info->flush_list_len += pool_info->flush_list_len;
+	total_info->n_pend_unzip += pool_info->n_pend_unzip;
+	total_info->n_pend_reads += pool_info->n_pend_reads;
+	total_info->n_pending_flush_lru += pool_info->n_pending_flush_lru;
+	total_info->n_pending_flush_list += pool_info->n_pending_flush_list;
+	total_info->n_pending_flush_single_page +=
+		 pool_info->n_pending_flush_single_page;
+	total_info->n_pages_made_young += pool_info->n_pages_made_young;
+	total_info->n_pages_not_made_young += pool_info->n_pages_not_made_young;
+	total_info->n_pages_read += pool_info->n_pages_read;
+	total_info->n_pages_created += pool_info->n_pages_created;
+	total_info->n_pages_written += pool_info->n_pages_written;
+	total_info->n_page_gets += pool_info->n_page_gets;
+	total_info->n_ra_pages_read += pool_info->n_ra_pages_read;
+	total_info->n_ra_pages_evicted += pool_info->n_ra_pages_evicted;
+	total_info->page_made_young_rate += pool_info->page_made_young_rate;
+	total_info->page_not_made_young_rate +=
+		pool_info->page_not_made_young_rate;
+	total_info->pages_read_rate += pool_info->pages_read_rate;
+	total_info->pages_created_rate += pool_info->pages_created_rate;
+	total_info->pages_written_rate += pool_info->pages_written_rate;
+	total_info->n_page_get_delta += pool_info->n_page_get_delta;
+	total_info->page_read_delta += pool_info->page_read_delta;
+	total_info->young_making_delta += pool_info->young_making_delta;
+	total_info->not_young_making_delta += pool_info->not_young_making_delta;
+	total_info->pages_readahead_rate += pool_info->pages_readahead_rate;
+	total_info->pages_evicted_rate += pool_info->pages_evicted_rate;
+	total_info->unzip_lru_len += pool_info->unzip_lru_len;
+	total_info->io_sum += pool_info->io_sum;
+	total_info->io_cur += pool_info->io_cur;
+	total_info->unzip_sum += pool_info->unzip_sum;
+	total_info->unzip_cur += pool_info->unzip_cur;
+}
+/*******************************************************************//**
+Collect buffer pool stats information for a buffer pool. Also
+record aggregated stats if there are more than one buffer pool
+in the server */
+static
+void
+buf_stats_get_pool_info(
+/*====================*/
+	buf_pool_t*		buf_pool,	/*!< in: buffer pool */
+	ulint			pool_id,	/*!< in: buffer pool ID */
+	buf_pool_info_t*	all_pool_info)	/*!< in/out: buffer pool info
+						to fill */
+{
+	buf_pool_info_t*        pool_info;
+	time_t			current_time;
+	double			time_elapsed;
+
+	/* Find appropriate pool_info to store stats for this buffer pool */
+	pool_info = &all_pool_info[pool_id];
+
+	buf_pool_mutex_enter(buf_pool);
+	buf_flush_list_mutex_enter(buf_pool);
+
+	pool_info->pool_unique_id = pool_id;
+
+	pool_info->pool_size = buf_pool->curr_size;
+
+	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+
+	pool_info->old_lru_len = buf_pool->LRU_old_len;
+
+	pool_info->free_list_len = UT_LIST_GET_LEN(buf_pool->free);
+
+	pool_info->flush_list_len = UT_LIST_GET_LEN(buf_pool->flush_list);
+
+	pool_info->n_pend_unzip = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
+
+	pool_info->n_pend_reads = buf_pool->n_pend_reads;
+
+	pool_info->n_pending_flush_lru =
+		 (buf_pool->n_flush[BUF_FLUSH_LRU]
+		  + buf_pool->init_flush[BUF_FLUSH_LRU]);
+
+	pool_info->n_pending_flush_list =
+		 (buf_pool->n_flush[BUF_FLUSH_LIST]
+		  + buf_pool->init_flush[BUF_FLUSH_LIST]);
+
+	pool_info->n_pending_flush_single_page =
+		 buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE];
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	current_time = time(NULL);
+	time_elapsed = 0.001 + difftime(current_time,
+					buf_pool->last_printout_time);
+
+	pool_info->n_pages_made_young = buf_pool->stat.n_pages_made_young;
+
+	pool_info->n_pages_not_made_young =
+		buf_pool->stat.n_pages_not_made_young;
+
+	pool_info->n_pages_read = buf_pool->stat.n_pages_read;
+
+	pool_info->n_pages_created = buf_pool->stat.n_pages_created;
+
+	pool_info->n_pages_written = buf_pool->stat.n_pages_written;
+
+	pool_info->n_page_gets = buf_pool->stat.n_page_gets;
+
+	pool_info->n_ra_pages_read = buf_pool->stat.n_ra_pages_read;
+
+	pool_info->n_ra_pages_evicted = buf_pool->stat.n_ra_pages_evicted;
+
+	pool_info->page_made_young_rate =
+		 (buf_pool->stat.n_pages_made_young
+		  - buf_pool->old_stat.n_pages_made_young) / time_elapsed;
+
+	pool_info->page_not_made_young_rate =
+		 (buf_pool->stat.n_pages_not_made_young
+		  - buf_pool->old_stat.n_pages_not_made_young) / time_elapsed;
+
+	pool_info->pages_read_rate =
+		(buf_pool->stat.n_pages_read
+		  - buf_pool->old_stat.n_pages_read) / time_elapsed;
+
+	pool_info->pages_created_rate =
+		(buf_pool->stat.n_pages_created
+		 - buf_pool->old_stat.n_pages_created) / time_elapsed;
+
+	pool_info->pages_written_rate =
+		(buf_pool->stat.n_pages_written
+		 - buf_pool->old_stat.n_pages_written) / time_elapsed;
+
+	pool_info->n_page_get_delta = buf_pool->stat.n_page_gets
+				      - buf_pool->old_stat.n_page_gets;
+
+	if (pool_info->n_page_get_delta) {
+		pool_info->page_read_delta = buf_pool->stat.n_pages_read
+					     - buf_pool->old_stat.n_pages_read;
+
+		pool_info->young_making_delta =
+			buf_pool->stat.n_pages_made_young
+			- buf_pool->old_stat.n_pages_made_young;
+
+		pool_info->not_young_making_delta =
+			buf_pool->stat.n_pages_not_made_young
+			- buf_pool->old_stat.n_pages_not_made_young;
+	}
+
+	pool_info->pages_readahead_rate =
+		 (buf_pool->stat.n_ra_pages_read
+		  - buf_pool->old_stat.n_ra_pages_read) / time_elapsed;
+
+	pool_info->pages_evicted_rate =
+		(buf_pool->stat.n_ra_pages_evicted
+		 - buf_pool->old_stat.n_ra_pages_evicted) / time_elapsed;
+
+	pool_info->unzip_lru_len = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
+
+	pool_info->io_sum = buf_LRU_stat_sum.io;
+
+	pool_info->io_cur = buf_LRU_stat_cur.io;
+
+	pool_info->unzip_sum = buf_LRU_stat_sum.unzip;
+
+	pool_info->unzip_cur = buf_LRU_stat_cur.unzip;
+
+	buf_refresh_io_stats(buf_pool);
+	buf_pool_mutex_exit(buf_pool);
+}
+
 /*********************************************************************//**
 Prints info of the buffer i/o. */
 UNIV_INTERN
 void
 buf_print_io_instance(
 /*==================*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	buf_pool_info_t*pool_info,	/*!< in: buffer pool info */
 	FILE*		file)		/*!< in/out: buffer where to print */
 {
-	time_t	current_time;
-	double	time_elapsed;
-	ulint	n_gets_diff;
-
-	ut_ad(buf_pool);
-
-	buf_pool_mutex_enter(buf_pool);
-	buf_flush_list_mutex_enter(buf_pool);
+	ut_ad(pool_info);
 
 	fprintf(file,
 		"Buffer pool size   %lu\n"
@@ -4817,70 +4998,42 @@ buf_print_io_instance(
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
 		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
-		(ulong) buf_pool->curr_size,
-		(ulong) UT_LIST_GET_LEN(buf_pool->free),
-		(ulong) UT_LIST_GET_LEN(buf_pool->LRU),
-		(ulong) buf_pool->LRU_old_len,
-		(ulong) UT_LIST_GET_LEN(buf_pool->flush_list),
-		(ulong) buf_pool->n_pend_reads,
-		(ulong) buf_pool->n_flush[BUF_FLUSH_LRU]
-		+ buf_pool->init_flush[BUF_FLUSH_LRU],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_LIST]
-		+ buf_pool->init_flush[BUF_FLUSH_LIST],
-		(ulong) buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]);
-
-	buf_flush_list_mutex_exit(buf_pool);
-
-	current_time = time(NULL);
-	time_elapsed = 0.001 + difftime(current_time,
-					buf_pool->last_printout_time);
+		pool_info->pool_size,
+		pool_info->free_list_len,
+		pool_info->lru_len,
+		pool_info->old_lru_len,
+		pool_info->flush_list_len,
+		pool_info->n_pend_reads,
+		pool_info->n_pending_flush_lru,
+		pool_info->n_pending_flush_list,
+		pool_info->n_pending_flush_single_page);
 
 	fprintf(file,
 		"Pages made young %lu, not young %lu\n"
 		"%.2f youngs/s, %.2f non-youngs/s\n"
 		"Pages read %lu, created %lu, written %lu\n"
 		"%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
-		(ulong) buf_pool->stat.n_pages_made_young,
-		(ulong) buf_pool->stat.n_pages_not_made_young,
-		(buf_pool->stat.n_pages_made_young
-		 - buf_pool->old_stat.n_pages_made_young)
-		/ time_elapsed,
-		(buf_pool->stat.n_pages_not_made_young
-		 - buf_pool->old_stat.n_pages_not_made_young)
-		/ time_elapsed,
-		(ulong) buf_pool->stat.n_pages_read,
-		(ulong) buf_pool->stat.n_pages_created,
-		(ulong) buf_pool->stat.n_pages_written,
-		(buf_pool->stat.n_pages_read
-		 - buf_pool->old_stat.n_pages_read)
-		/ time_elapsed,
-		(buf_pool->stat.n_pages_created
-		 - buf_pool->old_stat.n_pages_created)
-		/ time_elapsed,
-		(buf_pool->stat.n_pages_written
-		 - buf_pool->old_stat.n_pages_written)
-		/ time_elapsed);
+		pool_info->n_pages_made_young,
+		pool_info->n_pages_not_made_young,
+		pool_info->page_made_young_rate,
+		pool_info->page_not_made_young_rate,
+		pool_info->n_pages_read,
+		pool_info->n_pages_created,
+		pool_info->n_pages_written,
+		pool_info->pages_read_rate,
+		pool_info->pages_created_rate,
+		pool_info->pages_written_rate);
 
-	n_gets_diff = buf_pool->stat.n_page_gets
-		    - buf_pool->old_stat.n_page_gets;
-
-	if (n_gets_diff) {
+	if (pool_info->n_page_get_delta) {
 		fprintf(file,
 			"Buffer pool hit rate %lu / 1000,"
 			" young-making rate %lu / 1000 not %lu / 1000\n",
-			(ulong)
-			(1000 - ((1000 * (buf_pool->stat.n_pages_read
-					  - buf_pool->old_stat.n_pages_read))
-				 / (buf_pool->stat.n_page_gets
-				    - buf_pool->old_stat.n_page_gets))),
-			(ulong)
-			(1000 * (buf_pool->stat.n_pages_made_young
-				 - buf_pool->old_stat.n_pages_made_young)
-			 / n_gets_diff),
-			(ulong)
-			(1000 * (buf_pool->stat.n_pages_not_made_young
-				 - buf_pool->old_stat.n_pages_not_made_young)
-			 / n_gets_diff));
+			(ulong) (1000 - (1000 * pool_info->page_read_delta
+					 / pool_info->n_page_get_delta)),
+			(ulong) (1000 * pool_info->young_making_delta
+				 / pool_info->n_page_get_delta),
+			(ulong) (1000 * pool_info->not_young_making_delta
+				 / pool_info->n_page_get_delta));
 	} else {
 		fputs("No buffer pool page gets since the last printout\n",
 		      file);
@@ -4889,25 +5042,17 @@ buf_print_io_instance(
 	/* Statistics about read ahead algorithm */
 	fprintf(file, "Pages read ahead %.2f/s,"
 		" evicted without access %.2f/s\n",
-		(buf_pool->stat.n_ra_pages_read
-		- buf_pool->old_stat.n_ra_pages_read)
-		/ time_elapsed,
-		(buf_pool->stat.n_ra_pages_evicted
-		- buf_pool->old_stat.n_ra_pages_evicted)
-		/ time_elapsed);
+		pool_info->pages_readahead_rate,
+		pool_info->pages_evicted_rate);
 
 	/* Print some values to help us with visualizing what is
 	happening with LRU eviction. */
 	fprintf(file,
 		"LRU len: %lu, unzip_LRU len: %lu\n"
 		"I/O sum[%lu]:cur[%lu], unzip sum[%lu]:cur[%lu]\n",
-		UT_LIST_GET_LEN(buf_pool->LRU),
-		UT_LIST_GET_LEN(buf_pool->unzip_LRU),
-		buf_LRU_stat_sum.io, buf_LRU_stat_cur.io,
-		buf_LRU_stat_sum.unzip, buf_LRU_stat_cur.unzip);
-
-	buf_refresh_io_stats(buf_pool);
-	buf_pool_mutex_exit(buf_pool);
+		pool_info->lru_len, pool_info->unzip_lru_len,
+		pool_info->io_sum, pool_info->io_cur,
+		pool_info->unzip_sum, pool_info->unzip_cur);
 }
 
 /*********************************************************************//**
@@ -4918,14 +5063,58 @@ buf_print_io(
 /*=========*/
 	FILE*	file)	/*!< in/out: buffer where to print */
 {
-	ulint   i;
+	ulint			i;
+	buf_pool_info_t*	pool_info;
+	buf_pool_info_t*	pool_info_total;
+
+	/* If srv_buf_pool_instances is greater than 1, allocate
+	one extra buf_pool_info_t, the last one stores
+	aggregated/total values from all pools */
+	if (srv_buf_pool_instances > 1) {
+		pool_info = (buf_pool_info_t*) mem_zalloc((
+			srv_buf_pool_instances + 1) * sizeof *pool_info);
+
+		pool_info_total = &pool_info[srv_buf_pool_instances];
+	} else {
+		ut_a(srv_buf_pool_instances == 1);
+		pool_info_total = pool_info = (buf_pool_info_t*) mem_zalloc(
+			sizeof *pool_info)
+	}
 
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
-		buf_print_io_instance(buf_pool, file);
+
+		/* Fetch individual buffer pool info and calculate
+		aggregated stats along the way */
+		buf_stats_get_pool_info(buf_pool, i, pool_info);
+
+		/* If we have more than one buffer pool, store
+		the aggregated stats  */
+		if (srv_buf_pool_instances > 1) {
+			buf_stats_aggregate_pool_info(pool_info_total,
+						      &pool_info[i]);
+		}
 	}
+
+	/* Print the aggreate buffer pool info */
+	buf_print_io_instance(pool_info_total, file);
+
+	/* If there are more than one buffer pool, print each individual pool
+	info */
+	if (srv_buf_pool_instances > 1) {
+		fputs("----------------------\n"
+		"INDIVIDUAL BUFFER POOL INFO\n"
+		"----------------------\n", file);
+
+		for (i = 0; i < srv_buf_pool_instances; i++) {
+			fprintf(file, "---BUFFER POOL %lu\n", i);
+			buf_print_io_instance(&pool_info[i], file);
+		}
+	}
+
+	mem_free(pool_info);
 }
 
 /**********************************************************************//**
