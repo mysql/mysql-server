@@ -1,5 +1,6 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc
- 
+/* Copyright (C) 2009, 2011, Oracle and/or its affiliates. All rights
+   reserved
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation; version 2 of the License.
@@ -470,9 +471,6 @@
 
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 
-#define THREAD 1
-#define THREAD_SAFE_CLIENT 1
-
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 #define MACHINE_TYPE "@CMAKE_SYSTEM_PROCESSOR@"
 #cmakedefine HAVE_DTRACE 1
@@ -603,6 +601,9 @@
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 
 #cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+
+#define MYSQL_MAJOR_VERSION @MAJOR_VERSION@
+#define MYSQL_MINOR_VERSION @MINOR_VERSION@
 
 #define PACKAGE "mysql"
 #define PACKAGE_BUGREPORT ""
