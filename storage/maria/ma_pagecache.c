@@ -759,6 +759,8 @@ ulong init_pagecache(PAGECACHE *pagecache, size_t use_mem,
   {
     if (blocks < 8)
     {
+      my_message(ENOMEM, "Not enough memory to allocate 8 pagecache pages",
+                 MYF(0));
       my_errno= ENOMEM;
       goto err;
     }
