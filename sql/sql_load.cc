@@ -410,9 +410,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
 	    DBUG_RETURN(TRUE);
     }
+    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
+            is_fifo = 1;
+#endif
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
-#endif
 
       DBUG_RETURN(TRUE);
   }
