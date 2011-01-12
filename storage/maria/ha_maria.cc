@@ -228,7 +228,7 @@ static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        "The size of the buffer used for index blocks for Aria tables. "
        "Increase this to get better index handling (for all reads and "
        "multiple writes) to as much as you can afford.", 0, 0,
-       KEY_CACHE_SIZE, 0, ~(ulong) 0, 1);
+       KEY_CACHE_SIZE, 8192*16L, ~(ulong) 0, 1);
 
 static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
        PLUGIN_VAR_RQCMDARG,

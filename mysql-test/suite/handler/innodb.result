@@ -560,3 +560,13 @@ HANDLER t1 READ a NEXT;
 a
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+CREATE TABLE t1 (f1 integer, f2 integer, primary key (f1), key (f2)) engine=innodb;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+HANDLER t1 OPEN;
+HANDLER t1 READ FIRST WHERE f2 <= 1;
+f1	f2
+1	1
+HANDLER t1 READ `PRIMARY` PREV;
+f1	f2
+3	3
+DROP TABLE t1;
