@@ -364,3 +364,18 @@ drop table t1,t2;
 set join_cache_level=@my_save_join_cache_level;
 set join_buffer_size=@my_save_join_buffer_size;
 
+
+--echo #
+--echo # BUG#665669: Result differences on query re-execution
+--echo #
+create table t1 (pk int primary key, b int, c int default 0, index idx(b)) engine=innodb;
+insert into t1(pk,b) values (3, 30), (2, 20), (9, 90), (7, 70), (4, 40), (5, 50), (10, 100), (12, 120);
+set @my_save_optimizer_use_mrr=@@optimizer_use_mrr;
+set optimizer_use_mrr='disable';
+explain select * from t1 where b > 1000;
+--echo # The following two must produce indentical results:
+select * from t1 where pk < 2 or pk between 3 and 4;
+select * from t1 where pk < 2 or pk between 3 and 4;   
+drop table t1;
+set optimizer_use_mrr = @my_save_optimizer_use_mrr;
+

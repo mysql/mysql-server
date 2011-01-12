@@ -2456,6 +2456,7 @@ int ha_maria::reset(void)
 {
   pushed_idx_cond= NULL;
   pushed_idx_cond_keyno= MAX_KEY;
+  in_range_check_pushed_down= FALSE;
   ma_set_index_cond_func(file, NULL, 0);
   ds_mrr.dsmrr_close();
   if (file->trn)

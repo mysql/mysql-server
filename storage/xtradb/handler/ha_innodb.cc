@@ -8865,6 +8865,7 @@ ha_innobase::extra(
                         pushed_idx_cond= FALSE;
                         pushed_idx_cond_keyno= MAX_KEY;
                         prebuilt->idx_cond_func= NULL;
+                        in_range_check_pushed_down= FALSE;
 			break;
 		case HA_EXTRA_NO_KEYREAD:
 			prebuilt->read_just_key = 0;
@@ -8915,6 +8916,7 @@ ha_innobase::reset()
 	/* Reset index condition pushdown state */
 	pushed_idx_cond_keyno= MAX_KEY;
 	pushed_idx_cond= NULL;
+        in_range_check_pushed_down= FALSE;
 	ds_mrr.dsmrr_close();
 	prebuilt->idx_cond_func= NULL;
 
