@@ -18,12 +18,8 @@
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
 #include <my_tree.h>
-#ifdef THREAD
 #include <my_pthread.h>
 #include <thr_lock.h>
-#else
-#include <my_no_pthread.h>
-#endif
 #include <mysql/psi/mysql_file.h>
 
 /* undef map from my_nosys; We need test-if-disk full */
@@ -211,11 +207,10 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     not_flushed,
     temporary,delay_key_write,
     concurrent_insert;
-#ifdef THREAD
+
   THR_LOCK lock;
   mysql_mutex_t intern_lock;            /* Locking for use with _locking */
   mysql_rwlock_t *key_root_lock;
-#endif
   my_off_t mmaped_length;
   uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
                                            area */
@@ -298,9 +293,7 @@ struct st_myisam_info {
 #ifdef __WIN__
   my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
 #endif
-#ifdef THREAD
   THR_LOCK_DATA lock;
-#endif
   uchar  *rtree_recursion_state;	/* For RTREE */
   int     rtree_recursion_depth;
 };
@@ -461,10 +454,9 @@ typedef struct st_mi_sort_param
 #define MI_UNIQUE_HASH_TYPE	HA_KEYTYPE_ULONG_INT
 #define mi_unique_store(A,B)    mi_int4store((A),(B))
 
-#ifdef THREAD
 extern mysql_mutex_t THR_LOCK_myisam;
-#endif
-#if !defined(THREAD) || defined(DONT_USE_RW_LOCKS)
+
+#if defined(DONT_USE_RW_LOCKS)
 #define mysql_rwlock_wrlock(A) {}
 #define mysql_rwlock_rdlock(A) {}
 #define mysql_rwlock_unlock(A) {}
@@ -774,9 +766,7 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
-#ifdef THREAD
 pthread_handler_t thr_find_all_keys(void *arg);
-#endif
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);

@@ -78,9 +78,7 @@ struct hostent *my_gethostbyname_r(const char *name,
 
 #else /* !HAVE_GETHOSTBYNAME_R */
 
-#ifdef THREAD
 extern mysql_mutex_t LOCK_gethostbyname_r;
-#endif
 
 /*
   No gethostbyname_r() function exists.
