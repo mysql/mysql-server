@@ -59,14 +59,14 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
       DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",
                             (int) readbytes, (ulong) Count, Filedes,
                             my_errno));
-#ifdef THREAD
+
       if ((readbytes == 0 || (int) readbytes == -1) && errno == EINTR)
       {  
         DBUG_PRINT("debug", ("my_read() was interrupted and returned %ld",
                              (long) readbytes));
         continue;                              /* Interrupted */
       }
-#endif
+
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP))
       {
         if (readbytes == (size_t) -1)

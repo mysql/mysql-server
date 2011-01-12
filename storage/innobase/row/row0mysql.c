@@ -632,7 +632,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -3163,7 +3163,7 @@ check_next_foreign:
 
 	if (foreign && trx->check_foreigns
 	    && !(drop_db && dict_tables_have_same_db(
-			 name, foreign->foreign_table_name))) {
+			 name, foreign->foreign_table_name_lookup))) {
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow dropping a referenced table if

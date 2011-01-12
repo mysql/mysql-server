@@ -52,8 +52,9 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "que0que.h"
 #include "rem0cmp.h"
 #include "row0merge.h"
+#include "srv0srv.h" /* srv_lower_case_table_names */
 #include "m_ctype.h" /* my_isspace() */
-#include "ha_prototypes.h" /* innobase_strcasecmp() */
+#include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
 
 #include <ctype.h>
 
@@ -74,6 +75,7 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 #ifdef UNIV_PFS_RWLOCK
 UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -714,7 +716,7 @@ dict_init(void)
 		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
-		rw_lock_create(PFS_NOT_INSTRUMENTED,
+		rw_lock_create(dict_table_stats_latch_key,
 			       &dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
@@ -1080,13 +1082,13 @@ dict_table_rename_in_cache(
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
-			foreign->foreign_table_name
-				= mem_heap_alloc(foreign->heap,
-						 ut_strlen(table->name) + 1);
+			foreign->foreign_table_name = mem_heap_strdup(
+				foreign->heap, table->name);
+			dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+		} else {
+			strcpy(foreign->foreign_table_name, table->name);
+			dict_mem_foreign_table_name_lookup_set(foreign, FALSE);
 		}
-
-		strcpy(foreign->foreign_table_name, table->name);
-
 		if (strchr(foreign->id, '/')) {
 			ulint	db_len;
 			char*	old_id;
@@ -1152,12 +1154,14 @@ dict_table_rename_in_cache(
 			/* Allocate a longer name buffer;
 			TODO: store buf len to save memory */
 
-			foreign->referenced_table_name = mem_heap_alloc(
-				foreign->heap, strlen(table->name) + 1);
+			foreign->referenced_table_name = mem_heap_strdup(
+				foreign->heap, table->name);
+			dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+		} else {
+			/* Use the same buffer */
+			strcpy(foreign->referenced_table_name, table->name);
+			dict_mem_referenced_table_name_lookup_set(foreign, FALSE);
 		}
-
-		strcpy(foreign->referenced_table_name, table->name);
-
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
@@ -2583,10 +2587,10 @@ dict_foreign_add_to_cache(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	for_table = dict_table_check_if_in_cache_low(
-		foreign->foreign_table_name);
+		foreign->foreign_table_name_lookup);
 
 	ref_table = dict_table_check_if_in_cache_low(
-		foreign->referenced_table_name);
+		foreign->referenced_table_name_lookup);
 	ut_a(for_table || ref_table);
 
 	if (for_table) {
@@ -2703,7 +2707,7 @@ dict_scan_to(
 			quote = '\0';
 		} else if (quote) {
 			/* Within quotes: do nothing. */
-		} else if (*ptr == '`' || *ptr == '"') {
+		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
 		} else {
@@ -3015,19 +3019,25 @@ dict_scan_table_name(
 	memcpy(ref, database_name, database_name_len);
 	ref[database_name_len] = '/';
 	memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
-#ifndef __WIN__
-	if (srv_lower_case_table_names) {
-#endif /* !__WIN__ */
-		/* The table name is always put to lower case on Windows. */
+
+	/* Values;  0 = Store and compare as given; case sensitive
+	            1 = Store and compare in lower; case insensitive
+	            2 = Store as given, compare in lower; case semi-sensitive */
+	if (srv_lower_case_table_names == 2) {
 		innobase_casedn_str(ref);
-#ifndef __WIN__
+		*table = dict_table_get_low(ref);
+		memcpy(ref, database_name, database_name_len);
+		ref[database_name_len] = '/';
+		memcpy(ref + database_name_len + 1, table_name, table_name_len + 1);
+	} else {
+		if (srv_lower_case_table_names == 1) {
+			innobase_casedn_str(ref);
+		}
+		*table = dict_table_get_low(ref);
 	}
-#endif /* !__WIN__ */
 
 	*success = TRUE;
 	*ref_name = ref;
-	*table = dict_table_get_low(ref);
-
 	return(ptr);
 }
 
@@ -3516,8 +3526,10 @@ col_loop1:
 	}
 
 	foreign->foreign_table = table;
-	foreign->foreign_table_name = mem_heap_strdup(foreign->heap,
-						      table->name);
+	foreign->foreign_table_name = mem_heap_strdup(
+		foreign->heap, table->name);
+	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
+
 	foreign->foreign_index = index;
 	foreign->n_fields = (unsigned int) i;
 	foreign->foreign_col_names = mem_heap_alloc(foreign->heap,
@@ -3774,8 +3786,9 @@ try_find_index:
 	foreign->referenced_index = index;
 	foreign->referenced_table = referenced_table;
 
-	foreign->referenced_table_name
-		= mem_heap_strdup(foreign->heap, referenced_table_name);
+	foreign->referenced_table_name = mem_heap_strdup(
+		foreign->heap, referenced_table_name);
+	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
 	foreign->referenced_col_names = mem_heap_alloc(foreign->heap,
 						       i * sizeof(void*));
@@ -4586,8 +4599,8 @@ dict_print_info_on_foreign_key_in_create_format(
 
 	fputs(") REFERENCES ", file);
 
-	if (dict_tables_have_same_db(foreign->foreign_table_name,
-				     foreign->referenced_table_name)) {
+	if (dict_tables_have_same_db(foreign->foreign_table_name_lookup,
+				     foreign->referenced_table_name_lookup)) {
 		/* Do not print the database name of the referenced table */
 		ut_print_name(file, trx, TRUE,
 			      dict_remove_db_name(

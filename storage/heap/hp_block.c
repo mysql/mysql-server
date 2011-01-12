@@ -86,7 +86,6 @@ int hp_get_new_block(HP_BLOCK *block, size_t *alloc_length)
   }
   else
   {
-    dont_break();		/* Dont allow SIGHUP or SIGINT */
     if ((uint) i == block->levels)
     {
       /* Adding a new level on top of the existing ones. */
@@ -117,7 +116,6 @@ int hp_get_new_block(HP_BLOCK *block, size_t *alloc_length)
       allocated bytes. Use it as a leaf block.
     */
     block->level_info[0].last_blocks= root;
-    allow_break();		/* Allow SIGHUP & SIGINT */
   }
   return 0;
 }

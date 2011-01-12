@@ -52,10 +52,9 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     DBUG_PRINT("error",("Write only %ld bytes, error: %d",
 			(long) writtenbytes, my_errno));
 #ifndef NO_BACKGROUND
-#ifdef THREAD
     if (my_thread_var->abort)
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
-#endif
+
     if ((my_errno == ENOSPC || my_errno == EDQUOT) &&
         (MyFlags & MY_WAIT_IF_FULL))
     {
