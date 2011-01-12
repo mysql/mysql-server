@@ -976,7 +976,6 @@ row_lock_table_autoinc_for_mysql(
 	ibool			was_lock_wait;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	/* If we already hold an AUTOINC lock on the table then do nothing.
         Note: We peek at the value of the current owner without acquiring
@@ -1056,7 +1055,6 @@ row_lock_table_for_mysql(
 	ibool		was_lock_wait;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "setting table lock";
 
@@ -1130,7 +1128,6 @@ row_insert_for_mysql(
 	ins_node_t*	node		= prebuilt->ins_node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (prebuilt->table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -1364,7 +1361,6 @@ row_update_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	UT_NOT_USED(mysql_rec);
 
 	if (prebuilt->table->ibd_file_missing) {
@@ -1532,7 +1528,6 @@ row_unlock_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	if (UNIV_UNLIKELY
 	    (!srv_locks_unsafe_for_binlog
@@ -1834,7 +1829,6 @@ row_create_table_for_mysql(
 	ulint		table_name_len;
 	ulint		err;
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -2006,7 +2000,6 @@ row_create_index_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx->op_info = "creating index";
 
@@ -2409,8 +2402,6 @@ row_discard_tablespace_for_mysql(
 	table->n_foreign_key_checks_running > 0, we do not allow the
 	discard. We also reserve the data dictionary latch. */
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
-
 	trx->op_info = "discarding tablespace";
 	trx_start_if_not_started(trx);
 
@@ -2568,8 +2559,6 @@ row_import_tablespace_for_mysql(
 	ibool		success;
 	ib_uint64_t	current_lsn;
 	ulint		err		= DB_SUCCESS;
-
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 
 	trx_start_if_not_started(trx);
 
@@ -2754,7 +2743,6 @@ row_truncate_table_for_mysql(
 	redo log records on the truncated tablespace, we will assign
 	a new tablespace identifier to the truncated tablespace. */
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(table);
 
 	if (srv_created_new_raw) {
@@ -3605,7 +3593,6 @@ row_drop_database_for_mysql(
 	int	err	= DB_SUCCESS;
 	ulint	namelen	= strlen(name);
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(name != NULL);
 	ut_a(name[namelen - 1] == '/');
 
@@ -3775,7 +3762,6 @@ row_rename_table_for_mysql(
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
 
