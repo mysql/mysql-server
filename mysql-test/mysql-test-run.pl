@@ -2053,10 +2053,7 @@ sub environment_setup {
   read_plugin_defs("include/plugin.defs");
 
   # Simplify reference to semisync plugins
-  if ($ENV{'SEMISYNC_MASTER_PLUGIN'})
-  {
-    $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
-  }
+  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
 
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
