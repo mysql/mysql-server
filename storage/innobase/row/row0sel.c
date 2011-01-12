@@ -3797,6 +3797,18 @@ row_search_for_mysql(
 				mtr_commit(&mtr). */
 				ut_ad(!rec_get_deleted_flag(rec, comp));
 
+				if (prebuilt->idx_cond) {
+					switch (row_search_idx_cond_check(
+							buf, prebuilt,
+							rec, offsets)) {
+					case ICP_NO_MATCH:
+					case ICP_OUT_OF_RANGE:
+						goto shortcut_mismatch;
+					case ICP_MATCH:
+						goto shortcut_match;
+					}
+				}
+
 				if (!row_sel_store_mysql_rec(
 					    buf, prebuilt,
 					    rec, FALSE, index, offsets)) {
@@ -3815,6 +3827,7 @@ row_search_for_mysql(
 					break;
 				}
 
+			shortcut_match:
 				mtr_commit(&mtr);
 
 				/* ut_print_name(stderr, index->name);
@@ -3826,6 +3839,7 @@ row_search_for_mysql(
 				goto release_search_latch_if_needed;
 
 			case SEL_EXHAUSTED:
+			shortcut_mismatch:
 				mtr_commit(&mtr);
 
 				/* ut_print_name(stderr, index->name);
