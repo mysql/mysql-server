@@ -653,3 +653,25 @@ create table t1 (a char(2) charset utf8,b double, primary key (a(1)),key (b));
 insert into t1 values ('',1);
 select 1 from t1 where b <= 1 and a <> '';
 drop table t1;
+
+--echo #
+--echo # Bug#59259 "Incorrect rows returned for a correlated subquery
+--echo #            when ICP is on"
+--echo #
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+
+SELECT * FROM t1
+WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE t1.i);
+
+DROP TABLE t1, t2;
