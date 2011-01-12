@@ -12,11 +12,9 @@ main.gis                                 # Bug#52208 2010-11-24 alik gis fails o
 main.gis-rtree @freebsd                  # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
-main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
 main.lowercase_table2 @darwin            # Bug#55509 2010-07-26 alik main.lowercase_table2 fails on Mac OSX (again)
 main.mysqlslap @windows                  # Bug#54024 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
-main.show_check                          # Bug#58414 2010-11-24 alik Race condition in show_check.test
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
