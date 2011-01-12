@@ -1929,7 +1929,6 @@ row_merge_lock_table(
 	sel_node_t*	node;
 
 	ut_ad(trx);
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
@@ -2366,7 +2365,6 @@ row_merge_rename_tables(
 	pars_info_t*	info;
 	char		old_name[MAX_TABLE_NAME_LEN + 1];
 
-	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
