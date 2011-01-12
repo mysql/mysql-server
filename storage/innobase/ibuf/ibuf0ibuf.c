@@ -645,22 +645,49 @@ ibuf_parse_bitmap_init(
 	return(ptr);
 }
 #ifndef UNIV_HOTBACKUP
+# ifdef UNIV_DEBUG
+/** Gets the desired bits for a given page from a bitmap page.
+@param page	in: bitmap page
+@param offset	in: page whose bits to get
+@param zs	in: compressed page size in bytes; 0 for uncompressed pages
+@param bit	in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param mtr	in: mini-transaction holding an x-latch on the bitmap page
+@return	value of bits */
+#  define ibuf_bitmap_page_get_bits(page, offset, zs, bit, mtr)	\
+	ibuf_bitmap_page_get_bits_low(page, offset, zs,	\
+				      MTR_MEMO_PAGE_X_FIX, mtr, bit)
+# else /* UNIV_DEBUG */
+/** Gets the desired bits for a given page from a bitmap page.
+@param page	in: bitmap page
+@param offset	in: page whose bits to get
+@param zs	in: compressed page size in bytes; 0 for uncompressed pages
+@param bit	in: IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
+@param mtr	in: mini-transaction holding an x-latch on the bitmap page
+@return	value of bits */
+#  define ibuf_bitmap_page_get_bits(page, offset, zs, bit, mtr)		\
+	ibuf_bitmap_page_get_bits_low(page, offset, zs, bit)
+# endif /* UNIV_DEBUG */
+
 /********************************************************************//**
 Gets the desired bits for a given page from a bitmap page.
 @return	value of bits */
 UNIV_INLINE
 ulint
-ibuf_bitmap_page_get_bits(
-/*======================*/
+ibuf_bitmap_page_get_bits_low(
+/*==========================*/
 	const page_t*	page,	/*!< in: bitmap page */
 	ulint		page_no,/*!< in: page whose bits to get */
 	ulint		zip_size,/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
-	ulint		bit,	/*!< in: IBUF_BITMAP_FREE,
+#ifdef UNIV_DEBUG
+	ulint		latch_type,
+				/*!< in: MTR_MEMO_PAGE_X_FIX,
+				MTR_MEMO_BUF_FIX, ... */
+	mtr_t*		mtr,	/*!< in: mini-transaction holding latch_type
+				on the bitmap page */
+#endif /* UNIV_DEBUG */
+	ulint		bit)	/*!< in: IBUF_BITMAP_FREE,
 				IBUF_BITMAP_BUFFERED, ... */
-	mtr_t*		mtr __attribute__((unused)))
-				/*!< in: mtr containing an
-				x-latch to the bitmap page */
 {
 	ulint	byte_offset;
 	ulint	bit_offset;
@@ -672,7 +699,7 @@ ibuf_bitmap_page_get_bits(
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, latch_type));
 
 	if (!zip_size) {
 		bit_offset = (page_no % UNIV_PAGE_SIZE) * IBUF_BITS_PER_PAGE
@@ -1098,21 +1125,29 @@ Must not be called when recv_no_ibuf_operations==TRUE.
 @return	TRUE if level 2 or level 3 page */
 UNIV_INTERN
 ibool
-ibuf_page(
-/*======*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	page_no,/*!< in: page number */
-	mtr_t*	mtr)	/*!< in: mtr which will contain an x-latch to the
-			bitmap page if the page is not one of the fixed
-			address ibuf pages, or NULL, in which case a new
-			transaction is created. */
+ibuf_page_low(
+/*==========*/
+	ulint		space,	/*!< in: space id */
+	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint		page_no,/*!< in: page number */
+#ifdef UNIV_DEBUG
+	ibool		x_latch,/*!< in: FALSE if relaxed check
+				(avoid latching the bitmap page) */
+#endif /* UNIV_DEBUG */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
+	mtr_t*		mtr)	/*!< in: mtr which will contain an
+				x-latch to the bitmap page if the page
+				is not one of the fixed address ibuf
+				pages, or NULL, in which case a new
+				transaction is created. */
 {
 	ibool	ret;
 	mtr_t	local_mtr;
 	page_t*	bitmap_page;
 
 	ut_ad(!recv_no_ibuf_operations);
+	ut_ad(x_latch || mtr == NULL);
 
 	if (ibuf_fixed_addr_page(space, zip_size, page_no)) {
 
@@ -1124,12 +1159,55 @@ ibuf_page(
 
 	ut_ad(fil_space_get_type(IBUF_SPACE_ID) == FIL_TABLESPACE);
 
+#ifdef UNIV_DEBUG
+	if (!x_latch) {
+		mtr_start(&local_mtr);
+
+		/* Get the bitmap page without a page latch, so that
+		we will not be violating the latching order when
+		another bitmap page has already been latched by this
+		thread. The page will be buffer-fixed, and thus it
+		cannot be removed or relocated while we are looking at
+		it. The contents of the page could change, but the
+		IBUF_BITMAP_IBUF bit that we are interested in should
+		not be modified by any other thread. Nobody should be
+		calling ibuf_add_free_page() or ibuf_remove_free_page()
+		while the page is linked to the insert buffer b-tree. */
+
+		bitmap_page = buf_block_get_frame(
+			buf_page_get_gen(
+				space, zip_size,
+				ibuf_bitmap_page_no_calc(zip_size, page_no),
+				RW_NO_LATCH, NULL, BUF_GET_NO_LATCH,
+				file, line, &local_mtr));
+# ifdef UNIV_SYNC_DEBUG
+		/* This is for tracking Bug #58212. This check and message can
+		be removed once it has been established that our assumptions
+		about this condition are correct. The bug was only a one-time
+		occurrence, unable to repeat since then. */
+		void* latch = sync_thread_levels_contains(SYNC_IBUF_BITMAP);
+		if (latch) {
+			fprintf(stderr, "Bug#58212 UNIV_SYNC_DEBUG"
+				" levels %p (%u,%u)\n",
+				latch, (unsigned) space, (unsigned) page_no);
+		}
+# endif /* UNIV_SYNC_DEBUG */
+		ret = ibuf_bitmap_page_get_bits_low(
+			bitmap_page, page_no, zip_size,
+			MTR_MEMO_BUF_FIX, &local_mtr, IBUF_BITMAP_IBUF);
+
+		mtr_commit(&local_mtr);
+		return(ret);
+	}
+#endif /* UNIV_DEBUG */
+
 	if (mtr == NULL) {
 		mtr = &local_mtr;
 		mtr_start(mtr);
 	}
 
-	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
+	bitmap_page = ibuf_bitmap_get_map_page_func(space, page_no, zip_size,
+						    file, line, mtr);
 
 	ret = ibuf_bitmap_page_get_bits(bitmap_page, page_no, zip_size,
 					IBUF_BITMAP_IBUF, mtr);

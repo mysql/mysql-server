@@ -87,9 +87,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
-/* This is set to TRUE if the MySQL user has set it in MySQL; currently
-affects only FOREIGN KEY definition parsing */
-UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
+/* This is set to the MySQL server value for this variable.  It is only
+needed for FOREIGN KEY definition parsing since FOREIGN KEY names are not
+stored in the server metadata. The server stores and enforces it for
+regular database and table names.*/
+UNIV_INTERN uint	srv_lower_case_table_names	= 0;
 
 /* The following counter is incremented whenever there is some user activity
 in the server */
@@ -831,6 +833,7 @@ srv_table_reserve_slot(
 
 	ut_a(type > 0);
 	ut_a(type <= SRV_MASTER);
+	ut_ad(mutex_own(&kernel_mutex));
 
 	i = 0;
 	slot = srv_table_get_nth_slot(i);
@@ -977,6 +980,37 @@ srv_get_thread_type(void)
 	mutex_exit(&kernel_mutex);
 
 	return(type);
+}
+
+/*********************************************************************//**
+Check whether thread type has reserved a slot. Return the first slot that
+is found. This works because we currently have only 1 thread of each type.
+@return	slot number or ULINT_UNDEFINED if not found*/
+UNIV_INTERN
+ulint
+srv_thread_has_reserved_slot(
+/*=========================*/
+	enum srv_thread_type	type)	/*!< in: thread type to check */
+{
+	ulint			i;
+	ulint			slot_no = ULINT_UNDEFINED;
+
+	mutex_enter(&kernel_mutex);
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		srv_slot_t*	slot;
+
+		slot = srv_table_get_nth_slot(i);
+
+		if (slot->in_use && slot->type == type) {
+			slot_no = i;
+			break;
+		}
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	return(slot_no);
 }
 
 /*********************************************************************//**
@@ -2627,9 +2661,9 @@ srv_master_thread(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
-	srv_table_reserve_slot(SRV_MASTER);
-
 	mutex_enter(&kernel_mutex);
+
+	srv_table_reserve_slot(SRV_MASTER);
 
 	srv_n_threads_active[SRV_MASTER]++;
 
