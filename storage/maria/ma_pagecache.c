@@ -4216,7 +4216,7 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
   DBUG_ASSERT(block->rlocks == 0);
   DBUG_ASSERT(block->rlocks_queue == 0);
   DBUG_ASSERT(block->pins == 0);
-  DBUG_ASSERT((block->status & ~(PCBLOCK_ERROR | PCBLOCK_READ | PCBLOCK_IN_FLUSH | PCBLOCK_CHANGED | PCBLOCK_REASSIGNED)) == 0);
+  DBUG_ASSERT((block->status & ~(PCBLOCK_ERROR | PCBLOCK_READ | PCBLOCK_IN_FLUSH | PCBLOCK_CHANGED | PCBLOCK_REASSIGNED | PCBLOCK_DEL_WRITE)) == 0);
   block->status= 0;
 #ifndef DBUG_OFF
   block->type= PAGECACHE_EMPTY_PAGE;
