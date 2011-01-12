@@ -267,6 +267,7 @@ mtr_commit(
 	ut_d(mtr->state = MTR_COMMITTED);
 	dyn_array_free(&(mtr->memo));
 	dyn_array_free(&(mtr->log));
+        mtr->ibuf_inside = FALSE;
 }
 
 #ifndef UNIV_HOTBACKUP

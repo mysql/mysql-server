@@ -238,8 +238,10 @@ buf_read_ahead_linear(
 /*==================*/
 	ulint	space,	/*!< in: space id */
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset)	/*!< in: page number of a page; NOTE: the current thread
+	ulint	offset,	/*!< in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
+        mtr_t   *mtr)   /*!< in: mtr with knowledge if we're inside ibuf
+                        routine */
 {
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 	ib_int64_t	tablespace_version;
@@ -429,7 +431,7 @@ buf_read_ahead_linear(
 
 	/* If we got this far, read-ahead can be sensible: do it */
 
-	if (ibuf_inside()) {
+	if (ibuf_inside(mtr)) {
 		ibuf_mode = BUF_READ_IBUF_PAGES_ONLY;
 	} else {
 		ibuf_mode = BUF_READ_ANY_PAGE;
@@ -520,7 +522,6 @@ buf_read_ibuf_merge_pages(
 {
 	ulint	i;
 
-	ut_ad(!ibuf_inside());
 #ifdef UNIV_IBUF_DEBUG
 	ut_a(n_stored < UNIV_PAGE_SIZE);
 #endif
