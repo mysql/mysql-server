@@ -378,6 +378,8 @@ struct mtr_struct{
 #endif
 	dyn_array_t	memo;	/*!< memo stack for locks etc. */
 	dyn_array_t	log;	/*!< mini-transaction log */
+        ibool           ibuf_inside;
+                                /* TRUE if inside ibuf changes */
 	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */

@@ -390,7 +390,7 @@ btr_cur_search_to_nth_level(
 
 	ut_ad(level == 0 || mode == PAGE_CUR_LE);
 	ut_ad(dict_index_check_search_tuple(index, tuple));
-	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside());
+	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(tuple));
 
 #ifdef UNIV_DEBUG

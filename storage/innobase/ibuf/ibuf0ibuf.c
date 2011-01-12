@@ -324,37 +324,27 @@ still physically like the index page even if the index would have been
 dropped! So, there seems to be no problem. */
 
 /******************************************************************//**
-Sets the flag in the current OS thread local storage denoting that it is
+Sets the flag in the current mini-transaction record indicating we're
 inside an insert buffer routine. */
-UNIV_INLINE
+UNIV_INTERN
 void
-ibuf_enter(void)
+ibuf_enter(
+        mtr_t           *mtr)   /*!< in: mtr stores ibuf_inside info */
 /*============*/
 {
-	ibool*	ptr;
-
-	ptr = thr_local_get_in_ibuf_field();
-
-	ut_ad(*ptr == FALSE);
-
-	*ptr = TRUE;
+        mtr->ibuf_inside = TRUE;
 }
 
 /******************************************************************//**
-Sets the flag in the current OS thread local storage denoting that it is
+Sets the flag in the current mini-transaction record indicating we're
 exiting an insert buffer routine. */
 UNIV_INLINE
 void
-ibuf_exit(void)
+ibuf_exit(
+        mtr_t           *mtr)   /*!< in: mtr stores ibuf_inside info */
 /*===========*/
 {
-	ibool*	ptr;
-
-	ptr = thr_local_get_in_ibuf_field();
-
-	ut_ad(*ptr == TRUE);
-
-	*ptr = FALSE;
+        mtr->ibuf_inside = FALSE;
 }
 
 /******************************************************************//**
@@ -366,10 +356,11 @@ that are executing an insert buffer routine.
 @return TRUE if inside an insert buffer routine */
 UNIV_INTERN
 ibool
-ibuf_inside(void)
+ibuf_inside(
+        mtr_t           *mtr)   /*!< in: mtr stores ibuf_inside info */
 /*=============*/
 {
-	return(*thr_local_get_in_ibuf_field());
+        return(mtr->ibuf_inside);
 }
 
 /******************************************************************//**
@@ -383,7 +374,7 @@ ibuf_header_page_get(
 {
 	buf_block_t*	block;
 
-	ut_ad(!ibuf_inside());
+	ut_ad(!ibuf_inside(mtr));
 
 	block = buf_page_get(
 		IBUF_SPACE_ID, 0, FSP_IBUF_HEADER_PAGE_NO, RW_X_LATCH, mtr);
@@ -404,7 +395,7 @@ ibuf_tree_root_get(
 	buf_block_t*	block;
 	page_t*		root;
 
-	ut_ad(ibuf_inside());
+	ut_ad(ibuf_inside(mtr));
 	ut_ad(mutex_own(&ibuf_mutex));
 
 	mtr_x_lock(dict_index_get_lock(ibuf->index), mtr);
@@ -547,7 +538,7 @@ ibuf_init_at_db_start(void)
 
 	fseg_n_reserved_pages(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
 			      &n_used, &mtr);
-	ibuf_enter();
+	ibuf_enter(&mtr);
 
 	ut_ad(n_used >= 2);
 
@@ -569,8 +560,6 @@ ibuf_init_at_db_start(void)
 
 	ibuf->empty = (page_get_n_recs(root) == 0);
 	mtr_commit(&mtr);
-
-	ibuf_exit();
 
 	heap = mem_heap_create(450);
 
@@ -1164,7 +1153,6 @@ ibuf_rec_get_page_no(
 	const byte*	field;
 	ulint		len;
 
-	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
 	field = rec_get_nth_field_old(rec, 1, &len);
@@ -1199,7 +1187,6 @@ ibuf_rec_get_space(
 	const byte*	field;
 	ulint		len;
 
-	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
 	field = rec_get_nth_field_old(rec, 1, &len);
@@ -1244,7 +1231,6 @@ ibuf_rec_get_info(
 	ulint		info_len_local;
 	ulint		counter_local;
 
-	ut_ad(ibuf_inside());
 	fields = rec_get_n_fields_old(rec);
 	ut_a(fields > 4);
 
@@ -1304,7 +1290,6 @@ ibuf_rec_get_op_type(
 {
 	ulint		len;
 
-	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
 	(void) rec_get_nth_field_old(rec, 1, &len);
@@ -1677,7 +1662,6 @@ ibuf_rec_get_volume(
 	ibool		pre_4_1;
 	ulint		comp;
 
-	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(ibuf_rec) > 2);
 
 	data = rec_get_nth_field_old(ibuf_rec, 1, &len);
@@ -2094,7 +2078,7 @@ ibuf_add_free_page(void)
 		page = buf_block_get_frame(block);
 	}
 
-	ibuf_enter();
+	ibuf_enter(&mtr);
 
 	mutex_enter(&ibuf_mutex);
 
@@ -2123,8 +2107,6 @@ ibuf_add_free_page(void)
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, TRUE, &mtr);
 
 	mtr_commit(&mtr);
-
-	ibuf_exit();
 
 	return(TRUE);
 }
@@ -2156,7 +2138,7 @@ ibuf_remove_free_page(void)
 	header_page = ibuf_header_page_get(&mtr);
 
 	/* Prevent pessimistic inserts to insert buffer trees for a while */
-	ibuf_enter();
+	ibuf_enter(&mtr);
 	mutex_enter(&ibuf_pessimistic_insert_mutex);
 	mutex_enter(&ibuf_mutex);
 
@@ -2165,14 +2147,14 @@ ibuf_remove_free_page(void)
 		mutex_exit(&ibuf_mutex);
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
 
-		ibuf_exit();
-
 		mtr_commit(&mtr);
 
 		return;
 	}
 
+	ibuf_exit(&mtr);
 	mtr_start(&mtr2);
+	ibuf_enter(&mtr2);
 
 	root = ibuf_tree_root_get(&mtr2);
 
@@ -2187,8 +2169,6 @@ ibuf_remove_free_page(void)
 
 	mtr_commit(&mtr2);
 
-	ibuf_exit();
-
 	/* Since pessimistic inserts were prevented, we know that the
 	page is still in the free list. NOTE that also deletes may take
 	pages from the free list, but they take them from the start, and
@@ -2202,7 +2182,7 @@ ibuf_remove_free_page(void)
 	buf_page_reset_file_page_was_freed(IBUF_SPACE_ID, page_no);
 #endif
 
-	ibuf_enter();
+	ibuf_enter(&mtr);
 
 	mutex_enter(&ibuf_mutex);
 
@@ -2248,8 +2228,6 @@ ibuf_remove_free_page(void)
 	buf_page_set_file_page_was_freed(IBUF_SPACE_ID, page_no);
 #endif
 	mtr_commit(&mtr);
-
-	ibuf_exit();
 }
 
 /***********************************************************************//**
@@ -2270,8 +2248,6 @@ ibuf_free_excess_pages(void)
 
 	ut_ad(rw_lock_get_x_lock_count(
 		fil_space_get_latch(IBUF_SPACE_ID, NULL)) == 1);
-
-	ut_ad(!ibuf_inside());
 
 	/* NOTE: We require that the thread did not own the latch before,
 	because then we know that we can obey the correct latching order
@@ -2498,7 +2474,6 @@ ibuf_contract_ext(
 	mtr_t		mtr;
 
 	*n_pages = 0;
-	ut_ad(!ibuf_inside());
 
 	/* We perform a dirty read of ibuf->empty, without latching
 	the insert buffer root page. We trust this dirty read except
@@ -2529,7 +2504,7 @@ ibuf_is_empty:
 
 	mtr_start(&mtr);
 
-	ibuf_enter();
+	ibuf_enter(&mtr);
 
 	/* Open a cursor to a randomly chosen leaf of the tree, at a random
 	position within the leaf */
@@ -2548,8 +2523,6 @@ ibuf_is_empty:
 		ut_ad(page_get_page_no(btr_pcur_get_page(&pcur))
 		      == FSP_IBUF_TREE_ROOT_PAGE_NO);
 
-		ibuf_exit();
-
 		mtr_commit(&mtr);
 		btr_pcur_close(&pcur);
 
@@ -2563,8 +2536,6 @@ ibuf_is_empty:
 	fprintf(stderr, "Ibuf contract sync %lu pages %lu volume %lu\n",
 		sync, *n_pages, sum_sizes);
 #endif
-	ibuf_exit();
-
 	mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
 
@@ -2725,7 +2696,6 @@ ibuf_get_volume_buffered_count(
 	const byte*	types;
 	ulint		n_fields	= rec_get_n_fields_old(rec);
 
-	ut_ad(ibuf_inside());
 	ut_ad(n_fields > 4);
 	n_fields -= 4;
 
@@ -3039,9 +3009,8 @@ ibuf_update_max_tablespace_id(void)
 
 	ut_a(!dict_table_is_comp(ibuf->index->table));
 
-	ibuf_enter();
-
 	mtr_start(&mtr);
+	ibuf_enter(&mtr);
 
 	btr_pcur_open_at_index_side(
 		FALSE, ibuf->index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
@@ -3065,7 +3034,6 @@ ibuf_update_max_tablespace_id(void)
 	}
 
 	mtr_commit(&mtr);
-	ibuf_exit();
 
 	/* printf("Maximum space id in insert buffer %lu\n", max_space_id); */
 
@@ -3089,7 +3057,6 @@ ibuf_get_entry_counter_low(
 	const byte*	field;
 	ulint		len;
 
-	ut_ad(ibuf_inside());
 	ut_ad(rec_get_n_fields_old(rec) > 2);
 
 	field = rec_get_nth_field_old(rec, 1, &len);
@@ -3374,7 +3341,6 @@ ibuf_insert_low(
 
 	if (mode == BTR_MODIFY_TREE) {
 		for (;;) {
-			ibuf_enter();
 			mutex_enter(&ibuf_pessimistic_insert_mutex);
 			mutex_enter(&ibuf_mutex);
 
@@ -3385,7 +3351,6 @@ ibuf_insert_low(
 
 			mutex_exit(&ibuf_mutex);
 			mutex_exit(&ibuf_pessimistic_insert_mutex);
-			ibuf_exit();
 
 			if (UNIV_UNLIKELY(!ibuf_add_free_page())) {
 
@@ -3393,11 +3358,12 @@ ibuf_insert_low(
 				return(DB_STRONG_FAIL);
 			}
 		}
+	        mtr_start(&mtr);
 	} else {
-		ibuf_enter();
+	        mtr_start(&mtr);
+		ibuf_enter(&mtr);
 	}
 
-	mtr_start(&mtr);
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
@@ -3453,6 +3419,7 @@ fail_exit:
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));
 #endif
 	mtr_start(&bitmap_mtr);
+        bitmap_mtr.ibuf_inside = mtr.ibuf_inside;
 
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no,
 					       zip_size, &bitmap_mtr);
@@ -3579,7 +3546,6 @@ func_exit:
 
 	mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
-	ibuf_exit();
 
 	mem_heap_free(heap);
 
@@ -3837,7 +3803,7 @@ ibuf_insert_to_index_page(
 	page_t*		page		= buf_block_get_frame(block);
 	rec_t*		rec;
 
-	ut_ad(ibuf_inside());
+	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!buf_block_align(page)->is_hashed);
 
@@ -3984,7 +3950,7 @@ ibuf_set_del_mark(
 	page_cur_t	page_cur;
 	ulint		low_match;
 
-	ut_ad(ibuf_inside());
+	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
 	low_match = page_cur_search(
@@ -4041,7 +4007,7 @@ ibuf_delete(
 	page_cur_t	page_cur;
 	ulint		low_match;
 
-	ut_ad(ibuf_inside());
+	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 
 	low_match = page_cur_search(
@@ -4183,7 +4149,7 @@ ibuf_delete_rec(
 	page_t*		root;
 	ulint		err;
 
-	ut_ad(ibuf_inside());
+	ut_ad(ibuf_inside(mtr));
 	ut_ad(page_rec_is_user_rec(btr_pcur_get_rec(pcur)));
 	ut_ad(ibuf_rec_get_page_no(btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(btr_pcur_get_rec(pcur)) == space);
@@ -4373,8 +4339,6 @@ ibuf_merge_or_delete_for_page(
 		return;
 	}
 
-	ibuf_enter();
-
 	heap = mem_heap_create(512);
 
 	if (!trx_sys_multiple_tablespace_format) {
@@ -4405,6 +4369,7 @@ ibuf_merge_or_delete_for_page(
 			ut_print_timestamp(stderr);
 
 			mtr_start(&mtr);
+	                ibuf_enter(&mtr);
 
 			fputs("  InnoDB: Dump of the ibuf bitmap page:\n",
 			      stderr);
@@ -4445,6 +4410,7 @@ ibuf_merge_or_delete_for_page(
 
 loop:
 	mtr_start(&mtr);
+	ibuf_enter(&mtr);
 
 	if (block) {
 		ibool success;
@@ -4551,6 +4517,7 @@ loop:
 				btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				mtr_start(&mtr);
+	                        ibuf_enter(&mtr);
 
 				success = buf_page_get_known_nowait(
 					RW_X_LATCH, block,
@@ -4649,8 +4616,6 @@ reset_bit:
 		fil_decr_pending_ibuf_merges(space);
 	}
 
-	ibuf_exit();
-
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(space, page_no) == 0);
 #endif
@@ -4687,9 +4652,8 @@ ibuf_delete_for_discarded_space(
 
 	memset(dops, 0, sizeof(dops));
 loop:
-	ibuf_enter();
-
 	mtr_start(&mtr);
+	ibuf_enter(&mtr);
 
 	/* Position pcur in the insert buffer at the first entry for the
 	space */
@@ -4725,16 +4689,12 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
-			ibuf_exit();
-
 			goto loop;
 		}
 
 		if (btr_pcur_is_after_last_on_page(&pcur)) {
 			mtr_commit(&mtr);
 			btr_pcur_close(&pcur);
-
-			ibuf_exit();
 
 			goto loop;
 		}
@@ -4753,8 +4713,6 @@ leave_loop:
 	mutex_exit(&ibuf_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-	ibuf_exit();
-
 	mem_heap_free(heap);
 }
 
@@ -4770,8 +4728,8 @@ ibuf_is_empty(void)
 	const page_t*	root;
 	mtr_t		mtr;
 
-	ibuf_enter();
 	mtr_start(&mtr);
+	ibuf_enter(&mtr);
 
 	mutex_enter(&ibuf_mutex);
 	root = ibuf_tree_root_get(&mtr);
@@ -4779,7 +4737,6 @@ ibuf_is_empty(void)
 
 	is_empty = (page_get_n_recs(root) == 0);
 	mtr_commit(&mtr);
-	ibuf_exit();
 
 	ut_a(is_empty == ibuf->empty);
 

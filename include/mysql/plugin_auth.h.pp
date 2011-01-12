@@ -33,10 +33,17 @@ MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
                                       int allocate_lex_string);
 #include <mysql/service_thd_wait.h>
 typedef enum _thd_wait_type_e {
-  THD_WAIT_MUTEX= 1,
+  THD_WAIT_SLEEP= 1,
   THD_WAIT_DISKIO= 2,
-  THD_WAIT_ROW_TABLE_LOCK= 3,
-  THD_WAIT_GLOBAL_LOCK= 4
+  THD_WAIT_ROW_LOCK= 3,
+  THD_WAIT_GLOBAL_LOCK= 4,
+  THD_WAIT_META_DATA_LOCK= 5,
+  THD_WAIT_TABLE_LOCK= 6,
+  THD_WAIT_USER_LOCK= 7,
+  THD_WAIT_BINLOG= 8,
+  THD_WAIT_GROUP_COMMIT= 9,
+  THD_WAIT_SYNC= 10,
+  THD_WAIT_LAST= 11
 } thd_wait_type;
 extern struct thd_wait_service_st {
   void (*thd_wait_begin_func)(void*, thd_wait_type);

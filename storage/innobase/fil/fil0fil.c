@@ -4314,8 +4314,6 @@ fil_io(
 	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
 	      || !ibuf_bitmap_page(zip_size, block_offset)
 	      || sync || is_log);
-	ut_ad(!ibuf_inside() || is_log || (type == OS_FILE_WRITE)
-	      || ibuf_page(space_id, zip_size, block_offset, NULL));
 # endif /* UNIV_LOG_DEBUG */
 	if (sync) {
 		mode = OS_AIO_SYNC;

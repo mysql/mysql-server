@@ -175,26 +175,6 @@ thr_local_set_slot_no(
 }
 
 /*******************************************************************//**
-Returns pointer to the 'in_ibuf' field within the current thread local
-storage.
-@return	pointer to the in_ibuf field */
-UNIV_INTERN
-ibool*
-thr_local_get_in_ibuf_field(void)
-/*=============================*/
-{
-	thr_local_t*	local;
-
-	mutex_enter(&thr_local_mutex);
-
-	local = thr_local_get(os_thread_get_curr_id());
-
-	mutex_exit(&thr_local_mutex);
-
-	return(&(local->in_ibuf));
-}
-
-/*******************************************************************//**
 Creates a local storage struct for the calling new thread. */
 UNIV_INTERN
 void
