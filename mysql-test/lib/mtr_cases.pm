@@ -229,8 +229,11 @@ sub collect_test_cases ($$$$) {
 sub split_testname {
   my ($test_name)= @_;
 
-  # Get rid of directory part and split name on .'s
-  my @parts= split(/\./, basename($test_name));
+  # If .test file name is used, get rid of directory part
+  $test_name= basename($test_name) if $test_name =~ /\.test$/;
+
+  # Now split name on .'s
+  my @parts= split(/\./, $test_name);
 
   if (@parts == 1){
     # Only testname given, ex: alias
