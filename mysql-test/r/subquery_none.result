@@ -6299,4 +6299,15 @@ SUBQUERY1_t1.col_varchar) ) )
 ;
 pk
 drop table t1;
+#
+# Bug#58207: invalid memory reads when using default column value and 
+# tmptable needed
+#
+CREATE TABLE t(a VARCHAR(245) DEFAULT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
+SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
+default(a)
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+DROP TABLE t;
 set optimizer_switch=default;

@@ -5141,3 +5141,12 @@ WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
 ;
 
 drop table t1;
+--echo #
+--echo # Bug#58207: invalid memory reads when using default column value and 
+--echo # tmptable needed
+--echo #
+CREATE TABLE t(a VARCHAR(245) DEFAULT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
+SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
+DROP TABLE t;
