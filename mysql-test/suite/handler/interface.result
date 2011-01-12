@@ -257,3 +257,5 @@ drop table t1;
 USE information_schema;
 HANDLER COLUMNS OPEN;
 ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
+PREPARE h_r FROM 'HANDLER t1 READ `PRIMARY` LAST';
+ERROR 42S02: Unknown table 't1' in HANDLER

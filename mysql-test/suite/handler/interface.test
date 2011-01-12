@@ -305,3 +305,9 @@ connection default;
 USE information_schema;
 --error ER_WRONG_USAGE
 HANDLER COLUMNS OPEN;
+
+#
+# LP#697622 Assertion `! is_set()' failed when preparing a HANDLER statement
+#
+--error ER_UNKNOWN_TABLE
+PREPARE h_r FROM 'HANDLER t1 READ `PRIMARY` LAST';

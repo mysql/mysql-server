@@ -2004,11 +2004,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   case SQLCOM_HA_READ:
     res= mysql_test_handler_read(stmt, tables);
-    {
-      /* Statement and field info has already been sent */
-      DBUG_RETURN(FALSE);
-    }
-    break;
+    /* Statement and field info has already been sent */
+    DBUG_RETURN(res == 1 ? TRUE : FALSE);
 
     /*
       Note that we don't need to have cases in this list if they are
