@@ -44,6 +44,7 @@ mtr_start(
 
 	mtr->log_mode = MTR_LOG_ALL;
 	mtr->modifications = FALSE;
+        mtr->ibuf_inside = FALSE;
 	mtr->n_log_recs = 0;
 
 	ut_d(mtr->state = MTR_ACTIVE);

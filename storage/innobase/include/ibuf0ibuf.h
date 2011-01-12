@@ -218,7 +218,7 @@ ibuf_should_try(
 						a secondary index when we
 						decide */
 /******************************************************************//**
-Returns TRUE if the current OS thread is performing an insert buffer
+Returns TRUE if the current MTR is performing an insert buffer
 routine.
 
 For instance, a read-ahead of non-ibuf pages is forbidden by threads
@@ -226,7 +226,16 @@ that are executing an insert buffer routine.
 @return TRUE if inside an insert buffer routine */
 UNIV_INTERN
 ibool
-ibuf_inside(void);
+ibuf_inside(
+        mtr_t*          mtr);/*!< in: ibuf_inside stored on mtr */
+/*=============*/
+/***********************************************************************//**
+Sets ibuf_inside indicator on current MTR.
+*/
+UNIV_INTERN
+void
+ibuf_enter(
+        mtr_t*          mtr);/*!< in: ibuf_inside stored on mtr */
 /*=============*/
 /***********************************************************************//**
 Checks if a page address is an ibuf bitmap page (level 3 page) address.

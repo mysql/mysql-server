@@ -74,14 +74,6 @@ thr_local_set_slot_no(
 /*==================*/
 	os_thread_id_t	id,	/*!< in: thread id of the thread */
 	ulint		slot_no);/*!< in: slot number */
-/*******************************************************************//**
-Returns pointer to the 'in_ibuf' field within the current thread local
-storage.
-@return	pointer to the in_ibuf field */
-UNIV_INTERN
-ibool*
-thr_local_get_in_ibuf_field(void);
-/*=============================*/
 
 #ifndef UNIV_NONINL
 #include "thr0loc.ic"

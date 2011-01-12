@@ -3006,7 +3006,6 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
-	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);

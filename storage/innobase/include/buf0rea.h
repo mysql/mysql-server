@@ -28,6 +28,7 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "univ.i"
 #include "buf0types.h"
+#include "mtr0types.h"
 
 /********************************************************************//**
 High-level function which reads a page asynchronously from a file to the
@@ -72,8 +73,9 @@ buf_read_ahead_linear(
 /*==================*/
 	ulint	space,	/*!< in: space id */
 	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	offset);/*!< in: page number of a page; NOTE: the current thread
+	ulint	offset, /*!< in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
+        mtr_t   *mtr); /*!< in: mtr to get ibuf_inside indicator */
 /********************************************************************//**
 Issues read requests for pages which the ibuf module wants to read in, in
 order to contract the insert buffer tree. Technically, this function is like
