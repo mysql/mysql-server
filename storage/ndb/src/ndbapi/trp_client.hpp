@@ -44,7 +44,7 @@ public:
   void complete_poll();
   void wakeup();
 
-  void forceSend(int val = 1);
+  void do_forceSend(int val = 1);
 
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId);
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId,
