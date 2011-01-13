@@ -40,7 +40,7 @@ handler t2 read b next;
 handler t2 read b next;
 
 handler t2 read a=(15);
-handler t2 read a=(16);
+handler t2 read a=(21);
 
 --error 1070
 handler t2 read a=(19,"fff");
@@ -66,9 +66,9 @@ handler t2 read b<(18);
 --sorted_result
 handler t2 read a=(15);
 --sorted_result
-handler t2 read a>=(15);
+handler t2 read a>=(15) limit 2;
 --sorted_result
-handler t2 read a>(15);
+handler t2 read a>(15) limit 2;
 handler t2 read a<=(15);
 handler t2 read a<(15);
 
@@ -90,11 +90,11 @@ handler t2 read b first limit 5;
 handler t2 read b next  limit 3;
 handler t2 read b prev  limit 10;
 
-handler t2 read a>=(16) limit 4;
-handler t2 read a>=(16) limit 2,2;
-select * from t1 where a>=16 limit 2,2;
+handler t2 read b>=(16) limit 4;
+handler t2 read b>=(16) limit 2,2;
+select * from t1 where a>=16 order by a,b limit 2,2;
 handler t2 read a last  limit 3;
-handler t2 read a=(16) limit 1,3;
+handler t2 read b=(16) limit 1,3;
 handler t2 read b=(19);
 handler t2 read b=(19) where b="yyy";
 
@@ -104,8 +104,8 @@ handler t2 read next;
 handler t2 close;
 
 handler t1 open;
-handler t1 read a next; # this used to crash as a bug#5373
-handler t1 read a next;
+handler t1 read b next; # this used to crash as a bug#5373
+handler t1 read b next;
 handler t1 close;
 
 handler t1 open;

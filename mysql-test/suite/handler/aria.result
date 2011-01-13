@@ -45,9 +45,9 @@ handler t2 read b next;
 a	b
 handler t2 read a=(15);
 a	b
-handler t2 read a=(16);
+handler t2 read a=(21);
 a	b
-16	ccc
+21	hhh
 handler t2 read a=(19,"fff");
 ERROR 42000: Too many key parts specified; max 1 parts allowed
 handler t2 read b=(19,"fff");
@@ -83,12 +83,14 @@ a	b
 17	ddd
 handler t2 read a=(15);
 a	b
-handler t2 read a>=(15);
+handler t2 read a>=(15) limit 2;
 a	b
 16	ccc
-handler t2 read a>(15);
+16	xxx
+handler t2 read a>(15) limit 2;
 a	b
 16	ccc
+16	xxx
 handler t2 read a<=(15);
 a	b
 14	aaa
@@ -140,17 +142,17 @@ a	b
 16	xxx
 16	ccc
 14	aaa
-handler t2 read a>=(16) limit 4;
+handler t2 read b>=(16) limit 4;
 a	b
 16	ccc
 16	xxx
 17	ddd
 18	eee
-handler t2 read a>=(16) limit 2,2;
+handler t2 read b>=(16) limit 2,2;
 a	b
 17	ddd
 18	eee
-select * from t1 where a>=16 limit 2,2;
+select * from t1 where a>=16 order by a,b limit 2,2;
 a	b
 17	ddd
 18	eee
@@ -159,7 +161,7 @@ a	b
 22	iii
 21	hhh
 20	ggg
-handler t2 read a=(16) limit 1,3;
+handler t2 read b=(16) limit 1,3;
 a	b
 16	xxx
 handler t2 read b=(19);
@@ -179,10 +181,10 @@ a	b
 19	fff
 handler t2 close;
 handler t1 open;
-handler t1 read a next;
+handler t1 read b next;
 a	b
 14	aaa
-handler t1 read a next;
+handler t1 read b next;
 a	b
 16	ccc
 handler t1 close;
