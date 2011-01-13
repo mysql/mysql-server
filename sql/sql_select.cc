@@ -13168,6 +13168,15 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       last_tab->read_record.read_record= rr_sequential_and_unpack;
     }
   }
+  else
+  {
+    if (sjm->is_sj_scan)
+    {
+      /* Reset the cursor for a new scan over the table */
+      if (sjm->table->file->ha_rnd_init(TRUE))
+        DBUG_RETURN(NESTED_LOOP_ERROR);
+    }
+  }
 
   if (sjm->is_sj_scan)
   {

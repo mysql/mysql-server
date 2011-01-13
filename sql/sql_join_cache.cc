@@ -169,9 +169,17 @@ JOIN_TAB *JOIN_CACHE::get_next_table(JOIN_TAB *tab)
   if (join_tab->first_sjm_sibling)
     return tab;
   uint i= tab-join->join_tab;
+  /*
+  Temporary measure before MWL#90 refactorings are there: if 'tab' is at upper
+  level (i.e. it's not inside an SJM nest), still include into the join buffer
+  the tables from within SJM nest.  We might need the subquery's select list
+  columns, because SJ-Materialization-Scan upacks data to those. 
+
   while (sj_is_materialize_strategy(join->best_positions[i].sj_strategy) &&
          i < join->tables)
     i+= join->best_positions[i].n_sj_tables;
+
+  */
   return join->join_tab+i < join_tab ? join->join_tab+i : NULL; 
 }
 
