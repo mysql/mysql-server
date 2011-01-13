@@ -9676,7 +9676,7 @@ static bool make_join_select(JOIN *join, Item *cond)
               !first_inner_tab)
           {
             Item *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, 0);
+              make_cond_for_table(tmp, tab->table->map, tab->table->map, 0);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -19140,7 +19140,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
+	Item_cond_or do not need fix_fields for execution, its parameters
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
