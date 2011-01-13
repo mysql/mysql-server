@@ -660,3 +660,46 @@ count(*)	sum(table1.col_int_key*table2.pk)
 drop table t1,t2;
 set join_cache_level=@my_save_join_cache_level;
 set join_buffer_size=@my_save_join_buffer_size;
+#
+# Bug#43360 - Server crash with a simple multi-table update
+#
+CREATE TABLE t1 (
+a CHAR(2) NOT NULL PRIMARY KEY,
+b VARCHAR(20) NOT NULL,
+KEY (b)
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+a CHAR(2) NOT NULL PRIMARY KEY,
+b VARCHAR(20) NOT NULL,
+KEY (b)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+('AB','MySQLAB'),
+('JA','Sun Microsystems'),
+('MS','Microsoft'),
+('IB','IBM- Inc.'),
+('GO','Google Inc.');
+INSERT INTO t2 VALUES
+('AB','Sweden'),
+('JA','USA'),
+('MS','United States of America'),
+('IB','North America'),
+('GO','South America');
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 3
+UPDATE t1,t2 SET t1.b=UPPER(t1.b) WHERE t1.b LIKE 'United%';
+SELECT * FROM t1;
+a	b
+GO	Google Inc.
+IB	IBM- Inc.
+MS	Microsoft
+AB	MySQLAB
+JA	Sun Microsystems
+SELECT * FROM t2;
+a	b
+IB	North America
+GO	South America
+AB	Sweden
+MS	United States of Ame
+JA	USA
+DROP TABLE t1,t2;
