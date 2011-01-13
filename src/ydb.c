@@ -47,6 +47,20 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 
 #define DB_ISOLATION_FLAGS (DB_READ_COMMITTED | DB_READ_UNCOMMITTED | DB_TXN_SNAPSHOT | DB_SERIALIZABLE | DB_INHERIT_ISOLATION)
 
+// Set when env is panicked, never cleared.
+static int env_is_panicked = 0;
+
+static void
+env_panic(DB_ENV * env, int cause, char * msg) {
+    if (cause == 0)
+	cause = -1;  // if unknown cause, at least guarantee panic
+    if (msg == NULL)
+	msg = "Unknown cause in env_panic\n";
+    env_is_panicked = cause;
+    env->i->is_panicked = cause;
+    env->i->panic_string = toku_strdup(msg);
+}
+
 // Accountability: operation counters available for debugging and for "show engine status"
 static u_int64_t num_inserts;
 static u_int64_t num_inserts_fail;
@@ -165,14 +179,16 @@ toku_ydb_init(void) {
     return r;
 }
 
+// Do not clean up resources if env is panicked, just exit ugly
 int 
 toku_ydb_destroy(void) {
     int r = 0;
-    if (r==0)
+    if (env_is_panicked == 0) {
         r = toku_ydb_lock_destroy();
-    //Lower level must be cleaned up last.
-    if (r==0)
-        r = toku_brt_destroy();
+	//Lower level must be cleaned up last.
+	if (r==0)
+	    r = toku_brt_destroy();
+    }
     return r;
 }
 
@@ -991,9 +1007,11 @@ cleanup:
     return r;
 }
 
+
 static int 
 toku_env_close(DB_ENV * env, u_int32_t flags) {
     int r = 0;
+    char * err_msg = NULL;
 
     most_recent_env = NULL; // Set most_recent_env to NULL so that we don't have a dangling pointer (and if there's an error, the toku assert code would try to look at the env.)
 
@@ -1001,14 +1019,16 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
 
     if (toku_env_is_panicked(env)) goto panic_and_quit_early;
     if (!toku_list_empty(&env->i->open_txns)) {
-        r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open transactions\n");
+	err_msg = "Cannot close environment due to open transactions\n";
+        r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
         goto panic_and_quit_early;
     }
     { //Verify open dbs. Zombies are ok at this stage, fully open is not.
         uint32_t size = toku_omt_size(env->i->open_dbs);
         assert(size == env->i->num_open_dbs + env->i->num_zombie_dbs);
         if (env->i->num_open_dbs > 0) {
-            r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to open DBs\n");
+	    err_msg = "Cannot close environment due to open DBs\n";
+            r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
             goto panic_and_quit_early;
         }
     }
@@ -1016,14 +1036,16 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
         if (env->i->persistent_environment) {
             r = toku_db_close(env->i->persistent_environment, 0);
             if (r) {
-                toku_ydb_do_error(env, r, "Cannot close persistent environment dictionary (DB->close error)\n");
+		err_msg = "Cannot close persistent environment dictionary (DB->close error)\n";
+                toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
         }
         if (env->i->directory) {
             r = toku_db_close(env->i->directory, 0);
             if (r) {
-                toku_ydb_do_error(env, r, "Cannot close Directory dictionary (DB->close error)\n");
+		err_msg = "Cannot close Directory dictionary (DB->close error)\n";
+                toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
         }
@@ -1037,46 +1059,53 @@ toku_env_close(DB_ENV * env, u_int32_t flags) {
             }
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
             if (r) {
-                toku_ydb_do_error(env, r, "Cannot close environment (error during checkpoint)\n");
+		err_msg = "Cannot close environment (error during checkpoint)\n";
+                toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
             { //Verify open dbs. Neither Zombies nor fully open are ok at this stage.
                 uint32_t size = toku_omt_size(env->i->open_dbs);
                 assert(size == env->i->num_open_dbs + env->i->num_zombie_dbs);
                 if (size > 0) {
-                    r = toku_ydb_do_error(env, EINVAL, "Cannot close environment due to zombie DBs\n");
+		    err_msg = "Cannot close environment due to zombie DBs\n";
+                    r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
                     goto panic_and_quit_early;
                 }
             }
             r = toku_logger_close_rollback(env->i->logger, FALSE);
             if (r) {
-                toku_ydb_do_error(env, r, "Cannot close environment (error during closing rollback cachefile)\n");
+		err_msg = "Cannot close environment (error during closing rollback cachefile)\n";
+                toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
             //Do a second checkpoint now that the rollback cachefile is closed.
             r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL);
             if (r) {
-                toku_ydb_do_error(env, r, "Cannot close environment (error during checkpoint)\n");
+		err_msg = "Cannot close environment (error during checkpoint)\n";
+                toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
             r = toku_logger_shutdown(env->i->logger); 
             if (r) {
-                toku_ydb_do_error(env, r, "Cannot close environment (error during logger shutdown)\n");
+		err_msg = "Cannot close environment (error during logger shutdown)\n";
+                toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
         }
 	toku_ydb_lock();
         r=toku_cachetable_close(&env->i->cachetable);
 	if (r) {
-	    toku_ydb_do_error(env, r, "Cannot close environment (cachetable close error)\n");
+	    err_msg = "Cannot close environment (cachetable close error)\n";
+	    toku_ydb_do_error(env, r, "%s", err_msg);
             goto panic_and_quit_early;
 	}
     }
     if (env->i->logger) {
         r=toku_logger_close(&env->i->logger);
 	if (r) {
+	    err_msg = "Cannot close environment (logger close error)\n";
             env->i->logger = NULL;
-	    toku_ydb_do_error(env, r, "Cannot close environment (logger close error)\n");
+	    toku_ydb_do_error(env, r, "%s", err_msg);
             goto panic_and_quit_early;
 	}
     }
@@ -1123,8 +1152,9 @@ panic_and_quit_early:
         char *panic_string = env->i->panic_string;
         r = toku_ydb_do_error(env, toku_env_is_panicked(env), "Cannot close environment due to previous error: %s\n", panic_string);
     }
-    else
-        env->i->is_panicked = r;
+    else {
+	env_panic(env, r, err_msg);
+    }
     return r;
 }
 
@@ -1395,8 +1425,8 @@ toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)
 			    checkpoint_callback_f,  checkpoint_callback_extra,
 			    checkpoint_callback2_f, checkpoint_callback2_extra);
     if (r) {
-	env->i->is_panicked = r; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
-	env->i->panic_string = toku_strdup("checkpoint error");
+	// Panicking the whole environment may be overkill, but I'm not sure what else to do.
+	env_panic(env, r, "checkpoint error\n");
         toku_ydb_do_error(env, r, "Checkpoint\n");
     }
     return r;
@@ -2136,12 +2166,16 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
 // intended for use by toku_assert when about to abort().
 static void 
 toku_maybe_set_env_panic(int code, char * msg) {
+    if (code == 0) 
+	code = -1;
+    if (msg == NULL)
+	msg = "Unknown cause from abort (failed assert)\n";
+    env_is_panicked = code;  // disable library destructor no matter what
     DB_ENV * env = most_recent_env;
-    if (env && env->i) {
-	if (env->i->is_panicked == 0) {
-	    env->i->is_panicked = code;
-	    env->i->panic_string = toku_strdup(msg);
-	}
+    if (env && 
+	env->i &&
+	(env->i->is_panicked == 0)) {
+	env_panic(env, code, msg);
     }
 }
 
@@ -2319,8 +2353,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags, NULL, NULL);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
-            txn->mgrp->i->is_panicked = r_child;
-            txn->mgrp->i->panic_string = toku_strdup("Recursive child commit failed during parent commit.\n");
+	    env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
@@ -2354,8 +2387,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
 				poll, poll_extra);
 
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
-        txn->mgrp->i->is_panicked = r;
-        txn->mgrp->i->panic_string = toku_strdup("Error during commit.\n");
+	env_panic(txn->mgrp, r, "Error during commit.\n");
     }
     //If panicked, we're done.
     HANDLE_PANICKED_ENV(txn->mgrp);
@@ -2408,8 +2440,7 @@ toku_txn_abort(DB_TXN * txn,
         //commit of child sets the child pointer to NULL
         int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC, NULL, NULL);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
-            txn->mgrp->i->is_panicked = r_child;
-            txn->mgrp->i->panic_string = toku_strdup("Recursive child commit failed during parent abort.\n");
+	    env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent abort.\n");
         }
         //In a panicked env, the child may not be removed from the list.
         HANDLE_PANICKED_ENV(txn->mgrp);
@@ -2428,8 +2459,7 @@ toku_txn_abort(DB_TXN * txn,
     //int r = toku_logger_abort(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL);
     int r = toku_txn_abort_txn(db_txn_struct_i(txn)->tokutxn, ydb_yield, NULL, poll, poll_extra);
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
-        txn->mgrp->i->is_panicked = r;
-        txn->mgrp->i->panic_string = toku_strdup("Error during abort.\n");
+	env_panic(txn->mgrp, r, "Error during abort.\n");
     }
     HANDLE_PANICKED_ENV(txn->mgrp);
     assert(r==0);
@@ -2671,39 +2701,33 @@ static void env_note_zombie_db_closed(DB_ENV *env, DB *db);
 
 static int
 db_close_before_brt(DB *db, u_int32_t UU(flags)) {
+    int r;
+    char *error_string = NULL;
+    
     if (db_opened(db) && db->i->dname) {
         // internal (non-user) dictionary has no dname
         env_note_zombie_db_closed(db->dbenv, db);  // tell env that this db is no longer a zombie (it is completely closed)
     }
-    char *error_string = 0;
-    int r1 = toku_close_brt(db->i->brt, &error_string);
-    if (r1) {
-	db->dbenv->i->is_panicked = r1; // Panicking the whole environment may be overkill, but I'm not sure what else to do.
-	db->dbenv->i->panic_string = error_string;
-	if (error_string) {
-	    toku_ydb_do_error(db->dbenv, r1, "%s\n", error_string);
-	} else {
-	    toku_ydb_do_error(db->dbenv, r1, "Closing file\n");
+    r = toku_close_brt(db->i->brt, &error_string);
+    if (r) {
+	if (!error_string)
+	    error_string = "Closing file\n";
+	// Panicking the whole environment may be overkill, but I'm not sure what else to do.
+	env_panic(db->dbenv, r, error_string);
+	toku_ydb_do_error(db->dbenv, r, "%s", error_string);
+    }
+    else {
+	if (db->i->lt) {
+	    toku_lt_remove_db_ref(db->i->lt, db);
 	}
-	error_string=0;
+	// printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
+	toku_sdbt_cleanup(&db->i->skey);
+	toku_sdbt_cleanup(&db->i->sval);
+	if (db->i->dname) toku_free(db->i->dname);
+	toku_free(db->i);
+	toku_free(db);
     }
-    assert(error_string==0);
-    int r2 = 0;
-    if (db->i->lt) {
-        toku_lt_remove_db_ref(db->i->lt, db);
-    }
-    // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
-    // Even if panicked, let's close as much as we can.
-    int is_panicked = toku_env_is_panicked(db->dbenv); 
-    toku_sdbt_cleanup(&db->i->skey);
-    toku_sdbt_cleanup(&db->i->sval);
-    if (db->i->dname) toku_free(db->i->dname);
-    toku_free(db->i);
-    toku_free(db);
-    if (r1) return r1;
-    if (r2) return r2;
-    if (is_panicked) return EINVAL;
-    return 0;
+    return r;
 }
 
 // return 0 if v and dbv refer to same db (including same dname)
@@ -4244,12 +4268,14 @@ toku_db_lt_panic(DB* db, int r) {
     assert(r!=0);
     assert(db && db->i && db->dbenv && db->dbenv->i);
     DB_ENV* env = db->dbenv;
-    env->i->is_panicked = r;
+    char * panic_string;
 
-    if (r < 0) env->i->panic_string = toku_strdup(toku_lt_strerror((TOKU_LT_ERROR)r));
-    else       env->i->panic_string = toku_strdup("Error in locktree.\n");
+    if (r < 0) panic_string = toku_lt_strerror((TOKU_LT_ERROR)r);
+    else       panic_string = "Error in locktree.\n";
 
-    return toku_ydb_do_error(env, r, "%s", env->i->panic_string);
+    env_panic(env, r, panic_string);
+
+    return toku_ydb_do_error(env, r, "%s", panic_string);
 }
 
 static int 
@@ -4279,14 +4305,6 @@ toku_db_get_compare_fun(DB* db) {
     return db->i->brt->compare_fun;
 }
 
-/***** TODO 2216 delete this 
-static int 
-toku_db_fd(DB *db, int *fdp) {
-    HANDLE_PANICKED_DB(db);
-    if (!db_opened(db)) return EINVAL;
-    return toku_brt_get_fd(db->i->brt, fdp);
-}
-*******/
 
 static int
 db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
@@ -4466,11 +4484,11 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         // close txn
         if (r == 0) {  // commit
             r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
-            assert(r==0);  // TODO panic
+            invariant(r==0);  // TODO panic
         }
         else {         // abort
             int r2 = toku_txn_abort(child, NULL, NULL);
-            assert(r2==0);  // TODO panic
+            invariant(r2==0);  // TODO panic
         }
     }
 
@@ -5059,11 +5077,11 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
 	// close txn
 	if (r == 0) {  // commit
 	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
-	    assert(r==0);  // TODO panic
+	    invariant(r==0);  // TODO panic
 	}
 	else {         // abort
 	    int r2 = toku_txn_abort(child, NULL, NULL);
-	    assert(r2==0);  // TODO panic
+	    invariant(r2==0);  // TODO panic
 	}
     }
 
@@ -5180,11 +5198,11 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
 	// close txn
 	if (r == 0) {  // commit
 	    r = toku_txn_commit(child, DB_TXN_NOSYNC, NULL, NULL);
-	    assert(r==0);  // TODO panic
+	    invariant(r==0);  // TODO panic
 	}
 	else {         // abort
 	    int r2 = toku_txn_abort(child, NULL, NULL);
-	    assert(r2==0);  // TODO panic
+	    invariant(r2==0);  // TODO panic
 	}
     }
 
