@@ -35,14 +35,12 @@
 # Reset master
 connection slave;
 --source include/stop_slave.inc 
---source include/wait_for_slave_to_stop.inc
 
 connection master;
 RESET MASTER;
 
 connection slave;
 --source include/start_slave.inc
---source include/wait_for_slave_to_start.inc
 
 connection master;
 call mtr.add_suppression("Attempting backtrace");
@@ -129,7 +127,6 @@ SELECT COUNT(*) FROM t1;
 connection master;
 DROP TABLE t1;
 sync_slave_with_master;
-
 -- source include/stop_slave.inc
 
 connection master;

@@ -1,3 +1,4 @@
+source include/not_windows.inc;
 source include/master-slave.inc;
 
 #
@@ -113,91 +114,42 @@ sync_slave_with_master;
 --echo # I/O thread stops immediately.
 
 --source include/rpl_reset.inc
---echo [ on master ]
 connection master;
 
-let $MASTER_DATADIR= `SELECT @@DATADIR`;
-
 call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
+let $MASTER_DATADIR= `SELECT @@DATADIR`;
 CREATE TABLE t1(c1 int);
 DROP TABLE t1;
 
-FLUSH LOGS;
 FLUSH LOGS;
 
 CREATE TABLE t2(c1 int);
 DROP TABLE t2;
 sync_slave_with_master;
 
---echo [ on slave ]
 source include/stop_slave.inc;
 
---echo [ on master ]
 connection master;
---echo # Remove master-bin.000001 and master-bin.000002 from index file.
-PURGE MASTER LOGS TO 'master-bin.000003';
+# This operation will result in error EE_FILENOTFOUND which happens
+# when slave IO thread is connecting to master.
+move_file $MASTER_DATADIR/master-bin.000001 $MASTER_DATADIR/master-bin.bak;
 
---echo # Re-insert master-bin.000002 into index file manually.
-if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
-{
-append_file $MASTER_DATADIR/master-bin.index;
-./master-bin.000002
-EOF
-sleep 0.00000001;
-}
-if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
-{
-append_file $MASTER_DATADIR/master-bin.index;
-.\master-bin.000002
-EOF
-sleep 0.00000001;
-}
---echo # PURGE is used to update IO_CACHE of index file.  After this statement,
---echo # master knows that master-bin.000002 is in index file.
-PURGE MASTER LOGS TO 'master-bin.000002';
-
---echo [ on slave ]
 connection slave;
-CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
+CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
 START SLAVE IO_THREAD;
-
---echo # Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG and the
---echo # specific information are sent to slave.
+# Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG and the
+# specific information are sent to slave.
 let $slave_io_errno= 1236;
-let $show_slave_io_error= 1;
 source include/wait_for_slave_io_error.inc;
 
-CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000003';
+connection master;
+# This operation will result in error EE_FILENOTFOUND which happens
+# when slave IO thread is connecting to master.
+move_file $MASTER_DATADIR/master-bin.bak $MASTER_DATADIR/master-bin.000001;
+
+connection slave;
+CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
 source include/start_slave.inc;
 
-
---echo [ on master ]
-connection master;
---echo # Restore the correct index file.
-let $file= $MASTER_DATADIR/master-bin.index;
-source include/truncate_file.inc;
-if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64', 'Windows')`)
-{
-append_file $MASTER_DATADIR/master-bin.index;
-./master-bin.000003
-EOF
-sleep 0.00000001;
-}
-if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
-{
-append_file $MASTER_DATADIR/master-bin.index;
-.\master-bin.000003
-EOF
-sleep 0.00000001;
-}
-FLUSH LOGS;
-PURGE MASTER LOGS TO 'master-bin.000004';
-
-CREATE TABLE t1(c1 INT);
-sync_slave_with_master;
---echo [ on slave ]
-SELECT * FROM t1;
-
-connection master;
-DROP TABLE t1;
 --source include/rpl_end.inc
+
