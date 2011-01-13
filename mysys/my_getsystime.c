@@ -25,13 +25,25 @@
 #include "mysys_priv.h"
 #include "my_static.h"
 
+/**
+  Get high-resolution time.
+
+  @remark For windows platforms we need the frequency value of
+          the CPU. This is initialized in my_init.c through
+          QueryPerformanceFrequency(). If the Windows platform
+          doesn't support QueryPerformanceFrequency(), zero is
+          returned.
+
+  @retval current high-resolution time.
+*/
+
 ulonglong my_getsystime()
 {
 #ifdef HAVE_CLOCK_GETTIME
   struct timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
-#elif defined(__WIN__)
+#elif defined(_WIN32)
   LARGE_INTEGER t_cnt;
   if (query_performance_frequency)
   {
@@ -50,22 +62,17 @@ ulonglong my_getsystime()
 }
 
 
-/*
-  Return current time
+/**
+  Return current time.
 
-  SYNOPSIS
-    my_time()
-    flags	If MY_WME is set, write error if time call fails
+  @param  flags   If MY_WME is set, write error if time call fails.
 
+  @retval current time.
 */
 
-time_t my_time(myf flags __attribute__((unused)))
+time_t my_time(myf flags)
 {
   time_t t;
-#ifdef HAVE_GETHRTIME
-  (void) my_micro_time_and_time(&t);
-  return t;
-#else
   /* The following loop is here beacuse time() may fail on some systems */
   while ((t= time(0)) == (time_t) -1)
   {
@@ -73,39 +80,26 @@ time_t my_time(myf flags __attribute__((unused)))
       fprintf(stderr, "%s: Warning: time() call failed\n", my_progname);
   }
   return t;
-#endif
 }
 
 
-/*
-  Return time in micro seconds
+/**
+  Return time in microseconds.
 
-  SYNOPSIS
-    my_micro_time()
+  @remark This function is to be used to measure performance in
+          micro seconds. As it's not defined whats the start time
+          for the clock, this function us only useful to measure
+          time between two moments.
 
-  NOTES
-    This function is to be used to measure performance in micro seconds.
-    As it's not defined whats the start time for the clock, this function
-    us only useful to measure time between two moments.
-
-    For windows platforms we need the frequency value of the CUP. This is
-    initalized in my_init.c through QueryPerformanceFrequency().
-
-    If Windows platform doesn't support QueryPerformanceFrequency() we will
-    obtain the time via GetClockCount, which only supports milliseconds.
-
-  RETURN
-    Value in microseconds from some undefined point in time
+  @retval Value in microseconds from some undefined point in time.
 */
 
 ulonglong my_micro_time()
 {
-#if defined(__WIN__)
+#ifdef _WIN32
   ulonglong newtime;
   GetSystemTimeAsFileTime((FILETIME*)&newtime);
   return (newtime/10);
-#elif defined(HAVE_GETHRTIME)
-  return gethrtime()/1000;
 #else
   ulonglong newtime;
   struct timeval t;
@@ -116,69 +110,37 @@ ulonglong my_micro_time()
   {}
   newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
   return newtime;
-#endif  /* defined(__WIN__) */
+#endif
 }
 
 
-/*
+/**
   Return time in seconds and timer in microseconds (not different start!)
 
-  SYNOPSIS
-    my_micro_time_and_time()
-    time_arg		Will be set to seconds since epoch (00:00:00 UTC,
-                        January 1, 1970)
+  @param  time_arg  Will be set to seconds since epoch.
 
-  NOTES
-    This function is to be useful when we need both the time and microtime.
-    For example in MySQL this is used to get the query time start of a query
-    and to measure the time of a query (for the slow query log)
+  @remark This function is to be useful when we need both the time and
+          microtime. For example in MySQL this is used to get the query
+          time start of a query and to measure the time of a query (for
+          the slow query log)
 
-  IMPLEMENTATION
-    Value of time is as in time() call.
-    Value of microtime is same as my_micro_time(), which may be totally
-    unrealated to time()
+  @remark The time source is the same as for my_micro_time(), meaning
+          that time values returned by both functions can be intermixed
+          in meaningful ways (i.e. for comparison purposes).
 
-  RETURN
-    Value in microseconds from some undefined point in time
+  @retval Value in microseconds from some undefined point in time.
 */
-
-#define DELTA_FOR_SECONDS 500000000LL  /* Half a second */
 
 /* Difference between GetSystemTimeAsFileTime() and now() */
 #define OFFSET_TO_EPOCH 116444736000000000ULL
 
 ulonglong my_micro_time_and_time(time_t *time_arg)
 {
-#if defined(__WIN__)
+#ifdef _WIN32
   ulonglong newtime;
   GetSystemTimeAsFileTime((FILETIME*)&newtime);
   *time_arg= (time_t) ((newtime - OFFSET_TO_EPOCH) / 10000000);
   return (newtime/10);
-#elif defined(HAVE_GETHRTIME)
-  /*
-    Solaris has a very slow time() call. We optimize this by using the very
-    fast gethrtime() call and only calling time() every 1/2 second
-  */
-  static hrtime_t prev_gethrtime= 0;
-  static time_t cur_time= 0;
-  hrtime_t cur_gethrtime;
-
-  mysql_mutex_lock(&THR_LOCK_time);
-  cur_gethrtime= gethrtime();
-  /*
-    Due to bugs in the Solaris (x86) implementation of gethrtime(),
-    the time returned by it might not be monotonic. Don't use the
-    cached time(2) value if this is a case.
-  */
-  if ((prev_gethrtime > cur_gethrtime) ||
-      ((cur_gethrtime - prev_gethrtime) > DELTA_FOR_SECONDS))
-  {
-    cur_time= time(0);
-    prev_gethrtime= cur_gethrtime;
-  }
-  *time_arg= cur_time;
-  mysql_mutex_unlock(&THR_LOCK_time);
-  return cur_gethrtime/1000;
 #else
   ulonglong newtime;
   struct timeval t;
@@ -190,37 +152,31 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   *time_arg= t.tv_sec;
   newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
   return newtime;
-#endif  /* defined(__WIN__) */
+#endif
 }
 
 
-/*
-  Returns current time
+/**
+  Returns current time.
 
-  SYNOPSIS
-    my_time_possible_from_micro()
-    microtime		Value from very recent my_micro_time()
+  @param  microtime Value from very recent my_micro_time().
 
-  NOTES
-    This function returns the current time. The microtime argument is only used
-    if my_micro_time() uses a function that can safely be converted to the
-    current time.
+  @remark This function returns the current time. The microtime argument
+          is only used if my_micro_time() uses a function that can safely
+          be converted to the current time.
 
-  RETURN
-    current time
+  @retval current time.
 */
 
 time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
 {
-#if defined(__WIN__)
+#ifdef _WIN32
   time_t t;
   while ((t= time(0)) == (time_t) -1)
   {}
   return t;
-#elif defined(HAVE_GETHRTIME)
-  return my_time(0);                            /* Cached time */
 #else
   return (time_t) (microtime / 1000000);
-#endif  /* defined(__WIN__) */
+#endif
 }
 
