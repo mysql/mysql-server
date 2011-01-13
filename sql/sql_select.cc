@@ -15045,6 +15045,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
                               bool retain_ref_cond)
 
 {
+  if (used_table && !(cond->used_tables() & used_table))
+    return (COND*) 0;				// Already checked
   if (cond->type() == Item::COND_ITEM)
   {
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
