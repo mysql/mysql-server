@@ -76,7 +76,8 @@ static void
 dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     struct brt_header *h;
     int r;
-    r = toku_deserialize_brtheader_from (f, &h); assert(r==0);
+    r = toku_deserialize_brtheader_from (f, ZERO_LSN, &h);
+    assert(r==0);
     h->cf = cf;
     printf("brtheader:\n");
     printf(" layout_version=%d\n", h->layout_version);
