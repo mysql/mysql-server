@@ -1204,7 +1204,7 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  theImpl->forceSend(forceSend);
+  theImpl->do_forceSend(forceSend);
   return;
 }//Ndb::sendPrepTrans()
 
