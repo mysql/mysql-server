@@ -2700,5 +2700,31 @@ SET SESSION join_cache_level = DEFAULT;
 
 DROP TABLE t1,t2,t3,t4,t5;
 
+--echo #
+--echo # Backported testcase for: Bug #45092: join buffer contains two blob columns one of which is
+--echo #   used in the key employed to access the joined table
+--echo #
+
+CREATE TABLE t1 (c1 int, c2 int, key (c2));
+INSERT INTO t1 VALUES (1,1);
+INSERT INTO t1 VALUES (2,2);
+
+CREATE TABLE t2 (c1 text, c2 text);
+INSERT INTO t2 VALUES('tt', 'uu');
+INSERT INTO t2 VALUES('zzzz', 'xxxxxxxxx');
+
+--disable_result_log
+ANALYZE TABLE t1,t2;
+--enable_result_log
+
+set join_cache_level=6;
+
+SELECT t1.*, t2.*, LENGTH(t2.c1), LENGTH(t2.c2) FROM t1,t2
+  WHERE t1.c2=LENGTH(t2.c2) and t1.c1=LENGTH(t2.c1);
+
+set join_cache_level=default;
+
+DROP TABLE t1,t2;
+
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
