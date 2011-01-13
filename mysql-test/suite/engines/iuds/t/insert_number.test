@@ -7812,9 +7812,6 @@ SELECT * FROM t2 ORDER BY c1,c6 LIMIT 2;
 SELECT * FROM t2 ORDER BY c1,c6 DESC LIMIT 2;
 
 ## ref type access
-
-# Bug#52283 : Remove the following --disable_warnings
-#             command when the bug is fixed
 --disable_warnings
 SELECT * FROM t2 WHERE c1 = 18446744073709551616 ORDER BY c1,c6;
 SELECT * FROM t2 WHERE c1 = 18446744073709551616 ORDER BY c1,c6 LIMIT 2;

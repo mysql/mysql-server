@@ -468,3 +468,34 @@ DROP FUNCTION myfunc_double;
 DROP TABLE t1;
 #
 End of 5.1 tests.
+#
+# Bug#53322 deadlock with FLUSH TABLES WITH READ LOCK and DROP FUNCTION
+#
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+# Connection con1
+FLUSH TABLES WITH READ LOCK;
+# Connection default
+# Sending:
+DROP FUNCTION metaphon;
+# Connection con1
+# Wait until DROP FUNCTION is blocked by GRL
+SELECT metaphon("foo");
+metaphon("foo")
+F
+UNLOCK TABLES;
+# Connection default
+# Reaping: DROP FUNCTION metaphon
+# Connection con1
+FLUSH TABLES WITH READ LOCK;
+# Connection default
+# Sending:
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+# Connection con1
+# Wait until CREATE FUNCTION is blocked by GRL
+SELECT reverse_lookup("127.0.0.1");
+UNLOCK TABLES;
+# Connection default
+# Reaping: CREATE FUNCTION metaphon ...
+DROP FUNCTION metaphon;
+DROP FUNCTION reverse_lookup;
