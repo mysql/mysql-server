@@ -41,7 +41,7 @@
 # endif
 #endif
 
-#if defined(THREAD) && defined(HAVE_READDIR_R)
+#if defined(HAVE_READDIR_R)
 #define READDIR(A,B,C) ((errno=readdir_r(A,B,&C)) != 0 || !C)
 #else
 #define READDIR(A,B,C) (!(C=readdir(A)))
@@ -97,13 +97,12 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DIR		*dirp;
   struct dirent *dp;
   char		tmp_path[FN_REFLEN+1],*tmp_file;
-#ifdef THREAD
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
-#endif
+
   DBUG_ENTER("my_dir");
   DBUG_PRINT("my",("path: '%s' MyFlags: %d",path,MyFlags));
 
-#if defined(THREAD) && !defined(HAVE_READDIR_R)
+#if !defined(HAVE_READDIR_R)
   mysql_mutex_lock(&THR_LOCK_open);
 #endif
 
@@ -135,11 +134,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 
   tmp_file=strend(tmp_path);
 
-#ifdef THREAD
   dp= (struct dirent*) dirent_tmp;
-#else
-  dp=0;
-#endif
   
   while (!(READDIR(dirp,(struct dirent*) dirent_tmp,dp)))
   {
@@ -166,7 +161,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   }
 
   (void) closedir(dirp);
-#if defined(THREAD) && !defined(HAVE_READDIR_R)
+#if !defined(HAVE_READDIR_R)
   mysql_mutex_unlock(&THR_LOCK_open);
 #endif
   result->dir_entry= (FILEINFO *)dir_entries_storage->buffer;
@@ -178,7 +173,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   DBUG_RETURN(result);
 
  error:
-#if defined(THREAD) && !defined(HAVE_READDIR_R)
+#if !defined(HAVE_READDIR_R)
   mysql_mutex_unlock(&THR_LOCK_open);
 #endif
   my_errno=errno;
