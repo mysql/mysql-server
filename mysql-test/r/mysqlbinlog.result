@@ -222,7 +222,6 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1108844556/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -230,6 +229,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
+use test/*!*/;
 SET TIMESTAMP=1108844555/*!*/;
 insert t1 values (1)
 /*!*/;
@@ -241,7 +241,6 @@ Warning: The option '--position' is deprecated and will be removed in a future r
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1108844556/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -249,6 +248,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
+use test/*!*/;
 SET TIMESTAMP=1108844555/*!*/;
 insert t1 values (1)
 /*!*/;
@@ -584,7 +584,6 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 SavePoint mixed_cases
 /*!*/;
@@ -595,11 +594,9 @@ INSERT INTO db1.t2 VALUES("in savepoint mixed_cases")
 SET TIMESTAMP=1266652094/*!*/;
 INSERT INTO db1.t1 VALUES(40)
 /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 ROLLBACK TO mixed_cases
 /*!*/;
-use db1/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 INSERT INTO db1.t2 VALUES("after rollback to")
 /*!*/;
@@ -627,7 +624,6 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 SavePoint mixed_cases
 /*!*/;
