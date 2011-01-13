@@ -159,7 +159,6 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-use new_test1/*!*/;
 #010909  4:46:40 server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
@@ -354,7 +353,6 @@ SET TIMESTAMP=1000000000/*!*/;
 COMMIT
 /*!*/;
 # at #
-use new_test1/*!*/;
 #010909  4:46:40 server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN

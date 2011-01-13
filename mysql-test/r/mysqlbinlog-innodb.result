@@ -1,0 +1,85 @@
+SET TIMESTAMP=1000000000;
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb;
+CREATE DATABASE test2;
+RESET MASTER;
+USE test2;
+BEGIN;
+USE test;
+INSERT INTO t1 VALUES (1);
+USE test2;
+COMMIT;
+BEGIN;
+USE test;
+INSERT INTO t1 VALUES (2);
+USE test2;
+COMMIT;
+USE test;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+FLUSH LOGS;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES (1)
+/*!*/;
+COMMIT/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES (2)
+/*!*/;
+COMMIT/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use foo/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES (1)
+/*!*/;
+COMMIT/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+INSERT INTO t1 VALUES (2)
+/*!*/;
+COMMIT/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+DROP DATABASE test2;
+DROP TABLE t1;
