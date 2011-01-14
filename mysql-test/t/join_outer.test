@@ -1063,4 +1063,48 @@ FROM BB table1 RIGHT JOIN BB table2
 
 DROP TABLE BB;
 
+--echo #
+--echo # Bug#58626 Incorrect result for WHERE <column> IN (<subquery>) IS UNKNOWN 
+--echo #
+
+CREATE TABLE t1 (I INT NOT NULL);
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (I INT NOT NULL);
+INSERT INTO t2 VALUES (3);
+CREATE TABLE t3 (PK1 INT, PK2 INT, PRIMARY KEY(PK1,PK2));
+INSERT INTO t3 VALUES (1,1),(2,2),(3,3);
+
+##'IS UNKNOWN' should not return any rows as subquery returns an empty set
+SELECT * FROM
+ t1 LEFT JOIN t2 ON t2.i = t1.i
+ WHERE t2.i IN 
+ (
+   SELECT STRAIGHT_JOIN t3.pk1 FROM t3 JOIN t3 as t4
+    ON t4.pk1=t3.pk1
+    WHERE t3.pk2 = t2.i
+ )
+ IS UNKNOWN; 
+
+SELECT * FROM
+ t1 LEFT JOIN t2 ON t2.i = t1.i
+ WHERE t2.i IN 
+ (
+   SELECT t3.pk1 FROM t3 LEFT JOIN t3 as t4
+    ON t4.pk1=t3.pk1
+    WHERE t3.pk2 = t2.i
+ )
+ IS UNKNOWN; 
+
+SELECT * FROM
+ t1 LEFT JOIN t2 ON t2.i = t1.i
+ WHERE t2.i IN 
+ (
+   SELECT t3.pk1 FROM t3 JOIN t3 as t4
+    ON t4.pk1=t3.pk1
+    WHERE t3.pk2 = t2.i
+ )
+ IS UNKNOWN; 
+
+DROP TABLE t1,t2,t3;
+
 --echo End of 5.1 tests
