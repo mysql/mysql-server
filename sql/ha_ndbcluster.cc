@@ -267,7 +267,7 @@ static int ndbcluster_alter_tablespace(handlerton *hton,
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
-                                       COND *cond);
+                                       Item *cond);
 
 #if MYSQL_VERSION_ID >= 50501
 /**
@@ -283,7 +283,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
  */
 static int
 ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
-                         COND *cond, enum enum_schema_tables schema_table_idx)
+                         Item *cond, enum enum_schema_tables schema_table_idx)
 {
   if (schema_table_idx == SCH_FILES)
     return  ndbcluster_fill_files_table(hton, thd, tables, cond);
@@ -12758,8 +12758,8 @@ ndb_util_thread_fail:
          the scan for evaluation (and thus not saved on stack)
 */
 const 
-COND* 
-ha_ndbcluster::cond_push(const COND *cond) 
+Item* 
+ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("cond_push");
   if (!m_cond) 
@@ -12769,7 +12769,7 @@ ha_ndbcluster::cond_push(const COND *cond)
     my_errno= HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(NULL);
   }
-  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname, QT_ORDINARY););
+  DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
 
@@ -14295,7 +14295,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
 static int ndbcluster_fill_files_table(handlerton *hton, 
                                        THD *thd, 
                                        TABLE_LIST *tables,
-                                       COND *cond)
+                                       Item *cond)
 {
   TABLE* table= tables->table;
   Ndb *ndb= check_ndb_in_thd(thd);
