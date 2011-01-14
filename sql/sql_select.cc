@@ -11788,7 +11788,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
+#ifndef MCP_BUG58422
+      if (!table->pos_in_table_list->outer_join || error > 0)
+#else
       if (!table->maybe_null || error > 0)
+#endif
 	DBUG_RETURN(error);
     }
   }
@@ -11809,7 +11813,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
+#ifndef MCP_BUG58422
+      if (!table->pos_in_table_list->outer_join || error > 0)
+#else
       if (!table->maybe_null || error > 0)
+#endif
 	DBUG_RETURN(error);
     }
   }

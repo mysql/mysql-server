@@ -4797,4 +4797,68 @@ SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 1
 1
 DROP TABLE t1;
+#
+# Bug #58422: Incorrect result when OUTER JOIN'ing 
+# with an empty table
+#
+CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t1(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
+EXPLAIN
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON TRUE)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON TRUE)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+pk	i	pk	i	pk	i
+EXPLAIN
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 CROSS JOIN t_empty)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 CROSS JOIN t_empty)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+pk	i	pk	i	pk	i
+EXPLAIN
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON t_empty.i=t2.i)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT *
+FROM 
+t1
+LEFT OUTER JOIN
+(t2 INNER JOIN t_empty ON t_empty.i=t2.i)
+ON t1.pk=t2.pk
+WHERE t2.pk <> 2;
+pk	i	pk	i	pk	i
+DROP TABLE t1,t2,t_empty;
 End of 5.1 tests
