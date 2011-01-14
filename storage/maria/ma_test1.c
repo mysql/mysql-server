@@ -409,6 +409,10 @@ static int run_test(const char *filename)
   if (!silent)
     printf("- Reading rows with key\n");
   record[1]= 0;                                 /* For nicer printf */
+
+  if (record_type == NO_RECORD)
+    maria_extra(file, HA_EXTRA_KEYREAD, 0);
+
   for (i=0 ; i <= 25 ; i++)
   {
     create_key(key,i);
@@ -422,9 +426,15 @@ static int run_test(const char *filename)
 	     (int) key_length,key+offset_to_key,error,my_errno,record+1);
     }
   }
+  if (record_type == NO_RECORD)
+  {
+    maria_extra(file, HA_EXTRA_NO_KEYREAD, 0);
+    goto end;
+  }
 
   if (!silent)
     printf("- Reading rows with position\n");
+
   if (maria_scan_init(file))
   {
     fprintf(stderr, "maria_scan_init failed\n");
@@ -757,6 +767,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"rows-in-block", 'M', "Store rows in block format",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"rows-no-data", 'n', "Don't store any data, only keys",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"row-pointer-size", 'R', "Undocumented", (uchar**) &rec_pointer_size,
    (uchar**) &rec_pointer_size, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's', "Undocumented",
@@ -815,6 +827,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'M':
     record_type= BLOCK_RECORD;
+    break;
+  case 'n':
+    record_type= NO_RECORD;
     break;
   case 'S':
     if (key_field == FIELD_VARCHAR)
@@ -887,6 +902,10 @@ static void get_options(int argc, char *argv[])
     exit(ho_error);
   if (transactional)
     record_type= BLOCK_RECORD;
+  if (record_type == NO_RECORD)
+    skip_update= skip_delete= 1;
+
+
   return;
 } /* get options */
 

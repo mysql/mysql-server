@@ -871,6 +871,18 @@ extern my_bool _ma_update_static_record(MARIA_HA *, MARIA_RECORD_POS,
                                         const uchar *, const uchar *);
 extern my_bool _ma_delete_static_record(MARIA_HA *info, const uchar *record);
 extern my_bool _ma_cmp_static_record(MARIA_HA *info, const uchar *record);
+
+extern my_bool _ma_write_no_record(MARIA_HA *info, const uchar *record);
+extern my_bool _ma_update_no_record(MARIA_HA *info, MARIA_RECORD_POS pos,
+                                    const uchar *oldrec, const uchar *record);
+extern my_bool _ma_delete_no_record(MARIA_HA *info, const uchar *record);
+extern int _ma_read_no_record(MARIA_HA *info, uchar *record,
+                              MARIA_RECORD_POS pos);
+extern int _ma_read_rnd_no_record(MARIA_HA *info, uchar *buf,
+                                  MARIA_RECORD_POS filepos,
+                                  my_bool skip_deleted_blocks);
+my_off_t _ma_no_keypos_to_recpos(MARIA_SHARE *share, my_off_t pos);
+
 extern my_bool _ma_ck_write(MARIA_HA *info, MARIA_KEY *key);
 extern my_bool _ma_enlarge_root(MARIA_HA *info, MARIA_KEY *key,
                                 MARIA_RECORD_POS *root);

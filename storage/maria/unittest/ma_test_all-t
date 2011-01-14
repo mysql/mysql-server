@@ -250,6 +250,7 @@ sub run_check_tests
                       ["-p -B --key_length=480","-sm"],
                       ["--checksum --unique","-se"],
                       ["--unique","-se"],
+                      ["--rows-no-data", "-s"],
                       ["--key_multiple -N -S","-sm"],
                       ["--key_multiple -a -p --key_length=480","-sm"],
                       ["--key_multiple -a -B --key_length=480","-sm"],

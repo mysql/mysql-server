@@ -1076,6 +1076,20 @@ void _ma_setup_functions(register MARIA_SHARE *share)
     else
       share->calc_checksum= _ma_checksum;
     break;
+  case NO_RECORD:
+    share->read_record=      _ma_read_no_record;
+    share->scan=             _ma_read_rnd_no_record;
+    share->delete_record=    _ma_delete_no_record;
+    share->update_record=    _ma_update_no_record;
+    share->write_record=     _ma_write_no_record;
+    share->recpos_to_keypos= _ma_no_keypos_to_recpos;
+    share->keypos_to_recpos= _ma_no_keypos_to_recpos;
+
+    /* Abort if following functions are called */
+    share->compare_record=   0;
+    share->compare_unique=   0;
+    share->calc_checksum= 0;
+    break;
   case BLOCK_RECORD:
     share->once_init= _ma_once_init_block_record;
     share->once_end=  _ma_once_end_block_record;

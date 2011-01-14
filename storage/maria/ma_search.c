@@ -785,6 +785,7 @@ MARIA_RECORD_POS _ma_row_pos_from_key(const MARIA_KEY *key)
   case 4:  pos= (my_off_t) mi_uint4korr(after_key);  break;
   case 3:  pos= (my_off_t) mi_uint3korr(after_key);  break;
   case 2:  pos= (my_off_t) mi_uint2korr(after_key);  break;
+  case 0:                                       /* NO_RECORD */
   default:
     pos=0L;                                     /* Shut compiler up */
   }
@@ -894,6 +895,7 @@ void _ma_dpointer(MARIA_SHARE *share, uchar *buff, my_off_t pos)
   case 4: mi_int4store(buff,pos); break;
   case 3: mi_int3store(buff,pos); break;
   case 2: mi_int2store(buff,(uint) pos); break;
+  case 0: break;                                /* For NO_RECORD */
   default: abort();                             /* Impossible */
   }
 } /* _ma_dpointer */

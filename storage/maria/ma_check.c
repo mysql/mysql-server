@@ -993,10 +993,12 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       /* fall through */
     }
     if ((share->data_file_type != BLOCK_RECORD &&
+         share->data_file_type != NO_RECORD &&
          record >= share->state.state.data_file_length) ||
         (share->data_file_type == BLOCK_RECORD &&
          ma_recordpos_to_page(record) * share->base.min_block_length >=
-         share->state.state.data_file_length))
+         share->state.state.data_file_length) ||
+        (share->data_file_type == NO_RECORD && record != 0))
     {
 #ifndef DBUG_OFF
       char llbuff2[22], llbuff3[22];
@@ -2047,6 +2049,12 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
   case COMPRESSED_RECORD:
     error= check_compressed_record(param, info, extend, record);
     break;
+  case NO_RECORD:
+    param->records= share->state.state.records;
+    param->record_checksum= 0;
+    extend= 1;                                  /* No row checksums */
+    /* no data, nothing to do */
+    break;
   } /* switch */
 
   if (error)
@@ -2277,7 +2285,14 @@ static int initialize_variables_for_repair(HA_CHECK *param,
 {
   MARIA_SHARE *share= info->s;
 
-  /* Ro allow us to restore state and check how state changed */
+  if (share->data_file_type == NO_RECORD)
+  {
+    _ma_check_print_error(param,
+                          "Can't repair tables with record type NO_DATA");
+    return 1;
+  }
+
+  /* Allow us to restore state and check how state changed */
   memcpy(org_share, share, sizeof(*share));
 
   /* Repair code relies on share->state.state so we have to update it here */
@@ -5184,8 +5199,10 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
       }
       DBUG_RETURN(0);
     }
+  case NO_RECORD:
+    DBUG_RETURN(1);                             /* Impossible */
   }
-  DBUG_RETURN(1);		/* Impossible */
+  DBUG_RETURN(1);                               /* Impossible */
 }
 
 
@@ -5305,6 +5322,8 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param)
       sort_param->filepos+=reclength+length;
       share->state.split++;
       break;
+    case NO_RECORD:
+      DBUG_RETURN(1);                           /* Impossible */
     }
   }
   if (sort_param->master)

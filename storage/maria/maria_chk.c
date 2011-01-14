@@ -68,7 +68,7 @@ static const char *field_pack[]=
 
 static const char *record_formats[]=
 {
-  "Fixed length", "Packed", "Compressed", "Block", "?"
+  "Fixed length", "Packed", "Compressed", "Block", "No data", "?", "?"
 };
 
 static const char *bitmap_description[]=

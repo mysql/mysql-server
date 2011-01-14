@@ -12550,9 +12550,10 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
     create_info.data_file_length= ~(ulonglong) 0;
 
   if ((error= maria_create(share->table_name.str,
-                           share->reclength < 64 &&
-                           !share->blob_fields ? STATIC_RECORD :
-                           BLOCK_RECORD,
+                           table->no_rows ? NO_RECORD :
+                           (share->reclength < 64 &&
+                            !share->blob_fields ? STATIC_RECORD :
+                            BLOCK_RECORD),
                            share->keys, &keydef,
                            (uint) (*recinfo-start_recinfo),
                            start_recinfo,

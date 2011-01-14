@@ -124,7 +124,7 @@ libaria_la_SOURCES =	ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c \
 			ma_search.c ma_page.c ma_key_recover.c ma_key.c \
 			ma_locking.c ma_state.c \
 			ma_rrnd.c ma_scan.c ma_cache.c \
-			ma_statrec.c ma_packrec.c ma_dynrec.c \
+			ma_statrec.c ma_packrec.c ma_dynrec.c ma_norec.c \
 			ma_blockrec.c ma_bitmap.c \
 			ma_update.c ma_write.c ma_unique.c \
 			ma_delete.c \

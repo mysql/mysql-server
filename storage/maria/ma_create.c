@@ -250,10 +250,16 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     datafile_type= BLOCK_RECORD;
   }
 
+  if (datafile_type == NO_RECORD && uniques)
+  {
+    /* Can't do unique without data, revert to block records */
+    datafile_type= BLOCK_RECORD;
+  }
+
   if (datafile_type == DYNAMIC_RECORD)
     options|= HA_OPTION_PACK_RECORD;	/* Must use packed records */
 
-  if (datafile_type == STATIC_RECORD)
+  if (datafile_type == STATIC_RECORD || datafile_type == NO_RECORD)
   {
     /* We can't use checksum with static length rows */
     flags&= ~HA_CREATE_CHECKSUM;
@@ -366,7 +372,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                       }
   else
   {
-    if (datafile_type != STATIC_RECORD)
+    if (datafile_type == NO_RECORD)
+      pointer= 0;
+    else if (datafile_type != STATIC_RECORD)
       pointer= maria_get_pointer_length(ci->data_file_length,
                                         maria_data_pointer_size);
     else
