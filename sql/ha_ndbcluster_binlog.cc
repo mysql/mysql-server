@@ -47,7 +47,6 @@ extern my_bool opt_ndb_log_updated_only;
 extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
-extern ulong opt_server_id_mask;
 
 bool ndb_log_empty_epochs(void);
 
@@ -2277,8 +2276,7 @@ int ndbcluster_log_schema_op(THD *thd,
         */
         DBUG_PRINT("info", ("Replicated schema event with original server id %d",
                             thd->server_id));
-        assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
-        anyValue = thd->unmasked_server_id;
+        anyValue = thd_unmasked_server_id(thd);
       }
 
 #ifndef DBUG_OFF
@@ -7004,5 +7002,12 @@ void ndbcluster_anyvalue_set_serverid(Uint32& anyValue, Uint32 serverId)
   anyValue &= ~(opt_server_id_mask);
   anyValue |= (serverId & opt_server_id_mask); 
 }
+
+#ifdef NDB_WITHOUT_SERVER_ID_BITS
+
+/* No --server-id-bits=<bits> -> implement constant opt_server_id_mask */
+ulong opt_server_id_mask = ~0;
+
+#endif
 
 #endif
