@@ -401,3 +401,14 @@ SELECT * FROM t2;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Testcase backport: Bug#43249
+--echo #
+CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NULL, c3 DATE, PRIMARY KEY(c1), UNIQUE INDEX(c2)) engine=innodb;
+INSERT INTO t1 VALUES('8:29:45',NULL,'2009-02-01');
+# first time, good results:
+SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
+# second time, bad results:
+SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
+drop table `t1`;
+
