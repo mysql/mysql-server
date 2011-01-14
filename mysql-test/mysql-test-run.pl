@@ -2145,7 +2145,10 @@ sub environment_setup {
     mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy");
   # Since mysqltest interprets the real path as "false" in an if,
   # use 1 ("true") to indicate "not exists" so it can be tested for
-  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
+  if ($mysqlhotcopy)
+  {
+    $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
+  }
 
   # ----------------------------------------------------
   # perror
