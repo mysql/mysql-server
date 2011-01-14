@@ -244,7 +244,8 @@ Lgman::execCONTINUEB(Signal* signal){
     jam();
     Ptr<Logfile_group> ptr;
     m_logfile_group_pool.getPtr(ptr, ptrI);
-    if (ptr.p->m_state & Logfile_group::LG_THREAD_MASK)
+    if ((ptr.p->m_state & Logfile_group::LG_THREAD_MASK) ||
+        ptr.p->m_outstanding_fs > 0)
     {
       jam();
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 
