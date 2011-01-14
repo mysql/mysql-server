@@ -2542,7 +2542,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
-  index_init(table->s->next_number_index, 1);
+  ha_index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error=index_last(table->record[1]);
@@ -2576,7 +2576,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   else
     nr= ((ulonglong) table->next_number_field->
          val_int_offset(table->s->rec_buff_length)+1);
-  index_end();
+  ha_index_end();
   (void) extra(HA_EXTRA_NO_KEYREAD);
   *first_value= nr;
 }
@@ -4361,11 +4361,11 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
   int error, error1;
   LINT_INIT(error1);
 
-  error= index_init(index, 0);
+  error= ha_index_init(index, 0);
   if (!error)
   {
     error= index_read_map(buf, key, keypart_map, find_flag);
-    error1= index_end();
+    error1= ha_index_end();
   }
   return error ?  error : error1;
 }
