@@ -75,7 +75,6 @@ typedef struct st_key {
   uint	key_length;			/* Tot length of key */
   ulong flags;                          /* dupp key and pack flags */
   uint	key_parts;			/* How many key_parts */
-  uint  extra_length;
   uint	usable_key_parts;		/* Should normally be = key_parts */
   uint  block_size;
   uint  name_length;
