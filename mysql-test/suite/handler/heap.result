@@ -772,4 +772,15 @@ HANDLER t1 READ NEXT LIMIT 2;
 ERROR HY000: Record has changed since last read in table 't1'
 HANDLER t1 CLOSE;
 DROP TABLE t1;
-End of 5.1 tests
+create table t1 (f1 integer not null, key (f1)) engine=Memory;
+insert into t1 values (1);
+HANDLER t1 OPEN;
+HANDLER t1 READ f1 NEXT;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+HANDLER t1 READ f1 NEXT;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+HANDLER t1 READ f1 NEXT;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+HANDLER t1 CLOSE;
+DROP TABLE t1;
+End of 5.3 tests

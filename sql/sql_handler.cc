@@ -819,6 +819,7 @@ retry:
                           "table '%s'",
                           error, tables->table_name);
         table->file->print_error(error,MYF(0));
+        table->file->ha_index_or_rnd_end();
         goto err;
       }
       goto ok;

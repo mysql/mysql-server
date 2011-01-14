@@ -70,4 +70,19 @@ HANDLER t1 CLOSE;
 DROP TABLE t1;
 disconnect con1;
 
---echo End of 5.1 tests
+#
+# LP#702786 Two handler read f1 next gives different errors
+#
+create table t1 (f1 integer not null, key (f1)) engine=Memory;
+insert into t1 values (1);
+HANDLER t1 OPEN;
+--error 1031
+HANDLER t1 READ f1 NEXT;
+--error 1031
+HANDLER t1 READ f1 NEXT;
+--error 1031
+HANDLER t1 READ f1 NEXT;
+HANDLER t1 CLOSE;
+DROP TABLE t1;
+
+--echo End of 5.3 tests
