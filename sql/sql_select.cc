@@ -11957,7 +11957,8 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   }
 
-  for (JOIN_TAB *tmp=join->join_tab; tmp != join_tab ; tmp++)
+  for (JOIN_TAB *tmp= join_tab-1;
+       tmp >= join->join_tab && !tmp->cache.buff; tmp--)
   {
     tmp->status=tmp->table->status;
     tmp->table->status=0;
@@ -12015,7 +12016,8 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   reset_cache_write(&join_tab->cache);
   if (error > 0)				// Fatal error
     return NESTED_LOOP_ERROR;                   /* purecov: inspected */
-  for (JOIN_TAB *tmp2=join->join_tab; tmp2 != join_tab ; tmp2++)
+  for (JOIN_TAB *tmp2= join_tab-1;
+       tmp2 >= join->join_tab && !tmp2->cache.buff; tmp2--)
     tmp2->table->status=tmp2->status;
   return NESTED_LOOP_OK;
 }
