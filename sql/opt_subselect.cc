@@ -2741,9 +2741,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     field->set_table_name(&table->alias);
   }
 
-  //param->recinfo=recinfo;
-  //store_record(table,s->default_values);        // Make empty default record
-
   if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
     share->max_rows= ~(ha_rows) 0;
   else

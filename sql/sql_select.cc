@@ -38,12 +38,6 @@
 #include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
-//#if defined(WITH_ARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
-//#include "../storage/maria/ha_maria.h"
-//#define TMP_ENGINE_HTON maria_hton
-//#else
-//#define TMP_ENGINE_HTON myisam_hton
-//#endif
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
@@ -12076,7 +12070,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   }
 
   param->copy_field_end=copy;
-  param->recinfo=recinfo;
+  param->recinfo= recinfo;              	// Pointer to after last field
   store_record(table,s->default_values);        // Make empty default record
 
   if (thd->variables.tmp_table_size == ~ (ulonglong) 0)		// No limit
@@ -12177,7 +12171,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         indexes on blobs with arbitrary length. Such indexes cannot be
         used for lookups.
       */
-      //// psergey-merge: using_unique_constraint=1;
       share->uniques= 1;
     }
     null_pack_length-=hidden_null_pack_length;
