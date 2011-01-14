@@ -416,6 +416,7 @@ class ha_ndbcluster: public handler
   int read_range_next();
   int alter_tablespace(st_alter_tablespace *info);
 
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
   /**
    * Multi range stuff
    */
@@ -426,6 +427,7 @@ class ha_ndbcluster: public handler
   bool null_value_index_search(KEY_MULTI_RANGE *ranges,
 			       KEY_MULTI_RANGE *end_range,
 			       HANDLER_BUFFER *buffer);
+#endif
 
   bool get_error_message(int error, String *buf);
   ha_rows records();

@@ -10682,7 +10682,9 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_NULL_IN_KEY |
     HA_AUTO_PART_KEY |
     HA_NO_PREFIX_CHAR_KEYS |
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
     HA_NEED_READ_RANGE_BUFFER |
+#endif
     HA_CAN_GEOMETRY |
     HA_CAN_BIT_FIELD |
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
@@ -11764,7 +11766,7 @@ int ha_ndbcluster::write_ndb_file(const char *name)
   DBUG_RETURN(error);
 }
 
-
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
 bool 
 ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
 				       KEY_MULTI_RANGE *end_range,
@@ -11794,6 +11796,7 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   }
   DBUG_RETURN(FALSE);
 }
+#endif
 
 void ha_ndbcluster::check_read_before_write_removal()
 {
@@ -11834,7 +11837,7 @@ void ha_ndbcluster::check_read_before_write_removal()
   DBUG_VOID_RETURN;
 }
 
-
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
 /*
   This is used to check if an ordered index scan is needed for a range in
   a multi range read.
@@ -12424,6 +12427,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
   }
   return 0;
 }
+#endif
 
 /**
   @param[in] comment  table comment defined by user
