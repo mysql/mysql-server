@@ -222,6 +222,12 @@ struct dict_index_struct{
 				for this index, for each n-column prefix
 				where n <= dict_get_n_unique(index); we
 				periodically calculate new estimates */
+	ib_longlong*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/* approximate index size in database pages */
 	ulint		stat_n_leaf_pages;
