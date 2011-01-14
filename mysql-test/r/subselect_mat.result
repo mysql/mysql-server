@@ -1344,3 +1344,30 @@ EXECUTE st1;
 c2	c2
 10	10
 DROP TABLE t1, t2;
+# 
+# Testcase backport: BUG#46548 IN-subqueries return 0 rows with materialization=on
+# 
+CREATE TABLE t1 (
+pk int,
+a varchar(1),
+b varchar(4),
+c varchar(4),
+d varchar(4),
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
+SET @@optimizer_switch='default,semijoin=on,materialization=on';
+EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	5	func	1	
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using MRR
+SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+pk
+2
+SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
+pk
+2
+DROP TABLE t1, t2;
