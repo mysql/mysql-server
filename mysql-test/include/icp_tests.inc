@@ -27,3 +27,142 @@ SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c1,c2 LIMIT 2;
 --echo
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#40992 - InnoDB: Crash when engine_condition_pushdown is on
+--echo #
+
+CREATE TABLE t (
+  dummy INT PRIMARY KEY, 
+  a INT UNIQUE, 
+  b INT
+);
+
+INSERT INTO t VALUES (1,1,1),(3,3,3),(5,5,5);
+
+SELECT * FROM t WHERE a > 2 FOR UPDATE;
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#35080 - Innodb crash at mem_block_get_len line 72
+--echo #
+
+CREATE TABLE t1 (
+  t1_autoinc INT(11) NOT NULL AUTO_INCREMENT,
+  uuid VARCHAR(36) DEFAULT NULL,
+  PRIMARY KEY (t1_autoinc),
+  KEY k (uuid)
+);
+
+CREATE TABLE t2 (
+  t2_autoinc INT(11) NOT NULL AUTO_INCREMENT,
+  uuid VARCHAR(36) DEFAULT NULL,
+  date DATETIME DEFAULT NULL,
+  PRIMARY KEY (t2_autoinc),
+  KEY k (uuid)
+);
+
+CREATE VIEW v1 AS 
+  SELECT t1_autoinc, uuid
+  FROM t1
+  WHERE (ISNULL(uuid) OR (uuid like '%-%'));
+
+CREATE VIEW v2 AS 
+  SELECT t2_autoinc, uuid, date 
+  FROM t2
+  WHERE (ISNULL(uuid) OR (LENGTH(uuid) = 36));
+
+CREATE PROCEDURE delete_multi (IN uuid CHAR(36))
+  DELETE v1, v2 FROM v1 INNER JOIN v2
+  ON v1.uuid = v2.uuid
+  WHERE v1.uuid = @uuid;
+
+SET @uuid = UUID();
+
+INSERT INTO v1 (uuid) VALUES (@uuid);
+INSERT INTO v2 (uuid, date) VALUES (@uuid, '2009-09-09');
+
+CALL delete_multi(@uuid);
+
+DROP procedure delete_multi;
+DROP table t1,t2;
+DROP view v1,v2;
+
+--echo #
+--echo # Bug#41996 - multi-table delete crashes server (InnoDB table)
+--echo #
+
+CREATE TABLE t1 (
+  b BIGINT,
+  i INT, 
+  KEY (b)
+);
+
+INSERT INTO t1 VALUES (2, 2);
+
+DELETE t1 FROM t1 a, t1 WHERE a.i=t1.b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#43448 - Server crashes on multi table delete with Innodb
+--echo #
+
+CREATE TABLE t1 (
+  id1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  t CHAR(12)
+);
+
+CREATE TABLE t2 (
+  id2 INT NOT NULL, 
+  t CHAR(12)
+);
+
+CREATE TABLE t3(
+  id3 INT NOT NULL, 
+  t CHAR(12), 
+  INDEX(id3)
+);
+
+delimiter |;
+
+CREATE PROCEDURE insert_data ()
+BEGIN
+  DECLARE i1 INT DEFAULT 20;
+  DECLARE i2 INT;
+  DECLARE i3 INT;
+
+  WHILE (i1 > 0) DO
+    INSERT INTO t1(t) VALUES (i1);
+    SET i2 = 2;
+    WHILE (i2 > 0) DO
+      INSERT INTO t2(id2, t) VALUES (i1, i2);
+      SET i3 = 2;
+      WHILE (i3 > 0) DO
+        INSERT INTO t3(id3, t) VALUES (i1, i2);
+        SET i3 = i3 -1;
+      END WHILE;
+      SET i2 = i2 -1;
+    END WHILE;
+    SET i1 = i1 - 1;
+  END WHILE;
+END |
+
+delimiter ;|
+
+CALL insert_data();
+
+SELECT COUNT(*) FROM t1 WHERE id1 > 10;
+SELECT COUNT(*) FROM t2 WHERE id2 > 10;
+SELECT COUNT(*) FROM t3 WHERE id3 > 10;
+
+DELETE t1, t2, t3 
+FROM t1, t2, t3 
+WHERE t1.id1 = t2.id2 AND t2.id2 = t3.id3 AND t1.id1 > 3;
+
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+SELECT COUNT(*) FROM t3;
+
+DROP PROCEDURE insert_data;
+DROP TABLE t1, t2, t3;
