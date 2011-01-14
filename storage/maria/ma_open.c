@@ -488,6 +488,10 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                            (uint) share->base.block_size,
                            (uint) maria_block_size));
       my_errno=HA_ERR_UNSUPPORTED;
+      my_printf_error(my_errno, "Wrong block size %u; Expected %u",
+                      MYF(0),
+                      (uint) share->base.block_size, 
+                      (uint) maria_block_size);
       goto err;
     }
 
