@@ -35,11 +35,6 @@ Now heavy insert should succeed
 call heavy_insert(10, 9*1024*1024);
 Now heavy read should fail
 call heavy_read(100);
-show warnings;
-Level	Code	Message
-Error	1297	Got temporary error 1218 'Send Buffers overloaded in NDB kernel' from NDB
-Error	1297	Got temporary error 1218 'Send Buffers overloaded in NDB kernel' from NDB
-Error	1297	Got temporary error 1218 'Send Buffers overloaded in NDB kernel' from NDBCLUSTER
 set ndb_blob_read_batch_bytes=100 * 1024;
 Now heavy read should succeed
 call heavy_read(100);
