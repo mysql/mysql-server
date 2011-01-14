@@ -1596,7 +1596,15 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
     */
     if (file->state->records == 0 && can_enable_indexes &&
         (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
-      mi_disable_non_unique_index(file,rows);
+    {
+      if (file->open_flag & HA_OPEN_INTERNAL_TABLE)
+      {
+        file->update|= HA_STATE_CHANGED;
+        mi_clear_all_keys_active(file->s->state.key_map);
+      }
+      else
+        mi_disable_non_unique_index(file,rows);
+    }
     else
     if (!file->bulk_insert &&
         (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))

@@ -124,12 +124,23 @@ int maria_write(MARIA_HA *info, uchar *record)
     goto err2;
 
   /* Calculate and check all unique constraints */
-  for (i=0 ; i < share->state.header.uniques ; i++)
+
+  if (share->state.header.uniques)
   {
-    if (_ma_check_unique(info,share->uniqueinfo+i,record,
-                         _ma_unique_hash(share->uniqueinfo+i,record),
-                         HA_OFFSET_ERROR))
-      goto err2;
+    for (i=0 ; i < share->state.header.uniques ; i++)
+    {
+      MARIA_UNIQUEDEF *def= share->uniqueinfo + i;
+      ha_checksum unique_hash= _ma_unique_hash(share->uniqueinfo+i,record);
+      if (maria_is_key_active(share->state.key_map, def->key))
+      {
+        if (_ma_check_unique(info, def, record,
+                             unique_hash, HA_OFFSET_ERROR))
+          goto err2;
+      }
+      else
+        maria_unique_store(record+ share->keyinfo[def->key].seg->start,
+                           unique_hash);
+    }
   }
 
   /* Ensure we don't try to restore auto_increment if it doesn't change */

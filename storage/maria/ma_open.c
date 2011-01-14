@@ -203,6 +203,9 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, const char *name,
 #ifdef THREAD
   thr_lock_data_init(&share->lock,&m_info->lock,(void*) m_info);
 #endif
+  if (share->options & HA_OPTION_TMP_TABLE)
+    m_info->lock.type= TL_WRITE;
+
   m_info->open_list.data=(void*) m_info;
   maria_open_list=list_add(maria_open_list,&m_info->open_list);
 
@@ -935,6 +938,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                            share->state.changed));
 
   pthread_mutex_unlock(&THR_LOCK_maria);
+
+  m_info->open_flags= open_flags;
   DBUG_RETURN(m_info);
 
 err:

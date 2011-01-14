@@ -12796,6 +12796,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, proc_info);
 
+  new_table.no_rows= table->no_rows;
   if (create_internal_tmp_table(&new_table, table->key_info, start_recinfo,
                                 recinfo, thd->lex->select_lex.options | 
                                 thd->options))
@@ -12807,23 +12808,14 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   table->file->ha_index_or_rnd_end();
   if (table->file->ha_rnd_init_with_error(1))
     DBUG_RETURN(1);
-  if (table->no_rows)
-  {
+  if (new_table.no_rows)
     new_table.file->extra(HA_EXTRA_NO_ROWS);
-    new_table.no_rows=1;
+  else
+  {
+    /* update table->file->stats.records */
+    table->file->info(HA_STATUS_VARIABLE);
+    new_table.file->ha_start_bulk_insert(table->file->stats.records);
   }
-
-#ifdef TO_BE_DONE_LATER_IN_4_1
-  /*
-    To use start_bulk_insert() (which is new in 4.1) we need to find
-    all places where a corresponding end_bulk_insert() should be put.
-  */
-  table->file->info(HA_STATUS_VARIABLE); /* update table->file->stats.records */
-  new_table.file->ha_start_bulk_insert(table->file->stats.records);
-#else
-  /* HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it */
-  new_table.file->extra(HA_EXTRA_WRITE_CACHE);
-#endif
 
   /*
     copy all old rows from heap table to MyISAM table
@@ -12838,6 +12830,8 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
     if (write_err)
       goto err;
   }
+  if (!new_table.no_rows && new_table.file->ha_end_bulk_insert())
+    goto err;
   /* copy row that filled HEAP table */
   if ((write_err=new_table.file->ha_write_tmp_row(table->record[0])))
   {

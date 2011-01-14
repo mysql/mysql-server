@@ -1998,7 +1998,14 @@ void ha_maria::start_bulk_insert(ha_rows rows)
          @todo for a single-row INSERT SELECT, we will go into repair, which
          is more costly (flushes, syncs) than a row write.
       */
-      maria_disable_non_unique_index(file, rows);
+      if (file->open_flags & HA_OPEN_INTERNAL_TABLE)
+      {
+        /* Internal table; If we get a duplicate something is very wrong */
+        file->update|= HA_STATE_CHANGED;
+        maria_clear_all_keys_active(file->s->state.key_map);
+      }
+      else
+        maria_disable_non_unique_index(file, rows);
       if (share->now_transactional)
       {
         bulk_insert_single_undo= BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR;

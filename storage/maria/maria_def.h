@@ -550,6 +550,7 @@ struct st_maria_handler
   ulong row_base_length;                /* Length of row header */
   uint row_flag;                        /* Flag to store in row header */
   uint opt_flag;			/* Optim. for space/speed */
+  uint open_flags;                      /* Flags used in open() */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */
   uint last_rkey_length;		/* Last length in maria_rkey() */

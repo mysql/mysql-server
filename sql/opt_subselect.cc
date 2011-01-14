@@ -2786,12 +2786,15 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     }
   }
 
-  if (thd->is_fatal_error)				// If end of memory
+  if (thd->is_fatal_error)			// If end of memory
     goto err;
   share->db_record_offset= 1;
+  table->no_rows= 1;              		// We don't need the data
+
+  // recinfo must point after last field
+  recinfo++;
   if (share->db_type() == TMP_ENGINE_HTON)
   {
-    recinfo++;
     if (create_internal_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0))
       goto err;
   }
