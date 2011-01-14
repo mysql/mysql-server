@@ -362,6 +362,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
 {
   OperationrecPtr currOpPtr;
   currOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
+  Uint32 bits = req_struct->m_tuple_ptr->m_header_bits;
   if (currOpPtr.i == RNIL)
   {
     if (regTabPtr->need_expand(disk))
@@ -394,8 +395,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     
     Uint32 currOp= currOpPtr.p->op_struct.op_type;
     
+    bool is_insert = (bits & Tuple_header::ALLOC);
     if((found && currOp == ZDELETE) || 
-       ((dirty || !found) && currOp == ZINSERT))
+       ((dirty || !found) && is_insert))
     {
       terrorCode= ZTUPLE_DELETED_ERROR;
       break;
