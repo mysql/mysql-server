@@ -1582,10 +1582,15 @@ longlong Item_func_int_div::val_int()
       args[1]->result_type() != INT_RESULT)
   {
     my_decimal tmp;
-    my_decimal val0= *args[0]->val_decimal(&tmp);
-    my_decimal val1= *args[1]->val_decimal(&tmp);
-    if ((null_value= (args[0]->null_value || args[1]->null_value)))
+    my_decimal *val0p= args[0]->val_decimal(&tmp);
+    if ((null_value= args[0]->null_value))
       return 0;
+    my_decimal val0= *val0p;
+
+    my_decimal *val1p= args[1]->val_decimal(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+    my_decimal val1= *val1p;
 
     int err;
     if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, &tmp,
