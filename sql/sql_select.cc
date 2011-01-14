@@ -45,6 +45,8 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
                               "index_merge"
 };
 
+const char *copy_to_tmp_table= "Copying to tmp table";
+
 struct st_sargable_param;
 
 static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array);
@@ -1987,7 +1989,7 @@ JOIN::exec()
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
-    thd_proc_info(thd, "Copying to tmp table");
+    thd_proc_info(thd, copy_to_tmp_table);
     DBUG_PRINT("info", ("%s", thd->proc_info));
     if (!curr_join->sort_and_group &&
         curr_join->const_tables != curr_join->tables)
@@ -12857,8 +12859,8 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   table->file->change_table_ptr(table, table->s);
   table->use_all_columns();
   if (save_proc_info)
-    thd_proc_info(thd, (!strcmp(save_proc_info,"Copying to tmp table") ?
-                     "Copying to tmp table on disk" : save_proc_info));
+    thd_proc_info(thd, save_proc_info == copy_to_tmp_table ?
+                  "Copying to tmp table on disk" : save_proc_info);
   DBUG_RETURN(0);
 
  err:
