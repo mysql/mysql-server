@@ -39,3 +39,4 @@ ha_archive         storage/archive    ARCHIVE_PLUGIN
 ha_blackhole       storage/blackhole  BLACKHOLE_PLUGIN
 ha_federated       storage/federated  FEDERATED_PLUGIN
 mypluglib          plugin/fulltext    SIMPLE_PARSER
+thread_pool        plugin/thread_pool THREADPOOL_PLUGIN thread_pool,TP_THREAD_STATE,TP_THREAD_GROUP_STATE,TP_THREAD_GROUP_STATS
