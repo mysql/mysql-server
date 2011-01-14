@@ -641,3 +641,12 @@ INSERT INTO t1 (SELECT -pi());
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 DROP TABLE t1;
+#
+# Bug #59241 invalid memory read
+#            in do_div_mod with doubly assigned variables
+#
+SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
+((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')))
+NULL
+Warnings:
+Warning	1366	Incorrect decimal value: '' for column '' at row -1
