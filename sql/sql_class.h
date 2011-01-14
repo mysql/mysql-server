@@ -3639,5 +3639,10 @@ inline int handler::ha_read_first_row(uchar *buf, uint primary_key)
   return error;
 }
 
+inline int handler::ha_write_tmp_row(uchar *buf)
+{
+  increment_statistics(&SSV::ha_write_count);
+  return write_row(buf);
+}
 
 #endif /* MYSQL_SERVER */

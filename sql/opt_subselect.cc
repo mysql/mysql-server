@@ -2907,7 +2907,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  error= sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
+  error= sjtbl->tmp_table->file->ha_write_tmp_row(sjtbl->tmp_table->record[0]);
   if (error)
   {
     /* create_internal_tmp_table_from_heap will generate error if needed */

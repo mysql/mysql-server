@@ -7515,7 +7515,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     fill_record(thd, table->field, sjm->sjm_table_cols, TRUE, FALSE);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if ((error= table->file->ha_write_row(table->record[0])))
+    if ((error= table->file->ha_write_tmp_row(table->record[0])))
     {
       /* create_myisam_from_heap will generate error if needed */
       if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
@@ -12833,13 +12833,13 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   */
   while (!table->file->ha_rnd_next(new_table.record[1]))
   {
-    write_err= new_table.file->ha_write_row(new_table.record[1]);
+    write_err= new_table.file->ha_write_tmp_row(new_table.record[1]);
     DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
     if (write_err)
       goto err;
   }
   /* copy row that filled HEAP table */
-  if ((write_err=new_table.file->ha_write_row(table->record[0])))
+  if ((write_err=new_table.file->ha_write_tmp_row(table->record[0])))
   {
     if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
 	!ignore_last_dupp_key_error)
@@ -14725,7 +14725,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     {
       int error;
       join->found_records++;
-      if ((error= table->file->ha_write_row(table->record[0])))
+      if ((error= table->file->ha_write_tmp_row(table->record[0])))
       {
         if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
 	  goto end;
@@ -14814,7 +14814,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   init_tmptable_sum_functions(join->sum_funcs);
   if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
     DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
-  if ((error= table->file->ha_write_row(table->record[0])))
+  if ((error= table->file->ha_write_tmp_row(table->record[0])))
   {
     if (create_internal_tmp_table_from_heap(join->thd, table,
                                             join->tmp_table_param.start_recinfo,
@@ -14857,7 +14857,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   if (copy_funcs(join->tmp_table_param.items_to_copy, join->thd))
     DBUG_RETURN(NESTED_LOOP_ERROR);           /* purecov: inspected */
 
-  if (!(error= table->file->ha_write_row(table->record[0])))
+  if (!(error= table->file->ha_write_tmp_row(table->record[0])))
     join->send_records++;			// New group
   else
   {
@@ -14917,7 +14917,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
                        join->sum_funcs_end[send_group_parts]);
 	if (!join->having || join->having->val_int())
 	{
-          int error= table->file->ha_write_row(table->record[0]);
+          int error= table->file->ha_write_tmp_row(table->record[0]);
           if (error && 
               create_internal_tmp_table_from_heap(join->thd, table,
                                                   join->tmp_table_param.start_recinfo,
@@ -18592,7 +18592,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
           item->save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
-      if ((write_error= table_arg->file->ha_write_row(table_arg->record[0])))
+      if ((write_error= table_arg->file->ha_write_tmp_row(table_arg->record[0])))
       {
 	if (create_internal_tmp_table_from_heap(thd, table_arg, 
                                                 tmp_table_param.start_recinfo,

@@ -2415,6 +2415,7 @@ public:
   /* XXX to be removed, see ha_partition::partition_ht() */
   virtual handlerton *partition_ht() const
   { return ht; }
+  inline int ha_write_tmp_row(uchar *buf);
 };
 
 #include "multi_range_read.h"
