@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1581,24 +1581,22 @@ longlong Item_func_int_div::val_int()
   if (args[0]->result_type() != INT_RESULT ||
       args[1]->result_type() != INT_RESULT)
   {
-    my_decimal value0, value1, tmp;
-    my_decimal *val0, *val1;
-    longlong res;
-    int err;
-
-    val0= args[0]->val_decimal(&value0);
-    val1= args[1]->val_decimal(&value1);
+    my_decimal tmp;
+    my_decimal val0= *args[0]->val_decimal(&tmp);
+    my_decimal val1= *args[1]->val_decimal(&tmp);
     if ((null_value= (args[0]->null_value || args[1]->null_value)))
       return 0;
 
+    int err;
     if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, &tmp,
-                             val0, val1, 0)) > 3)
+                             &val0, &val1, 0)) > 3)
     {
       if (err == E_DEC_DIV_ZERO)
         signal_divide_by_null();
       return 0;
     }
 
+    longlong res;
     if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
         E_DEC_OVERFLOW)
       raise_integer_overflow();
