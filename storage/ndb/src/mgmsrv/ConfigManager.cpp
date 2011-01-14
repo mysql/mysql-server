@@ -1924,6 +1924,7 @@ ConfigManager::run()
       break;
 
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
 
     default:
@@ -1938,6 +1939,7 @@ ConfigManager::run()
     }
   }
   stop_checkers();
+  ss.unlock();
 }
 
 

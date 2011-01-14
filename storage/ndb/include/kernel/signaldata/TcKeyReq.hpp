@@ -202,6 +202,9 @@ private:
 
   static void setReorgFlag(UintR & requestInfo, UintR val);
   static UintR getReorgFlag(const UintR & requestInfo);
+
+  static void setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val);
+  static UintR getQueueOnRedoProblemFlag(const UintR & requestInfo);
   /**
    * Set:ers for scanInfo
    */
@@ -230,11 +233,12 @@ private:
  y = Commit Type           - 2  Bit 12-13
  n = No disk flag          - 1  Bit 1
  r = reorg flag            - 1  Bit 19
+ q = Queue on redo problem - 1  Bit 9
 
            1111111111222222222233
  01234567890123456789012345678901
  dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
- dnb cooop lsyyei   r              (Long TCKEYREQ)
+ dnb cooopqlsyyei   r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -260,6 +264,7 @@ private:
 #define COMMIT_TYPE_MASK   (3)
 
 #define TC_REORG_SHIFT     (19)
+#define QUEUE_ON_REDO_SHIFT (9)
 
 /**
  * Scan Info
@@ -574,6 +579,19 @@ void
 TcKeyReq::setReorgFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
   requestInfo |= (flag << TC_REORG_SHIFT);
+}
+
+inline
+UintR
+TcKeyReq::getQueueOnRedoProblemFlag(const UintR & requestInfo){
+  return (requestInfo >> QUEUE_ON_REDO_SHIFT) & 1;
+}
+
+inline
+void
+TcKeyReq::setQueueOnRedoProblemFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setNoDiskFlag");
+  requestInfo |= (flag << QUEUE_ON_REDO_SHIFT);
 }
 
 #endif

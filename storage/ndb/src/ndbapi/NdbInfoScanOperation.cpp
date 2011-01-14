@@ -347,6 +347,7 @@ int NdbInfoScanOperation::receive(void)
     case GSN_SUB_GCP_COMPLETE_REP:
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       // ignore
       break;
 

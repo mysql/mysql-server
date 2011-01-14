@@ -79,6 +79,9 @@ struct Opt {
   Chr m_pk2chr;
   bool m_pk2part;
   bool m_oneblob;
+
+  int m_rbatch;
+  int m_wbatch;
   // perf
   const char* m_tnameperf;
   unsigned m_rowsperf;
@@ -109,6 +112,8 @@ struct Opt {
     m_pk2chr(),
     m_pk2part(false),
     m_oneblob(false),
+    m_rbatch(-1),
+    m_wbatch(-1),
     // perf
     m_tnameperf("TB2"),
     m_rowsperf(10000),
@@ -148,6 +153,8 @@ printusage()
     << "  -pk2cs      PK2 charset or collation [" << d.m_pk2chr.m_cs << "]" << endl
     << "  -pk2part    partition primary table by PK2" << endl
     << "  -oneblob    only 1 blob attribute [default 2]" << endl
+    << "  -rbatch     N Read parts batchsize (bytes) [default -1] -1=random" << endl
+    << "  -wbatch     N Write parts batchsize (bytes) [default -1] -1=random" << endl
     << "disk or memory storage for blobs.  Don't apply to performance test" << endl
     << "  m           Blob columns stored in memory" << endl
     << "  h           Blob columns stored on disk" << endl
@@ -942,6 +949,32 @@ calcTups(bool keys, bool keepsize = false)
   }
 }
 
+static void setBatchSizes()
+{
+  if (g_opt.m_rbatch != 0)
+  {
+    Uint32 byteSize = (g_opt.m_rbatch == -1) ? 
+      urandom(~Uint32(0)) :
+      g_opt.m_rbatch;
+    
+    DBG("Setting read batch size to " << byteSize 
+        << " bytes.");
+    g_con->setMaxPendingBlobReadBytes(byteSize);
+  }
+  
+  if (g_opt.m_wbatch != 0)
+  {
+    Uint32 byteSize = (g_opt.m_wbatch == -1) ? 
+      urandom(~Uint32(0)) :
+      g_opt.m_wbatch;
+    
+    DBG("Setting write batch size to " << byteSize 
+        << " bytes.");
+    g_con->setMaxPendingBlobWriteBytes(byteSize);
+  }
+}
+    
+
 // blob handle ops
 // const version for NdbRecord defined operations
 static int
@@ -950,6 +983,8 @@ getBlobHandles(const NdbOperation* opr)
   CHK((g_bh1 = opr->getBlobHandle("BL1")) != 0);
   if (! g_opt.m_oneblob)
     CHK((g_bh2 = opr->getBlobHandle("BL2")) != 0);
+
+  setBatchSizes();
   return 0;
 }
 
@@ -961,6 +996,7 @@ getBlobHandles(NdbOperation* opr)
   CHK((g_bh1 = opr->getBlobHandle("BL1")) != 0);
   if (! g_opt.m_oneblob)
     CHK((g_bh2 = opr->getBlobHandle("BL2")) != 0);
+  setBatchSizes();
   return 0;
 }
 
@@ -971,6 +1007,7 @@ getBlobHandles(NdbScanOperation* ops)
   CHK((g_bh1 = ops->getBlobHandle("BL1")) != 0);
   if (! g_opt.m_oneblob)
     CHK((g_bh2 = ops->getBlobHandle("BL2")) != 0);
+  setBatchSizes();
   return 0;
 }
 
@@ -4924,6 +4961,18 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
     if (strcmp(arg, "-oneblob") == 0) {
       g_opt.m_oneblob = true;
       continue;
+    }
+    if (strcmp(arg, "-rbatch") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_rbatch = atoi(argv[0]);
+        continue;
+      }
+    }
+    if (strcmp(arg, "-wbatch") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_wbatch = atoi(argv[0]);
+        continue;
+      }
     }
     // bugs
     if (strcmp(arg, "-bug") == 0) {

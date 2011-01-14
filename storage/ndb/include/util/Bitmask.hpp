@@ -21,6 +21,10 @@
 
 #include <ndb_global.h>
 
+#ifdef HAVE__BITSCANFORWARD
+#include <intrin.h>
+#endif
+
 /**
  * Bitmask implementation.  Size (in 32-bit words) is given explicitly
  * (as first argument).  All methods are static.
@@ -88,6 +92,24 @@ public:
    * count - Count number of set bits.
    */
   static unsigned count(unsigned size, const Uint32 data[]);
+
+  /**
+   * return index of first bit set inside a word
+   * undefined behaviour if non set
+   */
+  static unsigned ffs(Uint32 x);
+
+  /**
+   * find - Find first set bit, starting from 0
+   * Returns NotFound when not found.
+   */
+  static unsigned find_first(unsigned size, const Uint32 data[]);
+
+  /**
+   * find - Find first set bit, starting at given position.
+   * Returns NotFound when not found.
+   */
+  static unsigned find_next(unsigned size, const Uint32 data[], unsigned n);
 
   /**
    * find - Find first set bit, starting at given position.
@@ -183,6 +205,11 @@ public:
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
   static inline Uint32 count_bits(Uint32 x);
 
+  /**
+   * store each set bit in <em>dst</em> and return bits found
+   */
+  static Uint32 toArray(Uint8* dst, Uint32 len,
+                        unsigned size, const Uint32 data[]);
 private:
   static void getFieldImpl(const Uint32 data[], unsigned, unsigned, Uint32 []);
   static void setFieldImpl(Uint32 data[], unsigned, unsigned, const Uint32 []);
@@ -331,16 +358,109 @@ BitmaskImpl::count(unsigned size, const Uint32 data[])
   return cnt;
 }
 
+/**
+ * return index of first bit set inside a word
+ * undefined behaviour if non set
+ */
+inline
+Uint32
+BitmaskImpl::ffs(Uint32 x)
+{
+#if defined(__GNUC__) && (defined(__x86_64__) || defined (__i386__))
+  asm("bsf %1,%0"
+      : "=r" (x)
+      : "rm" (x));
+  return x;
+#elif defined HAVE___BUILTIN_FFS
+  /**
+   * gcc defined ffs(0) == 0, and returned indexes 1-32
+   */
+  return __builtin_ffs(x) - 1;
+#elif defined HAVE__BITSCANFORWARD
+  unsigned long r;
+  unsigned char res = _BitScanForward(&r, (unsigned long)x);
+  assert(res > 0);
+  return (Uint32)r;
+#elif defined HAVE_FFS
+  return ::ffs(x) - 1;
+#else
+  int b = 0;
+  if (!(x & 0xffff))
+  {
+    x >>= 16;
+    b += 16;
+  }
+  if (!(x & 0xff))
+  {
+    x >>= 8;
+    b += 8;
+  }
+  if (!(x & 0xf))
+  {
+    x >>= 4;
+    b += 4;
+  }
+  if (!(x & 3))
+  {
+    x >>= 2;
+    b += 2;
+  }
+  if (!(x & 1))
+  {
+    x >>= 1;
+    b += 1;
+  }
+  return b;
+#endif
+}
+
+inline unsigned
+BitmaskImpl::find_first(unsigned size, const Uint32 data[])
+{
+  Uint32 n = 0;
+  while (n < (size << 5))
+  {
+    Uint32 val = data[n >> 5];
+    if (val)
+    {
+      return n + ffs(val);
+    }
+    n += 32;
+  }
+ return NotFound;
+}
+
+inline unsigned
+BitmaskImpl::find_next(unsigned size, const Uint32 data[], unsigned n)
+{
+  Uint32 val = data[n >> 5];
+  Uint32 b = n & 31;
+  if (b)
+  {
+    val >>= b;
+    if (val)
+    {
+      return n + ffs(val);
+    }
+    n += 32 - b;
+  }
+
+  while (n < (size << 5))
+  {
+    val = data[n >> 5];
+    if (val)
+    {
+      return n + ffs(val);
+    }
+    n += 32;
+  }
+  return NotFound;
+}
+
 inline unsigned
 BitmaskImpl::find(unsigned size, const Uint32 data[], unsigned n)
 {
-  while (n < (size << 5)) {             // XXX make this smarter
-    if (get(size, data, n)) {
-      return n;
-    }
-    n++;
-  }
-  return NotFound;
+  return find_next(size, data, n);
 }
 
 inline bool
@@ -465,6 +585,31 @@ BitmaskImpl::count_bits(Uint32 x)
   return x;
 }
 
+inline
+Uint32
+BitmaskImpl::toArray(Uint8* dst, Uint32 len,
+                     unsigned size, const Uint32 * data)
+{
+  assert(len >= size * 32);
+  assert(32 * size <= 256); // Uint8
+  Uint8 * save = dst;
+  for (Uint32 i = 0; i<size; i++)
+  {
+    Uint32 val = * data++;
+    Uint32 bit = 0;
+    while (val)
+    {
+      if (val & (1 << bit))
+      {
+        * dst++ = 32 * i + bit;
+        val &= ~(1U << bit);
+      }
+      bit ++;
+    }
+  }
+  return (Uint32)(dst - save);
+}
+
 /**
  * Bitmasks.  The size is number of 32-bit words (Uint32).
  * Unused bits in the last word must be zero.
@@ -584,6 +729,20 @@ public:
   unsigned count() const;
 
   /**
+   * find - Find first set bit, starting at 0
+   * Returns NotFound when not found.
+   */
+  static unsigned find_first(const Uint32 data[]);
+  unsigned find_first() const;
+
+  /**
+   * find - Find first set bit, starting at 0
+   * Returns NotFound when not found.
+   */
+  static unsigned find_next(const Uint32 data[], unsigned n);
+  unsigned find_next(unsigned n) const;
+
+  /**
    * find - Find first set bit, starting at given position.
    * Returns NotFound when not found.
    */
@@ -650,6 +809,8 @@ public:
   static char* getText(const Uint32 data[], char* buf);
   char* getText(char* buf) const;
 
+  static Uint32 toArray(Uint8 * dst, Uint32 len, const Uint32 data[]);
+  Uint32 toArray(Uint8 * dst, Uint32 len) const;
 };
 
 template <unsigned size>
@@ -837,16 +998,44 @@ BitmaskPOD<size>::count() const
 
 template <unsigned size>
 inline unsigned
+BitmaskPOD<size>::find_first(const Uint32 data[])
+{
+  return BitmaskImpl::find_first(size, data);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_first() const
+{
+  return BitmaskPOD<size>::find_first(rep.data);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_next(const Uint32 data[], unsigned n)
+{
+  return BitmaskImpl::find_next(size, data, n);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_next(unsigned n) const
+{
+  return BitmaskPOD<size>::find_next(rep.data, n);
+}
+
+template <unsigned size>
+inline unsigned
 BitmaskPOD<size>::find(const Uint32 data[], unsigned n)
 {
-  return BitmaskImpl::find(size, data, n);
+  return find_next(data, n);
 }
 
 template <unsigned size>
 inline unsigned
 BitmaskPOD<size>::find(unsigned n) const
 {
-  return BitmaskPOD<size>::find(rep.data, n);
+  return find_next(n);
 }
 
 template <unsigned size>
@@ -993,6 +1182,22 @@ inline bool
 BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
 {
   return BitmaskPOD<size>::overlaps(this->rep.data, that.rep.data);
+}
+
+template <unsigned size>
+inline
+Uint32
+BitmaskPOD<size>::toArray(Uint8* dst, Uint32 len, const Uint32 data[])
+{
+  return BitmaskImpl::toArray(dst, len, size, data);
+}
+
+template <unsigned size>
+inline
+Uint32
+BitmaskPOD<size>::toArray(Uint8* dst, Uint32 len) const
+{
+  return BitmaskImpl::toArray(dst, len, size, this->rep.data);
 }
 
 template <unsigned size>

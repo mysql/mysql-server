@@ -50,16 +50,15 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
    MYSQL_TYPE_NEWDATE, MYSQL_TYPE_VARCHAR,
    MYSQL_TYPE_BIT,
                         MYSQL_TYPE_NEWDECIMAL=246,
-   MYSQL_TYPE_ENUM=247,
-   MYSQL_TYPE_SET=248,
-   MYSQL_TYPE_TINY_BLOB=249,
-   MYSQL_TYPE_MEDIUM_BLOB=250,
-   MYSQL_TYPE_LONG_BLOB=251,
-   MYSQL_TYPE_BLOB=252,
-   MYSQL_TYPE_VAR_STRING=253,
-   MYSQL_TYPE_STRING=254,
-   MYSQL_TYPE_GEOMETRY=255,
-   MYSQL_NUM_FIELD_TYPES
+                        MYSQL_TYPE_ENUM=247,
+                        MYSQL_TYPE_SET=248,
+                        MYSQL_TYPE_TINY_BLOB=249,
+                        MYSQL_TYPE_MEDIUM_BLOB=250,
+                        MYSQL_TYPE_LONG_BLOB=251,
+                        MYSQL_TYPE_BLOB=252,
+                        MYSQL_TYPE_VAR_STRING=253,
+                        MYSQL_TYPE_STRING=254,
+                        MYSQL_TYPE_GEOMETRY=255
 };
 enum mysql_enum_shutdown_level {
   SHUTDOWN_DEFAULT = 0,
@@ -103,8 +102,7 @@ struct rand_struct {
   double max_value_dbl;
 };
 enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT,
-		  MYSQL_NUM_ITEM_RESULTS };
+                  DECIMAL_RESULT};
 typedef struct st_udf_args
 {
   unsigned int arg_count;

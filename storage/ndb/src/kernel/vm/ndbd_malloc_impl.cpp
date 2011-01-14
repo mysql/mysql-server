@@ -21,6 +21,7 @@
 #include "ndbd_malloc_impl.hpp"
 #include <ndb_global.h>
 #include <EventLogger.hpp>
+#include <portlib/NdbMem.h>
 
 #ifdef NDB_WIN
 void *sbrk(int increment)
@@ -58,20 +59,16 @@ extern void mt_mem_manager_unlock();
  */
 #define ZONE_LO_BOUND (1u << 19)
 
-struct InitChunk
-{
-  Uint32 m_cnt;
-  Uint32 m_start;
-  Alloc_page* m_ptr;
-};
-
 #include <NdbOut.hpp>
 
 extern void ndbd_alloc_touch_mem(void * p, size_t sz, volatile Uint32 * watchCounter);
 
 static
 bool
-do_malloc(Uint32 pages, InitChunk* chunk, Uint32 *watchCounter = 0)
+do_malloc(Uint32 pages,
+          InitChunk* chunk,
+          Uint32 *watchCounter,
+          void * baseaddress)
 {
   pages += 1;
   void * ptr = 0;
@@ -113,6 +110,16 @@ retry:
 	  goto retry;
 	}
       }
+      else if (UintPtr(ptr) < UintPtr(baseaddress))
+      {
+        /**
+         * Unusable memory :(
+         */
+        ndbout_c("sbrk(%lluMb) => %p which is less than baseaddress!!",
+                 Uint64((sizeof(Alloc_page) * sz) >> 20), ptr);
+        f_method_idx++;
+        goto retry;
+      }
     }
     break;
   }
@@ -126,6 +133,14 @@ retry:
         *watchCounter = 9;
 
       ptr = malloc(sizeof(Alloc_page) * sz);
+      if (UintPtr(ptr) < UintPtr(baseaddress))
+      {
+        ndbout_c("malloc(%lluMb) => %p which is less than baseaddress!!",
+                 Uint64((sizeof(Alloc_page) * sz) >> 20), ptr);
+        free(ptr);
+        ptr = 0;
+      }
+
       if (ptr == 0)
       {
 	if (method == 'M')
@@ -156,8 +171,6 @@ retry:
     chunk->m_cnt--;
     chunk->m_ptr = (Alloc_page*)((UintPtr(ptr) + align) & ~align);
   }
-
-  ndbd_alloc_touch_mem(chunk->m_ptr, chunk->m_cnt * sizeof(Alloc_page), watchCounter);
 
 #ifdef UNIT_TEST
   ndbout_c("do_malloc(%d) -> %p %d", pages, ptr, chunk->m_cnt);
@@ -213,11 +226,20 @@ Ndbd_mem_manager::Ndbd_mem_manager()
 }
 
 /**
+ *
+ * resource 0 has following semantics:
+ *
+ * m_min  - remaining reserved for other resources
+ * m_curr - sum(m_curr) for other resources (i.e total in use)
+ * m_max  - totally allocated from OS
+ *
+ * resource N has following semantics:
+ *
  * m_min = reserved
- * m_curr = current
+ * m_curr = currently used
  * m_max = max alloc, 0 = no limit
+ *
  */
-
 void
 Ndbd_mem_manager::set_resource_limit(const Resource_limit& rl)
 {
@@ -280,6 +302,18 @@ check_resource_limits(Resource_limit* rl)
 #endif
 }
 
+int
+cmp_chunk(const void * chunk_vptr_1, const void * chunk_vptr_2)
+{
+  InitChunk * ptr1 = (InitChunk*)chunk_vptr_1;
+  InitChunk * ptr2 = (InitChunk*)chunk_vptr_2;
+  if (ptr1->m_ptr < ptr2->m_ptr)
+    return -1;
+  if (ptr1->m_ptr > ptr2->m_ptr)
+    return 1;
+  assert(false);
+  return 0;
+}
 
 bool
 Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
@@ -329,34 +363,18 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   /**
    * Do malloc
    */
-
-  Uint32 cnt = 0;
-  struct InitChunk chunks[MAX_CHUNKS];
-  bzero(chunks, sizeof(chunks));
-
   Uint32 allocated = 0;
-  while (cnt < MAX_CHUNKS && allocated < pages)
+  while (m_unmapped_chunks.size() < MAX_CHUNKS && allocated < pages)
   {
     InitChunk chunk;
     bzero(&chunk, sizeof(chunk));
     
-    if (do_malloc(pages - allocated, &chunk, watchCounter))
+    if (do_malloc(pages - allocated, &chunk, watchCounter, m_base_page))
     {
       if (watchCounter)
         *watchCounter = 9;
 
-      Uint32 i = 0;
-      for(; i<cnt ; i++)
-      {
-	if (chunk.m_ptr < chunks[i].m_ptr)
-	{
-	  for (Uint32 j = cnt; j > i; j--)
-	    chunks[j] = chunks[j-1];
-	  break;
-	}
-      }
-      cnt++;
-      chunks[i] = chunk;
+      m_unmapped_chunks.push_back(chunk);
       allocated += chunk.m_cnt;
     }
     else
@@ -385,16 +403,22 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
     if (!alloc_less_memory)
       return false;
   }
+
+  /**
+   * Sort chunks...
+   */
+  qsort(m_unmapped_chunks.getBase(), m_unmapped_chunks.size(),
+        sizeof(InitChunk), cmp_chunk);
+
+  m_base_page = m_unmapped_chunks[0].m_ptr;
   
-  m_base_page = chunks[0].m_ptr;
-  
-  for (Uint32 i = 0; i<cnt; i++)
+  for (Uint32 i = 0; i<m_unmapped_chunks.size(); i++)
   {
-    UintPtr start = UintPtr(chunks[i].m_ptr) - UintPtr(m_base_page);
+    UintPtr start = UintPtr(m_unmapped_chunks[i].m_ptr) - UintPtr(m_base_page);
     start >>= (2 + BMW_2LOG);
     assert((Uint64(start) >> 32) == 0);
-    chunks[i].m_start = Uint32(start);
-    Uint64 last64 = start + chunks[i].m_cnt;
+    m_unmapped_chunks[i].m_start = Uint32(start);
+    Uint64 last64 = start + m_unmapped_chunks[i].m_cnt;
     assert((last64 >> 32) == 0);
     Uint32 last = Uint32(last64);
 
@@ -405,17 +429,99 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   m_resource_limit[0].m_resource_id = max_page;
   m_resource_limit[0].m_min = reserved;
   m_resource_limit[0].m_max = 0;
-  
-  for (Uint32 i = 0; i<cnt; i++)
-  {
-    if (watchCounter)
-      *watchCounter = 9;
-    grow(chunks[i].m_start, chunks[i].m_cnt);
-  }
-  
-  check_resource_limits(m_resource_limit);
 
   return true;
+}
+
+void
+Ndbd_mem_manager::map(Uint32 * watchCounter, bool memlock, Uint32 resources[])
+{
+  Uint32 limit = ~(Uint32)0;
+  Uint32 sofar = 0;
+
+  if (resources != 0)
+  {
+    limit = 0;
+    for (Uint32 i = 0; resources[i] ; i++)
+    {
+      limit += m_resource_limit[resources[i]].m_min;
+    }
+  }
+
+  while (m_unmapped_chunks.size() && sofar < limit)
+  {
+    Uint32 remain = limit - sofar;
+
+    unsigned idx = m_unmapped_chunks.size() - 1;
+    InitChunk * chunk = &m_unmapped_chunks[idx];
+    if (watchCounter)
+      *watchCounter = 9;
+
+    if (chunk->m_cnt > remain)
+    {
+      /**
+       * Split chunk
+       */
+      Uint32 extra = chunk->m_cnt - remain;
+      chunk->m_cnt = remain;
+
+      InitChunk newchunk;
+      newchunk.m_start = chunk->m_start + remain;
+      newchunk.m_ptr = m_base_page + newchunk.m_start;
+      newchunk.m_cnt = extra;
+      m_unmapped_chunks.push_back(newchunk);
+
+      // pointer could have changed after m_unmapped_chunks.push_back
+      chunk = &m_unmapped_chunks[idx];
+    }
+
+    ndbd_alloc_touch_mem(chunk->m_ptr,
+                         chunk->m_cnt * sizeof(Alloc_page),
+                         watchCounter);
+
+    if (memlock)
+    {
+      /**
+       * memlock pages that I added...
+       */
+      if (watchCounter)
+        *watchCounter = 9;
+
+      /**
+       * Don't memlock everything in one go...
+       *   cause then process won't be killable
+       */
+      const Alloc_page * start = chunk->m_ptr;
+      Uint32 cnt = chunk->m_cnt;
+      while (cnt > 32768) // 1G
+      {
+        if (watchCounter)
+          *watchCounter = 9;
+
+        NdbMem_MemLock(start, 32768 * sizeof(Alloc_page));
+        start += 32768;
+        cnt -= 32768;
+      }
+      if (watchCounter)
+        *watchCounter = 9;
+
+      NdbMem_MemLock(start, cnt * sizeof(Alloc_page));
+    }
+
+    grow(chunk->m_start, chunk->m_cnt);
+    sofar += chunk->m_cnt;
+
+    m_unmapped_chunks.erase(idx);
+  }
+  
+  mt_mem_manager_lock();
+  check_resource_limits(m_resource_limit);
+  mt_mem_manager_unlock();
+
+  if (resources == 0 && memlock)
+  {
+    NdbMem_MemLockAll(1);
+  }
 }
 
 #include <NdbOut.hpp>
@@ -479,6 +585,7 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
 found:
   if (cnt)
   {
+    mt_mem_manager_lock();
     m_resource_limit[0].m_curr += cnt;
     m_resource_limit[0].m_max += cnt;
     if (start >= ZONE_LO_BOUND)
@@ -506,6 +613,7 @@ found:
       release(start, cnt0);
       release(ZONE_LO_BOUND, cnt1);
     }
+    mt_mem_manager_unlock();
   }
 }
 
@@ -1076,3 +1184,5 @@ main(int argc, char** argv)
 template class Vector<Chunk>;
 
 #endif
+
+template class Vector<InitChunk>;

@@ -72,7 +72,7 @@ public:
   STATIC_CONST( BRANCH_ATTR_OP_ARG    = 23 );
   STATIC_CONST( BRANCH_ATTR_EQ_NULL   = 24 );
   STATIC_CONST( BRANCH_ATTR_NE_NULL   = 25 );
-
+  STATIC_CONST( BRANCH_ATTR_OP_ARG_2  = 26 );
 
   /**
    * Macros for creating code
@@ -90,11 +90,12 @@ public:
   static Uint32 ExitOK();
 
   /**
-   * Branch string
+   * Branch OP_ARG
    *
    * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
    * a = Attribute id             -  16 bits
-   * l = Length of string (bytes) -  16 bits
+   * l = Length of string (bytes) -  16 bits OP_ARG
+   * p = parameter no             -  16 bits OP_ARG_2
    * b = Branch offset (words)    -  16 bits
    * t = branch type              -  4 bits
    * d = Array length diff
@@ -131,11 +132,15 @@ public:
   static Uint32 BranchCol_2(Uint32 AttrId);
   static Uint32 BranchCol_2(Uint32 AttrId, Uint32 Len);
 
+  static Uint32 BranchColParameter(BinaryCondition cond);
+  static Uint32 BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo);
+
   static Uint32 getBinaryCondition(Uint32 op1);
   static Uint32 getArrayLengthDiff(Uint32 op1);
   static Uint32 isVarchar(Uint32 op1);
   static Uint32 getBranchCol_AttrId(Uint32 op2);
   static Uint32 getBranchCol_Len(Uint32 op2);
+  static Uint32 getBranchCol_ParamNo(Uint32 op2);
   
   /**
    * Macros for decoding code
@@ -233,6 +238,19 @@ Interpreter::BranchCol(BinaryCondition cond,
 }
 
 inline
+Uint32
+Interpreter::BranchColParameter(BinaryCondition cond)
+{
+  return BRANCH_ATTR_OP_ARG_2 + (cond << 12);
+}
+
+inline
+Uint32
+Interpreter::BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo){
+  return (AttrId << 16) + ParamNo;
+}
+
+inline
 Uint32 
 Interpreter::BranchCol_2(Uint32 AttrId, Uint32 Len){
   return (AttrId << 16) + Len;
@@ -271,6 +289,12 @@ Interpreter::getBranchCol_AttrId(Uint32 op){
 inline
 Uint32
 Interpreter::getBranchCol_Len(Uint32 op){
+  return op & 0xFFFF;
+}
+
+inline
+Uint32
+Interpreter::getBranchCol_ParamNo(Uint32 op){
   return op & 0xFFFF;
 }
 
@@ -357,6 +381,15 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     Uint32 byteLength= getBranchCol_Len(*(op+1));
     Uint32 wordLength= (byteLength + 3) >> 2;
     return op+2+wordLength;
+  }
+  case BRANCH_ATTR_OP_ARG_2:
+  {
+    /* We need to take the length from the second word of the
+     * branch instruction so we can skip over the inline const
+     * comparison data.
+     */
+    processing= LABEL_ADDRESS_REPLACEMENT;
+    return op+2;
   }
   case BRANCH_ATTR_EQ_NULL:
   case BRANCH_ATTR_NE_NULL:

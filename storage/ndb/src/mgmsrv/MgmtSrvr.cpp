@@ -409,7 +409,8 @@ MgmtSrvr::start_transporter(const Config* config)
     Register ourself at TransporterFacade to be able to receive signals
     and to be notified when a database process has died.
   */
-  if ((_blockNumber= open(theFacade)) == -1)
+  Uint32 res;
+  if ((res = open(theFacade)) == 0)
   {
     g_eventLogger->error("Failed to open block in TransporterFacade");
     theFacade->stop_instance();
@@ -417,6 +418,7 @@ MgmtSrvr::start_transporter(const Config* config)
     theFacade = 0;
     DBUG_RETURN(false);
   }
+  _blockNumber = refToBlock(res);
 
   /**
    * Need to call ->open() prior to actually starting TF
@@ -432,6 +434,14 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
+  /**
+   * Wait for loopback interface to be enabled
+   */
+  while (!theFacade->ext_isConnected(_ownNodeId))
+  {
+    NdbSleep_MilliSleep(20);
+  }
+
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
 
   /*
@@ -442,7 +452,7 @@ MgmtSrvr::start_transporter(const Config* config)
     is not dependent on heartbeat settings in the
     configuration
   */
-  theFacade->theClusterMgr->set_max_api_reg_req_interval(100);
+  theFacade->ext_set_max_api_reg_req_interval(100);
 
   DBUG_RETURN(true);
 }
@@ -768,6 +778,8 @@ MgmtSrvr::~MgmtSrvr()
     m_config_manager= 0;
   }
 
+  this->close(); // close trp_client before stopping TransporterFacade
+
   // Stop transporter
   if(theFacade != 0){
     theFacade->stop_instance();
@@ -791,10 +803,10 @@ int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond)
     return WRONG_PROCESS_TYPE;
   // Check if we have contact with it
   if(unCond){
-    if(theFacade->theClusterMgr->getNodeInfo(nodeId).is_confirmed())
+    if (getNodeInfo(nodeId).is_confirmed())
       return 0;
   }
-  else if (theFacade->get_node_alive(nodeId) == true)
+  else if (getNodeInfo(nodeId).m_alive == true)
     return 0;
   return NO_CONTACT_WITH_PROCESS;
 }
@@ -870,7 +882,7 @@ MgmtSrvr::versionNode(int nodeId, Uint32 &version, Uint32& mysql_version,
   }
   else if (getNodeType(nodeId) == NDB_MGM_NODE_TYPE_NDB)
   {
-    trp_node node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    trp_node node = getNodeInfo(nodeId);
     if(node.is_connected())
     {
       version= node.m_info.m_version;
@@ -961,6 +973,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       // Ignore
       continue;
     default:
@@ -1282,6 +1295,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -1411,7 +1425,7 @@ bool MgmtSrvr::is_any_node_stopping()
   trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    node = getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_STOPPING_1) || 
        (node.m_state.startLevel == NodeState::SL_STOPPING_2) || 
        (node.m_state.startLevel == NodeState::SL_STOPPING_3) || 
@@ -1427,7 +1441,7 @@ bool MgmtSrvr::is_any_node_starting()
   trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    node = getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_STARTING))
       return true; // At least one node was starting
   }
@@ -1440,7 +1454,7 @@ bool MgmtSrvr::is_cluster_single_user()
   trp_node node;
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    node = getNodeInfo(nodeId);
     if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
       return true; // Cluster is in single user modes
   }
@@ -1659,12 +1673,10 @@ MgmtSrvr::exitSingleUser(int * stopCount, bool abort)
  * Status
  ****************************************************************************/
 
-#include <ClusterMgr.hpp>
-
 void
 MgmtSrvr::updateStatus()
 {
-  theFacade->theClusterMgr->forceHB();
+  theFacade->ext_forceHB();
 }
 
 int 
@@ -1686,8 +1698,7 @@ MgmtSrvr::status(int nodeId,
     *address= get_connect_address(nodeId);
   }
 
-  const trp_node node =
-    theFacade->theClusterMgr->getNodeInfo(nodeId);
+  const trp_node node = getNodeInfo(nodeId);
 
   if(!node.is_connected()){
     * _status = NDB_MGM_NODE_STATUS_NO_CONTACT;
@@ -1793,7 +1804,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
         continue;
       if (okToSendTo(nodeId, true))
       {
-        if (theFacade->theClusterMgr->getNodeInfo(nodeId).is_connected()  == false)
+        if (getNodeInfo(nodeId).is_connected()  == false)
         {
           // node not connected we can safely skip this one
           continue;
@@ -1820,7 +1831,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
     {
       if (nodeTypes[nodeId] != NODE_TYPE_DB)
         continue;
-      if (theFacade->theClusterMgr->getNodeInfo(nodeId).is_connected()  == false)
+      if (getNodeInfo(nodeId).is_connected()  == false)
         continue; // node is not connected, skip
       if (ss.sendSignal(nodeId, &ssig) == SEND_OK)
         nodes.set(nodeId);
@@ -1874,6 +1885,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -2022,6 +2034,7 @@ retry:
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2081,6 +2094,7 @@ MgmtSrvr::endSchemaTrans(SignalSender& ss, NodeId nodeId,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2176,6 +2190,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2251,6 +2266,7 @@ MgmtSrvr::dropNodegroup(int ng)
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       report_unknown_signal(signal);
@@ -2483,16 +2499,53 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
 
   case GSN_NF_COMPLETEREP:
     break;
-  case GSN_NODE_FAILREP:
-    break;
-
   case GSN_TAMPER_ORD:
     ndbout << "TAMPER ORD" << endl;
     break;
   case GSN_API_REGCONF:
   case GSN_TAKE_OVERTCCONF:
     break;
+  case GSN_CONNECT_REP:{
+    Uint32 nodeId = signal->getDataPtr()[0];
 
+    union {
+      Uint32 theData[25];
+      EventReport repData;
+    };
+    EventReport * rep = &repData;
+    theData[1] = nodeId;
+    rep->setEventType(NDB_LE_Connected);
+
+    if (nodeTypes[nodeId] == NODE_TYPE_DB)
+    {
+      m_started_nodes.push_back(nodeId);
+    }
+    rep->setEventType(NDB_LE_Connected);
+    rep->setNodeId(_ownNodeId);
+    eventReport(theData, 1);
+    return;
+  }
+  case GSN_NODE_FAILREP:
+  {
+    union {
+      Uint32 theData[25];
+      EventReport repData;
+    };
+    EventReport * event = &repData;
+    event->setEventType(NDB_LE_Disconnected);
+    event->setNodeId(_ownNodeId);
+
+    const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
+                                           signal->getDataPtr());
+    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
+         i != NdbNodeBitmask::NotFound;
+         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    {
+      theData[1] = i;
+      eventReport(theData, 1);
+    }
+    return;
+  }
   default:
     g_eventLogger->error("Unknown signal received. SignalNumber: "
                          "%i from (%d, 0x%x)",
@@ -2507,36 +2560,6 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
 void
 MgmtSrvr::trp_node_status(Uint32 nodeId, Uint32 _event)
 {
-  DBUG_ENTER("MgmtSrvr::handleStatus");
-  DBUG_PRINT("enter",("nodeid: %d, event: %u", nodeId, _event));
-
-  union {
-    Uint32 theData[25];
-    EventReport repData;
-  };
-  EventReport * rep = &repData;
-  NS_Event event = (NS_Event)_event;
-
-  theData[1] = nodeId;
-  switch(event){
-  case NS_CONNECTED:
-    DBUG_VOID_RETURN;
-  case NS_NODE_ALIVE:
-    if (nodeTypes[nodeId] == NODE_TYPE_DB)
-    {
-      m_started_nodes.push_back(nodeId);
-    }
-    rep->setEventType(NDB_LE_Connected);
-    break;
-  case NS_NODE_FAILED:
-    rep->setEventType(NDB_LE_Disconnected);
-    break;
-  case NS_NODE_NF_COMPLETE:
-    DBUG_VOID_RETURN;
-  }
-  rep->setNodeId(_ownNodeId);
-  eventReport(theData, 1);
-  DBUG_VOID_RETURN;
 }
 
 enum ndb_mgm_node_type 
@@ -2551,16 +2574,13 @@ MgmtSrvr::getNodeType(NodeId nodeId) const
 const char *MgmtSrvr::get_connect_address(Uint32 node_id)
 {
   if (m_connect_address[node_id].s_addr == 0 &&
-      theFacade && theFacade->theTransporterRegistry &&
-      theFacade->theClusterMgr &&
+      theFacade &&
       getNodeType(node_id) == NDB_MGM_NODE_TYPE_NDB) 
   {
-    const trp_node &node=
-      theFacade->theClusterMgr->getNodeInfo(node_id);
+    const trp_node &node= getNodeInfo(node_id);
     if (node.is_connected())
     {
-      m_connect_address[node_id]=
-	theFacade->theTransporterRegistry->get_connect_address(node_id);
+      m_connect_address[node_id] = theFacade->ext_get_connect_address(node_id);
     }
   }
   return inet_ntoa(m_connect_address[node_id]);  
@@ -2569,13 +2589,13 @@ const char *MgmtSrvr::get_connect_address(Uint32 node_id)
 void
 MgmtSrvr::get_connected_nodes(NodeBitmask &connected_nodes) const
 {
-  if (theFacade && theFacade->theClusterMgr)
+  if (theFacade)
   {
     for(Uint32 i = 0; i < MAX_NDB_NODES; i++)
     {
       if (getNodeType(i) == NDB_MGM_NODE_TYPE_NDB)
       {
-	const trp_node &node= theFacade->theClusterMgr->getNodeInfo(i);
+	const trp_node &node= getNodeInfo(i);
 	connected_nodes.bitOR(node.m_state.m_connected_nodes);
       }
     }
@@ -2609,7 +2629,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
     {
       bool next;
       while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-            theFacade->get_node_alive(nodeId) == false);
+            getNodeInfo(nodeId).m_alive == false);
       if (!next)
         return NO_CONTACT_WITH_DB_NODES;
       do_send = 1;
@@ -2644,7 +2664,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
       {
         do_send = 1;
         nodeId = refToNode(ref->masterRef);
-	if (!theFacade->get_node_alive(nodeId))
+	if (!getNodeInfo(nodeId).m_alive)
 	  nodeId = 0;
         if (ref->errorCode != AllocNodeIdRef::NotMaster)
         {
@@ -2677,6 +2697,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -2884,9 +2905,7 @@ MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
     /**
      * Make sure we're ready to accept connections from this node
      */
-    theFacade->lock_mutex();
-    theFacade->doConnect(id);
-    theFacade->unlock_mutex();
+    theFacade->ext_doConnect(id);
   }
 
   g_eventLogger->info("Mgmt server state: nodeid %d reserved for ip %s, "
@@ -3204,7 +3223,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 	ndbout_c("I'm not master resending to %d", nodeId);
 #endif
 	do_send = 1; // try again
-	if (!theFacade->get_node_alive(nodeId))
+	if (!getNodeInfo(nodeId).m_alive)
 	  m_master_node = nodeId = 0;
 	continue;
       }
@@ -3243,6 +3262,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       continue;
     default:
       report_unknown_signal(signal);
@@ -3260,7 +3280,7 @@ MgmtSrvr::abortBackup(Uint32 backupId)
   bool next;
   NodeId nodeId = 0;
   while((next = getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) == true &&
-	theFacade->get_node_alive(nodeId) == false);
+	getNodeInfo(nodeId).m_alive == false);
   
   if(!next){
     return NO_CONTACT_WITH_DB_NODES;
@@ -3516,9 +3536,7 @@ bool MgmtSrvr::transporter_connect(NDB_SOCKET_TYPE sockfd)
     with the new connection.
     Important for correct node id reservation handling
   */
-  theFacade->lock_mutex();
-  tr->update_connections();
-  theFacade->unlock_mutex();
+  theFacade->ext_update_connections();
 
   DBUG_RETURN(true);
 }
@@ -3632,6 +3650,7 @@ MgmtSrvr::change_config(Config& new_config, BaseString& msg)
 
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       // Ignore;
       break;
 
@@ -3823,6 +3842,7 @@ MgmtSrvr::make_sync_req(SignalSender& ss, Uint32 nodeId)
     }
     case GSN_API_REGCONF:
     case GSN_TAKE_OVERTCCONF:
+    case GSN_CONNECT_REP:
       break;
     default:
       return;

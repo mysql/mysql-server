@@ -170,11 +170,11 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   theBlobList = NULL;
   m_abortOption = -1;
   m_noErrorPropagation = false;
-  m_no_disk_flag = 1;
+  m_flags = 0;
+  m_flags |= OF_NO_DISK;
   m_interpreted_code = NULL;
   m_extraSetValues = NULL;
   m_numExtraSetValues = 0;
-  m_use_any_value = 0;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)
@@ -196,6 +196,10 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
     return -1;
   }
   m_customData = NULL;
+
+  if (theNdb->theImpl->get_ndbapi_config_parameters().m_default_queue_option)
+    m_flags |= OF_QUEUEABLE;
+
   return 0;
 }
 
@@ -251,7 +255,15 @@ NdbOperation::postExecuteRelease()
   }				
   theRequest = NULL;
   theLastKEYINFO = NULL;
-
+#ifdef TODO
+  /**
+   * Compute correct #cnt signals between theFirstATTRINFO/theCurrentATTRINFO
+   */
+  if (theFirstATTRINFO)
+  {
+    theNdb->releaseSignals(1, theFirstATTRINFO, theCurrentATTRINFO);
+  }
+#else
   tSignal = theFirstATTRINFO;
   while (tSignal != NULL)
   {
@@ -259,6 +271,7 @@ NdbOperation::postExecuteRelease()
     tSignal = tSignal->next();
     theNdb->releaseSignal(tSaveSignal);
   }
+#endif
   theFirstATTRINFO = NULL;
   theCurrentATTRINFO = NULL;
 

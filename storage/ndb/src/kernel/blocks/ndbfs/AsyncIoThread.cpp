@@ -23,6 +23,7 @@
 #include <signaldata/FsRef.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
+#include <signaldata/AllocMem.hpp>
 #include "Ndbfs.hpp"
 #include <NdbSleep.h>
 
@@ -235,12 +236,24 @@ AsyncIoThread::run()
 void
 AsyncIoThread::allocMemReq(Request* request)
 {
-  bool res = request->par.alloc.ctx->m_mm.init(0);
-  if (res == true)
+  Uint32 watchDog = 0;
+  switch((request->par.alloc.requestInfo & 255)){
+  case AllocMemReq::RT_MAP:{
+    bool memlock = !!(request->par.alloc.requestInfo & AllocMemReq::RT_MEMLOCK);
+    request->par.alloc.ctx->m_mm.map(&watchDog, memlock);
+    request->par.alloc.bytes = 0;
     request->error = 0;
-  else
+    break;
+  }
+  case AllocMemReq::RT_EXTEND:
+    /**
+     * Not implemented...
+     */
+    assert(false);
+    request->par.alloc.bytes = 0;
     request->error = 1;
-  
+    break;
+  }
 }
 
 void

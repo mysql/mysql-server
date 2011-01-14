@@ -92,6 +92,13 @@ void
 VoidFs::execSEND_PACKED(Signal* signal)
 {
   jamEntry();
+  if (scanningInProgress == false && scanIPC(signal))
+  {
+    jam();
+    scanningInProgress = true;
+    signal->theData[0] = NdbfsContinueB::ZSCAN_MEMORYCHANNEL_NO_DELAY;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+  }
 }
 
 void 

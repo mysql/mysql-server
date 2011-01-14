@@ -37,6 +37,7 @@ extern "C" void* runClusterMgr_C(void * me);
 class ClusterMgr : public trp_client
 {
   friend class TransporterFacade;
+  friend class ArbitMgr;
   friend void* runClusterMgr_C(void * me);
 public:
   ClusterMgr(class TransporterFacade &);
@@ -55,6 +56,7 @@ public:
   void set_max_api_reg_req_interval(unsigned int millisec) {
     m_max_api_reg_req_interval = millisec;
   }
+  void force_update_connections();
 
 private:
   void threadMain();
@@ -69,6 +71,7 @@ public:
     CS_waiting_for_first_connect,
     CS_connected
   };
+
   struct Node : public trp_node
   {
     Node();
@@ -78,6 +81,7 @@ public:
      */
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
+    Uint32 hbMissed;    // # missed heartbeats
   };
   
   const trp_node & getNodeInfo(NodeId) const;
@@ -113,11 +117,11 @@ private:
   void execAPI_REGCONF   (const Uint32 * theData);
   void execAPI_REGREF    (const Uint32 * theData);
   void execNODE_FAILREP  (const Uint32 * theData);
-  void execNF_COMPLETEREP(const Uint32 * theData);
+  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 
   void check_wait_for_hb(NodeId nodeId);
 
-  inline void set_node_alive(Node& node, bool alive){
+  inline void set_node_alive(trp_node& node, bool alive){
 
     // Only DB nodes can be "alive"
     assert(!alive ||
@@ -144,7 +148,6 @@ public:
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
-  virtual void trp_node_status(Uint32, Uint32);
 };
 
 inline
@@ -166,7 +169,7 @@ void
 ClusterMgr::hb_received(NodeId nodeId) {
   // Check array bounds + don't allow node 0 to be touched
   assert(nodeId > 0 && nodeId < MAX_NODES);
-  theNodes[nodeId].m_info.m_heartbeat_cnt= 0;
+  theNodes[nodeId].hbMissed = 0;
 }
 
 /*****************************************************************************/
@@ -182,7 +185,7 @@ extern "C" void* runArbitMgr_C(void* me);
 class ArbitMgr
 {
 public:
-  ArbitMgr(class TransporterFacade &);
+  ArbitMgr(class ClusterMgr &);
   ~ArbitMgr();
 
   inline void setRank(unsigned n) { theRank = n; }
@@ -195,7 +198,7 @@ public:
   friend void* runArbitMgr_C(void* me);
 
 private:
-  class TransporterFacade & theFacade;
+  class ClusterMgr & m_clusterMgr;
   unsigned theRank;
   unsigned theDelay;
 
