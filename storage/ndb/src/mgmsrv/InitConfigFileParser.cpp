@@ -738,7 +738,7 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   BaseString group_suffix;
 
   const char *save_file = my_defaults_file;
-#if MYSQL_VERSION_ID >= 50600
+#if MYSQL_VERSION_ID >= 50508
   const
 #endif
   char *save_extra_file = my_defaults_extra_file;
