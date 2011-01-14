@@ -25,8 +25,6 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
-#define round_up_byte(size) ((size + 7) >> 3) << 3
-
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
   NDB_FIELD = 1,   // Qualified from table definition
@@ -333,22 +331,23 @@ class Ndb_cond_stack : public Sql_alloc
  */
 class Ndb_expect_stack : public Sql_alloc
 {
+  static const uint MAX_EXPECT_ITEMS = Item::VIEW_FIXER_ITEM + 1;
+  static const uint MAX_EXPECT_FIELD_TYPES = MYSQL_TYPE_GEOMETRY + 1;
+  static const uint MAX_EXPECT_FIELD_RESULTS = DECIMAL_RESULT + 1;
  public:
 Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL) 
   {
-    // Allocate type checking bitmaps   
-    bitmap_init(&expect_mask,
-                0, round_up_byte(Item::MAX_NUM_ITEMS), FALSE);
-    bitmap_init(&expect_field_type_mask,
-                0, round_up_byte(MYSQL_NUM_FIELD_TYPES), FALSE);
-    bitmap_init(&expect_field_result_mask,
-                0, round_up_byte(MYSQL_NUM_ITEM_RESULTS), FALSE);
+    // Allocate type checking bitmaps using fixed size buffers
+    // since max size is known at compile time
+    bitmap_init(&expect_mask, m_expect_buf,
+                MAX_EXPECT_ITEMS, FALSE);
+    bitmap_init(&expect_field_type_mask, m_expect_field_type_buf,
+                MAX_EXPECT_FIELD_TYPES, FALSE);
+    bitmap_init(&expect_field_result_mask, m_expect_field_result_buf,
+                MAX_EXPECT_FIELD_RESULTS, FALSE);
   };
   ~Ndb_expect_stack()
   {
-    bitmap_free(&expect_mask);
-    bitmap_free(&expect_field_type_mask);
-    bitmap_free(&expect_field_result_mask);
     if (next)
       delete next;
     next= NULL;
@@ -385,6 +384,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   }
   bool expecting(Item::Type type)
   {
+    if (unlikely((uint)type > MAX_EXPECT_ITEMS))
+    {
+      // Unknown type, can't be expected
+      return false;
+    }
     return bitmap_is_set(&expect_mask, (uint) type);
   }
   void expect_nothing()
@@ -411,6 +415,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   }
   bool expecting_field_type(enum_field_types type)
   {
+    if (unlikely((uint)type > MAX_EXPECT_FIELD_TYPES))
+    {
+      // Unknown type, can't be expected
+      return false;
+    }
     return bitmap_is_set(&expect_field_type_mask, (uint) type);
   }
   void expect_no_field_type()
@@ -433,6 +442,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   }
   bool expecting_field_result(Item_result result)
   {
+    if (unlikely((uint)result > MAX_EXPECT_FIELD_RESULTS))
+    {
+      // Unknown result, can't be expected
+      return false;
+    }
     return bitmap_is_set(&expect_field_result_mask,
                          (uint) result);
   }
@@ -484,6 +498,12 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
   }
 
 private:
+  my_bitmap_map
+    m_expect_buf[bitmap_buffer_size(MAX_EXPECT_ITEMS)];
+  my_bitmap_map
+    m_expect_field_type_buf[bitmap_buffer_size(MAX_EXPECT_FIELD_TYPES)];
+  my_bitmap_map
+    m_expect_field_result_buf[bitmap_buffer_size(MAX_EXPECT_FIELD_RESULTS)];
   MY_BITMAP expect_mask;
   MY_BITMAP expect_field_type_mask;
   MY_BITMAP expect_field_result_mask;
