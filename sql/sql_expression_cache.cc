@@ -123,7 +123,6 @@ void Expression_cache_tmptable::init()
     goto error;
   }
   cache_table->s->keys= 1;
-  cache_table->s->uniques= 1;
   ref.null_rejecting= 1;
   ref.disable_cache= FALSE;
   ref.has_record= 0;
