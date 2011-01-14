@@ -640,7 +640,7 @@ setup_thd(char * stackptr)
   lex_start(thd);
 
   thd->init_for_queries();
-  thd->command= COM_DAEMON;
+  thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;
@@ -5985,7 +5985,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   lex_start(thd);
 
   thd->init_for_queries();
-  thd->command= COM_DAEMON;
+  thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version= refresh_version;

@@ -127,6 +127,18 @@ ulonglong thd_options(const THD * thd)
 #endif
 }
 
+/* set the "command" member of thd */
+static inline
+void thd_set_command(THD* thd, enum enum_server_command command)
+{
+#if MYSQL_VERSION_ID < 50600
+  thd->command = command;
+#else
+  /* "command" renamed to "m_command", use accessor function */
+  thd->set_command(command);
+#endif
+}
+
 /* get pointer to diagnostic area for statement from THD */
 static inline
 Diagnostics_area* thd_stmt_da(THD* thd)
