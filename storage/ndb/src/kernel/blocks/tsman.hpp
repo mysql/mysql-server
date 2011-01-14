@@ -95,7 +95,8 @@ public:
     
     Uint32 m_tablespace_ptr_i;
     Uint32 m_extent_size;   
-    Uint32 m_state;
+    Uint16 m_state;
+    Uint16 m_ref_count;
 
     enum FileState 
     {
@@ -159,7 +160,8 @@ public:
       Uint32 m_tablespace_id;
     };
     Uint32 m_version;
-    Uint32 m_state;
+    Uint16 m_state;
+    Uint16 m_ref_count; // Can't release when m_ref_count > 0
 
     enum TablespaceState 
     {
