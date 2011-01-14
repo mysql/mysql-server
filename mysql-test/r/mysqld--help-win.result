@@ -20,6 +20,7 @@ The following options may be given as the first argument:
  Offset added to Auto-increment columns. Used when
  auto-increment-increment != 1
  --autocommit        Set default value for autocommit (0 or 1)
+ (Defaults to on; use --skip-autocommit to disable.)
  --automatic-sp-privileges 
  Creating and dropping stored procedures alters ACLs
  (Defaults to on; use --skip-automatic-sp-privileges to disable.)
@@ -736,6 +737,7 @@ abort-slave-event-count 0
 allow-suspicious-udfs FALSE
 auto-increment-increment 1
 auto-increment-offset 1
+autocommit TRUE
 automatic-sp-privileges TRUE
 back-log 50
 big-tables FALSE
