@@ -4971,4 +4971,39 @@ k
 3
 drop table t1,t2,t3;
 drop view v2;
+#
+# Bug#52068: Optimizer generates invalid semijoin materialization plan
+#
+drop table if exists ot1, ot2, it1, it2;
+CREATE TABLE ot1(a INTEGER);
+INSERT INTO ot1 VALUES(5), (8);
+CREATE TABLE it2(a INTEGER);
+INSERT INTO it2 VALUES(9), (5), (1), (8);
+CREATE TABLE it3(a INTEGER);
+INSERT INTO it3 VALUES(7), (1), (0), (5), (1), (4);
+CREATE TABLE ot4(a INTEGER);
+INSERT INTO ot4 VALUES(1), (3), (5), (7), (9), (7), (3), (1);
+SELECT * FROM ot1,ot4
+WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
+FROM it2,it3);
+a	a
+5	1
+8	1
+5	5
+8	5
+5	7
+8	7
+5	7
+8	7
+5	1
+8	1
+explain SELECT * FROM ot1,ot4
+WHERE (ot1.a,ot4.a) IN (SELECT it2.a,it3.a
+FROM it2,it3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	ot4	ALL	NULL	NULL	NULL	NULL	8	Using where; Using join buffer (flat, BNL join)
+2	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	4	
+2	SUBQUERY	it3	ALL	NULL	NULL	NULL	NULL	6	Using join buffer (flat, BNL join)
+DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 set optimizer_switch=default;

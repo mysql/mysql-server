@@ -1099,3 +1099,140 @@ DROP TABLE t1;
 --echo #
 --echo End of 5.1 tests
 
+--echo #
+--echo # BUG#46680 - Assertion failed in file item_subselect.cc, 
+--echo #             line 305 crashing on HAVING subquery
+--echo #
+
+--echo # Create tables
+--echo #
+
+CREATE TABLE t1 (
+  pk INT,
+  v VARCHAR(1) DEFAULT NULL,
+  PRIMARY KEY(pk)
+);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE empty1 (a int);
+
+INSERT INTO t1 VALUES (1,'c'),(2,NULL);
+INSERT INTO t2 VALUES (3,'m'),(4,NULL);
+INSERT INTO t3 VALUES (1,'n');
+
+--echo
+--echo #
+--echo # 1) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Impossible WHERE"
+--echo #
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 2) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "No matching min/max row"
+--echo #
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+--echo #
+--echo # 3) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Select tables optimized away"
+--echo #
+--echo # NOTE: The result of this query is actually wrong; it should be NULL
+--echo # See BUG#47762. Even so, the test case is still needed to test
+--echo # that the HAVING subquery does not crash the server
+--echo # 
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 4) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "No matching row in const table"
+--echo #
+--echo
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN 
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo 
+--echo #
+--echo # 5) Test that subquery materialization is setup for query with
+--echo #    premature optimize() exit due to "Impossible WHERE noticed 
+--echo #    after reading const tables"
+--echo #
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo
+EXPLAIN
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+
+--echo #
+--echo # Cleanup for BUG#46680
+--echo #
+DROP TABLE IF EXISTS t1,t2,t3,empty1;
+
+###
+--echo End of 6.0 tests

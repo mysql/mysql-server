@@ -1725,3 +1725,154 @@ m
 DROP TABLE t1;
 #
 End of 5.1 tests
+#
+# BUG#46680 - Assertion failed in file item_subselect.cc, 
+#             line 305 crashing on HAVING subquery
+#
+# Create tables
+#
+CREATE TABLE t1 (
+pk INT,
+v VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY(pk)
+);
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+CREATE TABLE empty1 (a int);
+INSERT INTO t1 VALUES (1,'c'),(2,NULL);
+INSERT INTO t2 VALUES (3,'m'),(4,NULL);
+INSERT INTO t3 VALUES (1,'n');
+
+#
+# 1) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Impossible WHERE"
+#
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(t2.pk)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 JOIN t1 ON t1.pk=t2.pk
+WHERE 'j'
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+
+#
+# 2) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "No matching min/max row"
+#
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(t2.pk)
+NULL
+
+EXPLAIN
+SELECT MIN(t2.pk)
+FROM t2 
+WHERE t2.pk>10
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+
+#
+# 3) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Select tables optimized away"
+#
+# NOTE: The result of this query is actually wrong; it should be NULL
+# See BUG#47762. Even so, the test case is still needed to test
+# that the HAVING subquery does not crash the server
+# 
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(pk)
+NULL
+
+EXPLAIN
+SELECT MIN(pk)
+FROM t1
+WHERE pk=NULL
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+
+#
+# 4) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "No matching row in const table"
+#
+
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+MIN(a)
+NULL
+
+EXPLAIN 
+SELECT MIN(a)
+FROM (SELECT a FROM empty1) tt
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+
+#
+# 5) Test that subquery materialization is setup for query with
+#    premature optimize() exit due to "Impossible WHERE noticed 
+#    after reading const tables"
+#
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+min(t1.pk)
+NULL
+
+EXPLAIN
+SELECT min(t1.pk)
+FROM t1
+WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
+HAVING ('m') IN ( 
+SELECT v
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+#
+# Cleanup for BUG#46680
+#
+DROP TABLE IF EXISTS t1,t2,t3,empty1;
+End of 6.0 tests
