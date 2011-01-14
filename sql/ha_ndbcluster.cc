@@ -6319,20 +6319,42 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
     r|= op->setValue(1u, (Uint64)0);
     DBUG_ASSERT(r == 0);
   }
+#if MYSQL_VERSION_ID < 50600
+  const char* group_master_log_name =
+    active_mi->rli.group_master_log_name;
+  const Uint64 group_master_log_pos =
+    (Uint64)active_mi->rli.group_master_log_pos;
+  const Uint64 future_event_relay_log_pos =
+    (Uint64)active_mi->rli.future_event_relay_log_pos;
+  const Uint64 group_relay_log_pos =
+    (Uint64)active_mi->rli.group_relay_log_pos;
+#else
+  /*
+    - Master_info's rli member returns Relay_log_info*
+    - Relay_log_info members are protected and must be accessed
+      using accessor functions
+  */
+  const char* group_master_log_name =
+    active_mi->rli->get_group_master_log_name();
+  const Uint64 group_master_log_pos =
+    (Uint64)active_mi->rli->get_group_master_log_pos();
+  const Uint64 future_event_relay_log_pos =
+    (Uint64)active_mi->rli->get_future_event_relay_log_pos();
+  const Uint64 group_relay_log_pos =
+    (Uint64)active_mi->rli->get_group_relay_log_pos();
+#endif
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   active_mi->rli.group_master_log_name,
-                   strlen(active_mi->rli.group_master_log_name));
+                   group_master_log_name, strlen(group_master_log_name));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
-  r|= op->setValue(3u, (Uint64)active_mi->rli.group_master_log_pos);
+  r|= op->setValue(3u, group_master_log_pos);
   DBUG_ASSERT(r == 0);
   // end_pos
-  r|= op->setValue(4u, (Uint64)active_mi->rli.group_master_log_pos + 
-                   ((Uint64)active_mi->rli.future_event_relay_log_pos -
-                    (Uint64)active_mi->rli.group_relay_log_pos));
+  r|= op->setValue(4u, group_master_log_pos +
+                   (future_event_relay_log_pos - group_relay_log_pos));
   DBUG_ASSERT(r == 0);
   return 0;
 }
