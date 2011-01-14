@@ -982,5 +982,141 @@ WHERE (SELECT varchar_key FROM t3
 set optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#46692 "Crash occurring on queries with nested FROM subqueries 
+--echo # using materialization."
+--echo #
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  int_key INTEGER,
+  KEY int_key(int_key)
+);
+INSERT INTO t1 VALUES (10,186),(11,NULL),(12,2),(13,3),(14,0),(15,133),(16,1);
+
+CREATE TABLE t2 (
+  pk INTEGER PRIMARY KEY,
+  int_key INTEGER,
+  KEY int_key(int_key)
+);
+INSERT INTO t2 VALUES (1,7),(2,2);
+
+SELECT * FROM t1 WHERE (140, 4) IN 
+  (SELECT t2.int_key, t2 .pk FROM t2 STRAIGHT_JOIN t1 ON t2.int_key);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#42353 "SELECT ... WHERE oe IN (SELECT w/ LEFT JOIN) query
+--echo # causes crash."
+--echo #
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  int_nokey INTEGER,
+  int_key INTEGER,
+  date_key DATE,
+  datetime_nokey DATETIME,
+  varchar_nokey VARCHAR(1)
+);
+
+CREATE TABLE t2 (
+  date_nokey DATE
+);
+
+CREATE TABLE t3 (
+  pk INTEGER PRIMARY KEY,
+  int_nokey INTEGER,
+  date_key date,
+  varchar_key VARCHAR(1),
+  varchar_nokey VARCHAR(1),
+  KEY date_key (date_key)
+);
+
+SELECT date_key FROM t1
+WHERE (int_key, int_nokey)
+  IN (SELECT  t3.int_nokey, t3.pk
+      FROM t2 LEFT JOIN t3 ON (t2.date_nokey < t3.date_key) 
+      WHERE t3.varchar_key <= t3.varchar_nokey OR t3.int_nokey <= t3.pk
+     )
+  AND (varchar_nokey <> 'f' OR NOT int_key < 7); 
+
+
+--echo #
+--echo # Bug#45933 "Crash in optimize_semijoin_nests on JOIN in subquery 
+--echo # + AND in outer query".
+--echo #
+INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
+                      (11,7,0,'0000-00-00','0000-00-00 00:00:00','s'), 
+		      (12,4,0,'2003-07-14','2006-09-14 04:01:02','y'), 
+		      (13,0,4,'2002-07-25','0000-00-00 00:00:00','c'), 
+		      (14,1,8,'2007-07-03','0000-00-00 00:00:00','q'), 
+		      (15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
+		      (16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
+		      (29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
+INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+                      (2,2,'2002-09-17','h','h');
+
+SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
+WHERE t1.varchar_nokey 
+  IN (SELECT varchar_nokey FROM t1 
+      WHERE (pk) 
+        IN (SELECT t3.int_nokey
+            FROM t3 LEFT JOIN t1 ON t1.varchar_nokey
+            WHERE t3.date_key BETWEEN '2008-06-07' AND '2006-06-26'
+           )  
+     );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#45219 "Crash on SELECT DISTINCT query containing a  
+--echo # LEFT JOIN in subquery"
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  int_nokey INTEGER NOT NULL,
+  datetime_key DATETIME NOT NULL,
+  varchar_key VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY datetime_key (datetime_key),
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES
+(1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
+(3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
+(5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),
+(7,1,'0000-00-00 00:00:00','h'),(8,9,'0000-00-00 00:00:00','u'),
+(9,0,'2005-08-02 17:16:54','n'),(10,9,'2002-12-21 00:00:00','j'),
+(11,0,'2005-08-15 12:37:35','k'),(12,5,'0000-00-00 00:00:00','e'),
+(13,0,'2006-03-10 00:00:00','i'),(14,8,'2005-05-16 11:02:36','u'),
+(15,8,'2008-11-02 00:00:00','n'),(16,5,'2006-03-15 00:00:00','b'),
+(17,1,'0000-00-00 00:00:00','x'),(18,7,'0000-00-00 00:00:00',''),
+(19,0,'2008-12-17 20:15:40','q'),(20,9,'0000-00-00 00:00:00','u');
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES 
+(10,0,'2006-07-07 07:26:28','q'),(11,5,'2002-09-23 00:00:00','m'),
+(12,7,'0000-00-00 00:00:00','j'),(13,1,'2006-06-07 00:00:00','z'),
+(14,8,'2000-09-16 12:15:34','a'),(15,2,'2007-08-05 15:47:52',''),
+(16,1,'0000-00-00 00:00:00','e'),(17,8,'2005-12-02 19:34:26','t'),
+(18,5,'0000-00-00 00:00:00','q'),(19,4,'0000-00-00 00:00:00','b'),
+(20,5,'2007-12-28 00:00:00','w'),(21,3,'2004-08-02 11:48:43','m'),
+(22,0,'0000-00-00 00:00:00','x'),(23,8,'2004-04-19 12:18:43',''),
+(24,0,'2009-04-27 00:00:00','w'),(25,4,'2006-10-20 14:52:15','x'),
+(26,0,'0000-00-00 00:00:00','e'),(27,0,'2002-03-22 11:48:37','e'),
+(28,2,'0000-00-00 00:00:00','p'),(29,0,'2001-01-04 03:55:07','x');
+
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 VALUES
+(10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
+ 
+SELECT DISTINCT datetime_key FROM t1
+WHERE (int_nokey, pk)  
+  IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
+  AND pk = 9;
+
+DROP TABLE t1, t2, t3;
+
+
 # The following command must be the last one the file 
 set @@optimizer_switch=@save_optimizer_switch;
