@@ -133,7 +133,7 @@ void Qmgr::execCONTINUEB(Signal* signal)
       return;
     }//if
     //regreqMasterTimeLimitLab(signal);
-    failReportLab(signal, c_start.m_startNode, FailRep::ZSTART_IN_REGREQ);
+    failReportLab(signal, c_start.m_startNode, FailRep::ZSTART_IN_REGREQ, getOwnNodeId());
     return;
     break;
   case ZTIMER_HANDLING:
@@ -199,9 +199,15 @@ void Qmgr::execFAIL_REP(Signal* signal)
   const FailRep * const failRep = (FailRep *)&signal->theData[0];
   const NodeId failNodeId = failRep->failNodeId;
   const FailRep::FailCause failCause = (FailRep::FailCause)failRep->failCause; 
-  
+  Uint32 failSource = failRep->getFailSourceNodeId(signal->length());
+  if (!failSource)
+  {
+    /* Failure source not included, use sender of signal as 'source' */
+    failSource = refToNode(signal->getSendersBlockRef());
+  }
+
   jamEntry();
-  failReportLab(signal, failNodeId, failCause);
+  failReportLab(signal, failNodeId, failCause, failSource);
   return;
 }//Qmgr::execFAIL_REP()
 
@@ -1122,19 +1128,29 @@ retry:
     part.assign(NdbNodeBitmask::Size, conf->clusterNodes);
     FailRep* rep = (FailRep*)signal->getDataPtrSend();
     rep->failCause = FailRep::ZPARTITIONED_CLUSTER;
-    rep->president = cpresident;
-    c_clusterNodes.copyto(NdbNodeBitmask::Size, rep->partition);
+    rep->partitioned.president = cpresident;
+    c_clusterNodes.copyto(NdbNodeBitmask::Size, rep->partitioned.partition);
+    rep->partitioned.partitionFailSourceNodeId = getOwnNodeId();
     Uint32 ref = calcQmgrBlockRef(nodeId);
     Uint32 i = 0;
+    /* Send source of event info if a node supports it */
+    Uint32 length = FailRep::OrigSignalLength + FailRep::PartitionedExtraLength;    
     while((i = part.find(i + 1)) != NdbNodeBitmask::NotFound)
     {
       if (i == nodeId)
 	continue;
       rep->failNodeId = i;
-      sendSignal(ref, GSN_FAIL_REP, signal, FailRep::SignalLength, JBA);
+      bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(i)).m_version);
+      sendSignal(ref, GSN_FAIL_REP, signal, 
+                 length + (sendSourceId ? FailRep::SourceExtraLength : 0), 
+                 JBA);
     }
     rep->failNodeId = nodeId;
-    sendSignal(ref, GSN_FAIL_REP, signal, FailRep::SignalLength, JBB);
+    bool sendSourceId = ndbd_fail_rep_source_node((getNodeInfo(nodeId)).m_version);
+    
+    sendSignal(ref, GSN_FAIL_REP, signal,
+               length + (sendSourceId ? FailRep::SourceExtraLength : 0), 
+               JBB);
     return;
   }
   
@@ -2323,25 +2339,6 @@ void Qmgr::findNeighbours(Signal* signal, Uint32 from)
   signal->theData[3] = cneighbourh;
   signal->theData[4] = fnOwnNodePtr.p->ndynamicId;
   UintR Tlen = 5;
-  for (fnNodePtr.i = 1; fnNodePtr.i < MAX_NDB_NODES; fnNodePtr.i++) {
-    jam();
-    ptrAss(fnNodePtr, nodeRec);
-    if (fnNodePtr.i != fnOwnNodePtr.i) {
-      if (fnNodePtr.p->phase == ZRUNNING) {
-        jam();
-        signal->theData[Tlen] = fnNodePtr.i;
-        signal->theData[Tlen + 1] = fnNodePtr.p->ndynamicId;
-        if (Tlen < 25) {
-	  /*----------------------------------------------------------------*/
-	  // This code can only report 11 nodes. 
-	  // We need to update this when increasing the number of nodes
-	  // supported.
-	  /*-----------------------------------------------------------------*/
-          Tlen += 2;
-        }
-      }//if
-    }//if
-  }//for
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, Tlen, JBB);
   g_eventLogger->info("findNeighbours from: %u old (left: %u right: %u) new (%u %u)", 
                       from,
@@ -2655,7 +2652,7 @@ void Qmgr::checkHeartbeat(Signal* signal)
     signal->theData[1] = nodePtr.i;
     sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
 
-    failReportLab(signal, nodePtr.i, FailRep::ZHEARTBEAT_FAILURE);
+    failReportLab(signal, nodePtr.i, FailRep::ZHEARTBEAT_FAILURE, getOwnNodeId());
     return;
   }//if
 }//Qmgr::checkHeartbeat()
@@ -3108,7 +3105,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
   switch(failedNodePtr.p->phase){
   case ZRUNNING:
     jam();
-    failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE);
+    failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE, getOwnNodeId());
     return;
   case ZFAIL_CLOSING:
     jam();
@@ -3119,7 +3116,7 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
      *   Force "real" failure handling
      */
     failedNodePtr.p->phase = ZRUNNING;
-    failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE);
+    failReportLab(signal, aFailedNode, FailRep::ZLINK_FAILURE, getOwnNodeId());
     return;
     // Fall-through
   default:
@@ -3560,7 +3557,8 @@ Qmgr::sendApiRegRef(Signal* signal, Uint32 Tref, ApiRegRef::ErrorCode err){
  * OF A FAILED PRESIDENT THEN WE WILL TAKE FURTHER ACTION. 
  *---------------------------------------------------------------------------*/
 void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
-			 FailRep::FailCause aFailCause) 
+			 FailRep::FailCause aFailCause,
+                         Uint16 sourceNode) 
 {
   NodeRecPtr nodePtr;
   NodeRecPtr failedNodePtr;
@@ -3608,12 +3606,13 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
       code = NDBD_EXIT_PARTITIONED_SHUTDOWN;
       char buf1[100], buf2[100];
       c_clusterNodes.getText(buf1);
-      if (signal->getLength()== FailRep::SignalLength + FailRep::ExtraLength &&
-	  signal->header.theVerId_signalNumber == GSN_FAIL_REP)
+      if (((signal->getLength()== FailRep::OrigSignalLength + FailRep::PartitionedExtraLength) ||
+           (signal->getLength()== FailRep::SignalLength + FailRep::PartitionedExtraLength)) &&
+          signal->header.theVerId_signalNumber == GSN_FAIL_REP)
       {
 	jam();
 	NdbNodeBitmask part;
-	part.assign(NdbNodeBitmask::Size, rep->partition);
+	part.assign(NdbNodeBitmask::Size, rep->partitioned.partition);
 	part.getText(buf2);
 	BaseString::snprintf(extra, sizeof(extra),
 			     "Our cluster: %s other cluster: %s",
@@ -3639,8 +3638,9 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
 
     char buf[255];
     BaseString::snprintf(buf, sizeof(buf), 
-			 "We(%u) have been declared dead by %u reason: %s(%u)",
+			 "We(%u) have been declared dead by %u (via %u) reason: %s(%u)",
 			 getOwnNodeId(),
+                         sourceNode,
 			 refToNode(signal->getSendersBlockRef()),
 			 msg ? msg : "<Unknown>",
 			 aFailCause);
@@ -3668,7 +3668,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   }
 
   TnoFailedNodes = cnoFailedNodes;
-  failReport(signal, failedNodePtr.i, (UintR)ZTRUE, aFailCause);
+  failReport(signal, failedNodePtr.i, (UintR)ZTRUE, aFailCause, sourceNode);
   if (cpresident == getOwnNodeId()) {
     jam();
     if (ctoStatus == Q_NOT_ACTIVE) {
@@ -3772,7 +3772,8 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
     failReport(signal,
                cprepFailedNodes[Tindex],
                (UintR)ZFALSE,
-               FailRep::ZIN_PREP_FAIL_REQ);
+               FailRep::ZIN_PREP_FAIL_REQ,
+               0); /* Source node not required (or known) here */
   }//for
   sendCloseComReq(signal, Tblockref, TfailureNr);
   cnoCommitFailedNodes = 0;
@@ -3889,6 +3890,7 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
       arrayIndex++;
     }
   }
+  ndbassert(arrayIndex == cnoPrepFailedNodes);
   UintR tprepFailConf;
   UintR Tindex2;
   UintR guard0;
@@ -3899,6 +3901,14 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   tprepFailConf = ZTRUE;
   if (cnoFailedNodes > 0) {
     jam();
+    /* Check whether the set of nodes which have had communications
+     * closed is the same as the set of failed nodes.
+     * If it is, we can confirm the PREP_FAIL phase for this set 
+     * of nodes to the President.
+     * If it is not, we Refuse the PREP_FAIL phase for this set
+     * of nodes, the President will start a new PREP_FAIL phase
+     * for the new set.
+     */
     guard0 = cnoFailedNodes - 1;
     arrGuard(guard0, MAX_NDB_NODES);
     for (Tindex = 0; Tindex <= guard0; Tindex++) {
@@ -3916,6 +3926,10 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
       }//for
       if (Tfound == ZFALSE) {
         jam();
+        /* A failed node is missing from the set, we will not
+         * confirm this Prepare_Fail phase.
+         * Store the node id in the array for later.
+         */
         tprepFailConf = ZFALSE;
         arrGuard(cnoPrepFailedNodes, MAX_NDB_NODES);
         cprepFailedNodes[cnoPrepFailedNodes] = TfailedNodeNo;
@@ -3925,7 +3939,11 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   }//if
   if (tprepFailConf == ZFALSE) {
     jam();
-    for (Tindex = 1; Tindex < MAX_NDB_NODES; Tindex++) {
+    /* Inform President that we cannot confirm the PREP_FAIL
+     * phase as we are aware of at least one other node
+     * failure
+     */
+    for (Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
       cfailedNodes[Tindex] = cprepFailedNodes[Tindex];
     }//for
     cnoFailedNodes = cnoPrepFailedNodes;
@@ -3937,6 +3955,9 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
 		       cnoPrepFailedNodes,
 		       cprepFailedNodes);
   } else {
+    /* We have prepared the failure of the requested nodes
+     * send confirmation to the president
+     */
     jam();
     cnoCommitFailedNodes = cnoPrepFailedNodes;
     guard0 = cnoPrepFailedNodes - 1;
@@ -4417,7 +4438,7 @@ void Qmgr::systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line,
   jam();
 
   // Broadcast that this node is failing to other nodes
-  failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE);
+  failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE, getOwnNodeId());
 
   char buf[100];
   BaseString::snprintf(buf, 100, 
@@ -4432,7 +4453,7 @@ void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message)
 {
   jam();
   // Broadcast that this node is failing to other nodes
-  failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE);
+  failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE, getOwnNodeId());
 
   // If it's known why shutdown occured
   // an error message has been passed to this function
@@ -4449,13 +4470,16 @@ void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message)
 void Qmgr::failReport(Signal* signal,
                       Uint16 aFailedNode,
                       UintR aSendFailRep,
-                      FailRep::FailCause aFailCause) 
+                      FailRep::FailCause aFailCause,
+                      Uint16 sourceNode) 
 {
   UintR tfrMinDynamicId;
   NodeRecPtr failedNodePtr;
   NodeRecPtr nodePtr;
   NodeRecPtr presidentNodePtr;
 
+
+  ndbassert((! aSendFailRep) || (sourceNode != 0));
 
   failedNodePtr.i = aFailedNode;
   ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRec);
@@ -4488,6 +4512,7 @@ void Qmgr::failReport(Signal* signal,
 	FailRep * const failRep = (FailRep *)&signal->theData[0];
         failRep->failNodeId = failedNodePtr.i;
         failRep->failCause = aFailCause;
+        failRep->failSourceNodeId = sourceNode;
         sendSignal(failedNodePtr.p->blockRef, GSN_FAIL_REP, signal, 
 		   FailRep::SignalLength, JBA);
       }//if
@@ -4499,6 +4524,7 @@ void Qmgr::failReport(Signal* signal,
 	  FailRep * const failRep = (FailRep *)&signal->theData[0];
 	  failRep->failNodeId = failedNodePtr.i;
 	  failRep->failCause = aFailCause;
+          failRep->failSourceNodeId = sourceNode;
           sendSignal(nodePtr.p->blockRef, GSN_FAIL_REP, signal, 
 		     FailRep::SignalLength, JBA);
         }//if

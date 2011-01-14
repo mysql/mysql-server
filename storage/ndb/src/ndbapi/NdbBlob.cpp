@@ -326,6 +326,7 @@ NdbBlob::init()
   theGetFlag = false;
   theGetBuf = NULL;
   theSetFlag = false;
+  theSetValueInPreExecFlag = false;
   theSetBuf = NULL;
   theGetSetBytes = 0;
   thePendingBlobOps = 0;
@@ -1294,7 +1295,7 @@ NdbBlob::setNull()
   }
   if (theNullFlag)
     DBUG_RETURN(0);
-  if (deleteParts(0, getPartCount()) == -1)
+  if (deletePartsThrottled(0, getPartCount()) == -1)
     DBUG_RETURN(-1);
   theNullFlag = true;
   theLength = 0;
@@ -1336,7 +1337,7 @@ NdbBlob::truncate(Uint64 length)
       Uint32 part1 = getPartNumber(length - 1);
       Uint32 part2 = getPartNumber(theLength - 1);
       assert(part2 >= part1);
-      if (part2 > part1 && deleteParts(part1 + 1, part2 - part1) == -1)
+      if (part2 > part1 && deletePartsThrottled(part1 + 1, part2 - part1) == -1)
       DBUG_RETURN(-1);
       Uint32 off = getPartOffset(length);
       if (off != 0) {
@@ -1360,7 +1361,7 @@ NdbBlob::truncate(Uint64 length)
           DBUG_RETURN(-1);
       }
     } else {
-      if (deleteParts(0, getPartCount()) == -1)
+      if (deletePartsThrottled(0, getPartCount()) == -1)
         DBUG_RETURN(-1);
     }
     theLength = length;
@@ -1471,12 +1472,36 @@ NdbBlob::readDataPrivate(char* buf, Uint32& bytes)
     if (len >= thePartSize) {
       Uint32 part = getPartNumber(pos);
       Uint32 count = len / thePartSize;
-      if (readParts(buf, part, count) == -1)
-        DBUG_RETURN(-1);
-      Uint32 n = thePartSize * count;
-      pos += n;
-      buf += n;
-      len -= n;
+      do
+      {
+        /* How much quota left, avoiding underflow? */
+        Uint32 partsThisTrip = count;
+        if (theEventBlobVersion == -1)
+        {
+          /* Table read as opposed to event buffer read */
+          const Uint32 remainingQuota = 
+            theNdbCon->maxPendingBlobReadBytes - 
+            MIN(theNdbCon->maxPendingBlobReadBytes, theNdbCon->pendingBlobReadBytes);
+          const Uint32 maxPartsThisTrip = MAX(remainingQuota / thePartSize, 1); // always read one part
+          partsThisTrip= MIN(count, maxPartsThisTrip);
+        }
+        
+        if (readParts(buf, part, partsThisTrip) == -1)
+          DBUG_RETURN(-1);
+        Uint32 n = thePartSize * partsThisTrip;
+
+        pos += n;
+        buf += n;
+        len -= n;
+        part += partsThisTrip;
+        count -= partsThisTrip;
+        if (count != 0)
+        {
+          /* Execute this batch before defining next */
+          if (executePendingBlobReads() == -1)
+            DBUG_RETURN(-1);
+        }
+      } while (count != 0);
     }
   }
   if (len > 0) {
@@ -1602,6 +1627,15 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
         pos += n;
         buf += n;
         len -= n;
+        if (theNdbCon->pendingBlobWriteBytes > 
+            theNdbCon->maxPendingBlobWriteBytes)
+        {
+          /* Flush defined part ops */
+          if (executePendingBlobWrites() == -1)
+          {
+            DBUG_RETURN(-1);
+          }
+        }
       }
     }
   }
@@ -1731,6 +1765,7 @@ NdbBlob::readTablePart(char* buf, Uint32 part, Uint16& len)
   tOp->m_abortOption = NdbOperation::AbortOnError;
   thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
   theNdbCon->thePendingBlobOps |= (1 << NdbOperation::ReadRequest);
+  theNdbCon->pendingBlobReadBytes += len;
   DBUG_RETURN(0);
 }
 
@@ -1791,6 +1826,7 @@ NdbBlob::insertPart(const char* buf, Uint32 part, const Uint16& len)
   tOp->m_abortOption = NdbOperation::AbortOnError;
   thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
   theNdbCon->thePendingBlobOps |= (1 << NdbOperation::InsertRequest);
+  theNdbCon->pendingBlobWriteBytes += len;
   DBUG_RETURN(0);
 }
 
@@ -1828,6 +1864,44 @@ NdbBlob::updatePart(const char* buf, Uint32 part, const Uint16& len)
   tOp->m_abortOption = NdbOperation::AbortOnError;
   thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
   theNdbCon->thePendingBlobOps |= (1 << NdbOperation::UpdateRequest);
+  theNdbCon->pendingBlobWriteBytes += len;
+  DBUG_RETURN(0);
+}
+
+int
+NdbBlob::deletePartsThrottled(Uint32 part, Uint32 count)
+{
+  DBUG_ENTER("NdbBlob::deletePartsThrottled");
+  DBUG_PRINT("info", ("part=%u count=%u maxPendingBlobWriteBytes=%u", 
+                      part, count, theNdbCon->maxPendingBlobWriteBytes));
+  
+  if (thePartSize)
+  {
+    do
+    {
+      /* How much quota left, avoiding underflow? */
+      const Uint32 remainingQuota = 
+        theNdbCon->maxPendingBlobWriteBytes - 
+        MIN(theNdbCon->maxPendingBlobWriteBytes, theNdbCon->pendingBlobWriteBytes);
+      const Uint32 maxPartsThisTrip = MAX(remainingQuota / thePartSize, 1); // always read one part
+      const Uint32 partsThisTrip= MIN(count, maxPartsThisTrip);
+      
+      int rc = deleteParts(part, partsThisTrip);
+      if (rc != 0)
+        DBUG_RETURN(rc);
+      
+      part+= partsThisTrip;
+      count-= partsThisTrip;
+      
+      if (count != 0)
+      {
+        /* Execute this batch before defining next */
+        if (executePendingBlobWrites() == -1)
+          DBUG_RETURN(-1);
+      }
+    } while (count != 0);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -1850,6 +1924,7 @@ NdbBlob::deleteParts(Uint32 part, Uint32 count)
     n++;
     thePendingBlobOps |= (1 << NdbOperation::DeleteRequest);
     theNdbCon->thePendingBlobOps |= (1 << NdbOperation::DeleteRequest);
+    theNdbCon->pendingBlobWriteBytes += thePartSize; /* Assume full part */
   }
   DBUG_RETURN(0);
 }
@@ -1873,6 +1948,11 @@ NdbBlob::deletePartsUnknown(Uint32 part)
   while (true) {
     Uint32 n;
     n = 0;
+    /* How much quota left, avoiding underflow? */
+    Uint32 remainingQuota = theNdbCon->maxPendingBlobWriteBytes - 
+      MIN(theNdbCon->maxPendingBlobWriteBytes, theNdbCon->pendingBlobWriteBytes);
+    Uint32 deleteQuota = MAX(remainingQuota / thePartSize, 1);
+    bat = MIN(deleteQuota, bat);
     while (n < bat) {
       NdbOperation*& tOp = tOpList[n];  // ref
       tOp = theNdbCon->getNdbOperation(theBlobTable);
@@ -1884,6 +1964,7 @@ NdbBlob::deletePartsUnknown(Uint32 part)
       }
       tOp->m_abortOption= NdbOperation::AO_IgnoreError;
       tOp->m_noErrorPropagation = true;
+      theNdbCon->pendingBlobWriteBytes += thePartSize;
       n++;
     }
     DBUG_PRINT("info", ("bat=%u", bat));
@@ -2539,14 +2620,26 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
      * and the transaction can fail on the AbortOnError 
      * part operations or corrupt the head with the 
      * post-update operation)
+     *
+     * Additionally, if the insert is large, we'll defer to
+     * postExecute, where we can perform the writes at a more
+     * leisurely pace.
+     * We defer if we are writing more part data than we have
+     * remaining quota for.
      */
-    bool performExtraInsertOpsInPreExec= 
-      (theNdbOp->m_abortOption != NdbOperation::AO_IgnoreError);
+    theSetValueInPreExecFlag =
+      ((theNdbOp->m_abortOption == NdbOperation::AbortOnError) &&
+       ((theGetSetBytes <= theInlineSize) ||   // Parts being written
+        ((theGetSetBytes - theInlineSize) <=      // Total part size <=
+         (theNdbCon->maxPendingBlobWriteBytes -   //  (Quota -
+          MIN(theNdbCon->maxPendingBlobWriteBytes,
+              theNdbCon->pendingBlobWriteBytes))  //   bytes_written)
+         )));
 
-    if (performExtraInsertOpsInPreExec)
+    if (theSetValueInPreExecFlag)
     {
       DBUG_PRINT("info", 
-                 ("Insert abortError - extra ops added in preExecute"));
+                 ("Insert extra ops added in preExecute"));
       /* Add operations to insert parts and update the
        * Blob head+inline in the main tables
        */
@@ -2556,8 +2649,12 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
         const char* buf = theSetBuf + theInlineSize;
         Uint32 bytes = theGetSetBytes - theInlineSize;
         assert(thePos == theInlineSize);
+        Uint32 savePendingBlobWriteBytes = theNdbCon->pendingBlobWriteBytes;
         if (writeDataPrivate(buf, bytes) == -1)
           DBUG_RETURN(-1);
+        /* Assert that we didn't execute inline there */
+        assert(theNdbCon->pendingBlobWriteBytes >
+               savePendingBlobWriteBytes);
       }
       
       if (theHeadInlineUpdateFlag)
@@ -2578,7 +2675,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType,
     else
     {
       DBUG_PRINT("info", 
-                 ("Insert ignoreError - waiting for Blob head insert"));
+                 ("Insert waiting for Blob head insert"));
       /* Require that this insert op is completed 
        * before beginning more user ops - avoid interleave
        * with delete etc.
@@ -2847,14 +2944,16 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
   if (isInsertOp() && theSetFlag) {
     /* For Inserts where the main table operation is IgnoreError, 
      * we perform extra operations on the head and inline parts
-     * now
+     * now, as we know that the main table row was inserted 
+     * successfully.
+     *
+     * Additionally, if the insert was large, we deferred writing
+     * until now to better control the flow of part operations.
+     * See preExecute()
      */
-    bool performDelayedInsertOpsInPostExec= 
-      (theNdbOp->m_abortOption == NdbOperation::AO_IgnoreError);
-
-    if (performDelayedInsertOpsInPostExec)
+    if (! theSetValueInPreExecFlag)
     {
-      DBUG_PRINT("info", ("Insert IgnoreError adding extra ops"));
+      DBUG_PRINT("info", ("Insert adding extra ops"));
       /* Check the main table op for an error (don't proceed if 
        * it failed) 
        */
@@ -2990,7 +3089,7 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
   if (isDeleteOp()) {
     assert(anExecType == NdbTransaction::NoCommit);
     getHeadFromRecAttr();
-    if (deleteParts(0, getPartCount()) == -1)
+    if (deletePartsThrottled(0, getPartCount()) == -1)
       DBUG_RETURN(-1);
   }
   setState(anExecType == NdbTransaction::NoCommit ? Active : Closed);

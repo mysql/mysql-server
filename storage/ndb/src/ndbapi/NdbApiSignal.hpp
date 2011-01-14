@@ -71,6 +71,7 @@ public:
  
    const Uint32 *       getDataPtr() const;
          Uint32 *       getDataPtrSend();
+   const Uint32 *       getConstDataPtrSend() const;
    STATIC_CONST(        MaxSignalWords = 25);
 
   NodeId                get_sender_node();
@@ -87,7 +88,12 @@ public:
   Uint32 getFragmentId() const { 
     return (m_fragmentInfo == 0 ? 0 : getDataPtr()[theLength - 1]); 
   }
-  
+
+  NdbApiSignal& operator=(const NdbApiSignal& src) {
+    copyFrom(&src);
+    return *this;
+  }
+
 private:
   void setDataPtr(Uint32 *);
   
@@ -211,6 +217,13 @@ NdbApiSignal::getDataPtr() const {
 inline
 Uint32 *
 NdbApiSignal::getDataPtrSend(){
+  return (Uint32*)&theData[0];
+}
+
+inline
+const Uint32 *
+NdbApiSignal::getConstDataPtrSend() const
+{
   return (Uint32*)&theData[0];
 }
 

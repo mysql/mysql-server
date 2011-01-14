@@ -39,6 +39,7 @@
 #include <kernel/ndb_limits.h>
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <signaldata/AllocNodeId.hpp>
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE
@@ -482,22 +483,12 @@ void TransporterFacade::threadMainReceive(void)
 #ifdef NDB_SHM_TRANSPORTER
   NdbThread_set_shm_sigmask(TRUE);
 #endif
-  NdbMutex_Lock(theMutexPtr);
-  theTransporterRegistry->update_connections();
-  NdbMutex_Unlock(theMutexPtr);
-  while(!theStopReceive) {
-    for(int i = 0; i<10; i++){
-      NdbSleep_MilliSleep(10);
-      NdbMutex_Lock(theMutexPtr);
-      if (m_poll_owner == NULL)
-      {
-        external_poll(0);
-      }
-      NdbMutex_Unlock(theMutexPtr);
-    }
+  while(!theStopReceive)
+  {
     NdbMutex_Lock(theMutexPtr);
     theTransporterRegistry->update_connections();
     NdbMutex_Unlock(theMutexPtr);
+    NdbSleep_MilliSleep(100);
   }//while
   theTransporterRegistry->stopReceiving();
 }
@@ -607,9 +598,17 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
       doConnect(remoteNodeId);
     }
   }
+
+  /**
+   * Also setup Loopback Transporter
+   */
+  if (is_mgmd(nodeId, conf))
+  {
+    doConnect(nodeId);
+  }
+
   DBUG_RETURN(true);
 }
-
 
 bool
 TransporterFacade::configure(NodeId nodeId,
@@ -624,7 +623,8 @@ TransporterFacade::configure(NodeId nodeId,
   // Configure transporters
   if (!IPCConfig::configureTransporters(nodeId,
                                         * conf,
-                                        * theTransporterRegistry))
+                                        * theTransporterRegistry,
+                                        is_mgmd(nodeId, conf)))
     DBUG_RETURN(false);
 
   // Configure cluster manager
@@ -687,38 +687,26 @@ void
 TransporterFacade::connected()
 {
   DBUG_ENTER("TransporterFacade::connected");
-  Uint32 sz = m_threads.m_statusNext.size();
-  for (Uint32 i = 0; i < sz ; i ++)
-  {
-    trp_client * clnt = m_threads.m_objectExecute[i];
-    if (clnt != 0)
-    {
-      clnt->trp_node_status(numberToRef(indexToNumber(i), theOwnId), NS_CONNECTED);
-    }
-  }
-  DBUG_VOID_RETURN;
-}
+  NdbApiSignal signal(numberToRef(API_CLUSTERMGR, theOwnId));
+  signal.theVerId_signalNumber = GSN_ALLOC_NODEID_CONF;
+  signal.theReceiversBlockNumber = 0;
+  signal.theTrace  = 0;
+  signal.theLength = AllocNodeIdConf::SignalLength;
 
-void
-TransporterFacade::trp_node_status(NodeId tNodeId, Uint32 event)
-{
-  DBUG_ENTER("TransporterFacade::ReportNodeDead");
-  DBUG_PRINT("enter",("nodeid= %d", tNodeId));
-  /**
-   * When a node fails we must report this to each Ndb object. 
-   * The function that is used for communicating node failures is called.
-   * This is to ensure that the Ndb objects do not think their connections 
-   * are correct after a failure followed by a restart. 
-   * After the restart the node is up again and the Ndb object 
-   * might not have noticed the failure.
-   */
+  AllocNodeIdConf * rep = CAST_PTR(AllocNodeIdConf, signal.getDataPtrSend());
+  rep->senderRef = 0;
+  rep->senderData = 0;
+  rep->nodeId = theOwnId;
+  rep->secret_lo = 0;
+  rep->secret_hi = 0;
+
   Uint32 sz = m_threads.m_statusNext.size();
   for (Uint32 i = 0; i < sz ; i ++)
   {
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0)
     {
-      clnt->trp_node_status(tNodeId, event);
+      clnt->trp_deliver_signal(&signal, 0);
     }
   }
   DBUG_VOID_RETURN;
@@ -745,7 +733,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
   return ret;
 }
 
-int
+Uint32
 TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 {
   DBUG_ENTER("TransporterFacade::open");
@@ -753,7 +741,7 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   int r= m_threads.open(clnt);
   if (r < 0)
   {
-    DBUG_RETURN(r);
+    DBUG_RETURN(0);
   }
 
   if (unlikely(blockNo != -1))
@@ -767,12 +755,14 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
     m_fixed2dynamic[fixed_index]= r;
   }
 
-#if 1
   if (theOwnId > 0)
   {
-    clnt->trp_node_status(numberToRef(r, theOwnId), NS_CONNECTED);
+    r = numberToRef(r, theOwnId);
   }
-#endif
+  else
+  {
+    r = numberToRef(r, 0);
+  }
   DBUG_RETURN(r);
 }
 
@@ -857,72 +847,44 @@ TransporterFacade::checkForceSend(Uint32 block_number) {
  * SEND SIGNAL METHODS
  *****************************************************************************/
 int
-TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
-  Uint32* tDataPtr = aSignal->getDataPtrSend();
+TransporterFacade::sendSignal(const NdbApiSignal * aSignal, NodeId aNode)
+{
+  const Uint32* tDataPtr = aSignal->getConstDataPtrSend();
   Uint32 Tlen = aSignal->theLength;
   Uint32 TBno = aSignal->theReceiversBlockNumber;
-  if(getIsNodeSendable(aNode) == true){
-#ifdef API_TRACE
-    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-      Uint32 tmp = aSignal->theSendersBlockRef;
-      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-      LinearSectionPtr ptr[3];
-      signalLogger.sendSignal(* aSignal,
-			      1,
-			      tDataPtr,
-			      aNode, ptr, 0);
-      signalLogger.flushSignalLog();
-      aSignal->theSendersBlockRef = tmp;
-    }
-#endif
-    if ((Tlen != 0) && (Tlen <= 25) && (TBno != 0)) {
-      SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
-							  1, // JBB
-							  tDataPtr, 
-							  aNode, 
-							  (LinearSectionPtr*)0);
-      //if (ss != SEND_OK) ndbout << ss << endl;
-      return (ss == SEND_OK ? 0 : -1);
-    } else {
-      ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
-      ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
-      assert(0);
-    }//if
-  }
-  //const ClusterMgr::Node & node = theClusterMgr->getNodeInfo(aNode);
-  //const Uint32 startLevel = node.m_state.startLevel;
-  return -1; // Node Dead
-}
-
-int
-TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, 
-                                    NodeId aNode,
-                                    Uint32 prio){
-  Uint32* tDataPtr = aSignal->getDataPtrSend();
-  assert(prio <= 1);
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-    Uint32 tmp = aSignal->theSendersBlockRef;
-    aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
+    SignalHeader tmp = * aSignal;
+    tmp.theSendersBlockRef = numberToRef(aSignal->theSendersBlockRef, theOwnId);
     LinearSectionPtr ptr[3];
-    signalLogger.sendSignal(* aSignal,
-			    prio,
-			    tDataPtr,
-			    aNode, ptr, 0);
+    signalLogger.sendSignal(tmp,
+                            1,
+                            tDataPtr,
+                            aNode, ptr, 0);
     signalLogger.flushSignalLog();
-    aSignal->theSendersBlockRef = tmp;
   }
 #endif
-  assert((aSignal->theLength != 0) &&
-         (aSignal->theLength <= 25) &&
-         (aSignal->theReceiversBlockNumber != 0));
-  SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
-						      prio, 
-						      tDataPtr,
-						      aNode, 
-						      (LinearSectionPtr*)0);
-  
-  return (ss == SEND_OK ? 0 : -1);
+  if ((Tlen != 0) && (Tlen <= 25) && (TBno != 0)) {
+    SendStatus ss = theTransporterRegistry->prepareSend(aSignal,
+                                                        1, // JBB
+                                                        tDataPtr,
+                                                        aNode,
+                                                        (LinearSectionPtr*)0);
+    //if (ss != SEND_OK) ndbout << ss << endl;
+    if (ss == SEND_OK)
+    {
+      assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
+             aSignal->readSignalNumber() == GSN_API_REGREQ);
+    }
+    return (ss == SEND_OK ? 0 : -1);
+  }
+  else
+  {
+    ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
+    ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
+    assert(0);
+  }//if
+  return -1; // Node Dead
 }
 
 /**
@@ -1149,11 +1111,14 @@ public:
  * boundaries to simplify reassembly in the kernel.
  */
 int
-TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
+TransporterFacade::sendFragmentedSignal(const NdbApiSignal* inputSignal,
                                         NodeId aNode,
-					const GenericSectionPtr ptr[3],
+                                        const GenericSectionPtr ptr[3],
                                         Uint32 secs)
 {
+  NdbApiSignal copySignal(* inputSignal);
+  NdbApiSignal* aSignal = &copySignal;
+
   unsigned i;
   Uint32 totalSectionLength= 0;
   for (i= 0; i < secs; i++)
@@ -1163,24 +1128,18 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
   if (totalSectionLength <= CHUNK_SZ)
     return sendSignal(aSignal, aNode, ptr, secs);
   
-  /* We will fragment */
-  if(getIsNodeSendable(aNode) != true)
-    return -1;
-
   // TODO : Consider tracing fragment signals?
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-    Uint32 tmp = aSignal->theSendersBlockRef;
-    aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-    signalLogger.sendSignal(* aSignal,
-			    1,
-			    aSignal->getDataPtrSend(),
-			    aNode,
-			    ptr, secs);
-    aSignal->theSendersBlockRef = tmp;
-    /* Reset section iterators */
-    for(Uint32 s=0; s < secs; s++)
-      ptr[s].sectionIter->reset();
+    SignalHeader tmp = * aSignal;
+    tmp.theSendersBlockRef = numberToRef(aSignal->theSendersBlockRef, theOwnId);
+    signalLogger.sendSignal(tmp,
+                            1,
+                            aSignal->getConstDataPtrSend(),
+                            aNode, ptr, 0);
+    signalLogger.flushSignalLog();
+    for (Uint32 i = 0; i<secs; i++)
+      ptr[i].sectionIter->reset();
   }
 #endif
 
@@ -1276,6 +1235,11 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
 	   &tmp_ptr[start_i]);
 	assert(ss != SEND_MESSAGE_TOO_BIG);
 	if (ss != SEND_OK) return -1;
+        if (ss == SEND_OK)
+        {
+          assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
+                 tmp_signal.readSignalNumber() == GSN_API_REGREQ);
+        }
       }
       // setup variables for next signal
       start_i= i;
@@ -1320,10 +1284,15 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
     SendStatus ss = theTransporterRegistry->prepareSend
       (aSignal,
        1/*JBB*/,
-       aSignal->getDataPtrSend(),
+       aSignal->getConstDataPtrSend(),
        aNode,
        &tmp_ptr[start_i]);
     assert(ss != SEND_MESSAGE_TOO_BIG);
+    if (ss == SEND_OK)
+    {
+      assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
+             aSignal->readSignalNumber() == GSN_API_REGREQ);
+    }
     ret = (ss == SEND_OK ? 0 : -1);
   }
   aSignal->m_noOfSections = 0;
@@ -1333,8 +1302,9 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal,
 }
 
 int
-TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode, 
-					const LinearSectionPtr ptr[3],
+TransporterFacade::sendFragmentedSignal(const NdbApiSignal* aSignal,
+                                        NodeId aNode,
+                                        const LinearSectionPtr ptr[3],
                                         Uint32 secs)
 {
   /* Use the GenericSection variant of sendFragmentedSignal */
@@ -1363,76 +1333,77 @@ TransporterFacade::sendFragmentedSignal(NdbApiSignal* aSignal, NodeId aNode,
   
 
 int
-TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode, 
-			      const LinearSectionPtr ptr[3], Uint32 secs){
-  aSignal->m_noOfSections = secs;
-  if(getIsNodeSendable(aNode) == true){
+TransporterFacade::sendSignal(const NdbApiSignal* aSignal, NodeId aNode,
+                              const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  Uint32 save = aSignal->m_noOfSections;
+  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = secs;
 #ifdef API_TRACE
-    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-      Uint32 tmp = aSignal->theSendersBlockRef;
-      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-      signalLogger.sendSignal(* aSignal,
-			      1,
-			      aSignal->getDataPtrSend(),
-			      aNode,
-                              ptr, secs);
-      signalLogger.flushSignalLog();
-      aSignal->theSendersBlockRef = tmp;
-    }
-#endif
-    SendStatus ss = theTransporterRegistry->prepareSend
-      (aSignal, 
-       1, // JBB
-       aSignal->getDataPtrSend(),
-       aNode, 
-       ptr);
-    assert(ss != SEND_MESSAGE_TOO_BIG);
-    aSignal->m_noOfSections = 0;
-    return (ss == SEND_OK ? 0 : -1);
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+    SignalHeader tmp = * aSignal;
+    tmp.theSendersBlockRef = numberToRef(aSignal->theSendersBlockRef, theOwnId);
+    LinearSectionPtr ptr[3];
+    signalLogger.sendSignal(tmp,
+                            1,
+                            aSignal->getConstDataPtrSend(),
+                            aNode, ptr, secs);
+    signalLogger.flushSignalLog();
   }
-  aSignal->m_noOfSections = 0;
-  return -1;
+#endif
+  SendStatus ss = theTransporterRegistry->prepareSend
+    (aSignal,
+     1, // JBB
+     aSignal->getConstDataPtrSend(),
+     aNode,
+     ptr);
+  assert(ss != SEND_MESSAGE_TOO_BIG);
+  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
+  if (ss == SEND_OK)
+  {
+    assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
+           aSignal->readSignalNumber() == GSN_API_REGREQ);
+  }
+  return (ss == SEND_OK ? 0 : -1);
 }
 
 int
-TransporterFacade::sendSignal(NdbApiSignal* aSignal, NodeId aNode,
-                              const GenericSectionPtr ptr[3], Uint32 secs){
-  aSignal->m_noOfSections = secs;
-  if(getIsNodeSendable(aNode) == true){
+TransporterFacade::sendSignal(const NdbApiSignal* aSignal, NodeId aNode,
+                              const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  Uint32 save = aSignal->m_noOfSections;
+  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = secs;
 #ifdef API_TRACE
-    if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
-      Uint32 tmp = aSignal->theSendersBlockRef;
-      aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
-      signalLogger.sendSignal(* aSignal,
-			      1,
-			      aSignal->getDataPtrSend(),
-			      aNode,
-                              ptr, secs);
-      signalLogger.flushSignalLog();
-      aSignal->theSendersBlockRef = tmp;
-    }
-    /* Reset section iterators */
-    for(Uint32 s=0; s < secs; s++)
-      ptr[s].sectionIter->reset();
-#endif
-    SendStatus ss = theTransporterRegistry->prepareSend
-      (aSignal, 
-       1, // JBB
-       aSignal->getDataPtrSend(),
-       aNode, 
-       ptr);
-    assert(ss != SEND_MESSAGE_TOO_BIG);
-    aSignal->m_noOfSections = 0;
-    return (ss == SEND_OK ? 0 : -1);
+  if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
+    SignalHeader tmp = * aSignal;
+    tmp.theSendersBlockRef = numberToRef(aSignal->theSendersBlockRef, theOwnId);
+    signalLogger.sendSignal(tmp,
+                            1,
+                            aSignal->getConstDataPtrSend(),
+                            aNode, ptr, secs);
+    signalLogger.flushSignalLog();
+    for (Uint32 i = 0; i<secs; i++)
+      ptr[i].sectionIter->reset();
   }
-  aSignal->m_noOfSections = 0;
-  return -1;
+#endif
+  SendStatus ss = theTransporterRegistry->prepareSend
+    (aSignal,
+     1, // JBB
+     aSignal->getConstDataPtrSend(),
+     aNode,
+     ptr);
+  assert(ss != SEND_MESSAGE_TOO_BIG);
+  const_cast<NdbApiSignal*>(aSignal)->m_noOfSections = save;
+  if (ss == SEND_OK)
+  {
+    assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
+           aSignal->readSignalNumber() == GSN_API_REGREQ);
+  }
+  return (ss == SEND_OK ? 0 : -1);
 }
 
 /******************************************************************************
  * CONNECTION METHODS  Etc
  ******************************************************************************/
-
 void
 TransporterFacade::doConnect(int aNodeId){
   theTransporterRegistry->setIOState(aNodeId, NoHalt);
@@ -1718,50 +1689,6 @@ template class Vector<trp_client*>;
 
 #include "SignalSender.hpp"
 
-SendStatus
-SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
-#ifdef API_TRACE
-  if(setSignalLog() && TRACE_GSN(s->header.theVerId_signalNumber)){
-    SignalHeader tmp = s->header;
-    tmp.theSendersBlockRef = getOwnRef();
-
-    LinearSectionPtr ptr[3];
-    signalLogger.sendSignal(tmp,
-			    1,
-			    s->theData,
-			    nodeId, ptr, 0);
-    signalLogger.flushSignalLog();
-  }
-#endif
-
-  if (nodeId == theFacade->ownId())
-  {
-    SignalHeader tmp= s->header;
-    tmp.theSendersBlockRef = getOwnRef();
-    theFacade->deliver_signal(&tmp,
-                              1, // JBB
-                              (Uint32*)&s->theData[0],
-                              (LinearSectionPtr*)&s->ptr[0]);
-    return SEND_OK;
-  }
-
-  SendStatus ss = 
-    theFacade->theTransporterRegistry->prepareSend(&s->header,
-                                                   1, // JBB
-                                                   &s->theData[0],
-                                                   nodeId, 
-                                                   &s->ptr[0]);
-
-  if (ss == SEND_OK)
-  {
-    assert(getNodeInfo(nodeId).is_confirmed() ||
-           s->readSignalNumber() == GSN_API_REGREQ);
-    theFacade->forceSend(m_blockNo);
-  }
-
-  return ss;
-}
-
 const Uint32*
 SignalSectionIterator::getNextWords(Uint32& sz)
 {
@@ -2041,3 +1968,42 @@ TransporterFacade::get_auto_reconnect() const
 {
   return theClusterMgr->m_auto_reconnect;
 }
+
+void
+TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
+{
+  theClusterMgr->set_max_api_reg_req_interval(interval);
+}
+
+void
+TransporterFacade::ext_update_connections()
+{
+  theClusterMgr->force_update_connections();
+}
+
+struct in_addr
+TransporterFacade::ext_get_connect_address(Uint32 nodeId)
+{
+  return theTransporterRegistry->get_connect_address(nodeId);
+}
+
+void
+TransporterFacade::ext_forceHB()
+{
+  theClusterMgr->forceHB();
+}
+
+bool
+TransporterFacade::ext_isConnected(NodeId aNodeId)
+{
+  return theTransporterRegistry->is_connected(aNodeId);
+}
+
+void
+TransporterFacade::ext_doConnect(int aNodeId)
+{
+  lock_mutex();
+  doConnect(aNodeId);
+  unlock_mutex();
+}
+

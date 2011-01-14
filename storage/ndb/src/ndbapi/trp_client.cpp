@@ -26,18 +26,18 @@ trp_client::~trp_client()
   NdbCondition_Destroy(m_poll.m_condition);
 }
 
-int
+Uint32
 trp_client::open(TransporterFacade* tf, int blockNo)
 {
-  int res = -1;
+  Uint32 res = 0;
   assert(m_facade == 0);
   if (m_facade == 0)
   {
     m_facade = tf;
     res = tf->open_clnt(this, blockNo);
-    if (res >= 0)
+    if (res != 0)
     {
-      m_blockNo = Uint32(res);
+      m_blockNo = refToBlock(res);
     }
     else
     {
@@ -45,6 +45,12 @@ trp_client::open(TransporterFacade* tf, int blockNo)
     }
   }
   return res;
+}
+
+Uint32
+trp_client::getOwnNodeId() const
+{
+  return m_facade->theOwnId;
 }
 
 void
@@ -94,7 +100,7 @@ trp_client::cond_wait(Uint32 timeout, NdbMutex* mutexPtr)
 }
 
 void
-trp_client::forceSend(int val)
+trp_client::do_forceSend(int val)
 {
   if (val == 0)
   {
@@ -151,7 +157,7 @@ int PollGuard::wait_scan(int wait_time, Uint32 nodeId, bool forceSend)
 int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 {
   int ret_val;
-  m_clnt->forceSend(forceSend ? 1 : 0);
+  m_clnt->do_forceSend(forceSend ? 1 : 0);
 
   NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
   NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;

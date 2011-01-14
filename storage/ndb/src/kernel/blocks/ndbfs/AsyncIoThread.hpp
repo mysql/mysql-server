@@ -93,6 +93,7 @@ public:
     struct {
       Block_context* ctx;
       Uint32 requestInfo;
+      Uint64 bytes;
     } alloc;
     struct {
       struct mt_BuildIndxReq m_req;

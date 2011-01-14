@@ -152,7 +152,9 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 select * from ba order by ks;
 
 drop table ba;
-
+--disable_query_log
+flush logs;
+--enable_query_log
 
 # Bug#46662
 # Replicating changes to tables with unique indexes

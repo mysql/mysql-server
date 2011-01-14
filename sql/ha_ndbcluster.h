@@ -540,7 +540,7 @@ static void set_tabname(const char *pathname, char *tabname);
    =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null". 
    Negated conditions are supported by NOT which generate NAND/NOR groups.
  */ 
-  const COND *cond_push(const COND *cond);
+  const Item *cond_push(const Item *cond);
  /*
    Pop the top condition from the condition stack of the handler instance.
    SYNOPSIS
@@ -629,7 +629,7 @@ private:
   void renumber_indexes(Ndb *ndb, TABLE *tab);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
-                       KEY *key_info, const char *index_name, uint index_no);
+                       KEY *key_info, const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,

@@ -529,6 +529,8 @@ NDB_COMMAND(flexAsynch, "flexAsynch", "flexAsynch", "flexAsynch", 65535)
   print("delete", a_d);
   print("read  ", a_r);
 
+  delete [] g_cluster_connection;
+
   return NDBT_ProgramExit(returnValue);
 }//main()
 

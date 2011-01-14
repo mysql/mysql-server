@@ -286,8 +286,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     
     Uint32 currOp= currOpPtr.p->op_struct.op_type;
     
+    bool is_insert = (bits & Tuple_header::ALLOC);
     if((found && currOp == ZDELETE) || 
-       ((dirty || !found) && currOp == ZINSERT))
+       ((dirty || !found) && is_insert))
     {
       terrorCode= ZTUPLE_DELETED_ERROR;
       break;
@@ -1776,7 +1777,10 @@ int Dbtup::handleDeleteReq(Signal* signal,
       terrorCode = ZMEM_NOMEM_ERROR;
       goto error;
     }
-    memcpy(dst, org, regTabPtr->total_rec_size << 2);
+    Uint32 len = regTabPtr->total_rec_size - 
+      Uint32(((Uint32*)dst) - 
+             get_copy_tuple_raw(&regOperPtr->m_copy_tuple_location));
+    memcpy(dst, org, 4 * len);
     req_struct->m_tuple_ptr = dst;
     set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
   }
@@ -2136,6 +2140,39 @@ Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
     /* ---------------------------------------------------------------- */
     return (TprogramCounter + TbranchLength);
   }
+}
+
+const Uint32 *
+Dbtup::lookupInterpreterParameter(Uint32 paramNo,
+                                  const Uint32 * subptr,
+                                  Uint32 sublen) const
+{
+  /**
+   * The parameters...are stored in the subroutine section
+   *
+   * WORD2         WORD3       WORD4         WORD5
+   * [ P0 HEADER ] [ P0 DATA ] [ P1 HEADER ] [ P1 DATA ]
+   *
+   *
+   * len=4 <=> 1 word
+   */
+  Uint32 pos = 0;
+  while (paramNo)
+  {
+    const Uint32 * head = subptr + pos;
+    Uint32 len = AttributeHeader::getDataSize(* head);
+    paramNo --;
+    pos += 1 + len;
+    if (unlikely(pos >= sublen))
+      return 0;
+  }
+
+  const Uint32 * head = subptr + pos;
+  Uint32 len = AttributeHeader::getDataSize(* head);
+  if (unlikely(pos + 1 + len > sublen))
+    return 0;
+
+  return head;
 }
 
 int Dbtup::interpreterNextLab(Signal* signal,
@@ -2543,12 +2580,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  break;
 	}
 
+      case Interpreter::BRANCH_ATTR_OP_ARG_2:
       case Interpreter::BRANCH_ATTR_OP_ARG:{
 	jam();
 	Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
 	Uint32 ins2 = TcurrentProgram[TprogramCounter];
 	Uint32 attrId = Interpreter::getBranchCol_AttrId(ins2) << 16;
 	Uint32 argLen = Interpreter::getBranchCol_Len(ins2);
+        Uint32 step = argLen;
 
 	if(tmpHabitant != attrId){
 	  Int32 TnoDataR = readAttributes(req_struct,
@@ -2586,6 +2625,27 @@ int Dbtup::interpreterNextLab(Signal* signal,
         const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
         // fixed length in 5.0
 	Uint32 attrLen = AttributeDescriptor::getSizeInBytes(TattrDesc1);
+
+        if (Interpreter::getOpCode(theInstruction) ==
+            Interpreter::BRANCH_ATTR_OP_ARG_2)
+        {
+          jam();
+          Uint32 paramNo = Interpreter::getBranchCol_ParamNo(ins2);
+          const Uint32 * paramptr = lookupInterpreterParameter(paramNo,
+                                                               subroutineProg,
+                                                               TsubroutineLen);
+          if (unlikely(paramptr == 0))
+          {
+            jam();
+            terrorCode = 99; // TODO
+            tupkeyErrorLab(req_struct);
+            return -1;
+          }
+
+          argLen = AttributeHeader::getByteSize(* paramptr);
+          step = 0;
+          s2 = (char*)(paramptr + 1);
+        }
         
         if (typeId == NDB_TYPE_BIT)
         {
@@ -2704,7 +2764,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
           TprogramCounter = brancher(theInstruction, TprogramCounter);
         else 
 	{
-          Uint32 tmp = ((argLen + 3) >> 2) + 1;
+          Uint32 tmp = ((step + 3) >> 2) + 1;
           TprogramCounter += tmp;
         }
 	break;

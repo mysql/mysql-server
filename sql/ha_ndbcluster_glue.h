@@ -115,6 +115,28 @@ enum column_format_type {
 
 #endif
 
+#if MYSQL_VERSION_ID >= 50600
+
+/* No support for --server-id-bits and thd->unmasked_server_id, yet */
+#define NDB_WITHOUT_SERVER_ID_BITS
+
+#endif
+
+extern ulong opt_server_id_mask;
+
+static inline
+uint32 thd_unmasked_server_id(const THD* thd)
+{
+#ifndef NDB_WITHOUT_SERVER_ID_BITS
+  const uint32 unmasked_server_id = thd->unmasked_server_id;
+  assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
+  return unmasked_server_id;
+#else
+  return thd->server_id;
+#endif
+}
+
+
 /* extract the bitmask of options from THD */
 static inline
 ulonglong thd_options(const THD * thd)
@@ -124,6 +146,18 @@ ulonglong thd_options(const THD * thd)
 #else
   /* "options" has moved to "variables.option_bits" */
   return thd->variables.option_bits;
+#endif
+}
+
+/* set the "command" member of thd */
+static inline
+void thd_set_command(THD* thd, enum enum_server_command command)
+{
+#if MYSQL_VERSION_ID < 50600
+  thd->command = command;
+#else
+  /* "command" renamed to "m_command", use accessor function */
+  thd->set_command(command);
 #endif
 }
 

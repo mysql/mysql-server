@@ -532,4 +532,29 @@ ndbd_dih_sub_gcp_complete_ack(Uint32 x)
 #define NDBD_LONG_SCAN_FRAGREQ_70 NDB_MAKE_VERSION(7,0,20)
 #define NDBD_LONG_SCAN_FRAGREQ_71 NDB_MAKE_VERSION(7,1,9)
 
+#define NDBD_FAIL_REP_SOURCE_NODE_63 NDB_MAKE_VERSION(6,3,40)
+#define NDBD_FAIL_REP_SOURCE_NODE_70 NDB_MAKE_VERSION(7,0,21)
+#define NDBD_FAIL_REP_SOURCE_NODE_71 NDB_MAKE_VERSION(7,1,10)
+
+static 
+inline
+int
+ndbd_fail_rep_source_node(Uint32 x)
+{
+  {
+    const Uint32 major = (x >> 16) & 0xFF;
+    const Uint32 minor = (x >>  8) & 0xFF;
+
+    if (major == 6)
+    {
+      return x >= NDBD_FAIL_REP_SOURCE_NODE_63;
+    }
+    if (major == 7 && minor == 0)
+    {
+      return x >= NDBD_FAIL_REP_SOURCE_NODE_70;
+    }
+    return x >= NDBD_FAIL_REP_SOURCE_NODE_71;
+  }
+}
+
 #endif

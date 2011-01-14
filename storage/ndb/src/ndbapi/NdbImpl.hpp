@@ -152,8 +152,6 @@ public:
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
-  virtual void trp_node_status(Uint32, Uint32);
-
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
   bool   get_node_stopping(NodeId nodeId) const;
@@ -164,6 +162,16 @@ public:
   Uint32 getNodeNdbVersion(NodeId nodeId) const;
   Uint32 getMinDbNodeVersion() const;
   bool check_send_size(Uint32 node_id, Uint32 send_size) const { return true;}
+
+  int sendSignal(NdbApiSignal*, Uint32 nodeId);
+  int sendSignal(NdbApiSignal*, Uint32 nodeId,
+                 const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendSignal(NdbApiSignal*, Uint32 nodeId,
+                 const GenericSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
+                           const LinearSectionPtr ptr[3], Uint32 secs);
+  int sendFragmentedSignal(NdbApiSignal*, Uint32 nodeId,
+                           const GenericSectionPtr ptr[3], Uint32 secs);
 };
 
 #ifdef VM_TRACE
@@ -441,6 +449,65 @@ Uint32
 NdbImpl::getNodeNdbVersion(NodeId n) const
 {
   return getNodeInfo(n).m_info.m_version;
+}
+
+inline
+int
+NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    return raw_sendSignal(signal, nodeId);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
+                    const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    return raw_sendSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
+                    const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    return raw_sendSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
+                              const LinearSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
+}
+
+inline
+int
+NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
+                              const GenericSectionPtr ptr[3], Uint32 secs)
+{
+  if (getIsNodeSendable(nodeId))
+  {
+    return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
+  }
+  return -1;
 }
 
 #endif

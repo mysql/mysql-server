@@ -38,8 +38,10 @@ class FailRep {
   friend bool printFAIL_REP(FILE *, const Uint32 *, Uint32, Uint16);
 
 public:
-  STATIC_CONST( SignalLength = 2 );
-  STATIC_CONST( ExtraLength = 1 + NdbNodeBitmask::Size );
+  STATIC_CONST( OrigSignalLength = 2 );
+  STATIC_CONST( PartitionedExtraLength = 1 + NdbNodeBitmask::Size );
+  STATIC_CONST( SourceExtraLength = 1 );
+  STATIC_CONST( SignalLength = OrigSignalLength + SourceExtraLength );
   
   enum FailCause {
     ZOWN_FAILURE=0,
@@ -52,7 +54,27 @@ public:
     ZMULTI_NODE_SHUTDOWN = 7,
     ZPARTITIONED_CLUSTER = 8
   };
-  
+
+  Uint32 getFailSourceNodeId(Uint32 sigLen) const
+  {
+    /* Get failSourceNodeId from signal given length
+     * 2 cases of 2 existing cases : 
+     *   1) Old node, no source id
+     *   2) New node, source id
+     *   a) ZPARTITIONED_CLUSTER, extra info
+     *   b) Other error, no extra info
+     */
+    if (failCause == ZPARTITIONED_CLUSTER)
+    {
+      return (sigLen == (SignalLength + PartitionedExtraLength)) ?
+        partitioned.partitionFailSourceNodeId : 
+        0;
+    }
+
+    return (sigLen == SignalLength) ? failSourceNodeId :
+      0;
+  }
+
 private:
   
   Uint32 failNodeId;
@@ -60,8 +82,15 @@ private:
   /**
    * Used when failCause == ZPARTITIONED_CLUSTER
    */
-  Uint32 president;
-  Uint32 partition[NdbNodeBitmask::Size];
+  union {
+    struct
+    {
+      Uint32 president;
+      Uint32 partition[NdbNodeBitmask::Size];
+      Uint32 partitionFailSourceNodeId;
+    } partitioned;
+    Uint32 failSourceNodeId;
+  };
 };
 
 

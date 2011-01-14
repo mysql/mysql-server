@@ -25,23 +25,36 @@
 #include <signaldata/TestOrd.hpp>
 
 
-SimpleSignal::SimpleSignal(bool dealloc){
-  memset(this, 0, sizeof(* this));
+SimpleSignal::SimpleSignal(bool dealloc)
+  : header((BlockReference)0)
+{
+  memset(ptr, 0, sizeof(ptr));
   deallocSections = dealloc;
 }
 
 SimpleSignal::SimpleSignal(const SimpleSignal& src)
+  : header(src.header)
 {
-  this->operator=(src);
+  deallocSections = true;
+
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
+  {
+    ptr[i].p = 0;
+    if (src.ptr[i].p != 0)
+    {
+      ptr[i].p = new Uint32[src.ptr[i].sz];
+      ptr[i].sz = src.ptr[i].sz;
+      memcpy(ptr[i].p, src.ptr[i].p, 4 * src.ptr[i].sz);
+    }
+  }
 }
+
 
 SimpleSignal&
 SimpleSignal::operator=(const SimpleSignal& src)
 {
   deallocSections = true;
   header = src.header;
-  memcpy(theData, src.theData, sizeof(theData));
-
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(ptr); i++)
   {
     ptr[i].p = 0;
@@ -70,12 +83,9 @@ SimpleSignal::~SimpleSignal(){
 
 void 
 SimpleSignal::set(class SignalSender& ss,
-		  Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len){
-  
-  header.theTrace                = trace;
-  header.theReceiversBlockNumber = recBlock;
-  header.theVerId_signalNumber   = gsn;
-  header.theLength               = len;
+		  Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len)
+{
+  header.set(trace, recBlock, gsn, len);
   header.theSendersBlockRef      = refToBlock(ss.getOwnRef());
 }
 
@@ -83,7 +93,7 @@ void
 SimpleSignal::print(FILE * out) const {
   fprintf(out, "---- Signal ----------------\n");
   SignalLoggerManager::printSignalHeader(out, header, 0, 0, false);
-  SignalLoggerManager::printSignalData(out, header, theData);
+  SignalLoggerManager::printSignalData(out, header, getDataPtr());
   for(Uint32 i = 0; i<header.m_noOfSections; i++){
     Uint32 len = ptr[i].sz;
     fprintf(out, " --- Section %d size=%d ---\n", i, len);
@@ -108,15 +118,17 @@ SimpleSignal::print(FILE * out) const {
 SignalSender::SignalSender(TransporterFacade *facade, int blockNo)
 {
   theFacade = facade;
-  m_blockNo = open(theFacade, blockNo);
-  assert(m_blockNo > 0);
+  Uint32 res = open(theFacade, blockNo);
+  assert(res != 0);
+  m_blockNo = refToBlock(res);
 }
 
 SignalSender::SignalSender(Ndb_cluster_connection* connection)
 {
   theFacade = connection->m_impl.m_transporter_facade;
-  m_blockNo = open(theFacade, -1);
-  assert(m_blockNo > 0);
+  Uint32 res = open(theFacade, -1);
+  assert(res != 0);
+  m_blockNo = refToBlock(res);
 }
 
 SignalSender::~SignalSender(){
@@ -149,12 +161,6 @@ SignalSender::getOwnRef() const {
   return numberToRef(m_blockNo, theFacade->ownId());
 }
 
-Uint32
-SignalSender::getNoOfConnectedNodes() const {
-  return theFacade->theClusterMgr->getNoOfConnectedNodes();
-}
-
-
 NodeBitmask
 SignalSender::broadcastSignal(NodeBitmask mask,
                               SimpleSignal& sig,
@@ -183,7 +189,6 @@ SignalSender::sendSignal(Uint16 nodeId,
   return sendSignal(nodeId, &sig);
 }
 
-
 int
 SignalSender::sendFragmentedSignal(Uint16 nodeId,
                                    SimpleSignal& sig,
@@ -191,18 +196,33 @@ SignalSender::sendFragmentedSignal(Uint16 nodeId,
                                    Uint32 len)
 {
   sig.set(*this, TestOrd::TraceAPI, recBlock, gsn, len);
-  if (nodeId == theFacade->ownId())
-  {
-    // No need to fragment when sending to own node
-    return sendSignal(nodeId, &sig);
-  }
 
-  return theFacade->sendFragmentedSignal((NdbApiSignal*)&sig.header,
-                                         nodeId,
-                                         &sig.ptr[0],
-                                         sig.header.m_noOfSections);
+  int ret = raw_sendFragmentedSignal(&sig.header,
+                                     nodeId,
+                                     &sig.ptr[0],
+                                     sig.header.m_noOfSections);
+  if (ret == 0)
+  {
+    do_forceSend();
+    return SEND_OK;
+  }
+  return SEND_DISCONNECTED;
 }
 
+SendStatus
+SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s)
+{
+  int ret = raw_sendSignal((NdbApiSignal*)&s->header,
+                           nodeId,
+                           s->ptr,
+                           s->header.m_noOfSections);
+  if (ret == 0)
+  {
+    do_forceSend();
+    return SEND_OK;
+  }
+  return SEND_DISCONNECTED;
+}
 
 template<class T>
 SimpleSignal *
@@ -214,6 +234,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
     {
       return 0;
     }
+    assert(s->header.theLength > 0);
     return s;
   }
 
@@ -234,6 +255,7 @@ SignalSender::waitFor(Uint32 timeOutMillis, T & t)
       {
         return 0;
       }
+      assert(s->header.theLength > 0);
       return s;
     }
     
@@ -272,7 +294,6 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
 {
   SimpleSignal * s = new SimpleSignal(true);
   s->header = * signal;
-  memcpy(&s->theData[0], signal->getDataPtr(), 4 * s->header.theLength);
   for(Uint32 i = 0; i<s->header.m_noOfSections; i++){
     s->ptr[i].p = new Uint32[ptr[i].sz];
     s->ptr[i].sz = ptr[i].sz;
@@ -281,56 +302,6 @@ SignalSender::trp_deliver_signal(const NdbApiSignal* signal,
   m_jobBuffer.push_back(s);
   wakeup();
 }
-  
-void 
-SignalSender::trp_node_status(Uint32 nodeId, Uint32 _event)
-{
-  NS_Event event = (NS_Event)_event;
-  switch(event){
-  case NS_CONNECTED:
-  case NS_NODE_ALIVE:
-    return;
-  case NS_NODE_FAILED:
-  case NS_NODE_NF_COMPLETE:
-    goto ok;
-  }
-  return;
-
-ok:
-  SimpleSignal * s = new SimpleSignal(true);
-
-  // node disconnected
-  if (event == NS_NODE_NF_COMPLETE)
-  {
-    // node shutdown complete
-    s->header.theVerId_signalNumber = GSN_NF_COMPLETEREP;
-    NFCompleteRep *rep = (NFCompleteRep *)s->getDataPtrSend();
-    rep->blockNo = 0;
-    rep->nodeId = 0;
-    rep->failedNodeId = nodeId;
-    rep->unused = 0;
-    rep->from = 0;
-  }
-  else
-  {
-    // node failure
-    s->header.theVerId_signalNumber = GSN_NODE_FAILREP;
-    NodeFailRep *rep = (NodeFailRep *)s->getDataPtrSend();
-    rep->failNo = 0;
-    rep->masterNodeId = 0;
-    rep->noOfNodes = 1;
-    NdbNodeBitmask::clear(rep->theNodes);
-
-    // Mark ndb nodes as failed in bitmask
-    const trp_node node= getNodeInfo(nodeId);
-    if (node.m_info.getType() ==  NodeInfo::DB)
-      NdbNodeBitmask::set(rep->theNodes, nodeId);
-  }
-
-  m_jobBuffer.push_back(s);
-  wakeup();
-}
-
 
 template<class T>
 NodeId
