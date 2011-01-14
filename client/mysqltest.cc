@@ -468,6 +468,8 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
+/* Points to ds_warning in run_query, so it can be freed */
+DYNAMIC_STRING *ds_warn= 0;
 
 char builtin_echo[FN_REFLEN];
 
@@ -488,7 +490,7 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
 void eval_expr(VAR* v, const char *p, const char** p_end,
-               bool open_end=false, bool backtick=true);
+               bool open_end=false, bool do_eval=true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -1275,6 +1277,8 @@ void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count]);
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
+  if (ds_warn)
+    dynstr_free(ds_warn);
   free_all_replace();
   my_free(opt_pass);
   free_defaults(default_argv);
@@ -1318,6 +1322,17 @@ static void cleanup_and_exit(int exit_code)
   exit(exit_code);
 }
 
+void print_file_stack()
+{
+  for (struct st_test_file* err_file= cur_file;
+       err_file != file_stack;
+       err_file--)
+  {
+    fprintf(stderr, "included from %s at line %d:\n",
+            err_file->file_name, err_file->lineno);
+  }
+}
+
 void die(const char *fmt, ...)
 {
   static int dying= 0;
@@ -1337,8 +1352,12 @@ void die(const char *fmt, ...)
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
-    fprintf(stderr, "In included file \"%s\": ",
+  {
+    fprintf(stderr, "In included file \"%s\": \n",
             cur_file->file_name);
+    print_file_stack();
+  }
+  
   if (start_lineno > 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   if (fmt)
@@ -1368,20 +1387,14 @@ void die(const char *fmt, ...)
 void abort_not_supported_test(const char *fmt, ...)
 {
   va_list args;
-  struct st_test_file* err_file= cur_file;
   DBUG_ENTER("abort_not_supported_test");
 
   /* Print include filestack */
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
           file_stack->file_name);
   fprintf(stderr, "Detected in file %s at line %d\n",
-          err_file->file_name, err_file->lineno);
-  while (err_file != file_stack)
-  {
-    err_file--;
-    fprintf(stderr, "included from %s at line %d\n",
-            err_file->file_name, err_file->lineno);
-  }
+          cur_file->file_name, cur_file->lineno);
+  print_file_stack();
 
   /* Print error message */
   va_start(args, fmt);
@@ -2519,7 +2532,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
         break;
       }
     }
-    eval_expr(var, value, 0);
+    eval_expr(var, value, 0, false, false);
   }
   dynstr_free(&ds_query);
   mysql_free_result(res);
@@ -2551,12 +2564,16 @@ void var_copy(VAR *dest, VAR *src)
 
 
 void eval_expr(VAR *v, const char *p, const char **p_end,
-               bool open_end, bool backtick)
+               bool open_end, bool do_eval)
 {
 
   DBUG_ENTER("eval_expr");
   DBUG_PRINT("enter", ("p: '%s'", p));
 
+  /* Skip to treat as pure string if no evaluation */
+  if (! do_eval)
+    goto NO_EVAL;
+  
   if (*p == '$')
   {
     VAR *vp;
@@ -2576,7 +2593,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
     DBUG_VOID_RETURN;
   }
 
-  if (*p == '`' && backtick)
+  if (*p == '`')
   {
     var_query_set(v, p, p_end);
     DBUG_VOID_RETURN;
@@ -2599,6 +2616,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
     }
   }
 
+ NO_EVAL:
   {
     int new_val_len = (p_end && *p_end) ?
       (int) (*p_end - p) : (int) strlen(p);
@@ -7679,6 +7697,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     die ("Cannot reap on a connection without pending send");
   
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
+  ds_warn= &ds_warnings;
+  
   /*
     Evaluate query if this is an eval command
   */
@@ -7836,6 +7856,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 		     ds, &ds_warnings);
 
   dynstr_free(&ds_warnings);
+  ds_warn= 0;
   if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
     dynstr_free(&eval_query);
 
