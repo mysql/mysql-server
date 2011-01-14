@@ -134,13 +134,14 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const uchar *record)
       keyseg->charset->coll->hash_sort(keyseg->charset,
                                        (const uchar*) pos, length, &seed1,
                                        &seed2);
-      crc^= seed1;
+      crc+= seed1;
     }
     else
-      while (pos != end)
-	crc=((crc << 8) +
-	     (((uchar)  *pos++))) +
-	  (crc >> (8*sizeof(ha_checksum)-8));
+    {
+      my_hash_sort_bin((CHARSET_INFO*) 0, pos, (size_t) (end-pos),
+                       &seed1, &seed2);
+      crc+= seed1;
+    }
   }
   return crc;
 }
