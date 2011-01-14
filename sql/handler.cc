@@ -5820,7 +5820,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 */
 int handler::ha_reset()
 {
-  DBUG_ENTER("ha_reset");
+  DBUG_ENTER("handler::ha_reset");
   /* Check that we have called all proper deallocation functions */
   DBUG_ASSERT((uchar*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
@@ -5833,6 +5833,13 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  /* Reset information about pushed engine conditions */
+  pushed_cond= NULL;
+  /* Reset information about pushed index conditions */
+  pushed_idx_cond= NULL;
+  pushed_idx_cond_keyno= MAX_KEY;
+  in_range_check_pushed_down= false;
+ 
   const int retval= reset();
   DBUG_RETURN(retval);
 }
