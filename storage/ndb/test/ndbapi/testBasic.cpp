@@ -2188,6 +2188,86 @@ runBug54944(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug59496_scan(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  NdbRestarter res;
+  int rowcount = ctx->getProperty("CHECK_ROWCOUNT", Uint32(0));
+  int records = ctx->getNumRecords();
+  if (rowcount == 0)
+    records = 0;
+
+  HugoTransactions hugoTrans(*pTab);
+  while (!ctx->isTestStopped())
+  {
+    if (hugoTrans.scanReadRecords(pNdb,
+                                  records, 0, 0,
+                                  NdbOperation::LM_CommittedRead,
+                                  (int)NdbScanOperation::SF_TupScan) != NDBT_OK)
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int
+runBug59496_case1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+
+  HugoOperations hugoOps(*ctx->getTab());
+  for (int i = 0; i < loops; i++)
+  {
+    hugoOps.startTransaction(pNdb);
+    hugoOps.pkInsertRecord(pNdb, 0, records, 0);
+    hugoOps.execute_NoCommit(pNdb);
+    hugoOps.pkUpdateRecord(pNdb, 0, records, rand());
+    hugoOps.execute_NoCommit(pNdb);
+    hugoOps.pkUpdateRecord(pNdb, 0, records, rand());
+    hugoOps.execute_NoCommit(pNdb);
+    res.insertErrorInAllNodes(8089);
+    hugoOps.execute_Commit(pNdb);
+    res.insertErrorInAllNodes(0);
+    hugoOps.closeTransaction(pNdb);
+    hugoOps.clearTable(pNdb);
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runBug59496_case2(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+
+  HugoOperations hugoOps(*ctx->getTab());
+  for (int i = 0; i < loops; i++)
+  {
+    hugoOps.startTransaction(pNdb);
+    hugoOps.pkDeleteRecord(pNdb, 0, records);
+    hugoOps.execute_NoCommit(pNdb);
+    hugoOps.pkInsertRecord(pNdb, 0, records, 0);
+    hugoOps.execute_NoCommit(pNdb);
+
+    res.insertErrorInAllNodes(8089);
+    hugoOps.execute_Rollback(pNdb);
+    res.insertErrorInAllNodes(0);
+
+    hugoOps.closeTransaction(pNdb);
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -2526,6 +2606,18 @@ TESTCASE("Bug54986", "")
 TESTCASE("Bug54944", "")
 {
   INITIALIZER(runBug54944);
+}
+TESTCASE("Bug59496_case1", "")
+{
+  STEP(runBug59496_case1);
+  STEPS(runBug59496_scan, 10);
+}
+TESTCASE("Bug59496_case2", "")
+{
+  TC_PROPERTY("CHECK_ROWCOUNT", 1);
+  INITIALIZER(runLoadTable);
+  STEP(runBug59496_case2);
+  STEPS(runBug59496_scan, 10);
 }
 NDBT_TESTSUITE_END(testBasic);
 
