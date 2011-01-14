@@ -6361,7 +6361,11 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (thd->variables.engine_condition_pushdown)
           {
             COND *push_cond= 
+#ifndef MCP_BUG58134
+              make_cond_for_table(tmp, tab->table->map, tab->table->map);
+#else
               make_cond_for_table(tmp, current_map, current_map);
+#endif
             if (push_cond)
             {
               /* Push condition to handler */
@@ -12860,7 +12864,7 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
 	new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
+	Item_cond_or do not need fix_fields for execution, its parameters
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
