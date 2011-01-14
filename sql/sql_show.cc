@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7805,7 +7805,7 @@ bool show_create_trigger(THD *thd, const sp_name *trg_name)
   /*
     Open the table by name in order to load Table_triggers_list object.
   */
-  if (open_tables(thd, &lst, &num_tables,
+  if (open_tables(thd, &lst, &num_tables, MYSQL_OPEN_SKIP_TEMPORARY |
                   MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
   {
     my_error(ER_TRG_CANT_OPEN_TABLE, MYF(0),

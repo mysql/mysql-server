@@ -363,3 +363,20 @@ SET @@SESSION.AUTO_INCREMENT_OFFSET=default;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#50619 assert in handler::update_auto_increment
+--echo #
+
+CREATE TABLE t1 (pk INT AUTO_INCREMENT, PRIMARY KEY (pk));
+# This triggered the assert
+INSERT INTO t1 VALUES (NULL), (-1), (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+# Check that that true overflow still gives error
+CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL), (18446744073709551615-1), (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
