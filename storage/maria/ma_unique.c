@@ -45,7 +45,8 @@ my_bool _ma_check_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def, uchar *record,
   info->update&= ~HA_STATE_RNEXT_SAME;
 
   DBUG_ASSERT(key.data_length == MARIA_UNIQUE_HASH_LENGTH);
-  if (_ma_search(info, &key, SEARCH_FIND, info->s->state.key_root[def->key]))
+  if (_ma_search(info, &key, SEARCH_FIND | SEARCH_SAVE_BUFF,
+                 info->s->state.key_root[def->key]))
   {
     info->page_changed=1;			/* Can't optimize read next */
     info->cur_row.lastpos= lastpos;

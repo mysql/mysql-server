@@ -83,10 +83,11 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
     rw_rdlock(&keyinfo->root_lock);
 
   nextflag= maria_read_vec[search_flag] | key.flag;
-  if (search_flag != HA_READ_KEY_EXACT ||
-      ((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME))
+  if (search_flag != HA_READ_KEY_EXACT)
+  {
+    /* Assume we will get a read next/previous call after this one */
     nextflag|= SEARCH_SAVE_BUFF;
-
+  }
   switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
@@ -103,8 +104,6 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
     if (!_ma_search(info, &key, nextflag, info->s->state.key_root[inx]))
     {      
       MARIA_KEY lastkey;
-      lastkey.keyinfo= keyinfo;
-      lastkey.data= info->lastkey_buff;
       /*
         Found a key, but it might not be usable. We cannot use rows that
         are inserted by other threads after we got our table lock
@@ -129,6 +128,8 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
         break;
       }
       
+      lastkey.keyinfo= keyinfo;
+      lastkey.data= info->lastkey_buff;
       do
       {
         uint not_used[2];
