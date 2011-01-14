@@ -1,3 +1,11 @@
+2011-01-14	The InnoDB Team
+	* btr/btr0cur.c, dict/dict0dict.c, handler/ha_innodb.cc,
+	include/btr0cur.h, include/dict0mem.h, include/rem0cmp.h,
+	include/rem0cmp.ic, include/srv0srv.h, rem/rem0cmp.c,
+	srv/srv0srv.c, innodb_bug30423.test:
+	Fix Bug#30423 InnoDBs treatment of NULL in index stats causes
+	bad "rows examined" estimates
+
 2011-01-06	The InnoDB Team
 	* handler/i_s.cc, include/trx0i_s.h, trx/trx0i_s.c:
 	Fix Bug#55397 cannot select from innodb_trx when trx_query contains
