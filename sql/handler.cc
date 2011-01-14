@@ -4523,11 +4523,11 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
   int error, error1;
   LINT_INIT(error1);
 
-  error= index_init(index, 0);
+  error= ha_index_init(index, 0);
   if (!error)
   {
     error= index_read_map(buf, key, keypart_map, find_flag);
-    error1= index_end();
+    error1= ha_index_end();
   }
   return error ?  error : error1;
 }
