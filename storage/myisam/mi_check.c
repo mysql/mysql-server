@@ -993,9 +993,6 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
     if (killed_ptr(param))
       goto err2;
     switch (info->s->data_file_type) {
-    case BLOCK_RECORD:
-      DBUG_ASSERT(0);                           /* Impossible */
-      break;
     case STATIC_RECORD:
       if (my_b_read(&param->read_cache,(uchar*) record,
 		    info->s->base.pack_reclength))
@@ -1212,6 +1209,9 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
       param->glob_crc+= (*info->s->calc_check_checksum)(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
+      break;
+    default:
+      DBUG_ASSERT(0);                           /* Impossible */
       break;
     } /* switch */
     if (! got_error)
@@ -3270,9 +3270,6 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
     DBUG_RETURN(1);
 
   switch (share->data_file_type) {
-  case BLOCK_RECORD:
-    DBUG_ASSERT(0);                           /* Impossible */
-    break;
   case STATIC_RECORD:
     for (;;)
     {
@@ -3666,6 +3663,9 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
                                                            record));
       DBUG_RETURN(0);
     }
+    default:
+      DBUG_ASSERT(0);                           /* Impossible */
+      break;
   }
   DBUG_RETURN(1);                               /* Impossible */
 }
@@ -3702,9 +3702,6 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
   if (sort_param->fix_datafile)
   {
     switch (sort_info->new_data_file_type) {
-    case BLOCK_RECORD:
-      DBUG_ASSERT(0);                           /* Impossible */
-      break;
     case STATIC_RECORD:
       if (my_b_write(&info->rec_cache,sort_param->record,
 		     share->base.pack_reclength))
@@ -3777,6 +3774,9 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       /* sort_info->param->glob_crc+=info->checksum; */
       sort_param->filepos+=reclength+length;
       info->s->state.split++;
+      break;
+    default:
+      DBUG_ASSERT(0);                           /* Impossible */
       break;
     }
   }
