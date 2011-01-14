@@ -24,7 +24,11 @@
 
 #include "rpl_injector.h"
 #include "rpl_filter.h"
+#if MYSQL_VERSION_ID > 50600
+#include "rpl_slave.h"
+#else
 #include "slave.h"
+#endif
 #include "ha_ndbcluster_binlog.h"
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
