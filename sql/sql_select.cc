@@ -1036,7 +1036,7 @@ JOIN::optimize()
   }
 
   /*
-    Permorm the the optimization on fields evaluation mentioned above
+    Perform the optimization on fields evaluation mentioned above
     for all on expressions.
   */ 
   for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
@@ -1048,7 +1048,37 @@ JOIN::optimize()
                                                          map2table);
       (*tab->on_expr_ref)->update_used_tables();
     }
+
+    
   }
+
+  /*
+    Perform the optimization on fields evaliation mentioned above
+    for all used ref items.
+  */
+  for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables; tab++)
+  {
+    for (uint i=0; i < tab->ref.key_parts; i++)
+    {
+      
+      Item **ref_item_ptr= tab->ref.items+i;
+      Item *ref_item= *ref_item_ptr;
+      COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
+	                                     cond_equal;
+      ref_item= substitute_for_best_equal_field(ref_item, equals, map2table);
+      ref_item->update_used_tables();
+      if (*ref_item_ptr != ref_item)
+      {
+        *ref_item_ptr= ref_item;
+        Item *item= ref_item->real_item();
+        if (item->type() == Item::FIELD_ITEM)
+        {
+          store_key_field *key_copy= (store_key_field *) tab->ref.key_copy[i];
+          key_copy->change_source_field((Item_field *) item);
+        }
+      }
+    }
+  }   
 
   if (conds && const_table_map != found_const_table_map &&
       (select_options & SELECT_DESCRIBE))
@@ -9508,10 +9538,14 @@ static COND *build_equal_items(THD *thd, COND *cond,
 /**
   Compare field items by table order in the execution plan.
 
+    If field1 and field2 belong to different tables then
     field1 considered as better than field2 if the table containing
     field1 is accessed earlier than the table containing field2.   
     The function finds out what of two fields is better according
     this criteria.
+    If field1 and field2 belong to the same table then the result
+    of comparison depends on whether the fields are parts of
+    the key that are used to access this table.  
 
   @param field1          first field item to compare
   @param field2          second field item to compare
@@ -9526,8 +9560,8 @@ static COND *build_equal_items(THD *thd, COND *cond,
 */
 
 static int compare_fields_by_table_order(Item_field *field1,
-                                  Item_field *field2,
-                                  void *table_join_idx)
+                                         Item_field *field2,
+                                         void *table_join_idx)
 {
   int cmp= 0;
   bool outer_ref= 0;
@@ -9536,7 +9570,7 @@ static int compare_fields_by_table_order(Item_field *field1,
     outer_ref= 1;
     cmp= -1;
   }
-  if (field2->used_tables() & OUTER_REF_TABLE_BIT)
+  if (field1->used_tables() & OUTER_REF_TABLE_BIT)
   {
     outer_ref= 1;
     cmp++;
@@ -9545,6 +9579,42 @@ static int compare_fields_by_table_order(Item_field *field1,
     return cmp;
   JOIN_TAB **idx= (JOIN_TAB **) table_join_idx;
   cmp= idx[field2->field->table->tablenr]-idx[field1->field->table->tablenr];
+  if (!cmp)
+  {
+    JOIN_TAB *tab= idx[field1->field->table->tablenr];
+    uint keyno= MAX_KEY;
+    if (tab->ref.key_parts)
+      keyno= tab->ref.key;
+    else if (tab->select && tab->select->quick)
+       keyno = tab->select->quick->index;
+    if (keyno != MAX_KEY)
+    {
+      if (field2->field->part_of_key.is_set(keyno))
+        cmp= -1;
+      if (field1->field->part_of_key.is_set(keyno))
+        cmp++;
+      if (!cmp)
+      {
+        KEY *key_info= tab->table->key_info + keyno;
+        for (uint i= 0; i < key_info->key_parts; i++)
+	{
+          Field *fld= key_info->key_part[i].field;
+          if (fld->eq(field2->field))
+	  {
+	    cmp= -1;
+            break;
+          }
+          if (fld->eq(field1->field))
+	  {
+	    cmp= 1;
+            break;
+          }
+        }
+      }              
+    }              
+    else   
+      cmp= field2->field->field_index-field1->field->field_index;
+  }
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
 
@@ -9833,8 +9903,14 @@ static COND* substitute_for_best_equal_field(COND *cond,
     cond= eliminate_item_equal(0, cond_equal, item_equal);
     return cond ? cond : org_cond;
   }
-  else
-    cond->transform(&Item::replace_equal_field, 0);
+  else if (cond_equal)
+  {
+    List_iterator_fast<Item_equal> it(cond_equal->current_level);
+    while((item_equal= it++))
+    {
+      cond= cond->transform(&Item::replace_equal_field, (uchar *) item_equal);
+    }
+  }
   return cond;
 }
 

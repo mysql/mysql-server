@@ -5521,6 +5521,7 @@ Item_equal::Item_equal(Item_field *f1, Item_field *f2)
   const_item_cache= 0;
   fields.push_back(f1);
   fields.push_back(f2);
+  f1->item_equal= f2->item_equal= this;
 }
 
 Item_equal::Item_equal(Item *c, Item_field *f)
@@ -5598,6 +5599,7 @@ void Item_equal::add(Item *c)
 void Item_equal::add(Item_field *f)
 {
   fields.push_back(f);
+  f->item_equal= this;
 }
 
 uint Item_equal::members()
@@ -5668,7 +5670,7 @@ void Item_equal::merge(Item_equal *item)
   If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
   placed after item_fiel2.
 
-  The function sorts field items by the exchange sort algorithm.
+  The function sorts field items by the bubble sort algorithm.
   The list of field items is looked through and whenever two neighboring
   members follow in a wrong order they are swapped. This is performed
   again and again until we get all members in a right order.
@@ -5679,7 +5681,7 @@ void Item_equal::merge(Item_equal *item)
 
 void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
-  exchange_sort<Item_field>(&fields, compare, arg);
+  bubble_sort<Item_field>(&fields, compare, arg);
 }
 
 

@@ -870,7 +870,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1180,7 +1180,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1490,7 +1490,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKA join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1797,7 +1797,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKA join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2104,7 +2104,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKAH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2411,7 +2411,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (incremental, BKAH join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKAH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2722,7 +2722,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition; Using where
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2936,7 +2936,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -3150,7 +3150,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKA join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -3364,7 +3364,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKA join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (incremental, BKA join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKA join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -3578,7 +3578,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (flat, BKAH join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (flat, BKAH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -3792,7 +3792,7 @@ CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BKAH join)
-1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	18	Using index condition(BKA); Using where; Using join buffer (incremental, BKAH join)
+1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BKAH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND

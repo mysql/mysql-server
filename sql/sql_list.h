@@ -515,36 +515,40 @@ public:
 
 
 /*
-  Exchange sort algorithm for List<T>.
+  Bubble sort algorithm for List<T>.
+  This sort function is supposed to be used only for very short list.
+  Currently it is used for the lists of Item_equal objects and
+  for some lists in the table elimination algorithms. In both
+  cases the sorted lists are very short.
 */
+
 template <class T> 
-inline void exchange_sort(List<T> *list_to_sort,
-                          int (*sort_func)(T *a, T *b, void *arg), void *arg)
+inline void bubble_sort(List<T> *list_to_sort,
+                        int (*sort_func)(T *a, T *b, void *arg), void *arg)
 {
   bool swap;
+  T **ref1= 0;
+  T **ref2= 0;
   List_iterator<T> it(*list_to_sort);
   do
   {
+    T **last_ref= ref1;
     T *item1= it++;
-    T **ref1= it.ref();
+    ref1= it.ref();
     T *item2;
 
     swap= FALSE;
-    while ((item2= it++))
+    while ((item2= it++) && (ref2= it.ref()) != last_ref)
     {
-      T **ref2= it.ref();
       if (sort_func(item1, item2, arg) < 0)
       {
-        T *item= *ref1;
-        *ref1= *ref2;
-        *ref2= item;
+        *ref1= item2;
+        *ref2= item1;
         swap= TRUE;
       }
       else
-      {
         item1= item2;
-        ref1= ref2;
-      }
+      ref1= ref2;
     }
     it.rewind();
   } while (swap);

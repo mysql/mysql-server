@@ -1232,7 +1232,7 @@ void build_eq_mods_for_cond(Dep_analysis_context *ctx,
     if (fvl->elements)
     {
       
-      exchange_sort<Dep_value_field>(fvl, compare_field_values, NULL);
+      bubble_sort<Dep_value_field>(fvl, compare_field_values, NULL);
       add_module_expr(ctx, eq_mod, *and_level, NULL, bound_item, fvl);
     }
     break;

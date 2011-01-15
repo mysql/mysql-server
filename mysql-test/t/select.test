@@ -4088,4 +4088,47 @@ SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 
 
+--echo #
+--echo # Bug #698882: best equality substitution not applied to ref 
+--echo #
+
+CREATE TABLE t1 (a1 int NOT NULL, b1 char(10), INDEX idx (a1));
+CREATE TABLE t2 (a2 int NOT NULL, b2 char(10), INDEX idx (a2));
+CREATE TABLE t3 (a3 int NOT NULL, b3 char(10), INDEX idx (a3));
+INSERT INTO t1 VALUES (2,'xx'), (1,'xxx'),  (11,'xxxxxxx');
+INSERT INTO t2 VALUES
+  (7,'yyyy'), (2,'y'), (3,'yyy'), (1,'yy'), (1,'yyyyy'),
+  (3,'yy'),  (1,'y'), (4,'yyy'), (7,'y'),  (4,'yyyyy'), (7,'yyy'),
+  (7,'yyyy'), (2,'yy'),  (3,'yyy'), (1,'yyyyyyyy'), (1,'yyyyy'),
+  (3,'yy'), (1,'yyy'), (4,'yyy'), (7,'y'), (4,'yyyyy'), (7,'yyy');
+INSERT INTO t3 VALUES
+  (9,'zzzzzzz'), (2,'zzzzz'), (1,'z'), (9,'zz'), (1,'zz'), (5,'zzzzzzz'),
+  (4,'zz'), (3,'z'), (5,'zzzzzz'), (3,'zz'), (4,'zzzz'), (3,'z'),
+  (9,'zzzzzzzz'), (2,'zz'), (1,'zz'), (9,'zzz'), (1,'zzz'), (5,'zzzzzzzz'),
+  (4,'zzz'), (3,'zz'), (5,'zzzzzzz'), (3,'zzz'), (4,'zzzzz'), (3,'zz'),
+  (9,'zzzzzz'), (2,'zzzz'), (1,'zzz'), (9,'z'), (1,'z'), (5,'zzzzzz'),
+  (4,'z'), (3,'zzz'), (5,'zzzzz'), (3,'z'), (4,'zzz'), (3,'zzzz'),
+  (9,'zzzzz'), (2,'zzz'), (1,'zzzz'), (9,'zzz'), (1,'zzzz'), (5,'zzzzz'),
+  (4,'zzz'), (3,'zzzz'), (5,'zzzz'), (3,'zzz'), (4,'zz'), (3,'zzzzz');
+  
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t1.a1;
+EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t2.a2;
+
+SELECT * from t1,t2,t3
+  WHERE t3.a3=t1.a1 AND t2.a2=t1.a1 AND
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+SELECT * FROM t1,t2,t3
+  WHERE t2.a2=t1.a1 AND t3.a3=t1.a1 AND 
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+SELECT * FROM t1,t2,t3
+  WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
+        LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+
+SET SESSION optimizer_switch=DEFAULT;
+
+DROP TABLE t1,t2,t3;
+
 --echo End of 5.1 tests
