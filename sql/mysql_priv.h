@@ -751,7 +751,7 @@ bool do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db,
 bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name,
                      bool force_switch);
 
-void mysql_parse(THD *thd, const char *inBuf, uint length,
+void mysql_parse(THD *thd, char *rawbuf, uint length,
                  const char ** semicolon);
 
 bool mysql_test_parse_for_slave(THD *thd,char *inBuf,uint length);
