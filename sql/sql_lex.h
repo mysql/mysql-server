@@ -935,7 +935,7 @@ struct st_parsing_options
 class Lex_input_stream
 {
 public:
-  Lex_input_stream(THD *thd, const char* buff, unsigned int length);
+  Lex_input_stream(THD *thd, char* buff, unsigned int length);
   ~Lex_input_stream();
 
   /** Current thread. */
@@ -951,7 +951,7 @@ public:
   LEX_YYSTYPE yylval;
 
   /** Pointer to the current position in the input stream. */
-  const char* ptr;
+  char* ptr;
 
   /** Starting position of the last token parsed. */
   const char* tok_start;
@@ -966,7 +966,7 @@ public:
   const char* tok_start_prev;
 
   /** Begining of the query text in the input stream. */
-  const char* buf;
+  char* buf;
 
   /** Current state of the lexical analyser. */
   enum my_lex_states next_state;
@@ -1355,7 +1355,7 @@ public:
 class Parser_state
 {
 public:
-  Parser_state(THD *thd, const char* buff, unsigned int length)
+  Parser_state(THD *thd, char* buff, unsigned int length)
     : m_lip(thd, buff, length), m_yacc()
   {}
 
