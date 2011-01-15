@@ -4814,7 +4814,8 @@ bool Item_field::set_no_const_sub(uchar *arg)
   Replace an Item_field for an equal Item_field that evaluated earlier
   (if any).
 
-  The function returns a pointer to an item that is taken from
+  If this->item_equal points to some item and coincides with arg then
+  the function returns a pointer to an item that is taken from
   the very beginning of the item_equal list which the Item_field
   object refers to (belongs to) unless item_equal contains  a constant
   item. In this case the function returns this constant item, 
@@ -4822,7 +4823,7 @@ bool Item_field::set_no_const_sub(uchar *arg)
   If the Item_field object does not refer any Item_equal object
   'this' is returned .
 
-  @param arg   a dummy parameter, is not used here
+  @param arg   NULL or points to so some item of the Item_equal type  
 
 
   @note
@@ -4837,7 +4838,7 @@ bool Item_field::set_no_const_sub(uchar *arg)
 
 Item *Item_field::replace_equal_field(uchar *arg)
 {
-  if (item_equal)
+  if (item_equal && item_equal == (Item_equal *) arg)
   {
     Item *const_item= item_equal->get_const();
     if (const_item)
@@ -4848,7 +4849,7 @@ Item *Item_field::replace_equal_field(uchar *arg)
       return const_item;
     }
     Item_field *subst= item_equal->get_first(this);
-    if (subst && field->table != subst->field->table && !field->eq(subst->field))
+    if (subst && !field->eq(subst->field))
       return subst;
   }
   return this;

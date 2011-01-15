@@ -1071,6 +1071,12 @@ class store_key_field: public store_key
   }
   const char *name() const { return field_name; }
 
+  void change_source_field(Item_field *fld_item)
+  {
+    copy_field.set(to_field, fld_item->field, 0);
+    field_name= fld_item->full_name();
+  }
+
  protected: 
   enum store_key_result copy_inner()
   {

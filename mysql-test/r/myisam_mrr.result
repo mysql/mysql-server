@@ -504,7 +504,7 @@ table3.col_varchar_key = table2.col_varchar_nokey AND
 table3.pk<>0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	table2	ALL	col_varchar_key	NULL	NULL	NULL	20	Using where
-1	SIMPLE	table3	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.table2.col_varchar_key	3	Using index condition(BKA); Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	table3	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.table2.col_varchar_key	3	Using where; Using join buffer (flat, BKA join)
 set join_cache_level= @save_join_cache_level;
 set join_buffer_size= @save_join_buffer_size;
 drop table t1;
