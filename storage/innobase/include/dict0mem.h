@@ -381,6 +381,12 @@ struct dict_index_struct{
 				to calculate each of stat_n_diff_key_vals[],
 				e.g. stat_n_sample_sizes[3] pages were sampled
 				to get the number stat_n_diff_key_vals[3]. */
+	ib_uint64_t*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
