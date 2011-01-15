@@ -4087,5 +4087,38 @@ EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #702310: usage of 2 join buffers after ref access to an empty table 
+--echo #
+
+CREATE TABLE t1 (f1 int) ;
+INSERT INTO t1 VALUES (9);
+
+CREATE TABLE t2 (f1 int);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+INSERT INTO t2 VALUES (3),(7),(18);
+
+CREATE TABLE t3 (f1 int);
+INSERT INTO t3 VALUES (17);
+
+CREATE TABLE t4  (f1 int PRIMARY KEY, f2 varchar(1024)) ;
+
+CREATE TABLE t5 (f1 int) ;
+INSERT INTO t5 VALUES (20),(5);
+
+CREATE TABLE t6(f1 int);
+INSERT INTO t6 VALUES (9),(7);
+
+SET SESSION join_buffer_size = 2048;
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+SELECT STRAIGHT_JOIN * FROM t2, (t1 LEFT JOIN (t3,t4) ON t1.f1 = t4.f1), t5, t6;
+
+SET SESSION join_buffer_size = DEFAULT;
+
+DROP TABLE t1,t2,t3,t4,t5,t6;
 
 --echo End of 5.1 tests

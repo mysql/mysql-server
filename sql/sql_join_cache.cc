@@ -3179,7 +3179,8 @@ uint JOIN_CACHE_HASHED::get_next_key(uchar ** key)
 
 int JOIN_TAB_SCAN::open()
 {
-  for (JOIN_TAB *tab= join->join_tab; tab != join_tab ; tab++)
+  JOIN_TAB *bound= join_tab-cache->tables;
+  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
   {
     tab->status= tab->table->status;
     tab->table->status= 0;
@@ -3254,7 +3255,8 @@ int JOIN_TAB_SCAN::next()
 
 void JOIN_TAB_SCAN::close()
 {
-  for (JOIN_TAB *tab= join->join_tab; tab != join_tab ; tab++)
+  JOIN_TAB *bound= join_tab-cache->tables;
+  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
     tab->table->status= tab->status;
 }
 
@@ -3655,7 +3657,8 @@ int JOIN_TAB_SCAN_MRR::open()
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(join_tab->use_quick != 2);
 
-  for (JOIN_TAB *tab =join->join_tab; tab != join_tab ; tab++)
+  JOIN_TAB *bound= join_tab-cache->tables;
+  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
   {
     tab->status= tab->table->status;
     tab->table->status= 0;
