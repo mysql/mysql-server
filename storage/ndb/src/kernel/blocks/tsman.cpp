@@ -486,6 +486,13 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal){
       ptr.p->m_state = Tablespace::TS_DROPPING;
       break;
     case DropFilegroupImplReq::Commit:
+      if (ptr.p->m_ref_count)
+      {
+        jam();
+        sendSignalWithDelay(reference(), GSN_DROP_FILEGROUP_REQ, signal,
+                            100, signal->getLength());
+        return;
+      }
       m_tablespace_list.remove(ptr);
       m_tablespace_hash.release(ptr);
       break;
@@ -1482,6 +1489,14 @@ Tsman::execDROP_FILE_IMPL_REQ(Signal* signal)
     }
     case DropFileImplReq::Commit:
       ndbrequire(find_file_by_id(file_ptr, fg_ptr.p->m_meta_files, req.file_id));
+      if (file_ptr.p->m_ref_count)
+      {
+        jam();
+        sendSignalWithDelay(reference(), GSN_DROP_FILE_REQ, signal,
+                            100, signal->getLength());
+        return;
+      }
+      
       file_ptr.p->m_create.m_extent_pages = 
 	file_ptr.p->m_online.m_offset_data_pages - 1;
       file_ptr.p->m_create.m_senderRef = req.senderRef;
@@ -1535,6 +1550,7 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   m_logfile_group_id = req->tablespace.logfile_group_id;
   m_tablespace_id = req->filegroup_id;
   m_version = req->filegroup_version;
+  m_ref_count = 0;
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
@@ -1549,6 +1565,7 @@ Tsman::Datafile::Datafile(const struct CreateFileImplReq* req)
   m_file_no = RNIL;
   m_fd = RNIL;
   m_online.m_first_free_extent = RNIL;
+  m_ref_count = 0;
     
   m_create.m_senderRef = req->senderRef; // During META
   m_create.m_senderData = req->senderData; // During META
@@ -2127,8 +2144,10 @@ Tsman::execEND_LCP_REQ(Signal* signal)
    * Move extents from "lcp" free list to real free list
    */
   Ptr<Tablespace> ptr;
-  if(m_tablespace_list.first(ptr))
+  if (m_tablespace_list.first(ptr))
   {
+    jam();
+    ptr.p->m_ref_count ++;
     signal->theData[0] = TsmanContinueB::END_LCP;
     signal->theData[1] = ptr.i;
     signal->theData[2] = 0;    // free
@@ -2142,6 +2161,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
 {
   Ptr<Tablespace> ptr;
   m_tablespace_list.getPtr(ptr, ptrI);
+  ndbrequire(ptr.p->m_ref_count);
+  ptr.p->m_ref_count--;
   
   Ptr<Datafile> file;
   file.i = filePtrI;
@@ -2162,6 +2183,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
     else
     {
       tmp.getPtr(file);
+      ndbrequire(file.p->m_ref_count);
+      file.p->m_ref_count--;
     }
     break;
   }
@@ -2181,6 +2204,8 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
     else
     {
       tmp.getPtr(file);
+      ndbrequire(file.p->m_ref_count);
+      file.p->m_ref_count--;
     }
     break;
   }
@@ -2263,10 +2288,19 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
       m_tablespace_list.next(ptr);
     }
   }
+  else
+  {
+    jam();
+    ndbrequire(ptr.i != RNIL);
+    m_file_pool.getPtr(file);
+    file.p->m_ref_count++;
+  }
   
 next:
   if(ptr.i != RNIL)
   {
+    ptr.p->m_ref_count++;
+    
     signal->theData[0] = TsmanContinueB::END_LCP;
     signal->theData[1] = ptr.i;
     signal->theData[2] = list;    

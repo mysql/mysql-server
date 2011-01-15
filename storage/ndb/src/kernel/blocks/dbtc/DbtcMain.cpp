@@ -5063,7 +5063,11 @@ void Dbtc::commit020Lab(Signal* signal)
     Tcount += sendCommitLqh(signal, localTcConnectptr.p);
 
     if (localTcConnectptr.i != RNIL) {
-      if (Tcount < 16 && !ERROR_INSERTED(8057) && !ERROR_INSERTED(8073)) {
+      if (Tcount < 16 &&
+          ! (ERROR_INSERTED(8057) ||
+             ERROR_INSERTED(8073) ||
+             ERROR_INSERTED(8089)))
+      {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
         jam();
@@ -5085,12 +5089,20 @@ void Dbtc::commit020Lab(Signal* signal)
         signal->theData[0] = TcContinueB::ZSEND_COMMIT_LOOP;
         signal->theData[1] = apiConnectptr.i;
         signal->theData[2] = localTcConnectptr.i;
+        if (ERROR_INSERTED(8089))
+        {
+          sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
+          return;
+        }
         sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
         return;
       }//if
     } else {
       jam();
       if (ERROR_INSERTED(8057))
+        CLEAR_ERROR_INSERT_VALUE;
+
+      if (ERROR_INSERTED(8089))
         CLEAR_ERROR_INSERT_VALUE;
 
       regApiPtr->apiConnectstate = CS_COMMIT_SENT;
@@ -6798,9 +6810,13 @@ ABORT020:
   if (tcConnectptr.p->nextTcConnect != RNIL) {
     jam();
     tcConnectptr.i = tcConnectptr.p->nextTcConnect;
-    if (TloopCount < 1024) {
+    if (TloopCount < 1024 && !
+        (ERROR_INSERTED(8089)))
+    {
       goto ABORT020;
-    } else {
+    }
+    else
+    {
       jam();
       /*---------------------------------------------------------------------
        * Reset timer to avoid time-out in real-time break.
@@ -6812,10 +6828,21 @@ ABORT020:
       signal->theData[0] = TcContinueB::ZABORT_BREAK;
       signal->theData[1] = tcConnectptr.i;
       signal->theData[2] = apiConnectptr.i;
+      if (ERROR_INSERTED(8089))
+      {
+        sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 100, 3);
+        return;
+      }
       sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
       return;
     }//if
   }//if
+
+  if (ERROR_INSERTED(8089))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   if (apiConnectptr.p->counter > 0) {
     jam();
     setApiConTimer(apiConnectptr.i, ctcTimer, __LINE__);
