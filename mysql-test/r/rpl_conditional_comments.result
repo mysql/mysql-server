@@ -1,0 +1,57 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1(c1 INT);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
+
+# Case 1:
+# ------------------------------------------------------------------
+# In a statement, some CCs are applied while others are not. The CCs
+# which are not applied on master will be binlogged as common comments.
+/*!99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /*!99999 ,(11)*/;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; /* 99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /* 99999 ,(11)*/
+Comparing tables master:test.t1 and slave:test.t1
+
+# Case 2:
+# -----------------------------------------------------------------
+# Verify whether it can be binlogged correctly when executing prepared
+# statement.
+PREPARE stmt FROM 'INSERT INTO /*!99999 blabla*/ t1 VALUES(60) /*!99999 ,(61)*/';
+EXECUTE stmt;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+EXECUTE stmt;
+Comparing tables master:test.t1 and slave:test.t1
+
+SET @value=62;
+PREPARE stmt FROM 'INSERT INTO /*!99999 blabla */ t1 VALUES(?) /*!99999 ,(63)*/';
+EXECUTE stmt USING @value;
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT);
+EXECUTE stmt USING @value;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla*/ t1 VALUES(60) /* 99999 ,(61)*/
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla*/ t1 VALUES(60) /* 99999 ,(61)*/
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla */ t1 VALUES(62) /* 99999 ,(63)*/
+master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla */ t1 VALUES(62) /* 99999 ,(63)*/
+Comparing tables master:test.t1 and slave:test.t1
+
+# Case 3:
+# -----------------------------------------------------------------
+# Verify it can restore the '!', if the it is an uncomplete conditional
+# comments
+SELECT c1 FROM /*!99999 t1 WHEREN;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/*!99999 t1 WHEREN' at line 1
+DROP TABLE t1;
