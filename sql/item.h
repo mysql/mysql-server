@@ -490,12 +490,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-#ifndef MCP_BUG58075
-             VIEW_FIXER_ITEM,
-             MAX_NUM_ITEMS /* Always last */
-#else
              VIEW_FIXER_ITEM
-#endif
   };
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };

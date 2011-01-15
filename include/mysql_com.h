@@ -315,12 +315,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
                         MYSQL_TYPE_BLOB=252,
                         MYSQL_TYPE_VAR_STRING=253,
                         MYSQL_TYPE_STRING=254,
-#ifndef MCP_BUG58075
-                        MYSQL_TYPE_GEOMETRY=255,
-                        MYSQL_NUM_FIELD_TYPES /* Always last */
-#else
                         MYSQL_TYPE_GEOMETRY=255
-#endif
 };
 
 /* For backward compatibility */
@@ -448,12 +443,7 @@ struct rand_struct {
   /* The following is for user defined functions */
 
 enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-#ifndef MCP_BUG58075
-                  DECIMAL_RESULT,
-                  MYSQL_NUM_ITEM_RESULTS /* Always last */ };
-#else
                   DECIMAL_RESULT};
-#endif
 
 typedef struct st_udf_args
 {
