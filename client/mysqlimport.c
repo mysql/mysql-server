@@ -61,6 +61,7 @@ static char	*opt_password=0, *current_user=0,
 static uint     opt_mysql_port= 0, opt_protocol= 0;
 static char *opt_bind_addr = NULL;
 static char * opt_mysql_unix_port=0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static longlong opt_ignore_lines= -1;
 #include <sslopt-vars.h>
 
@@ -94,6 +95,10 @@ static struct my_option my_long_options[] =
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete", 'd', "First delete all rows from table.", &opt_delete,
    &opt_delete, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
@@ -143,6 +148,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -435,6 +443,13 @@ static MYSQL *db_connect(char *host, char *database,
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(mysql_real_connect(mysql,host,user,passwd,
                            database,opt_mysql_port,opt_mysql_unix_port,
