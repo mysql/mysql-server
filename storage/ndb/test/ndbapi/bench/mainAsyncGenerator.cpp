@@ -278,6 +278,7 @@ print_stats(const char       *title,
     ndbout_c("     Transactions: %d", gen->totalTransactions);
     ndbout_c("     Outer       : %.0f TPS",gen->outerTps);
     ndbout_c("\n");
+    ndbout_c("NDBT_Observation;tps;%.0f", gen->outerTps);
   }
 }
 
