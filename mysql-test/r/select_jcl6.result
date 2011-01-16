@@ -4923,64 +4923,64 @@ SELECT * from t1,t2,t3
 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1 AND
 LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
 a1	b1	a2	b2	a3	b3
-1	xxx	1	yyy	1	z
 1	xxx	1	y	1	z
-1	xxx	1	yy	1	z
+1	xxx	1	y	1	z
 1	xxx	1	y	1	zz
-1	xxx	1	yy	1	zz
 1	xxx	1	y	1	zz
-1	xxx	1	yy	1	zz
 1	xxx	1	y	1	zzz
 1	xxx	1	y	1	zzz
-1	xxx	1	yyy	1	z
-1	xxx	1	y	1	z
 1	xxx	1	yy	1	z
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	zz
+1	xxx	1	yy	1	zz
+1	xxx	1	yyy	1	z
+1	xxx	1	yyy	1	z
 2	xx	2	y	2	zz
-2	xx	2	yy	2	zz
-2	xx	2	y	2	zzzz
 2	xx	2	y	2	zzz
+2	xx	2	y	2	zzzz
+2	xx	2	yy	2	zz
 2	xx	2	yy	2	zzz
 SELECT * FROM t1,t2,t3
 WHERE t2.a2=t1.a1 AND t3.a3=t1.a1 AND 
 LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
 a1	b1	a2	b2	a3	b3
-1	xxx	1	yyy	1	z
 1	xxx	1	y	1	z
-1	xxx	1	yy	1	z
+1	xxx	1	y	1	z
 1	xxx	1	y	1	zz
-1	xxx	1	yy	1	zz
 1	xxx	1	y	1	zz
-1	xxx	1	yy	1	zz
 1	xxx	1	y	1	zzz
 1	xxx	1	y	1	zzz
-1	xxx	1	yyy	1	z
-1	xxx	1	y	1	z
 1	xxx	1	yy	1	z
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	zz
+1	xxx	1	yy	1	zz
+1	xxx	1	yyy	1	z
+1	xxx	1	yyy	1	z
 2	xx	2	y	2	zz
-2	xx	2	yy	2	zz
-2	xx	2	y	2	zzzz
 2	xx	2	y	2	zzz
+2	xx	2	y	2	zzzz
+2	xx	2	yy	2	zz
 2	xx	2	yy	2	zzz
 SELECT * FROM t1,t2,t3
 WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
 LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
 a1	b1	a2	b2	a3	b3
-1	xxx	1	yyy	1	z
 1	xxx	1	y	1	z
-1	xxx	1	yy	1	z
+1	xxx	1	y	1	z
 1	xxx	1	y	1	zz
-1	xxx	1	yy	1	zz
 1	xxx	1	y	1	zz
-1	xxx	1	yy	1	zz
 1	xxx	1	y	1	zzz
 1	xxx	1	y	1	zzz
-1	xxx	1	yyy	1	z
-1	xxx	1	y	1	z
 1	xxx	1	yy	1	z
+1	xxx	1	yy	1	z
+1	xxx	1	yy	1	zz
+1	xxx	1	yy	1	zz
+1	xxx	1	yyy	1	z
+1	xxx	1	yyy	1	z
 2	xx	2	y	2	zz
-2	xx	2	yy	2	zz
-2	xx	2	y	2	zzzz
 2	xx	2	y	2	zzz
+2	xx	2	y	2	zzzz
+2	xx	2	yy	2	zz
 2	xx	2	yy	2	zzz
 SET SESSION optimizer_switch=DEFAULT;
 DROP TABLE t1,t2,t3;

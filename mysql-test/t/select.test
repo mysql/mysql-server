@@ -4150,12 +4150,15 @@ EXPLAIN SELECT * from t1,t2,t3 WHERE t3.a3=t1.a1 AND t2.a2=t1.a1;
 EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t1.a1;
 EXPLAIN SELECT * FROM t1,t2,t3 WHERE t2.a2=t1.a1 AND t3.a3=t2.a2;
 
+--sorted_result
 SELECT * from t1,t2,t3
   WHERE t3.a3=t1.a1 AND t2.a2=t1.a1 AND
         LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+--sorted_result
 SELECT * FROM t1,t2,t3
   WHERE t2.a2=t1.a1 AND t3.a3=t1.a1 AND 
         LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
+--sorted_result
 SELECT * FROM t1,t2,t3
   WHERE t2.a2=t1.a1 AND t3.a3=t2.a2 AND
         LENGTH(CONCAT(CONCAT(t1.b1,t2.b2),t3.b3)) <= 7;
