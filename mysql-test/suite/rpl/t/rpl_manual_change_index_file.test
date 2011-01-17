@@ -115,7 +115,7 @@ sync_slave_with_master;
 
 --source include/rpl_reset.inc
 connection master;
-
+--echo [ on master ]
 call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log:");
 let $MASTER_DATADIR= `SELECT @@DATADIR`;
 CREATE TABLE t1(c1 int);
@@ -126,30 +126,44 @@ FLUSH LOGS;
 CREATE TABLE t2(c1 int);
 DROP TABLE t2;
 sync_slave_with_master;
-
+--echo [ on slave ]
 source include/stop_slave.inc;
 
 connection master;
-# This operation will result in error EE_FILENOTFOUND which happens
-# when slave IO thread is connecting to master.
+--echo [ on master ]
+--echo # This operation will result in error EE_FILENOTFOUND which happens
+--echo # when slave IO thread is connecting to master.
 move_file $MASTER_DATADIR/master-bin.000001 $MASTER_DATADIR/master-bin.bak;
 
 connection slave;
+--echo [ on slave ]
 CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
 START SLAVE IO_THREAD;
-# Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG and the
-# specific information are sent to slave.
+--echo # Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG
+--echo # and the specific information are sent to slave.
 let $slave_io_errno= 1236;
+let $show_slave_io_error= 1;
 source include/wait_for_slave_io_error.inc;
 
 connection master;
-# This operation will result in error EE_FILENOTFOUND which happens
-# when slave IO thread is connecting to master.
+--echo [ on master ]
+--echo # Restore master-bin.000001 file
 move_file $MASTER_DATADIR/master-bin.bak $MASTER_DATADIR/master-bin.000001;
 
 connection slave;
+--echo [ on slave ]
 CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000002';
 source include/start_slave.inc;
+
+connection master;
+--echo [ on master ]
+CREATE TABLE t1(c1 INT);
+sync_slave_with_master;
+--echo [ on slave ]
+SELECT * FROM t1;
+
+connection master;
+DROP TABLE t1;
 
 --source include/rpl_end.inc
 
