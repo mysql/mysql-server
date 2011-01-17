@@ -582,7 +582,9 @@ bool st_select_lex_unit::exec()
       thd->lex->current_select= sl;
 
       if (optimized)
+      {
 	saved_error= sl->join->reinit();
+      }
       else
       {
         set_limit(sl);

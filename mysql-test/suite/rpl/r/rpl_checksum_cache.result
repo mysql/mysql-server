@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t2 set data=repeat.*'a', @act_size.*");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave. Statement: insert into t1 values.* NAME_CONST.*'n',.*, @data .*");
 set @save_binlog_cache_size = @@global.binlog_cache_size;
@@ -21,7 +17,6 @@ Binlog_cache_use	0
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	0
-drop table if exists t1;
 create table t1 (a int PRIMARY KEY, b CHAR(32)) engine=innodb;
 create procedure test.p_init (n int, size int) 
 begin
@@ -37,12 +32,12 @@ call test.p_init(4000, 32);
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	2
+Binlog_cache_use	1
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 begin;
 delete from t1;
 commit;
@@ -50,12 +45,12 @@ flush status;
 create table t2(a int auto_increment primary key, data VARCHAR(12288)) ENGINE=Innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	2
+Binlog_cache_use	1
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t2, slave:t2]
 begin;
 delete from t2;
 commit;
@@ -63,12 +58,12 @@ flush status;
 create table t3(a int auto_increment primary key, data VARCHAR(8192)) engine=innodb;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	2
+Binlog_cache_use	1
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t3, slave:t3]
 begin;
 delete from t3;
 commit;
@@ -101,14 +96,14 @@ call test.p1(1000);
 commit;
 show status like "binlog_cache_use";
 Variable_name	Value
-Binlog_cache_use	2
+Binlog_cache_use	1
 *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 Variable_name	Value
 Binlog_cache_disk_use	1
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
-Comparing tables master:test.t3 and slave:test.t3
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+include/diff_tables.inc [master:t3, slave:t3]
 begin;
 delete from t1;
 delete from t2;
@@ -120,4 +115,4 @@ set @@global.binlog_checksum = @save_binlog_checksum;
 set @@global.master_verify_checksum = @save_master_verify_checksum;
 drop procedure test.p_init;
 drop procedure test.p1;
-End of tests
+include/rpl_end.inc

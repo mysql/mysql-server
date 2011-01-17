@@ -86,8 +86,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
-  void new_file_without_locking();
-  void new_file_impl(bool need_lock);
+  int new_file_without_locking();
+  int new_file_impl(bool need_lock);
 
 public:
   MYSQL_LOG::generate_name;
@@ -152,7 +152,7 @@ public:
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
 
@@ -195,14 +195,14 @@ public:
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
-  void new_file();
+  int new_file();
 
   bool write(Log_event* event_info); // binary log write
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
 
   bool write_incident(THD *thd, bool lock);
   int  write_cache(IO_CACHE *cache, bool lock_log, bool flush_and_sync);
-  void set_write_error(THD *thd);
+  void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);
 
   void start_union_events(THD *thd, query_id_t query_id_param);
@@ -219,7 +219,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  void rotate_and_purge(uint flags);
+  int rotate_and_purge(uint flags);
   /**
      Flush binlog cache and synchronize to disk.
 
@@ -298,6 +298,7 @@ bool purge_master_logs(THD* thd, const char* to_log);
 bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log);
 void check_binlog_cache_size(THD *thd);
+void check_binlog_stmt_cache_size(THD *thd);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;

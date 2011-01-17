@@ -2,6 +2,7 @@ set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
 optimizer_join_cache_level	6
+set optimizer_switch='mrr_cost_based=off';
 drop table if exists t0,t1,t2,t3,t4,t5;
 CREATE TABLE t1 (
 grp int(11) default NULL,
@@ -70,9 +71,9 @@ grp	a	c	id	a	c	d
 1	1	a	3	4	A	4
 2	2	b	3	5	B	5
 2	3	c	3	6	C	6
+3	4	E	NULL	NULL	NULL	NULL
 3	5	C	3	6	C	6
 3	6	D	4	7	D	7
-3	4	E	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL
 select t1.*,t2.* from t1 natural left outer join t2;
 grp	a	c	id	a	c	d
@@ -103,11 +104,11 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 grp	a	c	id	a	c	d	a
 1	1	a	1	1	a	1	1
+2	2	b	NULL	NULL	NULL	NULL	NULL
+2	3	c	NULL	NULL	NULL	NULL	NULL
 3	4	E	3	4	A	4	4
 3	5	C	3	5	B	5	5
 3	6	D	3	6	C	6	6
-2	2	b	NULL	NULL	NULL	NULL	NULL
-2	3	c	NULL	NULL	NULL	NULL	NULL
 NULL	NULL		NULL	NULL	NULL	NULL	NULL
 explain select t1.*,t2.*,t3.a from t1 left join t2 on (t3.a=t2.a) left join t1 as t3 on (t1.a=t3.a);
 ERROR 42S22: Unknown column 't3.a' in 'on clause'
@@ -308,8 +309,8 @@ select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner);
 name	name	id
 Antonio Paz	El Gato	1
 Antonio Paz	Perrito	2
-Thimble Smith	Happy	3
 Lilliana Angelovska	NULL	NULL
+Thimble Smith	Happy	3
 select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.id is null;
 name	name	id
 Lilliana Angelovska	NULL	NULL
@@ -328,8 +329,8 @@ select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner);
 name	name	id
 Antonio Paz	El Gato	1
 Antonio Paz	Perrito	2
-Thimble Smith	Happy	3
 Lilliana Angelovska	NULL	NULL
+Thimble Smith	Happy	3
 select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.id is null;
 name	name	id
 Lilliana Angelovska	NULL	NULL
@@ -348,8 +349,8 @@ select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner)
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-Thimble Smith	Happy	3	3
 Lilliana Angelovska	NULL	NULL	NULL
+Thimble Smith	Happy	3	3
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	id
 Antonio Paz	El Gato	1	1
@@ -642,9 +643,9 @@ fooID	barID	fooID
 30	3	30
 select * from t2 left join t1 ignore index(primary) on t1.fooID = t2.fooID and t1.fooID = 30;
 fooID	barID	fooID
-30	3	30
 10	1	NULL
 20	2	NULL
+30	3	30
 drop table t1,t2;
 create table t1 (i int);
 create table t2 (i int);
@@ -654,21 +655,21 @@ insert into t2 values(2),(3);
 insert into t3 values(2),(4);
 select * from t1 natural left join t2 natural left join t3;
 i
-2
 1
+2
 select * from t1 natural left join t2 where (t2.i is not null)=0;
 i
 1
 select * from t1 natural left join t2 where (t2.i is not null) is not null;
 i
-2
 1
+2
 select * from t1 natural left join t2 where (i is not null)=0;
 i
 select * from t1 natural left join t2 where (i is not null) is not null;
 i
-2
 1
+2
 drop table t1,t2,t3;
 create table t1 (f1 integer,f2 integer,f3 integer);
 create table t2 (f2 integer,f4 integer);
@@ -1173,33 +1174,33 @@ INSERT INTO t1 VALUES (1), (2), (3), (4);
 INSERT INTO t2 VALUES (2), (3);
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1);
 a	b
+1	NULL
 2	2
 3	3
-1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1 OR 1);
 a	b
+1	NULL
 2	2
 3	3
-1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (0 OR 1);
 a	b
+1	NULL
 2	2
 3	3
-1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 2=2);
 a	b
+1	NULL
 2	2
 3	3
-1	NULL
 4	NULL
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a = t2.b WHERE (1=1 OR 1=0);
 a	b
+1	NULL
 2	2
 3	3
-1	NULL
 4	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
@@ -1406,6 +1407,36 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select straight_join `test`.`jt1`.`f1` AS `f1` from `test`.`t1` `jt6` left join (`test`.`t1` `jt3` join `test`.`t1` `jt4` left join `test`.`t1` `jt5` on(1) left join `test`.`t1` `jt2` on(1)) on((`test`.`jt6`.`f1` and 1)) left join `test`.`t1` `jt1` on(1) where 1
 DROP TABLE t1;
+#
+# Bug#57688 Assertion `!table || (!table->write_set || bitmap_is_set(table->write_set, field
+#
+CREATE TABLE t1 (f1 INT NOT NULL, PRIMARY KEY (f1));
+CREATE TABLE t2 (f1 INT NOT NULL, f2 INT NOT NULL, PRIMARY KEY (f1, f2));
+INSERT INTO t1 VALUES (4);
+INSERT INTO t2 VALUES (3, 3);
+INSERT INTO t2 VALUES (7, 7);
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	1	Using index
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4
+GROUP BY t2.f1, t2.f2;
+f1	f1	f2
+4	NULL	NULL
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using filesort
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	1	Using where; Using index
+SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 = t1.f1
+WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
+GROUP BY t2.f1, t2.f2;
+f1	f1	f2
+DROP TABLE t1,t2;
 End of 5.1 tests
 #
 # Bug#54235 Extra rows with join_cache_level=4,6,8 and two LEFT JOIN
@@ -1476,6 +1507,4 @@ WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 col_int
 DROP TABLE t1,t2,t3,t4;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1
+set optimizer_switch=default;

@@ -1848,11 +1848,14 @@ public:
     : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
       binlog_rows_query_log_events(FALSE),
       forced_insert_id(0), query(query_arg), time_zone(0)
-    {}
+    {
+      write_set.bitmap= NULL;
+    }
   ~delayed_row()
   {
     my_free(query.str);
     my_free(record);
+    my_free(write_set.bitmap);
   }
 };
 

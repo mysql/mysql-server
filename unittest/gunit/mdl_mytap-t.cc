@@ -21,6 +21,8 @@
    numbers in case of failures.
  */
 
+// First include (the generated) my_config.h, to get correct platform defines,
+// then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
 #include "my_config.h"
 #include <string>
 #include <iostream>
@@ -33,6 +35,11 @@
 
 #include "thr_malloc.h"
 #include "thread_utils.h"
+
+pthread_key(MEM_ROOT**,THR_MALLOC);
+pthread_key(THD*, THR_THD);
+mysql_mutex_t LOCK_open;
+uint    opt_debug_sync_timeout= 0;
 
 static mysql_mutex_t *current_mutex= NULL;
 extern "C"
@@ -54,11 +61,6 @@ extern "C" int thd_killed(const MYSQL_THD thd)
   return 0;
 }
 
-
-pthread_key(MEM_ROOT**,THR_MALLOC);
-pthread_key(THD*, THR_THD);
-mysql_mutex_t LOCK_open;
-uint    opt_debug_sync_timeout= 0;
 
 // Reimplemented some macros from googletest, so that the tests below
 // could be kept unchanged.  No support for streaming of user messages
@@ -202,18 +204,18 @@ const ulong zero_timeout= 0;
 const ulong long_timeout= (ulong) 3600L*24L*365L;
 
 
-class MDL_test
+class MDLTest
 {
 public:
   // Utility function to run one test case.
-  typedef void (MDL_test::* Pmdl_mem)();
+  typedef void (MDLTest::* Pmdl_mem)();
   static void run_one_test(Pmdl_mem member_function);
 
   // Utility function to run all the test cases.
   static int RUN_ALL_TESTS();
 
 protected:
-  MDL_test()
+  MDLTest()
   : m_thd(NULL),
     m_null_ticket(NULL),
     m_null_request(NULL)
@@ -245,23 +247,23 @@ protected:
   void test_one_simple_shared_lock(enum_mdl_type lock_type);
 
   // We must list all the individual tests here.
-  void die_when_m_tickets_nonempty();
-  void die_when_holding_global_shared_lock();
-  void construct_and_destruct();
-  void one_shared();
-  void one_shared_high_prio();
-  void one_shared_read();
-  void one_shared_write();
-  void one_exclusive();
-  void two_shared();
-  void shared_locks_between_contexts();
-  void upgrade_shared_upgradable();
-  void die_upgrade_shared();
-  void savepoint();
-  void concurrent_shared();
-  void concurrent_shared_exclusive();
-  void concurrent_exclusive_shared();
-  void concurrent_upgrade();
+  void DieWhenMTicketsNonempty();
+  void DieWhenHoldingGlobalSharedLock();
+  void ConstructAndDestruct();
+  void OneShared();
+  void OneSharedHighPrio();
+  void OneSharedRead();
+  void OneSharedWrite();
+  void OneExclusive();
+  void TwoShared();
+  void SharedLocksBetweenContexts();
+  void UpgradeSharedUpgradable();
+  void DieUpgradeShared();
+  void SavePoint();
+  void ConcurrentShared();
+  void ConcurrentSharedExclusive();
+  void ConcurrentExclusiveShared();
+  void ConcurrentUpgrade();
 
   THD               *m_thd;
   const MDL_ticket  *m_null_ticket;
@@ -271,7 +273,7 @@ protected:
   MDL_request        m_global_request;
   MDL_request_list   m_request_list;
 private:
-  // GTEST_DISALLOW_COPY_AND_ASSIGN_(MDL_test);
+  // GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
 };
 
 
@@ -359,22 +361,22 @@ void MDL_thread::run()
 }
 
 // googletest recommends DeathTest suffix for classes use in death tests.
-typedef MDL_test MDL_DeathTest;
+typedef MDLTest MDLDeathTest;
 
 // Our own (simplified) version of the TEST_F macro.
-#define TEST_F(Fixture_class, function_name) \
-  void Fixture_class::function_name()
+#define TEST_F(FixtureClass, FunctionName) \
+  void FixtureClass::FunctionName()
 
 
 /*
   The most basic test: just construct and destruct our test fixture.
  */
-TEST_F(MDL_test, construct_and_destruct)
+TEST_F(MDLTest, ConstructAndDestruct)
 {
 }
 
 
-void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
+void MDLTest::test_one_simple_shared_lock(enum_mdl_type lock_type)
 {
   m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type,
                  MDL_TRANSACTION);
@@ -401,7 +403,7 @@ void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
 /*
   Acquires one lock of type MDL_SHARED.
  */
-TEST_F(MDL_test, one_shared)
+TEST_F(MDLTest, OneShared)
 {
   test_one_simple_shared_lock(MDL_SHARED);
 }
@@ -410,7 +412,7 @@ TEST_F(MDL_test, one_shared)
 /*
   Acquires one lock of type MDL_SHARED_HIGH_PRIO.
  */
-TEST_F(MDL_test, one_shared_high_prio)
+TEST_F(MDLTest, OneSharedHighPrio)
 {
   test_one_simple_shared_lock(MDL_SHARED_HIGH_PRIO);
 }
@@ -419,7 +421,7 @@ TEST_F(MDL_test, one_shared_high_prio)
 /*
   Acquires one lock of type MDL_SHARED_READ.
  */
-TEST_F(MDL_test, one_shared_read)
+TEST_F(MDLTest, OneSharedRead)
 {
   test_one_simple_shared_lock(MDL_SHARED_READ);
 }
@@ -428,7 +430,7 @@ TEST_F(MDL_test, one_shared_read)
 /*
   Acquires one lock of type MDL_SHARED_WRITE.
  */
-TEST_F(MDL_test, one_shared_write)
+TEST_F(MDLTest, OneSharedWrite)
 {
   test_one_simple_shared_lock(MDL_SHARED_WRITE);
 }
@@ -437,7 +439,7 @@ TEST_F(MDL_test, one_shared_write)
 /*
   Acquires one lock of type MDL_EXCLUSIVE.  
  */
-TEST_F(MDL_test, one_exclusive)
+TEST_F(MDLTest, OneExclusive)
 {
   const enum_mdl_type lock_type= MDL_EXCLUSIVE;
   m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type,
@@ -467,7 +469,7 @@ TEST_F(MDL_test, one_exclusive)
   Acquires two locks, on different tables, of type MDL_SHARED.
   Verifies that they are independent.
  */
-TEST_F(MDL_test, two_shared)
+TEST_F(MDLTest, TwoShared)
 {
   MDL_request request_2;
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED, MDL_EXPLICIT);
@@ -502,7 +504,7 @@ TEST_F(MDL_test, two_shared)
   Verifies that two different contexts can acquire a shared lock
   on the same table.
  */
-TEST_F(MDL_test, shared_locks_between_contexts)
+TEST_F(MDLTest, SharedLocksBetweenContexts)
 {
   THD         *thd2= (THD*) this;
   MDL_context  mdl_context2;
@@ -529,7 +531,7 @@ TEST_F(MDL_test, shared_locks_between_contexts)
 /*
   Verifies that we can upgrade a shared lock to exclusive.
  */
-TEST_F(MDL_test, upgrade_shared_upgradable)
+TEST_F(MDLTest, UpgradeSharedUpgradable)
 {
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_NO_WRITE,
                  MDL_TRANSACTION);
@@ -554,7 +556,7 @@ TEST_F(MDL_test, upgrade_shared_upgradable)
 /*
   Verifies that only upgradable locks can be upgraded to exclusive.
  */
-TEST_F(MDL_DeathTest, die_upgrade_shared)
+TEST_F(MDLDeathTest, DieUpgradeShared)
 {
   MDL_request request_2;
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
@@ -584,7 +586,7 @@ TEST_F(MDL_DeathTest, die_upgrade_shared)
 /*
   Verfies that locks are released when we roll back to a savepoint.
  */
-TEST_F(MDL_test, savepoint)
+TEST_F(MDLTest, SavePoint)
 {
   MDL_request request_2;
   MDL_request request_3;
@@ -634,7 +636,7 @@ TEST_F(MDL_test, savepoint)
 /*
   Verifies that we can grab shared locks concurrently, in different threads.
  */
-TEST_F(MDL_test, concurrent_shared)
+TEST_F(MDLTest, ConcurrentShared)
 {
   Notification lock_grabbed;
   Notification release_locks;
@@ -660,7 +662,7 @@ TEST_F(MDL_test, concurrent_shared)
   Verifies that we cannot grab an exclusive lock on something which
   is locked with a shared lock in a different thread.
  */
-TEST_F(MDL_test, concurrent_shared_exclusive)
+TEST_F(MDLTest, ConcurrentSharedExclusive)
 {
   expected_error= ER_LOCK_WAIT_TIMEOUT;
 
@@ -698,7 +700,7 @@ TEST_F(MDL_test, concurrent_shared_exclusive)
   Verifies that we cannot we cannot grab a shared lock on something which
   is locked exlusively in a different thread.
  */
-TEST_F(MDL_test, concurrent_exclusive_shared)
+TEST_F(MDLTest, ConcurrentExclusiveShared)
 {
   Notification lock_grabbed;
   Notification release_locks;
@@ -733,7 +735,7 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
   Thread 2: gets notified, and releases lock.
   Thread 1: gets the exclusive lock.
  */
-TEST_F(MDL_test, concurrent_upgrade)
+TEST_F(MDLTest, ConcurrentUpgrade)
 {
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_NO_WRITE,
                  MDL_TRANSACTION);
@@ -768,9 +770,9 @@ TEST_F(MDL_test, concurrent_upgrade)
 
 
 // Creates a new fixture object for each test case.
-void MDL_test::run_one_test(Pmdl_mem member_function)
+void MDLTest::run_one_test(Pmdl_mem member_function)
 {
-  MDL_test *test_object = new MDL_test;
+  MDLTest *test_object = new MDLTest;
   test_object->SetUp();
   (test_object->*member_function)();
   test_object->TearDown();
@@ -780,27 +782,27 @@ void MDL_test::run_one_test(Pmdl_mem member_function)
 
 // We have to invoke each test explicitly here, since we don't have
 // the auto-registration support from the TEST and TEST_F macros.
-int MDL_test::RUN_ALL_TESTS()
+int MDLTest::RUN_ALL_TESTS()
 {
-  MDL_test::SetUpTestCase();
+  MDLTest::SetUpTestCase();
 
-  run_one_test(&MDL_test::construct_and_destruct);
-  run_one_test(&MDL_test::one_shared);
-  run_one_test(&MDL_test::one_shared_high_prio);
-  run_one_test(&MDL_test::one_shared_read);
-  run_one_test(&MDL_test::one_shared_write);
-  run_one_test(&MDL_test::one_exclusive);
-  run_one_test(&MDL_test::two_shared);
-  run_one_test(&MDL_test::shared_locks_between_contexts);
-  run_one_test(&MDL_test::upgrade_shared_upgradable);
-  run_one_test(&MDL_test::die_upgrade_shared);
-  run_one_test(&MDL_test::savepoint);
-  run_one_test(&MDL_test::concurrent_shared);
-  run_one_test(&MDL_test::concurrent_shared_exclusive);
-  run_one_test(&MDL_test::concurrent_exclusive_shared);
-  run_one_test(&MDL_test::concurrent_upgrade);
+  run_one_test(&MDLTest::ConstructAndDestruct);
+  run_one_test(&MDLTest::OneShared);
+  run_one_test(&MDLTest::OneSharedHighPrio);
+  run_one_test(&MDLTest::OneSharedRead);
+  run_one_test(&MDLTest::OneSharedWrite);
+  run_one_test(&MDLTest::OneExclusive);
+  run_one_test(&MDLTest::TwoShared);
+  run_one_test(&MDLTest::SharedLocksBetweenContexts);
+  run_one_test(&MDLTest::UpgradeSharedUpgradable);
+  run_one_test(&MDLTest::DieUpgradeShared);
+  run_one_test(&MDLTest::SavePoint);
+  run_one_test(&MDLTest::ConcurrentShared);
+  run_one_test(&MDLTest::ConcurrentSharedExclusive);
+  run_one_test(&MDLTest::ConcurrentExclusiveShared);
+  run_one_test(&MDLTest::ConcurrentUpgrade);
 
-  // Execute MDL_test::TearDownTestCase() here, if it is defined.
+  // Execute MDLTest::TearDownTestCase() here, if it is defined.
   return exit_status();
 }
 
@@ -809,5 +811,5 @@ int main(int argc, char **argv) {
   // ::testing::InitGoogleTest(&argc, argv);
   MY_INIT(argv[0]);
   plan(NO_PLAN);
-  return MDL_test::RUN_ALL_TESTS();
+  return MDLTest::RUN_ALL_TESTS();
 }

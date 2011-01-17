@@ -1,0 +1,45 @@
+include/master-slave.inc
+[connection master]
+==== Initialize ====
+SET @old_relay_log_purge= @@global.relay_log_purge;
+include/setup_fake_relay_log.inc
+Setting up fake replication from MYSQL_TEST_DIR/std_data/bug33029-slave-relay-bin.000001
+==== Test ====
+start slave sql_thread;
+include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+# Result on slave
+SELECT * FROM t1;
+id
+5
+6
+7
+8
+9
+10
+11
+SELECT * FROM t2;
+id
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+==== Clean up ====
+stop slave sql_thread;
+include/cleanup_fake_relay_log.inc
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP FUNCTION f1;
+SET @@global.relay_log_purge= @old_relay_log_purge;
+include/rpl_end.inc

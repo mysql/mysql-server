@@ -239,6 +239,26 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 type, table->s->db.str, table->s->table_name.str,
                 buff, log_name, pos);
 }
+
+static void set_thd_db(THD *thd, const char *db, uint32 db_len)
+{
+  char lcase_db_buf[NAME_LEN +1]; 
+  LEX_STRING new_db;
+  new_db.length= db_len;
+  if (lower_case_table_names == 1)
+  {
+    strmov(lcase_db_buf, db); 
+    my_casedn_str(system_charset_info, lcase_db_buf);
+    new_db.str= lcase_db_buf;
+  }
+  else 
+    new_db.str= (char*) db;
+
+  new_db.str= (char*) rpl_filter->get_rewrite_db(new_db.str,
+                                                 &new_db.length);
+  thd->set_db(new_db.str, new_db.length);
+}
+
 #endif
 
 
@@ -3211,7 +3231,12 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
-  if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
+  if ((flags & LOG_EVENT_SUPPRESS_USE_F))
+  {
+    if (!is_trans_keyword())
+      print_event_info->db[0]= '\0';
+  }
+  else if (db)
   {
     different_db= memcmp(print_event_info->db, db, db_len + 1);
     if (different_db)
@@ -3399,7 +3424,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                       const char *query_arg, uint32 q_len_arg)
 {
-  LEX_STRING new_db;
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
 
@@ -3411,9 +3435,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     you.
   */
   thd->catalog= catalog_len ? (char *) catalog : (char *)"";
-  new_db.length= db_len;
-  new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
-  thd->set_db(new_db.str, new_db.length);       /* allocates a copy of 'db' */
+  set_thd_db(thd, db, db_len);
 
   /*
     Setting the character set and collation of the current database thd->db.
@@ -3684,7 +3706,8 @@ compare_errors:
       rli->report(ERROR_LEVEL, 0,
                       "\
 Query caused different errors on master and slave.     \
-Error on master: '%s' (%d), Error on slave: '%s' (%d). \
+Error on master: message (format)='%s' error code=%d ; \
+Error on slave: actual message='%s', error code=%d. \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
@@ -5137,12 +5160,9 @@ void Load_log_event::set_fields(const char* affected_db,
 int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                                    bool use_rli_only_for_errors)
 {
-  LEX_STRING new_db;
-  new_db.length= db_len;
-  new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
-  thd->set_db(new_db.str, new_db.length);
   DBUG_ASSERT(thd->query() == 0);
   thd->reset_query_inner();                    // Should not be needed
+  set_thd_db(thd, db, db_len);
   thd->is_slave_error= 0;
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
 
@@ -5196,10 +5216,14 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
+    char table_buf[NAME_LEN + 1];
+    strmov(table_buf, table_name);
+    if (lower_case_table_names == 1)
+      my_casedn_str(system_charset_info, table_buf);
     tables.init_one_table(thd->strmake(thd->db, thd->db_length),
                           thd->db_length,
-                          table_name, strlen(table_name),
-                          table_name, TL_WRITE);
+                          table_buf, strlen(table_buf),
+                          table_buf, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
@@ -8070,6 +8094,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     // Do event specific preparations 
     error= do_before_row_operations(rli);
 
+    /*
+      Bug#56662 Assertion failed: next_insert_id == 0, file handler.cc
+      Don't allow generation of auto_increment value when processing
+      rows event by setting 'MODE_NO_AUTO_VALUE_ON_ZERO'.
+    */
+    ulong saved_sql_mode= thd->variables.sql_mode;
+    thd->variables.sql_mode= MODE_NO_AUTO_VALUE_ON_ZERO;
+
     // row processing loop
 
     while (error == 0)
@@ -8135,6 +8167,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       if (m_curr_row == m_rows_end)
         break;
     } // row processing loop
+
+    /*
+      Restore the sql_mode after the rows event is processed.
+    */
+    thd->variables.sql_mode= saved_sql_mode;
 
     {/**
          The following failure injecion works in cooperation with tests 
@@ -8702,7 +8739,7 @@ Table_map_log_event::~Table_map_log_event()
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 {
   RPL_TABLE_LIST *table_list;
-  char *db_mem, *tname_mem;
+  char *db_mem, *tname_mem, *ptr;
   size_t dummy_len;
   void *memory;
   DBUG_ENTER("Table_map_log_event::do_apply_event(Relay_log_info*)");
@@ -8718,8 +8755,18 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
-  strmov(db_mem, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
+  strmov(db_mem, m_dbnam);
   strmov(tname_mem, m_tblnam);
+
+  if (lower_case_table_names == 1)
+  {
+    my_casedn_str(system_charset_info, db_mem);
+    my_casedn_str(system_charset_info, tname_mem);
+  }
+
+  /* rewrite rules changed the database */
+  if (((ptr= (char*) rpl_filter->get_rewrite_db(db_mem, &dummy_len)) != db_mem))
+    strmov(db_mem, ptr);
 
   table_list->init_one_table(db_mem, strlen(db_mem),
                              tname_mem, strlen(tname_mem),
@@ -9095,16 +9142,11 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   int UNINIT_VAR(keynum);
   auto_afree_ptr<char> key(NULL);
 
-  /* fill table->record[0] with default values */
-  bool abort_on_warnings= (rli->info_thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
-  if ((error= prepare_record(table, &m_cols,
-                             table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
-                             abort_on_warnings, m_curr_row == m_rows_buf)))
-    DBUG_RETURN(error);
-  
+  prepare_record(table, &m_cols,
+                 table->file->ht->db_type != DB_TYPE_NDBCLUSTER);
+
   /* unpack row into table->record[0] */
-  if ((error= unpack_current_row(rli, &m_cols, abort_on_warnings)))
+  if ((error= unpack_current_row(rli, &m_cols)))
     DBUG_RETURN(error);
 
   // Temporary fix to find out why it fails [/Matz]
@@ -10226,11 +10268,9 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
-  bool abort_on_warnings= (rli->info_thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
   /* this also updates m_curr_row_end */
-  if ((error= unpack_current_row(rli, &m_cols_ai, abort_on_warnings)))
+  if ((error= unpack_current_row(rli, &m_cols_ai)))
     return error;
 
   /*

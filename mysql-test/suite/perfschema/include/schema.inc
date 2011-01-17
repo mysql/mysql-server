@@ -34,11 +34,13 @@ show create table file_instances;
 show create table file_summary_by_event_name;
 show create table file_summary_by_instance;
 show create table mutex_instances;
+show create table objects_summary_global_by_type;
 show create table performance_timers;
 show create table rwlock_instances;
 show create table setup_actors;
 show create table setup_consumers;
 show create table setup_instruments;
+show create table setup_objects;
 show create table setup_timers;
 show create table threads;
 

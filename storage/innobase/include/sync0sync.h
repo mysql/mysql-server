@@ -696,7 +696,7 @@ or row lock! */
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
 #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
-#define	SYNC_BUF_PAGE_HASH	149	/* buf_pool->page_hash mutex */
+#define	SYNC_BUF_PAGE_HASH	149	/* buf_pool->page_hash rw_lock */
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140

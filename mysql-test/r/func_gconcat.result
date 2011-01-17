@@ -992,9 +992,9 @@ EXPLAIN EXTENDED SELECT 1 FROM
 (SELECT DISTINCT GROUP_CONCAT(td.f1) FROM t1,t1 AS td GROUP BY td.f1) AS d,t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (BNL, regular buffers)
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (BNL, incremental buffers)
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort; Distinct
-2	DERIVED	td	ALL	NULL	NULL	NULL	NULL	2	100.00	Distinct; Using join buffer (BNL, regular buffers)
+2	DERIVED	td	ALL	NULL	NULL	NULL	NULL	2	100.00	Distinct; Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select distinct group_concat(`test`.`td`.`f1` separator ',') AS `GROUP_CONCAT(td.f1)` from `test`.`t1` join `test`.`t1` `td` group by `test`.`td`.`f1`) `d` join `test`.`t1`
 SELECT 1 FROM
@@ -1015,7 +1015,7 @@ t1 t2, t1 GROUP BY t1.a) AS d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select group_concat(`test`.`t1`.`a` order by `test`.`t1`.`a` ASC separator ',') AS `GROUP_CONCAT(t1.a ORDER BY t1.a ASC)` from `test`.`t1` `t2` join `test`.`t1` group by `test`.`t1`.`a`) `d`
 DROP TABLE t1;
@@ -1045,6 +1045,17 @@ CREATE TABLE t1(f1 int);
 INSERT INTO t1 values (0),(0);
 SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t GROUP BY t.f1 ) d));
 ERROR 22007: Illegal non geometric '(select 1 from (select (1 = group_concat(`test`.`t1`.`f1` separator ',')) AS `1 IN (GROUP_CONCAT(t1.f1))` from `test`.`t1` join `test`.`t1` `t` group by `test`.`t`.`f1`) `d`)' value found during parsing
+DROP TABLE t1;
+#
+# Bug#58396 group_concat and explain extended are still crashy
+#
+CREATE TABLE t1(a INT);
+EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
+ERROR HY000: Only constant XPATH queries are supported
+SHOW WARNINGS;
+Level	Code	Message
+Error	1105	Only constant XPATH queries are supported
 DROP TABLE t1;
 End of 5.1 tests
 DROP TABLE IF EXISTS t1, t2;

@@ -721,6 +721,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ha_partition *partition;
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
   /*
@@ -772,16 +773,18 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   partition= (ha_partition *) first_table->table->file;
 
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= partition->truncate_partition(&thd->lex->alter_info)))
+  if ((error= partition->truncate_partition(&thd->lex->alter_info,
+                                            &binlog_stmt)))
     first_table->table->file->print_error(error, MYF(0));
 
   /*
     All effects of a truncate operation are committed even if the
     operation fails. Thus, the query must be written to the binary
-    log. The only exception is a unimplemented truncate method. Also,
-    it is logged in statement format, regardless of the binlog format.
+    log. The exception is a unimplemented truncate method or failure
+    before any call to handler::truncate() is done.
+    Also, it is logged in statement format, regardless of the binlog format.
   */
-  if (error != HA_ERR_WRONG_COMMAND)
+  if (error != HA_ERR_WRONG_COMMAND && binlog_stmt)
     error|= write_bin_log(thd, !error, thd->query(), thd->query_length());
 
   /*

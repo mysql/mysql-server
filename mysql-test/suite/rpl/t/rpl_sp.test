@@ -692,13 +692,8 @@ drop function f1;
 --echo #
 --echo # Bug #11918 Can't use a declared variable in LIMIT clause
 --echo #
---disable_warnings
-drop table if exists t1;
-drop procedure if exists p1;
---enable_warnings
-connection master;
--- source include/master-slave-reset.inc
-connection default;
+--source include/rpl_reset.inc
+
 create table t1 (c1 int);
 insert into t1 (c1) values
 (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
@@ -723,7 +718,7 @@ select * from t1;
 sync_slave_with_master;
 connection slave;
 select * from t1;
-connection default;
+connection master;
 --disable_warnings
 call p1(-1);
 --enable_warnings
@@ -731,7 +726,7 @@ select * from t1;
 sync_slave_with_master;
 connection slave;
 select * from t1;
-connection default;
+connection master;
 
 --echo # Cleanup
 set @@session.binlog_format=@save_binlog_format;
@@ -743,3 +738,4 @@ drop procedure p1;
 
 # Cleanup
 sync_slave_with_master;
+--source include/rpl_end.inc

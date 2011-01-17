@@ -27,7 +27,18 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *t);
-bool
-mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
+/**
+   Cleans up the SELECT_LEX_UNIT for the derived table (if any).
+
+   @param  thd         Thread handler
+   @param  lex         LEX for this thread
+   @param  derived     TABLE_LIST for the derived table
+
+   @retval  false  Success
+   @retval  true   Failure
+*/
+bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived);
+
+bool mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
                             bool (*processor)(THD*, LEX*, TABLE_LIST*));
 #endif /* SQL_DERIVED_INCLUDED */

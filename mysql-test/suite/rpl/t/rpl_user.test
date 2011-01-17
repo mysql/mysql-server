@@ -31,8 +31,7 @@ create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
   'foo3'@'fakehost';
 sync_slave_with_master;
 select Host,User from mysql.user where Host='fakehost';
-let $diff_table_1= master:mysql.user;
-let $diff_table_2= slave:mysql.user;
+--let $diff_tables= master:mysql.user, slave:mysql.user
 source include/diff_tables.inc;
 
 #
@@ -67,3 +66,4 @@ select Host,User from mysql.user where Host='fakehost';
 #
 connection master;
 source include/show_binlog_events.inc;
+--source include/rpl_end.inc

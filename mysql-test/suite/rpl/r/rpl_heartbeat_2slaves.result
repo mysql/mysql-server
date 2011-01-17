@@ -1,55 +1,33 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-
-*** Preparing ***
-[on slave]
-include/stop_slave.inc
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.1, MASTER_LOG_FILE='MASTER_BINLOG';
-include/start_slave.inc
-[on slave1]
-STOP SLAVE;
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=1, MASTER_LOG_FILE='MASTER_BINLOG';
-include/start_slave.inc
-
-*** 2 slaves ***
+include/rpl_init.inc [topology=1->2,1->3]
+include/rpl_connect.inc [creating master]
+include/rpl_connect.inc [creating slave_1]
+include/rpl_connect.inc [creating slave_2]
 Slave has received heartbeat event
-Slave1 has received heartbeat event
-Slave has received more heartbeats than Slave1 (1 means 'yes'): 1
+slave_2 has received heartbeat event
+slave_1 has received more heartbeats than slave_2 (1 means 'yes'): 0
 
-*** Master->data->Slave1->heartbeat->Slave: ***
-[on slave1]
-RESET MASTER;
-[on slave]
-include/stop_slave.inc
-RESET SLAVE;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=SLAVE1_PORT, MASTER_USER='root', MASTER_HEARTBEAT_PERIOD=0.2, MASTER_LOG_FILE='SLAVE1_BINLOG';
-include/start_slave.inc
-Slave has received heartbeat event
+include/rpl_stop_slaves.inc
+include/rpl_change_topology.inc [new topology=1->3->2]
+include/rpl_start_slaves.inc
+slave_1 has received heartbeat event
 [on master]
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
 INSERT INTO t1 VALUES (1, 'on master', '');
 SHOW TABLES;
 Tables_in_test
 t1
-[on slave1]
+[on slave_2]
 SHOW TABLES;
 Tables_in_test
 t1
-[on slave]
+[on slave_1]
 SHOW TABLES;
 Tables_in_test
 [on master]
-creating updates on master and send to slave1 during 5 second
-[on slave]
-Slave has received heartbeats (1 means 'yes'): 1
+creating updates on master and send to slave_2 during 5 second
+[on slave_1]
+slave_1 has received heartbeats (1 means 'yes'): 0
 
 *** Clean up ***
 DROP TABLE t1;
-
-End of 6.0 test
+include/rpl_end.inc

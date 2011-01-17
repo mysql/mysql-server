@@ -1,4 +1,4 @@
-set optimizer_switch='mrr=on';
+set optimizer_switch='mrr=on,mrr_cost_based=off';
 set @save_storage_engine= @@default_storage_engine;
 set default_storage_engine=InnoDB;
 create table t1(a int);
@@ -528,7 +528,7 @@ REPEATABLE-READ
 START TRANSACTION;
 EXPLAIN SELECT * FROM t1 WHERE a > 2 FOR UPDATE;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition
 SELECT * FROM t1 WHERE a > 2 FOR UPDATE;
 dummy	a	b
 3	3	3

@@ -5704,7 +5704,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
                                      uint num_values)
 {
   /* Don't bother with keys for CREATE VIEW and for BLOB fields. */
-  if (field->table->in_use->lex->view_prepare_mode ||
+  if (field->table->in_use->lex->is_ps_or_view_context_analysis() ||
       field->flags & BLOB_FLAG)
     return FALSE;
 

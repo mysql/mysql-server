@@ -11,6 +11,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --echo #
 --echo # Bug#56287: crash when using Partition datetime in sub in query
 --echo #
+
 CREATE TABLE t1
 (c1 bigint(20) unsigned NOT NULL AUTO_INCREMENT,
  c2 varchar(40) not null default '',
@@ -591,6 +592,7 @@ INSERT INTO t1 VALUES (1,1), (2,2);
 SELECT * FROM t1 WHERE i1 = ( SELECT i1 FROM t1 WHERE f1=0 LIMIT 1 );
 
 DROP TABLE t1;
+
 --enable_parsing
 
 --echo #
