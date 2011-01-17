@@ -12785,12 +12785,24 @@ Item*
 ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("cond_push");
+
+  if (cond->used_tables() & ~table->map)
+  {
+    /**
+     * 'cond' refers fields from other tables, or other instances 
+     * of this table, -> reject it.
+     * (Optimizer need to have a better understanding of what is 
+     *  pushable by each handler.)
+     */
+    DBUG_EXECUTE("where",print_where((Item *)cond, "Rejected cond_push", QT_ORDINARY););
+    DBUG_RETURN(cond);
+  }
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
   if (!m_cond)
   {
     my_errno= HA_ERR_OUT_OF_MEM;
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(cond);
   }
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
