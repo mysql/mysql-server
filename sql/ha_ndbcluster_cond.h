@@ -671,7 +671,7 @@ public:
   {}
   ~ha_ndbcluster_cond() 
   { if (m_cond_stack) delete m_cond_stack; }
-  const COND *cond_push(const COND *cond, 
+  const Item *cond_push(const Item *cond, 
                         TABLE *table, const NdbDictionary::Table *ndb_table);
   void cond_pop();
   void cond_clear();
@@ -685,7 +685,7 @@ public:
                                     const key_range *end_key,
                                     uchar *buf);
 private:
-  bool serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
+  bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
 		      TABLE *table, const NdbDictionary::Table *ndb_table);
   int build_scan_filter_predicate(Ndb_cond* &cond, 
                                   NdbScanFilter* filter,
