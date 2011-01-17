@@ -1014,4 +1014,12 @@ SET @a=0x00000000030000000100000000000000000000000000144000000000000014400000000
 SET @a=POLYFROMWKB(@a);
 SET @a=0x00000000030000000000000000000000000000000000144000000000000014400000000000001840000000000000184000000000000014400000000000001440;
 SET @a=POLYFROMWKB(@a);
+create table t1(a polygon NOT NULL)engine=myisam;
+insert into t1 values (geomfromtext("point(0 1)"));
+insert into t1 values (geomfromtext("point(1 0)"));
+select * from (select polygon(t1.a) as p from t1 order by t1.a) d;
+p
+NULL
+NULL
+drop table t1;
 End of 5.1 tests
