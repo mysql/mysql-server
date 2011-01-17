@@ -3411,7 +3411,30 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
+#ifndef MCP_BUG57030
         return;
+#else
+      {
+        /* 
+          Additional optimization: if we're processing
+          "t.key BETWEEN c1 AND c1" then proceed as if we were processing
+          "t.key = c1".
+          TODO: This is a very limited fix. A more generic fix is possible. 
+          There are 2 options:
+          A) Make equality propagation code be able to handle BETWEEN
+             (including cases like t1.key BETWEEN t2.key AND t3.key)
+          B) Make range optimizer to infer additional "t.key = c" equalities
+             and use them in equality propagation process (see details in
+             OptimizerKBAndTodo)
+        */
+        if ((cond->functype() != Item_func::BETWEEN) ||
+            ((Item_func_between*) cond)->negated ||
+            !value[0]->eq(value[1], field->binary()))
+          return;
+        eq_func= TRUE;
+      }
+
+#endif
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -3607,6 +3630,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_KEY:
   {
     Item **values;
+#ifndef MCP_BUG57030
     /*
       Build list of possible keys for 'a BETWEEN low AND high'.
       It is handled similar to the equivalent condition 
@@ -3657,7 +3681,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         {
           field_item= (Item_field *) (values[i]->real_item());
           add_key_equal_fields(key_fields, *and_level, cond_func,
-                               field_item, equal_func, &values[0],
+                               field_item, equal_func, values,
                                1, usable_tables, sargables);
         }
       }
@@ -3666,6 +3690,11 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
     // IN, NE
     else if (is_local_field (cond_func->key_item()) &&
             !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+#else
+    // BETWEEN, IN, NE
+    if (is_local_field (cond_func->key_item()) &&
+	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+#endif /* MCP_BUG57030 */
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
@@ -3679,6 +3708,23 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            cond_func->argument_count()-1,
                            usable_tables, sargables);
     }
+#ifdef MCP_BUG57030
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      values= cond_func->arguments();
+      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
+      {
+        Item_field *field_item;
+        if (is_local_field (cond_func->arguments()[i]))
+        {
+          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
+          add_key_equal_fields(key_fields, *and_level, cond_func,
+                               field_item, 0, values, 1, usable_tables, 
+                               sargables);
+        }
+      }  
+    }
+#endif
     break;
   }
   case Item_func::OPTIMIZE_OP:
@@ -5884,6 +5930,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
+#ifndef MCP_BUG58628
       store_key* key= get_store_key(thd,
 				    keyuse,join->const_table_map,
 				    &keyinfo->key_part[i],
@@ -5913,6 +5960,25 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
 	  *ref_key++= key;  // Reevaluate in JOIN::exec() 
         }
       }
+#else
+      if (!keyuse->used_tables &&
+	  !(join->select_options & SELECT_DESCRIBE))
+      {					// Compare against constant
+	store_key_item tmp(thd, keyinfo->key_part[i].field,
+                           key_buff + maybe_null,
+                           maybe_null ?  key_buff : 0,
+                           keyinfo->key_part[i].length, keyuse->val);
+	if (thd->is_fatal_error)
+	  DBUG_RETURN(TRUE);
+	tmp.copy();
+      }
+      else
+	*ref_key++= get_store_key(thd,
+				  keyuse,join->const_table_map,
+				  &keyinfo->key_part[i],
+				  key_buff, maybe_null);
+#endif
+
       /*
 	Remember if we are going to use REF_OR_NULL
 	But only if field _really_ can be null i.e. we force JT_REF
@@ -6478,7 +6544,11 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (thd->variables.engine_condition_pushdown)
           {
             COND *push_cond= 
+#ifndef MCP_BUG58134
               make_cond_for_table(tmp, tab->table->map, tab->table->map);
+#else
+              make_cond_for_table(tmp, current_map, current_map);
+#endif
             if (push_cond)
             {
               /* Push condition to handler */
@@ -11937,7 +12007,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
+#ifndef MCP_BUG58422
       if (!table->pos_in_table_list->outer_join || error > 0)
+#else
+      if (!table->maybe_null || error > 0)
+#endif
 	DBUG_RETURN(error);
     }
   }
@@ -11958,7 +12032,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
+#ifndef MCP_BUG58422
       if (!table->pos_in_table_list->outer_join || error > 0)
+#else
+      if (!table->maybe_null || error > 0)
+#endif
 	DBUG_RETURN(error);
     }
   }
@@ -13160,6 +13238,7 @@ part_of_refkey(TABLE *table,Field *field)
     KEY_PART_INFO *key_part=
       table->key_info[table->reginfo.join_tab->ref.key].key_part;
 
+#ifndef MCP_BUG58626
     uint part;
 
     /* If execution plan may use 'Full scan on NULL key', There might
@@ -13172,6 +13251,9 @@ part_of_refkey(TABLE *table,Field *field)
     }
 
     for (part=0 ; part < ref_parts ; part++,key_part++)
+#else
+    for (uint part=0 ; part < ref_parts ; part++,key_part++)
+#endif
     {
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))

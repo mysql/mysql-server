@@ -963,8 +963,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
   Push a condition
  */
 const 
-COND* 
-ha_ndbcluster_cond::cond_push(const COND *cond, 
+Item* 
+ha_ndbcluster_cond::cond_push(const Item *cond, 
                               TABLE *table, const NDBTAB *ndb_table)
 { 
   DBUG_ENTER("cond_push");
@@ -1020,7 +1020,7 @@ ha_ndbcluster_cond::cond_clear()
 }
 
 bool
-ha_ndbcluster_cond::serialize_cond(const COND *cond, Ndb_cond_stack *ndb_cond,
+ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
                                    TABLE *table, const NDBTAB *ndb_table)
 {
   DBUG_ENTER("serialize_cond");

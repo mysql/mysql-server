@@ -761,8 +761,14 @@ public:
   store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
 		       uchar *null_ptr_arg, uint length,
 		       Item *item_arg)
+#ifndef MCP_BUG58628
     :store_key_item(thd, to_field_arg, ptr,
                     null_ptr_arg, length, item_arg), inited(0)
+#else
+    :store_key_item(thd, to_field_arg,ptr,
+                   null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
+                   &err : (uchar*) 0, length, item_arg), inited(0)
+#endif
   {
   }
   const char *name() const { return "const"; }
@@ -770,6 +776,7 @@ public:
 protected:  
   enum store_key_result copy_inner()
   {
+#ifndef MCP_BUG58628
     if (!inited)
     {
       inited=1;
@@ -777,6 +784,25 @@ protected:
       if (res && !err)
         err= res;
     }
+#else
+    int res;
+    if (!inited)
+    {
+      inited=1;
+      if ((res= item->save_in_field(to_field, 1)))
+      {
+        if (!err)
+          err= res < 0 ? 1 : res; /* 1=STORE_KEY_FATAL */
+      }
+      /*
+        Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
+        we need to check for errors executing it and react accordingly
+        */
+      if (!err && to_field->table->in_use->is_error())
+        err= 1; /* STORE_KEY_FATAL */
+    }
+    null_key= to_field->is_null() || item->null_value;
+#endif
     return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
   }
 };
