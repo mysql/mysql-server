@@ -23,6 +23,11 @@ unless($test_bin)
   exit(0);
 }
 
+if ($ENV{'MYSQL_TMP_DIR'})
+{
+  $ENV{'NDBT_TMP_DIR'} = $ENV{'MYSQL_TMP_DIR'};
+}
+
 my $cmd = $test_bin;
 $cmd .= " $args" if $args;
 my $res = exec_print_on_error($cmd, $max_lines);
