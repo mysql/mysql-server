@@ -1,0 +1,6 @@
+#
+# ICP/MyISAM tests (Index Condition Pushdown)
+#
+
+--source include/icp_tests.inc
+

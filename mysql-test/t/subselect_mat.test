@@ -988,3 +988,26 @@ EXECUTE st1;
 EXECUTE st1;
 
 DROP TABLE t1, t2;
+
+--echo # 
+--echo # Testcase backport: BUG#46548 IN-subqueries return 0 rows with materialization=on
+--echo # 
+CREATE TABLE t1 (
+  pk int,
+  a varchar(1),
+  b varchar(4),
+  c varchar(4),
+  d varchar(4),
+  PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,'o','ffff','ffff','ffoo'),(2,'f','ffff','ffff','ffff');
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
+
+SET @@optimizer_switch='default,semijoin=on,materialization=on';
+EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
+SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
+DROP TABLE t1, t2;
+

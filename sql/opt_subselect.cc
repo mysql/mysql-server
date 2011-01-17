@@ -1152,7 +1152,7 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
            sj_nest->sj_subq_pred->types_allow_materialization)
       {
         join->emb_sjm_nest= sj_nest;
-        if (choose_plan(join, all_table_map))
+        if (choose_plan(join, all_table_map &~join->const_table_map))
           DBUG_RETURN(TRUE); /* purecov: inspected */
         /*
           The best plan to run the subquery is now in join->best_positions,
@@ -1856,7 +1856,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       {
         pos->sj_strategy= SJ_OPT_DUPS_WEEDOUT;
         *current_read_time= dups_cost;
-        *current_record_count= *current_record_count / sj_inner_fanout;
+        *current_record_count= prefix_rec_count * sj_outer_fanout;
         join->cur_dups_producing_tables &= ~dups_removed_fanout;
       }
     }

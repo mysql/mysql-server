@@ -432,3 +432,173 @@ WHERE
 SET SESSION engine_condition_pushdown=@old_icp;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # BUG#45863 "Assertion failed: (fixed == 0), function fix_fields(),
+--echo #            file item.cc, line 4448"
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS C, BB;
+--enable_warnings
+
+CREATE TABLE C (
+  varchar_nokey varchar(1) NOT NULL
+);
+INSERT INTO C VALUES
+  ('k'),('a'),(''),('u'),('e'),('v'),('i'),
+  ('t'),('u'),('f'),('u'),('m'),('j'),('f'),
+  ('v'),('j'),('g'),('e'),('h'),('z');
+CREATE TABLE BB (
+  varchar_nokey varchar(1) NOT NULL
+);
+INSERT INTO BB VALUES ('i'),('t');
+-- error ER_OPERAND_COLUMNS
+SELECT varchar_nokey FROM C
+WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
+                                FROM BB);
+-- error ER_BAD_FIELD_ERROR
+SELECT varchar_nokey FROM C
+WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
+                                FROM BB);
+DROP TABLE C,BB;
+
+--echo #
+--echo # During work with BUG#45863 I had problems with a query that was
+--echo # optimized differently in regular and prepared mode.
+--echo # Because there was a bug in one of the selected strategies, I became
+--echo # aware of the problem. Adding an EXPLAIN query to catch this.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+--enable_warnings
+
+CREATE TABLE t1
+ (EMPNUM   CHAR(3) NOT NULL,
+  EMPNAME  CHAR(20),
+  GRADE    DECIMAL(4),
+  CITY     CHAR(15));
+
+CREATE TABLE t2
+ (PNUM     CHAR(3) NOT NULL,
+  PNAME    CHAR(20),
+  PTYPE    CHAR(6),
+  BUDGET   DECIMAL(9),
+  CITY     CHAR(15));
+
+CREATE TABLE t3
+ (EMPNUM   CHAR(3) NOT NULL,
+  PNUM     CHAR(3) NOT NULL,
+  HOURS    DECIMAL(5));
+
+INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
+INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO t1 VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO t1 VALUES ('E4','Don',12,'Deale');
+INSERT INTO t1 VALUES ('E5','Ed',13,'Akron');
+
+INSERT INTO t2 VALUES ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO t2 VALUES ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO t2 VALUES ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO t2 VALUES ('P4','SDP','Design',20000,'Deale');
+INSERT INTO t2 VALUES ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO t2 VALUES ('P6','PAYR','Design',50000,'Deale');
+
+INSERT INTO t3 VALUES  ('E1','P1',40);
+INSERT INTO t3 VALUES  ('E1','P2',20);
+INSERT INTO t3 VALUES  ('E1','P3',80);
+INSERT INTO t3 VALUES  ('E1','P4',20);
+INSERT INTO t3 VALUES  ('E1','P5',12);
+INSERT INTO t3 VALUES  ('E1','P6',12);
+INSERT INTO t3 VALUES  ('E2','P1',40);
+INSERT INTO t3 VALUES  ('E2','P2',80);
+INSERT INTO t3 VALUES  ('E3','P2',20);
+INSERT INTO t3 VALUES  ('E4','P2',20);
+INSERT INTO t3 VALUES  ('E4','P4',40);
+INSERT INTO t3 VALUES  ('E4','P5',80);
+
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET @old_join_cache_level = @@session.join_cache_level;
+SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,semijoin=on';
+SET SESSION join_cache_level = 1;
+
+CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP INDEX t1_IDX ON t1;
+CREATE INDEX t1_IDX ON t1(EMPNUM);
+
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+DROP INDEX t1_IDX ON t1;
+
+EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+PREPARE stmt FROM "EXPLAIN SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'))";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET SESSION optimizer_switch = @old_optimizer_switch;
+SET SESSION join_cache_level = @old_join_cache_level;
+
+DROP TABLE t1, t2, t3;
+

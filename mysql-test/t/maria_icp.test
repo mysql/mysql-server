@@ -1,0 +1,13 @@
+#
+# ICP/Maria tests (Index Condition Pushdown)
+#
+
+--source include/have_maria.inc
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=Maria;
+
+--source include/icp_tests.inc
+
+set storage_engine= @save_storage_engine;
+

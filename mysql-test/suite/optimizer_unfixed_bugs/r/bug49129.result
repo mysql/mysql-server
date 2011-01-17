@@ -26,9 +26,9 @@ a
 1
 2
 3
+SET SESSION optimizer_switch = 'semijoin=off';
 
 # This result is correct
-SET SESSION optimizer_switch = 'semijoin=off';
 SELECT * FROM t0 WHERE t0.a IN 
 (SELECT t1.a FROM t1, t2 WHERE t2.a=t0.a AND t1.b=t2.b);
 a
