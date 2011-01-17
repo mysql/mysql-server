@@ -14,7 +14,7 @@ INSERT INTO t1 VALUES (1), (2);
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="MUL" Extra="" Comment="" />
 		<key Table="t1" Non_unique="1" Key_name="a" Seq_in_index="1" Column_name="a" Collation="A" Null="YES" Index_type="BTREE" Comment="" Index_comment="" />
 	</table_structure>
 	<table_data name="t1">
@@ -150,9 +150,9 @@ INSERT INTO t1 VALUES (1, "test", "tes"), (2, "TEST", "TES");
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
-		<field Field="b" Type="text" Null="YES" Key="" Extra="" />
-		<field Field="c" Type="varchar(3)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="b" Type="text" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="c" Type="varchar(3)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -178,7 +178,7 @@ INSERT INTO t1 VALUES ("1\""), ("\"2");
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" />
+		<field Field="a&quot;b&quot;" Type="char(2)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -1612,10 +1612,10 @@ CREATE TABLE `t2` (
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_structure name="t2">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 </database>
 </mysqldump>
@@ -1623,10 +1623,10 @@ CREATE TABLE `t2` (
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="mysqldump_test_db">
 	<table_structure name="t1">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_structure name="t2">
-		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" />
+		<field Field="a" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 </database>
 </mysqldump>
@@ -3644,8 +3644,8 @@ INSERT INTO t1 VALUES(1,0xff00fef0);
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="f1" Type="int(10)" Null="YES" Key="" Extra="" />
-		<field Field="data" Type="mediumblob" Null="YES" Key="" Extra="" />
+		<field Field="f1" Type="int(10)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="data" Type="mediumblob" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
@@ -4575,6 +4575,21 @@ SELECT LENGTH(a) FROM t2;
 LENGTH(a)
 800
 DROP TABLE t1, t2;
+#
+# Bug #13618 : mysqldump --xml ommit comment on table field
+#
+CREATE TABLE `comment_table` (i INT COMMENT 'FIELD COMMENT') COMMENT = 'TABLE COMMENT';
+<?xml version="1.0"?>
+<mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<database name="test">
+	<table_structure name="comment_table">
+		<field Field="i" Type="int(11)" Null="YES" Key="" Extra="" Comment="FIELD COMMENT" />
+	</table_structure>
+	<table_data name="comment_table">
+	</table_data>
+</database>
+</mysqldump>
+DROP TABLE `comment_table`;
 #
 # End of 5.1 tests
 #
