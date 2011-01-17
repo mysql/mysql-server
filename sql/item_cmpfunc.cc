@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2086,7 +2086,6 @@ void Item_func_interval::fix_length_and_dec()
             if (dec != &range->dec)
             {
               range->dec= *dec;
-              range->dec.fix_buffer_pointer();
             }
           }
           else
@@ -5643,15 +5642,15 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
+  eval_item->store_value(item);
   if ((null_value= item->null_value))
     return 0;
-  eval_item->store_value(item);
   while ((item_field= it++))
   {
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+      if (eval_item->cmp(item_field) || (null_value= item_field->null_value))
         return 0;
     }
   }

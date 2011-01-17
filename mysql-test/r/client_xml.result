@@ -21,9 +21,9 @@ insert into t1 values (1, 2, 'a&b a<b a>b');
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <database name="test">
 	<table_structure name="t1">
-		<field Field="a&amp;b" Type="int(11)" Null="YES" Key="" Extra="" />
-		<field Field="a&lt;b" Type="int(11)" Null="YES" Key="" Extra="" />
-		<field Field="a&gt;b" Type="text" Null="YES" Key="" Extra="" />
+		<field Field="a&amp;b" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="a&lt;b" Type="int(11)" Null="YES" Key="" Extra="" Comment="" />
+		<field Field="a&gt;b" Type="text" Null="YES" Key="" Extra="" Comment="" />
 	</table_structure>
 	<table_data name="t1">
 	<row>
