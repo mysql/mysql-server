@@ -362,7 +362,7 @@ public:
     @remark This method is a partitioning-specific hook
             and thus not a member of the general SE API.
   */
-  int truncate_partition(Alter_info *);
+  int truncate_partition(Alter_info *, bool *binlog_stmt);
 
   virtual bool is_fatal_error(int error, uint flags)
   {

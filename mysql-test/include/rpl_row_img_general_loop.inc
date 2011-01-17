@@ -17,26 +17,26 @@
 
 
 -- let $engine_type_a= 2
--- let $mysqld_a_engine=  MyISAM
+-- let $server_1_engine=  MyISAM
 while($engine_type_a)
 {
   -- let $engine_type_b= 2
-  -- let $mysqld_b_engine=  MyISAM
+  -- let $server_2_engine=  MyISAM
   while($engine_type_b)
   {
     -- let $engine_type_c= 2
-    -- let $mysqld_c_engine=  MyISAM
+    -- let $server_3_engine=  MyISAM
     while($engine_type_c)
     {
-      -- echo ### engines: $mysqld_a_engine, $mysqld_b_engine, $mysqld_c_engine
+      -- echo ### engines: $server_1_engine, $server_2_engine, $server_3_engine
       -- source $row_img_test_script
 
-      -- let $mysqld_c_engine= InnoDB
+      -- let $server_3_engine= InnoDB
       -- dec $engine_type_c
     }
-    -- let $mysqld_b_engine= InnoDB
+    -- let $server_2_engine= InnoDB
     -- dec $engine_type_b
   }
-  -- let $mysqld_a_engine= InnoDB
+  -- let $server_1_engine= InnoDB
   -- dec $engine_type_a
 }

@@ -326,6 +326,5 @@ drop table t1,t2,ti2,ti1;
 sync_slave_with_master;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 
---source include/master-slave-end.inc
-
 --echo *** end of tests
+--source include/rpl_end.inc

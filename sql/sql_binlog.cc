@@ -184,7 +184,8 @@ void mysql_client_binlog_statement(THD* thd)
        strptr < thd->lex->comment.str + thd->lex->comment.length ; )
   {
     char const *endptr= 0;
-    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr);
+    int bytes_decoded= base64_decode(strptr, coded_len, buf, &endptr,
+                                     MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
 #ifndef HAVE_purify
       /*

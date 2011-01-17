@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 DROP TABLE t1;
@@ -14,27 +10,37 @@ DROP TABLE t2;
 include/stop_slave.inc
 RESET SLAVE;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=master_pos_drop_t1
+include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 n
 1
 2
 3
 4
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 START SLAVE UNTIL MASTER_LOG_FILE='master-no-such-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 n
 1
 2
 3
 4
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', RELAY_LOG_POS=relay_pos_insert1_t2
+include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t2;
 n
 1
 2
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 START SLAVE;
+include/wait_for_slave_to_start.inc
 include/stop_slave.inc
 START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=master_pos_create_t2
+include/wait_for_slave_param.inc [Until_Log_Pos]
+include/wait_for_slave_sql_to_stop.inc
+include/check_slave_param.inc [Exec_Master_Log_Pos]
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin', MASTER_LOG_POS=MASTER_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS, RELAY_LOG_POS=RELAY_LOG_POS;
@@ -49,3 +55,6 @@ START SLAVE;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
 Warnings:
 Note	1254	Slave is already running
+include/stop_slave.inc
+RESET SLAVE;
+include/rpl_end.inc

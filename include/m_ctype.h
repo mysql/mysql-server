@@ -75,13 +75,14 @@ extern MY_UNICASE_INFO my_unicase_default;
 extern MY_UNICASE_INFO my_unicase_turkish;
 extern MY_UNICASE_INFO my_unicase_unicode520;
 
-#define MY_UCA_MAX_CONTRACTION 4
+#define MY_UCA_MAX_CONTRACTION 6
 #define MY_UCA_MAX_WEIGHT_SIZE 8
 
 typedef struct my_contraction_t
 {
   my_wc_t ch[MY_UCA_MAX_CONTRACTION];   /* Character sequence              */
   uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
+  my_bool with_context;
 } MY_CONTRACTION;
 
 
@@ -101,6 +102,21 @@ typedef struct uca_info_st
   uchar   *lengths;
   uint16  **weights;
   MY_CONTRACTIONS contractions;
+
+  /* Logical positions */
+  my_wc_t first_non_ignorable;
+  my_wc_t last_non_ignorable;
+  my_wc_t first_primary_ignorable;
+  my_wc_t last_primary_ignorable;
+  my_wc_t first_secondary_ignorable;
+  my_wc_t last_secondary_ignorable;
+  my_wc_t first_tertiary_ignorable;
+  my_wc_t last_tertiary_ignorable;
+  my_wc_t first_trailing;
+  my_wc_t last_trailing;
+  my_wc_t first_variable;
+  my_wc_t last_variable;
+
 } MY_UCA_INFO;
 
 
@@ -227,12 +243,22 @@ enum my_lex_states
 
 struct charset_info_st;
 
+typedef struct my_charset_loader_st
+{
+  char error[128];
+  void *(*once_alloc)(size_t);
+  void *(*malloc)(size_t);
+  void *(*realloc)(void *, size_t);
+  void (*free)(void *);
+  void (*reporter)(enum loglevel, const char *format, ...);
+  int  (*add_collation)(struct charset_info_st *cs);
+} MY_CHARSET_LOADER;
+
 
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
 {
-  my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t),
-                  char *error, size_t errsize);
+  my_bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *);
   /* Collation routines */
   int     (*strnncoll)(struct charset_info_st *,
 		       const uchar *, size_t, const uchar *, size_t, my_bool);
@@ -284,8 +310,7 @@ typedef size_t (*my_charset_conv_case)(struct charset_info_st *,
 /* See strings/CHARSET_INFO.txt about information on this structure  */
 typedef struct my_charset_handler_st
 {
-  my_bool (*init)(struct charset_info_st *, void *(*alloc)(size_t),
-                  char *error, size_t errsize);
+  my_bool (*init)(struct charset_info_st *, MY_CHARSET_LOADER *loader);
   /* Multibyte routines */
   uint    (*ismbchar)(struct charset_info_st *, const char *, const char *);
   uint    (*mbcharlen)(struct charset_info_st *, uint c);
@@ -427,6 +452,8 @@ extern CHARSET_INFO my_charset_ujis_bin;
 extern CHARSET_INFO my_charset_utf16_bin;
 extern CHARSET_INFO my_charset_utf16_general_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_ci;
+extern CHARSET_INFO my_charset_utf16le_bin;
+extern CHARSET_INFO my_charset_utf16le_general_ci;
 extern CHARSET_INFO my_charset_utf32_bin;
 extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_ci;
@@ -630,11 +657,12 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
                        int escape, int w_one, int w_many,
                        MY_UNICASE_INFO *weights);
 
-extern my_bool my_parse_charset_xml(const char *bug, size_t len,
-                                    int (*add)(CHARSET_INFO *cs),
-                                    char *error, size_t errsize);
+extern my_bool my_parse_charset_xml(MY_CHARSET_LOADER *loader,
+                                    const char *buf, size_t buflen);
 extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                        pchar c);
+extern size_t my_strcspn(CHARSET_INFO *cs, const char *str, const char *end,
+                         const char *accept);
 
 my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, size_t len);
 my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, size_t len);

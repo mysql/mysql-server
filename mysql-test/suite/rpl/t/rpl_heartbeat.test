@@ -165,5 +165,6 @@ drop table t1;
 sync_slave_with_master;
 set @@global.slave_net_timeout= @restore_slave_net_timeout;
 
+--source include/stop_slave.inc
 
 --echo End of tests

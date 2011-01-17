@@ -116,7 +116,7 @@ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 EXPLAIN EXTENDED SELECT 1
@@ -124,7 +124,7 @@ FROM (SELECT COUNT(DISTINCT t1.a) FROM t1,t2 GROUP BY t1.a) AS s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 prepare s1 from 
@@ -134,7 +134,7 @@ execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 prepare s1 from 
@@ -144,14 +144,14 @@ execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 execute s1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	100.00	
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, regular buffers)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (BNL, incremental buffers)
 Warnings:
 Note	1003	select 1 AS `1` from (select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT t1.a)` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`a`) `s1`
 DROP TABLE t1,t2;
@@ -283,7 +283,7 @@ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
 WHERE t1.f1 GROUP BY t1.f1));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
@@ -293,12 +293,12 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
@@ -309,12 +309,12 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
-2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	Using filesort
+2	SUBQUERY	a	system	NULL	NULL	NULL	NULL	1	
 2	SUBQUERY	t1	fulltext	f1	f1	0		1	Using where
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;

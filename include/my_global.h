@@ -611,6 +611,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifdef _WIN32
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
@@ -618,6 +619,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #else
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/"     /* Valid directory separators */
 #define FN_ROOTDIR	"/"
 #endif
 
@@ -1504,5 +1506,13 @@ static inline double rint(double x)
 #undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
 
 #endif /* EMBEDDED_LIBRARY */
+
+
+enum loglevel {
+   ERROR_LEVEL=       0,
+   WARNING_LEVEL=     1,
+   INFORMATION_LEVEL= 2
+};
+
 
 #endif /* my_global_h */

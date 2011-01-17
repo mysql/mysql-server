@@ -223,20 +223,14 @@ log_buffer_sync_in_background(
 /*==========================*/
 	ibool	flush);	/*<! in: flush the logs to disk */
 /****************************************************************//**
-Advances the smallest lsn for which there are unflushed dirty blocks in the
-buffer pool and also may make a new checkpoint. NOTE: this function may only
-be called if the calling thread owns no synchronization objects!
-@return FALSE if there was a flush batch of the same type running,
-which means that we could not start this flush batch */
+Checks if an asynchronous flushing of dirty pages is required in the
+background. This function is only called from the page cleaner thread.
+@return lsn to which the flushing should happen or IB_ULONGLONG_MAX
+if flushing is not required */
 UNIV_INTERN
-ibool
-log_preflush_pool_modified_pages(
-/*=============================*/
-	ib_uint64_t	new_oldest,	/*!< in: try to advance
-					oldest_modified_lsn at least
-					to this lsn */
-	ibool		sync);		/*!< in: TRUE if synchronous
-					operation is desired */
+ib_uint64_t
+log_async_flush_lsn(void);
+/*=====================*/
 /******************************************************//**
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest

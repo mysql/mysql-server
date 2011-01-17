@@ -12,3 +12,5 @@ call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maxi
 call mtr.add_suppression(".*int __cxa_pure_virtual().*");
 
 --source extra/rpl_tests/rpl_crash_safe.test
+
+--source include/rpl_end.inc

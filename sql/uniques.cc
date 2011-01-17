@@ -577,7 +577,6 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
 
 bool Unique::get(TABLE *table)
 {
-  SORTPARAM sort_param;
   table->sort.found_records=elements+tree.elements_in_tree;
 
   if (my_b_tell(&file) == 0)
@@ -612,20 +611,20 @@ bool Unique::get(TABLE *table)
     return 1;
   reinit_io_cache(outfile,WRITE_CACHE,0L,0,0);
 
-  bzero((char*) &sort_param,sizeof(sort_param));
+  Sort_param sort_param;
   sort_param.max_rows= elements;
   sort_param.sort_form=table;
-  sort_param.rec_length= sort_param.sort_length= sort_param.ref_length=
-    size;
-  sort_param.keys= (uint) (max_in_memory_size / sort_param.sort_length);
+  sort_param.rec_length= sort_param.sort_length= sort_param.ref_length= size;
+  sort_param.max_keys_per_buffer=
+    (uint) (max_in_memory_size / sort_param.sort_length);
   sort_param.not_killable=1;
 
-  if (!(sort_buffer=(uchar*) my_malloc((sort_param.keys+1) *
-				       sort_param.sort_length,
-				       MYF(0))))
+  if (!(sort_buffer=(uchar*) my_malloc((sort_param.max_keys_per_buffer + 1) *
+                                       sort_param.sort_length,
+                                       MYF(0))))
     return 1;
-  sort_param.unique_buff= sort_buffer+(sort_param.keys*
-				       sort_param.sort_length);
+  sort_param.unique_buff= sort_buffer+(sort_param.max_keys_per_buffer *
+                                       sort_param.sort_length);
 
   sort_param.compare= (qsort2_cmp) buffpek_compare;
   sort_param.cmp_context.key_compare= tree.compare;

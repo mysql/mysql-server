@@ -53,4 +53,56 @@ eval SELECT * FROM XY.T_$tcs LIMIT 1;
 --enable_query_log
 --enable_result_log
 DROP DATABASE XY;
+USE TEST;
+
+--echo #
+--echo # Bug55222 Mysqldump table names case bug in REFERENCES clause
+--echo # InnoDB did not handle lower_case_table_names=2 for
+--echo # foreign_table_names and referenced_table_names.
+--echo #
+
+SHOW VARIABLES LIKE 'lower_case_table_names';
+
+--disable_warnings
+DROP TABLE IF EXISTS `Table2`;
+DROP TABLE IF EXISTS `Table1`;
+--disable_warnings
+
+CREATE TABLE `Table1`(c1 INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE `Table2`(c1 INT PRIMARY KEY, c2 INT) ENGINE=InnoDB;
+ALTER TABLE `Table2` ADD CONSTRAINT fk1 FOREIGN KEY(c2) REFERENCES `Table1`(c1);
+query_vertical SHOW CREATE TABLE `Table2`;
+query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS;
+DROP TABLE `Table2`;
+DROP TABLE `Table1`;
+
+--disable_warnings
+DROP TABLE IF EXISTS Product_Order;
+DROP TABLE IF EXISTS Product;
+DROP TABLE IF EXISTS Customer;
+--enable_warnings
+
+CREATE TABLE Product (Category INT NOT NULL, Id INT NOT NULL,
+	Price DECIMAL, PRIMARY KEY(Category, Id)) ENGINE=InnoDB;
+CREATE TABLE Customer (Id INT NOT NULL, PRIMARY KEY (Id)) ENGINE=InnoDB;
+CREATE TABLE Product_Order (No INT NOT NULL AUTO_INCREMENT,
+	Product_Category INT NOT NULL,
+	Product_Id INT NOT NULL,
+	Customer_Id INT NOT NULL,
+	PRIMARY KEY(No),
+	INDEX (Product_Category, Product_Id),
+	FOREIGN KEY (Product_Category, Product_Id)
+		REFERENCES Product(Category, Id) ON UPDATE CASCADE ON DELETE RESTRICT,
+	INDEX (Customer_Id),
+	FOREIGN KEY (Customer_Id)
+		REFERENCES Customer(Id)
+	) ENGINE=INNODB;
+
+query_vertical SHOW CREATE TABLE Product_Order;
+query_vertical SHOW CREATE TABLE Product;
+query_vertical SHOW CREATE TABLE Customer;
+query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS;
+DROP TABLE Product_Order;
+DROP TABLE Product;
+DROP TABLE Customer;
 

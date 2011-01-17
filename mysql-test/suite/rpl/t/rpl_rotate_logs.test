@@ -18,19 +18,14 @@
 -- source include/have_binlog_format_mixed_or_statement.inc
 
 connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
---disable_warnings
-drop table if exists t1, t2, t3, t4;
---enable_warnings
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
+
 # Create empty file
 let $MYSQLD_SLAVE_DATADIR= `select @@datadir`;
 write_file $MYSQLD_SLAVE_DATADIR/master.info;
 EOF
 chmod 0000 $MYSQLD_SLAVE_DATADIR/master.info;
 connection slave;
---disable_warnings
-drop table if exists t1, t2, t3, t4;
---enable_warnings
 
 --disable_result_log
 CALL mtr.add_suppression("Failed to open the existing info file");
@@ -103,12 +98,9 @@ connection master;
 set insert_id=1234;
 insert into t2 values(NULL);
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
-
-#restart slave skipping one event
-set global sql_slave_skip_counter=1;
-start slave;
---source include/wait_for_slave_to_start.inc
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 connection master;
 
@@ -202,3 +194,4 @@ show binlog events in '';
 purge master logs before now();
 
 --echo End of 5.0 tests
+--source include/stop_slave.inc

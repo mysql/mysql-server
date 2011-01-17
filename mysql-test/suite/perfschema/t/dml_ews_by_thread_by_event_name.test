@@ -18,12 +18,13 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
+--disable_result_log
 select * from performance_schema.events_waits_summary_by_thread_by_event_name
   where event_name like 'Wait/Synch/%' limit 1;
 
 select * from performance_schema.events_waits_summary_by_thread_by_event_name
   where event_name='FOO';
+--enable_result_log
 
 --error ER_TABLEACCESS_DENIED_ERROR
 insert into performance_schema.events_waits_summary_by_thread_by_event_name

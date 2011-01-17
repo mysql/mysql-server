@@ -372,7 +372,11 @@ uint explain_filename(THD* thd,
     Table name length.
 */
 
-uint filename_to_tablename(const char *from, char *to, uint to_length)
+uint filename_to_tablename(const char *from, char *to, uint to_length
+#ifndef DBUG_OFF
+                           , bool stay_quiet
+#endif /* DBUG_OFF */
+                           )
 {
   uint errors;
   size_t res;
@@ -392,7 +396,13 @@ uint filename_to_tablename(const char *from, char *to, uint to_length)
     {
       res= (strxnmov(to, to_length, MYSQL50_TABLE_NAME_PREFIX,  from, NullS) -
             to);
-      sql_print_error("Invalid (old?) table or database name '%s'", from);
+#ifndef DBUG_OFF
+      if (!stay_quiet) {
+#endif /* DBUG_OFF */
+        sql_print_error("Invalid (old?) table or database name '%s'", from);
+#ifndef DBUG_OFF
+      }
+#endif /* DBUG_OFF */
       /*
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.
@@ -7074,6 +7084,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   fields;
   List<Item>   all_fields;
   ha_rows examined_rows;
+  ha_rows found_rows;
   bool auto_increment_field_copied= 0;
   sql_mode_t save_sql_mode;
   ulonglong prev_insert_id;
@@ -7154,8 +7165,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                       &tables, fields, all_fields, order) ||
           !(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
           (from->sort.found_records= filesort(thd, from, sortorder, length,
-                                              (SQL_SELECT *) 0, HA_POS_ERROR,
-                                              1, &examined_rows)) ==
+                                              NULL, HA_POS_ERROR,
+                                              true,
+                                              &examined_rows, &found_rows)) ==
           HA_POS_ERROR)
         goto err;
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7813,7 +7813,12 @@ const uchar *Field_blob::unpack(uchar *to,
   bitmap_set_bit(table->write_set, field_index);
   store(reinterpret_cast<const char*>(from) + master_packlength,
         length, field_charset);
-  DBUG_DUMP("record", to, table->s->reclength);
+#ifndef DBUG_OFF  
+  uchar *vptr;
+  get_ptr(&vptr);
+  DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);
+  DBUG_DUMP("value", vptr, length /* the blob value length */);
+#endif
   DBUG_RETURN(from + master_packlength + length);
 }
 
