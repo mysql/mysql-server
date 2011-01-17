@@ -2761,22 +2761,16 @@ String *Item_func_conv_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (use_cached_value)
     return null_value ? 0 : &str_value;
-  /* 
-    Here we don't pass 'str' as a parameter to args[0]->val_str()
-    as 'str' may point to 'str_value' (e.g. see Item::save_in_field()),
-    which we use below to convert string. 
-    Use argument's 'str_value' instead.
-  */
-  String *arg= args[0]->val_str(&args[0]->str_value);
+  String *arg= args[0]->val_str(str);
   uint dummy_errors;
   if (!arg)
   {
     null_value=1;
     return 0;
   }
-  null_value= str_value.copy(arg->ptr(),arg->length(),arg->charset(),
+  null_value= tmp_value.copy(arg->ptr(), arg->length(), arg->charset(),
                              conv_charset, &dummy_errors);
-  return null_value ? 0 : check_well_formed_result(&str_value);
+  return null_value ? 0 : check_well_formed_result(&tmp_value);
 }
 
 void Item_func_conv_charset::fix_length_and_dec()
