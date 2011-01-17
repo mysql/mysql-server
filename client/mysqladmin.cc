@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,9 +17,7 @@
 
 #include "client_priv.h"
 #include <signal.h>
-#ifdef THREAD
 #include <my_pthread.h>				/* because of signal()	*/
-#endif
 #include <sys/stat.h>
 #include <mysql.h>
 #include <sql_common.h>
@@ -45,7 +43,7 @@ static uint opt_count_iterations= 0, my_end_arg;
 static char *opt_bind_addr = NULL;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
-static char *opt_plugin_dir= 0, *opt_default_auth;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -214,7 +212,7 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
    (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_auth", OPT_PLUGIN_DIR,
+  {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -421,6 +419,9 @@ int main(int argc,char *argv[])
 
       if (interval)                             /* --sleep=interval given */
       {
+        if (opt_count_iterations && --nr_iterations == 0)
+          break;
+
         /*
           If connection was dropped (unintentionally, or due to SHUTDOWN),
           re-establish it if --wait ("retry-connect") was given and user

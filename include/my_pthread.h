@@ -870,12 +870,6 @@ extern uint thd_lib_detected;
   to use my_atomic operations instead.
 */
 
-/*
-  Warning:
-  When compiling without threads, this file is not included.
-  See the *other* declarations of thread_safe_xxx in include/my_global.h
-*/
-#ifdef THREAD
 #ifndef thread_safe_increment
 #ifdef _WIN32
 #define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
@@ -899,7 +893,7 @@ extern uint thd_lib_detected;
         (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
 #endif
 #endif
-#endif
+
 
 /*
   statistics_xxx functions are for non critical statistic,

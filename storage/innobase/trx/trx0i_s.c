@@ -510,7 +510,6 @@ fill_trx_row(
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
 	if (stmt != NULL) {
-
 		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
 
 		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
@@ -523,6 +522,8 @@ fill_trx_row(
 		row->trx_query = ha_storage_put_memlim(
 			cache->storage, stmt, stmt_len + 1,
 			MAX_ALLOWED_FOR_STORAGE(cache));
+
+		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 
 		if (row->trx_query == NULL) {
 

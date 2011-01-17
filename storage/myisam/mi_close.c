@@ -91,7 +91,6 @@ int mi_close(register MI_INFO *info)
       my_free(share->decode_trees);
       my_free(share->decode_tables);
     }
-#ifdef THREAD
     thr_lock_delete(&share->lock);
     mysql_mutex_destroy(&share->intern_lock);
     {
@@ -102,7 +101,6 @@ int mi_close(register MI_INFO *info)
         mysql_rwlock_destroy(&share->key_root_lock[i]);
       }
     }
-#endif
     my_free(info->s);
   }
   mysql_mutex_unlock(&THR_LOCK_myisam);

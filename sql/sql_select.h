@@ -2176,9 +2176,8 @@ public:
   store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
 		       uchar *null_ptr_arg, uint length,
 		       Item *item_arg)
-    :store_key_item(thd, to_field_arg,ptr,
-		    null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
-		    &err : (uchar*) 0, length, item_arg), inited(0)
+    :store_key_item(thd, to_field_arg, ptr,
+                    null_ptr_arg, length, item_arg), inited(0)
   {
   }
   const char *name() const { return "const"; }
@@ -2186,27 +2185,13 @@ public:
 protected:  
   enum store_key_result copy_inner()
   {
-    int res;
     if (!inited)
     {
       inited=1;
-      TABLE *table= to_field->table;
-      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
-                                                       table->write_set);
-      if ((res= item->save_in_field(to_field, 1)))
-      {       
-        if (!err)
-          err= res < 0 ? 1 : res; /* 1=STORE_KEY_FATAL */
-      }
-      /*
-        Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
-        we need to check for errors executing it and react accordingly
-        */
-      if (!err && to_field->table->in_use->is_error())
-        err= 1; /* STORE_KEY_FATAL */
-      dbug_tmp_restore_column_map(table->write_set, old_map);
+      int res= store_key_item::copy_inner();
+      if (res && !err)
+        err= res;
     }
-    null_key= to_field->is_null() || item->null_value;
     return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
   }
 };

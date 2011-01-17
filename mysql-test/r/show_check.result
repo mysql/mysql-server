@@ -1325,6 +1325,17 @@ Tables_in_test	Table_type
 √©t√©	BASE TABLE
 drop table `√©t√©`;
 set names latin1;
+#
+# Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
+# Character set: Latin-1 (ISO-8859-1)
+#
+SET NAMES latin1;
+CREATE DATABASE `‰`;
+CREATE TABLE `‰`.`‰` (a int) ENGINE=Memory;
+SHOW TABLE STATUS FROM `‰` LIKE '‰';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+‰	MEMORY	10	Fixed	0	8	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+DROP DATABASE `‰`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors
 DROP TABLE IF EXISTS t1;
@@ -1540,3 +1551,19 @@ RELEASE_LOCK('t')
 √≥√≥√≥√≥
 1
 SET NAMES latin1;
+#
+# Bug#58996 SHOW CREATE TRIGGER fails when subject table is shadowed by
+#           a temporary table.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci
+CREATE TEMPORARY TABLE t1 (b INT);
+SHOW CREATE TRIGGER t1_bi;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation
+t1_bi		CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
