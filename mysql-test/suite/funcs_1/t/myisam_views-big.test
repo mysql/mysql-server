@@ -1,6 +1,9 @@
 #### suite/funcs_1/t/myisam_views.test
 
 --source include/no_valgrind_without_big.inc
+# because of a pair of slow Solaris Sparc machines in pb2,
+# this test is marked as big:
+--source include/big_test.inc
 
 # MyISAM tables should be used
 #

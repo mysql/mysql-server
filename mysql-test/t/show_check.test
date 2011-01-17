@@ -1,12 +1,39 @@
+# Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2 of
+# the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301  USA
+#
+
+################################################################################
+#
+# NOTICE:
+#
+#  This file unfortunately contains characters in various different encodings. 
+#  Be careful when editing this file to ensure that you (or your editor) do
+#  not change things (such as encodings) on lines that you did not mean to 
+#  modify.
+#
+################################################################################
+
+
 # Uses GRANT commands that usually disabled in embedded server
 -- source include/not_embedded.inc
 
 # check that CSV engine was compiled in, as the result of the test
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
-
-# Save the initial number of concurrent sessions
---source include/count_sessions.inc
 
 #
 # Test of some show commands
@@ -53,7 +80,7 @@ optimize table t1;
 optimize table t1;
 drop table t1;
 
-#show variables;
+# show variables;
 
 --echo -- Here we enable metadata just to check that the collation of the
 --echo -- resultset is non-binary for string type. This should be changed
@@ -226,14 +253,6 @@ CREATE TABLE """a" (i INT);
 SHOW CREATE TABLE """a";
 DROP TABLE """a";
 
-# Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
-#set names latin1;
-#create database `Д`;
-#create table `Д`.`Д` (a int) engine=heap;
-#--replace_column 7 # 8 # 9 #
-#show table status from `Д` LIKE 'Д';
-#drop database `Д`;
-
 # to test quotes around keywords.. :
 
 SET sql_mode= '';
@@ -332,6 +351,7 @@ drop table t1;
 --error ER_DBACCESS_DENIED_ERROR
 drop database mysqltest;
 disconnect con1;
+--source include/wait_until_disconnected.inc
 
 connect (con2,localhost,mysqltest_2,,test);
 connection con2;
@@ -344,6 +364,7 @@ drop table mysqltest.t1;
 --error ER_DBACCESS_DENIED_ERROR
 drop database mysqltest;
 disconnect con2;
+--source include/wait_until_disconnected.inc
 
 connect (con3,localhost,mysqltest_3,,test);
 connection con3;
@@ -353,6 +374,7 @@ show create database mysqltest;
 drop table mysqltest.t1;
 drop database mysqltest;
 disconnect con3;
+--source include/wait_until_disconnected.inc
 
 connection default;
 set names binary;
@@ -361,15 +383,6 @@ where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
-
-# This test fails on MAC OSX, so it is temporary disabled.
-# This needs WL#1324 to be done.
-#set names latin1;
-#create database `Д`;
-#create table `Д`.`Д` (a int) engine=heap;
-#--replace_column 7 # 8 # 9 #
-#show table status from `Д` LIKE 'Д';
-#drop database `Д`;
 
 # Test that USING <keytype> is always shown in SHOW CREATE TABLE when it was
 # specified during table creation, but not otherwise. (Bug#7235)
@@ -900,10 +913,12 @@ CREATE TABLE t1(колонка1 INT);
 
 --let $outfile1=$MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
 
+--source include/count_sessions.inc
 --echo
 --echo ---> Dumping mysqltest1 to outfile1
-
 --exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$MYSQL_SHAREDIR/charsets --databases mysqltest1 > $outfile1
+# Take care that the additional session caused by MYSQL_DUMP has disappeared.
+--source include/wait_until_count_sessions.inc
 
 #   - Clean mysqltest1;
 
@@ -917,9 +932,12 @@ DROP DATABASE mysqltest1;
 --echo
 --echo
 
+--source include/count_sessions.inc
 --echo ---> Restoring mysqltest1...
 --exec $MYSQL test < $outfile1
 --remove_file $outfile1
+# Take care that the additional session caused by MYSQL has disappeared.
+--source include/wait_until_count_sessions.inc
 
 #   - Check definition of the table.
 
@@ -989,14 +1007,14 @@ grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
 connect (con4,localhost,mysqltest_4,,mysqltest);
 connection con4;
 show create database mysqltest;
+disconnect con4;
+--source include/wait_until_disconnected.inc
 connection default;
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
-connection default;
-disconnect con4;
 
 #
 # Ensure that show plugin code is tested
@@ -1047,6 +1065,17 @@ create table `ц╘tц╘` (field1 int);
 show full tables;
 drop table `ц╘tц╘`;
 set names latin1;
+
+--echo #
+--echo # Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
+--echo # Character set: Latin-1 (ISO-8859-1)
+--echo #
+SET NAMES latin1;
+CREATE DATABASE `Д`;
+CREATE TABLE `Д`.`Д` (a int) ENGINE=Memory;
+--replace_column 7 # 8 # 9 #
+SHOW TABLE STATUS FROM `Д` LIKE 'Д';
+DROP DATABASE `Д`;
 
 #
 # Bug#26402 Server crashes with old-style named table
@@ -1192,6 +1221,7 @@ SHOW ENGINE MYISAM STATUS;
 --enable_result_log
 
 disconnect conn1;
+--source include/wait_until_disconnected.inc
 connection default;
 DROP USER test_u@localhost;
 
@@ -1214,8 +1244,9 @@ CONNECTION con1;
 --error ER_QUERY_INTERRUPTED
 SHOW CREATE TABLE non_existent;
 
-CONNECTION default;
 DISCONNECT con1;
+--source include/wait_until_disconnected.inc
+CONNECTION default;
 
 
 --echo End of 5.1 tests
@@ -1239,9 +1270,11 @@ connection con1;
 --echo # This statement used to be blocked.
 SHOW CREATE TABLE t1;
 
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
 --echo # Switching to connection 'default'.
 connection default;
-disconnect con1;
 UNLOCK TABLES;
 DROP TABLE t1;
 
@@ -1317,16 +1350,15 @@ connection con1;
 # Should not block.
 ALTER TABLE t1 CHARACTER SET = utf8;
 
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
 --echo # Connection default
 connection default;
 COMMIT;
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
-disconnect con1;
 
-
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Bug#57306 SHOW PROCESSLIST does not display string literals well.
@@ -1352,6 +1384,31 @@ SELECT RELEASE_LOCK('t');
 --connection con1
 --reap
 --disconnect con1
+--source include/wait_until_disconnected.inc
 --connection default
 SET NAMES latin1;
 
+
+--echo #
+--echo # Bug#58996 SHOW CREATE TRIGGER fails when subject table is shadowed by
+--echo #           a temporary table.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+SHOW CREATE TRIGGER t1_bi;
+
+CREATE TEMPORARY TABLE t1 (b INT);
+# Should still work
+SHOW CREATE TRIGGER t1_bi;
+
+DROP TEMPORARY TABLE t1;
+DROP TABLE t1;
+
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

@@ -596,4 +596,25 @@ insert into t1 values ('',1);
 select 1 from t1 where b <= 1 and a <> '';
 1
 drop table t1;
+#
+# Bug #58816 "Extra temporary duplicate rows in result set when 
+#             switching ICP off"
+#
+CREATE TABLE t1 (
+pk INT NOT NULL,
+c1 INT NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
+EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	5	Using where
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+SELECT pk, c1 FROM t1 WHERE pk <> 3;
+pk	c1
+1	9
+2	7
+4	3
+5	1
+DROP TABLE t1;
 set optimizer_switch=default;

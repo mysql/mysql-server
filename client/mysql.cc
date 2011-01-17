@@ -163,7 +163,7 @@ static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
-static char *opt_plugin_dir= 0, *opt_default_auth;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1568,7 +1568,7 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
    (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_auth", OPT_PLUGIN_DIR,
+  {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
    (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

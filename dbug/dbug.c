@@ -319,15 +319,6 @@ static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
 static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
-#ifndef THREAD
-        /* Open profile output stream */
-static FILE *OpenProfile(CODE_STATE *cs, const char *name);
-        /* Profile if asked for it */
-static BOOLEAN DoProfile(CODE_STATE *);
-        /* Return current user time (ms) */
-static unsigned long Clock(void);
-#endif
-
 /*
  *      Miscellaneous printf format strings.
  */
@@ -355,7 +346,6 @@ static unsigned long Clock(void);
 ** Macros to allow dbugging with threads
 */
 
-#ifdef THREAD
 #include <my_pthread.h>
 static pthread_mutex_t THR_LOCK_dbug;
 
@@ -393,30 +383,6 @@ static CODE_STATE *code_state(void)
   }
   return cs;
 }
-
-#else /* !THREAD */
-
-static CODE_STATE static_code_state=
-{
-  "dbug", "?func", "?file", NULL, &init_settings,
-  NullS, NullS, 0,0,0,0,0,NullS
-};
-
-static CODE_STATE *code_state(void)
-{
-  if (!init_done)
-  {
-    bzero(&init_settings, sizeof(init_settings));
-    init_settings.out_file=stderr;
-    init_settings.flags=OPEN_APPEND;
-    init_done=TRUE;
-  }
-  return &static_code_state;
-}
-
-#define pthread_mutex_lock(A) {}
-#define pthread_mutex_unlock(A) {}
-#endif
 
 /*
  *      Translate some calls among different systems.
@@ -601,15 +567,6 @@ int DbugParse(CODE_STATE *cs, const char *control)
       else
         stack->flags |= PID_ON;
       break;
-#ifndef THREAD
-    case 'g':
-      if (OpenProfile(cs, PROF_FILE))
-      {
-        stack->flags |= PROFILE_ON;
-        stack->p_functions= ListAdd(stack->p_functions, control, end);
-      }
-      break;
-#endif
     case 'L':
       if (sign < 0)
         stack->flags &= ~LINE_ON;
@@ -1154,23 +1111,7 @@ void _db_enter_(const char *_func_, const char *_file_,
   _stack_frame_->prev= cs->framep;
   _stack_frame_->level= ++cs->level | framep_trace_flag(cs, cs->framep);
   cs->framep= _stack_frame_;
-#ifndef THREAD
-  if (DoProfile(cs))
-  {
-    long stackused;
-    if (cs->framep->prev == NULL)
-      stackused= 0;
-    else
-    {
-      stackused= (char*)(cs->framep->prev) - (char*)(cs->framep);
-      stackused= stackused > 0 ? stackused : -stackused;
-    }
-    (void) fprintf(cs->stack->prof_file, PROF_EFMT , Clock(), cs->func);
-    (void) fprintf(cs->stack->prof_file, PROF_SFMT, (ulong) cs->framep, stackused,
-                   AUTOS_REVERSE ? _stack_frame_->func : cs->func);
-    (void) fflush(cs->stack->prof_file);
-  }
-#endif
+
   switch (DoTrace(cs)) {
   case ENABLE_TRACE:
     cs->framep->level|= TRACE_ON;
@@ -1229,10 +1170,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
     my_snprintf(buf, sizeof(buf), ERR_MISSING_RETURN, cs->func);
     DbugExit(buf);
   }
-#ifndef THREAD
-  if (DoProfile(cs))
-    (void) fprintf(cs->stack->prof_file, PROF_XFMT, Clock(), cs->func);
-#endif
+
   if (DoTrace(cs) & DO_TRACE)
   {
     if (TRACING)
@@ -1744,36 +1682,6 @@ static int DoTrace(CODE_STATE *cs)
   return DONT_TRACE;
 }
 
-
-/*
- *  FUNCTION
- *
- *      DoProfile    check to see if profiling is current enabled
- *
- *  SYNOPSIS
- *
- *      static BOOLEAN DoProfile()
- *
- *  DESCRIPTION
- *
- *      Checks to see if profiling is enabled based on whether the
- *      user has specified profiling, the maximum trace depth has
- *      not yet been reached, the current function is selected,
- *      and the current process is selected.  Returns TRUE if
- *      profiling is enabled, FALSE otherwise.
- *
- */
-
-#ifndef THREAD
-static BOOLEAN DoProfile(CODE_STATE *cs)
-{
-  return PROFILING &&
-         cs->level <= cs->stack->maxdepth &&
-         InList(cs->stack->p_functions, cs->func) & (INCLUDE|MATCHED) &&
-         InList(cs->stack->processes, cs->process) & (INCLUDE|MATCHED);
-}
-#endif
-
 FILE *_db_fp_(void)
 {
   CODE_STATE *cs;
@@ -1900,11 +1808,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
   cs->lineno++;
   if (cs->stack->flags & PID_ON)
   {
-#ifdef THREAD
     (void) fprintf(cs->stack->out_file, "%-7s: ", my_thread_name());
-#else
-    (void) fprintf(cs->stack->out_file, "%5d: ", (int) getpid());
-#endif
   }
   if (cs->stack->flags & NUMBER_ON)
     (void) fprintf(cs->stack->out_file, "%5d: ", cs->lineno);
@@ -2013,63 +1917,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
     }
   }
 }
-
-
-/*
- *  FUNCTION
- *
- *      OpenProfile    open new output stream for profiler output
- *
- *  SYNOPSIS
- *
- *      static FILE *OpenProfile(name)
- *      char *name;
- *
- *  DESCRIPTION
- *
- *      Given name of a new file, opens the file
- *      and sets the profiler output stream to the new file.
- *
- *      It is currently unclear whether the prefered behavior is
- *      to truncate any existing file, or simply append to it.
- *      The latter behavior would be desirable for collecting
- *      accumulated runtime history over a number of separate
- *      runs.  It might take some changes to the analyzer program
- *      though, and the notes that Binayak sent with the profiling
- *      diffs indicated that append was the normal mode, but this
- *      does not appear to agree with the actual code. I haven't
- *      investigated at this time [fnf; 24-Jul-87].
- */
-
-#ifndef THREAD
-static FILE *OpenProfile(CODE_STATE *cs, const char *name)
-{
-  REGISTER FILE *fp;
-  REGISTER BOOLEAN newfile;
-
-  fp=0;
-  if (!Writable(name))
-  {
-    (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
-    perror("");
-    (void) Delay(cs->stack->delay);
-  }
-  else
-  {
-    newfile= !EXISTS(name);
-    if (!(fp= fopen(name, "w")))
-    {
-      (void) fprintf(cs->stack->out_file, ERR_OPEN, cs->process, name);
-      perror("");
-    }
-    else
-    {
-      cs->stack->prof_file= fp;
-    }
-  }
-  return fp;
-}
-#endif
 
 /*
  *  FUNCTION
@@ -2419,80 +2266,6 @@ const char* _db_get_func_(void)
   return cs->func;
 }
 
-/*
- * Here we need the definitions of the clock routine.  Add your
- * own for whatever system that you have.
- */
-
-#ifndef THREAD
-#if defined(HAVE_GETRUSAGE)
-
-#include <sys/param.h>
-#include <sys/resource.h>
-
-/* extern int getrusage(int, struct rusage *); */
-
-/*
- * Returns the user time in milliseconds used by this process so
- * far.
- */
-
-static unsigned long Clock()
-{
-    struct rusage ru;
-
-    (void) getrusage(RUSAGE_SELF, &ru);
-    return ru.ru_utime.tv_sec*1000 + ru.ru_utime.tv_usec/1000;
-}
-
-#elif defined(__WIN__)
-
-static ulong Clock()
-{
-  return clock()*(1000/CLOCKS_PER_SEC);
-}
-#elif defined(amiga)
-
-struct DateStamp {              /* Yes, this is a hack, but doing it right */
-        long ds_Days;           /* is incredibly ugly without splitting this */
-        long ds_Minute;         /* off into a separate file */
-        long ds_Tick;
-};
-
-static int first_clock= TRUE;
-static struct DateStamp begin;
-static struct DateStamp elapsed;
-
-static unsigned long Clock()
-{
-    register struct DateStamp *now;
-    register unsigned long millisec= 0;
-    extern VOID *AllocMem();
-
-    now= (struct DateStamp *) AllocMem((long) sizeof(struct DateStamp), 0L);
-    if (now != NULL)
-    {
-        if (first_clock == TRUE)
-        {
-            first_clock= FALSE;
-            (void) DateStamp(now);
-            begin= *now;
-        }
-        (void) DateStamp(now);
-        millisec= 24 * 3600 * (1000 / HZ) * (now->ds_Days - begin.ds_Days);
-        millisec += 60 * (1000 / HZ) * (now->ds_Minute - begin.ds_Minute);
-        millisec += (1000 / HZ) * (now->ds_Tick - begin.ds_Tick);
-        (void) FreeMem(now, (long) sizeof(struct DateStamp));
-    }
-    return millisec;
-}
-#else
-static unsigned long Clock()
-{
-    return 0;
-}
-#endif /* RUSAGE */
-#endif /* THREADS */
 
 #else
 

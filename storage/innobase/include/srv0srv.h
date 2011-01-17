@@ -468,6 +468,14 @@ ulint
 srv_get_n_threads(void);
 /*===================*/
 /*********************************************************************//**
+Check whether thread type has reserved a slot.
+@return	slot number or UNDEFINED if not found*/
+UNIV_INTERN
+ulint
+srv_thread_has_reserved_slot(
+/*=========================*/
+	enum srv_thread_type	type);	/*!< in: thread type to check */
+/*********************************************************************//**
 Sets the info describing an i/o thread current state. */
 UNIV_INTERN
 void

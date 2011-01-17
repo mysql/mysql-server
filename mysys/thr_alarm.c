@@ -18,7 +18,7 @@
 #include "mysys_priv.h"
 #include <my_global.h>
 
-#if defined(THREAD) && !defined(DONT_USE_THR_ALARM)
+#if !defined(DONT_USE_THR_ALARM)
 #include <errno.h>
 #include <my_pthread.h>
 #include <signal.h>
@@ -686,15 +686,14 @@ void resize_thr_alarm(uint max_alarms)
 
 #endif /* __WIN__ */
 
-#endif /* THREAD */
-
+#endif
 
 /****************************************************************************
   Handling of test case (when compiled with -DMAIN)
 ***************************************************************************/
 
 #ifdef MAIN
-#if defined(THREAD) && !defined(DONT_USE_THR_ALARM)
+#if !defined(DONT_USE_THR_ALARM)
 
 static mysql_cond_t COND_thread_count;
 static mysql_mutex_t LOCK_thread_count;
@@ -961,17 +960,13 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   return 0;
 }
 
-#else /* THREAD */
+#else /* !defined(DONT_USE_ALARM_THREAD) */
 
 int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 {
-#ifndef THREAD
-  printf("thr_alarm disabled because we are not using threads\n");
-#else
   printf("thr_alarm disabled with DONT_USE_THR_ALARM\n");
-#endif
   exit(1);
 }
 
-#endif /* THREAD */
+#endif /* !defined(DONT_USE_ALARM_THREAD) */
 #endif /* MAIN */
