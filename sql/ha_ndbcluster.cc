@@ -67,7 +67,6 @@ static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
-extern ulong opt_server_id_mask;
 
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
@@ -267,7 +266,7 @@ static int ndbcluster_alter_tablespace(handlerton *hton,
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
-                                       COND *cond);
+                                       Item *cond);
 
 #if MYSQL_VERSION_ID >= 50501
 /**
@@ -283,7 +282,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
  */
 static int
 ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
-                         COND *cond, enum enum_schema_tables schema_table_idx)
+                         Item *cond, enum enum_schema_tables schema_table_idx)
 {
   if (schema_table_idx == SCH_FILES)
     return  ndbcluster_fill_files_table(hton, thd, tables, cond);
@@ -3710,9 +3709,8 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
         In future it may be useful to support *not* mapping composite
         AnyValues to/from Binlogged server-ids
       */
-      assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
       options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
-      options->anyValue = thd->unmasked_server_id;
+      options->anyValue = thd_unmasked_server_id(thd);
     }
     else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
     {
@@ -6319,20 +6317,42 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
     r|= op->setValue(1u, (Uint64)0);
     DBUG_ASSERT(r == 0);
   }
+#if MYSQL_VERSION_ID < 50600
+  const char* group_master_log_name =
+    active_mi->rli.group_master_log_name;
+  const Uint64 group_master_log_pos =
+    (Uint64)active_mi->rli.group_master_log_pos;
+  const Uint64 future_event_relay_log_pos =
+    (Uint64)active_mi->rli.future_event_relay_log_pos;
+  const Uint64 group_relay_log_pos =
+    (Uint64)active_mi->rli.group_relay_log_pos;
+#else
+  /*
+    - Master_info's rli member returns Relay_log_info*
+    - Relay_log_info members are protected and must be accessed
+      using accessor functions
+  */
+  const char* group_master_log_name =
+    active_mi->rli->get_group_master_log_name();
+  const Uint64 group_master_log_pos =
+    (Uint64)active_mi->rli->get_group_master_log_pos();
+  const Uint64 future_event_relay_log_pos =
+    (Uint64)active_mi->rli->get_future_event_relay_log_pos();
+  const Uint64 group_relay_log_pos =
+    (Uint64)active_mi->rli->get_group_relay_log_pos();
+#endif
   // log_name
   char tmp_buf[FN_REFLEN];
   ndb_pack_varchar(ndbtab->getColumn(2u), tmp_buf,
-                   active_mi->rli.group_master_log_name,
-                   strlen(active_mi->rli.group_master_log_name));
+                   group_master_log_name, strlen(group_master_log_name));
   r|= op->setValue(2u, tmp_buf);
   DBUG_ASSERT(r == 0);
   // start_pos
-  r|= op->setValue(3u, (Uint64)active_mi->rli.group_master_log_pos);
+  r|= op->setValue(3u, group_master_log_pos);
   DBUG_ASSERT(r == 0);
   // end_pos
-  r|= op->setValue(4u, (Uint64)active_mi->rli.group_master_log_pos + 
-                   ((Uint64)active_mi->rli.future_event_relay_log_pos -
-                    (Uint64)active_mi->rli.group_relay_log_pos));
+  r|= op->setValue(4u, group_master_log_pos +
+                   (future_event_relay_log_pos - group_relay_log_pos));
   DBUG_ASSERT(r == 0);
   return 0;
 }
@@ -10662,7 +10682,9 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_NULL_IN_KEY |
     HA_AUTO_PART_KEY |
     HA_NO_PREFIX_CHAR_KEYS |
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
     HA_NEED_READ_RANGE_BUFFER |
+#endif
     HA_CAN_GEOMETRY |
     HA_CAN_BIT_FIELD |
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
@@ -11744,7 +11766,7 @@ int ha_ndbcluster::write_ndb_file(const char *name)
   DBUG_RETURN(error);
 }
 
-
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
 bool 
 ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
 				       KEY_MULTI_RANGE *end_range,
@@ -11774,6 +11796,7 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   }
   DBUG_RETURN(FALSE);
 }
+#endif
 
 void ha_ndbcluster::check_read_before_write_removal()
 {
@@ -11814,7 +11837,7 @@ void ha_ndbcluster::check_read_before_write_removal()
   DBUG_VOID_RETURN;
 }
 
-
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
 /*
   This is used to check if an ordered index scan is needed for a range in
   a multi range read.
@@ -12404,6 +12427,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
   }
   return 0;
 }
+#endif
 
 /**
   @param[in] comment  table comment defined by user
@@ -12758,8 +12782,8 @@ ndb_util_thread_fail:
          the scan for evaluation (and thus not saved on stack)
 */
 const 
-COND* 
-ha_ndbcluster::cond_push(const COND *cond) 
+Item* 
+ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("cond_push");
   if (!m_cond) 
@@ -12769,7 +12793,7 @@ ha_ndbcluster::cond_push(const COND *cond)
     my_errno= HA_ERR_OUT_OF_MEM;
     DBUG_RETURN(NULL);
   }
-  DBUG_EXECUTE("where",print_where((COND *)cond, m_tabname, QT_ORDINARY););
+  DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
 }
 
@@ -14295,7 +14319,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
 static int ndbcluster_fill_files_table(handlerton *hton, 
                                        THD *thd, 
                                        TABLE_LIST *tables,
-                                       COND *cond)
+                                       Item *cond)
 {
   TABLE* table= tables->table;
   Ndb *ndb= check_ndb_in_thd(thd);
