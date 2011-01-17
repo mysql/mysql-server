@@ -259,7 +259,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&ibuf_mutex_key, "ibuf_mutex", 0},
 	{&ibuf_pessimistic_insert_mutex_key,
 		 "ibuf_pessimistic_insert_mutex", 0},
+#  ifndef HAVE_ATOMIC_BUILTINS
 	{&server_mutex_key, "server_mutex", 0},
+#  endif /* !HAVE_ATOMIC_BUILTINS */
 	{&log_sys_mutex_key, "log_sys_mutex", 0},
 #  ifdef UNIV_MEM_DEBUG
 	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
@@ -2759,11 +2761,7 @@ innobase_end(
 
 	if (innodb_inited) {
 
-		server_mutex_enter();
-
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
-
-		server_mutex_exit();
 
 		innodb_inited = 0;
 		hash_table_free(innobase_open_tables);
@@ -8638,9 +8636,9 @@ ha_innobase::check(
 	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	server_mutex_exit();
+	os_increment_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -8734,9 +8732,9 @@ ha_innobase::check(
 	}
 
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	server_mutex_exit();
+	os_decrement_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {

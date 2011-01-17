@@ -478,41 +478,19 @@ lock_wait_timeout_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
 #endif
+	srv_lock_timeout_active = TRUE;
 
 	do {
 		srv_slot_t*	slot;
-
-		server_mutex_enter();
-
-		srv_lock_timeout_active = FALSE;
-
-		server_mutex_exit();
 
 		/* When someone is waiting for a lock, we wake up every second
 		and check if a timeout has passed for a lock wait */
 
 		os_event_wait_time_low(srv_timeout_event, 1000000, sig_count);
 
-		/* Note: In logs_empty_and_mark_files_at_shutdown() we
-		check the srv_lock_timeout_active flag to determine whether
-		this thread has exited or not. There is a small window here
-		where the flag can be FALSE before we set it to TRUE below.
-		This is OK because:
-
-		  1. We will exit after executing the code
-		  2. logs_empty_and_mark_files_at_shutdown() has additional
-		     checks that will block the shutdown from proceeding
-		     to the next state. */
-
 		if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 			break;
 		}
-
-		server_mutex_enter();
-
-		srv_lock_timeout_active = TRUE;
-
-		server_mutex_exit();
 
 		lock_wait_mutex_enter();
 
@@ -539,11 +517,7 @@ lock_wait_timeout_thread(
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
-	server_mutex_enter();
-
 	srv_lock_timeout_active = FALSE;
-
-	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -552,4 +526,3 @@ lock_wait_timeout_thread(
 
 	OS_THREAD_DUMMY_RETURN;
 }
-

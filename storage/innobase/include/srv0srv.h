@@ -266,7 +266,10 @@ extern	ibool	srv_print_latch_waits;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 
-extern mutex_t	server_mutex;	/* mutex protecting the server state change */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
+extern mutex_t	server_mutex;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #define SRV_MAX_N_IO_THREADS	130
 
@@ -829,16 +832,4 @@ struct srv_slot_struct{
 # define srv_file_per_table			1
 #endif /* !UNIV_HOTBACKUP */
 
-/** Test if server_mutex is owned. */
-#define server_mutex_own() mutex_own(&server_mutex)
-
-/** Acquire the server_mutex. */
-#define server_mutex_enter() do {		\
-	mutex_enter(&server_mutex);		\
-} while (0)
-
-/** Release the server_mutex. */
-#define server_mutex_exit() do {		\
-	mutex_exit(&server_mutex);		\
-} while (0)
 #endif
