@@ -1383,3 +1383,14 @@ ALTER TABLE t1 CHANGE a id INT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 DROP TABLE t1;
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+#
+# At some point the below test case failed on assertion.
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;

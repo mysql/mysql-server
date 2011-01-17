@@ -20,7 +20,6 @@
 #include "sql_cmd.h"                        // Sql_cmd
 #include "sql_alter.h"                      // Sql_cmd_alter_table
 #include "sql_partition.h"                  // struct partition_info, etc.
-#include "sql_handler.h"                    // mysql_ha_rm_tables
 #include "sql_base.h"                       // open_and_lock_tables, etc
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "sql_truncate.h"                   // mysql_truncate_table,
@@ -491,9 +490,6 @@ bool Sql_cmd_alter_table_exchange_partition::
   DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
 
   partition_name= alter_info->partition_names.head();
-
-  /* Clear open tables from the threads table handler cache */
-  mysql_ha_rm_tables(thd, table_list);
 
   /* Don't allow to exchange with log table */
   swap_table_list= table_list->next_local;

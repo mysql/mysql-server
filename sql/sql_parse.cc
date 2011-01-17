@@ -23,7 +23,7 @@
                               // set_handler_table_locks,
                               // lock_global_read_lock,
                               // make_global_read_lock_block_commit
-#include "sql_base.h"         // find_temporary_tablesx
+#include "sql_base.h"         // find_temporary_table
 #include "sql_cache.h"        // QUERY_CACHE_FLAGS_SIZE, query_cache_*
 #include "sql_show.h"         // mysqld_list_*, mysqld_show_*,
                               // calc_sum_of_all_status
@@ -43,7 +43,6 @@
 #include "sql_table.h"        // mysql_create_like_table,
                               // mysql_create_table,
                               // mysql_alter_table,
-                              // mysql_recreate_table,
                               // mysql_backup_table,
                               // mysql_restore_table
 #include "sql_reload.h"       // reload_acl_and_cache
@@ -446,6 +445,60 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_SERVER]=      CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_SERVER]=        CF_AUTO_COMMIT_TRANS;
+
+  /*
+    The following statements can deal with temporary tables,
+    so temporary tables should be pre-opened for those statements to
+    simplify privilege checking.
+
+    There are other statements that deal with temporary tables and open
+    them, but which are not listed here. The thing is that the order of
+    pre-opening temporary tables for those statements is somewhat custom.
+  */
+  sql_command_flags[SQLCOM_CREATE_TABLE]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=     CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_TRUNCATE]|=        CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_LOAD]|=            CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CREATE_VIEW]|=     CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_UPDATE]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_INSERT]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_INSERT_SELECT]|=   CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DELETE]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DELETE_MULTI]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPLACE]|=         CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]|=  CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_SELECT]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_SET_OPTION]|=      CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DO]|=              CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CALL]|=            CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CHECKSUM]|=        CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_ANALYZE]|=         CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_CHECK]|=           CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=        CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_REPAIR]|=          CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_PRELOAD_KEYS]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]|= CF_PREOPEN_TMP_TABLES;
+
+  /*
+    DDL statements that should start with closing opened handlers.
+
+    We use this flag only for statements for which open HANDLERs
+    have to be closed before emporary tables are pre-opened.
+  */
+  sql_command_flags[SQLCOM_CREATE_TABLE]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_ALTER_TABLE]|=     CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_TRUNCATE]|=        CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_REPAIR]|=          CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_OPTIMIZE]|=        CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_ANALYZE]|=         CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_CHECK]|=           CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_CREATE_INDEX]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_DROP_INDEX]|=      CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_PRELOAD_KEYS]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]|=  CF_HA_CLOSE;
 }
 
 bool sqlcom_can_generate_row_events(const THD *thd)
@@ -1202,6 +1255,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
+
+    if (open_temporary_tables(thd, &table_list))
+      break;
 
     if (check_table_access(thd, SELECT_ACL, &table_list,
                            TRUE, UINT_MAX, FALSE))
@@ -2024,6 +2080,31 @@ mysql_execute_command(THD *thd)
     DEBUG_SYNC(thd,"before_execute_sql_command");
 #endif
 
+  /*
+    Close tables open by HANDLERs before executing DDL statement
+    which is going to affect those tables.
+
+    This should happen before temporary tables are pre-opened as
+    otherwise we will get errors about attempt to re-open tables
+    if table to be changed is open through HANDLER.
+
+    Note that even although this is done before any privilege
+    checks there is no security problem here as closing open
+    HANDLER doesn't require any privileges anyway.
+  */
+  if (sql_command_flags[lex->sql_command] & CF_HA_CLOSE)
+    mysql_ha_rm_tables(thd, all_tables);
+
+  /*
+    Pre-open temporary tables to simplify privilege checking
+    for statements which need this.
+  */
+  if (sql_command_flags[lex->sql_command] & CF_PREOPEN_TMP_TABLES)
+  {
+    if (open_temporary_tables(thd, all_tables))
+      goto error;
+  }
+
   switch (lex->sql_command) {
 
   case SQLCOM_SHOW_EVENTS:
@@ -2325,6 +2406,19 @@ case SQLCOM_PREPARE:
       goto end_with_restore_list;
     }
 
+    /*
+      Pre-open temporary tables from UNION clause to simplify privilege
+      checking for them.
+    */
+    if (lex->create_info.merge_list.elements)
+    {
+      if (open_temporary_tables(thd, lex->create_info.merge_list.first))
+      {
+        res= 1;
+        goto end_with_restore_list;
+      }
+    }
+
     if ((res= create_table_precheck(thd, select_tables, create_table)))
       goto end_with_restore_list;
 
@@ -2364,9 +2458,6 @@ case SQLCOM_PREPARE:
       thd->work_part_info= part_info;
     }
 #endif
-
-    /* Close any open handlers for the table. */
-    mysql_ha_rm_tables(thd, create_table);
 
     if (select_lex->item_list.elements)		// With select
     {
@@ -2668,6 +2759,13 @@ end_with_restore_list:
       }
       else
       {
+        /*
+          Temporary tables should be opened for SHOW CREATE TABLE, but not
+          for SHOW CREATE VIEW.
+        */
+        if (open_temporary_tables(thd, all_tables))
+          goto error;
+
         /*
           The fact that check_some_access() returned FALSE does not mean that
           access is granted. We need to check if first_table->grant.privilege
@@ -3146,6 +3244,20 @@ end_with_restore_list:
     thd->mdl_context.release_transactional_locks();
     if (res)
       goto error;
+
+    /*
+      Here we have to pre-open temporary tables for LOCK TABLES.
+
+      CF_PREOPEN_TMP_TABLES is not set for this SQL statement simply
+      because LOCK TABLES calls close_thread_tables() as a first thing
+      (it's called from unlock_locked_tables() above). So even if
+      CF_PREOPEN_TMP_TABLES was set and the tables would be pre-opened
+      in a usual way, they would have been closed.
+    */
+
+    if (open_temporary_tables(thd, all_tables))
+      goto error;
+
     if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
                            FALSE, UINT_MAX, FALSE))
       goto error;
@@ -4880,6 +4992,12 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 
     DBUG_ASSERT(dst_table);
 
+    /*
+      TODO/FIXME: In the upcoming patch we somehow should handle
+                  situation when table in question is a temporary
+                  table.
+    */
+
     if (check_access(thd, SELECT_ACL, dst_table->db,
                      &dst_table->grant.privilege,
                      &dst_table->grant.m_internal,
@@ -4978,10 +5096,10 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 
     DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
                         tables->view != 0));
-    if (tables->is_anonymous_derived_table() ||
-        (tables->table && tables->table->s &&
-         (int)tables->table->s->tmp_table))
+
+    if (tables->is_anonymous_derived_table())
       continue;
+
     thd->security_ctx= sctx;
 
     if (check_access(thd, want_access, tables->get_db_name(),

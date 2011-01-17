@@ -3676,4 +3676,78 @@ ALTER TABLE t1 engine=myisam;
 ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
 DROP TABLE m1, t1;
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+# 
+# Check that prelocking works correctly for various variants of
+# merge tables.
+drop table if exists t1, t2, m1;
+drop function if exists f1;
+create table t1 (j int);
+insert into t1 values (1);
+create function f1() returns int return (select count(*) from m1);
+create temporary table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop tables t2, m1;
+create table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop table m1;
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop tables t1, t2, m1;
+drop function f1;
+#
+# Check that REPAIR/CHECK and CHECKSUM statements work correctly
+# for various variants of merge tables.
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+create temporary table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
 End of 6.0 tests

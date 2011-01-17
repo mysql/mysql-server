@@ -1858,4 +1858,90 @@ a	b
 4	40
 HANDLER t1 CLOSE;
 DROP TABLE t1;
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+#
+# Check that DDL on temporary table properly closes HANDLER cursors
+# for this table belonging to the same connection.
+CREATE TEMPORARY TABLE t1 AS SELECT 1 AS f1;
+# -- CREATE TABLE
+HANDLER t1 OPEN;
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 SELECT 1 AS f1;
+Warnings:
+Note	1050	Table 't1' already exists
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- REPAIR TABLE
+HANDLER t1 OPEN;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- ANALYZE TABLE
+HANDLER t1 OPEN;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- OPTIMIZE TABLE
+HANDLER t1 OPEN;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- CHECK TABLE
+HANDLER t1 OPEN;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- ALTER TABLE
+HANDLER t1 OPEN;
+ALTER TABLE t1 ADD COLUMN b INT;
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- CREATE INDEX
+HANDLER t1 OPEN;
+CREATE INDEX b ON t1 (b);
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- DROP INDEX
+HANDLER t1 OPEN;
+DROP INDEX b ON t1;
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- TRUNCATE TABLE
+HANDLER t1 OPEN;
+TRUNCATE TABLE t1;
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- DROP TABLE
+HANDLER t1 OPEN;
+DROP TABLE t1;
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+CREATE TEMPORARY TABLE t1(a INT, b INT, INDEX i(a));
+set global keycache1.key_cache_block_size=2048;
+set global keycache1.key_buffer_size=1*1024*1024;
+set global keycache1.key_buffer_size=1024*1024;
+# -- CACHE INDEX
+HANDLER t1 OPEN;
+CACHE INDEX t1 IN keycache1;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
+# -- LOAD INDEX
+HANDLER t1 OPEN;
+LOAD INDEX INTO CACHE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+HANDLER t1 READ FIRST;
+ERROR 42S02: Unknown table 't1' in HANDLER
 End of 5.1 tests

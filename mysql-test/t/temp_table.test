@@ -251,3 +251,46 @@ DROP DATABASE bug48067;
 DROP TEMPORARY table bug48067.t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Test that admin statements work for temporary tables.
+--echo #
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+CREATE TEMPORARY TABLE t1(a INT);
+CREATE TEMPORARY TABLE t2(b INT);
+CREATE TEMPORARY TABLE t3(c INT);
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (11), (12), (13);
+INSERT INTO t3 VALUES (101), (102), (103);
+
+ANALYZE TABLE t1, t2, t3;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (11), (12), (13);
+INSERT INTO t3 VALUES (101), (102), (103);
+
+CHECK TABLE t1, t2, t3;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (11), (12), (13);
+INSERT INTO t3 VALUES (101), (102), (103);
+
+--replace_column 2 xxx
+CHECKSUM TABLE t1, t2, t3;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (11), (12), (13);
+INSERT INTO t3 VALUES (101), (102), (103);
+
+OPTIMIZE TABLE t1, t2, t3;
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (11), (12), (13);
+INSERT INTO t3 VALUES (101), (102), (103);
+
+REPAIR TABLE t1, t2, t3;
+
+DROP TABLES t1, t2, t3;

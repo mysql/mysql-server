@@ -288,11 +288,13 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   DBUG_ASSERT(! hash_tables->table);
 
   /*
-    We use open_tables() here, rather than, say,
-    open_ltable() or open_table() because we would like to be able
-    to open a temporary table.
+    TODO/FIXME: In the upcoming patch we somehow should handle
+                situation with privilege check for temporary table.
   */
-  error= open_tables(thd, &hash_tables, &counter, 0);
+  error= open_temporary_tables(thd, hash_tables);
+
+  if (!error)
+    error= open_tables(thd, &hash_tables, &counter, 0);
 
   if (! error &&
       ! (hash_tables->table->file->ha_table_flags() & HA_CAN_SQL_HANDLER))
