@@ -439,8 +439,10 @@ UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
 UNIV_INTERN mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
+# ifndef HAVE_ATOMIC_BUILTINS
 /* Key to register server_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	server_mutex_key;
+# endif /* !HAVE_ATOMIC_BUILTINS */
 /* Key to register srv_innodb_monitor_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 /* Key to register srv_monitor_file_mutex with performance schema */
@@ -621,8 +623,10 @@ struct srv_sys_struct{
 						activity */
 };
 
-/*!< Mutex protecting the server global variables. */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
 UNIV_INTERN mutex_t	server_mutex;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 static srv_sys_t*	srv_sys	= NULL;
 
@@ -913,7 +917,9 @@ srv_init(void)
 	ulint			i;
 	ulint			srv_sys_sz;
 
-	mutex_create(server_mutex_key, &server_mutex, SYNC_NO_ORDER_CHECK);
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
@@ -1689,6 +1695,7 @@ srv_monitor_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_monitor_thread_key);
 #endif
+	srv_monitor_active = TRUE;
 
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = ut_time();
@@ -1698,12 +1705,6 @@ srv_monitor_thread(
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
-	server_mutex_enter();
-
-	srv_monitor_active = TRUE;
-
-	server_mutex_exit();
-
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information or if signalled at shutdown. */
 
@@ -1721,7 +1722,7 @@ loop:
 		if (srv_print_innodb_monitor) {
 			/* Reset mutex_skipped counter everytime
 			srv_print_innodb_monitor changes. This is to
-			ensure we will not be blocked by server_mutex
+			ensure we will not be blocked by lock_sys->mutex
 			for short duration information printing,
 			such as requested by sync_array_print_long_waits() */
 			if (!last_srv_print_monitor) {
@@ -1816,12 +1817,6 @@ loop:
 		goto loop;
 	}
 
-	server_mutex_enter();
-
-	srv_monitor_active = FALSE;
-
-	server_mutex_exit();
-
 	goto loop;
 
 exit_func:
@@ -1863,14 +1858,9 @@ srv_error_monitor_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_error_monitor_thread_key);
 #endif
-
-loop:
-	server_mutex_enter();
-
 	srv_error_monitor_active = TRUE;
 
-	server_mutex_exit();
-
+loop:
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
 
@@ -1940,11 +1930,7 @@ loop:
 		goto loop;
 	}
 
-	server_mutex_enter();
-
 	srv_error_monitor_active = FALSE;
-
-	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -2002,8 +1988,6 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
-	server_mutex_enter();
-
 	if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
 	} else if (srv_lock_timeout_active) {
@@ -2011,8 +1995,6 @@ srv_any_background_threads_are_active(void)
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
 	}
-
-	server_mutex_exit();
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
