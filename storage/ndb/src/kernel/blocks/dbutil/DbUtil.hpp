@@ -348,6 +348,7 @@ public:
     };
     
     Uint32 connectPtr;
+    Uint32 connectRef;
     Uint32 transId[2];
     SLList<Operation> operations;
 
@@ -408,11 +409,11 @@ public:
   void initResultSet(ResultSetBuffer &, const ResultSetInfoBuffer &);
   void runTransaction(Signal* signal, TransactionPtr);
   void runOperation(Signal* signal, TransactionPtr &, OperationPtr &, Uint32);
-  void sendKeyInfo(Signal* signal, 
+  void sendKeyInfo(Signal* signal, Uint32 ref,
 		   KeyInfo* keyInfo,
 		   const KeyInfoBuffer & keyBuf,
 		   KeyInfoIterator & kit);
-  void sendAttrInfo(Signal*, 
+  void sendAttrInfo(Signal*, Uint32 ref,
 		    AttrInfo* attrInfo, 
 		    const AttrInfoBuffer &,
 		    AttrInfoIterator & ait);
