@@ -1360,12 +1360,158 @@ group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+select a1,a2,b,min(c),max(c) from t1
+where exists ( select * from t2 where t2.c = t1.c )
+group by a1,a2,b;
+a1	a2	b	min(c)	max(c)
+a	a	a	a111	d111
+a	a	b	e112	h112
+a	b	a	i121	l121
+a	b	b	m122	p122
+b	a	a	a211	d211
+b	a	b	e212	h212
+b	b	a	i221	l221
+b	b	b	m222	p222
+c	a	a	a311	d311
+c	a	b	e312	h312
+c	b	a	i321	l321
+c	b	b	m322	p322
+d	a	a	a411	d411
+d	a	b	e412	h412
+d	b	a	i421	l421
+d	b	b	m422	p422
 explain select a1,a2,b,min(c),max(c) from t1
 where exists ( select * from t2 where t2.c > 'b1' )
 group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using index for group-by
+1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
 2	SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+select a1,a2,b,min(c),max(c) from t1
+where exists ( select * from t2 where t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	min(c)	max(c)
+a	a	a	a111	d111
+a	a	b	e112	h112
+a	b	a	i121	l121
+a	b	b	m122	p122
+b	a	a	a211	d211
+b	a	b	e212	h212
+b	b	a	i221	l221
+b	b	b	m222	p222
+c	a	a	a311	d311
+c	a	b	e312	h312
+c	b	a	i321	l321
+c	b	b	m322	p322
+d	a	a	a411	d411
+d	a	b	e412	h412
+d	b	a	i421	l421
+d	b	b	m422	p422
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
+2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.b > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	c	min(c)	max(c)
+a	a	b	h112	e112	h112
+a	b	b	p122	m122	p122
+b	a	b	h212	e212	h212
+b	b	b	p222	m222	p222
+c	a	b	h312	e312	h312
+c	b	b	p322	m322	p322
+d	a	b	h412	e412	h412
+d	b	b	p422	m422	p422
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.b) and
+t2.c > 'b1' )
+group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	NULL	idx_t1_1	147	NULL	17	Using where; Using index for group-by
+2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2)
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.b) and
+t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	c	min(c)	max(c)
+a	a	a	d111	a111	d111
+a	a	b	h112	e112	h112
+a	b	a	l121	i121	l121
+a	b	b	p122	m122	p122
+b	a	a	d211	a211	d211
+b	a	b	h212	e212	h212
+b	b	a	l221	i221	l221
+b	b	b	p222	m222	p222
+c	a	a	d311	a311	d311
+c	a	b	h312	e312	h312
+c	b	a	l321	i321	l321
+c	b	b	p322	m322	p322
+d	a	a	d411	a411	d411
+d	a	b	h412	e412	h412
+d	b	a	l421	i421	l421
+d	b	b	p422	m422	p422
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2 where t1.c > 'a' and t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	c	min(c)	max(c)
+a	a	a	a111	a111	d111
+a	a	b	e112	e112	h112
+a	b	a	i121	i121	l121
+a	b	b	m122	m122	p122
+b	a	a	a211	a211	d211
+b	a	b	e212	e212	h212
+b	b	a	i221	i221	l221
+b	b	b	m222	m222	p222
+c	a	a	a311	a311	d311
+c	a	b	e312	e312	h312
+c	b	a	i321	i321	l321
+c	b	b	m322	m322	p322
+d	a	a	a411	a411	d411
+d	a	b	e412	e412	h412
+d	b	a	i421	i421	l421
+d	b	b	m422	m422	p422
+explain select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.c) and
+t2.c > 'b1' )
+group by a1,a2,b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	index	NULL	idx_t1_1	163	NULL	128	Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index	NULL	idx_t2_1	163	NULL	164	Using where; Using index
+2	DEPENDENT SUBQUERY	t3	index	NULL	idx_t3_1	10	NULL	192	Using where; Using index; FirstMatch(t2)
+select a1,a2,b,c,min(c), max(c) from t1
+where exists ( select * from t2
+where t2.c in (select c from t3 where t3.c > t1.c) and
+t2.c > 'b1' )
+group by a1,a2,b;
+a1	a2	b	c	min(c)	max(c)
+a	a	a	a111	a111	d111
+a	a	b	e112	e112	h112
+a	b	a	i121	i121	l121
+a	b	b	m122	m122	p122
+b	a	a	a211	a211	d211
+b	a	b	e212	e212	h212
+b	b	a	i221	i221	l221
+b	b	b	m222	m222	p222
+c	a	a	a311	a311	d311
+c	a	b	e312	e312	h312
+c	b	a	i321	i321	l321
+c	b	b	m322	m322	o322
+d	a	a	a411	a411	d411
+d	a	b	e412	e412	h412
+d	b	a	i421	i421	l421
+d	b	b	m422	m422	o422
 explain select a1,a2,b,min(c),max(c) from t1 where (a1 >= 'c' or a2 < 'b') and (b > 'a') group by a1,a2,b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	idx_t1_0,idx_t1_1,idx_t1_2	idx_t1_1	147	NULL	17	Using where; Using index for group-by
@@ -2246,11 +2392,11 @@ EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE EXISTS
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	15	Using index
+2	SUBQUERY	t1	index	NULL	a	10	NULL	1	Using index
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t1_outer	index	NULL	a	10	NULL	15	Using index
 2	SUBQUERY	t1	range	NULL	a	5	NULL	8	Using index for group-by
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
