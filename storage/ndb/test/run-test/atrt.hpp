@@ -132,7 +132,7 @@ bool configure(atrt_config&, int setup);
 bool setup_directories(atrt_config&, int setup);
 bool setup_files(atrt_config&, int setup, int sshx);
 
-bool deploy(atrt_config&);
+bool deploy(int, atrt_config&);
 bool sshx(atrt_config&, unsigned procmask);
 bool start(atrt_config&, unsigned procmask);
 
