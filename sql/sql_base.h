@@ -93,7 +93,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
 /* mysql_lock_tables() and open_table() flags bits */
 #define MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK      0x0001
 #define MYSQL_OPEN_IGNORE_FLUSH                 0x0002
-#define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
+/* MYSQL_OPEN_TEMPORARY_ONLY (0x0004) is not used anymore. */
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
 #define MYSQL_LOCK_LOG_TABLE                    0x0010
 /**
@@ -106,8 +106,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   a new instance of the table.
 */
 #define MYSQL_OPEN_GET_NEW_TABLE                0x0040
-/** Don't look up the table in the list of temporary tables. */
-#define MYSQL_OPEN_SKIP_TEMPORARY               0x0080
+/* 0x0080 used to be MYSQL_OPEN_SKIP_TEMPORARY */
 /** Fail instead of waiting when conficting metadata lock is discovered. */
 #define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0100
 /** Open tables using MDL_SHARED lock instead of one specified in parser. */
@@ -139,7 +138,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
                             MYSQL_LOCK_IGNORE_TIMEOUT |\
                             MYSQL_OPEN_GET_NEW_TABLE |\
-                            MYSQL_OPEN_SKIP_TEMPORARY |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
 
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
@@ -269,6 +267,8 @@ void close_temporary_table(THD *thd, TABLE *table, bool free_share,
 void close_temporary(TABLE *table, bool free_share, bool delete_table);
 bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
 			    const char *table_name);
+bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
+bool open_temporary_table(THD *thd, TABLE_LIST *tl);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
@@ -569,6 +569,16 @@ private:
   */
   bool m_has_protection_against_grl;
 };
+
+
+/**
+  Check if a TABLE_LIST instance represents a pre-opened temporary table.
+*/
+
+inline bool is_temporary_table(TABLE_LIST *tl)
+{
+  return tl->table ? (tl->table->s->tmp_table != NO_TMP_TABLE) : FALSE;
+}
 
 
 /**

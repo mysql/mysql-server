@@ -2798,6 +2798,60 @@ UNLOCK TABLES;
 DROP TABLE m1, t1;
 
 
+--echo #
+--echo # Additional coverage for refactoring which is made as part
+--echo # of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+--echo # to allow temp table operations".
+--echo # 
+--echo # Check that prelocking works correctly for various variants of
+--echo # merge tables.
+--disable_warnings
+drop table if exists t1, t2, m1;
+drop function if exists f1;
+--enable_warnings
+create table t1 (j int);
+insert into t1 values (1);
+create function f1() returns int return (select count(*) from m1);
+create temporary table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+drop tables t2, m1;
+create table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+drop table m1;
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+drop tables t1, t2, m1;
+drop function f1;
+--echo #
+--echo # Check that REPAIR/CHECK and CHECKSUM statements work correctly
+--echo # for various variants of merge tables.
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create table m1 (a int) engine=merge union=(t1);
+check table m1;
+repair table m1;
+checksum table m1;
+drop tables t1, m1;
+create temporary table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+repair table m1;
+checksum table m1;
+drop tables t1, m1;
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+repair table m1;
+checksum table m1;
+drop tables t1, m1;
+
+
 --echo End of 6.0 tests
 
 --disable_result_log

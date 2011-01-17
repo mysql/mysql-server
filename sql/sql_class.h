@@ -3727,6 +3727,18 @@ public:
 #define CF_CAN_GENERATE_ROW_EVENTS (1U << 9)
 
 /**
+  Identifies statements which may deal with temporary tables and for which
+  temporary tables should be pre-opened to simplify privilege checks.
+*/
+#define CF_PREOPEN_TMP_TABLES   (1U << 10)
+
+/**
+  Identifies statements for which open handlers should be closed in the
+  beginning of the statement.
+*/
+#define CF_HA_CLOSE             (1U << 11)
+
+/**
   Identifies statements that can directly update a rpl info table.
 */
 #define CF_WRITE_RPL_INFO_COMMAND (1U << 12)

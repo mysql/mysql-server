@@ -105,6 +105,7 @@ When one supplies long data for a placeholder:
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_cache.h"
+#include "sql_handler.h"  // mysql_ha_rm_tables
 #include "probes_mysql.h"
 #ifdef EMBEDDED_LIBRARY
 /* include MYSQL_BIND headers */
@@ -1715,6 +1716,14 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   TABLE_LIST *create_table= lex->query_tables;
   TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
 
+  if (lex->create_info.merge_list.elements)
+  {
+    if (open_temporary_tables(thd, lex->create_info.merge_list.first))
+    {
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
 
@@ -1963,6 +1972,19 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   /* Reset warning count for each query that uses tables */
   if (tables)
     thd->warning_info->opt_clear_warning_info(thd->query_id);
+
+  if (sql_command_flags[sql_command] & CF_HA_CLOSE)
+    mysql_ha_rm_tables(thd, tables);
+
+  /*
+    Open temporary tables that are known now. Temporary tables added by
+    prelocking will be opened afterwards (during open_tables()).
+  */
+  if (sql_command_flags[sql_command] & CF_PREOPEN_TMP_TABLES)
+  {
+    if (open_temporary_tables(thd, tables))
+      goto error;
+  }
 
   switch (sql_command) {
   case SQLCOM_REPLACE:

@@ -992,4 +992,19 @@ CREATE INDEX c on t1 (c);
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Additional coverage for refactoring which is made as part
+--echo # of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+--echo # to allow temp table operations".
+--echo #
+--echo # Check that OPTIMIZE table works for temporary InnoDB tables.
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t1 (a INT) ENGINE=InnoDB;
+OPTIMIZE TABLE t1;
+DROP TABLE t1;
+
+
 --echo End of 6.0 tests

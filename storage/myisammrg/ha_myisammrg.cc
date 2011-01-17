@@ -479,6 +479,11 @@ int ha_myisammrg::add_children_list(void)
     child_l->set_table_ref_id(mrg_child_def->get_child_table_ref_type(),
                               mrg_child_def->get_child_def_version());
     /*
+      Copy parent's prelocking attribute to allow opening of child
+      temporary residing in the prelocking list.
+    */
+    child_l->prelocking_placeholder= parent_l->prelocking_placeholder;
+    /*
       For statements which acquire a SNW metadata lock on a parent table and
       then later try to upgrade it to an X lock (e.g. ALTER TABLE), SNW
       locks should be also taken on the children tables.

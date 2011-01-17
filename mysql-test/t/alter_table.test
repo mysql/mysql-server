@@ -1144,3 +1144,18 @@ INSERT INTO t1 VALUES (1, 1), (2, 2);
 ALTER TABLE t1 CHANGE a id INT;
 --disable_info
 DROP TABLE t1;
+
+
+--echo #
+--echo # Additional coverage for refactoring which is made as part
+--echo # of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+--echo # to allow temp table operations".
+--echo #
+--echo # At some point the below test case failed on assertion.
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
+--error ER_ILLEGAL_HA
+ALTER TABLE t1 DISCARD TABLESPACE;
+DROP TABLE t1;

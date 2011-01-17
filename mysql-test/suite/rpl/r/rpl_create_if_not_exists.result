@@ -117,4 +117,18 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP VIEW v1;
 DROP TABLE t1, t2;
+#
+# Test case which has failed on assertion after refactoring which was
+# made as part of fix for bug #27480 "Extend CREATE TEMPORARY TABLES
+# privilege to allow temp table operations".
+#
+CREATE TEMPORARY TABLE t1 (id int);
+CREATE TABLE IF NOT EXISTS t2 LIKE t1;
+# The below statement should succeed with warning and
+# should not crash due to failing assertion.
+CREATE TABLE IF NOT EXISTS t2 LIKE t1;
+Warnings:
+Note	1050	Table 't2' already exists
+# Clean-up.
+DROP TABLE t1, t2;
 include/rpl_end.inc

@@ -2557,45 +2557,40 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
 }
 
 
-/*
-  Open a table.
+/**
+  Open a base table.
 
-  SYNOPSIS
-    open_table()
-    thd                 Thread context.
-    table_list          Open first table in list.
-    action       INOUT  Pointer to variable of enum_open_table_action type
-                        which will be set according to action which is
-                        required to remedy problem appeared during attempt
-                        to open table.
-    flags               Bitmap of flags to modify how open works:
-                          MYSQL_OPEN_IGNORE_FLUSH - Open table even if
-                          someone has done a flush or there is a pending
-                          exclusive metadata lock requests against it
-                          (i.e. request high priority metadata lock).
-                          No version number checking is done.
-                          MYSQL_OPEN_TEMPORARY_ONLY - Open only temporary
-                          table not the base table or view.
-                          MYSQL_OPEN_TAKE_UPGRADABLE_MDL - Obtain upgradable
-                          metadata lock for tables on which we are going to
-                          take some kind of write table-level lock.
+  @param thd            Thread context.
+  @param table_list     Open first table in list.
+  @param mem_root       Temporary MEM_ROOT to be used for
+                        parsing .FRMs for views.
+  @param ot_ctx         Context with flags which modify how open works
+                        and which is used to recover from a failed
+                        open_table() attempt.
+                        Some examples of flags:
+                        MYSQL_OPEN_IGNORE_FLUSH - Open table even if
+                        someone has done a flush. No version number
+                        checking is done.
+                        MYSQL_OPEN_HAS_MDL_LOCK - instead of acquiring
+                        metadata locks rely on that caller already has
+                        appropriate ones.
 
-  IMPLEMENTATION
-    Uses a cache of open tables to find a table not in use.
+  Uses a cache of open tables to find a TABLE instance not in use.
 
-    If TABLE_LIST::open_strategy is set to OPEN_IF_EXISTS, the table is opened
-    only if it exists. If the open strategy is OPEN_STUB, the underlying table
-    is never opened. In both cases, metadata locks are always taken according
-    to the lock strategy.
+  If TABLE_LIST::open_strategy is set to OPEN_IF_EXISTS, the table is
+  opened only if it exists. If the open strategy is OPEN_STUB, the
+  underlying table is never opened. In both cases, metadata locks are
+  always taken according to the lock strategy.
 
-  RETURN
-    TRUE  Open failed. "action" parameter may contain type of action
-          needed to remedy problem before retrying again.
-    FALSE Success. Members of TABLE_LIST structure are filled properly (e.g.
-          TABLE_LIST::table is set for real tables and TABLE_LIST::view is
-          set for views).
+  The function used to open temporary tables, but now it opens base tables
+  only.
+
+  @retval TRUE  Open failed. "action" parameter may contain type of action
+                needed to remedy problem before retrying again.
+  @retval FALSE Success. Members of TABLE_LIST structure are filled properly
+                (e.g.  TABLE_LIST::table is set for real tables and
+                TABLE_LIST::view is set for views).
 */
-
 
 bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                 Open_table_context *ot_ctx)
@@ -2611,6 +2606,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   my_hash_value_type hash_value;
   DBUG_ENTER("open_table");
 
+  /*
+    The table must not be opened already. The table can be pre-opened for
+    some statements if it is a temporary table.
+
+    open_temporary_table() must be used to open temporary tables.
+  */
+  DBUG_ASSERT(!table_list->table);
+
   /* an open table operation needs a lot of the stack space */
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
@@ -2618,66 +2621,13 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (thd->killed)
     DBUG_RETURN(TRUE);
 
-  key_length= (create_table_def_key(thd, key, table_list, 1) -
-               TMP_TABLE_KEY_EXTRA);
+  key_length= create_table_def_key(thd, key, table_list, 0);
 
   /*
-    Unless requested otherwise, try to resolve this table in the list
-    of temporary tables of this thread. In MySQL temporary tables
-    are always thread-local and "shadow" possible base tables with the
-    same name. This block implements the behaviour.
-    TODO: move this block into a separate function.
-  */
-  if (table_list->open_type != OT_BASE_ONLY &&
-      ! (flags & MYSQL_OPEN_SKIP_TEMPORARY))
-  {
-    for (table= thd->temporary_tables; table ; table=table->next)
-    {
-      if (table->s->table_cache_key.length == key_length +
-          TMP_TABLE_KEY_EXTRA &&
-	  !memcmp(table->s->table_cache_key.str, key,
-		  key_length + TMP_TABLE_KEY_EXTRA))
-      {
-        /*
-          We're trying to use the same temporary table twice in a query.
-          Right now we don't support this because a temporary table
-          is always represented by only one TABLE object in THD, and
-          it can not be cloned. Emit an error for an unsupported behaviour.
-        */
-	if (table->query_id)
-	{
-          DBUG_PRINT("error",
-                     ("query_id: %lu  server_id: %u  pseudo_thread_id: %lu",
-                      (ulong) table->query_id, (uint) thd->server_id,
-                      (ulong) thd->variables.pseudo_thread_id));
-	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
-	  DBUG_RETURN(TRUE);
-	}
-	table->query_id= thd->query_id;
-	thd->thread_specific_used= TRUE;
-        DBUG_PRINT("info",("Using temporary table"));
-        goto reset;
-      }
-    }
-  }
-
-  if (table_list->open_type == OT_TEMPORARY_ONLY ||
-      (flags & MYSQL_OPEN_TEMPORARY_ONLY))
-  {
-    if (table_list->open_strategy == TABLE_LIST::OPEN_NORMAL)
-    {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db, table_list->table_name);
-      DBUG_RETURN(TRUE);
-    }
-    else
-      DBUG_RETURN(FALSE);
-  }
-
-  /*
-    The table is not temporary - if we're in pre-locked or LOCK TABLES
-    mode, let's try to find the requested table in the list of pre-opened
-    and locked tables. If the table is not there, return an error - we can't
-    open not pre-opened tables in pre-locked/LOCK TABLES mode.
+    If we're in pre-locked or LOCK TABLES mode, let's try to find the
+    requested table in the list of pre-opened and locked tables. If the
+    table is not there, return an error - we can't open not pre-opened
+    tables in pre-locked/LOCK TABLES mode.
     TODO: move this block into a separate function.
   */
   if (thd->locked_tables_mode &&
@@ -2773,7 +2723,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     }
     /*
       No table in the locked tables list. In case of explicit LOCK TABLES
-      this can happen if a user did not include the able into the list.
+      this can happen if a user did not include the table into the list.
       In case of pre-locked mode locked tables list is generated automatically,
       so we may only end up here if the table did not exist when
       locked tables list was created.
@@ -2785,10 +2735,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    Non pre-locked/LOCK TABLES mode, and the table is not temporary.
-    This is the normal use case.
-  */
+  /* Non pre-locked/LOCK TABLES mode. This is the normal use case. */
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
@@ -4002,8 +3949,7 @@ recover_from_failed_open(THD *thd)
     case OT_DISCOVER:
       {
         if ((result= lock_table_names(thd, m_failed_table, NULL,
-                                      get_timeout(),
-                                      MYSQL_OPEN_SKIP_TEMPORARY)))
+                                      get_timeout(), 0)))
           break;
 
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
@@ -4019,8 +3965,7 @@ recover_from_failed_open(THD *thd)
     case OT_REPAIR:
       {
         if ((result= lock_table_names(thd, m_failed_table, NULL,
-                                      get_timeout(),
-                                      MYSQL_OPEN_SKIP_TEMPORARY)))
+                                      get_timeout(), 0)))
           break;
 
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, m_failed_table->db,
@@ -4353,10 +4298,32 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
                         tables->db, tables->table_name, tables)); //psergey: invalid read of size 1 here
   (*counter)++;
 
-  /* Not a placeholder: must be a base table or a view. Let us open it. */
-  DBUG_ASSERT(!tables->table);
+  /* Not a placeholder: must be a base/temporary table or a view. Let us open it. */
 
-  if (tables->prelocking_placeholder)
+  if (tables->table)
+  {
+    /*
+      If this TABLE_LIST object has an associated open TABLE object
+      (TABLE_LIST::table is not NULL), that TABLE object must be a pre-opened
+      temporary table.
+    */
+    DBUG_ASSERT(is_temporary_table(tables));
+  }
+  else if (tables->open_type == OT_TEMPORARY_ONLY)
+  {
+    /*
+      OT_TEMPORARY_ONLY means that we are in CREATE TEMPORARY TABLE statement.
+      Also such table list element can't correspond to prelocking placeholder
+      or to underlying table of merge table.
+      So existing temporary table should have been preopened by this moment
+      and we can simply continue without trying to open temporary or base
+      table.
+    */
+    DBUG_ASSERT(tables->open_strategy);
+    DBUG_ASSERT(!tables->prelocking_placeholder);
+    DBUG_ASSERT(!tables->parent_l);
+  }
+  else if (tables->prelocking_placeholder)
   {
     /*
       For the tables added by the pre-locking code, attempt to open
@@ -4366,12 +4333,53 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     */
     No_such_table_error_handler no_such_table_handler;
     thd->push_internal_handler(&no_such_table_handler);
-    error= open_table(thd, tables, new_frm_mem, ot_ctx);
+
+    /*
+      We're opening a table from the prelocking list.
+
+      Since this table list element might have been added after pre-opening
+      of temporary tables we have to try to open temporary table for it.
+
+      We can't simply skip this table list element and postpone opening of
+      temporary tabletill the execution of substatement for several reasons:
+      - Temporary table can be a MERGE table with base underlying tables,
+        so its underlying tables has to be properly open and locked at
+        prelocking stage.
+      - Temporary table can be a MERGE table and we might be in PREPARE
+        phase for a prepared statement. In this case it is important to call
+        HA_ATTACH_CHILDREN for all merge children.
+        This is necessary because merge children remember "TABLE_SHARE ref type"
+        and "TABLE_SHARE def version" in the HA_ATTACH_CHILDREN operation.
+        If HA_ATTACH_CHILDREN is not called, these attributes are not set.
+        Then, during the first EXECUTE, those attributes need to be updated.
+        That would cause statement re-preparing (because changing those
+        attributes during EXECUTE is caught by THD::m_reprepare_observer).
+        The problem is that since those attributes are not set in merge
+        children, another round of PREPARE will not help.
+    */
+    error= open_temporary_table(thd, tables);
+
+    if (!error && !tables->table)
+      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+
     thd->pop_internal_handler();
     safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
   }
   else
-    error= open_table(thd, tables, new_frm_mem, ot_ctx);
+  {
+    if (tables->parent_l)
+    {
+      /*
+        Even if we are opening table not from the prelocking list we
+        still might need to look for a temporary table if this table
+        list element corresponds to underlying table of a merge table.
+      */
+      error= open_temporary_table(thd, tables);
+    }
+
+    if (!error && !tables->table)
+      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+  }
 
   free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
 
@@ -4459,6 +4467,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
       goto end;
   }
 
+  /* Set appropriate TABLE::lock_type. */
   if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
   {
     if (tables->lock_type == TL_WRITE_DEFAULT)
@@ -4469,6 +4478,8 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     else
       tables->table->reginfo.lock_type= tables->lock_type;
   }
+
+  /* Copy grant information from TABLE_LIST instance to TABLE one. */
   tables->table->grant= tables->grant;
 
   /* Check and update metadata version of a base table. */
@@ -4556,18 +4567,17 @@ lock_table_names(THD *thd,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type >= MDL_SHARED_NO_WRITE &&
-        !(table->open_type == OT_TEMPORARY_ONLY ||
-          (flags & MYSQL_OPEN_TEMPORARY_ONLY) ||
-          (table->open_type != OT_BASE_ONLY &&
-           ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
-           find_temporary_table(thd, table))))
+    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+        table->open_type == OT_TEMPORARY_ONLY ||
+        (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
-      if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
-          schema_set.insert(table))
-        return TRUE;
-      mdl_requests.push_front(&table->mdl_request);
+      continue;
     }
+
+    if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && schema_set.insert(table))
+      return TRUE;
+
+    mdl_requests.push_front(&table->mdl_request);
   }
 
   if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
@@ -4635,35 +4645,34 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type >= MDL_SHARED_NO_WRITE &&
-        !(table->open_type == OT_TEMPORARY_ONLY ||
-          (flags & MYSQL_OPEN_TEMPORARY_ONLY) ||
-          (table->open_type != OT_BASE_ONLY &&
-           ! (flags & MYSQL_OPEN_SKIP_TEMPORARY) &&
-           find_temporary_table(thd, table))))
+    if (table->mdl_request.type < MDL_SHARED_NO_WRITE ||
+        table->open_type == OT_TEMPORARY_ONLY ||
+        (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
-      /*
-        We don't need to do anything about the found TABLE instance as it
-        will be handled later in open_tables(), we only need to check that
-        an upgradable lock is already acquired. When we enter LOCK TABLES
-        mode, SNRW locks are acquired before all other locks. So if under
-        LOCK TABLES we find that there is TABLE instance with upgradeable
-        lock, all other instances of TABLE for the same table will have the
-        same ticket.
-
-        Note that this works OK even for CREATE TABLE statements which
-        request X type of metadata lock. This is because under LOCK TABLES
-        such statements don't create the table but only check if it exists
-        or, in most complex case, only insert into it.
-        Thus SNRW lock should be enough.
-
-        Note that find_table_for_mdl_upgrade() will report an error if
-        no suitable ticket is found.
-      */
-      if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
-                                      table->table_name, FALSE))
-        return TRUE;
+      continue;
     }
+
+    /*
+      We don't need to do anything about the found TABLE instance as it
+      will be handled later in open_tables(), we only need to check that
+      an upgradable lock is already acquired. When we enter LOCK TABLES
+      mode, SNRW locks are acquired before all other locks. So if under
+      LOCK TABLES we find that there is TABLE instance with upgradeable
+      lock, all other instances of TABLE for the same table will have the
+      same ticket.
+
+      Note that this works OK even for CREATE TABLE statements which
+      request X type of metadata lock. This is because under LOCK TABLES
+      such statements don't create the table but only check if it exists
+      or, in most complex case, only insert into it.
+      Thus SNRW lock should be enough.
+
+      Note that find_table_for_mdl_upgrade() will report an error if
+      no suitable ticket is found.
+    */
+    if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
+                                    table->table_name, FALSE))
+      return TRUE;
   }
 
   return FALSE;
@@ -4842,6 +4851,10 @@ restart:
           if (ot_ctx.recover_from_failed_open(thd))
             goto err;
 
+          /* Re-open temporary tables after close_tables_for_reopen(). */
+          if (open_temporary_tables(thd, *start))
+            goto err;
+
           error= FALSE;
           goto restart;
         }
@@ -4888,6 +4901,10 @@ restart:
             if (ot_ctx.recover_from_failed_open(thd))
               goto err;
 
+            /* Re-open temporary tables after close_tables_for_reopen(). */
+            if (open_temporary_tables(thd, *start))
+              goto err;
+
             error= FALSE;
             goto restart;
           }
@@ -4917,6 +4934,11 @@ restart:
   for (tables= *start; tables; tables= tables->next_global)
   {
     TABLE *tbl= tables->table;
+
+    /*
+      NOTE: temporary merge tables should be processed here too, because
+      a temporary merge table can be based on non-temporary tables.
+    */
 
     /* Schema tables may not have a TABLE object here. */
     if (tbl && tbl->file->ht->db_type == DB_TYPE_MRG_MYISAM)
@@ -5952,6 +5974,134 @@ static void update_field_dependencies(THD *thd, Field *field, TABLE *table)
   else if (table->get_fields_in_item_tree)
     field->flags|= GET_FIXED_FIELDS_FLAG;
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Find a temporary table specified by TABLE_LIST instance in the cache and
+  prepare its TABLE instance for use.
+
+  This function tries to resolve this table in the list of temporary tables
+  of this thread. Temporary tables are thread-local and "shadow" base
+  tables with the same name.
+
+  @note In most cases one should use open_temporary_tables() instead
+        of this call.
+
+  @note One should finalize process of opening temporary table for table
+        list element by calling open_and_process_table(). This function
+        is responsible for table version checking and handling of merge
+        tables.
+
+  @note We used to check global_read_lock before opening temporary tables.
+        However, that limitation was artificial and is removed now.
+
+  @return Error status.
+    @retval FALSE On success. If a temporary table exists for the given
+                  key, tl->table is set.
+    @retval TRUE  On error. my_error() has been called.
+*/
+
+bool open_temporary_table(THD *thd, TABLE_LIST *tl)
+{
+  DBUG_ENTER("open_temporary_table");
+  DBUG_PRINT("enter", ("table: '%s'.'%s'", tl->db, tl->table_name));
+
+  /*
+    Code in open_table() assumes that TABLE_LIST::table can
+    be non-zero only for pre-opened temporary tables.
+  */
+  DBUG_ASSERT(tl->table == NULL);
+
+  /*
+    This function should not be called for cases when derived or I_S
+    tables can be met since table list elements for such tables can
+    have invalid db or table name.
+    Instead open_temporary_tables() should be used.
+  */
+  DBUG_ASSERT(!tl->derived && !tl->schema_table);
+
+  if (tl->open_type == OT_BASE_ONLY)
+  {
+    DBUG_PRINT("info", ("skip_temporary is set"));
+    DBUG_RETURN(FALSE);
+  }
+
+  TABLE *table= find_temporary_table(thd, tl);
+
+  if (!table)
+  {
+    if (tl->open_type == OT_TEMPORARY_ONLY &&
+        tl->open_strategy == TABLE_LIST::OPEN_NORMAL)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), tl->db, tl->table_name);
+      DBUG_RETURN(TRUE);
+    }
+    DBUG_RETURN(FALSE);
+  }
+
+  if (table->query_id)
+  {
+    /*
+      We're trying to use the same temporary table twice in a query.
+      Right now we don't support this because a temporary table is always
+      represented by only one TABLE object in THD, and it can not be
+      cloned. Emit an error for an unsupported behaviour.
+    */
+
+    DBUG_PRINT("error",
+               ("query_id: %lu  server_id: %u  pseudo_thread_id: %lu",
+                (ulong) table->query_id, (uint) thd->server_id,
+                (ulong) thd->variables.pseudo_thread_id));
+    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+    DBUG_RETURN(TRUE);
+  }
+
+  table->query_id= thd->query_id;
+  thd->thread_specific_used= TRUE;
+
+  tl->updatable= 1; // It is not derived table nor non-updatable VIEW.
+  tl->table= table;
+
+  table->init(thd, tl);
+
+  DBUG_PRINT("info", ("Using temporary table"));
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Pre-open temporary tables corresponding to table list elements.
+
+  @note One should finalize process of opening temporary tables
+        by calling open_tables(). This function is responsible
+        for table version checking and handling of merge tables.
+
+  @return Error status.
+    @retval FALSE On success. If a temporary tables exists for the
+                  given element, tl->table is set.
+    @retval TRUE  On error. my_error() has been called.
+*/
+
+bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
+{
+  DBUG_ENTER("open_temporary_tables");
+
+  for (TABLE_LIST *tl= tl_list; tl; tl= tl->next_global)
+  {
+    if (tl->derived || tl->schema_table)
+    {
+      /*
+        Derived and I_S tables will be handled by a later call to open_tables().
+      */
+      continue;
+    }
+
+    if (open_temporary_table(thd, tl))
+      DBUG_RETURN(TRUE);
+  }
+
+  DBUG_RETURN(FALSE);
 }
 
 
