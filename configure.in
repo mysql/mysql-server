@@ -15,7 +15,7 @@ dnl
 dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
-AC_INIT([MySQL Server], [5.1.51-ndb-6.3.40], [], [mysql])
+AC_INIT([MySQL Server], [5.1.51-ndb-6.3.41], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
@@ -34,7 +34,7 @@ m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 NDB_VERSION_MAJOR=6
 NDB_VERSION_MINOR=3
-NDB_VERSION_BUILD=40
+NDB_VERSION_BUILD=41
 NDB_VERSION_STATUS="-GA"
 
 PROTOCOL_VERSION=10
