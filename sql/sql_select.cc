@@ -1907,7 +1907,7 @@ JOIN::exec()
 			    send_row_on_empty_set(),
 			    select_options,
 			    zero_result_cause,
-			    having);
+			    having ? having : tmp_having);
     DBUG_VOID_RETURN;
   }
 
