@@ -1,3 +1,33 @@
+# Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2 of
+# the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301  USA
+#
+
+################################################################################
+#
+# NOTICE:
+#
+#  This file unfortunately contains characters in various different encodings. 
+#  Be careful when editing this file to ensure that you (or your editor) do
+#  not change things (such as encodings) on lines that you did not mean to 
+#  modify.
+#
+################################################################################
+
+
 # Uses GRANT commands that usually disabled in embedded server
 -- source include/not_embedded.inc
 
@@ -223,14 +253,6 @@ CREATE TABLE """a" (i INT);
 SHOW CREATE TABLE """a";
 DROP TABLE """a";
 
-# Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
-#set names latin1;
-#create database `‰`;
-#create table `‰`.`‰` (a int) engine=heap;
-#--replace_column 7 # 8 # 9 #
-#show table status from `‰` LIKE '‰';
-#drop database `‰`;
-
 # to test quotes around keywords.. :
 
 SET sql_mode= '';
@@ -361,15 +383,6 @@ where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 delete from mysql.db
 where user='mysqltest_1' || user='mysqltest_2' || user='mysqltest_3';
 flush privileges;
-
-# This test fails on MAC OSX, so it is temporary disabled.
-# This needs WL#1324 to be done.
-#set names latin1;
-#create database `‰`;
-#create table `‰`.`‰` (a int) engine=heap;
-#--replace_column 7 # 8 # 9 #
-#show table status from `‰` LIKE '‰';
-#drop database `‰`;
 
 # Test that USING <keytype> is always shown in SHOW CREATE TABLE when it was
 # specified during table creation, but not otherwise. (Bug#7235)
@@ -1052,6 +1065,17 @@ create table `√©t√©` (field1 int);
 show full tables;
 drop table `√©t√©`;
 set names latin1;
+
+--echo #
+--echo # Bug#4374 SHOW TABLE STATUS FROM ignores collation_connection
+--echo # Character set: Latin-1 (ISO-8859-1)
+--echo #
+SET NAMES latin1;
+CREATE DATABASE `‰`;
+CREATE TABLE `‰`.`‰` (a int) ENGINE=Memory;
+--replace_column 7 # 8 # 9 #
+SHOW TABLE STATUS FROM `‰` LIKE '‰';
+DROP DATABASE `‰`;
 
 #
 # Bug#26402 Server crashes with old-style named table
