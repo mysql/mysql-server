@@ -258,14 +258,15 @@ lock_rec_restore_from_page_infimum(
 					state; lock bits are reset on
 					the infimum */
 /*********************************************************************//**
-Returns TRUE if there are explicit record locks on a page.
-@return	TRUE if there are explicit record locks on the page */
+Determines if there are explicit record locks on a page.
+@return	an explicit record lock on the page, or NULL if there are none */
 UNIV_INTERN
-ibool
+lock_t*
 lock_rec_expl_exist_on_page(
 /*========================*/
 	ulint	space,	/*!< in: space id */
-	ulint	page_no);/*!< in: page number */
+	ulint	page_no)/*!< in: page number */
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate insert of
 a record. If they do, first tests if the query thread should anyway

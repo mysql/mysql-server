@@ -652,16 +652,16 @@ lock_get_mode(
 
 /*********************************************************************//**
 Gets the wait flag of a lock.
-@return	TRUE if waiting */
+@return	LOCK_WAIT if waiting, 0 if not */
 UNIV_INLINE
-ibool
+ulint
 lock_get_wait(
 /*==========*/
 	const lock_t*	lock)	/*!< in: lock */
 {
 	ut_ad(lock);
 
-	return(lock->type_mode & LOCK_WAIT) ? TRUE : FALSE;
+	return(lock->type_mode & LOCK_WAIT);
 }
 
 /*********************************************************************//**
@@ -826,9 +826,9 @@ lock_reset_lock_and_trx_wait(
 
 /*********************************************************************//**
 Gets the gap flag of a record lock.
-@return	TRUE if gap flag set */
+@return	LOCK_GAP or 0 */
 UNIV_INLINE
-ibool
+ulint
 lock_rec_get_gap(
 /*=============*/
 	const lock_t*	lock)	/*!< in: record lock */
@@ -836,14 +836,14 @@ lock_rec_get_gap(
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	return((lock->type_mode & LOCK_GAP) ? TRUE : FALSE);
+	return(lock->type_mode & LOCK_GAP);
 }
 
 /*********************************************************************//**
 Gets the LOCK_REC_NOT_GAP flag of a record lock.
-@return	TRUE if LOCK_REC_NOT_GAP flag set */
+@return	LOCK_REC_NOT_GAP or 0 */
 UNIV_INLINE
-ibool
+ulint
 lock_rec_get_rec_not_gap(
 /*=====================*/
 	const lock_t*	lock)	/*!< in: record lock */
@@ -851,14 +851,14 @@ lock_rec_get_rec_not_gap(
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	return((lock->type_mode & LOCK_REC_NOT_GAP) ? TRUE : FALSE);
+	return(lock->type_mode & LOCK_REC_NOT_GAP);
 }
 
 /*********************************************************************//**
 Gets the waiting insert flag of a record lock.
-@return	TRUE if gap flag set */
+@return	LOCK_INSERT_INTENTION or 0 */
 UNIV_INLINE
-ibool
+ulint
 lock_rec_get_insert_intention(
 /*==========================*/
 	const lock_t*	lock)	/*!< in: record lock */
@@ -866,7 +866,7 @@ lock_rec_get_insert_intention(
 	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	return((lock->type_mode & LOCK_INSERT_INTENTION) ? TRUE : FALSE);
+	return(lock->type_mode & LOCK_INSERT_INTENTION);
 }
 
 /*********************************************************************//**
@@ -1169,28 +1169,22 @@ lock_rec_get_first_on_page_addr(
 }
 
 /*********************************************************************//**
-Returns TRUE if there are explicit record locks on a page.
-@return	TRUE if there are explicit record locks on the page */
+Determines if there are explicit record locks on a page.
+@return	an explicit record lock on the page, or NULL if there are none */
 UNIV_INTERN
-ibool
+lock_t*
 lock_rec_expl_exist_on_page(
 /*========================*/
 	ulint	space,	/*!< in: space id */
 	ulint	page_no)/*!< in: page number */
 {
-	ibool	ret;
+	lock_t*	lock;
 
 	lock_mutex_enter();
-
-	if (lock_rec_get_first_on_page_addr(space, page_no)) {
-		ret = TRUE;
-	} else {
-		ret = FALSE;
-	}
-
+	lock = lock_rec_get_first_on_page_addr(space, page_no);
 	lock_mutex_exit();
 
-	return(ret);
+	return(lock);
 }
 
 /*********************************************************************//**
