@@ -972,7 +972,7 @@ ha_ndbcluster_cond::cond_push(const Item *cond,
   if (ndb_cond == NULL)
   {
     my_errno= HA_ERR_OUT_OF_MEM;
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(cond);
   }
   if (m_cond_stack)
     ndb_cond->next= m_cond_stack;

@@ -7788,6 +7788,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   if (unlikely((error= close_scan())))
     DBUG_RETURN(error);
 
+  if (m_active_cursor && (error= close_scan()))
+    DBUG_RETURN(error);
+
   if (m_use_partition_pruning)
   {
     DBUG_ASSERT(!m_pushed_join);
@@ -15293,14 +15296,14 @@ ha_ndbcluster::cond_push(const Item *cond)
      *  pushable by each handler.)
      */
     DBUG_EXECUTE("where",print_where((Item *)cond, "Rejected cond_push", QT_ORDINARY););
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(cond);
   }
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
   if (!m_cond)
   {
     my_errno= HA_ERR_OUT_OF_MEM;
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(cond);
   }
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
