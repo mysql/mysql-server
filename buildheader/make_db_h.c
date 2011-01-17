@@ -462,9 +462,9 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int32_t        num_waiters_now;         /* How many are waiting on the ydb lock right now (including the current lock holder if any)?                            */\n");
     printf("  u_int32_t        max_waiters;             /* The maximum of num_waiters_now.                                                                                       */\n");
     printf("  u_int64_t        total_sleep_time;        /* Total time spent (since the system was booted) sleeping (by the indexer) to give foreground threads a chance to work. */\n");
-    printf("  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held.                                                                              */\n"); 
-    printf("  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock                                                                           */\n");
-    printf("  u_int64_t        total_time_since_start;  /* Total time since the lock was created.  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */\n");
+    printf("  u_int64_t        max_time_ydb_lock_held;  /* Maximum time that the ydb lock was held (tokutime_t).                                                                 */\n"); 
+    printf("  u_int64_t        total_time_ydb_lock_held;/* Total time client threads held the ydb lock (really tokutime_t, convert to seconds with tokutime_to_seconds())        */\n");
+    printf("  u_int64_t        total_time_since_start;  /* Total time since the lock was created (tokutime_t).  Use this as total_time_ydb_lock_held/total_time_since_start to get a ratio.   */\n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
     printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
     printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");

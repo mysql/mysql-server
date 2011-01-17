@@ -2019,8 +2019,8 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "num_waiters_now                  %"PRIu32"\n", engstat.num_waiters_now);
 	n += snprintf(buff + n, bufsiz - n, "max_waiters                      %"PRIu32"\n", engstat.max_waiters);
 	n += snprintf(buff + n, bufsiz - n, "total_sleep_time                 %"PRIu64"\n", engstat.total_sleep_time);
-	n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
-	n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
+	n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %.6f\n",      tokutime_to_seconds(engstat.max_time_ydb_lock_held));
+	n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %.6f\n",      tokutime_to_seconds(engstat.total_time_ydb_lock_held));
 	n += snprintf(buff + n, bufsiz - n, "total_time_since_start           %"PRIu64"\n", engstat.total_time_since_start);
 	n += snprintf(buff + n, bufsiz - n, "le_max_committed_xr              %"PRIu64"\n", engstat.le_max_committed_xr);
 	n += snprintf(buff + n, bufsiz - n, "le_max_provisional_xr            %"PRIu64"\n", engstat.le_max_provisional_xr);

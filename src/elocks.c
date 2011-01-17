@@ -20,8 +20,8 @@
 
 struct ydb_big_lock {
     toku_pthread_mutex_t lock;
-    u_int64_t starttime; // what time (in microseconds according to gettimeofday()) was the lock initialized?
-    u_int64_t acquired_time;
+    tokutime_t starttime; // what time was the lock initialized?
+    tokutime_t acquired_time; // what time was the lock acquired
 };
 static struct ydb_big_lock ydb_big_lock;
 
@@ -47,18 +47,11 @@ toku_ydb_lock_get_status(SCHEDULE_STATUS statp) {
     *statp = status;
 }
 
-static u_int64_t get_current_time_in_microseconds (void) {
-    // On recent linux, gettimeofday() runs extremely fast (in userspace only), taking only a few nanoseconds.
-    struct timeval tv;
-    gettimeofday(&tv, 0);
-    return tv.tv_usec + 1000000 * tv.tv_sec;
-}
-
 int 
 toku_ydb_lock_init(void) {
     int r;
     r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); resource_assert_zero(r);
-    ydb_big_lock.starttime   = get_current_time_in_microseconds();
+    ydb_big_lock.starttime   = get_tokutime();
     ydb_big_lock.acquired_time = 0;
     init_status();
     return r;
@@ -77,7 +70,7 @@ toku_ydb_lock(void) {
 
     int r = toku_pthread_mutex_lock(&ydb_big_lock.lock);   resource_assert_zero(r);
 
-    u_int64_t now = get_current_time_in_microseconds();
+    u_int64_t now = get_tokutime();
 
     // Update the lock
     ydb_big_lock.acquired_time = now;
@@ -95,8 +88,8 @@ ydb_unlock_internal(unsigned long useconds) {
     status.ydb_lock_ctr++;
     invariant((status.ydb_lock_ctr & 0x01) == 0);
 
-    u_int64_t now = get_current_time_in_microseconds();
-    u_int64_t time_held = now - ydb_big_lock.acquired_time;
+    tokutime_t now = get_tokutime();
+    tokutime_t time_held = now - ydb_big_lock.acquired_time;
     status.total_time_ydb_lock_held += time_held;
     if (time_held > status.max_time_ydb_lock_held) status.max_time_ydb_lock_held = time_held;
     status.total_time_since_start = now - ydb_big_lock.starttime;

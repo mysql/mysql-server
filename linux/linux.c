@@ -339,6 +339,23 @@ toku_dup2(int fd, int fd2) {
     return r;
 }
 
+
+// Time
+static       double seconds_per_clock = -1;
+
+double tokutime_to_seconds(tokutime_t t) {
+    // Convert tokutime to seconds.
+    if (seconds_per_clock<0) {
+	uint64_t hz;
+	int r = toku_os_get_processor_frequency(&hz);
+	assert(r==0);
+	// There's a race condition here, but it doesn't really matter.  If two threads call tokutime_to_seconds
+	// for the first time at the same time, then both will fetch the value and set the same value.
+	seconds_per_clock = 1.0/hz;
+    }
+    return t*seconds_per_clock;
+}
+
 #if __GNUC__ && __i386__
 
 // workaround for a gcc 4.1.2 bug on 32 bit platforms.
@@ -349,5 +366,3 @@ uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
 }
 
 #endif
-
-
