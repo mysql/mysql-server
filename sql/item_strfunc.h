@@ -22,6 +22,16 @@
 
 class Item_str_func :public Item_func
 {
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result() {
+    str_value.set("", 0, collation.collation);
+    return &str_value; 
+  }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
