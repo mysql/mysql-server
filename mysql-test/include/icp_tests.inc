@@ -655,6 +655,27 @@ select 1 from t1 where b <= 1 and a <> '';
 drop table t1;
 
 --echo #
+--echo # Bug #58816 "Extra temporary duplicate rows in result set when 
+--echo #             switching ICP off"
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
+
+EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#58837: ICP crash or valgrind error due to uninitialized 
 --echo #            value in innobase_index_cond
 --echo #

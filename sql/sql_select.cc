@@ -8929,29 +8929,37 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
+      store_key* key= get_store_key(thd,
+				    keyuse,join->const_table_map,
+				    &keyinfo->key_part[i],
+				    key_buff, maybe_null);
+      if (unlikely(!key || thd->is_fatal_error))
+        DBUG_RETURN(TRUE);
+
       if (keyuse->used_tables || thd->lex->describe)
         /* 
           Comparing against a non-constant or executing an EXPLAIN
           query (which refers to this info when printing the 'ref'
           column of the query plan)
         */
-        *ref_key++= get_store_key(thd,
-                                  keyuse,join->const_table_map,
-                                  &keyinfo->key_part[i],
-                                  key_buff, maybe_null);
+        *ref_key++= key;
       else
-      { // Compare against constant
-        store_key_item tmp(thd, keyinfo->key_part[i].field,
-                           key_buff + maybe_null,
-                           maybe_null ?  key_buff : 0,
-                           keyinfo->key_part[i].length, keyuse->val);
-        if (thd->is_fatal_error)
-          DBUG_RETURN(TRUE);
-        /* 
-          The constant is the value to look for with this key. Copy
-          the value to ref->key_buff
-        */
-        tmp.copy(); 
+      {
+        /* key is const, copy value now and possibly skip it while ::exec() */
+        enum store_key::store_key_result result= key->copy();
+
+        /* Depending on 'result' it should be reevaluated in ::exec(), if either:
+         *  1) '::copy()' failed, in case we reevaluate - and refail in 
+         *       JOIN::exec() where the error can be handled.
+         *  2)  Constant evaluated to NULL value which we might need to 
+         *      handle as a special case during JOIN::exec()
+         *      (As in : 'Full scan on NULL key')
+         */
+        if (result!=store_key::STORE_KEY_OK  ||    // 1)
+            key->null_key)                         // 2)
+        {
+	  *ref_key++= key;  // Reevaluate in JOIN::exec() 
+        }
       }
       /*
 	Remember if we are going to use REF_OR_NULL
@@ -9676,7 +9684,7 @@ static bool make_join_select(JOIN *join, Item *cond)
               !first_inner_tab)
           {
             Item *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, 0);
+              make_cond_for_table(tmp, tab->table->map, tab->table->map, 0);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -17841,7 +17849,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
-      if (!table->maybe_null || error > 0)
+      if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -17862,7 +17870,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
-      if (!table->maybe_null || error > 0)
+      if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -19140,7 +19148,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
+	Item_cond_or do not need fix_fields for execution, its parameters
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();
