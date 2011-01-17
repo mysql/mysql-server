@@ -212,6 +212,7 @@ SET(TESTS
   dbug
   mdl
   mdl_mytap
+  my_decimal
   my_regex
   sql_list
   thread_utils
