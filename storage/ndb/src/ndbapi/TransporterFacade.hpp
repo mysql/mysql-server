@@ -37,14 +37,6 @@ class NdbApiSignal;
 class NdbWaiter;
 class trp_client;
 
-enum NS_Event
-{
-  NS_CONNECTED,   // *we* are connected and have nodeId (report as NodeId)
-  NS_NODE_ALIVE,  // *nodeId* is alive (connected and API_REGCONF)
-  NS_NODE_FAILED, // *nodeId* has failed
-  NS_NODE_NF_COMPLETE
-};
-
 extern "C" {
   void* runSendRequest_C(void*);
   void* runReceiveResponse_C(void*);
@@ -75,7 +67,7 @@ public:
    * @blockNo block number to use, -1 => any blockNumber
    * @return BlockNumber or -1 for failure
    */
-  int open_clnt(trp_client*, int blockNo = -1);
+  Uint32 open_clnt(trp_client*, int blockNo = -1);
   int close_clnt(trp_client*);
 
   Uint32 get_active_ndb_objects() const;
@@ -92,6 +84,16 @@ private:
   int sendFragmentedSignal(const NdbApiSignal*, NodeId,
                            const GenericSectionPtr ptr[3], Uint32 secs);
 public:
+
+  /**
+   * These are functions used by ndb_mgmd
+   */
+  void ext_set_max_api_reg_req_interval(Uint32 ms);
+  void ext_update_connections();
+  struct in_addr ext_get_connect_address(Uint32 nodeId);
+  void ext_forceHB();
+  bool ext_isConnected(NodeId aNodeId);
+  void ext_doConnect(int aNodeId);
 
   // Is node available for running transactions
 private:
@@ -201,11 +203,8 @@ private:
   friend class trp_client;
   friend class ClusterMgr;
   friend class ArbitMgr;
-  friend class MgmtSrvr;
-  friend class SignalSender;
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
-  friend class NdbImpl;
 
   bool isConnected(NodeId aNodeId);
   void doStop();

@@ -2779,7 +2779,7 @@ NdbQueryImpl::sendFetchMore(NdbRootFragment& emptyFrag, bool forceSend)
     setErrorCode(Err_NodeFailCausedAbort);
     return -1;
   }
-  impl->forceSend(forceSend);
+  impl->do_forceSend(forceSend);
 
   m_pendingFrags++;
   assert(m_pendingFrags <= getRootFragCount());

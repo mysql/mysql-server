@@ -78,7 +78,6 @@ public:
   int unlock();
 
   Uint32 getOwnRef() const;
-  Uint32 getNoOfConnectedNodes() const;
 
   NodeId find_confirmed_node(const NodeBitmask& mask);
   NodeId find_connected_node(const NodeBitmask& mask);
@@ -109,8 +108,6 @@ public:
   virtual void trp_deliver_signal(const NdbApiSignal* signal,
                                   const struct LinearSectionPtr ptr[3]);
   
-  virtual void trp_node_status(Uint32 nodeId, Uint32 _event);
-
   Vector<SimpleSignal *> m_jobBuffer;
   Vector<SimpleSignal *> m_usedBuffer;
 

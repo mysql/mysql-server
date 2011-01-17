@@ -462,6 +462,7 @@ class ha_ndbcluster: public handler
   int read_range_next();
   int alter_tablespace(st_alter_tablespace *info);
 
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
   /**
    * Multi range stuff
    */
@@ -472,6 +473,7 @@ class ha_ndbcluster: public handler
   bool null_value_index_search(KEY_MULTI_RANGE *ranges,
 			       KEY_MULTI_RANGE *end_range,
 			       HANDLER_BUFFER *buffer);
+#endif
 
   bool get_error_message(int error, String *buf);
   ha_rows records();
@@ -587,7 +589,7 @@ static void set_tabname(const char *pathname, char *tabname);
    =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null". 
    Negated conditions are supported by NOT which generate NAND/NOR groups.
  */ 
-  const COND *cond_push(const COND *cond);
+  const Item *cond_push(const Item *cond);
  /*
    Pop the top condition from the condition stack of the handler instance.
    SYNOPSIS

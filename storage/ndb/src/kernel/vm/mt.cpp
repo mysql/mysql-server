@@ -370,7 +370,7 @@ inline
 void
 lock(struct thr_mutex<SZ>* sl)
 {
-  NdbMutex_Lock(&sl.m_mutex);
+  NdbMutex_Lock(&sl->m_mutex);
 }
 
 template <unsigned SZ>
@@ -379,7 +379,7 @@ inline
 void
 unlock(struct thr_mutex<SZ>* sl)
 {
-  NdbMutex_Unlock(&sl.m_mutex);
+  NdbMutex_Unlock(&sl->m_mutex);
 }
 
 template <unsigned SZ>
@@ -388,7 +388,7 @@ inline
 int
 trylock(struct thr_mutex<SZ> * sl)
 {
-  return NdbMutex_Trylock(&sl.m_mutex);
+  return NdbMutex_Trylock(&sl->m_mutex);
 }
 
 /**

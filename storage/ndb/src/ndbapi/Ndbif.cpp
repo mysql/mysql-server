@@ -32,6 +32,9 @@
 #include <signaldata/ScanFrag.hpp>
 #include <signaldata/ScanTab.hpp>
 #include <signaldata/SumaImpl.hpp>
+#include <signaldata/NodeFailRep.hpp>
+#include <signaldata/NFCompleteRep.hpp>
+#include <signaldata/AllocNodeId.hpp>
 
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
@@ -73,14 +76,21 @@ Ndb::init(int aMaxNoOfTransactions)
   TransporterFacade * theFacade =  theImpl->m_transporter_facade;
   theEventBuffer->m_mutex = theFacade->theMutexPtr;
 
-  const int tBlockNo = theImpl->open(theFacade);
+  const Uint32 tRef = theImpl->open(theFacade);
 
-  if ( tBlockNo == -1 ) {
+  if (tRef == 0)
+  {
     theError.code = 4105;
     DBUG_RETURN(-1); // no more free blocknumbers
   }//if
   
-  theNdbBlockNumber = tBlockNo;
+  Uint32 nodeId = refToNode(tRef);
+  theNdbBlockNumber = refToBlock(tRef);
+
+  if (nodeId > 0)
+  {
+    connected(Uint32(tRef));
+  }
 
   /* Init cached min node version */
   theFacade->lock_mutex();
@@ -133,6 +143,7 @@ Ndb::init(int aMaxNoOfTransactions)
   for (i = 0; i < 16; i++)
     releaseSignal(tSignal[i]);
   theInitState = Initialised; 
+
   DBUG_RETURN(0);
   
 error_handler:
@@ -192,44 +203,6 @@ void Ndb::connected(Uint32 ref)
 
   theDictionary->m_receiver.m_reference= theMyRef;
   theNode= tmpTheNode; // flag that Ndb object is initialized
-}
-
-void Ndb::report_node_connected(Uint32 nodeId)
-{
-  if (theEventBuffer)
-  {
-    // node connected
-    // eventOperations in the ndb object should be notified
-    theEventBuffer->report_node_connected(nodeId);
-  }
-}
-
-void
-NdbImpl::trp_node_status(Uint32 a_node, Uint32 _event)
-{
-  DBUG_ENTER("Ndb::statusMessage");
-  NS_Event event = (NS_Event)_event;
-  DBUG_PRINT("info", ("a_node: %u  event: %u",
-                      a_node, _event));
-  Ndb* tNdb = (Ndb*)&m_ndb;
-  switch(event){
-  case NS_CONNECTED:
-    // cluster connect, a_node == own reference
-    tNdb->connected(a_node);
-    break;
-  case NS_NODE_ALIVE:
-    tNdb->report_node_connected(a_node);
-    break;
-  case NS_NODE_FAILED:
-    tNdb->report_node_failure(a_node);
-    break;
-  case NS_NODE_NF_COMPLETE:
-    tNdb->report_node_failure_completed(a_node);
-    break;
-  }//if
-  NdbDictInterface::execNodeStatus(&tNdb->theDictionary->m_receiver,
-				   a_node, event);
-  DBUG_VOID_RETURN;
 }
 
 void
@@ -934,12 +907,41 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
     goto InvalidSignal;
     return;
   } 
-  case GSN_API_REGCONF:{
+  case GSN_API_REGCONF:
+  case GSN_CONNECT_REP:
     return; // Ignore
+  case GSN_NODE_FAILREP:
+  {
+    const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
+                                           aSignal->getDataPtr());
+    for (Uint32 i = NdbNodeBitmask::find_first(rep->theNodes);
+         i != NdbNodeBitmask::NotFound;
+         i = NdbNodeBitmask::find_next(rep->theNodes, i + 1))
+    {
+      report_node_failure(i);
+    }
+
+    NdbDictInterface::execSignal(&theDictionary->m_receiver, aSignal, ptr);
+    break;
+  }
+  case GSN_NF_COMPLETEREP:
+  {
+    const NFCompleteRep *rep = CAST_CONSTPTR(NFCompleteRep,
+                                             aSignal->getDataPtr());
+    report_node_failure_completed(rep->failedNodeId);
+    break;
   }
   case GSN_TAKE_OVERTCCONF:
     abortTransactionsAfterNodeFailure(tFirstData); // theData[0]
     break;
+  case GSN_ALLOC_NODEID_CONF:
+  {
+    const AllocNodeIdConf *rep = CAST_CONSTPTR(AllocNodeIdConf,
+                                               aSignal->getDataPtr());
+    Uint32 nodeId = rep->nodeId;
+    connected(numberToRef(theNdbBlockNumber, nodeId));
+    break;
+  }
   default:
     tFirstDataPtr = NULL;
     goto InvalidSignal;
@@ -1246,7 +1248,7 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  theImpl->forceSend(forceSend);
+  theImpl->do_forceSend(forceSend);
   return;
 }//Ndb::sendPrepTrans()
 

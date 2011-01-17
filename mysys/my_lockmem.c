@@ -22,7 +22,8 @@
 #include "mysys_err.h"
 #include <my_list.h>
 
-#if defined(HAVE_MLOCK) && 0
+#ifdef MCP_BUG54662
+#ifdef HAVE_MLOCK
 #include <sys/mman.h>
 
 struct st_mem_list
@@ -100,3 +101,4 @@ void my_free_lock(uchar *ptr,myf Myflags __attribute__((unused)))
 }
 
 #endif /* HAVE_MLOCK */
+#endif

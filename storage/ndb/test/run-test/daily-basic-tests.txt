@@ -271,6 +271,14 @@ max-time: 500
 cmd: testBasic
 args: -n Bug54944 T1
 
+max-time: 600
+cmd: testBasic
+args: -r 10 -n Bug59496_case1 T2
+
+max-time: 600
+cmd: testBasic
+args: -r 10 -n Bug59496_case2 T2
+
 #
 # INDEX
 #
