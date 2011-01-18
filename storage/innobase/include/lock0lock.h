@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -615,12 +615,14 @@ lock_print_info_all_transactions(
 /*********************************************************************//**
 Return approximate number or record locks (bits set in the bitmap) for
 this transaction. Since delete-marked records may be removed, the
-record count will not be precise. */
+record count will not be precise.
+The caller must be holding lock_sys->mutex. */
 UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	trx_t*		trx);	/*!< in: transaction */
+	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */

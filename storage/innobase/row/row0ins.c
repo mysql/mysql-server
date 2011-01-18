@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -610,6 +610,41 @@ row_ins_set_detailed(
 }
 
 /*********************************************************************//**
+Acquires dict_foreign_err_mutex, rewinds dict_foreign_err_file
+and displays information about the given transaction.
+The caller must release dict_foreign_err_mutex. */
+static
+void
+row_ins_foreign_trx_print(
+/*======================*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	ulint	n_lock_rec;
+	ulint	n_lock_struct;
+	ulint	heap_size;
+
+	lock_mutex_enter();
+	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
+	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	heap_size = mem_heap_get_size(trx->lock.lock_heap);
+	lock_mutex_exit();
+
+	rw_lock_s_lock(&trx_sys->lock);
+
+	mutex_enter(&dict_foreign_err_mutex);
+	rewind(dict_foreign_err_file);
+	ut_print_timestamp(dict_foreign_err_file);
+	fputs(" Transaction:\n", dict_foreign_err_file);
+
+	trx_print_low(dict_foreign_err_file, trx, 600,
+		      n_lock_rec, n_lock_struct, heap_size);
+
+	rw_lock_s_unlock(&trx_sys->lock);
+
+	ut_ad(mutex_own(&dict_foreign_err_mutex));
+}
+
+/*********************************************************************//**
 Reports a foreign key error associated with an update or a delete of a
 parent table index entry. */
 static
@@ -631,16 +666,7 @@ row_ins_foreign_report_err(
 
 	row_ins_set_detailed(trx, foreign);
 
-	rw_lock_s_lock(&trx_sys->lock);
-
-	mutex_enter(&dict_foreign_err_mutex);
-	rewind(ef);
-	ut_print_timestamp(ef);
-	fputs(" Transaction:\n", ef);
-
-	trx_print(ef, trx, 600);
-
-	rw_lock_s_unlock(&trx_sys->lock);
+	row_ins_foreign_trx_print(trx);
 
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -690,16 +716,7 @@ row_ins_foreign_report_add_err(
 
 	row_ins_set_detailed(trx, foreign);
 
-	rw_lock_s_lock(&trx_sys->lock);
-
-	mutex_enter(&dict_foreign_err_mutex);
-	rewind(ef);
-	ut_print_timestamp(ef);
-	fputs(" Transaction:\n", ef);
-
-	trx_print(ef, trx, 600);
-
-	rw_lock_s_unlock(&trx_sys->lock);
+	row_ins_foreign_trx_print(trx);
 
 	fputs("Foreign key constraint fails for table ", ef);
 	ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
@@ -1285,16 +1302,7 @@ run_again:
 
 			row_ins_set_detailed(trx, foreign);
 
-			rw_lock_s_lock(&trx_sys->lock);
-
-			mutex_enter(&dict_foreign_err_mutex);
-			rewind(ef);
-			ut_print_timestamp(ef);
-			fputs(" Transaction:\n", ef);
-
-			trx_print(ef, trx, 600);
-
-			rw_lock_s_unlock(&trx_sys->lock);
+			row_ins_foreign_trx_print(trx);
 
 			fputs("Foreign key constraint fails for table ", ef);
 			ut_print_name(ef, trx, TRUE,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3041,10 +3041,7 @@ row_sel_get_clust_rec_for_mysql(
 			      "InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
-			rw_lock_s_lock(&trx_sys->lock);
 			trx_print(stderr, trx, 600);
-			rw_lock_s_unlock(&trx_sys->lock);
-
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
@@ -3598,9 +3595,7 @@ row_search_for_mysql(
 		      "InnoDB: but it has not locked"
 		      " any tables in ::external_lock()!\n",
 		      stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		rw_lock_s_unlock(&trx_sys->lock);
 		fputc('\n', stderr);
 	}
 #endif

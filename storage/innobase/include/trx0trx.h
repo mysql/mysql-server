@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -230,16 +230,53 @@ trx_commit_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 
 /**********************************************************************//**
-Prints info about a transaction to the given file. The caller must not own
-the transaction mutex. */
+Prints info about a transaction.
+Caller must hold trx_sys->lock. */
+UNIV_INTERN
+void
+trx_print_low(
+/*==========*/
+	FILE*		f,
+			/*!< in: output stream */
+	const trx_t*	trx,
+			/*!< in: transaction */
+	ulint		max_query_len,
+			/*!< in: max query length to print,
+			or 0 to use the default max length */
+	ulint		n_lock_rec,
+			/*!< in: lock_number_of_rows_locked(&trx->lock) */
+	ulint		n_lock_struct,
+			/*!< in: length of trx->lock.trx_locks */
+	ulint		heap_size)
+			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
+	__attribute__((nonnull));
+
+/**********************************************************************//**
+Prints info about a transaction.
+The caller must hold lock_sys->mutex and trx_sys->lock.
+When possible, use trx_print() instead. */
+UNIV_INTERN
+void
+trx_print_latched(
+/*==============*/
+	FILE*		f,		/*!< in: output stream */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		max_query_len)	/*!< in: max query length to print,
+					or 0 to use the default max length */
+	__attribute__((nonnull));
+
+/**********************************************************************//**
+Prints info about a transaction.
+Acquires and releases lock_sys->mutex and trx_sys->lock. */
 UNIV_INTERN
 void
 trx_print(
 /*======*/
-	FILE*	f,		/*!< in: output stream */
-	trx_t*	trx,		/*!< in: transaction */
-	ulint	max_query_len);	/*!< in: max query length to print, or 0 to
-				   use the default max length */
+	FILE*		f,		/*!< in: output stream */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		max_query_len)	/*!< in: max query length to print,
+					or 0 to use the default max length */
+	__attribute__((nonnull));
 
 /** Type of data dictionary operation */
 typedef enum trx_dict_op {
@@ -340,8 +377,6 @@ from innodb_lock_wait_timeout via trx_t::mysql_thd.
 	((trx)->mysql_thd != NULL					\
 	 ? thd_lock_wait_timeout((trx)->mysql_thd)			\
 	 : 0)
-
-typedef struct trx_lock_struct trx_lock_t;
 
 /*******************************************************************//**
 Latching protocol for trx_lock_t::que_state.  trx_lock_t::que_state

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -462,7 +462,7 @@ fill_trx_row(
 /*=========*/
 	i_s_trx_row_t*		row,		/*!< out: result object
 						that's filled */
-	trx_t*			trx,		/*!< in: transaction to
+	const trx_t*		trx,		/*!< in: transaction to
 						get data from */
 	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
 						corresponding row in
@@ -555,15 +555,15 @@ thd_done:
 
 	row->trx_tables_locked = trx->mysql_n_tables_locked;
 
-	trx_mutex_enter(trx);
+	/* These are protected by both trx->mutex or lock_sys->mutex,
+	or just lock_sys->mutex. For reading, it suffices to hold
+	lock_sys->mutex. */
 
 	row->trx_lock_structs = UT_LIST_GET_LEN(trx->lock.trx_locks);
 
 	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock.lock_heap);
 
-	row->trx_rows_locked = lock_number_of_rows_locked(trx);
-
-	trx_mutex_exit(trx);
+	row->trx_rows_locked = lock_number_of_rows_locked(&trx->lock);
 
 	row->trx_rows_modified = trx->undo_no;
 
@@ -1277,7 +1277,7 @@ fetch_data_into_cache(
 /*==================*/
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
-	trx_t*			trx;
+	const trx_t*		trx;
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	requested_lock_row;
 

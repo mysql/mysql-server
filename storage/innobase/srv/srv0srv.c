@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1049,16 +1049,14 @@ srv_conc_enter_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
-	if (trx->declared_to_be_inside_innodb) {
+	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
+		os_fast_mutex_unlock(&srv_conc_mutex);
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: trying to declare trx"
 		      " to enter InnoDB, but\n"
 		      "InnoDB: it already is declared.\n", stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
-		rw_lock_s_unlock(&trx_sys->lock);
 		putc('\n', stderr);
-		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
 	}

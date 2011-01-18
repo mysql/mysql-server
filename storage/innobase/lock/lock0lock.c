@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1601,19 +1601,20 @@ lock_sec_rec_some_has_impl(
 /*********************************************************************//**
 Return approximate number or record locks (bits set in the bitmap) for
 this transaction. Since delete-marked records may be removed, the
-record count will not be precise. */
+record count will not be precise.
+The caller must be holding lock_sys->mutex. */
 UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	trx_t*		trx)	/*!< in: transaction */
+	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
 {
-	lock_t*	lock;
-	ulint   n_records = 0;
+	const lock_t*	lock;
+	ulint		n_records = 0;
 
-	ut_ad(trx_mutex_own(trx));
+	ut_ad(lock_mutex_own());
 
-	for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+	for (lock = UT_LIST_GET_FIRST(trx_lock->trx_locks);
 	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 
@@ -1629,7 +1630,7 @@ lock_number_of_rows_locked(
 		}
 	}
 
-	return (n_records);
+	return(n_records);
 }
 
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
@@ -3366,11 +3367,27 @@ lock_deadlock_trx_print(
 	ulint	max_query_len)	/*!< in: max query length to print, or 0 to
 				use the default max length */
 {
-	trx_print(lock_latest_err_file, trx, max_query_len);
+	ulint	n_lock_rec;
+	ulint	n_lock_struct;
+	ulint	heap_size;
+
+	ut_ad(lock_mutex_own());
+
+	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
+	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	heap_size = mem_heap_get_size(trx->lock.lock_heap);
+
+	rw_lock_s_lock(&trx_sys->lock);
+
+	trx_print_low(lock_latest_err_file, trx, max_query_len,
+		      n_lock_rec, n_lock_struct, heap_size);
 
 	if (srv_print_all_deadlocks) {
-		trx_print(stderr, trx, max_query_len);
+		trx_print_low(stderr, trx, max_query_len,
+			      n_lock_rec, n_lock_struct, heap_size);
 	}
+
+	rw_lock_s_unlock(&trx_sys->lock);
 }
 
 /*********************************************************************//**
@@ -3462,9 +3479,7 @@ retry:
 		/* To obey the latching order */
 		trx_mutex_exit(trx);
 
-		rw_lock_s_lock(&trx_sys->lock);
 		lock_deadlock_trx_print(trx, 3000);
-		rw_lock_s_unlock(&trx_sys->lock);
 
 		trx_mutex_enter(trx);
 
@@ -3589,9 +3604,7 @@ lock_deadlock_recursive(
 
 				lock_deadlock_fputs("\n*** (1) TRANSACTION:\n");
 
-				rw_lock_s_lock(&trx_sys->lock);
 				lock_deadlock_trx_print(wait_lock->trx, 3000);
-				rw_lock_s_unlock(&trx_sys->lock);
 
 				lock_deadlock_fputs(
 					"*** (1) WAITING FOR THIS LOCK"
@@ -3601,9 +3614,7 @@ lock_deadlock_recursive(
 
 				lock_deadlock_fputs("*** (2) TRANSACTION:\n");
 
-				rw_lock_s_lock(&trx_sys->lock);
 				lock_deadlock_trx_print(lock->trx, 3000);
-				rw_lock_s_unlock(&trx_sys->lock);
 
 				lock_deadlock_fputs(
 					"*** (2) HOLDS THE LOCK(S):\n");
@@ -4663,7 +4674,7 @@ lock_print_info_all_transactions(
 		the transaction. This should be OK. */
 		if (trx->state == TRX_STATE_NOT_STARTED) {
 			fputs("---", file);
-			trx_print(file, trx, 600);
+			trx_print_latched(file, trx, 600);
 		}
 	}
 
@@ -4697,7 +4708,7 @@ loop:
 	if (nth_lock == 0) {
 		fputs("---", file);
 
-		trx_print(file, trx, 600);
+		trx_print_latched(file, trx, 600);
 
 		if (trx->read_view) {
 			fprintf(file,

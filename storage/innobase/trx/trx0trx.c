@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -207,14 +207,12 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	if (trx->declared_to_be_inside_innodb) {
+	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: Freeing a trx which is declared"
 		      " to be processing\n"
 		      "InnoDB: inside InnoDB.\n", stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		rw_lock_s_unlock(&trx_sys->lock);
 		putc('\n', stderr);
 
 		/* This is an error but not a fatal error. We must keep
@@ -222,8 +220,8 @@ trx_free(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-	if (trx->n_mysql_tables_in_use != 0
-	    || trx->mysql_n_tables_locked != 0) {
+	if (UNIV_UNLIKELY(trx->n_mysql_tables_in_use != 0
+			  || trx->mysql_n_tables_locked != 0)) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -232,11 +230,7 @@ trx_free(
 			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
 			(ulong)trx->n_mysql_tables_in_use,
 			(ulong)trx->mysql_n_tables_locked);
-
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		rw_lock_s_unlock(&trx_sys->lock);
-
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
 	}
@@ -1109,54 +1103,69 @@ trx_mark_sql_stat_end(
 }
 
 /**********************************************************************//**
-Prints info about a transaction to the given file. Caller must not own
-the transaction mutex. */
+Prints info about a transaction.
+Caller must hold trx_sys->lock. */
 UNIV_INTERN
 void
-trx_print(
-/*======*/
-	FILE*	f,		/*!< in: output stream */
-	trx_t*	trx,		/*!< in: transaction */
-	ulint	max_query_len)	/*!< in: max query length to print, or 0 to
-				   use the default max length */
+trx_print_low(
+/*==========*/
+	FILE*		f,
+			/*!< in: output stream */
+	const trx_t*	trx,
+			/*!< in: transaction */
+	ulint		max_query_len,
+			/*!< in: max query length to print,
+			or 0 to use the default max length */
+	ulint		n_lock_rec,
+			/*!< in: lock_number_of_rows_locked(&trx->lock) */
+	ulint		n_lock_struct,
+			/*!< in: length of trx->lock.trx_locks */
+	ulint		heap_size)
+			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
 {
-	ibool	newline;
-	ulint	n_row_locks;
-	ulint	n_trx_locks;
+	ibool		newline;
+	const char*	op_info;
 
-	ut_ad(!trx_mutex_own(trx));
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
 
+	/* trx->state cannot change from or to NOT_STARTED while we
+	are holding the trx_sys->lock. It may change from ACTIVE to
+	PREPARED or COMMITTED. */
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
 		fputs(", not started", f);
-		break;
+		goto state_ok;
 	case TRX_STATE_ACTIVE:
 		fprintf(f, ", ACTIVE %lu sec",
 			(ulong)difftime(time(NULL), trx->start_time));
-		break;
+		goto state_ok;
 	case TRX_STATE_PREPARED:
 		fprintf(f, ", ACTIVE (PREPARED) %lu sec",
 			(ulong)difftime(time(NULL), trx->start_time));
-		break;
+		goto state_ok;
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		fputs(", COMMITTED IN MEMORY", f);
-		break;
-	default:
-		fprintf(f, " state %lu", (ulong) trx->state);
+		goto state_ok;
 	}
-
+	fprintf(f, ", state %lu", (ulong) trx->state);
+	ut_ad(0);
+state_ok:
 #ifdef UNIV_LINUX
 	fprintf(f, ", process no %lu", trx->mysql_process_no);
 #endif
 	fprintf(f, ", OS thread id %lu",
 		(ulong) os_thread_pf(trx->mysql_thread_id));
 
-	if (*trx->op_info) {
+	/* prevent a race condition */
+	op_info = trx->op_info;
+
+	if (*op_info) {
 		putc(' ', f);
-		fputs(trx->op_info, f);
+		fputs(op_info, f);
 	}
 
 	if (trx->is_recovered) {
@@ -1182,6 +1191,10 @@ trx_print(
 
 	newline = TRUE;
 
+	/* trx->lock.que_state of an ACTIVE transaction may change
+	while we are not holding trx->mutex. We perform a dirty read
+	for performance reasons. */
+
 	switch (trx->lock.que_state) {
 	case TRX_QUE_RUNNING:
 		newline = FALSE; break;
@@ -1195,27 +1208,14 @@ trx_print(
 		fprintf(f, "que state %lu ", (ulong) trx->lock.que_state);
 	}
 
-	trx_mutex_enter(trx);
-
-	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
-
-	if (n_trx_locks != 0
-	    || mem_heap_get_size(trx->lock.lock_heap) > 400) {
+	if (n_lock_struct > 0 || heap_size > 400) {
 		newline = TRUE;
 
-		n_row_locks = lock_number_of_rows_locked(trx);
-	} else {
-		n_row_locks = ULINT_UNDEFINED;
-	}
-
-	trx_mutex_exit(trx);
-
-	if (n_row_locks != ULINT_UNDEFINED) {
 		fprintf(f, "%lu lock struct(s), heap size %lu,"
 			" %lu row lock(s)",
-			(ulong) n_trx_locks,
-			(ulong) mem_heap_get_size(trx->lock.lock_heap),
-			(ulong) n_row_locks);
+			(ulong) n_lock_struct,
+			(ulong) heap_size,
+			(ulong) n_lock_rec);
 	}
 
 	if (trx->has_search_latch) {
@@ -1236,6 +1236,58 @@ trx_print(
 	if (trx->mysql_thd != NULL) {
 		innobase_mysql_print_thd(f, trx->mysql_thd, max_query_len);
 	}
+}
+
+/**********************************************************************//**
+Prints info about a transaction.
+The caller must hold lock_sys->mutex and trx_sys->lock.
+When possible, use trx_print() instead. */
+UNIV_INTERN
+void
+trx_print_latched(
+/*==============*/
+	FILE*		f,		/*!< in: output stream */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		max_query_len)	/*!< in: max query length to print,
+					or 0 to use the default max length */
+{
+	ut_ad(lock_mutex_own());
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	trx_print_low(f, trx, max_query_len,
+		      lock_number_of_rows_locked(&trx->lock),
+		      UT_LIST_GET_LEN(trx->lock.trx_locks),
+		      mem_heap_get_size(trx->lock.lock_heap));
+}
+
+/**********************************************************************//**
+Prints info about a transaction.
+Acquires and releases lock_sys->mutex and trx_sys->lock. */
+UNIV_INTERN
+void
+trx_print(
+/*======*/
+	FILE*		f,		/*!< in: output stream */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		max_query_len)	/*!< in: max query length to print,
+					or 0 to use the default max length */
+{
+	ulint	n_lock_rec;
+	ulint	n_lock_struct;
+	ulint	heap_size;
+
+	lock_mutex_enter();
+	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
+	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	heap_size = mem_heap_get_size(trx->lock.lock_heap);
+	lock_mutex_exit();
+
+	rw_lock_s_lock(&trx_sys->lock);
+	trx_print_low(f, trx, max_query_len,
+		      n_lock_rec, n_lock_struct, heap_size);
+	rw_lock_s_unlock(&trx_sys->lock);
 }
 
 /*******************************************************************//**
