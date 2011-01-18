@@ -624,21 +624,6 @@ lock_number_of_rows_locked(
 /*=======================*/
 	const trx_lock_t*	trx_lock)	/*!< in: transaction locks */
 	__attribute__((nonnull, warn_unused_result));
-/*******************************************************************//**
-Check if a transaction holds any autoinc locks.
-@return TRUE if the transaction holds any AUTOINC locks. */
-UNIV_INTERN
-ibool
-lock_trx_holds_autoinc_locks(
-/*=========================*/
-	const trx_t*	trx);		/*!< in: transaction */
-/*******************************************************************//**
-Release all the transaction's autoinc locks. */
-UNIV_INTERN
-void
-lock_release_autoinc_locks(
-/*=======================*/
-	trx_t*		trx);		/*!< in/out: transaction */
 
 /*******************************************************************//**
 Gets the type of a lock. Non-inline version for using outside of the

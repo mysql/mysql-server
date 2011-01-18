@@ -5814,7 +5814,7 @@ lock_release_autoinc_last_lock(
 /*******************************************************************//**
 Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */
-UNIV_INTERN
+static
 ibool
 lock_trx_holds_autoinc_locks(
 /*=========================*/
@@ -5827,7 +5827,7 @@ lock_trx_holds_autoinc_locks(
 
 /*******************************************************************//**
 Release all the transaction's autoinc locks. */
-UNIV_INTERN
+static
 void
 lock_release_autoinc_locks(
 /*=======================*/
