@@ -454,6 +454,31 @@ trx_sys_get_new_trx_id(void)
 }
 
 /*****************************************************************//**
+Determines the maximum transaction id.
+@return maximum currently allocated trx id; will be stale after the
+next call to trx_sys_get_new_trx_id() */
+UNIV_INLINE
+trx_id_t
+trx_sys_get_max_trx_id(void)
+/*========================*/
+{
+#if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
+	trx_id_t	max_trx_id;
+	/* Avoid torn reads. */
+	rw_lock_s_lock(&trx_sys->lock);
+	max_trx_id = trx_sys->max_trx_id;
+	rw_lock_s_unlock(&trx_sys->lock);
+	return(max_trx_id);
+#else
+	ut_ad(!rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+	/* Perform a dirty read. Callers should be prepared for stale
+	values, and we know that the value fits in a machine word, so
+	that it will be read and written atomically. */
+	return(trx_sys->max_trx_id);
+#endif
+}
+
+/*****************************************************************//**
 Get the number of transaction in the system, independent of their state.
 @return count of transactions in trx_sys_t::trx_list */
 UNIV_INLINE

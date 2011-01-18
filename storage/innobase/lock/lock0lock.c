@@ -4171,13 +4171,16 @@ static
 void
 lock_release(
 /*=========*/
-	trx_t*	trx)	/*!< in: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	lock_t*		lock;
-	dict_table_t*	table;
 	ulint		count = 0;
+	trx_id_t	max_trx_id;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(!trx_mutex_own(trx));
+
+	max_trx_id = trx_sys_get_max_trx_id();
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
@@ -4196,11 +4199,8 @@ lock_release(
 				block the use of the MySQL query cache for
 				all currently active transactions. */
 
-				table = lock->un_member.tab_lock.table;
-
-				table->query_cache_inv_trx_id
-					= trx_sys->max_trx_id;
-
+				lock->un_member.tab_lock.table
+					->query_cache_inv_trx_id = max_trx_id;
 			}
 
 			lock_table_dequeue(lock);
@@ -4619,7 +4619,7 @@ lock_print_info_summary(
 	      "------------\n", file);
 
 	fprintf(file, "Trx id counter " TRX_ID_FMT "\n",
-		(ullint) trx_sys->max_trx_id);
+		(ullint) trx_sys_get_max_trx_id());
 
 	fprintf(file,
 		"Purge done for trx's n:o < " TRX_ID_FMT
