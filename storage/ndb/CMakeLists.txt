@@ -99,6 +99,7 @@ ENDIF(WITHOUT_PARTITION_STORAGE_ENGINE)
 SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbcluster.cc
   ../../sql/ha_ndbcluster_cond.cc
+  ../../sql/ha_ndbcluster_push.cc
   ../../sql/ha_ndbcluster_connection.cc
   ../../sql/ha_ndbcluster_binlog.cc
   ../../sql/ha_ndbinfo.cc)
