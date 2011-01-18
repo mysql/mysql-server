@@ -59,6 +59,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
 			sql_profile.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
+			ha_ndbcluster_push.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_ndbcluster_connection.h ha_ndbcluster_connection.h \
 			ha_ndbcluster_lock_ext.h ha_ndbinfo.h \
@@ -138,6 +139,7 @@ libndb_la_SOURCES=	ha_ndbcluster.cc \
 			ha_ndbcluster_binlog.cc \
 			ha_ndbcluster_connection.cc \
 			ha_ndbcluster_cond.cc \
+			ha_ndbcluster_push.cc \
 			ha_ndbinfo.cc
 
 gen_lex_hash_SOURCES =	gen_lex_hash.cc

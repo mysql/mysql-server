@@ -599,7 +599,7 @@ static void set_tabname(const char *pathname, char *tabname);
   void cond_pop();
 
   int make_pushed_join(class ndb_pushed_builder_ctx& context,
-                       const AQP::Table_access* const join_root);
+		       const AQP::Table_access* join_root);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 
@@ -973,6 +973,13 @@ int ndbcluster_find_files(THD *thd,const char *db,const char *path,
 int ndbcluster_table_exists_in_engine(THD* thd,
                                       const char *db, const char *name);
 void ndbcluster_print_error(int error, const NdbOperation *error_op);
+
+/**
+ * Calling THDVAR(thd, join_pushdown) from another source file would not work,
+ * since MYSQL_THDVAR_BOOL is static to ha_ndbcluster.cc and cannot be made
+ * extern in any clean way.
+ */
+bool ndbcluster_join_pushdown_enabled(THD* thd);
 
 static const char ndbcluster_hton_name[]= "ndbcluster";
 static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
