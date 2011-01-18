@@ -250,7 +250,7 @@ public:
     Retrieve the current configuration in base64 packed format
    */
   bool get_packed_config(ndb_mgm_node_type nodetype,
-                         BaseString& buf64, BaseString& error);
+                         BaseString * buf64, BaseString& error);
 
   static Config* load_config(const char* config_filename, bool mycnf,
                              BaseString& msg);
