@@ -485,9 +485,9 @@ void TransporterFacade::threadMainReceive(void)
 #endif
   while(!theStopReceive)
   {
-    NdbMutex_Lock(theMutexPtr);
+    theClusterMgr->lock();
     theTransporterRegistry->update_connections();
-    NdbMutex_Unlock(theMutexPtr);
+    theClusterMgr->unlock();
     NdbSleep_MilliSleep(100);
   }//while
   theTransporterRegistry->stopReceiving();
@@ -1978,7 +1978,9 @@ TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
 void
 TransporterFacade::ext_update_connections()
 {
-  theClusterMgr->force_update_connections();
+  theClusterMgr->lock();
+  theTransporterRegistry->update_connections();
+  theClusterMgr->unlock();
 }
 
 struct in_addr
@@ -1996,14 +1998,19 @@ TransporterFacade::ext_forceHB()
 bool
 TransporterFacade::ext_isConnected(NodeId aNodeId)
 {
-  return theTransporterRegistry->is_connected(aNodeId);
+  bool val;
+  theClusterMgr->lock();
+  val = theClusterMgr->theNodes[aNodeId].is_connected();
+  theClusterMgr->unlock();
+  return val;
 }
 
 void
 TransporterFacade::ext_doConnect(int aNodeId)
 {
-  lock_mutex();
+  theClusterMgr->lock();
+  assert(theClusterMgr->theNodes[aNodeId].is_connected() == false);
   doConnect(aNodeId);
-  unlock_mutex();
+  theClusterMgr->unlock();
 }
 

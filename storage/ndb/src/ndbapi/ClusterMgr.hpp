@@ -56,7 +56,9 @@ public:
   void set_max_api_reg_req_interval(unsigned int millisec) {
     m_max_api_reg_req_interval = millisec;
   }
-  void force_update_connections();
+
+  void lock() { NdbMutex_Lock(clusterMgrThreadMutex); trp_client::lock(); }
+  void unlock() { trp_client::unlock();NdbMutex_Unlock(clusterMgrThreadMutex); }
 
 private:
   void threadMain();
