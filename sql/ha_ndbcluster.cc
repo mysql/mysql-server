@@ -554,11 +554,6 @@ public:
   const AQP::Table_access* get_referred_table_access(
                   const ndb_table_access_map& used_tables) const;
 
-  void add_parent_candidate(
-                  const ndb_table_access_map& table,
-                  const ndb_table_access_map& old_parents,
-                  ndb_table_access_map& parents) const;
-
   bool is_pushable_as_parent(
                   const AQP::Table_access* table);
 
@@ -832,49 +827,6 @@ ndb_pushed_builder_ctx::get_referred_table_access(const ndb_table_access_map& fi
 } // ndb_pushed_builder_ctx::get_referred_table_access
 
 /**
- *  add_parent_candidate()
- *
- *  We have located a ref. to a parent table within our pushed join scope.
- *  Due to the possible equality set replacement which may take place, we may
- *  have multiple parent candidates for a single key_item in the join condition.
- *  
- *  Update our set of 'parents' references such that it only contain parent
- *  tables which are/may be directly refered by all key_items in the join condition
- *    or:
- *  the table refered by the join conditin should be reachable as a grand parent
- *  of the table(s) in the parents list.
- *
- *  - table: bitmap of table being added as parent candidate.
- *  - old_parents: Set of parents calculated for all the previous key_items.
- *  - parents: Set of parent candidates currently being calculated for this key_item.
- */
-void
-ndb_pushed_builder_ctx::add_parent_candidate(const ndb_table_access_map& table,
-                                             const ndb_table_access_map& old_parents,
-                                             ndb_table_access_map& parents) const
-
-{
-  DBUG_ASSERT(m_join_scope.contain(table));
-  if (!parents.contain(table)) // referred_table not already parent
-  {
-    if (old_parents.is_clear_all()  ||  // Initial assignment
-        old_parents.contain(table))     // Parent is common
-    {
-      parents.add(table);
-    }
-    else
-    {
-      const AQP::Table_access* const referred_table= get_referred_table_access(table);
-      ndb_table_access_map grandparents= m_tables[referred_table->get_access_no()].m_ancestors;
-      if (grandparents.is_overlapping(old_parents)) // Parent is real parent
-      {
-        parents.add(table);
-      }
-    }
-  }
-} // ndb_pushed_builder_ctx::add_parent_candidate
-
-/**
  * Set up the 'm_maybe_pushable' property of each table from the 'Abstract Query Plan' associated
  * with this ndb_pushed_builder_ctx. A table may be possibly pushable as both:
  * PUSHABLE_AS_CHILD and/or PUSHABLE_AS_PARENT.
@@ -968,16 +920,16 @@ ndb_pushed_builder_ctx::is_pushable_as_parent(const AQP::Table_access* table)
  * @param[in] table The table access operation to which the key item belongs.
  * @param[in] key_item The key_item to examine
  * @param[in] key_part_info Metatdata about the key item.
- * @param[in,out] parents In: The set of possible parents for all preceding key 
- *    items (or the empty set for the first key item). Out: The set of possible 
- *    parents for 'key_item' and all preceding key items.
- * @return True if at least one possible parent was found.
+ * @param[out] field_parents The set of possible parents for 'key_item' 
+ * ('join_root' if keys are constant).
+ * @return True if at least one possible parent was found. (False means that 
+ * operation cannot be pushed).
  */
 bool ndb_pushed_builder_ctx
 ::find_field_parents(const AQP::Table_access* table,
                      const Item* key_item, 
                      const KEY_PART_INFO* key_part_info,
-                     ndb_table_access_map& parents)
+                     ndb_table_access_map& field_parents)
 {
   DBUG_ENTER("find_field_parents()");
   const uint tab_no = table->get_access_no();
@@ -986,6 +938,7 @@ bool ndb_pushed_builder_ctx
   // mysql parameters in addition to contant values/expressions
   if (key_item->const_item())  // ...->const_during_execution() ?
   {
+    field_parents= ndb_table_access_map(join_root());
     DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
     DBUG_RETURN(true);
   }
@@ -1033,18 +986,12 @@ bool ndb_pushed_builder_ctx
    *      pushed scope.
    *  2)  By using the equality set, we may find alternative parent references which
    *      may make this a pushed join.
-   *  3)  In the steps above we may have found parent references which was 
-   *      temp. rejected as they were not in the set of common parents (old_parents).
-   *      Take a second look at rejected 'old_parents' and add any of these which refer
-   *      a parent as a grandparent.
    */
 
   ///////////////////////////////////////////////////////////////////
   // 0) Prepare for calculating parent candidates for this FIELD_ITEM
   //
-  ndb_table_access_map field_possible_parents;
-  ndb_table_access_map old_parents(parents);
-  parents.clear_all();
+  field_parents.clear_all();
 
   ////////////////////////////////////////////////////////////////////
   // 1) Add our existing parent reference to the set of parent candidates
@@ -1053,8 +1000,7 @@ bool ndb_pushed_builder_ctx
 
   if (m_join_scope.contain(parent_map))
   {
-    field_possible_parents.add(parent_map);
-    add_parent_candidate (parent_map, old_parents, parents);
+    field_parents.add(parent_map);
   }
 
   //////////////////////////////////////////////////////////////////
@@ -1078,50 +1024,22 @@ bool ndb_pushed_builder_ctx
                     get_referred_table_access_name(substitute_field),
                     get_referred_field_name(substitute_field)));
 
-        field_possible_parents.add(substitute_table);
-        add_parent_candidate (substitute_table, old_parents, parents);
+        field_parents.add(substitute_table);
       }
     }
     substitute_field= equal_iter.next();
   } // while(substitute_field != NULL)
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // 3) Handle possible rejected 'old_parents' which refer any possible_parents as
-  //    a grandparent
-  if (!field_possible_parents.is_clear_all())
+  if (!field_parents.is_clear_all())
   {
-    old_parents.subtract(parents);
-    ndb_table_access_map inspected;
-
-    // Add all 'old_parents[parent_no]' with some of 'field_possible_parents' as grandparents
-    for (uint parent_no= join_root()->get_access_no();
-         !(inspected==old_parents);
-         parent_no++)
-    {
-      DBUG_ASSERT(parent_no < tab_no);
-      const AQP::Table_access* const table = m_plan.get_table_access(parent_no);
-      ndb_table_access_map table_map(table);
-      if (old_parents.contain(table_map))
-      {
-        inspected.add(table_map);
-        if (is_child_of(table,field_possible_parents))
-          parents.add(table_map);
-      }
-    }
-    if (parents.is_clear_all())
-    {
-      EXPLAIN_NO_PUSH("Can't push table '%s' as child of '%s', "
-                      "no parents found within scope",
-                      table->get_table()->alias, 
-                      join_root()->get_table()->alias);
-      DBUG_RETURN(false);
-    }
+    DBUG_RETURN(true);
   }
-  else if (m_const_scope.contain(parent_map))
+
+  if (m_const_scope.contain(parent_map))
   {
     // This key item is const. and did not cause the set of possible parents
     // to be recalculated. Reuse what we had before this key item.
-    DBUG_ASSERT(parents.is_clear_all());
+    DBUG_ASSERT(field_parents.is_clear_all());
     /** 
      * Scan queries cannot be pushed if the pushed query may refer column 
      * values (paramValues) from rows stored in a join cache.  
@@ -1149,7 +1067,8 @@ bool ndb_pushed_builder_ctx
                != referred_tab);
 
     } // if (!is_lookup_operation(root_type)
-    parents= old_parents;
+    field_parents= ndb_table_access_map(join_root());
+    DBUG_RETURN(true);
   }
   else
   {
@@ -1160,8 +1079,7 @@ bool ndb_pushed_builder_ctx
                      get_referred_field_name(key_item_field));
     DBUG_RETURN(false);
   }
-  DBUG_RETURN(true);
-}
+} // find_field_parents()
 
 /***************************************************************
  *  is_pushable_as_child()
@@ -1257,25 +1175,60 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                       table->get_no_of_key_fields()));
 
   ndb_table_access_map current_parents;
-  ndb_table_access_map parents;
+  ndb_table_access_map parents(join_root());
 
   for (uint key_part_no= 0; 
        key_part_no < table->get_no_of_key_fields(); 
        key_part_no++)
   {
     const Item* const key_item= table->get_key_field(key_part_no);
-    join_items[key_part_no] = key_item;
+    join_items[key_part_no]= key_item;
+    current_parents.add(ndb_table_access_map(key_item->used_tables()));
+
     /* All parts of the key must be fields in some of the preceeding 
      * tables 
      */
+    ndb_table_access_map field_parents;
     if (!find_field_parents(table,
                             key_item,
                             table->get_key_part_info(key_part_no), 
-                            parents))
+                            field_parents))
     {
       DBUG_RETURN(false);
     }
-    current_parents.add(ndb_table_access_map(key_item->used_tables()));
+    /* Now we must merge the set of possible parents for this key with the set
+     * of possible parents for all preceding keys.
+     */
+    ndb_table_access_map new_parents(parents);
+    // First find the operations present in both sets.
+    new_parents.intersect(field_parents);
+
+    /* Secondly, add each operation which is only in one of the sets, but
+     * which is a descendant of some operation in the other set.
+     * The SPJ block can handle field references to any ancestor operation,
+     * not just the (direct) parent. 
+     */
+    for (uint parent_no= join_root()->get_access_no(); parent_no < tab_no;
+         parent_no++)
+    {
+      const AQP::Table_access* const parent_candidate= 
+        m_plan.get_table_access(parent_no);
+
+      if (parents.contain_table(parent_candidate) && 
+          !field_parents.contain_table(parent_candidate) &&
+          is_child_of(parent_candidate, field_parents))
+      {
+        new_parents.add(parent_candidate);
+      }
+      else if (!parents.contain_table(parent_candidate) && 
+          field_parents.contain_table(parent_candidate) &&
+          is_child_of(parent_candidate, parents))
+      {
+        new_parents.add(parent_candidate);
+      }
+    }
+    parents= new_parents;
+
   } // for (uint key_part_no= 0 ...
 
   join_items[table->get_no_of_key_fields()]= NULL;
