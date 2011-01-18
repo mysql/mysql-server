@@ -6104,6 +6104,58 @@ ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 SELECT * FROM t2 UNION SELECT * FROM t2
 ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
 DROP TABLE t1,t2;
+#
+# Bug #58818: Incorrect result for IN/ANY subquery
+# with HAVING condition 
+#
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t1s(i INT);
+INSERT INTO t1s VALUES (10), (20), (30);
+CREATE TABLE t2s(i INT);
+INSERT INTO t2s VALUES (100), (200), (300);
+SELECT * FROM t1
+WHERE t1.i NOT IN
+(
+SELECT STRAIGHT_JOIN t2s.i 
+FROM
+t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+HAVING t2s.i = 999
+);
+i
+1
+2
+3
+SELECT * FROM t1
+WHERE t1.I IN
+(
+SELECT STRAIGHT_JOIN t2s.i 
+FROM
+t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+HAVING t2s.i = 999
+) IS UNKNOWN;
+i
+SELECT * FROM t1
+WHERE NOT t1.I = ANY
+(
+SELECT STRAIGHT_JOIN t2s.i 
+FROM
+t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+HAVING t2s.i = 999
+);
+i
+1
+2
+3
+SELECT * FROM t1
+WHERE t1.i = ANY (
+SELECT STRAIGHT_JOIN t2s.i 
+FROM
+t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+HAVING t2s.i = 999
+) IS UNKNOWN;
+i
+DROP TABLE t1,t1s,t2s;
 End of 5.1 tests
 #
 # BUG#50257: Missing info in REF column of the EXPLAIN 
@@ -6357,5 +6409,16 @@ SUBQUERY1_t1.col_varchar) ) )
 ;
 pk
 drop table t1;
+#
+# Bug#58207: invalid memory reads when using default column value and 
+# tmptable needed
+#
+CREATE TABLE t(a VARCHAR(245) DEFAULT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
+SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
+default(a)
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+DROP TABLE t;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
