@@ -53,6 +53,15 @@ SELECT * FROM t10000 WHERE k < 42;
 EXPLAIN
 SELECT * FROM t10000 WHERE k > 42;
 
+#
+# Bug #59519 ::set_rec_per_key() assumes ORDER_INDEX to be unique
+#
+
+# 'REF' join of 'Y' should match >1 rows
+EXPLAIN
+SELECT * FROM t10000 AS X JOIN t10000 AS Y
+  ON Y.I=X.I AND Y.J = X.I;
+
 
 DROP TABLE t10,t100,t10000;
 

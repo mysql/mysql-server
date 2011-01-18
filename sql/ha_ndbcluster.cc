@@ -959,9 +959,35 @@ Ndb *ha_ndbcluster::get_ndb(THD *thd)
 void ha_ndbcluster::set_rec_per_key()
 {
   DBUG_ENTER("ha_ndbcluster::set_rec_per_key");
+  /*
+    Set up the 'rec_per_key[]' for keys which we have good knowledge
+    about the distribution. 'rec_per_key[]' is init'ed to '0' by 
+    open_binary_frm(), which is interpreted as 'unknown' by optimizer.
+    -> Not setting 'rec_per_key[]' will force the optimizer to use
+    its own heuristic to estimate 'records pr. key'.
+  */
   for (uint i=0 ; i < table_share->keys ; i++)
   {
-    table->key_info[i].rec_per_key[table->key_info[i].key_parts-1]= 1;
+    switch (get_index_type(i))
+    {
+    case UNIQUE_ORDERED_INDEX:
+    case PRIMARY_KEY_ORDERED_INDEX:
+    case UNIQUE_INDEX:
+    case PRIMARY_KEY_INDEX:
+    {
+      // Index is unique when all 'key_parts' are specified,
+      // else distribution is unknown and not specified here.
+      KEY* key_info= table->key_info + i;
+      key_info->rec_per_key[key_info->key_parts-1]= 1;
+      break;
+    }
+    case ORDERED_INDEX:
+      // 'Records pr. key' are unknown for non-unique indexes.
+      // (May change when we get better index statistics.)
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
   }
   DBUG_VOID_RETURN;
 }

@@ -51,5 +51,11 @@ EXPLAIN
 SELECT * FROM t10000 WHERE k > 42;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t10000	range	PRIMARY	PRIMARY	4	NULL	10	Using where with pushed condition
+EXPLAIN
+SELECT * FROM t10000 AS X JOIN t10000 AS Y
+ON Y.I=X.I AND Y.J = X.I;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	X	ALL	I	NULL	NULL	NULL	10000	
+1	SIMPLE	Y	ref	J,I	I	10	test.X.I,test.X.I	11	Using where
 DROP TABLE t10,t100,t10000;
 End of 5.1 tests
