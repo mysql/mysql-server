@@ -191,6 +191,8 @@ namespace AQP
     friend inline bool equal(const Table_access*, const Table_access*);
   public:
 
+    const Join_plan* get_join_plan() const;
+
     enum_access_type get_access_type() const;
 
     const char* get_other_access_reason() const;
@@ -263,6 +265,12 @@ namespace AQP
   inline uint Join_plan::get_access_count() const
   { 
     return m_access_count;
+  }
+
+  /** Get the Join_plan that this Table_access belongs to.*/
+  inline const Join_plan* Table_access::get_join_plan() const
+  {
+    return m_join_plan;
   }
 
   /** Get the type of this operation.*/
