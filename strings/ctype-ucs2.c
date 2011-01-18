@@ -725,12 +725,18 @@ my_strtoll10_mb2(CHARSET_INFO *cs,
   /* If fixed length string */
   if (endptr)
   {
-    /* Make sure string length is even */
+    /*
+      Make sure string length is even.
+      Odd length indicates a bug in the caller.
+      Assert in debug, round in production.
+    */
+    DBUG_ASSERT((*endptr - s) % 2 == 0);
     end= s + ((*endptr - s) / 2) * 2;
-    for ( ; s < end; ) /* Skip leading spaces and tabs */
+
+    for ( ; ; ) /* Skip leading spaces and tabs */
     {
       res= cs->cset->mb_wc(cs, &wc, (const uchar *) s, (const uchar *) end);
-      if (res < 0)
+      if (res <= 0)
         goto no_conv;
       s+= res;
       if (wc != ' ' && wc != '\t')
