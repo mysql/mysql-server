@@ -4344,7 +4344,7 @@ create_iname_hint(const char *dname, char *hint) {
 
 
 // n < 0  means to ignore mark and ignore n
-// n >= 0 means to include mark ("_L_" or "_P_") with hex value of n in iname
+// n >= 0 means to include mark ("_B_" or "_P_") with hex value of n in iname
 // (intended for use by loader, which will create many inames using one txnid).
 static char *
 create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
@@ -4353,7 +4353,7 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, char *mark, int n) {
 		   8 +  // hex file format version
 		   16 + // hex id (normally the txnid)
 		   8  + // hex value of n if non-neg
-		   sizeof("_L___.tokudb")]; // extra pieces
+		   sizeof("_B___.tokudb")]; // extra pieces
     if (n < 0)
 	bytes = snprintf(inamebase, sizeof(inamebase),
                          "%s_%"PRIx64"_%"PRIx32            ".tokudb",
@@ -6111,7 +6111,7 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     char * mark;
 
     if (mark_as_loader)
-	mark = "L";
+	mark = "B";
     else
 	mark = "P";
 
