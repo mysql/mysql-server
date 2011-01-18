@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -452,6 +452,10 @@ int mysql_create_function(THD *thd,udf_func *udf)
     DBUG_RETURN(1);
   }
 
+  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+    DBUG_RETURN(1);
+
   /* 
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE FUNCTION command.
@@ -501,10 +505,6 @@ int mysql_create_function(THD *thd,udf_func *udf)
 
   /* create entry in mysql.func table */
 
-  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
-  /* Allow creation of functions even if we can't open func table */
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
-    goto err;
   table->use_all_columns();
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
@@ -557,6 +557,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   char *exact_name_str;
   uint exact_name_len;
   bool save_binlog_row_based;
+  int error= 1;
   DBUG_ENTER("mysql_drop_function");
 
   if (!initialized)
@@ -567,6 +568,10 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
       my_message(ER_OUT_OF_RESOURCES, ER(ER_OUT_OF_RESOURCES), MYF(0));
     DBUG_RETURN(1);
   }
+
+  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
+    DBUG_RETURN(1);
 
   /* 
     Turn off row binlogging of this statement and use statement-based
@@ -580,7 +585,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
                                        (uint) udf_name->length)))
   {
     my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), udf_name->str);
-    goto err;
+    mysql_rwlock_unlock(&THR_LOCK_udf);
+    goto exit;
   }
   exact_name_str= udf->name.str;
   exact_name_len= udf->name.length;
@@ -591,11 +597,8 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   */
   if (udf->dlhandle && !find_udf_dl(udf->dl))
     dlclose(udf->dlhandle);
+  mysql_rwlock_unlock(&THR_LOCK_udf);
 
-  tables.init_one_table("mysql", 5, "func", 4, "func", TL_WRITE);
-
-  if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
-    goto err;
   table->use_all_columns();
   table->field[0]->store(exact_name_str, exact_name_len, &my_charset_bin);
   if (!table->file->ha_index_read_idx_map(table->record[0], 0,
@@ -603,36 +606,23 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
                                           HA_WHOLE_KEY,
                                           HA_READ_KEY_EXACT))
   {
-    int error;
-    if ((error = table->file->ha_delete_row(table->record[0])))
-      table->file->print_error(error, MYF(0));
+    int delete_err;
+    if ((delete_err = table->file->ha_delete_row(table->record[0])))
+      table->file->print_error(delete_err, MYF(0));
   }
-  mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /*
     Binlog the drop function. Keep the table open and locked
     while binlogging, to avoid binlog inconsistency.
   */
-  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
-  {
-    /* Restore the state of binlog format */
-    DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-    if (save_binlog_row_based)
-      thd->set_current_stmt_binlog_format_row();
-    DBUG_RETURN(1);
-  }
+  if (!write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+    error= 0;
+exit:
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
-  DBUG_RETURN(0);
-err:
-  mysql_rwlock_unlock(&THR_LOCK_udf);
-  /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
-  DBUG_RETURN(1);
+  DBUG_RETURN(error);
 }
 
 #endif /* HAVE_DLOPEN */

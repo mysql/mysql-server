@@ -10324,6 +10324,8 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
+  m_message.str= NULL;
+  m_message.length= 0;
   int incident_number= uint2korr(buf + common_header_len);
   if (incident_number >= INCIDENT_COUNT ||
       incident_number <= INCIDENT_NONE)
@@ -10340,7 +10342,13 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
   uint8 len= 0;                   // Assignment to keep compiler happy
   const char *str= NULL;          // Assignment to keep compiler happy
   read_str(&ptr, str_end, &str, &len);
-  m_message.str= const_cast<char*>(str);
+  if (!(m_message.str= (char*) my_malloc(len+1, MYF(MY_WME))))
+  {
+    /* Mark this event invalid */
+    m_incident= INCIDENT_NONE;
+    DBUG_VOID_RETURN;
+  }
+  strmake(m_message.str, str, len);
   m_message.length= len;
   DBUG_PRINT("info", ("m_incident: %d", m_incident));
   DBUG_VOID_RETURN;
@@ -10349,6 +10357,8 @@ Incident_log_event::Incident_log_event(const char *buf, uint event_len,
 
 Incident_log_event::~Incident_log_event()
 {
+  if (m_message.str)
+    my_free(m_message.str);
 }
 
 

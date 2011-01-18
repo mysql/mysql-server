@@ -22,11 +22,10 @@
 #include <m_string.h>
 #include <signal.h>
 
-#ifdef THREAD
 pthread_key(struct st_my_thread_var*, THR_KEY_mysys);
 mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
               THR_LOCK_lock, THR_LOCK_isam, THR_LOCK_myisam, THR_LOCK_heap,
-              THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads, THR_LOCK_time,
+              THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads,
               THR_LOCK_myisam_mmap;
 
 mysql_cond_t  THR_COND_threads;
@@ -220,7 +219,6 @@ my_bool my_thread_global_init(void)
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_THR_LOCK_time, &THR_LOCK_time, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
 
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
@@ -289,7 +287,6 @@ void my_thread_global_end(void)
   mysql_mutex_destroy(&THR_LOCK_myisam_mmap);
   mysql_mutex_destroy(&THR_LOCK_heap);
   mysql_mutex_destroy(&THR_LOCK_net);
-  mysql_mutex_destroy(&THR_LOCK_time);
   mysql_mutex_destroy(&THR_LOCK_charset);
   if (all_threads_killed)
   {
@@ -532,4 +529,3 @@ static void install_sigabrt_handler(void)
 }
 #endif
 
-#endif /* THREAD */

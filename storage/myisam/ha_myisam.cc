@@ -168,10 +168,9 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
     Also we likely need to lock mutex here (in both cases with protocol and
     push_warning).
   */
-#ifdef THREAD
   if (param->need_print_msg_lock)
     mysql_mutex_lock(&param->print_msg_mutex);
-#endif
+
   protocol->prepare_for_resend();
   protocol->store(name, length, system_charset_info);
   protocol->store(param->op_name, system_charset_info);
@@ -180,10 +179,10 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
   if (protocol->write())
     sql_print_error("Failed on my_net_write, writing to stderr instead: %s\n",
 		    msgbuf);
-#ifdef THREAD
+
   if (param->need_print_msg_lock)
     mysql_mutex_unlock(&param->print_msg_mutex);
-#endif
+
   return;
 }
 
@@ -1819,8 +1818,9 @@ int ha_myisam::extra(enum ha_extra_function operation)
 
 int ha_myisam::reset(void)
 {
-  pushed_idx_cond= NULL;
-  pushed_idx_cond_keyno= MAX_KEY;
+  /* Reset MyISAM specific part for index condition pushdown */
+  DBUG_ASSERT(pushed_idx_cond == NULL);
+  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   mi_set_index_cond_func(file, NULL, 0);
   ds_mrr.dsmrr_close();
   return mi_reset(file);

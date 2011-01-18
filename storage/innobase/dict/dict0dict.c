@@ -81,6 +81,7 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 #ifdef UNIV_PFS_RWLOCK
 UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -777,7 +778,7 @@ dict_init(void)
 		     &dict_foreign_err_mutex, SYNC_NO_ORDER_CHECK);
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
-		rw_lock_create(PFS_NOT_INSTRUMENTED,
+		rw_lock_create(dict_table_stats_latch_key,
 			       &dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
@@ -3100,7 +3101,7 @@ dict_scan_to(
 			quote = '\0';
 		} else if (quote) {
 			/* Within quotes: do nothing. */
-		} else if (*ptr == '`' || *ptr == '"') {
+		} else if (*ptr == '`' || *ptr == '"' || *ptr == '\'') {
 			/* Starting quote: remember the quote character. */
 			quote = *ptr;
 		} else {

@@ -1,4 +1,5 @@
 --source include/have_udf.inc
+--source include/not_embedded.inc
 #
 # To run this tests the "sql/udf_example.c" need to be compiled into
 # udf_example.so and LD_LIBRARY_PATH should be setup to point out where
@@ -535,3 +536,70 @@ DROP TABLE t1;
 --echo #
 --echo End of 5.1 tests.
 
+
+--echo #
+--echo # Bug#53322 deadlock with FLUSH TABLES WITH READ LOCK and DROP FUNCTION
+--echo #
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+--echo # Connection con1
+connect(con1, localhost, root);
+FLUSH TABLES WITH READ LOCK;
+
+--echo # Connection default
+connection default;
+--echo # Sending:
+--send DROP FUNCTION metaphon
+
+--echo # Connection con1
+connection con1;
+--echo # Wait until DROP FUNCTION is blocked by GRL
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for global read lock" AND
+        info = "DROP FUNCTION metaphon";
+--source include/wait_condition.inc
+SELECT metaphon("foo");
+UNLOCK TABLES;
+
+--echo # Connection default
+connection default;
+--echo # Reaping: DROP FUNCTION metaphon
+--reap
+
+--echo # Connection con1
+connection con1;
+FLUSH TABLES WITH READ LOCK;
+
+--echo # Connection default
+connection default;
+--echo # Sending:
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+--send
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+--echo # Connection con1
+connection con1;
+--echo # Wait until CREATE FUNCTION is blocked by GRL
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for global read lock";
+--source include/wait_condition.inc
+# Can return different results depending on platform
+--disable_result_log
+SELECT reverse_lookup("127.0.0.1");
+--enable_result_log
+UNLOCK TABLES;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection default
+connection default;
+--echo # Reaping: CREATE FUNCTION metaphon ...
+--reap
+DROP FUNCTION metaphon;
+DROP FUNCTION reverse_lookup;
