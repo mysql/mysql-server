@@ -925,7 +925,7 @@ int add_row (struct rowset *rows, DBT *key, DBT *val)
         if (rows->data == NULL) {
             result = errno;
             rows->data = old_data;
-            rows->n_bytes_limit =- old_n_bytes_limit;
+            rows->n_bytes_limit = old_n_bytes_limit;
             return result;
         }
     }
