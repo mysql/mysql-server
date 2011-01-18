@@ -2197,10 +2197,9 @@ ConfigManager::load_saved_config(const BaseString& config_name)
   return conf;
 }
 
-
 bool
 ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
-                                 BaseString& buf64, BaseString& error)
+                                 BaseString* buf64, BaseString& error)
 {
   Guard g(m_config_mutex);
 
@@ -2246,23 +2245,26 @@ ConfigManager::get_packed_config(ndb_mgm_node_type nodetype,
   }
 
   require(m_config != 0);
-  if (!m_packed_config.length())
+  if (buf64)
   {
-    // No packed config exist, generate a new one
-    Config config_copy(m_config);
-    if (!m_dynamic_ports.set_in_config(&config_copy))
+    if (!m_packed_config.length())
     {
-      error.assign("get_packed_config, failed to set dynamic ports in config");
-      return false;
+      // No packed config exist, generate a new one
+      Config config_copy(m_config);
+      if (!m_dynamic_ports.set_in_config(&config_copy))
+      {
+        error.assign("get_packed_config, failed to set dynamic ports in config");
+        return false;
+      }
+      
+      if (!config_copy.pack64(m_packed_config))
+      {
+        error.assign("get_packed_config, failed to pack config_copy");
+        return false;
+      }
     }
-
-    if (!config_copy.pack64(m_packed_config))
-    {
-      error.assign("get_packed_config, failed to pack config_copy");
-      return false;
-    }
+    buf64->assign(m_packed_config, m_packed_config.length());
   }
-  buf64.assign(m_packed_config, m_packed_config.length());
   return true;
 }
 
