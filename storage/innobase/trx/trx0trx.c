@@ -50,7 +50,7 @@ Created 3/26/1996 Heikki Tuuri
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 
 /** Number of transactions currently allocated for MySQL: protected by
-the trx_sys_t::mutex */
+trx_sys->lock */
 UNIV_INTERN ulint		trx_n_mysql_transactions = 0;
 
 #ifdef UNIV_PFS_MUTEX
@@ -377,8 +377,8 @@ trx_resurrect_insert(
 	trx->insert_undo = undo;
 	trx->is_recovered = TRUE;
 
-	/* This is startup code, we don't need to protection of the
-	trx_sys_t::lock or the trx_t::mutex here. */
+	/* This is single-threaded startup code, we do not need the
+	protection of trx->mutex or trx_sys->lock here. */
 
 	if (undo->state != TRX_UNDO_ACTIVE) {
 
@@ -443,8 +443,8 @@ trx_resurrect_update_in_prepared_state(
 	trx_t*			trx,	/*!< in,out: transaction */
 	const trx_undo_t*	undo)	/*!< in: update UNDO record */
 {
-	/* This is startup code, we don't need to protection of the
-	trx_sys_t::lock or the trx_t::mutex here. */
+	/* This is single-threaded startup code, we do not need the
+	protection of trx->mutex or trx_sys->lock here. */
 
 	if (undo->state == TRX_UNDO_PREPARED) {
 		fprintf(stderr,
@@ -473,9 +473,9 @@ static
 void
 trx_resurrect_update(
 /*=================*/
-	trx_t*		trx,
-	trx_undo_t*	undo,
-	trx_rseg_t*	rseg)
+	trx_t*		trx,	/*!< in/out: transaction */
+	trx_undo_t*	undo,	/*!< in/out: update UNDO record */
+	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
 	trx->rseg = rseg;
 	trx->xid = undo->xid;
@@ -483,8 +483,8 @@ trx_resurrect_update(
 	trx->update_undo = undo;
 	trx->is_recovered = TRUE;
 
-	/* This is startup code, we don't need to protection of the
-	trx_sys_t::lock or the trx_t::mutex here. */
+	/* This is single-threaded startup code, we do not need the
+	protection of trx->mutex or trx_sys->lock here. */
 
 	if (undo->state != TRX_UNDO_ACTIVE) {
 		trx_resurrect_update_in_prepared_state(trx, undo);
@@ -536,7 +536,7 @@ trx_lists_init_at_db_start(void)
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_undo_t*	undo;
 		trx_rseg_t*	rseg;
-	       
+
 		rseg = trx_sys->rseg_array[i];
 
 		if (rseg == NULL) {
@@ -573,7 +573,7 @@ trx_lists_init_at_db_start(void)
 
 			trx_resurrect_update(trx, undo, rseg);
 
-			if (trx_created == TRUE) {
+			if (trx_created) {
 				trx_list_insert_ordered(trx);
 			}
 		}
@@ -617,7 +617,7 @@ trx_assign_rseg(void)
 }
 
 /****************************************************************//**
-Starts a new transaction it must not already be active. */
+Starts a transaction. */
 static
 void
 trx_start_low(
@@ -1445,13 +1445,12 @@ trx_prepare(
 }
 
 /**********************************************************************//**
-Does the transaction prepare for MySQL.
-@return	0 or error number */
+Does the transaction prepare for MySQL. */
 UNIV_INTERN
 void
 trx_prepare_for_mysql(
 /*==================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: trx handle */
 {
 	trx_start_if_not_started_xa(trx);
 
@@ -1538,7 +1537,8 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL */
+@return	trx or NULL; note that the trx may have been committed,
+unless the caller is holding lock_sys->mutex */
 UNIV_INTERN
 trx_t*
 trx_get_trx_by_xid(

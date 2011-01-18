@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -597,7 +597,7 @@ V
 lock_sys_mutex				Mutex protecting lock_sys_t
 |
 V
-trx_sys_mutex				Mutex protecting trx_sys_t
+trx_sys->lock				RW-lock protecting trx_sys_t
 |
 V
 Threads mutex				Background thread scheduling mutex

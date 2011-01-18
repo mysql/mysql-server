@@ -3875,11 +3875,14 @@ release_search_latch_if_needed:
 		trx->has_search_latch = FALSE;
 	}
 
+	/* The state of a running trx can only be changed by the
+	thread that is currently serving the transaction. Because we
+	are that thread, we can read trx->state without holding any
+	mutex. */
 	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-	/* FIXME: These are now protected by the lock mutex, we can't
-	just add assertions will-nilly.  */
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED || trx->state == TRX_STATE_ACTIVE);
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED
+	      || trx->state == TRX_STATE_ACTIVE);
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -564,8 +564,9 @@ trx_rollback_active(
 /*******************************************************************//**
 Rollback or clean up any resurrected incomplete transactions. It assumes
 that the caller holds the trx_sys_t::lock in S mode and it will release the
-lock if it does a clean up or rollback. 
-@return TRUE if the transaction was cleaned up or rolled back.  */
+lock if it does a clean up or rollback.
+@return TRUE if the transaction was cleaned up or rolled back
+and trx_sys->lock was released. */
 static
 ibool
 trx_rollback_resurrected(

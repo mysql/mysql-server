@@ -1552,7 +1552,10 @@ lock_rec_find_similar_on_page(
 /*********************************************************************//**
 Checks if some transaction has an implicit x-lock on a record in a secondary
 index.
-@return	transaction id of the transaction which has the x-lock, or 0 */
+@return	transaction id of the transaction which has the x-lock, or 0;
+NOTE that this function can return false positives but never false
+negatives. The caller must confirm all positive results by calling
+trx_is_active(). */
 static
 trx_id_t
 lock_sec_rec_some_has_impl(
@@ -1930,7 +1933,6 @@ lock_rec_add_to_queue(
 	}
 
 somebody_waits:
-	/* Note that we don't own the trx mutex. */
 	return(lock_rec_create(
 			type_mode, block, heap_no, index, trx,
 			caller_owns_trx_mutex));
@@ -2191,8 +2193,8 @@ lock_rec_has_to_wait_in_queue(
 }
 
 /*************************************************************//**
-Grants a lock to a waiting lock request and releases the waiting
-transaction. */
+Grants a lock to a waiting lock request and releases the waiting transaction.
+The caller must hold lock_sys->mutex but not lock->trx->mutex. */
 static
 void
 lock_grant(
@@ -2301,6 +2303,7 @@ lock_rec_dequeue_from_page(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
+	/* We may or may not be holding in_lock->trx->mutex here. */
 
 	trx_lock = &in_lock->trx->lock;
 
@@ -3812,7 +3815,7 @@ lock_table_remove_low(
 
 		/* The locks must be freed in the reverse order from
 		the one in which they were acquired. This is to avoid
-		traversing the AUTOINC lock vector unnecessarily. 
+		traversing the AUTOINC lock vector unnecessarily.
 
 		We only store locks that were granted in the
 		trx->autoinc_locks vector (see lock_table_create()
@@ -4236,7 +4239,7 @@ lock_release(
 Removes locks of a transaction on a table to be dropped.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
 also removed in addition to other table-level and record-level locks.
-No lock, that is going to be removed, is allowed to be a wait lock. */
+No lock that is going to be removed is allowed to be a wait lock. */
 static
 void
 lock_remove_all_on_table_for_trx(
@@ -5809,7 +5812,7 @@ lock_release_autoinc_last_lock(
 }
 
 /*******************************************************************//**
-Check if a transaction holds any autoinc locks. 
+Check if a transaction holds any autoinc locks.
 @return TRUE if the transaction holds any AUTOINC locks. */
 UNIV_INTERN
 ibool
@@ -5831,6 +5834,9 @@ lock_release_autoinc_locks(
 	trx_t*		trx)		/*!< in/out: transaction */
 {
 	ut_ad(lock_mutex_own());
+	/* If this is invoked for a running transaction by the thread
+	that is serving the transaction, then it is not necessary to
+	hold trx->mutex here. */
 
 	ut_a(trx->autoinc_locks != NULL);
 
@@ -6057,7 +6063,7 @@ UNIV_INTERN
 void
 lock_cancel_waiting_and_release(
 /*============================*/
-	lock_t*	lock)	/*!< in: waiting lock request */
+	lock_t*	lock)	/*!< in/out: waiting lock request */
 {
 	que_thr_t*	thr;
 
@@ -6101,6 +6107,10 @@ lock_unlock_table_autoinc(
 /*======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	/* This function is invoked for a running transaction by the
+	thread that is serving the transaction. Therefore it is not
+	necessary to hold trx->mutex here. */
+
 	if (lock_trx_holds_autoinc_locks(trx)) {
 		lock_mutex_enter();
 
@@ -6145,20 +6155,18 @@ lock_trx_release_locks(
 	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
 
-	/* If we release transaction mutex below and we are still doing
-	recovery i.e.: back ground rollback thread is still active
-	then there is a chance that the rollback thread may see
-	this trx as COMMITTED_IN_MEMORY and goes adhead to clean it
-	up calling trx_cleanup_at_db_startup(). This can happen
-	in the case we are committing a trx here that is left in
-	PREPARED state during the crash. Note that commit of the
+	/* If the background thread trx_rollback_or_clean_recovered()
+	is still active then there is a chance that the rollback
+	thread may see this trx as COMMITTED_IN_MEMORY and goes ahead
+	to clean it up calling trx_cleanup_at_db_startup(). This can
+	happen in the case we are committing a trx here that is left
+	in PREPARED state during the crash. Note that commit of the
 	rollback of a PREPARED trx happens in the recovery thread
 	while the rollback of other transactions happen in the
-	background thread. To avoid this race we unconditionally
-	unset the is_recovered flag from the trx. */
+	background thread. To avoid this race we unconditionally unset
+	the is_recovered flag. */
 
 	trx->is_recovered = FALSE;
-
 	trx_mutex_exit(trx);
 
 	lock_release(trx);
@@ -6175,7 +6183,7 @@ UNIV_INTERN
 enum db_err
 lock_trx_handle_wait(
 /*=================*/
-	trx_t*		trx)	/*!< in, out: trx lock state */
+	trx_t*	trx)	/*!< in/out: trx lock state */
 {
 	enum db_err	err;
 

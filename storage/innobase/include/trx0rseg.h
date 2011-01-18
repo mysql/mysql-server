@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -107,13 +107,13 @@ trx_rseg_header_create(
 	mtr_t*	mtr);		/*!< in: mtr */
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
-rseg list and array in trx_sys at a database startup. */
+rseg array in trx_sys at a database startup. */
 UNIV_INTERN
 void
-trx_rseg_list_and_array_init(
-/*=========================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx system header */
-	mtr_t*		mtr);		/*!< in: mtr */
+trx_rseg_array_init(
+/*================*/
+	trx_sysf_t*	sys_header,	/*!< in/out: trx system header */
+	mtr_t*		mtr);		/*!< in/out: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
 UNIV_INTERN

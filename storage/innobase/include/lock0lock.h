@@ -602,10 +602,11 @@ ibool
 lock_print_info_summary(
 /*====================*/
 	FILE*	file,	/*!< in: file where to print */
-	ibool   nowait);/*!< in: whether to wait for the lock mutex */
+	ibool   nowait)	/*!< in: whether to wait for the lock mutex */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Prints info of locks for each transaction. This function assumes that the
-caller holds the lock mutex and more importantly it will reease the lock
+caller holds the lock mutex and more importantly it will release the lock
 lock mutex on behalf of the caller. (This should be fixed in the future). */
 UNIV_INTERN
 void
@@ -794,7 +795,8 @@ UNIV_INTERN
 enum db_err
 lock_trx_handle_wait(
 /*=================*/
-	trx_t*		trx);	/*!< in, out: trx lock state */
+	trx_t*	trx)	/*!< in/out: trx lock state */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Get the number of locks on a table.
 @return number of locks */
@@ -875,13 +877,16 @@ struct lock_sys_struct{
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for
 						locks within InnoDB, protected
-						by the lock mutex  */
+						by the lock_sys->wait_mutex */
 	srv_slot_t*	last_slot;		/*!< highest slot ever used
-						in the waiting_threads array */
+						in the waiting_threads array,
+						protected by
+						lock_sys->wait_mutex */
 	ibool		rollback_complete;
-						/*!< TRUE if rollback of all recovered
-						transactions is complete. Protected by the
-						lock sys mutex */
+						/*!< TRUE if rollback of all
+						recovered transactions is
+						complete. Protected by
+						lock_sys->mutex */
 };
 
 /** The lock system */
