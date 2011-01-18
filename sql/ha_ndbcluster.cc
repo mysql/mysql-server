@@ -10578,8 +10578,10 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
   // Read from hash index with full key
   // This is a "const" table which returns only one record!      
   if ((idx_type != ORDERED_INDEX) &&
-      ((min_key && min_key->length == key_length) || 
-       (max_key && max_key->length == key_length)))
+      ((min_key && min_key->length == key_length) &&
+       (max_key && max_key->length == key_length) &&
+       (min_key->key==max_key->key ||
+        memcmp(min_key->key, max_key->key, key_length)==0)))
     DBUG_RETURN(1);
   
   if ((idx_type == PRIMARY_KEY_ORDERED_INDEX ||
