@@ -4701,6 +4701,16 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                                               n_ranges, mode, buf);
     DBUG_RETURN(retval);
   }
+
+  /* 
+    This assert will hit if we have pushed an index condition to the
+    primary key index and then "change our mind" and use a different
+    index for retrieving data with MRR.
+  */
+  DBUG_ASSERT(!h->pushed_idx_cond ||
+              h->pushed_idx_cond_keyno == h->active_index ||
+              h->pushed_idx_cond_keyno != table->s->primary_key);
+
   rowids_buf= buf->buffer;
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
