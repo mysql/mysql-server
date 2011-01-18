@@ -228,9 +228,9 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
         set correct WHERE/HAVING for PS.
       */
       if (unit->outer_select()->where == (*ref))
-        thd->change_item_tree(&(unit->outer_select()->where), substitution);
+        unit->outer_select()->where= substitution;
       else if (unit->outer_select()->having == (*ref))
-        thd->change_item_tree(&(unit->outer_select()->having), substitution);
+        unit->outer_select()->having= substitution;
 
       (*ref)= substitution;
       substitution->name= name;
