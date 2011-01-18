@@ -311,12 +311,33 @@ failing query in let
 create table t1 (a varchar(100));
 insert into t1 values ('`select 42`');
 `select 42`
+insert into t1 values ('$dollar');
+$dollar
+`select 42`
 drop table t1;
 mysqltest: At line 1: Error running query 'failing query': 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": At line 1: Source directives are nesting too deep
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/recursive.sql": 
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+included from MYSQLTEST_VARDIR/tmp/recursive.sql at line 1:
+At line 1: Source directives are nesting too deep
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/error.sql": 
+included from MYSQLTEST_VARDIR/tmp/error.sql at line 1:
+At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 
 2 = outer loop variable after while
 here is the sourced script
@@ -444,7 +465,9 @@ counter is 6
 counter is 7
 1
 Testing while with not
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": At line 64: Nesting too deeply
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest_while.inc": 
+included from MYSQLTEST_VARDIR/tmp/mysqltest_while.inc at line 65:
+At line 64: Nesting too deeply
 mysqltest: At line 1: missing '(' in while
 mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
@@ -493,8 +516,12 @@ mysqltest: At line 1: query 'connect  con2,localhost,root,,illegal_db' failed: 1
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 200 connects succeeded
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
-mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": 
+included from MYSQLTEST_VARDIR/tmp/mysqltest.sql at line 3:
+At line 3: connection 'test_con1' not found in connection pool
+mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": 
+included from MYSQLTEST_VARDIR/tmp/mysqltest.sql at line 2:
+At line 2: Connection test_con1 already exists
 show tables;
 ERROR 3D000: No database selected
 connect  con1,localhost,root,,;

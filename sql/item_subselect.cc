@@ -1294,6 +1294,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
     select_lex->having= join->having= and_items(join->having, item);
     if (join->having == item)
       item->name= (char*)in_having_cond;
+    select_lex->having->top_level_item();
     select_lex->having_fix_field= 1;
     /*
       we do not check join->having->fixed, because Item_and (from and_items)

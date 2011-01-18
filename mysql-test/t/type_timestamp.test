@@ -377,3 +377,21 @@ SELECT a FROM t1;
 DROP TABLE t1;
 
 --echo End of Bug#50888
+
+--echo #
+--echo # Bug59330: Incorrect result when comparing an aggregate
+--echo #           function with TIMESTAMP
+--echo #
+CREATE TABLE t1 (dt DATETIME, ts TIMESTAMP);
+INSERT INTO t1 VALUES('2011-01-06 12:34:30', '2011-01-06 12:34:30');
+SELECT MAX(dt), MAX(ts) FROM t1;
+SELECT MAX(ts) < '2010-01-01 00:00:00' FROM t1;
+SELECT MAX(dt) < '2010-01-01 00:00:00' FROM t1;
+SELECT MAX(ts) > '2010-01-01 00:00:00' FROM t1;
+SELECT MAX(dt) > '2010-01-01 00:00:00' FROM t1;
+SELECT MAX(ts) = '2011-01-06 12:34:30' FROM t1;
+SELECT MAX(dt) = '2011-01-06 12:34:30' FROM t1;
+DROP TABLE t1;
+
+--echo End of 5.5 tests
+
