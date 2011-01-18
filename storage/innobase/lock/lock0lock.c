@@ -4113,6 +4113,7 @@ lock_rec_unlock(
 	lock_t*	first_lock;
 	lock_t*	lock;
 	ulint	heap_no;
+	size_t	stmt_len;
 
 	ut_ad(trx && rec);
 	ut_ad(block->frame == page_align(rec));
@@ -4120,36 +4121,39 @@ lock_rec_unlock(
 	heap_no = page_rec_get_heap_no(rec);
 
 	lock_mutex_enter();
-
 	trx_mutex_enter(trx);
 
 	first_lock = lock_rec_get_first(block, heap_no);
 
 	/* Find the last lock with the same lock_mode and transaction
-	from the record. */
+	on the record. */
 
 	for (lock = first_lock; lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
 		if (lock->trx == trx && lock_get_mode(lock) == lock_mode) {
-			ut_a(!lock_get_wait(lock));
-			lock_rec_reset_nth_bit(lock, heap_no);
 			goto released;
 		}
 	}
 
+	lock_mutex_exit();
 	trx_mutex_exit(trx);
 
-	lock_mutex_exit();
-
+	/* Ignore stmt_len, because it should not hurt to see more
+	context (the tail of a multi-statement) in the error message. */
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Error: unlock row could not"
-		" find a %lu mode lock on the record\n",
-		(ulong) lock_mode);
+		" find a %lu mode lock on the record\n"
+		"InnoDB: current statement: %s\n",
+		(ulong) lock_mode,
+		innobase_get_stmt(trx->mysql_thd, &stmt_len));
 
 	return;
 
 released:
+	ut_a(!lock_get_wait(lock));
+	lock_rec_reset_nth_bit(lock, heap_no);
+
 	/* Check if we can now grant waiting lock requests */
 
 	for (lock = first_lock; lock != NULL;
