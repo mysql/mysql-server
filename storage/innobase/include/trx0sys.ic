@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -91,7 +91,7 @@ UNIV_INLINE
 void
 trx_sys_set_nth_rseg(
 /*=================*/
-	trx_sys_t*	sys,	/*!< in: trx system */
+	trx_sys_t*	sys,	/*!< in/out: trx system */
 	ulint		n,	/*!< in: index of slot */
 	trx_rseg_t*	rseg)	/*!< in: pointer to rseg object, NULL if slot
 				not in use */
@@ -345,7 +345,7 @@ trx_list_get_min_trx_id_low(void)
 }
 
 /****************************************************************//**
-Returns the minumum trx id in trx list. This is the smallest id for which
+Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
 committed.)

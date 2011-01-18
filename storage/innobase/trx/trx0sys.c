@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -959,7 +959,7 @@ trx_sys_init_at_db_start(void)
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_list_and_array_init(sys_header, &mtr);
+	trx_rseg_array_init(sys_header, &mtr);
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
@@ -1044,7 +1044,8 @@ trx_rseg_compare_last_trx_no(
 }
 
 /*****************************************************************//**
-Creates the trx_sys instance and initializes its mutex only. */
+Creates the trx_sys instance and initializes ib_bh, lock and
+read_view_mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void)

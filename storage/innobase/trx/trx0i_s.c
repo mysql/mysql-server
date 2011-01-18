@@ -172,10 +172,9 @@ struct trx_i_s_cache_struct {
 /** Number of hash cells in the cache storage */
 #define CACHE_STORAGE_HASH_CELLS	2048
 	ha_storage_t*	storage;	/*!< storage for external volatile
-					data that can possibly not be
-					available later, when we release
-					the lock_sys_t::mutex or the
-					trx_sys_t::mutex */
+					data that may become unavailable
+					when we release
+					lock_sys->mutex or trx_sys->lock */
 	ulint		mem_allocd;	/*!< the amount of memory
 					allocated with mem_alloc*() */
 	ibool		is_truncated;	/*!< this is TRUE if the memory

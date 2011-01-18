@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,10 @@ Created 2/6/1997 Heikki Tuuri
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
-@return 0 if committed, else the active transaction id */
+@return 0 if committed, else the active transaction id;
+NOTE that this function can return false positives but never false
+negatives. The caller must confirm all positive results by calling
+trx_is_active(). */
 UNIV_INTERN
 trx_id_t
 row_vers_impl_x_locked(
