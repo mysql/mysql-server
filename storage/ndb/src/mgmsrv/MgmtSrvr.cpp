@@ -2857,6 +2857,10 @@ MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
                     const struct sockaddr *client_addr,
                     Uint32 timeout_ms)
 {
+  if (theFacade && theFacade->ext_isConnected(id))
+  {
+    return -1;
+  }
   if (client_addr != 0)
   {
     int res = alloc_node_id_req(id, type, timeout_ms);

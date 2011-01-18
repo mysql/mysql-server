@@ -256,7 +256,6 @@ ClusterMgr::forceHB()
   req->mysql_version = NDB_MYSQL_VERSION_D;
 
   {
-    Guard g(clusterMgrThreadMutex);
     lock();
     int nodeId= 0;
     for(int i=0;
@@ -279,14 +278,6 @@ ClusterMgr::forceHB()
 #ifdef DEBUG_REG
   ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
 #endif
-  theFacade.unlock_mutex();
-}
-
-void
-ClusterMgr::force_update_connections()
-{
-  theFacade.lock_mutex();
-  theFacade.theTransporterRegistry->update_connections();
   theFacade.unlock_mutex();
 }
 
@@ -340,7 +331,7 @@ ClusterMgr::threadMain( ){
       m_cluster_state = CS_waiting_for_first_connect;
     }
 
-    lock();
+    trp_client::lock();
     for (int i = 1; i < MAX_NODES; i++){
       /**
        * Send register request (heartbeat) to all available nodes 
@@ -401,7 +392,7 @@ ClusterMgr::threadMain( ){
 	reportNodeFailed(i);
       }//if
     }
-    unlock();
+    trp_client::unlock();
   }
 }
 
@@ -1287,7 +1278,6 @@ ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
 #endif
 
   {
-    Guard g(m_clusterMgr.clusterMgrThreadMutex);
     m_clusterMgr.lock();
     m_clusterMgr.raw_sendSignal(&signal, aSignal.data.sender);
     m_clusterMgr.unlock();
