@@ -228,6 +228,14 @@ UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
+/*****************************************************************//**
+Determines the maximum transaction id.
+@return maximum currently allocated trx id; will be stale after the
+next call to trx_sys_get_new_trx_id() */
+UNIV_INLINE
+trx_id_t
+trx_sys_get_max_trx_id(void);
+/*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
