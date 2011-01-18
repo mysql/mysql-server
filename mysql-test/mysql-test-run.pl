@@ -4695,6 +4695,19 @@ sub after_failure ($) {
 
   mkpath($save_dir) if ! -d $save_dir;
 
+  #
+  # Create a log of files in vardir (good for buildbot)
+  #
+  if (!IS_WINDOWS)
+  {
+    my $Flog= IO::File->new("$opt_vardir/log/files.log", "w");
+    if ($Flog)
+    {
+      print $Flog scalar(`/bin/ls -Rl $opt_vardir/*`);
+      close($Flog);
+    }
+  }
+
   # Save the used config files
   my %config_files = config_files($tinfo);
   while (my ($file, $generate) = each %config_files) {
