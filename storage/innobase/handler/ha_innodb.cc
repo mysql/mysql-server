@@ -1989,14 +1989,11 @@ innobase_query_caching_of_table_permitted(
 		return((my_bool)FALSE);
 	}
 
-	if (trx->has_search_latch) {
+	if (UNIV_UNLIKELY(trx->has_search_latch)) {
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
-
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 1024);
-		rw_lock_s_unlock(&trx_sys->lock);
 	}
 
 	innobase_release_stat_resources(trx);
