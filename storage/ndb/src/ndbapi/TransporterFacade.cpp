@@ -599,14 +599,6 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
     }
   }
 
-  /**
-   * Also setup Loopback Transporter
-   */
-  if (is_mgmd(nodeId, conf))
-  {
-    doConnect(nodeId);
-  }
-
   DBUG_RETURN(true);
 }
 
@@ -624,7 +616,7 @@ TransporterFacade::configure(NodeId nodeId,
   if (!IPCConfig::configureTransporters(nodeId,
                                         * conf,
                                         * theTransporterRegistry,
-                                        is_mgmd(nodeId, conf)))
+                                        true))
     DBUG_RETURN(false);
 
   // Configure cluster manager
@@ -663,7 +655,12 @@ TransporterFacade::configure(NodeId nodeId,
   // Open connection between MGM servers
   if (!do_connect_mgm(nodeId, conf))
     DBUG_RETURN(false);
-  
+
+  /**
+   * Also setup Loopback Transporter
+   */
+  doConnect(nodeId);
+
   DBUG_RETURN(true);
 }
 
@@ -874,7 +871,9 @@ TransporterFacade::sendSignal(const NdbApiSignal * aSignal, NodeId aNode)
     if (ss == SEND_OK)
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
-             aSignal->readSignalNumber() == GSN_API_REGREQ);
+             aSignal->readSignalNumber() == GSN_API_REGREQ ||
+             (aSignal->readSignalNumber() == GSN_CONNECT_REP &&
+              aNode == ownId()));
     }
     return (ss == SEND_OK ? 0 : -1);
   }

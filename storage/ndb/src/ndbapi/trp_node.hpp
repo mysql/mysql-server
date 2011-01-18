@@ -28,14 +28,20 @@ NdbOut& operator<<(NdbOut&, const struct trp_node&);
 struct trp_node
 {
   trp_node();
-  bool defined;
-  bool compatible;    // Version is compatible
-  bool nfCompleteRep; // NF Complete Rep has arrived
-  bool m_alive;       // Node is alive
-  Uint32 minDbVersion;
 
   NodeInfo  m_info;
   NodeState m_state;
+
+  Uint32 minDbVersion;
+  bool defined;
+  bool compatible;     // Version is compatible
+  bool nfCompleteRep;  // NF Complete Rep has arrived
+  bool m_alive;        // Node is alive
+  bool m_node_fail_rep;// NodeFailRep has arrived
+private:
+  bool m_connected;     // Transporter connected
+  bool m_api_reg_conf;// API_REGCONF has arrived
+public:
 
   void set_connected(bool connected) {
     assert(defined);
@@ -50,7 +56,8 @@ struct trp_node
   }
 
   void set_confirmed(bool confirmed) {
-    assert(is_connected()); // Must be connected to change confirmed
+    if (confirmed)
+      assert(is_connected());
     m_api_reg_conf = confirmed;
   }
 
@@ -64,8 +71,6 @@ struct trp_node
   bool operator==(const trp_node& other) const;
 
 private:
-  bool m_connected;     // Transporter connected
-  bool m_api_reg_conf;// API_REGCONF has arrived
 
   friend NdbOut& operator<<(NdbOut&, const trp_node&);
 };
