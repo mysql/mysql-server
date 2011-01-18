@@ -141,12 +141,6 @@ ClusterMgr::configure(Uint32 nodeId,
       theNodes[i]= Node();
   }
 
-  /* Init own node info */
-  trp_node &node= theNodes[getOwnNodeId()];
-  assert(node.defined);
-  node.set_connected(true);
-  node.set_confirmed(true);
-
 #if 0
   print_nodes("init");
 #endif
@@ -358,9 +352,6 @@ ClusterMgr::threadMain( ){
       Node & cm_node = theNodes[nodeId];
       trp_node & theNode = cm_node;
 
-      if (nodeId == getOwnNodeId())
-        continue;
-
       if (!theNode.defined)
 	continue;
 
@@ -373,6 +364,15 @@ ClusterMgr::threadMain( ){
 	continue;
       }
       
+      if (nodeId == getOwnNodeId() && theNode.is_confirmed())
+      {
+        /**
+         * Don't send HB to self more than once
+         * (once needed to avoid weird special cases in e.g ConfigManager)
+         */
+        continue;
+      }
+
       cm_node.hbCounter += (Uint32)timeSlept;
       if (cm_node.hbCounter >= m_max_api_reg_req_interval ||
           cm_node.hbCounter >= cm_node.hbFrequency)

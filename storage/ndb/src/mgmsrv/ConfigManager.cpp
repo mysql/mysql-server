@@ -1752,8 +1752,6 @@ ConfigManager::run()
   // Build bitmaks of all mgm nodes in config
   m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
 
-  m_started.set(m_facade->ownId());
-
   // exclude nowait-nodes from config change protcol
   m_all_mgm.bitANDC(m_opts.nowait_nodes);
   m_all_mgm.set(m_facade->ownId()); // Never exclude own node
