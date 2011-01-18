@@ -1,3 +1,9 @@
+2011-01-18	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0arr.c, sync/sync0rw.c:
+	Fix Bug#59579 rw_lock_debug_print outputs to stderr, not to
+	SHOW ENGINE INNODB STATUS
+
 2011-01-14	The InnoDB Team
 	* btr/btr0cur.c, dict/dict0dict.c, handler/ha_innodb.cc,
 	include/btr0cur.h, include/dict0mem.h, include/rem0cmp.h,
