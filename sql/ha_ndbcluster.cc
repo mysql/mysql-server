@@ -443,7 +443,8 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
    * Parent operation is not defined before we have found the first 
    * appendable child.
    */
-  NdbQueryBuilder* const builder = NdbQueryBuilder::create(*m_thd_ndb->ndb);
+  NdbQueryBuilder* const builder = 
+    NdbQueryBuilder::create(*m_thd_ndb->ndb);
   if (unlikely (builder==NULL))
   {
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -474,17 +475,14 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
     {
       if (ndbcluster_is_lookup_operation(access_type))
       {
-        const KEY *key= &table->key_info[join_root->get_index_no()];
+        const KEY* const key= 
+          &table->key_info[join_root->get_index_no()];
         const NdbQueryOperand* root_key[ndb_pushed_join::MAX_KEY_PART+1]= {NULL};
-
-        uint map[ndb_pushed_join::MAX_KEY_PART+1];
-        ndbcluster_build_key_map(m_table, m_index[join_root->get_index_no()], 
-                                 key, map);
 
         for (uint i= 0; i < key->key_parts; i++)
         {
-          root_key[map[i]]= builder->paramValue();
-          if (unlikely(!root_key[map[i]]))
+          root_key[i]= builder->paramValue();
+          if (unlikely(!root_key[i]))
           {
             const NdbError error = builder->getNdbError();
             builder->destroy();
@@ -494,7 +492,8 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
         root_key[key->key_parts]= NULL;
 
         // Primary key access assumed
-       if (access_type == AQP::AT_PRIMARY_KEY || access_type == AQP::AT_MULTI_PRIMARY_KEY)
+       if (access_type == AQP::AT_PRIMARY_KEY || 
+           access_type == AQP::AT_MULTI_PRIMARY_KEY)
        {
           DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
           DBUG_ASSERT(join_root->get_index_no() == 
@@ -504,7 +503,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
         else
         {
           DBUG_PRINT("info", ("Root operation is 'unique-index-lookup'"));
-          const NdbDictionary::Index* index 
+          const NdbDictionary::Index* const index 
             = m_index[join_root->get_index_no()].unique_index;
           DBUG_ASSERT(index);
           query_op= builder->readTuple(index, m_table, root_key);
@@ -525,10 +524,12 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
         DBUG_PRINT("info", ("Root operation is 'equal-range-lookup'"));
         DBUG_PRINT("info", ("Creating scanIndex on index id:%d, name:%s",
                             join_root->get_index_no(), 
-                            m_index[join_root->get_index_no()].index->getName()));
+                            m_index[join_root->get_index_no()]
+                            .index->getName()));
 
         // Bounds will be generated and supplied during execute
-        query_op= builder->scanIndex(m_index[join_root->get_index_no()].index, m_table);
+        query_op= 
+          builder->scanIndex(m_index[join_root->get_index_no()].index, m_table);
       }
       else if (access_type == AQP::AT_TABLE_SCAN) 
       {
@@ -558,12 +559,12 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
     const ha_ndbcluster* const handler=
       static_cast<ha_ndbcluster*>(join_tab->get_table()->file);
 
-    KEY *key= &handler->table->key_info[join_tab->get_index_no()];
+    const KEY* const key= &handler->table->key_info[join_tab->get_index_no()];
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
 
-    uint key_fields= join_tab->get_no_of_key_fields();
+    const uint key_fields= join_tab->get_no_of_key_fields();
     DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
 
     if (ndbcluster_is_lookup_operation(join_tab->get_access_type()))
@@ -582,21 +583,26 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
 
     DBUG_ASSERT (join_parent!=NULL);
     bool need_explicit_parent= true;
-    ndb_table_access_map parent_map(join_parent);
-    KEY_PART_INFO *key_part= key->key_part;
+    const ndb_table_access_map parent_map(join_parent);
+    const KEY_PART_INFO *key_part= key->key_part;
     for (uint i= 0; i < key_fields; i++, key_part++)
     {
-      const Item* item= join_items[i];
+      const Item* const item= join_items[i];
       linked_key[map[i]]= NULL;
       DBUG_ASSERT(item->const_item() == item->const_during_execution());
       if (item->const_item())
       {
-        // Propagate Items constant value to Field containing the value of this key_part:
-        Field* field= key_part->field;
-        int error= const_cast<Item*>(item)->save_in_field_no_warnings(field, true);
+        /** 
+         * Propagate Items constant value to Field containing the value of this 
+         * key_part:
+         */
+        Field* const field= key_part->field;
+        const int error= 
+          const_cast<Item*>(item)->save_in_field_no_warnings(field, true);
         if (unlikely(error))
         {
-          DBUG_PRINT("info", ("Failed to store constant Item into Field -> not pushable"));
+          DBUG_PRINT("info", ("Failed to store constant Item into Field -> not"
+                              " pushable"));
           builder->destroy();
           DBUG_RETURN(0);
         }
@@ -615,8 +621,8 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
       else
       {
         DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-        const Item_field* field_item= static_cast<const Item_field*>(item);
-        ndb_table_access_map used_table(field_item->used_tables());
+        const Item_field* const field_item= static_cast<const Item_field*>(item);
+        const ndb_table_access_map used_table(field_item->used_tables());
 
         if (context.join_scope().contain(used_table))
         {
@@ -633,7 +639,8 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
 
           // Locate the parent operation for this 'join_items[]'.
           // May refer any of the preceeding parent tables
-          const NdbQueryOperationDef* parent_op= context.get_query_operation(referred_table);
+          const NdbQueryOperationDef* const parent_op= 
+            context.get_query_operation(referred_table);
           DBUG_ASSERT(parent_op != NULL);
 
           DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
@@ -649,7 +656,8 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
           // will be known when we are ready to execute this query.
           if (unlikely(fld_refs >= ndb_pushed_join::MAX_REFERRED_FIELDS))
           {
-            DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) encountered"));
+            DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) "
+                                "encountered"));
             builder->destroy();
             DBUG_RETURN(0);  // TODO, handle gracefull -> continue?
           }
@@ -674,15 +682,17 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
     }
     if (need_explicit_parent)
     {
-      const NdbQueryOperationDef* parent_op= context.get_query_operation(join_parent);
+      const NdbQueryOperationDef* parent_op= 
+        context.get_query_operation(join_parent);
       DBUG_ASSERT(parent_op != NULL);
       options.setParent(parent_op);
     }
 
     if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
     {
-      NdbQueryIndexBound bounds(linked_key);
-      query_op= builder->scanIndex(handler->m_index[join_tab->get_index_no()].index, table, &bounds, &options);
+      const NdbQueryIndexBound bounds(linked_key);
+      query_op= builder->scanIndex(handler->m_index[join_tab->get_index_no()]
+                                   .index, table, &bounds, &options);
     }
     // Link on primary key or an unique index
     else if (join_tab->get_access_type() == AQP::AT_PRIMARY_KEY)
@@ -692,7 +702,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
     else
     {
       DBUG_ASSERT(join_tab->get_access_type() == AQP::AT_UNIQUE_KEY);
-      const NdbDictionary::Index* index
+      const NdbDictionary::Index* const index
         = handler->m_index[join_tab->get_index_no()].unique_index;
       DBUG_ASSERT(index != NULL);
       query_op= builder->readTuple(index, table, linked_key, &options);
@@ -738,8 +748,13 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
   }
   m_thd_ndb->m_query_defs = list_item;
   
-  DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
-  m_pushed_join= new ndb_pushed_join(context.plan(), context.join_scope(), fld_refs, referred_fields, query_def);
+  DBUG_PRINT("info", ("Created pushed join with %d child operations", 
+                      push_cnt-1));
+  m_pushed_join= new ndb_pushed_join(context.plan(), 
+                                     context.join_scope(), 
+                                     fld_refs, 
+                                     referred_fields, 
+                                     query_def);
   if (unlikely (m_pushed_join == NULL))
   {
     builder->destroy();
