@@ -6,8 +6,8 @@ create index c on t1(c);
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE	
-t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE	
-t1	1	c	1	c	A	3	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
+t1	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE	
 select * from t1 where c = 'two';
 a	b	c
 2	two	two
@@ -15,7 +15,7 @@ alter table t1 drop index c;
 show indexes from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
 t1	0	PRIMARY	1	a	A	3	NULL	NULL		BTREE	
-t1	1	b	1	b	A	3	NULL	NULL	YES	BTREE	
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
 select * from t1 where c = 'two';
 a	b	c
 2	two	two
