@@ -429,7 +429,7 @@ ClusterMgr::threadMain()
           cm_node.hbCounter = 0;
 	}
 
-        if(theNode.m_info.m_type == NodeInfo::MGM)
+        if (theNode.m_info.m_type != NodeInfo::DB)
           signal.theReceiversBlockNumber = API_CLUSTERMGR;
         else
           signal.theReceiversBlockNumber = QMGR;
