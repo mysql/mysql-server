@@ -1578,6 +1578,10 @@ lock_sec_rec_some_has_impl(
 	trx_id_t	max_trx_id;
 	const page_t*	page = page_align(rec);
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!lock_mutex_own());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -5120,6 +5124,12 @@ lock_rec_validate_page(
 
 		lock_mutex_exit();
 	}
+
+	ut_ad(!lock_mutex_own());
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 

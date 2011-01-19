@@ -78,7 +78,9 @@ row_vers_impl_x_locked(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!lock_mutex_own());
 
 	mtr_start(&mtr);
 
