@@ -413,6 +413,10 @@ handlerton *partition_hton;
 uint opt_server_id_bits= 0;
 ulong opt_server_id_mask= 0;
 #endif
+#ifndef MCP_BUG46955
+extern int(*ndb_wait_setup_func)(ulong);
+extern ulong opt_ndb_wait_setup;
+#endif
 my_bool opt_readonly= 0, use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
 my_bool opt_sync_frm, opt_allow_suspicious_udfs;
@@ -4583,6 +4587,17 @@ int mysqld_main(int argc, char **argv)
   mysqld_server_started= 1;
   mysql_cond_signal(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
+
+#ifndef MCP_BUG46955
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("NDB : Tables not available after %lu seconds."
+                      "  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
+#endif
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();
