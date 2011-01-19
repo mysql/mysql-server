@@ -241,10 +241,6 @@ read_view_create_low(
 {
 	read_view_t*	view;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-
 	view = mem_heap_alloc(heap, sizeof(*view) + n * sizeof(*view->trx_ids));
 
 	view->n_trx_ids = n;
@@ -311,6 +307,9 @@ read_view_add(
 	read_view_t*	elem;
 	read_view_t*	prev_elem;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(read_view_validate(view));
 
 	mutex_enter(&trx_sys->read_view_mutex);

@@ -667,7 +667,8 @@ trx_sys_flush_max_trx_id(void)
 	trx_sysf_t*	sys_header;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
