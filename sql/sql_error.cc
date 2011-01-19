@@ -579,12 +579,14 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
   DBUG_ENTER("push_warning");
   DBUG_PRINT("enter", ("code: %d, msg: %s", code, msg));
 
+#ifdef MCP_BUGXXX
   /*
     Calling push_warning/push_warning_printf with a level of
     WARN_LEVEL_ERROR *is* a bug.  Either use my_printf_error(),
     my_error(), or WARN_LEVEL_WARN.
   */
   DBUG_ASSERT(level != MYSQL_ERROR::WARN_LEVEL_ERROR);
+#endif
 
   if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
     level= MYSQL_ERROR::WARN_LEVEL_WARN;
