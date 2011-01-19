@@ -2519,6 +2519,7 @@ void Ndbcntr::execTCSEIZECONF(Signal* signal)
 {
   jamEntry();
   ctcConnectionP = signal->theData[1];
+  ctcReference = signal->theData[2];
   crSystab7Lab(signal);
   return;
 }//Ndbcntr::execTCSEIZECONF()
@@ -2582,7 +2583,7 @@ void Ndbcntr::crSystab7Lab(Signal* signal)
     AttributeHeader::init(&tAIDataPtr[2], 1, 2 << 2);
     tAIDataPtr[3]                = (tkey << 16);
     tAIDataPtr[4]                = 1;    
-    sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, 
+    sendSignal(ctcReference, GSN_TCKEYREQ, signal,
 	       TcKeyReq::StaticLength + 6, JBB);
   }//for
   ckey = ckey + RowsPerCommit;
@@ -2605,7 +2606,7 @@ void Ndbcntr::execTCKEYCONF(Signal* signal)
     Uint32 transId2 = keyConf->transId2;
     signal->theData[0] = transId1;
     signal->theData[1] = transId2;
-    sendSignal(DBTC_REF, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
+    sendSignal(ctcReference, GSN_TC_COMMIT_ACK, signal, 2, JBB);
   }//if
   
   cresponses = cresponses + TcKeyConf::getNoOfOperations(confInfo);
@@ -2634,7 +2635,7 @@ void Ndbcntr::crSystab8Lab(Signal* signal)
   signal->theData[0] = ctcConnectionP;
   signal->theData[1] = reference();
   signal->theData[2] = 0;
-  sendSignal(DBTC_REF, GSN_TCRELEASEREQ, signal, 2, JBB);
+  sendSignal(ctcReference, GSN_TCRELEASEREQ, signal, 2, JBB);
   return;
 }//Ndbcntr::crSystab8Lab()
 

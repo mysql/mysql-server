@@ -173,8 +173,8 @@ Dbtc::getParam(const char* name, Uint32* count)
   return false;
 }
 
-Dbtc::Dbtc(Block_context& ctx):
-  SimulatedBlock(DBTC, ctx),
+Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
+  SimulatedBlock(DBTC, ctx, instanceNo),
   c_theDefinedTriggers(c_theDefinedTriggerPool),
   c_firedTriggerHash(c_theFiredTriggerPool),
   c_maxNumberOfDefinedTriggers(0),
