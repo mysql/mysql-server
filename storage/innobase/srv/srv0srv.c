@@ -931,7 +931,7 @@ srv_init(void)
 	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
 	mutex_create(srv_sys_tasks_mutex_key,
-		     &srv_sys->tasks_mutex, SYNC_NO_ORDER_CHECK);
+		     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
