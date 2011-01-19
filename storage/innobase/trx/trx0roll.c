@@ -577,7 +577,9 @@ trx_rollback_resurrected(
 {
 	ibool	cleaned_or_rolledback;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* The trx_t::is_recovered flag and the trx_t::state
 	are set atomically under the protection of the trx_t::mutex in

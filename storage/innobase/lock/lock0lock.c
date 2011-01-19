@@ -4869,7 +4869,9 @@ lock_table_queue_validate(
 	lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
