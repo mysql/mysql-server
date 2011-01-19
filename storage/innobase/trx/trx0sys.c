@@ -647,7 +647,7 @@ trx_in_trx_list(
 	     trx != NULL && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		/* No op */
+		ut_ad(trx->in_trx_list);
 	}
 
 	return(trx != NULL);
@@ -985,6 +985,7 @@ trx_sys_init_at_db_start(void)
 		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 		for (;;) {
+			ut_ad(trx->in_trx_list);
 
 			if (trx->state != TRX_STATE_PREPARED) {
 				rows_to_undo += trx->undo_no;
@@ -1734,6 +1735,7 @@ trx_sys_validate_trx_list(void)
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
+		ut_ad(trx->in_trx_list);
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
 

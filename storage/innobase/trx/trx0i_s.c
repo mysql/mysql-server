@@ -1294,6 +1294,8 @@ fetch_data_into_cache(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
+		ut_ad(trx->in_trx_list);
+
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {
 

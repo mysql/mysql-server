@@ -267,7 +267,11 @@ trx_get_on_id_low(
 		return(NULL);
 	}
 
+	/* Because the list is ordered on trx id in descending order,
+	we try to speed things up a bit. */
+
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	ut_ad(trx->in_trx_list);
 
 	if (trx_id == trx->id) {
 		return(trx);
@@ -278,6 +282,7 @@ trx_get_on_id_low(
 	first = trx;
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+	ut_ad(trx->in_trx_list);
 
 	if (trx_id == trx->id) {
 		return(trx);
@@ -288,13 +293,15 @@ trx_get_on_id_low(
 	/* Search the list from the lower end (tail). */
 	if (trx_id < (first->id + trx->id) >> 1) {
 		for (trx = UT_LIST_GET_PREV(trx_list, trx);
-	     	     trx != NULL && trx_id > trx->id;
-	     	     trx = UT_LIST_GET_PREV(trx_list, trx)) {
+		     trx != NULL && trx_id > trx->id;
+		     trx = UT_LIST_GET_PREV(trx_list, trx)) {
+			ut_ad(trx->in_trx_list);
 		}
 	} else {
 		for (trx = UT_LIST_GET_NEXT(trx_list, first);
-	     	     trx != NULL && trx_id < trx->id;
-	     	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+		     trx != NULL && trx_id < trx->id;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+			ut_ad(trx->in_trx_list);
 		}
 	}
 
@@ -338,6 +345,7 @@ trx_list_get_min_trx_id_low(void)
 	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+	ut_ad(trx == NULL || trx->in_trx_list);
 
 	id = (trx == NULL) ? trx_sys->max_trx_id : trx->id;
 
