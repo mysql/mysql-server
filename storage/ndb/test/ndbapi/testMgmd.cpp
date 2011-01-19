@@ -971,16 +971,16 @@ TESTCASE("NoCfgCache",
   INITIALIZER(runTestNoConfigCache);
 }
 
-TESTCASE("Bug56844",
-         "Test that mgmd can be restarted in any order")
-{
-  INITIALIZER(runBug56844);
-}
-
 TESTCASE("Bug45495",
          "Test that mgmd can be restarted in any order")
 {
   INITIALIZER(runTestBug45495);
+}
+
+TESTCASE("Bug56844",
+         "Test that mgmd can be reloaded in parallel")
+{
+  INITIALIZER(runBug56844);
 }
 
 NDBT_TESTSUITE_END(testMgmd);
