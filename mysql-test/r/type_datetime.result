@@ -637,4 +637,15 @@ CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7))
 20080729104251.1234560
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2008-07-29T10:42:51.1234567'
+# 
+# Bug#59173: Failure to handle DATE(TIME) values where Year, Month or
+# Day is ZERO 
+# 
+CREATE TABLE t1 (dt1 DATETIME);
+INSERT INTO t1 (dt1) VALUES ('0000-00-01 00:00:01');
+DELETE   FROM t1 WHERE dt1 = '0000-00-01 00:00:01';
+# Should be empty
+SELECT * FROM t1;
+dt1
+DROP TABLE t1;
 End of 5.1 tests
