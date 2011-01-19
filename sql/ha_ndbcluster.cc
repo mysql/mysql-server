@@ -10146,32 +10146,41 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  if (!global_read_lock)
+  /*
+    Delete old files
+
+    ndbcluster_find_files() may be called from I_S code and ndbcluster_binlog
+    thread in situations when some tables are already open. This means that
+    code below will try to obtain exclusive metadata lock on some table
+    while holding shared meta-data lock on other tables. This might lead to a
+    deadlock but such a deadlock should be detected by MDL deadlock detector.
+  */
+  List_iterator_fast<char> it3(delete_list);
+  while ((file_name_str= it3++))
   {
-    // Delete old files
-    List_iterator_fast<char> it3(delete_list);
-    while ((file_name_str= it3++))
-    {
-      DBUG_PRINT("info", ("Remove table %s/%s", db, file_name_str));
-      // Delete the table and all related files
-      TABLE_LIST table_list;
-      bzero((char*) &table_list,sizeof(table_list));
-      table_list.db= (char*) db;
-      table_list.alias= table_list.table_name= (char*)file_name_str;
-      /*
-        set TNO_NO_NDB_DROP_TABLE flag to not drop ndb table.
-        it should not exist anyways
-      */
-      thd_ndb->options|= TNO_NO_NDB_DROP_TABLE;
-      (void)mysql_rm_table_part2(thd, &table_list,
-                                 FALSE,   /* if_exists */
-                                 FALSE,   /* drop_temporary */ 
-                                 FALSE,   /* drop_view */
-                                 TRUE     /* dont_log_query*/);
-      thd_ndb->options&= ~TNO_NO_NDB_DROP_TABLE;
-      /* Clear error message that is returned when table is deleted */
-      thd->clear_error();
-    }
+    DBUG_PRINT("info", ("Removing table %s/%s", db, file_name_str));
+    // Delete the table and all related files
+    TABLE_LIST table_list;
+    table_list.init_one_table(db, strlen(db),
+                              file_name_str, strlen(file_name_str),
+                              file_name_str,
+                              TL_WRITE);
+    table_list.mdl_request.set_type(MDL_EXCLUSIVE);
+    /*
+      set TNO_NO_NDB_DROP_TABLE flag to not drop ndb table.
+      it should not exist anyways
+    */
+    thd_ndb->options|= TNO_NO_NDB_DROP_TABLE;
+    (void)mysql_rm_table_part2(thd, &table_list,
+                               false,   /* if_exists */
+                               false,   /* drop_temporary */
+                               false,   /* drop_view */
+                               true     /* dont_log_query*/);
+    thd_ndb->options&= ~TNO_NO_NDB_DROP_TABLE;
+    trans_commit_implicit(thd); /* Safety, should be unnecessary. */
+    thd->mdl_context.release_transactional_locks();
+    /* Clear error message that is returned when table is deleted */
+    thd->clear_error();
   }
 
   // Create new files
