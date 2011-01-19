@@ -455,9 +455,35 @@ lock_rec_get_nth_bit(
 }
 
 /*********************************************************************//**
+Reports that a transaction id is insensible, i.e., in the future. */
+UNIV_INTERN
+void
+lock_report_trx_id_insanity(
+/*========================*/
+	trx_id_t	trx_id,		/*!< in: trx id */
+	const rec_t*	rec,		/*!< in: user record */
+	dict_index_t*	index,		/*!< in: index */
+	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
+	trx_id_t	max_trx_id)	/*!< in: trx_sys_get_max_trx_id() */
+{
+	ut_print_timestamp(stderr);
+	fputs("  InnoDB: Error: transaction id associated with record\n",
+	      stderr);
+	rec_print_new(stderr, rec, offsets);
+	fputs("InnoDB: in ", stderr);
+	dict_index_name_print(stderr, NULL, index);
+	fprintf(stderr, "\n"
+		"InnoDB: is " TRX_ID_FMT " which is higher than the"
+		" global trx id counter " TRX_ID_FMT "!\n"
+		"InnoDB: The table is corrupt. You have to do"
+		" dump + drop + reimport.\n",
+		(ullint) trx_id, (ullint) max_trx_id);
+}
+
+/*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.
 @return	TRUE if ok */
-UNIV_INTERN
+static
 ibool
 lock_check_trx_id_sanity(
 /*=====================*/
@@ -466,34 +492,18 @@ lock_check_trx_id_sanity(
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 {
-	ibool	is_ok		= TRUE;
+	ibool		is_ok;
+	trx_id_t	max_trx_id;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	rw_lock_s_lock(&trx_sys->lock);
+	max_trx_id = trx_sys_get_max_trx_id();
+	is_ok = trx_id < max_trx_id;
 
-	/* A sanity check: the trx_id in rec must be smaller than the global
-	trx id counter */
-
-	if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Error: transaction id associated"
-		      " with record\n",
-		      stderr);
-		rec_print_new(stderr, rec, offsets);
-		fputs("InnoDB: in ", stderr);
-		dict_index_name_print(stderr, NULL, index);
-		fprintf(stderr, "\n"
-			"InnoDB: is " TRX_ID_FMT " which is higher than the"
-			" global trx id counter " TRX_ID_FMT "!\n"
-			"InnoDB: The table is corrupt. You have to do"
-			" dump + drop + reimport.\n",
-			(ullint) trx_id, (ullint) trx_sys->max_trx_id);
-
-		is_ok = FALSE;
+	if (UNIV_UNLIKELY(!is_ok)) {
+		lock_report_trx_id_insanity(trx_id,
+					    rec, index, offsets, max_trx_id);
 	}
-
-	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(is_ok);
 }
