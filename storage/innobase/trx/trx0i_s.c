@@ -1281,7 +1281,9 @@ fetch_data_into_cache(
 	i_s_locks_row_t*	requested_lock_row;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx_i_s_cache_clear(cache);
 

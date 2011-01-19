@@ -259,7 +259,9 @@ trx_get_on_id_low(
 	ulint		len;
 	trx_t*		first;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	len = UT_LIST_GET_LEN(trx_sys->trx_list);
 
@@ -342,7 +344,9 @@ trx_list_get_min_trx_id_low(void)
 	trx_id_t	id;
 	trx_t*		trx;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
 	ut_ad(trx == NULL || trx->in_trx_list);
@@ -387,7 +391,9 @@ trx_is_active_low(
 {
 	trx_t*		trx;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	*corrupt = FALSE;
 
@@ -444,7 +450,9 @@ trx_id_t
 trx_sys_get_new_trx_id(void)
 /*========================*/
 {
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -478,7 +486,9 @@ trx_sys_get_max_trx_id(void)
 	rw_lock_s_unlock(&trx_sys->lock);
 	return(max_trx_id);
 #else
-	ut_ad(!rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	/* Perform a dirty read. Callers should be prepared for stale
 	values, and we know that the value fits in a machine word, so
 	that it will be read and written atomically. */

@@ -186,7 +186,9 @@ read_view_validate(
 {
 	ulint	i;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
@@ -207,7 +209,9 @@ read_view_list_validate(void)
 	const read_view_t*	view;
 	const read_view_t*	prev_view = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(&trx_sys->read_view_mutex);
 
@@ -237,7 +241,9 @@ read_view_create_low(
 {
 	read_view_t*	view;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	view = mem_heap_alloc(heap, sizeof(*view) + n * sizeof(*view->trx_ids));
 
@@ -264,7 +270,9 @@ read_view_clone(
 	read_view_t*	clone;
 	read_view_t*	new_view;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&trx_sys->read_view_mutex));
 
 	/* Allocate space for two views. */
@@ -343,7 +351,9 @@ read_view_open_now_low(
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	view = read_view_create_low(n_trx, heap);
 

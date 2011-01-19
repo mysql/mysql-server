@@ -641,7 +641,9 @@ trx_in_trx_list(
 {
 	trx_t*	trx;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx != in_trx;
@@ -664,7 +666,9 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -1728,8 +1732,10 @@ trx_sys_validate_trx_list(void)
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX)
-	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
