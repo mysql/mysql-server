@@ -176,7 +176,7 @@ int handle_options(int *argc, char ***argv,
   */
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
-    if (*pos == args_separator)
+    if (my_getopt_is_args_separator(*pos))
     {
       is_cmdline_arg= 0;
       break;
@@ -188,7 +188,7 @@ int handle_options(int *argc, char ***argv,
     char **first= pos;
     char *cur_arg= *pos;
     opt_found= 0;
-    if (!is_cmdline_arg && (cur_arg == args_separator))
+    if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg)))
     {
       is_cmdline_arg= 1;
 
