@@ -103,9 +103,6 @@ enum column_format_type {
 /* Missing functionality in injector -> no --ndb-log-empty-epochs */
 #define NDB_NO_LOG_EMPTY_EPOCHS
 
-/* No support for --ndb-wait_setup */
-#define NDB_NO_WAIT_SETUP
-
 /*
   The enum open_table_mode has been removed in 5.5.7 and 'open_table_from_share'
   now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN
