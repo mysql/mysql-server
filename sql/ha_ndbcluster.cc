@@ -8198,7 +8198,7 @@ cleanup_failed:
                                m_table->getObjectVersion(),
                                (is_truncate) ?
 			       SOT_TRUNCATE_TABLE : SOT_CREATE_TABLE, 
-			       0, 0, 1);
+			       NULL, NULL);
       break;
     }
   }
@@ -8518,7 +8518,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                              old_dbname, m_tabname,
                              ndb_table_id, ndb_table_version,
                              SOT_RENAME_TABLE_PREPARE,
-                             m_dbname, new_tabname, 1);
+                             m_dbname, new_tabname);
   }
   if (share)
   {
@@ -8606,7 +8606,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                                old_dbname, m_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_RENAME_TABLE,
-                               m_dbname, new_tabname, 1);
+                               m_dbname, new_tabname);
     }
     else
     {
@@ -8615,7 +8615,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
                                m_dbname, new_tabname,
                                ndb_table_id, ndb_table_version,
                                SOT_ALTER_TABLE_COMMIT,
-                               0, 0, 1);
+                               NULL, NULL);
 
     }
   }
@@ -8819,7 +8819,7 @@ retry_temporary_error1:
                              thd->query(), thd->query_length(),
                              share->db, share->table_name,
                              ndb_table_id, ndb_table_version,
-                             SOT_DROP_TABLE, 0, 0, 1);
+                             SOT_DROP_TABLE, NULL, NULL);
   }
 
   if (share)
@@ -9772,7 +9772,6 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   while ((tabname=it++))
   {
     tablename_to_filename(tabname, tmp, FN_REFLEN - (tmp - full_path)-1);
-    mysql_mutex_lock(&LOCK_open);
     if (ha_ndbcluster::delete_table(thd, 0, ndb, full_path, dbname, tabname))
     {
       const NdbError err= dict->getNdbError();
@@ -9782,7 +9781,6 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
         ret= ndb_to_mysql_error(&err);
       }
     }
-    mysql_mutex_unlock(&LOCK_open);
   }
 
   dict->invalidateDbGlobal(dbname);
@@ -9818,7 +9816,7 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   ndbcluster_log_schema_op(thd,
                            thd->query(), thd->query_length(),
                            db, "", table_id, table_version,
-                           SOT_DROP_DB, 0, 0, 0);
+                           SOT_DROP_DB, NULL, NULL);
   DBUG_VOID_RETURN;
 }
 
@@ -9943,7 +9941,6 @@ int ndbcluster_find_all_files(THD *thd)
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
       my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
 
-      mysql_mutex_lock(&LOCK_open);
       if (discover)
       {
         /* ToDo 4.1 database needs to be created if missing */
@@ -9959,7 +9956,6 @@ int ndbcluster_find_all_files(THD *thd)
                                        elmt.database, elmt.name,
                                        TRUE);
       }
-      mysql_mutex_unlock(&LOCK_open);
     }
   }
   while (unhandled && retries);
@@ -10058,19 +10054,16 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                            file_name->str, reg_ext, 0);
       if (my_access(name, F_OK))
       {
-        mysql_mutex_lock(&LOCK_open);
         DBUG_PRINT("info", ("Table %s listed and need discovery",
                             file_name->str));
         if (ndb_create_table_from_engine(thd, db, file_name->str))
         {
-          mysql_mutex_unlock(&LOCK_open);
           push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                               ER_TABLE_EXISTS_ERROR,
                               "Discover of table %s.%s failed",
                               db, file_name->str);
           continue;
         }
-        mysql_mutex_unlock(&LOCK_open);
       }
       DBUG_PRINT("info", ("%s existed in NDB _and_ on disk ", file_name->str));
       file_on_disk= TRUE;
@@ -10127,10 +10120,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       file_name_str= (char*)my_hash_element(&ok_tables, i);
       end= end1 +
         tablename_to_filename(file_name_str, end1, sizeof(name) - (end1 - name));
-      mysql_mutex_lock(&LOCK_open);
       ndbcluster_create_binlog_setup(thd, ndb, name, end-name,
                                      db, file_name_str, TRUE);
-      mysql_mutex_unlock(&LOCK_open);
     }
   }
 
@@ -10183,7 +10174,6 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  mysql_mutex_lock(&LOCK_open);
   // Create new files
   List_iterator_fast<char> it2(create_list);
   while ((file_name_str=it2++))
@@ -10197,8 +10187,6 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
       files->push_back(tmp_file_name); 
     }
   }
-
-  mysql_mutex_unlock(&LOCK_open);
 
   my_hash_free(&ok_tables);
   my_hash_free(&ndb_tables);
@@ -11099,7 +11087,7 @@ static void print_ndbcluster_open_tables()
   
   Must be called with previous pthread_mutex_lock(&ndbcluster_mutex)
 */
-int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
+int handle_trailing_share(THD *thd, NDB_SHARE *share)
 {
   static ulong trailing_share_id= 0;
   DBUG_ENTER("handle_trailing_share");
@@ -11116,13 +11104,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   bzero((char*) &table_list,sizeof(table_list));
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
-  if (have_lock_open)
-    mysql_mutex_assert_owner(&LOCK_open);
-  else
-    mysql_mutex_lock(&LOCK_open);
   close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
-  if (!have_lock_open)
-    mysql_mutex_unlock(&LOCK_open);
 
   pthread_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
@@ -11245,7 +11227,7 @@ int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share)
   return 0;
 }
 
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open)
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
 {
   NDB_SHARE *tmp;
   pthread_mutex_lock(&ndbcluster_mutex);
@@ -11255,7 +11237,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   if ((tmp= (NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                         (const uchar*) share->new_key,
                                         new_length)))
-    handle_trailing_share(thd, tmp, have_lock_open);
+    handle_trailing_share(thd, tmp);
 
   /* remove the share from hash */
   my_hash_delete(&ndbcluster_open_tables, (uchar*) share);
@@ -13881,7 +13863,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_PREPARE,
-                           0, 0, 0);
+                           NULL, NULL);
 
   /*
     Get table id/version for new table
@@ -13913,7 +13895,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
                            db, name,
                            table_id, table_version,
                            SOT_ONLINE_ALTER_TABLE_COMMIT,
-                           0, 0, 0);
+                           NULL, NULL);
 
   delete alter_data;
   alter_info->data= 0;
@@ -14261,13 +14243,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
                              thd->query(), thd->query_length(),
                              "", alter_info->tablespace_name,
                              table_id, table_version,
-                             SOT_TABLESPACE, 0, 0, 0);
+                             SOT_TABLESPACE, NULL, NULL);
   else
     ndbcluster_log_schema_op(thd,
                              thd->query(), thd->query_length(),
                              "", alter_info->logfile_group_name,
                              table_id, table_version,
-                             SOT_LOGFILE_GROUP, 0, 0, 0);
+                             SOT_LOGFILE_GROUP, NULL, NULL);
   DBUG_RETURN(FALSE);
 
 ndberror:
