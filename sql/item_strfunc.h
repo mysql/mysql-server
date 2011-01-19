@@ -791,6 +791,7 @@ public:
 class Item_func_conv_charset :public Item_str_func
 {
   bool use_cached_value;
+  String tmp_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public
