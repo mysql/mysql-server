@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #
 ##############################################################################
@@ -292,8 +292,10 @@ our $opt_include_ndbcluster= 0;
 our $opt_skip_ndbcluster= 1;
 
 my $exe_ndbd;
+my $exe_ndbmtd;
 my $exe_ndb_mgmd;
 my $exe_ndb_waiter;
+my $exe_ndb_mgm;
 
 our $debug_compiled_binaries;
 
@@ -506,8 +508,8 @@ sub run_test_server ($$$) {
   my $num_failed_test= 0; # Number of tests failed so far
 
   # Scheduler variables
-  my $max_ndb= $childs / 2;
-  $max_ndb = 4 if $max_ndb > 4;
+  my $max_ndb= $ENV{MTR_MAX_NDB} || $childs / 2;
+  $max_ndb = $childs if $max_ndb > $childs;
   $max_ndb = 1 if $max_ndb < 1;
   my $num_ndb_tests= 0;
 
@@ -1809,15 +1811,41 @@ sub executable_setup () {
 
   if ( ! $opt_skip_ndbcluster )
   {
+    # Look for single threaded NDB
     $exe_ndbd=
       my_find_bin($bindir,
 		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
 		  "ndbd");
 
+    # Look for multi threaded NDB
+    $exe_ndbmtd=
+      my_find_bin($bindir,
+		  ["storage/ndb/src/kernel", "libexec", "sbin", "bin"],
+		  "ndbmtd", NOT_REQUIRED);
+    if ($exe_ndbmtd)
+    {
+      my $mtr_ndbmtd = $ENV{MTR_NDBMTD};
+      if ($mtr_ndbmtd)
+      {
+	mtr_report(" - multi threaded ndbd found, will be used always");
+	$exe_ndbd = $exe_ndbmtd;
+      }
+      else
+      {
+	mtr_report(" - multi threaded ndbd found, will be ".
+		   "used \"round robin\"");
+      }
+    }
+
     $exe_ndb_mgmd=
       my_find_bin($bindir,
 		  ["storage/ndb/src/mgmsrv", "libexec", "sbin", "bin"],
 		  "ndb_mgmd");
+
+    $exe_ndb_mgm=
+      my_find_bin($bindir,
+                  ["storage/ndb/src/mgmclient", "bin"],
+                  "ndb_mgm");
 
     $exe_ndb_waiter=
       my_find_bin($bindir,
@@ -2624,6 +2652,27 @@ sub ndb_mgmd_wait_started($) {
   return 1;
 }
 
+sub ndb_mgmd_stop{
+  my $ndb_mgmd= shift or die "usage: ndb_mgmd_stop(<ndb_mgmd>)";
+
+  my $host=$ndb_mgmd->value('HostName');
+  my $port=$ndb_mgmd->value('PortNumber');
+  mtr_verbose("Stopping cluster '$host:$port'");
+
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--ndb-connectstring=%s:%s", $host,$port);
+  mtr_add_arg($args, "-e");
+  mtr_add_arg($args, "shutdown");
+
+  My::SafeProcess->run
+    (
+     name          => "ndb_mgm shutdown $host:$port",
+     path          => $exe_ndb_mgm,
+     args          => \$args,
+     output         => "/dev/null",
+    );
+}
 
 sub ndb_mgmd_start ($$) {
   my ($cluster, $ndb_mgmd)= @_;
@@ -2651,6 +2700,7 @@ sub ndb_mgmd_start ($$) {
      error         => $path_ndb_mgmd_log,
      append        => 1,
      verbose       => $opt_verbose,
+     shutdown      => sub { ndb_mgmd_stop($ndb_mgmd) },
     );
   mtr_verbose("Started $ndb_mgmd->{proc}");
 
@@ -2666,6 +2716,12 @@ sub ndb_mgmd_start ($$) {
   return 0;
 }
 
+sub ndbd_stop {
+  # Intentionally left empty, ndbd nodes will be shutdown
+  # by sending "shutdown" to ndb_mgmd
+}
+
+my $exe_ndbmtd_counter= 0;
 
 sub ndbd_start {
   my ($cluster, $ndbd)= @_;
@@ -2683,17 +2739,24 @@ sub ndbd_start {
 
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
+  my $exe= $exe_ndbd;
+  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
+  {
+    # Use ndbmtd every other time
+    $exe= $exe_ndbmtd;
+  }
 
   my $path_ndbd_log= "$dir/ndbd.log";
   my $proc= My::SafeProcess->new
     (
      name          => $ndbd->after('cluster_config.'),
-     path          => $exe_ndbd,
+     path          => $exe,
      args          => \$args,
      output        => $path_ndbd_log,
      error         => $path_ndbd_log,
      append        => 1,
      verbose       => $opt_verbose,
+     shutdown      => sub { ndbd_stop($ndbd) },
     );
   mtr_verbose("Started $proc");
 
