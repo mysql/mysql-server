@@ -1198,6 +1198,13 @@ sync_thread_add_level(
 		}
 		break;
 	case SYNC_TRX:
+		/* Either the thread must own the lock_sys->mutex, or
+		it is allowed to own only ONE trx->mutex. */
+		if (!sync_thread_levels_g(array, level, FALSE)) {
+			ut_a(sync_thread_levels_g(array, level - 1, TRUE));
+			ut_a(sync_thread_levels_contain(array, SYNC_LOCK_SYS));
+		}
+		break;
 	case SYNC_BUF_FLUSH_LIST:
 	case SYNC_BUF_POOL:
 		/* We can have multiple mutexes of this type therefore we
