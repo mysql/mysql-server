@@ -455,7 +455,8 @@ lock_table(
 /*=======*/
 	ulint		flags,	/*!< in: if BTR_NO_LOCKING_FLAG bit is set,
 				does nothing */
-	dict_table_t*	table,	/*!< in: database table in dictionary cache */
+	dict_table_t*	table,	/*!< in/out: database table
+				in dictionary cache */
 	enum lock_mode	mode,	/*!< in: lock mode */
 	que_thr_t*	thr);	/*!< in: query thread */
 /*************************************************************//**
@@ -466,7 +467,7 @@ UNIV_INTERN
 void
 lock_rec_unlock(
 /*============*/
-	trx_t*			trx,	/*!< in: transaction that has
+	trx_t*			trx,	/*!< in/out: transaction that has
 					set a record lock */
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record */
@@ -479,7 +480,7 @@ UNIV_INTERN
 void
 lock_trx_release_locks(
 /*===================*/
-	trx_t*	trx);	/*!< in: transaction */
+	trx_t*	trx);	/*!< in/out: transaction */
 /*********************************************************************//**
 Removes locks on a table to be dropped or truncated.
 If remove_also_table_sx_locks is TRUE then table-level S and X locks are
@@ -552,8 +553,9 @@ UNIV_INTERN
 ibool
 lock_is_table_exclusive(
 /*====================*/
-	dict_table_t*	table,	/*!< in: table */
-	trx_t*		trx);	/*!< in: transaction */
+	const dict_table_t*	table,	/*!< in: table */
+	const trx_t*		trx)	/*!< in: transaction */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return	TRUE if lock1 has to wait for lock2 to be removed */
@@ -790,7 +792,8 @@ UNIV_INTERN
 ulint
 lock_table_get_n_locks(
 /*===================*/
-	dict_table_t*	table);
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull));
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
