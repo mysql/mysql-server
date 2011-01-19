@@ -756,12 +756,12 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     BOOL newenv;  // true iff creating a new environment
     u_int32_t unused_flags=flags;
 
-    most_recent_env = NULL;
-
     if (env_opened(env)) {
 	r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
         goto cleanup;
     }
+
+    most_recent_env = NULL;
 
     assert(sizeof(time_t) == sizeof(uint64_t));
 
