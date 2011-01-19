@@ -3436,6 +3436,7 @@ lock_deadlock_occurs(
 	ut_ad(lock);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
+	ut_ad(trx->in_trx_list);
 
 retry:
 	/* We check that adding this trx to the waits-for graph
@@ -3452,6 +3453,7 @@ retry:
 	     mark_trx != NULL;
 	     mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx)) {
 
+		ut_ad(mark_trx->in_trx_list);
 		mark_trx->lock.deadlock_mark = 0;
 	}
 
@@ -3539,8 +3541,9 @@ lock_deadlock_recursive(
 	ut_a(start);
 	ut_a(wait_lock);
 	ut_ad(lock_mutex_own());
+	ut_ad(trx->in_trx_list);
 
-	if (trx->lock.deadlock_mark == 1) {
+	if (trx->lock.deadlock_mark) {
 		/* We have already exhaustively searched the subtree starting
 		from this trx */
 
@@ -4311,9 +4314,15 @@ lock_remove_recovered_trx_record_locks(
 		lock_t*	lock;
 		lock_t*	next_lock;
 
+		ut_ad(trx->in_trx_list);
+
 		if (!trx->is_recovered) {
 			continue;
 		}
+
+		/* Because we are holding the lock_sys->mutex,
+		implicit locks cannot be converted to explicit ones
+		while we are scanning the explicit locks. */
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
@@ -4676,29 +4685,30 @@ lock_print_info_all_transactions(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
 
+		ut_ad(trx->in_mysql_trx_list);
 		/* Note we are doing a dirty read here and it is possible
 		for the transaction state to change while we are printing
 		the transaction. This should be OK. */
 		if (trx->state == TRX_STATE_NOT_STARTED) {
 			fputs("---", file);
 			trx_print_latched(file, trx, 600);
+			ut_ad(!trx->in_trx_list);
+		} else {
+			ut_ad(trx->in_trx_list);
 		}
 	}
 
 loop:
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-
-	i = 0;
-
-	/* Since we temporarily release the lock mutex and
-	trx_sys->mutex when reading a database page in below,
+	/* Since we temporarily release lock_sys->mutex and
+	trx_sys->lock when reading a database page in below,
 	variable trx may be obsolete now and we must loop
 	through the trx list to get probably the same trx,
 	or some other trx. */
 
-	while (trx && (i < nth_trx)) {
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
-		i++;
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list), i = 0;
+	     trx && (i < nth_trx);
+	     trx = UT_LIST_GET_NEXT(trx_list, trx), i++) {
+		ut_ad(trx->in_trx_list);
 	}
 
 	if (trx == NULL) {
@@ -4711,6 +4721,8 @@ loop:
 
 		return;
 	}
+
+	ut_ad(trx->in_trx_list);
 
 	if (nth_lock == 0) {
 		fputs("---", file);
@@ -4854,6 +4866,7 @@ lock_table_queue_validate(
 	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
 
 		trx_mutex_enter(lock->trx);
+		ut_ad(lock->trx->in_trx_list);
 
 		ut_a((lock->trx->state == TRX_STATE_ACTIVE)
 		     || (lock->trx->state == TRX_STATE_PREPARED)
@@ -5212,6 +5225,8 @@ lock_validate(void)
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		ut_ad(trx->in_trx_list);
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
@@ -6134,12 +6149,14 @@ lock_trx_release_locks(
 /*===================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
+	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
+	is protected by both the lock_sys->mutex and the trx->mutex. */
 	lock_mutex_enter();
-
 	trx_mutex_enter(trx);
 
 	ut_ad(trx->state == TRX_STATE_ACTIVE
 	      || trx->state == TRX_STATE_PREPARED);
+	ut_ad(trx->in_trx_list);
 
 	/* The following assignment makes the transaction committed in memory
 	and makes its changes to data visible to other transactions.

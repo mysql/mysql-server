@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -364,6 +364,7 @@ read_view_open_now_low(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
+		ut_ad(trx->in_trx_list);
 		/* Note: We are doing a dirty read of the trx_t::state
 		without the cover of the trx_t::mutex. The state change
 		to TRX_STATE_PREPARED is done using only the trx_t::mutex. */
@@ -664,6 +665,8 @@ read_cursor_view_create_for_mysql(
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		ut_ad(trx->in_trx_list);
 
 		if (trx->state == TRX_STATE_ACTIVE
 		    || trx->state == TRX_STATE_PREPARED) {

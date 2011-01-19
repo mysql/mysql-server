@@ -665,6 +665,8 @@ trx_rollback_or_clean_recovered(
 		     trx != NULL;
 		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
+			ut_ad(trx->in_trx_list);
+
 			/* If this function does a cleanup or rollback
 			then it will release the trx sys mutex, therefore
 			we need to reacquire it before retrying the loop. */

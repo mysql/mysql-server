@@ -655,10 +655,19 @@ struct trx_struct{
 					in consistent read */
 	/*------------------------------*/
 	UT_LIST_NODE_T(trx_t)
-			trx_list;	/*!< list of transactions */
+			trx_list;	/*!< list of transactions;
+					protected by trx_sys->lock */
+#ifdef UNIV_DEBUG
+	ibool		in_trx_list;	/*!< TRUE if in trx_sys->trx_list */
+#endif /* UNIV_DEBUG */
 	UT_LIST_NODE_T(trx_t)
 			mysql_trx_list;	/*!< list of transactions created for
-					MySQL */
+					MySQL; protected by trx_sys->lock */
+#ifdef UNIV_DEBUG
+	ibool		in_mysql_trx_list;
+					/*!< TRUE if in
+					trx_sys->mysql_trx_list */
+#endif /* UNIV_DEBUG */
 	/*------------------------------*/
 	enum db_err	error_state;	/*!< 0 if no error, otherwise error
 					number; NOTE That ONLY the thread

@@ -173,6 +173,7 @@ trx_allocate_for_mysql(void)
 
 	++trx_n_mysql_transactions;
 
+	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	rw_lock_x_unlock(&trx_sys->lock);
@@ -305,6 +306,8 @@ trx_free_for_mysql(
 {
 	rw_lock_x_lock(&trx_sys->lock);
 
+	ut_ad(trx->in_mysql_trx_list);
+	ut_d(trx->in_mysql_trx_list = FALSE);
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
@@ -330,10 +333,14 @@ trx_list_insert_ordered(
 	trx_t*	trx2;
 
 	ut_a(srv_is_being_started);
+	ut_ad(!trx->in_trx_list);
+	ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 
 	for (trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx2 != NULL;
 	     trx2 = UT_LIST_GET_NEXT(trx_list, trx2)) {
+
+		ut_ad(trx2->in_trx_list);
 
 		if (trx->id >= trx2->id) {
 
@@ -354,6 +361,9 @@ trx_list_insert_ordered(
 	} else {
 		UT_LIST_ADD_LAST(trx_list, trx_sys->trx_list, trx);
 	}
+
+	ut_ad(!trx->in_trx_list);
+	ut_d(trx->in_trx_list = TRUE);
 }
 
 /****************************************************************//**
@@ -650,6 +660,8 @@ trx_start_low(
 	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
+	ut_ad(!trx->in_trx_list);
+	ut_d(trx->in_trx_list = TRUE);
 
 	ut_ad(trx_sys_validate_trx_list());
 
@@ -848,11 +860,18 @@ trx_commit(
 	there is no going back and I don't see why need to wait
 	till the end to remove it from the sys list. */
 
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
 
 	rw_lock_x_unlock(&trx_sys->lock);
+
+	ut_ad(!trx->in_trx_list);
+	/* trx->in_mysql_trx_list would hold between
+	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
+	hold for recovered transactions or system transactions. */
 }
 
 /****************************************************************//**
@@ -879,6 +898,8 @@ trx_cleanup_at_db_startup(
 	trx->state = TRX_STATE_NOT_STARTED;
 
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
 
 	rw_lock_x_unlock(&trx_sys->lock);
 }
@@ -1491,6 +1512,8 @@ trx_recover_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
+		ut_ad(trx->in_trx_list);
+
 		if (trx->state == TRX_STATE_PREPARED) {
 			xid_list[count] = trx->xid;
 
@@ -1562,6 +1585,8 @@ trx_get_trx_by_xid(
 		length should be the same and binary comparison
 		of gtrid_length+bqual_length bytes should be
 		the same */
+
+		ut_ad(trx->in_trx_list);
 
 		if (xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
