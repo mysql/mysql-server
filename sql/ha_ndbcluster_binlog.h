@@ -225,8 +225,7 @@ int ndbcluster_log_schema_op(THD *thd,
                              uint32 ndb_table_version,
                              enum SCHEMA_OP_TYPE type,
                              const char *new_db,
-                             const char *new_table_name,
-                             int have_lock_open);
+                             const char *new_table_name);
 int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                           const char *type_str,
                           const char * dbname, const char * tabname);
@@ -285,9 +284,9 @@ NDB_SHARE *ndbcluster_get_share(const char *key,
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
 void ndbcluster_real_free_share(NDB_SHARE **share);
-int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open= 1);
+int handle_trailing_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
-int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open= 1);
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
 int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
 inline NDB_SHARE *get_share(const char *key,
                             TABLE *table,
