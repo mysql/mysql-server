@@ -1629,7 +1629,7 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->read_view_mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1639,7 +1639,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->read_view_mutex);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
