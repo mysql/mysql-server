@@ -2142,6 +2142,38 @@ sub environment_setup {
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
+    $ENV{'NDB_WAITER'}= $exe_ndb_waiter;
+
+    $ENV{'NDB_RESTORE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_restore");
+
+    $ENV{'NDB_CONFIG'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_config");
+
+    $ENV{'NDB_SELECT_ALL'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_select_all");
+
+    $ENV{'NDB_DROP_TABLE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_drop_table");
+
+    $ENV{'NDB_DESC'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_desc");
+
+    $ENV{'NDB_SHOW_TABLES'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_show_tables");
+
     $ENV{'NDB_TOOLS_DIR'}=
       my_find_dir($bindir,
 		  ["storage/ndb/tools", "bin"]);
