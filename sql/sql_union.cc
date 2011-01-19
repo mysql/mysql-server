@@ -581,24 +581,23 @@ bool st_select_lex_unit::exec()
       ha_rows records_at_start= 0;
       thd->lex->current_select= sl;
 
+      set_limit(sl);
+      if (sl == global_parameters || describe)
+      {
+        offset_limit_cnt= 0;
+        /*
+          We can't use LIMIT at this stage if we are using ORDER BY for the
+          whole query
+        */
+        if (sl->order_list.first || describe)
+          select_limit_cnt= HA_POS_ERROR;
+      }
       if (optimized)
       {
 	saved_error= sl->join->reinit();
       }
       else
       {
-        set_limit(sl);
-	if (sl == global_parameters || describe)
-	{
-	  offset_limit_cnt= 0;
-	  /*
-	    We can't use LIMIT at this stage if we are using ORDER BY for the
-	    whole query
-	  */
-	  if (sl->order_list.first || describe)
-	    select_limit_cnt= HA_POS_ERROR;
-        }
-
         /*
           When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
           we don't calculate found_rows() per union part.
