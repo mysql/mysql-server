@@ -735,12 +735,21 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
     memcpy(&node.m_state, &apiRegConf->nodeState, sizeof(node.m_state) - 24);
   }
   
-  if (node.compatible && (node.m_state.startLevel == NodeState::SL_STARTED  ||
-			  node.m_state.getSingleUserMode())){
-    set_node_alive(node, true);
-  } else {
-    set_node_alive(node, false);
-  }//if
+  if (node.m_info.m_type == NodeInfo::DB)
+  {
+    /**
+     * Only set DB nodes to "alive"
+     */
+    if (node.compatible && (node.m_state.startLevel == NodeState::SL_STARTED ||
+                            node.m_state.getSingleUserMode()))
+    {
+      set_node_alive(node, true);
+    }
+    else
+    {
+      set_node_alive(node, false);
+    }
+  }
 
   cm_node.hbMissed = 0;
   cm_node.hbCounter = 0;
