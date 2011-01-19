@@ -128,12 +128,9 @@ row_vers_impl_x_locked(
 		longer active or corrupt: no implicit lock on rec */
 
 		if (corrupt) {
-			ibool	is_ok;
-
-		   	is_ok = lock_check_trx_id_sanity(
-				trx_id, clust_rec, clust_index, clust_offsets);
-
-			ut_a(!is_ok == corrupt);
+		   	lock_report_trx_id_insanity(
+				trx_id, clust_rec, clust_index, clust_offsets,
+				trx_sys_get_max_trx_id());
 		}
 
 		goto exit_func;
