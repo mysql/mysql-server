@@ -692,8 +692,18 @@ lock_get_src_table(
 	dict_table_t*	src;
 	lock_t*		lock;
 
+	ut_ad(!lock_mutex_own());
+
 	src = NULL;
 	*mode = LOCK_NONE;
+
+	/* The trx mutex protects the trx_locks for our purposes.
+	Other transactions could want to convert one of our implicit
+	record locks to an explicit one. For that, they would need our
+	trx mutex. Waiting locks can be removed while only holding
+	lock_sys->mutex, but this is a running transaction and cannot
+	thus be holding any waiting locks. */
+	trx_mutex_enter(trx);
 
 	for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 	     lock != NULL;
@@ -715,12 +725,14 @@ lock_get_src_table(
 			    || UT_LIST_GET_FIRST(src->locks) != lock) {
 				/* We only support the case when
 				there is only one lock on this table. */
-				return(NULL);
+				src = NULL;
+				goto func_exit;
 			}
 		} else if (src != tab_lock->table) {
 			/* The transaction is locking more than
 			two tables (src and dest): abort */
-			return(NULL);
+			src = NULL;
+			goto func_exit;
 		}
 
 		/* Check that the source table is locked by
@@ -729,7 +741,8 @@ lock_get_src_table(
 		if (lock_mode == LOCK_IX || lock_mode == LOCK_IS) {
 			if (*mode != LOCK_NONE && *mode != lock_mode) {
 				/* There are multiple locks on src. */
-				return(NULL);
+				src = NULL;
+				goto func_exit;
 			}
 			*mode = lock_mode;
 		}
@@ -740,6 +753,8 @@ lock_get_src_table(
 		src = dest;
 	}
 
+func_exit:
+	trx_mutex_exit(trx);
 	return(src);
 }
 
