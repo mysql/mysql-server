@@ -51,7 +51,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	2
-#define INNODB_VERSION_BUGFIX	1
+#define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -68,8 +68,8 @@ component, i.e. we show M.N.P as M.N */
 	IB_TO_STR(INNODB_VERSION_BUGFIX)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
-	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
-	IB_TO_STR(MYSQL_MINOR_VERSION) "/en/"
+	IB_TO_STR(MYSQL_VERSION_MAJOR) "."		\
+	IB_TO_STR(MYSQL_VERSION_MINOR) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
