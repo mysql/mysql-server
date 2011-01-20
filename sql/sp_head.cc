@@ -551,7 +551,7 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 
 sp_head::sp_head()
-  :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
+  :Query_arena(&main_mem_root, ES_INITIALIZED_FOR_SP),
    m_flags(0),
    m_sp_cache_version(0),
    unsafe_flags(0),
@@ -1209,7 +1209,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
-  Query_arena execute_arena(&execute_mem_root, INITIALIZED_FOR_SP),
+  Query_arena execute_arena(&execute_mem_root, ES_INITIALIZED_FOR_SP),
               backup_arena;
   query_id_t old_query_id;
   TABLE *old_derived_tables;
@@ -1489,7 +1489,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->m_reprepare_observer= save_reprepare_observer;
 
   thd->stmt_arena= old_arena;
-  state= EXECUTED;
+  state= ES_EXECUTED;
 
   /*
     Restore the caller's original warning information area:
@@ -1647,7 +1647,7 @@ sp_head::execute_trigger(THD *thd,
   sp_rcontext *nctx = NULL;
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::ES_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
   DBUG_ENTER("sp_head::execute_trigger");
@@ -1788,7 +1788,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   String binlog_buf(buf, sizeof(buf), &my_charset_bin);
   bool err_status= FALSE;
   MEM_ROOT call_mem_root;
-  Query_arena call_arena(&call_mem_root, Query_arena::INITIALIZED_FOR_SP);
+  Query_arena call_arena(&call_mem_root, Query_arena::ES_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
@@ -2545,7 +2545,7 @@ sp_head::restore_thd_mem_root(THD *thd)
   DBUG_ENTER("sp_head::restore_thd_mem_root");
   Item *flist= free_list;       // The old list
   set_query_arena(thd);         // Get new free_list and mem_root
-  state= INITIALIZED_FOR_SP;
+  state= ES_INITIALIZED_FOR_SP;
 
   DBUG_PRINT("info", ("mem_root 0x%lx returned from thd mem root 0x%lx",
                       (ulong) &mem_root, (ulong) &thd->mem_root));
@@ -3009,7 +3009,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
       (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
        thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
        thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
-    thd->stmt_arena->state= Query_arena::EXECUTED;
+    thd->stmt_arena->state= Query_arena::ES_EXECUTED;
 
   /*
     Merge here with the saved parent's values
