@@ -511,6 +511,38 @@ FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1;
 c2
 DROP TABLE t1, t2;
 #
+# Bug#58463: Error Can't find record on SELECT with JOIN and ORDER BY
+#
+CREATE TABLE t1 (
+pk INT NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (
+pk INT NOT NULL,
+i1 INT NOT NULL,
+i2 INT NOT NULL,
+c1 VARCHAR(1024) CHARACTER SET utf8,
+PRIMARY KEY (pk),
+KEY k1 (i1)
+);
+INSERT INTO t2 VALUES (3, 9, 1, NULL);
+EXPLAIN SELECT i1
+FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
+WHERE t2.i1 > 5
+AND t2.pk IS  NULL
+ORDER BY i1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	system	PRIMARY	NULL	NULL	NULL	1	Using filesort
+1	SIMPLE	t2	const	PRIMARY,k1	PRIMARY	4	const	1	Using index condition; Using where
+SELECT i1
+FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
+WHERE t2.i1 > 5
+AND t2.pk IS  NULL
+ORDER BY i1;
+i1
+DROP TABLE t1, t2;
+#
 # Bug#41029 "MRR: SELECT FOR UPDATE fails to lock gaps (InnoDB table)"
 #
 SET AUTOCOMMIT=0;

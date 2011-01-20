@@ -6165,9 +6165,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     can be not more than select_lex->max_equal_elems such 
     substitutions.
   */ 
-  sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
-      (((thd->lex->current_select->cond_count+1)*2 +
-	thd->lex->current_select->between_count)*m+1);
+  sz= max(sizeof(KEY_FIELD), sizeof(SARGABLE_PARAM)) *
+      (((select_lex->cond_count + 1) * 2 +
+	select_lex->between_count) * m + 1);
   if (!(key_fields=(KEY_FIELD*)	thd->alloc(sz)))
     return TRUE; /* purecov: inspected */
   and_level= 0;
