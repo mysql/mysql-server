@@ -1933,7 +1933,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
     Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
     Query_arena backup_arena;
-    Query_arena part_func_arena(&outparam->mem_root, Query_arena::INITIALIZED);
+    Query_arena part_func_arena(&outparam->mem_root, Query_arena::ES_INITIALIZED);
     thd->set_n_backup_active_arena(&part_func_arena, &backup_arena);
     thd->stmt_arena= &part_func_arena;
     bool tmp;

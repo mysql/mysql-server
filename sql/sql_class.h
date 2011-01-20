@@ -624,14 +624,14 @@ public:
   /*
     The states relfects three diffrent life cycles for three
     different types of statements:
-    Prepared statement: INITIALIZED -> PREPARED -> EXECUTED.
-    Stored procedure:   INITIALIZED_FOR_SP -> EXECUTED.
-    Other statements:   CONVENTIONAL_EXECUTION never changes.
+    Prepared statement: ES_INITIALIZED -> ES_PREPARED -> ES_EXECUTED.
+    Stored procedure:   ES_INITIALIZED_FOR_SP -> ES_EXECUTED.
+    Other statements:   ES_CONVENTIONAL_EXECUTION never changes.
   */
   enum enum_state
   {
-    INITIALIZED= 0, INITIALIZED_FOR_SP= 1, PREPARED= 2,
-    CONVENTIONAL_EXECUTION= 3, EXECUTED= 4, ERROR= -1
+    ES_INITIALIZED= 0, ES_INITIALIZED_FOR_SP= 1, ES_PREPARED= 2,
+    ES_CONVENTIONAL_EXECUTION= 3, ES_EXECUTED= 4, ES_ERROR= -1
   };
 
   enum_state state;
@@ -654,18 +654,18 @@ public:
   virtual Type type() const;
   virtual ~Query_arena() {};
 
-  inline bool is_stmt_prepare() const { return state == INITIALIZED; }
+  inline bool is_stmt_prepare() const { return state == ES_INITIALIZED; }
   inline bool is_first_sp_execute() const
-  { return state == INITIALIZED_FOR_SP; }
+  { return state == ES_INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { return (int)state < (int)PREPARED; }
+  { return (int)state < (int)ES_PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { return (int)state <= (int)PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == PREPARED; }
+  { return (int)state <= (int)ES_PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == ES_PREPARED; }
   inline bool is_stmt_execute() const
-  { return state == PREPARED || state == EXECUTED; }
+  { return state == ES_PREPARED || state == ES_EXECUTED; }
   inline bool is_conventional() const
-  { return state == CONVENTIONAL_EXECUTION; }
+  { return state == ES_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
   inline void* calloc(size_t size)

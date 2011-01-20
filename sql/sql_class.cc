@@ -493,7 +493,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 
 
 THD::THD()
-   :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
+   :Statement(&main_lex, &main_mem_root, ES_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
