@@ -431,9 +431,13 @@ struct trx_lock_struct {
 	time_t		wait_started;	/*!< lock wait started at this time,
 					protected only by lock_sys->mutex */
 
-	que_thr_t*	wait_thr;	/*!< query thread beloging to this
+	que_thr_t*	wait_thr;	/*!< query thread belonging to this
 					trx that is in QUE_THR_LOCK_WAIT
-				       	state */
+				       	state. For threads suspended in a
+					lock wait, this is protected by
+					lock_sys->mutex. Otherwise, this may
+					only be modified by the thread that is
+					serving the running transaction. */
 
 	mem_heap_t*	lock_heap;	/*!< memory heap for trx_locks;
 					protected by lock_sys->mutex */
