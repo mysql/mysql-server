@@ -2712,7 +2712,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   */
   reset_stmt_params(stmt);
 
-  stmt->state= Query_arena::PREPARED;
+  stmt->state= Query_arena::ES_PREPARED;
 
   general_log_print(thd, thd->command, NullS);
 
@@ -2830,7 +2830,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param_number >= stmt->param_count)
   {
     /* Error will be sent in execute call */
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::ES_ERROR;
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysqld_stmt_send_long_data");
@@ -2846,7 +2846,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (param->set_longdata(thd->extra_data, thd->extra_length))
 #endif
   {
-    stmt->state= Query_arena::ERROR;
+    stmt->state= Query_arena::ES_ERROR;
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
@@ -2999,7 +2999,7 @@ end:
 
 Prepared_statement::Prepared_statement(THD *thd_arg)
   :Statement(NULL, &main_mem_root,
-             INITIALIZED, ++thd_arg->statement_id_counter),
+             ES_INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
   param_array(0),
@@ -3272,7 +3272,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   {
     setup_set_params();
     lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
-    state= Query_arena::PREPARED;
+    state= Query_arena::ES_PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
     /* 
@@ -3446,7 +3446,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   Item_change_list save_change_list;
   thd->change_list.move_elements_to(&save_change_list);
 
-  state= CONVENTIONAL_EXECUTION;
+  state= ES_CONVENTIONAL_EXECUTION;
 
   if (!(lex= new (mem_root) st_lex_local))
     return TRUE;
@@ -3657,7 +3657,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   status_var_increment(thd->status_var.com_stmt_execute);
 
   /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
+  if (state == Query_arena::ES_ERROR)
   {
     my_message(last_errno, last_error, MYF(0));
     return TRUE;
@@ -3787,8 +3787,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
 
-  if (state == Query_arena::PREPARED)
-    state= Query_arena::EXECUTED;
+  if (state == Query_arena::ES_PREPARED)
+    state= Query_arena::ES_EXECUTED;
 
   if (error == 0 && this->lex->sql_command == SQLCOM_CALL)
   {
