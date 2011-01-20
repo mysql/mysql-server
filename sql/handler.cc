@@ -2638,17 +2638,11 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
     - table->alias
 */
 
-#ifndef DBUG_OFF
 #define SET_FATAL_ERROR fatal_error=1
-#else
-#define SET_FATAL_ERROR
-#endif
 
 void handler::print_error(int error, myf errflag)
 {
-#ifndef DBUG_OFF
   bool fatal_error= 0;
-#endif
   DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
@@ -2855,6 +2849,15 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
+  if (fatal_error && (debug_assert_if_crashed_table ||
+                      global_system_variables.log_warnings > 1))
+  {
+    /*
+      Log error to log before we crash or if extended warnings are requested
+    */
+    errflag|= ME_NOREFRESH;
+  }
+    
   my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_ASSERT(!fatal_error || !debug_assert_if_crashed_table);
   DBUG_VOID_RETURN;

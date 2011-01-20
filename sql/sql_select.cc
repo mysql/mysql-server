@@ -11148,6 +11148,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   const char *save_proc_info;
   int write_err;
   DBUG_ENTER("create_internal_tmp_table_from_heap2");
+  LINT_INIT(write_err);
 
   if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)

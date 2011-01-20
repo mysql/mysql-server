@@ -4,9 +4,12 @@ let $SERVER_VERSION=`select version()`;
 
 #This test case is not written for NDB, the result files 
 #will not match when NDB is the default engine
--- source include/not_ndb_default.inc
+--source include/not_ndb_default.inc
 
 --source include/master-slave.inc
+
+# Add suppression for expected warning(s) in slaves error log
+call mtr.add_suppression("Can't find record in 't.'");
 
 # Bug#15942 (RBR ignores --binlog_ignore_db and tries to map to table
 # on slave for writes)

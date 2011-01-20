@@ -5,6 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
+call mtr.add_suppression("Can't find record in 't.'");
 [on slave]
 SET @old_slave_exec_mode= @@global.slave_exec_mode;
 ######## Run with slave_exec_mode=STRICT ########

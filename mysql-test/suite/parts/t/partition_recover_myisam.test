@@ -3,6 +3,7 @@
 --disable_query_log
 call mtr.add_suppression("..test.t1_will_crash");
 call mtr.add_suppression("Got an error from unknown thread, ha_myisam.cc");
+call mtr.add_suppression("Table 't1_will_crash' is marked as crashed and should be repaired");
 --enable_query_log
 
 --source include/have_partition.inc

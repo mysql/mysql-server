@@ -1,3 +1,4 @@
+call mtr.add_suppression("Table 't1' is marked as crashed and should be repaired");
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 SET storage_engine=ARCHIVE;
 CREATE TABLE t1 (

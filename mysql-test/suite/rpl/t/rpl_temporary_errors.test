@@ -2,6 +2,7 @@ source include/master-slave.inc;
 source include/have_innodb.inc;
 
 call mtr.add_suppression("Deadlock found");
+call mtr.add_suppression("Can't find record in 't.'");
 
 --echo **** On Master ****
 connection master;

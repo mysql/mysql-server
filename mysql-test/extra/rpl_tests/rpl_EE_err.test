@@ -23,8 +23,7 @@ flush tables;
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/t1.MYI ;
 drop table if exists t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+
+--source include/master-slave-end.inc
 
 # End of 4.1 tests
