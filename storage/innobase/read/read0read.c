@@ -374,9 +374,9 @@ read_view_open_now_low(
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		ut_ad(trx->in_trx_list);
-		/* Note: We are doing a dirty read of the trx_t::state
-		without the cover of the trx_t::mutex. The state change
-		to TRX_STATE_PREPARED is done using only the trx_t::mutex. */
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		from ACTIVE to PREPARED or COMMITTED. */
 
 		if (trx->id != cr_trx_id
 		    && (trx->state == TRX_STATE_ACTIVE
