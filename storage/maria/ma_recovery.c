@@ -642,6 +642,7 @@ static void new_transaction(uint16 sid, TrID long_id, LSN undo_lsn,
 prototype_redo_exec_hook_dummy(CHECKPOINT)
 {
   /* the only checkpoint we care about was found via control file, ignore */
+  tprint(tracef, "CHECKPOINT found\n");
   return 0;
 }
 
