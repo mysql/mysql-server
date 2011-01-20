@@ -1066,23 +1066,17 @@ trx_commit_for_mysql(
 		/* fall through */
 	case TRX_STATE_ACTIVE:
 	case TRX_STATE_PREPARED:
-		goto state_ok;
+		trx->op_info = "committing";
+		trx_commit(trx);
+		MONITOR_INC(MONITOR_TRX_COMMIT);
+		MONITOR_DEC(MONITOR_TRX_ACTIVE);
+		trx->op_info = "";
+		return(DB_SUCCESS);
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		break;
 	}
 	ut_error;
-state_ok:
-	trx->op_info = "committing";
-
-	trx_commit(trx);
-
-	MONITOR_INC(MONITOR_TRX_COMMIT);
-
-	MONITOR_DEC(MONITOR_TRX_ACTIVE);
-
-	trx->op_info = "";
-
-	return(DB_SUCCESS);
+	return(DB_CORRUPTION);
 }
 
 /**********************************************************************//**
