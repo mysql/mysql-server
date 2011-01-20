@@ -6197,6 +6197,8 @@ lock_unlock_table_autoinc(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	ut_ad(!lock_mutex_own());
+	ut_ad(!trx_mutex_own(trx));
+
 	/* This function is invoked for a running transaction by the
 	thread that is serving the transaction. Therefore it is not
 	necessary to hold trx->mutex here. */
@@ -6336,7 +6338,6 @@ lock_table_locks_check(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(!trx_mutex_own(trx));
 
 	rw_lock_s_lock(&trx_sys->lock);
 
