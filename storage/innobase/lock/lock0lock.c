@@ -842,6 +842,7 @@ lock_reset_lock_and_trx_wait(
 {
 	ut_ad(lock->trx->lock.wait_lock == lock);
 	ut_ad(lock_get_wait(lock));
+	ut_ad(lock_mutex_own());
 
 	/* Reset the back pointer in trx to this waiting lock request */
 
@@ -2385,6 +2386,7 @@ lock_rec_dequeue_from_page(
 		    && !lock_rec_has_to_wait_in_queue(lock)) {
 
 			/* Grant the lock */
+			ut_ad(lock->trx != in_lock->trx);
 			lock_grant(lock);
 		}
 	}
@@ -3389,6 +3391,8 @@ void
 lock_deadlock_start_print()
 /*=======================*/
 {
+	ut_ad(lock_mutex_own());
+
 	rewind(lock_latest_err_file);
 	ut_print_timestamp(lock_latest_err_file);
 
@@ -4148,6 +4152,7 @@ lock_table_dequeue(
 		    && !lock_table_has_to_wait_in_queue(lock)) {
 
 			/* Grant the lock */
+			ut_ad(in_lock->trx != lock->trx);
 			lock_grant(lock);
 		}
 	}
@@ -4221,13 +4226,13 @@ released:
 		    && !lock_rec_has_to_wait_in_queue(lock)) {
 
 			/* Grant the lock */
+			ut_ad(trx != lock->trx);
 			lock_grant(lock);
 		}
 	}
 
-	trx_mutex_exit(trx);
-
 	lock_mutex_exit();
+	trx_mutex_exit(trx);
 }
 
 /*********************************************************************//**
@@ -4713,8 +4718,8 @@ lock_print_info_summary(
 
 /*********************************************************************//**
 Prints info of locks for each transaction. This function assumes that the
-caller holds the lock mutex and more importantly it will reease the lock
-lock mutex on behalf of the caller. (This should be fixed in the future). */
+caller holds the lock mutex and more importantly it will release the lock
+mutex on behalf of the caller. (This should be fixed in the future). */
 UNIV_INTERN
 void
 lock_print_info_all_transactions(
@@ -6191,6 +6196,7 @@ lock_unlock_table_autoinc(
 /*======================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(!lock_mutex_own());
 	/* This function is invoked for a running transaction by the
 	thread that is serving the transaction. Therefore it is not
 	necessary to hold trx->mutex here. */
@@ -6330,6 +6336,7 @@ lock_table_locks_check(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
+	ut_ad(!trx_mutex_own(trx));
 
 	rw_lock_s_lock(&trx_sys->lock);
 

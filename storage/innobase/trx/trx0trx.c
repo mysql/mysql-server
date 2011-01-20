@@ -883,6 +883,8 @@ trx_cleanup_at_db_startup(
 /*======================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
+	ut_ad(trx->is_recovered);
+
 	if (trx->insert_undo != NULL) {
 
 		trx_undo_insert_cleanup(trx);

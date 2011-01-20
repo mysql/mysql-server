@@ -610,7 +610,7 @@ lock_print_info_summary(
 /*********************************************************************//**
 Prints info of locks for each transaction. This function assumes that the
 caller holds the lock mutex and more importantly it will release the lock
-lock mutex on behalf of the caller. (This should be fixed in the future). */
+mutex on behalf of the caller. (This should be fixed in the future). */
 UNIV_INTERN
 void
 lock_print_info_all_transactions(
