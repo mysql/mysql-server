@@ -4742,9 +4742,10 @@ lock_print_info_all_transactions(
 	     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
 
 		ut_ad(trx->in_mysql_trx_list);
-		/* Note we are doing a dirty read here and it is possible
-		for the transaction state to change while we are printing
-		the transaction. This should be OK. */
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		from ACTIVE to PREPARED, but it may not change to
+		COMMITTED, because we are holding the lock_sys->mutex. */
 		if (trx->state == TRX_STATE_NOT_STARTED) {
 			fputs("---", file);
 			trx_print_latched(file, trx, 600);

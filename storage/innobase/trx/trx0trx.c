@@ -650,12 +650,16 @@ trx_start_low(
 
 	trx->start_time = ut_time();
 
-	trx->state = TRX_STATE_ACTIVE;
-
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
 
 	rw_lock_x_lock(&trx_sys->lock);
+
+	/* If this transaction came from trx_allocate_for_mysql(),
+	trx->in_mysql_trx_list would hold. In that case, the trx->state
+	change must be protected by the trx_sys->lock, so that
+	lock_print_info_all_transactions() will have a consistent view. */
+	trx->state = TRX_STATE_ACTIVE;
 
 	trx->id = trx_sys_get_new_trx_id();
 
@@ -766,6 +770,20 @@ trx_commit(
 
 	lock_trx_release_locks(trx);
 
+	/* Remove the transaction from the list of active transactions
+	now that it no longer holds any user locks. */
+	rw_lock_x_lock(&trx_sys->lock);
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+	/* If this transaction came from trx_allocate_for_mysql(),
+	trx->in_mysql_trx_list would hold. In that case, the
+	trx->state change must be protected by trx_sys->lock, so that
+	lock_print_info_all_transactions() will have a consistent view. */
+	trx->state = TRX_STATE_NOT_STARTED;
+	ut_ad(trx_sys_validate_trx_list());
+	rw_lock_x_unlock(&trx_sys->lock);
+
 	if (trx->global_read_view != NULL) {
 		read_view_remove(trx->global_read_view);
 
@@ -849,25 +867,6 @@ trx_commit(
 
 	ut_ad(trx->lock.wait_thr == NULL);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	trx->state = TRX_STATE_NOT_STARTED;
-
-	rw_lock_x_lock(&trx_sys->lock);
-
-	/* FIXME: We should remove the transaction from the active
-	list earlier rather than here. This should simplify rules
-	about the transaction's state. One we enter this function
-	there is no going back and I don't see why need to wait
-	till the end to remove it from the sys list. */
-
-	ut_ad(trx->in_trx_list);
-	ut_d(trx->in_trx_list = FALSE);
-	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
-
-	ut_ad(trx_sys_validate_trx_list());
-
-	rw_lock_x_unlock(&trx_sys->lock);
-
 	ut_ad(!trx->in_trx_list);
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
@@ -895,13 +894,19 @@ trx_cleanup_at_db_startup(
 
 	rw_lock_x_lock(&trx_sys->lock);
 
-	trx->state = TRX_STATE_NOT_STARTED;
-
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
 	ut_ad(trx->in_trx_list);
 	ut_d(trx->in_trx_list = FALSE);
 
 	rw_lock_x_unlock(&trx_sys->lock);
+
+	/* Change the transaction state without mutex protection, now
+	that it no longer is in the trx_list. Recovered transactions
+	are never placed in the mysql_trx_list. */
+	ut_ad(trx->is_recovered);
+	ut_ad(!trx->in_trx_list);
+	ut_ad(!trx->in_mysql_trx_list);
+	trx->state = TRX_STATE_NOT_STARTED;
 }
 
 /********************************************************************//**
