@@ -184,7 +184,7 @@ int Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
                                              bool is_tmp_table)
 {
   int error= 0;
-  uint flags;
+  uint flags= 0;
   DBUG_ENTER("Sql_cmd_truncate_table::handler_truncate");
 
   /*
