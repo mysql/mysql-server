@@ -562,7 +562,7 @@ engine ndb;
 ERROR HY000: Failed to create DATAFILE
 show warnings;
 Level	Code	Message
-Error	1296	Got error 1516 'File too small' from NDB
+Warning	1296	Got error 1516 'File too small' from NDB
 Error	1528	Failed to create DATAFILE
 create tablespace ts1
 add datafile 'datafile.dat'
@@ -577,7 +577,7 @@ engine ndb;
 ERROR HY000: Failed to alter:  CREATE DATAFILE
 show warnings;
 Level	Code	Message
-Error	1296	Got error 1516 'File too small' from NDB
+Warning	1296	Got error 1516 'File too small' from NDB
 Error	1533	Failed to alter:  CREATE DATAFILE
 alter tablespace ts1
 drop datafile 'datafile.dat'
