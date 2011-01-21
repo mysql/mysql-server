@@ -683,7 +683,7 @@ f1	f2	f3
 111111	aaaaaa	1
 222222	bbbbbb	2
 drop table t1;
-Illegal ndb error code: 1186
+Illegal ndb error code: 123456
 CREATE TABLE t1 (
 a VARBINARY(40) NOT NULL,
 b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,
