@@ -1,7 +1,5 @@
 include/master-slave.inc
 [connection master]
-SET @old_debug= @@global.debug;
-SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
 # Test non-transaction
 create table t1(a int, b int) engine= myisam;
 insert into t1(a,b) values(1,1),(2,1);
@@ -38,6 +36,10 @@ insert into t5(a, b) values(3,1);
 # Test the Rows_query log event will be filtered out if slave filters
 # out all its related tables by replication filtering rules
 update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
+SET @old_debug= @@global.debug;
+SET GLOBAL debug="+d,after_handle_inserts";
+set DEBUG_SYNC= 'before_write_delayed SIGNAL before_insert EXECUTE 3';
+set DEBUG_SYNC= 'after_write_delayed WAIT_FOR inserts_handled EXECUTE 3';
 # Test insert delayed ...
 insert delayed into t3(a,b) values(1,5),(1,6),(1,7);
 SET @@global.debug= @old_debug;
