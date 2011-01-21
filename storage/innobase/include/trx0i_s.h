@@ -140,6 +140,9 @@ struct i_s_trx_row_struct {
 	ulint		trx_mysql_thread_id; /*!< thd_get_thread_id() */
 	const char*	trx_query;	/*!< MySQL statement being
 					executed in the transaction */
+	struct charset_info_st*	trx_query_cs;
+					/*!< charset encode the MySQL
+					statement */
 	const char*	trx_operation_state; /*!< trx_struct::op_info */
 	ulint		trx_tables_in_use;/*!< n_mysql_tables_in_use in
 					 trx_struct */
