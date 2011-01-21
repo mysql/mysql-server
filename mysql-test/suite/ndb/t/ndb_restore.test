@@ -560,3 +560,21 @@ create table t1 (a int primary key) engine = ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "abort backup 33" >> $NDB_TOOLS_OUTPUT
 drop table t1;
 
+#
+# test backup of table with many attributes
+#
+let $i=499;
+let $separator=;
+let $sql=create table t1 (;
+while ($i)
+{
+  let $sql=$sql$separator c$i int;
+  let $separator=,;
+  dec $i;
+}
+let $sql=$sql, primary key using hash(c1)) engine=ndb;
+eval $sql; # eval the sql and create the table
+
+insert into t1 (c1) values (1), (2), (3);
+--source include/ndb_backup.inc
+drop table t1;
