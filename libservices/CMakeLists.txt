@@ -19,6 +19,7 @@ SET(MYSQLSERVICES_SOURCES
   my_snprintf_service.c
   thd_alloc_service.c
   thd_wait_service.c
+  error_reporting_service.c
   my_thread_scheduler_service.c)
 
 ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})

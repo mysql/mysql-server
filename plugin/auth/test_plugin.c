@@ -45,6 +45,20 @@
 /********************* SERVER SIDE ****************************************/
 
 /**
+ Handle assigned when loading the plugin. 
+ Used with the error reporting functions. 
+*/
+static MYSQL_PLUGIN plugin_info_ptr; 
+
+static int
+test_plugin_init (MYSQL_PLUGIN plugin_info)
+{
+  plugin_info_ptr= plugin_info;
+  return 0;
+}
+
+
+/**
   dialog test plugin mimicking the ordinary auth mechanism. Used to test the auth plugin API
 */
 static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
@@ -64,7 +78,11 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
 
   /* fail if the password is wrong */
   if (strcmp((const char *) pkt, info->auth_string))
+  {
+    my_plugin_error(plugin_info_ptr, 42000, 
+                    "Wrong password supplied for %s", info->auth_string);
     return CR_ERROR;
+  }
 
   /* copy auth string as a destination name to check it */
   strcpy (info->authenticated_as, info->auth_string);
@@ -72,6 +90,8 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   /* copy something into the external user name */
   strcpy (info->external_user, info->auth_string);
 
+  my_plugin_log_message(plugin_info_ptr, MY_INFORMATION_LEVEL, 
+                        "successfully authenticated user %s", info->authenticated_as);
   return CR_OK;
 }
 
@@ -120,7 +140,7 @@ mysql_declare_plugin(test_plugin)
   "Georgi Kodinov",
   "plugin API test plugin",
   PLUGIN_LICENSE_GPL,
-  NULL,
+  test_plugin_init,
   NULL,
   0x0100,
   NULL,

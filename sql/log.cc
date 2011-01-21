@@ -34,6 +34,7 @@
 #include "tztime.h"             // my_tz_OFFSET0, struct Time_zone
 #include "sql_acl.h"            // SUPER_ACL
 #include "sql_audit.h"
+#include "mysql/service_error_reporting.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -1879,7 +1880,6 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 }
 
 
-
 int error_log_print(enum loglevel level, const char *format,
                     va_list args)
 {
@@ -2196,6 +2196,29 @@ void sql_print_information(const char *format, ...)
   va_end(args);
 
   DBUG_VOID_RETURN;
+}
+
+
+extern "C"
+int my_plugin_log_message(void *plugin_ptr, plugin_log_level level,
+                          const char *format, ...)
+{
+  char format2[ERRMSGSIZE];
+  int ret, lvl= level;
+  struct st_plugin_int *plugin = (st_plugin_int *) plugin_ptr;
+  va_list args;
+
+  DBUG_ASSERT(lvl >= ERROR_LEVEL || lvl <= INFORMATION_LEVEL);
+
+  if (lvl < ERROR_LEVEL || lvl > INFORMATION_LEVEL)
+    return 1;
+
+  va_start(args, format);
+  snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported message %s", 
+           (int) plugin->name.length, plugin->name.str, format);
+  ret= error_log_print((loglevel) lvl, format2, args);
+  va_end(args);
+  return ret;
 }
 
 
