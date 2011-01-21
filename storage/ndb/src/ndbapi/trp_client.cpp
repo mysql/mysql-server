@@ -112,6 +112,12 @@ trp_client::do_forceSend(int val)
   }
 }
 
+int
+trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
+{
+  return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
+}
+
 #include "NdbImpl.hpp"
 
 PollGuard::PollGuard(NdbImpl& impl)
