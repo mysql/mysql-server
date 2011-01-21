@@ -1034,6 +1034,110 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
   return NULL;
 }
 
+void PFS_table::sanitized_aggregate(void)
+{
+  /*
+    This thread could be a TRUNCATE on an aggregated summary table,
+    and not own the table handle.
+  */
+  PFS_table_share *safe_share= sanitize_table_share(m_share);
+  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  if (safe_share != NULL && safe_thread != NULL)
+    safe_aggregate(& m_table_stat, safe_share, safe_thread);
+}
+
+void PFS_table::sanitized_aggregate_io(void)
+{
+  PFS_table_share *safe_share= sanitize_table_share(m_share);
+  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  if (safe_share != NULL && safe_thread != NULL)
+    safe_aggregate_io(& m_table_stat, safe_share, safe_thread);
+}
+
+void PFS_table::sanitized_aggregate_lock(void)
+{
+  PFS_table_share *safe_share= sanitize_table_share(m_share);
+  PFS_thread *safe_thread= sanitize_thread(m_opening_thread);
+  if (safe_share != NULL && safe_thread != NULL)
+    safe_aggregate_lock(& m_table_stat, safe_share, safe_thread);
+}
+
+void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
+                               PFS_table_share *table_share,
+                               PFS_thread *thread)
+{
+  DBUG_ASSERT(table_stat != NULL);
+  DBUG_ASSERT(table_share != NULL);
+  DBUG_ASSERT(thread != NULL);
+
+  if (flag_thread_instrumentation && thread->m_enabled)
+  {
+    PFS_single_stat *event_name_array;
+    uint index;
+    event_name_array= thread->m_instr_class_wait_stats;
+
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/io/table/sql/handler) */
+    index= global_table_io_class.m_event_name_index;
+    table_stat->sum_io(& event_name_array[index]);
+
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/lock/table/sql/handler) */
+    index= global_table_lock_class.m_event_name_index;
+    table_stat->sum_lock(& event_name_array[index]);
+  }
+
+  /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
+  table_share->m_table_stat.aggregate(table_stat);
+  table_stat->reset();
+}
+
+void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
+                                  PFS_table_share *table_share,
+                                  PFS_thread *thread)
+{
+  DBUG_ASSERT(table_stat != NULL);
+  DBUG_ASSERT(table_share != NULL);
+  DBUG_ASSERT(thread != NULL);
+
+  if (flag_thread_instrumentation && thread->m_enabled)
+  {
+    PFS_single_stat *event_name_array;
+    uint index;
+    event_name_array= thread->m_instr_class_wait_stats;
+
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/io/table/sql/handler) */
+    index= global_table_io_class.m_event_name_index;
+    table_stat->sum_io(& event_name_array[index]);
+  }
+
+  /* Aggregate to TABLE_IO_SUMMARY */
+  table_share->m_table_stat.aggregate_io(table_stat);
+  table_stat->reset();
+}
+
+void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
+                                    PFS_table_share *table_share,
+                                    PFS_thread *thread)
+{
+  DBUG_ASSERT(table_stat != NULL);
+  DBUG_ASSERT(table_share != NULL);
+  DBUG_ASSERT(thread != NULL);
+
+  if (flag_thread_instrumentation && thread->m_enabled)
+  {
+    PFS_single_stat *event_name_array;
+    uint index;
+    event_name_array= thread->m_instr_class_wait_stats;
+
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (for wait/lock/table/sql/handler) */
+    index= global_table_lock_class.m_event_name_index;
+    table_stat->sum_lock(& event_name_array[index]);
+  }
+
+  /* Aggregate to TABLE_LOCK_SUMMARY */
+  table_share->m_table_stat.aggregate_lock(table_stat);
+  table_stat->reset();
+}
+
 /**
   Destroy instrumentation for a table instance.
   @param pfs                          the table to destroy

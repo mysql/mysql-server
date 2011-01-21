@@ -118,6 +118,9 @@ struct PFS_cond : public PFS_instr
 /** Instrumented File and FILE implementation. @see PSI_file. */
 struct PFS_file : public PFS_instr
 {
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
   /** File name. */
   char m_filename[FN_REFLEN];
   /** File name length in bytes. */
@@ -131,6 +134,36 @@ struct PFS_file : public PFS_instr
 /** Instrumented table implementation. @see PSI_table. */
 struct PFS_table
 {
+public:
+  /**
+    Aggregate this table handle statistics to the parents.
+    Only use this method for handles owned by the calling code.
+    @sa sanitized_aggregate.
+  */
+  void aggregate(void)
+  { return safe_aggregate(& m_table_stat, m_share, m_opening_thread); }
+
+  /**
+    Aggregate this table handle statistics to the parents.
+    This method is safe to call on handles not owned by the calling code.
+    @sa aggregate
+    @sa sanitized_aggregate_io
+    @sa sanitized_aggregate_lock
+  */
+  void sanitized_aggregate(void);
+
+  /**
+    Aggregate this table handle io statistics to the parents.
+    This method is safe to call on handles not owned by the calling code.
+  */
+  void sanitized_aggregate_io(void);
+
+  /**
+    Aggregate this table handle lock statistics to the parents.
+    This method is safe to call on handles not owned by the calling code.
+  */
+  void sanitized_aggregate_lock(void);
+
   /** Internal lock. */
   pfs_lock m_lock;
   /** Owner. */
@@ -141,6 +174,17 @@ struct PFS_table
   const void *m_identity;
   /** Table statistics. */
   PFS_table_stat m_table_stat;
+
+private:
+  static void safe_aggregate(PFS_table_stat *stat,
+                             PFS_table_share *safe_share,
+                             PFS_thread *safe_thread);
+  static void safe_aggregate_io(PFS_table_stat *stat,
+                                PFS_table_share *safe_share,
+                                PFS_thread *safe_thread);
+  static void safe_aggregate_lock(PFS_table_stat *stat,
+                                  PFS_table_share *safe_share,
+                                  PFS_thread *safe_thread);
 };
 
 /**
