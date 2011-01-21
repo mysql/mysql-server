@@ -3598,6 +3598,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);
   }
   
+  DBUG_ASSERT(m_active_cursor==NULL);
   m_active_cursor= op;
 
   if (uses_blob_value(table->read_set) &&
@@ -5448,6 +5449,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
   DBUG_PRINT("info", ("desc: %d, sorted: %d", desc, sorted));
 
+  if (m_active_cursor && (error= close_scan()))
+    DBUG_RETURN(error);
+
   if (m_use_partition_pruning)
   {
     get_partition_set(table, buf, active_index, start_key, &part_spec);
@@ -5486,8 +5490,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         start_key->length == key_info->key_length &&
         start_key->flag == HA_READ_KEY_EXACT)
     {
-      if (m_active_cursor && (error= close_scan()))
-        DBUG_RETURN(error);
       if (!m_thd_ndb->trans)
         if (unlikely(!start_transaction_key(active_index,
                                             start_key->key, error)))
@@ -5503,9 +5505,6 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
         start_key->flag == HA_READ_KEY_EXACT && 
         !check_null_in_key(key_info, start_key->key, start_key->length))
     {
-      if (m_active_cursor && (error= close_scan()))
-        DBUG_RETURN(error);
-
       if (!m_thd_ndb->trans)
         if (unlikely(!start_transaction_key(active_index,
                                             start_key->key, error)))
@@ -9823,11 +9822,18 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name)
 {
+  // Copy db and table_name to stack buffers since functions used by
+  // ha_create_table_from_engine may convert to lowercase on some platforms
+  char db_buf[FN_REFLEN + 1];
+  char table_name_buf[FN_REFLEN + 1];
+  strnmov(db_buf, db, sizeof(db_buf));
+  strnmov(table_name_buf, table_name, sizeof(table_name_buf));
+
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
   newlex.current_select= NULL;
   lex_start(thd);
-  int res= ha_create_table_from_engine(thd, db, table_name);
+  int res= ha_create_table_from_engine(thd, db_buf, table_name_buf);
   thd->lex= old_lex;
   return res;
 }
@@ -10679,7 +10685,9 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_NULL_IN_KEY |
     HA_AUTO_PART_KEY |
     HA_NO_PREFIX_CHAR_KEYS |
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
     HA_NEED_READ_RANGE_BUFFER |
+#endif
     HA_CAN_GEOMETRY |
     HA_CAN_BIT_FIELD |
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
@@ -11755,7 +11763,7 @@ int ha_ndbcluster::write_ndb_file(const char *name)
   DBUG_RETURN(error);
 }
 
-
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
 bool 
 ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
 				       KEY_MULTI_RANGE *end_range,
@@ -11785,6 +11793,7 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   }
   DBUG_RETURN(FALSE);
 }
+#endif
 
 void ha_ndbcluster::check_read_before_write_removal()
 {
@@ -11825,7 +11834,7 @@ void ha_ndbcluster::check_read_before_write_removal()
   DBUG_VOID_RETURN;
 }
 
-
+#ifndef NDB_WITH_NEW_MRR_INTERFACE
 /*
   This is used to check if an ordered index scan is needed for a range in
   a multi range read.
@@ -12415,6 +12424,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
   }
   return 0;
 }
+#endif
 
 /**
   @param[in] comment  table comment defined by user

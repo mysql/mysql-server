@@ -3352,6 +3352,9 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
+#ifndef MCP_BUG57030
+        return;
+#else
       {
         /* 
           Additional optimization: if we're processing
@@ -3372,6 +3375,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func= TRUE;
       }
 
+#endif
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -3567,9 +3571,71 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_KEY:
   {
     Item **values;
+#ifndef MCP_BUG57030
+    /*
+      Build list of possible keys for 'a BETWEEN low AND high'.
+      It is handled similar to the equivalent condition 
+      'a >= low AND a <= high':
+    */
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      Item_field *field_item;
+      bool equal_func= FALSE;
+      uint num_values= 2;
+      values= cond_func->arguments();
+
+      bool binary_cmp= (values[0]->real_item()->type() == Item::FIELD_ITEM)
+            ? ((Item_field*)values[0]->real_item())->field->binary()
+            : TRUE;
+
+      /*
+        Additional optimization: If 'low = high':
+        Handle as if the condition was "t.key = low".
+      */
+      if (!((Item_func_between*)cond_func)->negated &&
+          values[1]->eq(values[2], binary_cmp))
+      {
+        equal_func= TRUE;
+        num_values= 1;
+      }
+
+      /*
+        Append keys for 'field <cmp> value[]' if the
+        condition is of the form::
+        '<field> BETWEEN value[1] AND value[2]'
+      */
+      if (is_local_field (values[0]))
+      {
+        field_item= (Item_field *) (values[0]->real_item());
+        add_key_equal_fields(key_fields, *and_level, cond_func,
+                             field_item, equal_func, &values[1],
+                             num_values, usable_tables, sargables);
+      }
+      /*
+        Append keys for 'value[0] <cmp> field' if the
+        condition is of the form:
+        'value[0] BETWEEN field1 AND field2'
+      */
+      for (uint i= 1; i <= num_values; i++)
+      {
+        if (is_local_field (values[i]))
+        {
+          field_item= (Item_field *) (values[i]->real_item());
+          add_key_equal_fields(key_fields, *and_level, cond_func,
+                               field_item, equal_func, values,
+                               1, usable_tables, sargables);
+        }
+      }
+    } // if ( ... Item_func::BETWEEN)
+
+    // IN, NE
+    else if (is_local_field (cond_func->key_item()) &&
+            !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+#else
     // BETWEEN, IN, NE
     if (is_local_field (cond_func->key_item()) &&
 	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+#endif /* MCP_BUG57030 */
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
@@ -3583,6 +3649,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            cond_func->argument_count()-1,
                            usable_tables, sargables);
     }
+#ifdef MCP_BUG57030
     if (cond_func->functype() == Item_func::BETWEEN)
     {
       values= cond_func->arguments();
@@ -3598,6 +3665,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         }
       }  
     }
+#endif
     break;
   }
   case Item_func::OPTIMIZE_OP:
@@ -13175,10 +13243,27 @@ part_of_refkey(TABLE *table,Field *field)
     KEY_PART_INFO *key_part=
       table->key_info[table->reginfo.join_tab->ref.key].key_part;
 
+#ifndef MCP_BUG58626
+    uint part;
+
+    /* If execution plan may use 'Full scan on NULL key', There might
+     * not by any 'REF' access and entire predicate should be preserved.
+     */
+    for (part=0 ; part < ref_parts ; part++)
+    {
+      if (table->reginfo.join_tab->ref.cond_guards[part])
+        return (Item*) 0;
+    }
+
+    for (part=0 ; part < ref_parts ; part++,key_part++)
+#else
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
+#endif
+    {
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
 	return table->reginfo.join_tab->ref.items[part];
+    }
   }
   return (Item*) 0;
 }

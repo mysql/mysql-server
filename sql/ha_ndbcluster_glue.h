@@ -317,4 +317,11 @@ bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
 #endif
 }
 
+#if MYSQL_VERSION_ID >= 50600
+
+/* New multi range read interface replaced original mrr */
+#define NDB_WITH_NEW_MRR_INTERFACE
+
+#endif
+
 #endif
