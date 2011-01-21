@@ -514,4 +514,42 @@ set engine_condition_pushdown = @old_ecpd;
 
 drop table t1;
 
+#
+# Bug#58750: 'out of connection objects' due to missing close()
+# of prev. full_table_scan()
+#
+create table t1 (pk int primary key, a int) engine=ndb;
+create table t2 (pk int primary key, uq int, a int, 
+   unique key ix(uq,a) USING HASH) engine=ndb;
+
+insert into t2 values
+   (0,0,0), (1,1,0), (2,2,0), (3,3,0), (4,4,0),
+   (5,5,1), (6,6,1), (7,7,1), (8,8,1), (9,9,1);
+
+##
+# 10^4 cross product on t2 creates 10.000 rows:
+##
+insert into t1
+ select
+   t1.pk + t2.pk*10 + t3.pk*100 + t4.pk*1000, t1.a
+from
+  t2 as t1, t2 as t2, t2 as t3, t2 as t4;
+
+# Execute a 'scan(t1) join REF(t2) using ix'
+#  - Where condition 't2.uq IS NULL' in combination with 
+#    join cond. 't2.a=t1.a' will create the REF keys (NULL,t1.a).
+#    This will initiate a ::full_table_scan() which fails to
+#    close any open table scans.
+#  - Table scan(t1) will 'drive' the case above and eventually
+#    cause all ScanOperations / hupp'ed transactions to have been 
+#    consumed
+
+explain
+SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+SELECT STRAIGHT_JOIN count(*) FROM 
+   t1 JOIN t2 ON t2.a=t1.a where t2.uq IS NULL;
+
+drop table t1,t2;
+
 # end of tests

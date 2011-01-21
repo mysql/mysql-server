@@ -507,6 +507,10 @@ end:
   return true;
 }
 
+#define OLD_NDB_REP_DB  "cluster"
+#define OLD_NDB_APPLY_TABLE "apply_status"
+#define OLD_NDB_SCHEMA_TABLE "schema"
+
 bool
 RestoreMetaData::markSysTables()
 {

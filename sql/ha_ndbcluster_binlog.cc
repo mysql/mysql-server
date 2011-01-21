@@ -1645,6 +1645,19 @@ struct Cluster_schema
   uint32 any_value;
 };
 
+static void
+print_could_not_discover_error(THD *thd,
+                               const Cluster_schema *schema)
+{
+  sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
+                  "binlog schema event '%s' from node %d. "
+                  "my_errno: %d",
+                   schema->db, schema->name, schema->query,
+                   schema->node_id, my_errno);
+  print_warning_list("NDB Binlog", thd_warn_list(thd));
+}
+
+
 /*
   Transfer schema table data into corresponding struct
 */
@@ -2787,12 +2800,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                            "binlog schema event '%s' from node %d. "
-                            "my_errno: %d",
-                            schema->db, schema->name, schema->query,
-                            schema->node_id, my_errno);
-            print_warning_list("NDB Binlog", thd_warn_list(thd));
+            print_could_not_discover_error(thd, schema);
           }
           log_query= 1;
           break;
@@ -3161,11 +3169,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                            "binlog schema event '%s' from node %d. my_errno: %d",
-                            schema->db, schema->name, schema->query,
-                            schema->node_id, my_errno);
-            print_warning_list("NDB Binlog", thd_warn_list(thd));
+            print_could_not_discover_error(thd, schema);
           }
         }
         break;
@@ -3334,11 +3338,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           }
           else if (ndb_create_table_from_engine(thd, schema->db, schema->name))
           {
-            sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
-                            "binlog schema event '%s' from node %d. my_errno: %d",
-                            schema->db, schema->name, schema->query,
-                            schema->node_id, my_errno);
-            print_warning_list("NDB Binlog", thd_warn_list(thd));
+            print_could_not_discover_error(thd, schema);
           }
         }
         break;
