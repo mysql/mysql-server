@@ -588,6 +588,14 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   execute_ddl_log_recovery();
 
+#ifndef MCP_BUGXXX
+  /* Signal successful initialization */
+  mysql_mutex_lock(&LOCK_server_started);
+  mysqld_server_started= 1;
+  mysql_cond_signal(&COND_server_started);
+  mysql_mutex_unlock(&LOCK_server_started);
+#endif
+
 #ifndef MCP_BUG46955
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
