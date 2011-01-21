@@ -6286,7 +6286,7 @@ double ha_tokudb::read_time(
     double total_scan;
     double ret_val; 
     bool is_primary = (index == primary_key);
-    bool is_clustering = (table->key_info[index].flags & HA_CLUSTERING);
+    bool is_clustering;
 
     //
     // in case for hidden primary key, this is called
@@ -6295,6 +6295,8 @@ double ha_tokudb::read_time(
         ret_val = handler::read_time(index, ranges, rows);
         goto cleanup;
     }
+    
+    is_clustering = (table->key_info[index].flags & HA_CLUSTERING);
 
 
     //
