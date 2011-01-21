@@ -412,7 +412,7 @@ drop table t1;
 # test the limit of no of attributes in one table
 #  - use while loop to build dynamic sql string
 #
-let $i=499;
+let $i=512; # The current max number of attributes
 let $separator=;
 let $sql=create table t1 (;
 while ($i)
@@ -430,9 +430,6 @@ let $sql=$sql partition by key(c1);
 eval $sql; # eval the sql and create the table
 
 insert into t1 (c1) values (1), (2), (3);
-alter offline table t1 modify c1 int auto_increment;
-alter online table t1 add column c500 bit(1) column_format DYNAMIC;
---source include/ndb_backup.inc
 delete from t1;
 drop table t1;
 
