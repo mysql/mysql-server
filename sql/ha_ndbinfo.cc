@@ -188,7 +188,7 @@ static int err2mysql(int error)
   default:
     break;
   }
-  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+  push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
@@ -269,7 +269,7 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
   generate_sql(ndb_tab, msg);
 
   const MYSQL_ERROR::enum_warning_level level =
-    (fatal ? MYSQL_ERROR::WARN_LEVEL_ERROR : MYSQL_ERROR::WARN_LEVEL_WARN);
+    (fatal ? MYSQL_ERROR::WARN_LEVEL_WARN : MYSQL_ERROR::WARN_LEVEL_NOTE);
   push_warning(current_thd, level, ERR_INCOMPAT_TABLE_DEF, msg.c_str());
 
   DBUG_VOID_RETURN;

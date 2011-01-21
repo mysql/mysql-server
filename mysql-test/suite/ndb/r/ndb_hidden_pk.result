@@ -158,7 +158,7 @@ CREATE TABLE t1 (
 b blob
 ) ENGINE=ndbcluster;
 Warnings:
-Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
 insert into t1 values (NULL), (NULL), ('Something'), (''), (REPEAT('Lots', 2000));
 select * from t1 order by b;
 b

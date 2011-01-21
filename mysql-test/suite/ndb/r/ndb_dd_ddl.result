@@ -15,7 +15,7 @@ ENGINE NDB;
 ERROR HY000: Failed to create LOGFILE GROUP
 SHOW WARNINGS;
 Level	Code	Message
-Error	1296	Got error 1514 'Currently there is a limit of one logfile group' from NDB
+Warning	1296	Got error 1514 'Currently there is a limit of one logfile group' from NDB
 Error	1528	Failed to create LOGFILE GROUP
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'

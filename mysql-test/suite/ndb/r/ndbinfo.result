@@ -187,7 +187,7 @@ SELECT * FROM ndb$test;
 ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
 SHOW WARNINGS;
 Level	Code	Message
-Error	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' does not exist. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'non_existing' does not exist. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 
 ## 3) Incompatible column type -> error, with warning
@@ -198,7 +198,7 @@ SELECT * FROM ndb$test;
 ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
 SHOW WARNINGS;
 Level	Code	Message
-Error	40001	Table 'ndb$test' is defined differently in NDB, column 'counter2' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'counter2' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 ## 3b) bigint instead of int
 DROP TABLE ndb$test;
@@ -207,7 +207,7 @@ SELECT * FROM ndb$test;
 ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
 SHOW WARNINGS;
 Level	Code	Message
-Error	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 ## 3c) varchar instead of int
 DROP TABLE ndb$test;
@@ -216,7 +216,7 @@ SELECT * FROM ndb$test;
 ERROR HY000: Got error 40001 'Incompatible table definitions' from NDBINFO
 SHOW WARNINGS;
 Level	Code	Message
-Error	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Warning	40001	Table 'ndb$test' is defined differently in NDB, column 'node_id' is not compatible. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
 Error	1296	Got error 40001 'Incompatible table definitions' from NDBINFO
 DROP TABLE ndb$test;
 
