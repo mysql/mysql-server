@@ -30,13 +30,18 @@ TLIBTDB=../libtokudbtrace.$(SOEXT)
 %.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
 endif
 
-SRCS = $(sort $(wildcard *.c))
+
 RECOVER_SRCS = $(wildcard recover-*.c)
 LOADER_SRCS = $(wildcard loader-*.c)
-TRANSPARENT_UPGRADE_SRCS = $(wildcard upgrade-*.c)
+TRANSPARENT_UPGRADE_SRCS = $(wildcard upgrade*.c)
 NONSTANDARD_SRCS= \
 		  $(RECOVER_SRCS) \
 		  $(LOADER_SRCS) \
+
+# TODO: #3228 
+# SRCS = $(sort $(wildcard *.c))
+SRCS = $(sort $(filter-out $(TRANSPARENT_UPGRADE_SRCS),$(wildcard *.c)))
+
 #end
 
 #Tests that don't compile in windows.  SHould
