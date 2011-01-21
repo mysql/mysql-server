@@ -9,6 +9,7 @@ attr3 VARCHAR(10)
 drop table t1;
 SHOW GLOBAL STATUS LIKE 'ndb\_%';
 Variable_name	Value
+Ndb_cluster_connection_pool	#
 Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
@@ -18,7 +19,6 @@ Ndb_connect_count	#
 Ndb_execute_count	#
 Ndb_scan_count	#
 Ndb_pruned_scan_count	#
-Ndb_cluster_connection_pool	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_old	#
 SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
