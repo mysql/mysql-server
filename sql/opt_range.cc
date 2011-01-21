@@ -692,7 +692,8 @@ public:
   /* 
     If true, the index descriptions describe real indexes (and it is ok to
     call field->optimize_range(real_keynr[...], ...).
-    Otherwise index description describes fake indexes.
+    Otherwise index description describes fake indexes, like a partitioning
+    expression.
   */
   bool using_real_indexes;
   
@@ -5774,7 +5775,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
-    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+    if (param->using_real_indexes &&
+        param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
               MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -5906,7 +5908,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+    if (param->using_real_indexes &&
+        param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
               MYSQL_ERROR::WARN_LEVEL_WARN, 

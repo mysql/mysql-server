@@ -1,5 +1,18 @@
 drop table if exists t1, t2;
 #
+# Bug#59503: explain extended crash in get_mm_leaf
+#
+CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
+ENGINE=MyISAM
+PARTITION BY KEY (a) PARTITIONS 1;
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
+DROP TABLE t1;
+#
 # Bug#57778: failed primary key add to partitioned innodb table
 #            inconsistent and crashes
 #
