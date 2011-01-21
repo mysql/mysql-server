@@ -171,6 +171,8 @@ int toku_cachetable_get_and_pin(CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/,
 int toku_cachetable_get_and_pin_nonblocking (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep,
 					     CACHETABLE_FLUSH_CALLBACK flush_callback, 
 					     CACHETABLE_FETCH_CALLBACK fetch_callback, void *extraargs);
+#define CAN_RELEASE_LOCK_DURING_IO
+
 // Maybe get and pin a memory object.
 // Effects:  This function is identical to the get_and_pin function except that it
 // will not attempt to fetch a memory object that is not in the cachetable.
