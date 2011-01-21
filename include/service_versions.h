@@ -23,3 +23,4 @@
 #define VERSION_thd_alloc       0x0100
 #define VERSION_thd_wait        0x0100
 #define VERSION_my_thread_scheduler 0x0100
+#define VERSION_error_reporting 0x0100

@@ -74,7 +74,7 @@ REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 IDENTIFIED BY 'unused_password';
 # make sure password doesn't take precendence
-ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
+ERROR HY000: Plugin test_plugin_server reported error (code: 42000) : Wrong password supplied for plug_dest
 #make sure plugin auth still available
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()

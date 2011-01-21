@@ -101,7 +101,7 @@ GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 
 --echo # make sure password doesn't take precendence
 --disable_query_log
---error ER_ACCESS_DENIED_ERROR
+--error ER_PLUGIN_ERROR
 connect(plug_con_grant_deny,localhost,new_grant_user,unused_password);
 --enable_query_log
 

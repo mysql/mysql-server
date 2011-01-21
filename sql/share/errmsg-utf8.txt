@@ -6454,3 +6454,6 @@ ER_STMT_CACHE_FULL
         eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
+
+ER_PLUGIN_ERROR
+  eng "Plugin %.*s reported error (code: %d) : %s"

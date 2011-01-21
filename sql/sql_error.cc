@@ -45,6 +45,7 @@ This file contains the implementation of error and warnings related
 #include "unireg.h"
 #include "sql_error.h"
 #include "sp_rcontext.h"
+#include "mysql/service_error_reporting.h"
 
 /*
   Design notes about MYSQL_ERROR::m_message_text.
@@ -619,6 +620,25 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
   va_end(args);
   push_warning(thd, level, code, warning);
   DBUG_VOID_RETURN;
+}
+
+
+/* 
+  Keep in sync with the definition in ../include/mysql/service_error_reporting.h 
+*/
+extern "C" 
+void my_plugin_error(void *plugin_ptr, int code, const char *format, ...)
+{
+  char message[ERRMSGSIZE];
+  struct st_plugin_int *plugin = (st_plugin_int *) plugin_ptr;
+  va_list args;
+
+  va_start(args, format);
+  my_vsnprintf(message, sizeof(message) - 1, format, args);
+  va_end(args);
+
+  my_error(ER_PLUGIN_ERROR, MYF(0), 
+           (int) plugin->name.length, plugin->name.str, code, message);
 }
 
 
