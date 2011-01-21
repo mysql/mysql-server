@@ -45,3 +45,5 @@ partition x234 values in (5, 1));
 insert into t1 values (NULL,1,1);
 Got one of the listed errors
 drop table t1;
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
+ERROR HY000: Field in list of fields for partition function not found in table
