@@ -5561,24 +5561,24 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     if (tokudb_debug & TOKUDB_DEBUG_LOCK) {
         TOKUDB_TRACE("%s lock_type=%d cmd=%d\n", __FUNCTION__, lock_type, thd_sql_command(thd));
     }
-    if (get_create_index_online(thd) && 
-        thd_sql_command(thd)== SQLCOM_CREATE_INDEX
-        ) 
-    {
-        rw_rdlock(&share->num_DBs_lock);
-        if (share->num_DBs == (table->s->keys + test(hidden_primary_key))) {
-            lock_type = TL_WRITE_ALLOW_WRITE;
+
+    if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
+        // if creating a hot index
+        if (get_create_index_online(thd) && thd_sql_command(thd)== SQLCOM_CREATE_INDEX) {
+            rw_rdlock(&share->num_DBs_lock);
+            if (share->num_DBs == (table->s->keys + test(hidden_primary_key))) {
+                lock_type = TL_WRITE_ALLOW_WRITE;
+            }
+            lock.type = lock_type;
+            rw_unlock(&share->num_DBs_lock);
+        } else {
+            // If we are not doing a LOCK TABLE, then allow multiple writers
+            if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
+                !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE && !thd_tablespace_op(thd)) {
+                lock_type = TL_WRITE_ALLOW_WRITE;
+            }
+            lock.type = lock_type;
         }
-        lock.type = lock_type;
-        rw_unlock(&share->num_DBs_lock);
-    }
-    else if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
-        /* If we are not doing a LOCK TABLE, then allow multiple writers */
-        if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
-            !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE && !thd_tablespace_op(thd)) {
-            lock_type = TL_WRITE_ALLOW_WRITE;
-        }
-        lock.type = lock_type;
     }
     *to++ = &lock;
     if (tokudb_debug & TOKUDB_DEBUG_LOCK)
