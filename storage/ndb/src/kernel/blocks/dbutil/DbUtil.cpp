@@ -328,7 +328,8 @@ DbUtil::execTCSEIZECONF(Signal* signal){
   ptr.i = signal->theData[0] >> 1;
   c_seizingTransactions.getPtr(ptr, signal->theData[0] >> 1);
   ptr.p->connectPtr = signal->theData[1];
-  
+  ptr.p->connectRef = signal->theData[2];
+
   c_seizingTransactions.release(ptr);
 
   if (c_seizingTransactions.isEmpty())
@@ -2281,7 +2282,7 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   printTCKEYREQ(stdout, signal->getDataPtr(), pop->tckeyLenInBytes >> 2,0);
 #endif
   Uint32 sigLen = pop->tckeyLen + (keyLen > 8 ? 8 : keyLen);
-  sendSignal(DBTC_REF, GSN_TCKEYREQ, signal, sigLen, JBB);
+  sendSignal(transPtr.p->connectRef, GSN_TCKEYREQ, signal, sigLen, JBB);
   
   /**
    * More the 8 words of key info not implemented
@@ -2295,7 +2296,8 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   keyInfo->connectPtr = transPtr.p->connectPtr;
   keyInfo->transId[0] = transPtr.p->transId[0];
   keyInfo->transId[1] = transPtr.p->transId[1];
-  sendKeyInfo(signal, keyInfo, op->keyInfo, kit);
+  sendKeyInfo(signal, transPtr.p->connectRef,
+              keyInfo, op->keyInfo, kit);
 
   /**
    * AttrInfo
@@ -2307,14 +2309,17 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
 
   AttrInfoIterator ait;
   pop->attrInfo.first(ait);
-  sendAttrInfo(signal, attrInfo, pop->attrInfo, ait);
+  sendAttrInfo(signal, transPtr.p->connectRef,
+               attrInfo, pop->attrInfo, ait);
   
   op->attrInfo.first(ait);
-  sendAttrInfo(signal, attrInfo, op->attrInfo, ait);
+  sendAttrInfo(signal, transPtr.p->connectRef,
+               attrInfo, op->attrInfo, ait);
 }
 
 void
 DbUtil::sendKeyInfo(Signal* signal, 
+                    Uint32 tcRef,
 		    KeyInfo* keyInfo,
 		    const KeyInfoBuffer & keyBuf,
 		    KeyInfoIterator & kit)
@@ -2330,13 +2335,14 @@ DbUtil::sendKeyInfo(Signal* signal,
 #if 0 //def EVENT_DEBUG
     printf("DbUtil::sendKeyInfo: sendSignal(DBTC_REF, GSN_KEYINFO, signal, %d , JBB)\n", KeyInfo::HeaderLength + keyDataLen);
 #endif
-    sendSignal(DBTC_REF, GSN_KEYINFO, signal, 
+    sendSignal(tcRef, GSN_KEYINFO, signal,
 	       KeyInfo::HeaderLength + keyDataLen, JBB);
   }
 }
 
 void
 DbUtil::sendAttrInfo(Signal* signal, 
+                     Uint32 tcRef,
 		     AttrInfo* attrInfo, 
 		     const AttrInfoBuffer & attrBuf,
 		     AttrInfoIterator & ait)
@@ -2351,7 +2357,7 @@ DbUtil::sendAttrInfo(Signal* signal,
 #if 0 //def EVENT_DEBUG
     printf("DbUtil::sendAttrInfo: sendSignal(DBTC_REF, GSN_ATTRINFO, signal, %d , JBB)\n", AttrInfo::HeaderLength + i);
 #endif
-    sendSignal(DBTC_REF, GSN_ATTRINFO, signal, 
+    sendSignal(tcRef, GSN_ATTRINFO, signal,
 	       AttrInfo::HeaderLength + i, JBB);
   }
 }
@@ -2491,6 +2497,9 @@ DbUtil::execTCKEYCONF(Signal* signal){
     gci_lo = keyConf->operations[ops].apiOperationPtr;
   }
 
+  TransactionPtr transPtr;
+  c_runningTransactions.getPtr(transPtr, transI);
+
   /**
    * Check commit ack marker flag
    */
@@ -2499,11 +2508,9 @@ DbUtil::execTCKEYCONF(Signal* signal){
     jam();
     signal->theData[0] = transId1;
     signal->theData[1] = transId2;
-    sendSignal(DBTC_REF, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
+    sendSignal(transPtr.p->connectRef, GSN_TC_COMMIT_ACK, signal, 2, JBB);    
   }//if
 
-  TransactionPtr transPtr;
-  c_runningTransactions.getPtr(transPtr, transI);
   ndbrequire(transId1 == transPtr.p->transId[0] && 
 	     transId2 == transPtr.p->transId[1]);
 
