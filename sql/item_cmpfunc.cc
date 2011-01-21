@@ -1813,7 +1813,9 @@ Item *Item_in_optimizer::expr_cache_insert_transformer(uchar *thd_arg)
       (expr_cache= set_expr_cache(thd, depends_on)))
     DBUG_RETURN(expr_cache);
 
-  depends_on.pop();
+  /* no cache => return list in original state just to be safe */
+  for (uint i= 0; i < args[0]->cols(); i++)
+    depends_on.pop();
   DBUG_RETURN(this);
 }
 
