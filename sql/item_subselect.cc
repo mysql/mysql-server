@@ -1294,6 +1294,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
     select_lex->having= join->having= and_items(join->having, item);
     if (join->having == item)
       item->name= (char*)in_having_cond;
+    select_lex->having->top_level_item();
     select_lex->having_fix_field= 1;
     /*
       we do not check join->having->fixed, because Item_and (from and_items)
@@ -2303,6 +2304,7 @@ int join_read_next_same_or_null(READ_RECORD *info);
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+  int rc= 0;
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
@@ -2313,16 +2315,19 @@ int subselect_single_select_engine::exec()
     unit->set_limit(unit->global_parameters);
     if (join->optimize())
     {
-      thd->where= save_where;
-      executed= 1;
-      thd->lex->current_select= save_select;
-      DBUG_RETURN(join->error ? join->error : 1);
+      executed= true;
+      rc= join->error ? join->error : 1;
+      goto exit;
     }
     if (save_join_if_explain())
-      DBUG_RETURN(1);                        /* purecov: inspected */
+    {
+      rc= 1;
+      goto exit;
+    }
     if (item->engine_changed)
     {
-      DBUG_RETURN(1);
+      rc= 1;
+      goto exit;
     }
   }
   if (select_lex->uncacheable &&
@@ -2331,9 +2336,8 @@ int subselect_single_select_engine::exec()
   {
     if (join->reinit())
     {
-      thd->where= save_where;
-      thd->lex->current_select= save_select;
-      DBUG_RETURN(1);
+      rc= 1;
+      goto exit;
     }
     item->reset();
     item->assigned((executed= 0));
@@ -2389,14 +2393,15 @@ int subselect_single_select_engine::exec()
       tab->read_first_record= tab->save_read_first_record; 
       tab->read_record.read_record= tab->save_read_record;
     }
-    executed= 1;
-    thd->where= save_where;
-    thd->lex->current_select= save_select;
-    DBUG_RETURN(join->error||thd->is_fatal_error);
+    executed= true;
+    
+    rc= join->error || thd->is_fatal_error;
   }
+
+exit:
   thd->where= save_where;
   thd->lex->current_select= save_select;
-  DBUG_RETURN(0);
+  DBUG_RETURN(rc);
 }
 
 int subselect_union_engine::exec()

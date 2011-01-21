@@ -4950,6 +4950,55 @@ SELECT * FROM t2 UNION SELECT * FROM t2
 DROP TABLE t1,t2;
 --enable_result_log
 
+--echo #
+--echo # Bug #58818: Incorrect result for IN/ANY subquery
+--echo # with HAVING condition 
+--echo #
+
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t1s(i INT);
+INSERT INTO t1s VALUES (10), (20), (30);
+CREATE TABLE t2s(i INT);
+INSERT INTO t2s VALUES (100), (200), (300);
+
+SELECT * FROM t1
+WHERE t1.i NOT IN
+(
+  SELECT STRAIGHT_JOIN t2s.i 
+  FROM
+  t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+  HAVING t2s.i = 999
+);
+
+SELECT * FROM t1
+WHERE t1.I IN
+(
+  SELECT STRAIGHT_JOIN t2s.i 
+  FROM
+  t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+  HAVING t2s.i = 999
+) IS UNKNOWN;
+
+SELECT * FROM t1
+WHERE NOT t1.I = ANY
+(
+  SELECT STRAIGHT_JOIN t2s.i 
+  FROM
+  t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+  HAVING t2s.i = 999
+);
+
+SELECT * FROM t1
+ WHERE t1.i = ANY (
+  SELECT STRAIGHT_JOIN t2s.i 
+  FROM
+  t1s LEFT OUTER JOIN t2s ON t2s.i = t1s.i
+  HAVING t2s.i = 999
+ ) IS UNKNOWN;
+
+DROP TABLE t1,t1s,t2s;
+
 --echo End of 5.1 tests
  
 --echo #
@@ -5067,6 +5116,65 @@ EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 --echo
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#58561: Server Crash with correlated subquery and MyISAM tables 
+--echo #
+
+CREATE TABLE cc (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO cc VALUES (10,7,'v');
+INSERT INTO cc VALUES (11,1,'r');
+
+CREATE TABLE bb (
+  pk INT,
+  col_date_key DATE,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key)
+) ENGINE=MyISAM;
+INSERT INTO bb VALUES (10,'2002-02-21');
+
+CREATE TABLE c (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO c VALUES (1,NULL,'w');
+INSERT INTO c VALUES (19,NULL,'f');
+
+CREATE TABLE b (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO b VALUES (1,7,'f');
+
+SELECT col_int_key
+FROM b granparent1
+WHERE (col_int_key, col_int_key) IN (
+    SELECT parent1.pk, parent1.pk
+    FROM bb parent1 JOIN cc parent2
+                    ON parent2.col_varchar_key = parent2.col_varchar_key
+    WHERE granparent1.col_varchar_key IN (
+        SELECT col_varchar_key
+        FROM c)
+      AND parent1.pk = granparent1.col_int_key
+    ORDER BY parent1.col_date_key 
+);
+
+DROP TABLE bb, b, cc, c;
+
 --echo End of 5.6 tests
 
 --echo #
@@ -5141,3 +5249,12 @@ WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
 ;
 
 drop table t1;
+--echo #
+--echo # Bug#58207: invalid memory reads when using default column value and 
+--echo # tmptable needed
+--echo #
+CREATE TABLE t(a VARCHAR(245) DEFAULT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
+SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
+DROP TABLE t;

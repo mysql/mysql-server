@@ -87,4 +87,7 @@ change master to  master_bind=<master_bind>;
 start slave;
 include/wait_for_slave_to_start.inc
 drop table t1;
+include/stop_slave.inc
+CHANGE MASTER TO master_host='SAVE_MASTER_HOST';
+include/start_slave.inc
 include/rpl_end.inc

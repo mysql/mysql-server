@@ -226,10 +226,15 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
                 compare_length,
                 &make_sortkey, &param, table_sort.sort_keys))
     {
-      // If failed to init pq, fall back to merge-sort.
-      DBUG_PRINT("info", ("failed to allocate PQ, fallback to sort-merge"));
+      /*
+       If we fail to init pq, we have to give up:
+       out of memory means my_malloc() will call my_error().
+      */
+      DBUG_PRINT("info", ("failed to allocate PQ"));
       my_free(table_sort.sort_keys);
       table_sort.sort_keys= NULL;
+      DBUG_ASSERT(thd->is_error());
+      goto err;
     }
   }
   else
@@ -1222,7 +1227,8 @@ bool check_if_pq_applicable(Sort_param *param,
         DBUG_RETURN(false);
 
       make_char_array(filesort_info,
-                      param->max_keys_per_buffer, param->rec_length);
+                      param->max_keys_per_buffer,
+                      param->sort_length + param->ref_length);
       if (filesort_info->sort_keys)
       {
         // Make attached data to be references instead of fields.

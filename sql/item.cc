@@ -6975,9 +6975,11 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     goto error;
   }
-  if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
+
+  def_field= field_arg->field->clone();
+  if (def_field == NULL)
     goto error;
-  memcpy(def_field, field_arg->field, field_arg->field->size_of());
+
   def_field->move_field_offset((my_ptrdiff_t)
                                (def_field->table->s->default_values -
                                 def_field->table->record[0]));
@@ -7118,10 +7120,10 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
 
   if (field_arg->field->table->insert_values)
   {
-    Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
+    Field *def_field= field_arg->field->clone();
     if (!def_field)
       return TRUE;
-    memcpy(def_field, field_arg->field, field_arg->field->size_of());
+
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));
@@ -7500,8 +7502,7 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
     return new Item_cache_decimal();
   case STRING_RESULT:
     /* Not all functions that return DATE/TIME are actually DATE/TIME funcs. */
-    if ((item->field_type() == MYSQL_TYPE_DATE ||
-         item->field_type() == MYSQL_TYPE_DATETIME ||
+    if ((item->is_datetime() ||
          item->field_type() == MYSQL_TYPE_TIME) &&
         (const_cast<Item*>(item))->result_as_longlong())
       return new Item_cache_datetime(item->field_type());

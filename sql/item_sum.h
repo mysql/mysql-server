@@ -445,6 +445,7 @@ public:
     forced_const= TRUE; 
   }
   virtual bool const_item() const { return forced_const; }
+  virtual bool const_during_execution() const { return false; }
   virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
 

@@ -8,7 +8,7 @@
 GRANT INSERT ON mysql.plugin TO bug51770@localhost;
 connect(con1,localhost,bug51770,,);
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 --error ER_TABLEACCESS_DENIED_ERROR
 UNINSTALL PLUGIN example;
 connection default;
@@ -25,7 +25,7 @@ DROP USER bug51770@localhost;
 # The bug consisted of not recognizing / on Windows, so checking / on
 # all platforms should cover this case.
 
-let $path = `select CONCAT_WS('/', '..', $HA_EXAMPLE_SO)`;
+let $path = `select CONCAT_WS('/', '..', '$EXAMPLE_PLUGIN')`;
 --replace_regex /\.dll/.so/
 --error ER_UDF_NO_PATHS
 eval INSTALL PLUGIN example SONAME '$path';

@@ -4620,5 +4620,18 @@ ae	00610065
 drop table t1;
 "END ctype_german.inc"
 #
+# Bug#59145 valgrind warnings for uninitialized values in my_strtoll10_mb2
+#
+SET NAMES latin1;
+SELECT CONVERT(CHAR(NULL USING ucs2), UNSIGNED);
+CONVERT(CHAR(NULL USING ucs2), UNSIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+DO IFNULL(CHAR(NULL USING ucs2), '');
+DO CAST(CONVERT('' USING ucs2) AS UNSIGNED);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+#
 # End of 5.6 tests
 #
