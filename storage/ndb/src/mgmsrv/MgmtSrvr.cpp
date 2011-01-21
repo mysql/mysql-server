@@ -434,14 +434,6 @@ MgmtSrvr::start_transporter(const Config* config)
     DBUG_RETURN(false);
   }
 
-  /**
-   * Wait for loopback interface to be enabled
-   */
-  while (!theFacade->ext_isConnected(_ownNodeId))
-  {
-    NdbSleep_MilliSleep(20);
-  }
-
   _ownReference = numberToRef(_blockNumber, _ownNodeId);
 
   /*
@@ -744,7 +736,7 @@ bool
 MgmtSrvr::get_packed_config(ndb_mgm_node_type node_type,
                             BaseString& buf64, BaseString& error)
 {
-  return m_config_manager->get_packed_config(node_type, buf64, error);
+  return m_config_manager->get_packed_config(node_type, &buf64, error);
 }
 
 
@@ -2857,6 +2849,10 @@ MgmtSrvr::try_alloc(unsigned id, const char *config_hostname,
                     const struct sockaddr *client_addr,
                     Uint32 timeout_ms)
 {
+  if (theFacade && theFacade->ext_isConnected(id))
+  {
+    return -1;
+  }
   if (client_addr != 0)
   {
     int res = alloc_node_id_req(id, type, timeout_ms);
@@ -2939,6 +2935,23 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
   }
 
   Uint32 timeout_ms = Uint32(1000 * timeout_s);
+  Uint64 stop = NdbTick_CurrentMillisecond() + timeout_ms;
+  BaseString getconfig_message;
+  while (!m_config_manager->get_packed_config(type, 0, getconfig_message))
+  {
+    /**
+     * Wait for config to get confirmed before allocating node id
+     */
+    if (NdbTick_CurrentMillisecond() > stop)
+    {
+      error_code = NDB_MGM_ALLOCID_ERROR;
+      error_string.append("Unable to allocate nodeid as configuration"
+                          " not yet confirmed");
+      DBUG_RETURN(false);
+    }
+
+    NdbSleep_MilliSleep(20);
+  }
 
   Guard g(m_node_id_mutex);
 

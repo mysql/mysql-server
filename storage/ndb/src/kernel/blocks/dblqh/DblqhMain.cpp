@@ -4626,11 +4626,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   
   if (LqhKeyReq::getRowidFlag(Treqinfo))
   {
-    ndbassert(refToBlock(senderRef) != DBTC);
+    ndbassert(refToMain(senderRef) != DBTC);
   }
   else if(op == ZINSERT)
   {
-    ndbassert(refToBlock(senderRef) == DBTC);
+    ndbassert(refToMain(senderRef) == DBTC);
   }
   
   if ((LqhKeyReq::FixedSignalLength + nextPos + TreclenAiLqhkey) != 

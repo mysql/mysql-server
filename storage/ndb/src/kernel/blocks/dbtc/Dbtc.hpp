@@ -1290,7 +1290,7 @@ public:
   typedef Ptr<TcFailRecord> TcFailRecordPtr;
 
 public:
-  Dbtc(Block_context&);
+  Dbtc(Block_context&, Uint32 instanceNumber = 0);
   virtual ~Dbtc();
 
 private:
@@ -2056,6 +2056,8 @@ private:
   /**************************************************************************/
 
   Uint32 c_gcp_ref;
+
+  Uint32 c_sttor_ref;
 
 #ifdef ERROR_INSERT
   // Used with ERROR_INSERT 8078 + 8079 to check API_FAILREQ handling

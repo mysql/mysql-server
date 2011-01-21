@@ -212,7 +212,7 @@ main(int argc, char ** argv)
   
   if (g_do_deploy)
   {
-    if (!deploy(g_config))
+    if (!deploy(g_do_deploy, g_config))
     {
       g_logger.critical("Failed to deploy");
       goto end;
@@ -613,8 +613,11 @@ parse_args(int argc, char** argv)
 	g_do_setup = 2;
 	break;
       case 'd':
-	g_do_deploy = 1;
+	g_do_deploy = 3;
 	break;
+      case 'D':
+        g_do_deploy = 2; // only binaries
+        break;
       case 'x':
 	g_do_sshx = atrt_process::AP_CLIENT | atrt_process::AP_NDB_API;
 	break;
@@ -1369,18 +1372,25 @@ do_rsync(const char *dir, const char *dst)
 }
 
 bool
-deploy(atrt_config & config)
+deploy(int d, atrt_config & config)
 {
   for (size_t i = 0; i<config.m_hosts.size(); i++)
   {
-    if (!do_rsync(g_basedir, config.m_hosts[i]->m_hostname.c_str()))
-      return false;
+    if (d & 1)
+    {
+      if (!do_rsync(g_basedir, config.m_hosts[i]->m_hostname.c_str()))
+        return false;
+    }
 
-    if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
-      return false;
+    if (d & 2)
+    {
+      if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
+        return false;
     
-    if (g_prefix1 && !do_rsync(g_prefix1, config.m_hosts[i]->m_hostname.c_str()))
-      return false;
+      if (g_prefix1 && 
+          !do_rsync(g_prefix1, config.m_hosts[i]->m_hostname.c_str()))
+        return false;
+    }
   }
   
   return true;

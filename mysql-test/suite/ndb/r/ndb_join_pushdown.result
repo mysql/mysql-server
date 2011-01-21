@@ -2106,7 +2106,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 explain extended
 select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	1	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`d3` >= 31)
+1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	10	30.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`d3` >= 31)
 1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b3	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`d3` = `test`.`x`.`b3`) and (`test`.`x`.`d3` >= 31))
@@ -2222,7 +2222,7 @@ left outer join t3 as t2 on t2.d3 = t1.a3
 left outer join t3 as t3 on t3.a3 = t2.d3
 where t1.d3 >= 47;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	d3	d3	5	NULL	1	100.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` >= 47)
+1	SIMPLE	t1	range	d3	d3	5	NULL	10	40.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` >= 47)
 1	SIMPLE	t2	ref	d3	d3	5	test.t1.a3	1	100.00	Child of pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.d3	1	100.00	Child of pushed join@1
 Warnings:
@@ -2257,7 +2257,7 @@ left outer join t3 as t2 on t2.d3 = t1.a3
 left outer join t3 as t3 on t3.a3 = t2.d3
 where t1.d3 is not null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	d3	d3	5	NULL	1	100.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` is not null)
+1	SIMPLE	t1	range	d3	d3	5	NULL	10	40.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` is not null)
 1	SIMPLE	t2	ref	d3	d3	5	test.t1.a3	1	100.00	Child of pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.d3	1	100.00	Child of pushed join@1
 Warnings:
@@ -3831,7 +3831,7 @@ on x1.a=x2.u and x2.a = x3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	12	16.67	Parent of 3 pushed join@1
 1	SIMPLE	x2	eq_ref	ix2	ix2	4	test.x1.a	1	100.00	Child of pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x2`.`a`) and (`test`.`x2`.`u` = `test`.`x1`.`a`))
 select count(*) from t1 as x1 join t1 as x2 join t1 as x3 
@@ -3843,7 +3843,7 @@ where x1.u=x2.pk and x1.a=x3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	ix2	NULL	NULL	NULL	12	100.00	Parent of 3 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.u	1	100.00	Child of pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`a`) and (`test`.`x2`.`pk` = `test`.`x1`.`u`))
 select count(*) from t1 as x1, t1 as x2, t1 as x3 
@@ -3854,7 +3854,7 @@ insert into t1 values (12,12,20,10);
 explain extended select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	92.31	
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	
 Warnings:
 Note	1644	Can't push table 'x2' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x1`.`a` = `test`.`x2`.`b`)) where 1
@@ -3872,7 +3872,7 @@ left join t1 as x3 on x2.a=x3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.u	1	100.00	Child of pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	100.00	
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	
 Warnings:
 Note	1644	Can't push table 'x3' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x1`.`u` = `test`.`x2`.`pk`)) left join `test`.`t1` `x3` on((`test`.`x2`.`a` = `test`.`x3`.`b`)) where 1
@@ -3896,9 +3896,9 @@ left join t1 as x5 on x4.a=x5.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.u	1	100.00	Child of pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	100.00	Parent of 2 pushed join@2
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	Parent of 2 pushed join@2
 1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	4	test.x3.u	1	100.00	Child of pushed join@2
-1	SIMPLE	x5	ref	ix1	ix1	5	test.x4.a	1	100.00	
+1	SIMPLE	x5	ref	ix1	ix1	5	test.x4.a	2	100.00	
 Warnings:
 Note	1644	Can't push table 'x3' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
 Note	1644	Can't push table 'x4' as child of 'x1', column 'x3.u' is outside scope of pushable join
@@ -3926,7 +3926,7 @@ join t1 as x2 on x1.a=x2.b
 where x1.pk = 1 or x1.u=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	index_merge	PRIMARY,ix2	ix2,PRIMARY	4,4	NULL	2	100.00	Using sort_union(ix2,PRIMARY); Using where with pushed condition: ((`test`.`x1`.`pk` = 1) or (`test`.`x1`.`u` = 1))
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Using where
 Warnings:
 Note	1644	Push of table 'x2' as scan-child with lookup-root 'x1' not implemented
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`test`.`x2`.`b` = `test`.`x1`.`a`) and ((`test`.`x1`.`pk` = 1) or (`test`.`x1`.`u` = 1)))
@@ -3943,8 +3943,8 @@ left join
 on table1.pk = table2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	13	100.00	
-1	SIMPLE	table2	ref	PRIMARY,ix1	ix1	5	test.table1.pk	1	100.00	Parent of 2 pushed join@1
-1	SIMPLE	table3	ref	ix1	ix1	5	test.table2.pk	1	100.00	Child of pushed join@1
+1	SIMPLE	table2	ref	PRIMARY,ix1	ix1	5	test.table1.pk	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table3	ref	ix1	ix1	5	test.table2.pk	2	100.00	Child of pushed join@1
 Warnings:
 Note	1644	Can't push table 'table2' as child of 'table1', outer join with scan-ancestor 'table1' not implemented
 Note	1644	Can't push table 'table3' as child of 'table1', column 'table2.pk' is outside scope of pushable join
@@ -3983,14 +3983,14 @@ explain extended select straight_join * from t1 as x1
 inner join t1 as x2 on x2.b = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where (`test`.`x2`.`b` = `test`.`x1`.`a`)
 explain extended select straight_join * from t1 as x1 
 left join t1 as x2 on x2.b = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	
 Warnings:
 Note	1644	Can't push table 'x2' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
 Note	1003	select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x2`.`b` = `test`.`x1`.`a`)) where 1
@@ -4009,7 +4009,7 @@ on x2.pk = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 3 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.a	1	100.00	Child of pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x3`.`pk` AS `pk`,`test`.`x3`.`u` AS `u`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x2`.`a`) and (`test`.`x2`.`pk` = `test`.`x1`.`a`))
 explain extended select straight_join * from 
@@ -4019,7 +4019,7 @@ on x2.pk = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.a	1	100.00	Child of pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	100.00	
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	
 Warnings:
 Note	1644	Can't push table 'x3' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
 Note	1003	select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x3`.`pk` AS `pk`,`test`.`x3`.`u` AS `u`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on(((`test`.`x2`.`pk` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x2`.`a`))) where 1
@@ -4028,8 +4028,8 @@ join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	ix1	NULL	NULL	NULL	13	100.00	Parent of 3 pushed join@1
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x2`.`b` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x1`.`b`))
 set ndb_join_pushdown=off;
@@ -4049,8 +4049,8 @@ left join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.b = x1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	ix1	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1644	Can't push table 'x2' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
 Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x2`.`b` = `test`.`x1`.`a`)) join `test`.`t1` `x3` where (`test`.`x3`.`b` = `test`.`x1`.`b`)
@@ -4071,8 +4071,8 @@ join t1 as x2 on x2.b = x1.a
 left join t1 as x3 on x3.b = x1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	1	100.00	
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	2	100.00	
 Warnings:
 Note	1644	Can't push table 'x3' as child of 'x1', outer join with scan-descendant 'x2' not implemented
 Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` left join `test`.`t1` `x3` on((`test`.`x3`.`b` = `test`.`x1`.`b`)) where (`test`.`x2`.`b` = `test`.`x1`.`a`)
@@ -4094,9 +4094,9 @@ join t1 as x2 on x2.b = x1.a
 join t1 as x3 on x3.pk = x1.a join t1 as x4 on x4.b = x3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 3 pushed join@1
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
 1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	4	test.x1.a	1	100.00	Child of pushed join@1
-1	SIMPLE	x4	ref	ix1	ix1	5	test.x3.a	1	100.00	Using where
+1	SIMPLE	x4	ref	ix1	ix1	5	test.x3.a	2	100.00	Using where
 Warnings:
 Note	1644	Can't push table 'x4' as child of 'x1', implementation limitations due to bushy scan with 'x2' indirect through 'x1'
 Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4` where ((`test`.`x2`.`b` = `test`.`x1`.`a`) and (`test`.`x3`.`pk` = `test`.`x1`.`a`) and (`test`.`x4`.`b` = `test`.`x3`.`a`))
@@ -4117,7 +4117,7 @@ left join t1 as x3 on x3.b = x1.a
 join t1 as x2 on x2.pk = x1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.a	1	100.00	
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.a	2	100.00	
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.a	1	100.00	Child of pushed join@1
 Warnings:
 Note	1644	Can't push table 'x3' as child of 'x1', outer join with scan-ancestor 'x1' not implemented
@@ -4141,7 +4141,7 @@ explain extended select count(*) from
 left outer join t1 as z on z.u = x.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 3 pushed join@1
-1	SIMPLE	y	ref	ix1	ix1	5	test.x.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	y	ref	ix1	ix1	5	test.x.a	2	100.00	Child of pushed join@1; Using where
 1	SIMPLE	z	eq_ref	ix2	ix2	4	test.y.b	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x` join `test`.`t1` `y` left join `test`.`t1` `z` on(((`test`.`y`.`b` = `test`.`x`.`a`) and (`test`.`z`.`u` = `test`.`x`.`a`))) where (`test`.`y`.`b` = `test`.`x`.`a`)
@@ -4422,8 +4422,8 @@ join t1 as x3 on x2.a=x3.b
 order by x1.pk limit 70;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	index	NULL	PRIMARY	4	NULL	10	20.00	Parent of 3 pushed join@1; Using temporary; Using filesort
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
-1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x2`.`b` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x2`.`a`)) order by `test`.`x1`.`pk` limit 70
 select x1.pk,x1.a,x1.b from t1 as x1 
@@ -4504,7 +4504,7 @@ pk	a	b
 explain extended select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ref	ix1	ix1	5	const	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x1`.`b` = 3)
-1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	1	100.00	Child of pushed join@1; Using where
+1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`test`.`x1`.`b` = 3) and (`test`.`x2`.`b` = `test`.`x1`.`a`))
 select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
@@ -4525,7 +4525,7 @@ on table1.a =  table4.pk
 where  table2.pk != 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	6	33.33	Using temporary
-1	SIMPLE	table2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`table2`.`pk` <> 6); Distinct; Using join buffer
+1	SIMPLE	table2	range	PRIMARY	PRIMARY	4	NULL	20	30.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`table2`.`pk` <> 6); Distinct; Using join buffer
 1	SIMPLE	table3	eq_ref	PRIMARY	PRIMARY	4	test.table2.pk	1	100.00	Child of pushed join@1; Distinct
 1	SIMPLE	table4	eq_ref	PRIMARY	PRIMARY	4	test.table1.a	1	100.00	Using where; Distinct
 Warnings:

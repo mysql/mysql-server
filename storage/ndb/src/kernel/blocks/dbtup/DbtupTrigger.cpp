@@ -539,7 +539,7 @@ Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
                                          Tablerec *regTablePtr,
                                          bool disk)
 {
-  if(refToBlock(req_struct->TC_ref) != DBTC) {
+  if (refToMain(req_struct->TC_ref) != DBTC) {
     return;
   }
 
@@ -559,7 +559,7 @@ Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
                                          Tablerec* regTablePtr,
                                          bool disk)
 {
-  if(refToBlock(req_struct->TC_ref) != DBTC) {
+  if (refToMain(req_struct->TC_ref) != DBTC) {
     return;
   }
 
@@ -587,7 +587,7 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
                                          Tablerec* regTablePtr,
                                          bool disk)
 {
-  if(refToBlock(req_struct->TC_ref) != DBTC) {
+  if (refToMain(req_struct->TC_ref) != DBTC) {
     return;
   }
 

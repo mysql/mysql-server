@@ -654,6 +654,7 @@ void Dbtc::execSTTOR(Signal* signal)
                                                      /* START CASE */
   tphase = signal->theData[1];
   csignalKey = signal->theData[6];
+  c_sttor_ref = signal->getSendersBlockRef();
   switch (tphase) {
   case ZSPH1:
     jam();
@@ -673,7 +674,7 @@ void Dbtc::sttorryLab(Signal* signal)
   signal->theData[2] = 2;    /* SIGNAL VERSION NUMBER */
   signal->theData[3] = ZSPH1;
   signal->theData[4] = 255;
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
+  sendSignal(c_sttor_ref, GSN_STTORRY, signal, 5, JBB);
 }//Dbtc::sttorryLab()
 
 /* ***************************************************************************/
@@ -689,6 +690,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
   tnodeid = signal->theData[1];
   tndbstartphase = signal->theData[2];   /* START PHASE      */
   tstarttype = signal->theData[3];       /* START TYPE       */
+  c_sttor_ref = signal->getSendersBlockRef();
   switch (tndbstartphase) {
   case ZINTSPH1:
     jam();
@@ -724,7 +726,7 @@ void Dbtc::execNDB_STTOR(Signal* signal)
 void Dbtc::ndbsttorry010Lab(Signal* signal) 
 {
   signal->theData[0] = cownref;
-  sendSignal(cndbcntrblockref, GSN_NDB_STTORRY, signal, 1, JBB);
+  sendSignal(c_sttor_ref, GSN_NDB_STTORRY, signal, 1, JBB);
 }//Dbtc::ndbsttorry010Lab()
 
 void
@@ -789,7 +791,7 @@ void Dbtc::startphase1x010Lab(Signal* signal)
 void Dbtc::intstartphase1x010Lab(Signal* signal) 
 {
   cownNodeid = tnodeid;
-  cownref =          calcTcBlockRef(cownNodeid);
+  cownref =          reference();
   clqhblockref =     calcLqhBlockRef(cownNodeid);
   cdihblockref =     calcDihBlockRef(cownNodeid);
   cdictblockref =    calcDictBlockRef(cownNodeid);
@@ -1240,7 +1242,8 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
     apiConnectptr.p->ndbapiBlockref = tapiBlockref;
     signal->theData[0] = apiConnectptr.p->ndbapiConnect;
     signal->theData[1] = apiConnectptr.i;
-    sendSignal(tapiBlockref, GSN_TCSEIZECONF, signal, 2, JBB);
+    signal->theData[2] = reference();
+    sendSignal(tapiBlockref, GSN_TCSEIZECONF, signal, 3, JBB);
     return;
   }
 
@@ -11933,7 +11936,7 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
   signal->theData[2] = 0;
   signal->theData[3] = retRef;
   signal->theData[4] = retData;
-  sendSignal(DBTC_REF, GSN_CONTINUEB, signal, 5, JBB);
+  sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);
 }
 
 /* ========================================================================= */
