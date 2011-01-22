@@ -2987,9 +2987,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
           TODO. Apply single row substitution to null complemented inner tables
           for nested outer join operations. 
 	*/              
-        while (keyuse->table == table && !keyuse->is_for_hash_join())
+        while (keyuse->table == table)
         {
-          if (!(keyuse->val->used_tables() & ~join->const_table_map) &&
+          if (!keyuse->is_for_hash_join() && 
+              !(keyuse->val->used_tables() & ~join->const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting)
           {
             s->type= JT_CONST;
@@ -3511,7 +3512,7 @@ add_key_field(JOIN *join,
   {
     optimize= KEY_OPTIMIZE_EQ;
   }   
-  if (!(field->flags & PART_KEY_FLAG) && !optimize)
+  else if (!(field->flags & PART_KEY_FLAG))
   {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
@@ -3967,7 +3968,7 @@ max_part_bit(key_part_map bits)
 
   @note
   The function builds a new KEYUSE object for a key use utilizing the info
-  on the left anf right parts of the given key use  extracted from the 
+  on the left and right parts of the given key use  extracted from the 
   structure key_field, the key number and key part for this key use. 
   The built object is added to the dynamic array keyuse_array.
 
@@ -4367,43 +4368,34 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     found_eq_constant=0;
     for (i=0 ; i < keyuse->elements-1 ; i++,use++)
     {
-      if (use->is_for_hash_join())
+      if (!use->is_for_hash_join())
       {
-        if (!use->table->reginfo.join_tab->keyuse)
-	  use->table->reginfo.join_tab->keyuse= save_pos;
-#ifdef HAVE_valgrind
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
-      if (save_pos != use)
-#endif
-        *save_pos= *use;
-        save_pos++;
-        continue;
-      }
-      if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
-	use->table->const_key_parts[use->key]|= use->keypart_map;
-      if (use->keypart != FT_KEYPART)
-      {
-	if (use->key == prev->key && use->table == prev->table)
-	{
-	  if (prev->keypart+1 < use->keypart ||
-	      (prev->keypart == use->keypart && found_eq_constant))
-	    continue;				/* remove */
-	}
-	else if (use->keypart != 0)		// First found must be 0
-	  continue;
-      }
+        if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
+	  use->table->const_key_parts[use->key]|= use->keypart_map;
+        if (use->keypart != FT_KEYPART)
+        {
+	  if (use->key == prev->key && use->table == prev->table)
+	  {
+	    if (prev->keypart+1 < use->keypart ||
+	        (prev->keypart == use->keypart && found_eq_constant))
+	      continue;				/* remove */
+	  }
+	  else if (use->keypart != 0)		// First found must be 0
+	    continue;
+        }
 
+        prev= use;
+        found_eq_constant= !use->used_tables;
+        use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
+      }
 #ifdef HAVE_valgrind
       /* Valgrind complains about overlapped memcpy when save_pos==use. */
       if (save_pos != use)
 #endif
         *save_pos= *use;
-      prev=use;
-      found_eq_constant= !use->used_tables;
       /* Save ptr to first use */
       if (!use->table->reginfo.join_tab->keyuse)
-	use->table->reginfo.join_tab->keyuse=save_pos;
-      use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
+	use->table->reginfo.join_tab->keyuse= save_pos;
       save_pos++;
     }
     i=(uint) (save_pos-(KEYUSE*) keyuse->buffer);
@@ -4548,6 +4540,35 @@ void set_position(JOIN *join,uint idx,JOIN_TAB *table,KEYUSE *key)
 }
 
 
+/* Estimate of the number matching candidates in the joined table */
+
+inline
+ha_rows matching_candidates_in_table(JOIN_TAB *s, bool with_found_constraint)
+{
+  ha_rows records= s->found_records;
+  /*
+    If there is a filtering condition on the table (i.e. ref analyzer found
+    at least one "table.keyXpartY= exprZ", where exprZ refers only to tables
+    preceding this table in the join order we're now considering), then 
+    assume that 25% of the rows will be filtered out by this condition.
+
+    This heuristic is supposed to force tables used in exprZ to be before
+    this table in join order.
+  */
+  if (with_found_constraint)
+    records-= records/4;
+
+    /*
+      If applicable, get a more accurate estimate. Don't use the two
+      heuristics at once.
+    */
+  if (s->table->quick_condition_rows != s->found_records)
+    records= s->table->quick_condition_rows;
+
+  return records;
+}
+
+
 /**
   Find the best access path for an extension of a partial execution
   plan and add this path to the plan.
@@ -4598,7 +4619,6 @@ best_access_path(JOIN      *join,
   ha_rows rec;
   bool best_uses_jbuf= FALSE;
   MY_BITMAP *eq_join_set= &s->table->eq_join_set;
-  KEYUSE *start_key=0;
   KEYUSE *hj_start_key= 0;
 
   Loose_scan_opt loose_scan_opt;
@@ -4610,8 +4630,9 @@ best_access_path(JOIN      *join,
   
   if (s->keyuse)
   {                                            /* Use key if possible */
-    TABLE *table= s->table;
     KEYUSE *keyuse;
+    KEYUSE *start_key=0;
+    TABLE *table= s->table;
     double best_records= DBL_MAX;
     uint max_key_part=0;
 
@@ -4630,6 +4651,10 @@ best_access_path(JOIN      *join,
       key_part_map ref_or_null_part= 0;
       if (is_hash_join_key_no(key))
       {
+        /* 
+          Hash join as any join employing join buffer can be used to join
+          only those tables that are joined after the first non const table
+	*/  
         if (!(remaining_tables & keyuse->used_tables) &&
             idx > join->const_tables)
         {
@@ -4986,21 +5011,20 @@ best_access_path(JOIN      *join,
     If there is no key to access the table, but there is an equi-join
     predicate connecting the table with the privious tables then we
     consider the possibility of using hash join.
+    We need also to check that:
+    (1) s is inner table of semi-join -> join cache is allowed for semijoins
+    (2) s is inner table of outer join -> join cache is allowed for outer joins
   */  
-  if (idx >= join->const_tables && best_key == 0 && 
+  if (idx > join->const_tables && best_key == 0 && 
      !bitmap_is_clear_all(eq_join_set) &&  !disable_jbuf &&
-      (!s->emb_sj_nest ||
-       join->allowed_semijoin_with_cache) &&
+      (!s->emb_sj_nest ||                     
+       join->allowed_semijoin_with_cache) &&    // (1)
       (!(s->table->map & join->outer_join) ||
-       join->allowed_outer_join_with_cache))
+       join->allowed_outer_join_with_cache))    // (2)
   {
     double join_sel= 0.1;
     /* Estimate the cost of  the hash join access to the table */
-    ha_rows rnd_records= s->found_records;
-    if (found_constraint)
-      rnd_records-= rnd_records/4;
-    if (s->table->quick_condition_rows != s->found_records)
-      rnd_records= s->table->quick_condition_rows;
+    ha_rows rnd_records= matching_candidates_in_table(s, found_constraint);
 
     tmp= s->table->file->scan_time();
     /* We read the table as many times as join buffer becomes full. */
@@ -5052,25 +5076,7 @@ best_access_path(JOIN      *join,
         ! s->table->covering_keys.is_clear_all() && best_key && !s->quick) &&// (3)
       !(s->table->force_index && best_key && !s->quick))                 // (4)
   {                                             // Check full join
-    ha_rows rnd_records= s->found_records;
-    /*
-      If there is a filtering condition on the table (i.e. ref analyzer found
-      at least one "table.keyXpartY= exprZ", where exprZ refers only to tables
-      preceding this table in the join order we're now considering), then 
-      assume that 25% of the rows will be filtered out by this condition.
-
-      This heuristic is supposed to force tables used in exprZ to be before
-      this table in join order.
-    */
-    if (found_constraint)
-      rnd_records-= rnd_records/4;
-
-    /*
-      If applicable, get a more accurate estimate. Don't use the two
-      heuristics at once.
-    */
-    if (s->table->quick_condition_rows != s->found_records)
-      rnd_records= s->table->quick_condition_rows;
+    ha_rows rnd_records= matching_candidates_in_table(s, found_constraint);
 
     /*
       Range optimizer never proposes a RANGE if it isn't better
@@ -5846,6 +5852,10 @@ best_extension_by_limited_search(JOIN      *join,
   DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, read_time,
                                 "part_plan"););
 
+  /* 
+    If we are searching for the execution plan of a materialized semi-join nest
+    then allowed_tables contains bits only for the tables from this nest.
+  */
   table_map allowed_tables= ~(table_map)0;
   if (join->emb_sjm_nest)
     allowed_tables= join->emb_sjm_nest->sj_inner_tables & ~join->const_table_map;
@@ -6419,10 +6429,9 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
   keyinfo->algorithm= HA_KEY_ALG_UNDEF;
   keyinfo->flags= HA_GENERATED_KEY;
   keyinfo->name= (char *) "hj_key";
-  keyinfo->rec_per_key= (ulong*) thd->alloc(sizeof(ulong)*key_parts);
+  keyinfo->rec_per_key= (ulong*) thd->calloc(sizeof(ulong)*key_parts);
   if (!keyinfo->rec_per_key)
     DBUG_RETURN(TRUE);
-  bzero(keyinfo->rec_per_key, sizeof(ulong)*key_parts);
   keyinfo->key_part= key_part_info;
 
   first_keyuse= TRUE;
@@ -7553,6 +7562,7 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
   if (join_tab->use_join_cache)
   {
     join_tab->use_join_cache= FALSE;
+    join_tab->used_join_cache_level= 0;
     /*
       It could be only sub_select(). It could not be sub_seject_sjm because we
       don't do join buffering for the first table in sjm nest. 
@@ -7562,8 +7572,8 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
     {
       join_tab->type= JT_ALL;
       join_tab->ref.key_parts= 0;
-      join_tab->join->return_tab= join_tab;
     }
+    join_tab->join->return_tab= join_tab;
   }
 }
 
@@ -7742,14 +7752,9 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   SYNOPSIS
     check_join_cache_usage()
       tab                 joined table to check join buffer usage for
-      join                join for which the check is performed
       options             options of the join
       no_jbuf_after       don't use join buffering after table with this number
       prev_tab            previous join table
-      icp_other_tables_ok OUT TRUE if condition pushdown supports
-                          other tables presence
-      idx_cond_fact_out   OUT TRUE if condition pushed to the index is factored
-                          out of the condition pushed to the table
 
   DESCRIPTION
     The function finds out whether the table 'tab' can be joined using a join
@@ -7777,12 +7782,11 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     for semi-join operations.
     If the optimizer switch join_cache_incremental is off no incremental join
     buffers are used.
-    If the optimizer switch join_cache_hashed is off then the optimizer does
-    not use neither BNLH algorithm, nor BKAH algorithm to perform join
-    operations.
+    If the optimizer switch join_cache_hashed is off then the optimizer uses
+    neither BNLH algorithm, nor BKAH algorithm to perform join operations.
 
-    If the optimizer switch join_cache_bka is off then the optimizer does not
-    use neither BKA algprithm, nor BKAH algorithm to perform join operation.
+    If the optimizer switch join_cache_bka is off then the optimizer uses
+    neither BKA algorithm, nor BKAH algorithm to perform join operation.
     The valid settings for join_cache_level lay in the interval 0..8.
     If it set to 0 no join buffers are used to perform join operations.
     Currently we differentiate between join caches of 8 levels:
@@ -7828,11 +7832,20 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     If the function creates a join cache object it tries to initialize it. The
     failure to do this results in an invocation of the function that destructs
     the created object.
+    If the function decides that but some reasons no join buffer can be used
+    for a table it calls the function revise_cache_usage that checks
+    whether join cache should be denied for some previous tables. In this case
+    a pointer to the first table for which join cache usage has been denied
+    is passed in join->return_val (see the function set_join_cache_denial).
+    
+    The functions changes the value the fields tab->icp_other_tables_ok and
+    tab->idx_cond_fact_out to FALSE if the chosen join cache algorithm 
+    requires it.
  
   NOTES
     An inner table of a nested outer join or a nested semi-join can be currently
     joined only when a linked cache object is employed. In these cases setting
-    join cache level to an odd number results in denial of usage of any join
+    join_cache_incremental to 'off' results in denial of usage of any join
     buffer when joining the table.
     For a nested outer join/semi-join, currently, we either use join buffers for
     all inner tables or for none of them. 
@@ -7871,18 +7884,17 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 
 static
 uint check_join_cache_usage(JOIN_TAB *tab,
-                            JOIN *join, ulonglong options,
+                            ulonglong options,
                             uint no_jbuf_after,
-                            JOIN_TAB *prev_tab,
-                            bool *icp_other_tables_ok,
-                            bool *idx_cond_fact_out)
+                            JOIN_TAB *prev_tab)
 {
   COST_VECT cost;
   uint flags= 0;
   ha_rows rows= 0;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
-  uint cache_level= join->max_allowed_join_cache_level;
+  JOIN *join= tab->join;
+  uint cache_level= tab->used_join_cache_level;
   bool force_unlinked_cache=
          !(join->allowed_join_cache_types & JOIN_CACHE_INCREMENTAL_BIT);
   bool no_hashed_cache=
@@ -7893,8 +7905,6 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   join->return_tab= 0;
 
-  *icp_other_tables_ok= TRUE;
-  *idx_cond_fact_out= TRUE;
   if (cache_level == 0 || i == join->const_tables || !prev_tab)
     return 0;
 
@@ -7975,7 +7985,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     if ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
         ((options & SELECT_DESCRIBE) || !tab->cache->init()))
     {
-      *icp_other_tables_ok= FALSE;
+      tab->icp_other_tables_ok= FALSE;
       return (2-test(!prev_cache));
     }
     goto no_join_cache;
@@ -8007,7 +8017,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
       if ((tab->cache= new JOIN_CACHE_BNLH(join, tab, prev_cache)) &&
           ((options & SELECT_DESCRIBE) || !tab->cache->init()))
       {
-        *icp_other_tables_ok= FALSE;        
+        tab->icp_other_tables_ok= FALSE;        
         return (4-test(!prev_cache));
       }
       goto no_join_cache;
@@ -8037,7 +8047,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
         if ((tab->cache= new JOIN_CACHE_BKAH(join, tab, flags, prev_cache)) &&
             ((options & SELECT_DESCRIBE) || !tab->cache->init()))
 	{
-          *idx_cond_fact_out= FALSE;
+         tab->idx_cond_fact_out= FALSE;
           return (8-test(!prev_cache));
         }
         goto no_join_cache;
@@ -8052,6 +8062,83 @@ no_join_cache:
     tab->type= JT_ALL;
   revise_cache_usage(tab); 
   return 0;
+}
+
+
+/* 
+  Check whether join buffers can be used to join tables of a join   
+
+  SYNOPSIS
+    check_join_cache_usage()
+      join                join whose tables are to be checked             
+      options             options of the join
+      no_jbuf_after       don't use join buffering after table with this number
+
+  DESCRIPTION
+    For each table after the first non-constant table the function checks
+    whether the table can be joined using a join buffer. If the function decides
+    that a join buffer can be employed then it selects the most appropriate join
+    cache object that contains this join buffer whose level is not greater
+    than join_cache_level set for the join. To make this check the function
+    calls the function check_join_cache_usage for every non-constant table.
+
+  NOTES
+    In some situations (e.g. for nested outer joins, for nested semi-joins) only
+    incremental buffers can be used. If it turns out that for some inner table
+    no join buffer can be used then any inner table of an outer/semi-join nest
+    cannot use join buffer. In the case when already chosen buffer must be
+    denied for a table the function recalls check_join_cache_usage()
+    starting from this table. The pointer to the table from which the check
+    has to be restarted is returned in join->return_val (see the description
+    of check_join_cache_usage).
+*/
+
+void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
+                                       uint no_jbuf_after)
+{
+  JOIN_TAB *first_sjm_table= NULL;
+  JOIN_TAB *last_sjm_table= NULL;
+
+  for (uint i= join->const_tables; i < join->tables; i++)
+    join->join_tab[i].used_join_cache_level= join->max_allowed_join_cache_level;  
+   
+  for (uint i= join->const_tables; i < join->tables; i++)
+  {
+    JOIN_TAB *tab= join->join_tab+i;
+
+    if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
+    {
+      first_sjm_table= tab;
+      last_sjm_table= tab + join->best_positions[i].n_sj_tables;
+      for (JOIN_TAB *sjm_tab= first_sjm_table;
+             sjm_tab != last_sjm_table; sjm_tab++)
+        sjm_tab->first_sjm_sibling= first_sjm_table;
+    } 
+    if (!(tab >= first_sjm_table && tab < last_sjm_table))
+      tab->first_sjm_sibling= NULL;
+
+    tab->icp_other_tables_ok= TRUE;
+    tab->idx_cond_fact_out= TRUE;
+    switch (tab->type) {
+    case JT_SYSTEM:
+    case JT_CONST:
+    case JT_EQ_REF:
+    case JT_REF:
+    case JT_REF_OR_NULL:
+    case JT_ALL:
+      tab->used_join_cache_level= check_join_cache_usage(tab, options,
+                                                         no_jbuf_after,
+                                                         tab == last_sjm_table ?
+						           first_sjm_table :
+                                                           tab-1); 
+      tab->use_join_cache= test(tab->used_join_cache_level);
+      if (join->return_tab)
+        i= join->return_tab-join->join_tab-1;   // always >= 0
+      break; 
+    default:
+      tab->used_join_cache_level= 0;
+    }     
+  }
 }
 
 
@@ -8084,14 +8171,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
   DBUG_ENTER("make_join_readinfo");
 
-restart:
-
-  uint jcl= 0;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool sorted= 1;
-  uint first_sjm_table= MAX_TABLES;
-  uint last_sjm_table= MAX_TABLES;
-
 
   if (!join->select_lex->sj_nests.is_empty() &&
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))
@@ -8102,10 +8183,24 @@ restart:
 
   for (i=join->const_tables ; i < join->tables ; i++)
   {
+    /*
+      The approximation below for partial join cardinality is not good because
+        - it does not take into account some pushdown predicates
+        - it does not differentiate between inner joins, outer joins and semi-joins.
+      Later it should be improved.
+    */
+    JOIN_TAB *tab=join->join_tab+i;
+    tab->partial_join_cardinality= join->best_positions[i].records_read *
+                                   (i ? (tab-1)->partial_join_cardinality : 1);
+  }
+ 
+  check_join_cache_usage_for_tables(join, options, no_jbuf_after);
+
+  for (i=join->const_tables ; i < join->tables ; i++)
+  {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *table=tab->table;
-    bool icp_other_tables_ok= FALSE;
-    bool idx_cond_fact_out= FALSE;
+    uint jcl= tab->used_join_cache_level;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
@@ -8113,15 +8208,6 @@ restart:
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
 
-    /*
-      The approximation below for partial join cardinality is not good because
-        - it does not take into account some pushdown predicates
-        - it does not differentiate between inner joins, outer joins and semi-joins.
-      Later it should be improved.
-    */
-    tab->partial_join_cardinality= join->best_positions[i].records_read *
-                                   (i ? (tab-1)->partial_join_cardinality : 1);
- 
     if (tab->loosescan_match_tab)
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
@@ -8133,13 +8219,8 @@ restart:
     /*
      SJ-Materialization
     */
-    if (!(i >= first_sjm_table && i < last_sjm_table))
-      tab->first_sjm_sibling= NULL;
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
-      /* This is a start of semi-join nest */
-      first_sjm_table= i;
-      last_sjm_table= i + join->best_positions[i].n_sj_tables;
       if (i == join->const_tables)
         join->first_select= sub_select_sjm;
       else
@@ -8147,49 +8228,13 @@ restart:
 
       if (setup_sj_materialization(tab))
         return TRUE;
-      for (uint j= first_sjm_table; j != last_sjm_table; j++)
-        join->join_tab[j].first_sjm_sibling= join->join_tab + first_sjm_table;
     }
     table->status=STATUS_NO_RECORD;
     pick_table_access_method (tab);
 
-    /*
-      This loop currently can be executed only once as the function 
-      check_join_cache_usage does not change the value of tab->type.
-      It won't be true for the future code.
-    */    
-    for ( ;  ; )
-    {
-      enum join_type tab_type= tab->type; 
-      switch (tab->type) {
-      case JT_SYSTEM:
-      case JT_CONST:
-      case JT_EQ_REF:
-      case JT_REF:
-      case JT_REF_OR_NULL:
-      case JT_ALL:
-        if ((jcl= check_join_cache_usage(tab, join, options,
-                                         no_jbuf_after,
-                                         i == last_sjm_table ?
-					   join->join_tab+first_sjm_table :
-                                           tab-1, 
-                                         &icp_other_tables_ok,
-                                         &idx_cond_fact_out)))
-        {
-          tab->use_join_cache= TRUE;
-          tab[-1].next_select=sub_select_cache;
-        }
-        break;
-      default:
-       ;
-      }
-      if (tab->type == tab_type)
-        break;
-    }
-
-    if (join->return_tab)
-      goto restart;
-
+    if (jcl)
+       tab[-1].next_select=sub_select_cache;
+      
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join 
     case JT_CONST:				// Only happens with left join
@@ -8203,8 +8248,7 @@ restart:
         table->file->extra(HA_EXTRA_KEYREAD);
       }
       else if ((!jcl || jcl > 4) && !tab->is_ref_for_hash_join()) 
-        push_index_cond(tab, tab->ref.key, 
-                       icp_other_tables_ok, idx_cond_fact_out);
+        push_index_cond(tab, tab->ref.key);
         break;
     case JT_EQ_REF:
       tab->read_record.unlock_row= join_read_key_unlock_row;
@@ -8216,8 +8260,7 @@ restart:
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
       else if ((!jcl || jcl > 4) && !tab->is_ref_for_hash_join()) 
-        push_index_cond(tab, tab->ref.key,
-                        icp_other_tables_ok, idx_cond_fact_out);
+        push_index_cond(tab, tab->ref.key);
       break;
     case JT_REF_OR_NULL:
     case JT_REF:
@@ -8232,8 +8275,7 @@ restart:
 	  !table->no_keyread)
         table->enable_keyread();
       else if ((!jcl || jcl > 4) &&!tab->is_ref_for_hash_join())
-        push_index_cond(tab, tab->ref.key, 
-                        icp_other_tables_ok, idx_cond_fact_out);
+        push_index_cond(tab, tab->ref.key);
       break;
     case JT_ALL:
       /*
@@ -8314,8 +8356,7 @@ restart:
 	}
         if (tab->select && tab->select->quick &&
             tab->select->quick->index != MAX_KEY && ! tab->table->key_read)
-          push_index_cond(tab, tab->select->quick->index, 
-                          icp_other_tables_ok, idx_cond_fact_out);
+          push_index_cond(tab, tab->select->quick->index);
       }
       break;
     case JT_FT:

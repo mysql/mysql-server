@@ -251,7 +251,15 @@ typedef struct st_join_table {
   */ 
   ha_rows       limit; 
   TABLE_REF	ref;
+  /* TRUE <=> condition pushdown supports other tables presence */
+  bool          icp_other_tables_ok;
+  /* 
+    TRUE <=> condition pushed to the index has to be factored out of
+    the condition pushed to the table
+  */
+  bool          idx_cond_fact_out;
   bool          use_join_cache;
+  uint          used_join_cache_level;
   ulong         join_buffer_size_limit;
   JOIN_CACHE	*cache;
   /*
@@ -1247,8 +1255,7 @@ inline bool optimizer_flag(THD *thd, uint flag)
 void eliminate_tables(JOIN *join);
 
 /* Index Condition Pushdown entry point function */
-void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
-                     bool factor_out);
+void push_index_cond(JOIN_TAB *tab, uint keyno);
 
 /****************************************************************************
   Temporary table support for SQL Runtime
