@@ -257,6 +257,12 @@ void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTO
 
 void toku_brtnode_free (BRTNODE *node);
 
+// append a child node to a parent node
+void toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, struct kv_pair *pivotkey, size_t pivotkeysize);
+
+// append a cmd to a nonleaf node child buffer
+void toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, DBT *key, DBT *val);
+
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)
 #else
@@ -385,6 +391,7 @@ typedef struct le_status {
 
 void toku_le_get_status(LE_STATUS);
 
+int brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd, u_int32_t idx, LEAFENTRY le, TOKULOGGER logger);
 
 C_END
 
