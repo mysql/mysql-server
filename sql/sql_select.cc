@@ -12771,7 +12771,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   TABLE new_table;
   TABLE_SHARE share;
   const char *save_proc_info;
-  int write_err;
+  int write_err= 0;
   DBUG_ENTER("create_internal_tmp_table_from_heap2");
 
   if (table->s->db_type() != heap_hton || 
