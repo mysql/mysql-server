@@ -2342,7 +2342,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*4)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2352,6 +2352,8 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
+  bitmap_init(&outparam->eq_join_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*4), share->fields, FALSE);
   outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
@@ -5203,6 +5205,52 @@ bool TABLE::alloc_keys(uint key_count)
 }
 
 
+void TABLE::create_key_part_by_field(KEY *keyinfo,
+                                     KEY_PART_INFO *key_part_info,
+                                     Field *field)
+{   
+  field->flags|= PART_KEY_FLAG;
+  key_part_info->null_bit= field->null_bit;
+  key_part_info->null_offset= (uint) (field->null_ptr -
+                                      (uchar*) record[0]);
+  key_part_info->field= field;
+  key_part_info->offset= field->offset(record[0]);
+  key_part_info->length=   (uint16) field->pack_length();
+  keyinfo->key_length+= key_part_info->length;
+  key_part_info->key_part_flag= 0;
+  /* TODO:
+    The below method of computing the key format length of the
+    key part is a copy/paste from opt_range.cc, and table.cc.
+    This should be factored out, e.g. as a method of Field.
+    In addition it is not clear if any of the Field::*_length
+    methods is supposed to compute the same length. If so, it
+    might be reused.
+  */
+  key_part_info->store_length= key_part_info->length;
+
+  if (field->real_maybe_null())
+  {
+    key_part_info->store_length+= HA_KEY_NULL_LENGTH;
+    keyinfo->key_length+= HA_KEY_NULL_LENGTH;
+  }
+  if (field->type() == MYSQL_TYPE_BLOB || 
+      field->real_type() == MYSQL_TYPE_VARCHAR)
+  {
+    key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
+    keyinfo->key_length+= HA_KEY_BLOB_LENGTH; // ???
+    key_part_info->key_part_flag|=
+      field->type() == MYSQL_TYPE_BLOB ? HA_BLOB_PART: HA_VAR_LENGTH_PART;
+  }
+
+  key_part_info->type=     (uint8) field->key_type();
+  key_part_info->key_type =
+    ((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
+    (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+    (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
+    0 : FIELDFLAG_BINARY;
+}
+
+
 /**
   Add a key to a temporary  table
 
@@ -5253,54 +5301,18 @@ bool TABLE::add_tmp_key(uint key, uint key_parts,
   if (!keyinfo->rec_per_key)
     return TRUE;
   bzero(keyinfo->rec_per_key, sizeof(ulong)*key_parts);
+
   for (i= 0; i < key_parts; i++)
   {
     reg_field= field + next_field_no(arg);
     if (key_start)
       (*reg_field)->key_start.set_bit(key);
+    (*reg_field)->part_of_key.set_bit(key);
+    create_key_part_by_field(keyinfo, key_part_info, *reg_field);
     key_start= FALSE;
-      (*reg_field)->part_of_key.set_bit(key);
-    (*reg_field)->flags|= PART_KEY_FLAG;
-    key_part_info->null_bit= (*reg_field)->null_bit;
-    key_part_info->null_offset= (uint) ((*reg_field)->null_ptr -
-                                          (uchar*) record[0]);
-    key_part_info->field=    *reg_field;
-    key_part_info->offset=   (*reg_field)->offset(record[0]);
-    key_part_info->length=   (uint16) (*reg_field)->pack_length();
-    keyinfo->key_length+= key_part_info->length;
-    key_part_info->key_part_flag= 0;
-    /* TODO:
-      The below method of computing the key format length of the
-      key part is a copy/paste from opt_range.cc, and table.cc.
-      This should be factored out, e.g. as a method of Field.
-      In addition it is not clear if any of the Field::*_length
-      methods is supposed to compute the same length. If so, it
-      might be reused.
-    */
-    key_part_info->store_length= key_part_info->length;
-
-    if ((*reg_field)->real_maybe_null())
-    {
-      key_part_info->store_length+= HA_KEY_NULL_LENGTH;
-      keyinfo->key_length+= HA_KEY_NULL_LENGTH;
-      if (unique)
-        keyinfo->flags|= HA_NULL_ARE_EQUAL;     // def. that NULL == NULL
-    }
-    if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
-        (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
-    {
-      key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
-      keyinfo->key_length+= HA_KEY_BLOB_LENGTH; // ???
-    }
-
-    key_part_info->type=     (uint8) (*reg_field)->key_type();
-    key_part_info->key_type =
-      ((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
-       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
-      0 : FIELDFLAG_BINARY;
     key_part_info++;
   }
+
   set_if_bigger(s->max_key_length, keyinfo->key_length);
   s->keys++;
   return FALSE;

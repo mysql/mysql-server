@@ -725,6 +725,7 @@ struct st_table {
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 
+  MY_BITMAP     eq_join_set;         /* used to mark equi-joined fields */
   MY_BITMAP     *read_set, *write_set, *vcol_set; /* Active column sets */
   /*
    The ID of the query that opened and is using this table. Has different
@@ -955,6 +956,8 @@ struct st_table {
   bool add_tmp_key(uint key, uint key_parts,
                    uint (*next_field_no) (uchar *), uchar *arg,
                    bool unique);
+  void create_key_part_by_field(KEY *keyinfo, KEY_PART_INFO *key_part_info,
+                                Field *field);
   bool is_children_attached(void);
   inline void enable_keyread()
   {

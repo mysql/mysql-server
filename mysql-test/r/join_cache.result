@@ -411,6 +411,382 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+set join_cache_level=3;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	3
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	hash	NULL	hj_key	3	world.Country.Code	984	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+set join_cache_level=4;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	4
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	CountryLanguage	hash	NULL	hj_key	3	world.Country.Code	984	Using where; Using join buffer (incremental, BNLH join)
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
 set join_cache_level=default;
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
@@ -454,8 +830,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (flat, BNL join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -642,8 +1018,384 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (incremental, BNL join)
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer (incremental, BNL join)
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+set join_cache_level=3;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	3
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	CountryLanguage	hash	NULL	hj_key	3	world.Country.Code	984	Using where; Using join buffer (flat, BNLH join)
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+set join_cache_level=4;
+show variables like 'join_cache_level';
+Variable_name	Value
+join_cache_level	4
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	hash	NULL	hj_key	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	CountryLanguage	hash	NULL	hj_key	3	world.Country.Code	984	Using where; Using join buffer (incremental, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -840,7 +1592,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -869,8 +1621,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where
+1	SIMPLE	Country	hash	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	239	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Country	Country	3	world.CountryLanguage.Country	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1024,7 +1776,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1052,7 +1804,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	CountryLanguage	hash	PRIMARY	PRIMARY	33	world.Country.Code,const	984	Using where; Using join buffer (flat, BNLH join)
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -1150,7 +1902,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -1179,8 +1931,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	Country	hash	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	239	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Country	Country	3	world.CountryLanguage.Country	4079	Using where; Using join buffer (incremental, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -1334,7 +2086,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -1362,7 +2114,7 @@ WHERE
 Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
-1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	CountryLanguage	hash	PRIMARY	PRIMARY	33	world.Country.Code,const	984	Using where; Using join buffer (flat, BNLH join)
 SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 FROM Country LEFT JOIN CountryLanguage ON
 (CountryLanguage.Country=Country.Code AND Language='English')
@@ -2692,7 +3444,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2721,8 +3473,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where
+1	SIMPLE	Country	hash	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	239	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Country	Country	3	world.CountryLanguage.Country	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -2876,7 +3628,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -2906,7 +3658,7 @@ WHERE City.Country=Country.Code AND
 Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
 Country.Name LIKE 'L%' AND City.Population > 100000;
@@ -2935,8 +3687,8 @@ City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
-1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	Country	hash	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	239	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	City	hash	Country	Country	3	world.CountryLanguage.Country	4079	Using where; Using join buffer (incremental, BNLH join)
 SELECT City.Name, Country.Name, CountryLanguage.Language
 FROM City,Country,CountryLanguage
 WHERE City.Country=Country.Code AND
@@ -3090,7 +3842,7 @@ WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AN
 City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
-1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	18	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	City	hash	Population,Country	Country	3	world.Country.Code	4079	Using where; Using join buffer (flat, BNLH join)
 SELECT Name FROM City
 WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
 City.Population > 100000;
@@ -4553,7 +5305,7 @@ a	b	a	c
 explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	hash	NULL	hj_key	5	test.t1.a	3	Using where; Using join buffer (flat, BNLH join)
 select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 a	b	a	c
 3	30	3	102
@@ -5407,7 +6159,7 @@ WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	18	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	t3	ref	idx	idx	3	test.t2.u	2	Using where
+1	SIMPLE	t3	hash	idx	idx	3	test.t2.u	20	Using where; Using join buffer (flat, BNLH join)
 SELECT t1.i, t1.d,  t1.v, t2.i, t2.d, t2.t, t2.v FROM t1,t2,t3
 WHERE t3.u <='a' AND t2.j < 5 AND t3.v = t2.u;
 i	d	v	i	d	t	v
@@ -5530,8 +6282,8 @@ SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v
 GROUP BY t2.v ORDER BY t1.pk,t2.v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	idx1	NULL	NULL	NULL	20	Using temporary; Using filesort
-1	SIMPLE	t3	eq_ref	PRIMARY,idx2	PRIMARY	4	test.t2.i	1	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	t1	ref	idx2	idx2	3	test.t3.v	2	Using join buffer (incremental, BNLH join)
+1	SIMPLE	t3	hash	PRIMARY,idx2	PRIMARY	4	test.t2.i	20	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	t1	hash	idx2	idx2	3	test.t3.v	15	Using join buffer (incremental, BNLH join)
 SELECT t2.v FROM t1, t2, t3 WHERE t3.v <> t2.v AND t3.pk = t2.i AND t1.v = t3.v 
 GROUP BY t2.v ORDER BY t1.pk,t2.v;
 v
@@ -5582,7 +6334,7 @@ EXPLAIN
 SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	
-1	SIMPLE	t1	ref	cu	cu	33	func	2	Using where; Using index; Using join buffer (flat, BNLH join)
+1	SIMPLE	t1	hash	cu	cu	33	func	10	Using where; Using index; Using join buffer (flat, BNLH join)
 SELECT t2.i FROM t1,t2 WHERE t1.cu = t2.cl ;
 i
 6
@@ -5609,7 +6361,7 @@ EXPLAIN
 SELECT t1.a, t2.c FROM t1,t2 WHERE t1.a=t2.a AND t2.b=99;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	36	Using where
-1	SIMPLE	t2	ref	idx	idx	10	test.t1.a,const	2	Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	10	test.t1.a,const	15	Using join buffer (flat, BNLH join)
 SELECT t1.a, t2.c FROM t1,t2 WHERE t1.a=t2.a AND t2.b=99;
 a	c
 SET SESSION join_cache_level = DEFAULT;
@@ -5659,7 +6411,7 @@ EXPLAIN
 SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	Using where
-1	SIMPLE	t2	ref	idx	idx	13	test.t1.v	2	Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	13	test.t1.v	18	Using join buffer (flat, BNLH join)
 SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = t1.v;
 v	i
 f	4
@@ -5668,7 +6420,7 @@ EXPLAIN
 SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
-1	SIMPLE	t2	ref	idx	idx	13	func	2	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	13	func	18	Using where; Using join buffer (flat, BNLH join)
 SELECT t1.v,t2.i FROM t1,t2 WHERE t2.v = concat(t1.v, t1.v);
 v	i
 f	5
@@ -5721,8 +6473,8 @@ SELECT t3.i FROM t1,t2,t3
 WHERE t1.v = t2.v AND t3.v = t1.v AND t2.i <> 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	idx	idx	13	NULL	7	Using where; Using index
-1	SIMPLE	t2	ref	idx	idx	1003	test.t1.v	2	Using where; Using join buffer (flat, BNLH join)
-1	SIMPLE	t3	ref	idx	idx	1002	func	3	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	1003	test.t1.v	18	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	t3	hash	idx	idx	1002	func	32	Using where; Using join buffer (incremental, BNLH join)
 SELECT t3.i FROM t1,t2,t3
 WHERE t1.v = t2.v AND t3.v = t1.v AND t2.i <> 0;
 i
@@ -5759,7 +6511,7 @@ EXPLAIN
 SELECT * FROM t1,t2 WHERE t2.a=t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ref	idx	idx	515	test.t1.a	2	Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	515	test.t1.a	12	Using join buffer (flat, BNLH join)
 SELECT * FROM t1,t2 WHERE t2.a=t1.a;
 pk	a	pk	a
 2	aa	30	aa
@@ -5942,8 +6694,8 @@ t1 LEFT JOIN
 WHERE t3.a3 IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BNLH join)
+1	SIMPLE	t3	hash	PRIMARY	hj_key	5	test.t1.c1	1	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	NULL	hj_key	5	test.t3.b3	1	Using where; Using join buffer (incremental, BNLH join)
 1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
 SELECT * FROM
 t1 LEFT JOIN 
@@ -5981,23 +6733,23 @@ INSERT INTO t3 VALUES (2,1);
 SET SESSION optimizer_switch = 'outer_join_with_cache=on';
 SET SESSION join_cache_level = 6;
 EXPLAIN
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BKA join)
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 a1	a2	b2	a3	b3
 0	2	1	2	1
 0	2	1	2	1
 SET SESSION join_cache_level = 5;
 EXPLAIN
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BNLH join)
-SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0 ;
+1	SIMPLE	t3	hash	PRIMARY	PRIMARY	4	test.t2.a2	1	Using where; Using join buffer (incremental, BNLH join)
+SELECT * FROM t1 LEFT JOIN t2 JOIN t3 ON t3.a3 = t2.a2 ON t3.b3 <> 0;
 a1	a2	b2	a3	b3
 0	2	1	2	1
 0	2	1	2	1
@@ -6072,7 +6824,7 @@ EXPLAIN
 SELECT * FROM t1,t2 WHERE t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
-1	SIMPLE	t2	ref	idx	idx	35	test.t1.a	2	Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	35	test.t1.a	15	Using join buffer (flat, BNLH join)
 SELECT * FROM t1,t2 WHERE t1.a=t2.a;
 pk	a	pk	a
 20	BBBB	1	Bbbb
@@ -6187,7 +6939,7 @@ EXPLAIN
 SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using index
-1	SIMPLE	t2	ref	idx	idx	5	const	4	Using where; Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	idx	idx	5	const	23	Using where; Using join buffer (flat, BNLH join)
 SELECT * FROM t1,t2 WHERE t1.a < 3 and t2.a IS NULL;
 a	a	b
 1	NULL	10
@@ -6215,7 +6967,7 @@ EXPLAIN
 SELECT * FROM t1,t2 WHERE t2.f1 = t1.f1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	f1	NULL	NULL	NULL	2	Using where
-1	SIMPLE	t2	ref	f1	f1	13	test.t1.f1	2	Using join buffer (flat, BNLH join)
+1	SIMPLE	t2	hash	f1	f1	13	test.t1.f1	12	Using join buffer (flat, BNLH join)
 SELECT * FROM t1,t2 WHERE t2.f1 = t1.f1;
 f1	f2	f1	f2
 SET SESSION join_cache_level = DEFAULT;
