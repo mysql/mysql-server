@@ -39,6 +39,11 @@
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
 #define KEY_OPTIMIZE_REF_OR_NULL	2
+#define KEY_OPTIMIZE_EQ	                4
+
+inline uint get_hash_join_key_no() { return MAX_KEY; }
+
+inline bool is_hash_join_key_no(uint key) { return key == MAX_KEY; }
 
 typedef struct keyuse_t {
   TABLE *table;
@@ -68,6 +73,8 @@ typedef struct keyuse_t {
      MAX_UINT  Otherwise
   */
   uint         sj_pred_no;
+
+  bool is_for_hash_join() { return is_hash_join_key_no(key); }
 } KEYUSE;
 
 class store_key;
@@ -127,7 +134,8 @@ typedef struct st_table_ref
 */
 enum join_type { JT_UNKNOWN,JT_SYSTEM,JT_CONST,JT_EQ_REF,JT_REF,JT_MAYBE_REF,
 		 JT_ALL, JT_RANGE, JT_NEXT, JT_FT, JT_REF_OR_NULL,
-		 JT_UNIQUE_SUBQUERY, JT_INDEX_SUBQUERY, JT_INDEX_MERGE};
+		 JT_UNIQUE_SUBQUERY, JT_INDEX_SUBQUERY, JT_INDEX_MERGE,
+                 JT_HASH};
 
 class JOIN;
 
@@ -159,6 +167,8 @@ typedef struct st_join_table {
   st_join_table() {}                          /* Remove gcc warning */
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
+  KEY           *hj_key;       /**< descriptor of the used best hash join key
+				    not supported by any index                 */
   SQL_SELECT	*select;
   COND		*select_cond;
   COND          *on_precond;    /**< part of on condition to check before
@@ -241,7 +251,15 @@ typedef struct st_join_table {
   */ 
   ha_rows       limit; 
   TABLE_REF	ref;
+  /* TRUE <=> condition pushdown supports other tables presence */
+  bool          icp_other_tables_ok;
+  /* 
+    TRUE <=> condition pushed to the index has to be factored out of
+    the condition pushed to the table
+  */
+  bool          idx_cond_fact_out;
   bool          use_join_cache;
+  uint          used_join_cache_level;
   ulong         join_buffer_size_limit;
   JOIN_CACHE	*cache;
   /*
@@ -408,6 +426,11 @@ typedef struct st_join_table {
   double get_partial_join_cardinality() { return partial_join_cardinality; }
   bool hash_join_is_possible();
   int make_scan_filter();
+  bool is_ref_for_hash_join() { return is_hash_join_key_no(ref.key); }
+  KEY *get_keyinfo_by_key_no(uint key) 
+  {
+    return (is_hash_join_key_no(key) ? hj_key : table->key_info+key);
+  }
 } JOIN_TAB;
 
 
@@ -681,6 +704,15 @@ public:
   Item      *tmp_having; ///< To store having when processed temporary table
   Item      *having_history; ///< Store having for explain
   ulonglong  select_options;
+  /* 
+    Bitmap of allowed types of the join caches that
+    can be used for join operations
+  */
+  uint allowed_join_cache_types;
+  bool allowed_semijoin_with_cache;
+  bool allowed_outer_join_with_cache;
+  /* Maximum level of the join caches that can be used for join operations */ 
+  uint max_allowed_join_cache_level;
   select_result *result;
   TMP_TABLE_PARAM tmp_table_param;
   MYSQL_LOCK *lock;
@@ -947,6 +979,12 @@ public:
   bool shrink_join_buffers(JOIN_TAB *jt, 
                            ulonglong curr_space,
                            ulonglong needed_space);
+  void set_allowed_join_cache_types();
+  bool is_allowed_hash_join_access()
+  { 
+    return test(allowed_join_cache_types & JOIN_CACHE_HASHED_BIT) &&
+           max_allowed_join_cache_level > JOIN_CACHE_HASHED_BIT;
+  }
 
 private:
   /**
@@ -1223,8 +1261,7 @@ inline bool optimizer_flag(THD *thd, uint flag)
 void eliminate_tables(JOIN *join);
 
 /* Index Condition Pushdown entry point function */
-void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
-                     bool factor_out);
+void push_index_cond(JOIN_TAB *tab, uint keyno);
 
 /****************************************************************************
   Temporary table support for SQL Runtime

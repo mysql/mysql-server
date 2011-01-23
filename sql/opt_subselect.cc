@@ -1326,16 +1326,21 @@ static uint get_tmp_table_rec_length(List<Item> &items)
 bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
 {
   KEYUSE *keyuse= table->reginfo.join_tab->keyuse;
-  uint key;
 
   if (keyuse)
   {
-    while (1) /* For each key */
+    do
     {
-      key= keyuse->key;
-      KEY *keyinfo= table->key_info + key;
+      uint key= keyuse->key;
+      KEY *keyinfo;
       key_part_map bound_parts= 0;
-      if (keyinfo->flags & HA_NOSAME)
+      bool is_excluded_key= keyuse->is_for_hash_join(); 
+      if (!is_excluded_key)
+      {
+        keyinfo= table->key_info + key;
+        is_excluded_key= !test(keyinfo->flags & HA_NOSAME);
+      }
+      if (!is_excluded_key)
       {
         do  /* For all equalities on all key parts */
         {
@@ -1350,20 +1355,15 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
 
         if (bound_parts == PREV_BITS(uint, keyinfo->key_parts))
           return TRUE;
-        if (keyuse->table != table)
-          return FALSE;
       }
       else
       {
         do
         {
           keyuse++;
-          if (keyuse->table != table)
-            return FALSE;
-        }
-        while (keyuse->key == key);
+        } while (keyuse->key == key && keyuse->table == table);
       }
-    }
+    } while (keyuse->table == table);
   }
   return FALSE;
 }
