@@ -65,22 +65,22 @@ EXPLAIN
 SELECT * FROM City WHERE
 Name LIKE 'C%' AND Population > 1000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Population,Name	4,35	NULL	16	Using sort_intersect(Population,Name); Using where
+1	SIMPLE	City	index_merge	Population,Name	Population,Name	4,35	NULL	16	Using sort_intersect(Population,Name); Using where
 EXPLAIN
 SELECT * FROM City WHERE
 Name LIKE 'M%' AND Population > 1500000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Population,Name	4,35	NULL	9	Using sort_intersect(Population,Name); Using where
+1	SIMPLE	City	index_merge	Population,Name	Population,Name	4,35	NULL	9	Using sort_intersect(Population,Name); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE Name LIKE 'M%' AND Population > 300000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Name,Population	35,4	NULL	79	Using sort_intersect(Name,Population); Using where
+1	SIMPLE	City	index_merge	Population,Name	Name,Population	35,4	NULL	79	Using sort_intersect(Name,Population); Using where
 EXPLAIN
 SELECT * FROM City
 WHERE Name LIKE 'M%' AND Population > 7000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Population,Name	4,35	NULL	1	Using sort_intersect(Population,Name); Using where
+1	SIMPLE	City	index_merge	Population,Name	Population,Name	4,35	NULL	1	Using sort_intersect(Population,Name); Using where
 SELECT * FROM City USE INDEX ()
 WHERE Name LIKE 'C%' AND Population > 1000000;
 ID	Name	Country	Population
@@ -362,17 +362,17 @@ EXPLAIN
 SELECT * FROM City
 WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Population,Name,Country	4,35,3	NULL	2	Using sort_intersect(Population,Name,Country); Using where
+1	SIMPLE	City	index_merge	Population,Country,Name	Population,Name,Country	4,35,3	NULL	2	Using sort_intersect(Population,Name,Country); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Population,Country,Name	4,3,35	NULL	2	Using sort_intersect(Population,Country,Name); Using where
+1	SIMPLE	City	index_merge	Population,Country,Name	Population,Country,Name	4,3,35	NULL	2	Using sort_intersect(Population,Country,Name); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Population,Name,Country	4,35,3	NULL	26	Using sort_intersect(Population,Name,Country); Using where
+1	SIMPLE	City	index_merge	Population,Country,Name	Population,Name,Country	4,35,3	NULL	26	Using sort_intersect(Population,Name,Country); Using where
 SELECT * FROM City USE INDEX ()
 WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
 ID	Name	Country	Population
@@ -463,29 +463,29 @@ EXPLAIN
 SELECT * FROM City
 WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	11	Using sort_intersect(PRIMARY,Country,Population); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	11	Using sort_intersect(PRIMARY,Country,Population); Using where
 EXPLAIN
 SELECT * FROM City
 WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	1	Using sort_intersect(PRIMARY,Population,Country); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	1	Using sort_intersect(PRIMARY,Population,Country); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'H%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Country	4,3	NULL	7	Using sort_intersect(PRIMARY,Country); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Country	4,3	NULL	7	Using sort_intersect(PRIMARY,Country); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE ID BETWEEN 3701 AND 4000 AND Population > 1000000
 AND Country BETWEEN 'S' AND 'Z';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	2	Using sort_intersect(PRIMARY,Country,Population); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	2	Using sort_intersect(PRIMARY,Country,Population); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
 AND Country BETWEEN 'S' AND 'Z' ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	30	Using sort_intersect(PRIMARY,Population,Country); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	30	Using sort_intersect(PRIMARY,Population,Country); Using where
 SELECT * FROM City USE INDEX ()
 WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 ID	Name	Country	Population
@@ -719,33 +719,33 @@ EXPLAIN
 SELECT * FROM City WHERE
 Name LIKE 'C%' AND Population > 1000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Population,Name	4,35	NULL	16	Using sort_intersect(Population,Name); Using where
+1	SIMPLE	City	index_merge	Population,Name	Population,Name	4,35	NULL	16	Using sort_intersect(Population,Name); Using where
 EXPLAIN
 SELECT * FROM City WHERE
 Name LIKE 'M%' AND Population > 1500000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name	Population,Name	4,35	NULL	9	Using sort_intersect(Population,Name); Using where
+1	SIMPLE	City	index_merge	Population,Name	Population,Name	4,35	NULL	9	Using sort_intersect(Population,Name); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE  Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Population,Country,Name	4,3,35	NULL	2	Using sort_intersect(Population,Country,Name); Using where
+1	SIMPLE	City	index_merge	Population,Country,Name	Population,Country,Name	4,3,35	NULL	2	Using sort_intersect(Population,Country,Name); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Country,Name	Name,Population,Country	35,4,3	NULL	7	Using sort_intersect(Name,Population,Country); Using where
+1	SIMPLE	City	index_merge	Population,Country,Name	Name,Population,Country	35,4,3	NULL	7	Using sort_intersect(Name,Population,Country); Using where
 EXPLAIN
 SELECT * FROM City
 WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	1	Using sort_intersect(PRIMARY,Population,Country); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Population,Country	4,4,3	NULL	1	Using sort_intersect(PRIMARY,Population,Country); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
 AND Country BETWEEN 'S' AND 'Z';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	30	Using sort_intersect(PRIMARY,Country,Population); Using where
+1	SIMPLE	City	index_merge	PRIMARY,Population,Country	PRIMARY,Country,Population	4,3,4	NULL	30	Using sort_intersect(PRIMARY,Country,Population); Using where
 SELECT * FROM City WHERE
 Name LIKE 'C%' AND Population > 1000000;
 ID	Name	Country	Population
@@ -886,17 +886,17 @@ EXPLAIN
 SELECT * FROM City 
 WHERE Country LIKE 'M%' AND Population > 1000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,CountryID,CountryName	Population,CountryID	4,3	NULL	16	Using sort_intersect(Population,CountryID); Using where
+1	SIMPLE	City	index_merge	Population,CountryID,CountryName	Population,CountryID	4,3	NULL	16	Using sort_intersect(Population,CountryID); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE Country='CHN' AND Population > 1500000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,CountryID,CountryName	Population,CountryID	4,3	NULL	11	Using sort_intersect(Population,CountryID); Using where
+1	SIMPLE	City	index_merge	Population,CountryID,CountryName	Population,CountryID	4,3	NULL	11	Using sort_intersect(Population,CountryID); Using where
 EXPLAIN
 SELECT * FROM City 
 WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	City	range	Population,Name,CountryID,CountryName	CountryName,Population	38,4	NULL	1	Using sort_intersect(CountryName,Population); Using where
+1	SIMPLE	City	index_merge	Population,Name,CountryID,CountryName	CountryName,Population	38,4	NULL	1	Using sort_intersect(CountryName,Population); Using where
 SELECT * FROM City USE INDEX ()
 WHERE Country LIKE 'M%' AND Population > 1000000;
 ID	Name	Country	Population
@@ -1026,7 +1026,7 @@ EXPLAIN
 SELECT * FROM t1
 WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,f4	PRIMARY,f4	4,35	NULL	1	Using sort_intersect(PRIMARY,f4); Using where
+1	SIMPLE	t1	index_merge	PRIMARY,f4	PRIMARY,f4	4,35	NULL	1	Using sort_intersect(PRIMARY,f4); Using where
 SELECT * FROM t1
 WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;
 f1	f4	f5

@@ -18862,7 +18862,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       {
         quick_type= tab->select->quick->get_type();
         if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-            (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+            (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
           tab->type = JT_INDEX_MERGE;
