@@ -216,7 +216,10 @@ err:
 	{
 	  if ((flag++ && _ma_ft_del(info,i,new_key_buff,newrec,pos)) ||
 	      _ma_ft_add(info,i,old_key_buff,oldrec,pos))
+          {
+            _ma_set_fatal_error(share, my_errno);
 	    break;
+          }
 	}
 	else
 	{
@@ -228,16 +231,17 @@ err:
                                         oldrec, pos, info->cur_row.trid);
 	  if ((flag++ && _ma_ck_delete(info, &new_key)) ||
 	      _ma_ck_write(info, &old_key))
+          {
+            _ma_set_fatal_error(share, my_errno);
 	    break;
+          }
 	}
       }
     } while (i-- != 0);
   }
   else
-  {
-    maria_print_error(share, HA_ERR_CRASHED);
-    maria_mark_crashed(info);
-  }
+    _ma_set_fatal_error(share, save_errno);
+
   info->update= (HA_STATE_CHANGED | HA_STATE_AKTIV | HA_STATE_ROW_CHANGED |
 		 key_changed);
 
@@ -245,9 +249,6 @@ err:
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();				/* Allow SIGHUP & SIGINT */
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
-  {
-    maria_print_error(share, HA_ERR_CRASHED);
-    save_errno=HA_ERR_CRASHED;
-  }
+    _ma_set_fatal_error(share, HA_ERR_CRASHED);
   DBUG_RETURN(my_errno=save_errno);
 } /* maria_update */

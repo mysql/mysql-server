@@ -1065,8 +1065,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
 
   if (!maria_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
-        !(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-                                  STATE_CRASHED_ON_REPAIR |
+        !(share->state.changed & (STATE_CHANGED | STATE_CRASHED_FLAGS |
                                   STATE_IN_REPAIR)) &&
         share->state.open_count == 0) ||
        ((param.testflag & T_FAST) && (share->state.open_count ==
@@ -1104,15 +1103,15 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   if (!error)
   {
     if ((share->state.changed & (STATE_CHANGED |
-                                 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR |
-                                 STATE_CRASHED | STATE_NOT_ANALYZED)) ||
+                                 STATE_CRASHED_FLAGS |
+                                 STATE_IN_REPAIR | STATE_NOT_ANALYZED)) ||
         (param.testflag & T_STATISTICS) || maria_is_crashed(file))
     {
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
         error= maria_update_state_info(&param, file,
                                        UPDATE_TIME | UPDATE_OPEN_COUNT |
@@ -1544,8 +1543,8 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     if ((share->state.changed & STATE_CHANGED) || maria_is_crashed(file))
     {
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     /*
@@ -2025,8 +2024,7 @@ bool ha_maria::check_and_repair(THD *thd)
   check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
 
   error= 1;
-  if ((file->s->state.changed &
-       (STATE_CRASHED | STATE_CRASHED_ON_REPAIR | STATE_MOVED)) ==
+  if ((file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED)) ==
       STATE_MOVED)
   {
     sql_print_information("Zerofilling moved table:  '%s'",
@@ -2077,7 +2075,7 @@ bool ha_maria::check_and_repair(THD *thd)
 
 bool ha_maria::is_crashed() const
 {
-  return (file->s->state.changed & (STATE_CRASHED | STATE_MOVED) ||
+  return (file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED) ||
           (my_disable_locking && file->s->state.open_count));
 }
 
@@ -3287,6 +3285,8 @@ static int ha_maria_init(void *p)
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= maria_in_ha_maria= TRUE;
   maria_create_trn_hook= maria_create_trn_for_mysql;
+  maria_pagecache->extra_debug= 1;
+  maria_assert_if_crashed_table= debug_assert_if_crashed_table;
 
 #if defined(HAVE_REALPATH) && !defined(HAVE_valgrind) && !defined(HAVE_BROKEN_REALPATH)
   /*  We can only test for sub paths if my_symlink.c is using realpath */

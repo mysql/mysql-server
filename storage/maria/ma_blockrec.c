@@ -4106,11 +4106,11 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
 {
   MARIA_SHARE *share= info->s;
   uint empty_space;
-  uint block_size= share->block_size;
+  int res;
+  my_bool page_is_empty;
   uchar *buff;
   LSN lsn;
   MARIA_PINNED_PAGE page_link;
-  int res;
   enum pagecache_page_lock lock_at_write, lock_at_unpin;
   DBUG_ENTER("delete_head_or_tail");
   DBUG_PRINT("enter", ("id: %lu (%lu:%u)",
@@ -4140,13 +4140,14 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     lock_at_unpin= PAGECACHE_LOCK_READ_UNLOCK;
   }
 
-  res= delete_dir_entry(buff, block_size, record_number, &empty_space);
+  res= delete_dir_entry(buff, share->block_size, record_number, &empty_space);
   if (res < 0)
     DBUG_RETURN(1);
   if (res == 0) /* after our deletion, page is still not empty */
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
     LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    page_is_empty= 0;
     if (share->now_transactional)
     {
       /* Log REDO data */
@@ -4167,6 +4168,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   }
   else /* page is now empty */
   {
+    page_is_empty= 1;
     if (share->now_transactional)
     {
       uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE];
@@ -4198,8 +4200,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     If there is not enough space for all possible tails, mark the
     page full
   */
-  if (!head && !enough_free_entries(buff, share->block_size,
-                                    1 + share->base.blobs))
+  if (!head && !page_is_empty && !enough_free_entries(buff, share->block_size,
+                                                      1 + share->base.blobs))
     empty_space= 0;
 
   DBUG_RETURN(_ma_bitmap_set(info, page, head, empty_space));

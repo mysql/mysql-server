@@ -802,7 +802,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
   {
     if (t_length >= keyinfo->maxlength*2+MARIA_INDEX_OVERHEAD_SIZE)
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(-1);
     }
     bmove_upp(endpos+t_length, endpos, (uint) (endpos-key_pos));
@@ -811,7 +811,7 @@ int _ma_insert(register MARIA_HA *info, MARIA_KEY *key,
   {
     if (-t_length >= keyinfo->maxlength*2+MARIA_INDEX_OVERHEAD_SIZE)
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(-1);
     }
     bmove(key_pos,key_pos-t_length,(uint) (endpos-key_pos)+t_length);
@@ -1176,7 +1176,7 @@ static uchar *_ma_find_last_pos(MARIA_KEY *int_key, MARIA_PAGE *ma_page,
 
   if (!(length=(*keyinfo->get_key)(&tmp_key, page_flag, 0, &page)))
   {
-    my_errno=HA_ERR_CRASHED;
+    _ma_set_fatal_error(share, HA_ERR_CRASHED);
     DBUG_RETURN(0);
   }
 
@@ -1189,7 +1189,7 @@ static uchar *_ma_find_last_pos(MARIA_KEY *int_key, MARIA_PAGE *ma_page,
     memcpy(int_key->data, key_buff, length);		/* previous key */
     if (!(length=(*keyinfo->get_key)(&tmp_key, page_flag, 0, &page)))
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       DBUG_RETURN(0);
     }
   } while (page < end);

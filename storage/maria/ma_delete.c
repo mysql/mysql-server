@@ -135,18 +135,13 @@ err:
     save_errno= HA_ERR_INTERNAL_ERROR;          /* Should never happen */
 
   mi_sizestore(lastpos, info->cur_row.lastpos);
-  if (save_errno != HA_ERR_RECORD_CHANGED)
-  {
-    maria_print_error(share, HA_ERR_CRASHED);
-    maria_mark_crashed(info);		/* mark table crashed */
-  }
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
   allow_break();			/* Allow SIGHUP & SIGINT */
-  if (save_errno == HA_ERR_KEY_NOT_FOUND)
+  if (save_errno != HA_ERR_RECORD_CHANGED)
   {
-    maria_print_error(share, HA_ERR_CRASHED);
-    my_errno=HA_ERR_CRASHED;
+    _ma_set_fatal_error(share, HA_ERR_CRASHED);
+    save_errno= HA_ERR_CRASHED;
   }
   DBUG_RETURN(my_errno= save_errno);
 } /* maria_delete */
@@ -213,7 +208,7 @@ my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
 
   if ((old_root=*root) == HA_OFFSET_ERROR)
   {
-    my_errno=HA_ERR_CRASHED;
+    _ma_set_fatal_error(info->s, HA_ERR_CRASHED);
     DBUG_RETURN(1);
   }
   if (!(root_buff= (uchar*)  my_alloca((uint) keyinfo->block_length+
@@ -348,7 +343,7 @@ static int d_search(MARIA_HA *info, MARIA_KEY *key, uint32 comp_flag,
       if (!(tmp_key_length=(*keyinfo->get_key)(&tmp_key, page_flag, nod_flag,
                                                &kpos)))
       {
-        my_errno= HA_ERR_CRASHED;
+        _ma_set_fatal_error(share, HA_ERR_CRASHED);
         DBUG_RETURN(-1);
       }
       root= _ma_row_pos_from_key(&tmp_key);
@@ -410,8 +405,9 @@ static int d_search(MARIA_HA *info, MARIA_KEY *key, uint32 comp_flag,
   {
     if (!nod_flag)
     {
+      /* This should newer happend */
       DBUG_PRINT("error",("Didn't find key"));
-      my_errno=HA_ERR_CRASHED;		/* This should newer happend */
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       goto err;
     }
     save_flag=0;

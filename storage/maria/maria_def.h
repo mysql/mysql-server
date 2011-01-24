@@ -619,6 +619,9 @@ struct st_maria_handler
 #define STATE_NOT_MOVABLE        256
 #define STATE_MOVED              512 /* set if base->uuid != maria_uuid */
 #define STATE_IN_REPAIR  	 1024 /* We are running repair on table */
+#define STATE_CRASHED_PRINTED	 2048
+
+#define STATE_CRASHED_FLAGS (STATE_CRASHED | STATE_CRASHED_ON_REPAIR | STATE_CRASHED_PRINTED)
 
 /* options to maria_read_cache */
 
@@ -700,7 +703,6 @@ struct st_maria_handler
 #define maria_print_error(SHARE, ERRNO) while (0)
 #endif
 #define DBUG_DUMP_KEY(name, key) DBUG_DUMP(name, (key)->data, (key)->data_length + (key)->ref_length)
-
 
 /* Functions to store length of space packed keys, VARCHAR or BLOB keys */
 
@@ -805,6 +807,7 @@ extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern my_bool maria_recovery_verbose;
+extern my_bool maria_assert_if_crashed_table;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
 
@@ -918,6 +921,7 @@ extern int _ma_writeinfo(MARIA_HA *info, uint options);
 extern int _ma_test_if_changed(MARIA_HA *info);
 extern int _ma_mark_file_changed(MARIA_HA *info);
 extern void _ma_mark_file_crashed(MARIA_SHARE *share);
+void _ma_set_fatal_error(MARIA_SHARE *share, int error);
 extern my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid);
 extern my_bool _ma_check_if_zero(uchar *pos, size_t size);
 extern int _ma_decrement_open_count(MARIA_HA *info);
@@ -1261,3 +1265,4 @@ extern my_bool maria_flush_log_for_page_none(uchar *page,
                                              pgcache_page_no_t page_no,
                                              uchar *data_ptr);
 extern PAGECACHE *maria_log_pagecache;
+extern uint _ma_file_callback_to_id(void *callback_data);

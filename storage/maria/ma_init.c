@@ -99,7 +99,7 @@ void maria_end(void)
                                             trid, recovery_failures);
     }
     trnman_destroy();
-    if (translog_status == TRANSLOG_OK)
+    if (translog_status == TRANSLOG_OK || translog_status == TRANSLOG_READONLY)
       translog_destroy();
     end_pagecache(maria_log_pagecache, TRUE);
     end_pagecache(maria_pagecache, TRUE);

@@ -66,7 +66,7 @@ void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn)
 #ifdef EXTRA_DEBUG
     DBUG_ASSERT((!pinned_page->changed ||
                  undo_lsn != LSN_IMPOSSIBLE || !info->s->now_transactional) ||
-                (info->s->state.changed & STATE_CRASHED));
+                (info->s->state.changed & STATE_CRASHED_FLAGS));
 #endif
     pagecache_unlock_by_link(info->s->pagecache, pinned_page->link,
                              pinned_page->unlock, PAGECACHE_UNPIN,

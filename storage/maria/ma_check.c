@@ -1822,6 +1822,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
        pos+= block_size, page++)
   {
     uint row_count, real_row_count, empty_space, page_type, bitmap_pattern;
+    uint bitmap_for_page;
     LINT_INIT(row_count);
     LINT_INIT(empty_space);
 
@@ -1856,7 +1857,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     offset= offset_page & 7;
     data= bitmap_buff + offset_page / 8;
     bitmap_pattern= uint2korr(data);
-    if (!((bitmap_pattern >> offset) & 7))
+    if (!(bitmap_for_page= ((bitmap_pattern >> offset) & 7)))
     {
       param->empty+= block_size;
       param->del_blocks++;
@@ -1879,8 +1880,9 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     if (page_type == UNALLOCATED_PAGE || page_type >= MAX_PAGE_TYPE)
     {
       _ma_check_print_error(param,
-                            "Page: %9s  Found wrong page type %d",
-                            llstr(page, llbuff), page_type);
+                            "Page: %9s  Found wrong page type %d. Bitmap: %d '%s'",
+                            llstr(page, llbuff), page_type,
+                            bitmap_for_page, bits_to_txt[bitmap_for_page]);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
       continue;
@@ -1927,20 +1929,17 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       param->used+= block_size;
       break;
     }
-    if (_ma_check_bitmap_data(info, page_type, page,
+    if (_ma_check_bitmap_data(info, page_type,
                               full_dir ? 0 : empty_space,
-                              &bitmap_pattern))
+                              bitmap_for_page))
     {
-      if (bitmap_pattern == ~(uint) 0)
-        _ma_check_print_error(param,
-                              "Page %9s: Wrong bitmap for data on page",
-                              llstr(page, llbuff));
-      else
         _ma_check_print_error(param,
                               "Page %9s:  Wrong data in bitmap.  Page_type: "
-                              "%d  full: %d  empty_space: %u  Bitmap-bits: %d",
+                              "%d  full: %d  empty_space: %u  Bitmap-bits: %d "
+                              "'%s'",
                               llstr(page, llbuff), page_type, full_dir,
-                              empty_space, bitmap_pattern);
+                              empty_space, bitmap_for_page,
+                              bits_to_txt[bitmap_for_page]);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
     }
@@ -6831,39 +6830,7 @@ static void print_bitmap_description(MARIA_SHARE *share,
                                      pgcache_page_no_t page,
                                      uchar *bitmap_data)
 {
-  uchar *pos, *end;
-  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
-  uint count=0, dot_printed= 0;
-  char buff[80], last[80];
-
-  printf("Bitmap page %lu\n", (ulong) page);
-  page++;
-  last[0]=0;
-  for (pos= bitmap_data, end= pos+ bitmap->used_size ; pos < end ; pos+= 6)
-  {
-    ulonglong bits= uint6korr(pos);    /* 6 bytes = 6*8/3= 16 patterns */
-    uint i;
-
-    for (i= 0; i < 16 ; i++, bits>>= 3)
-    {
-      if (count > 60)
-      {
-        buff[count]= 0;
-        if (strcmp(buff, last))
-        {
-          memcpy(last, buff, count+1);
-          printf("%8lu: %s\n", (ulong) page - count, buff);
-          dot_printed= 0;
-        }
-        else if (!(dot_printed++))
-          printf("...\n");
-        count= 0;
-      }
-      buff[count++]= '0' + (uint) (bits & 7);
-      page++;
-    }
-  }
-  buff[count]= 0;
-  printf("%8lu: %s\n", (ulong) page - count, buff);
-  fputs("\n", stdout);
+  char tmp[MAX_BITMAP_INFO_LENGTH];
+  _ma_get_bitmap_description(&share->bitmap, bitmap_data, page, tmp);
+  printf("Bitmap page %lu\n%s", (ulong) page, tmp);
 }

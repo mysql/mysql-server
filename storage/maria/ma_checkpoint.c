@@ -130,6 +130,9 @@ int ma_checkpoint_execute(CHECKPOINT_LEVEL level, my_bool no_wait)
   /* from then on, we are sure to be and stay the only checkpointer */
 
   result= really_execute_checkpoint();
+  DBUG_EXECUTE_IF("maria_crash_after_checkpoint",
+                  { DBUG_PRINT("maria_crash", ("now")); DBUG_ABORT(); });
+
   pthread_cond_broadcast(&COND_checkpoint);
 end:
   DBUG_RETURN(result);
@@ -1065,6 +1068,14 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
         */
       }
     }
+#ifdef EXTRA_DEBUG_BITMAP
+    else
+    {
+      DBUG_ASSERT(share->bitmap.changed == 0 &&
+                  share->bitmap.changed_not_flushed == 0);
+    }
+#endif
+
     /*
       _ma_bitmap_flush_all() may wait, so don't keep intern_lock as
       otherwise this would deadlock with allocate_and_write_block_record()

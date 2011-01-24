@@ -1387,7 +1387,13 @@ int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, TrID create_trid,
   share->state.skip_redo_lsn= share->state.is_of_horizon= lsn;
   share->state.create_trid= create_trid;
   mi_int8store(trid_buff, create_trid);
-  if (update_create_rename_lsn)
+
+  /*
+    Update create_rename_lsn if update was requested or if the old one had an
+    impossible value.
+  */
+  if (update_create_rename_lsn ||
+      (share->state.create_rename_lsn > lsn && lsn != LSN_IMPOSSIBLE))
   {
     share->state.create_rename_lsn= lsn;
     if (share->id != 0)

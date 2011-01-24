@@ -175,8 +175,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     {
       if ((error= flush_io_cache(&info->rec_cache)))
       {
-        maria_print_error(info->s, HA_ERR_CRASHED);
-	maria_mark_crashed(info);			/* Fatal error found */
+        /* Fatal error found */
+        _ma_set_fatal_error(share, HA_ERR_CRASHED);
       }
     }
     break;
@@ -299,6 +299,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     }
     pthread_mutex_lock(&THR_LOCK_maria);
     pthread_mutex_lock(&share->intern_lock); /* protect against Checkpoint */
+    /* Safety against assert in checkpoint */
+    share->bitmap.changed_not_flushed= 0;
     /* this makes the share not be re-used next time the table is opened */
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&share->intern_lock);
@@ -382,8 +384,11 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (share->data_file_type == BLOCK_RECORD &&
         share->bitmap.file.file >= 0)
     {
+      DBUG_ASSERT(share->bitmap.non_flushable == 0 &&
+                  share->bitmap.changed == 0);
       if (do_flush && my_sync(share->bitmap.file.file, MYF(0)))
         error= my_errno;
+      share->bitmap.changed_not_flushed= 0;
     }
     /* For protection against Checkpoint, we set under intern_lock: */
     share->last_version= 0L;			/* Impossible version */
@@ -415,9 +420,9 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 	error= my_errno;
       if (error)
       {
+	/* Fatal error found */
 	share->changed= 1;
-        maria_print_error(info->s, HA_ERR_CRASHED);
-	maria_mark_crashed(info);			/* Fatal error found */
+        _ma_set_fatal_error(share, HA_ERR_CRASHED);
       }
     }
     break;
@@ -560,6 +565,12 @@ int _ma_sync_table_files(const MARIA_HA *info)
           my_sync(info->s->kfile.file, MYF(MY_WME)));
 }
 
+uint _ma_file_callback_to_id(void *callback_data)
+{
+  MARIA_SHARE *share= (MARIA_SHARE*) callback_data;
+  return share ? share->id : 0;
+}
+
 
 /**
    @brief flushes the data and/or index file of a table
@@ -608,6 +619,7 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
       {
         pthread_mutex_lock(&share->bitmap.bitmap_lock);
         share->bitmap.changed= 0;
+        share->bitmap.changed_not_flushed= 0;
         pthread_mutex_unlock(&share->bitmap.bitmap_lock);
       }
       if (flush_pagecache_blocks(share->pagecache, &info->dfile,
@@ -622,7 +634,6 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   if (!error)
     return 0;
 
-  maria_print_error(info->s, HA_ERR_CRASHED);
-  maria_mark_crashed(info);
+  _ma_set_fatal_error(info->s, HA_ERR_CRASHED);
   return 1;
 }

@@ -67,8 +67,8 @@ int maria_panic(enum ha_panic_function flag)
       if (info->s->options & HA_OPTION_READ_ONLY_DATA)
 	break;
 #endif
-      if (flush_pagecache_blocks(info->s->pagecache, &info->s->kfile,
-                                 FLUSH_RELEASE))
+      if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                                FLUSH_RELEASE, FLUSH_RELEASE))
 	error=my_errno;
       if (info->opt_flag & WRITE_CACHE_USED)
 	if (flush_io_cache(&info->rec_cache))
@@ -92,8 +92,8 @@ int maria_panic(enum ha_panic_function flag)
       if (info->dfile.file >= 0 && my_close(info->dfile.file, MYF(0)))
 	error = my_errno;
       info->s->kfile.file= info->dfile.file= -1;/* Files aren't open anymore */
-      break;
 #endif
+      break;
     case HA_PANIC_READ:			/* Restore to before WRITE */
 #ifdef CANT_OPEN_FILES_TWICE
       {					/* Open closed files */

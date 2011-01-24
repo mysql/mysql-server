@@ -104,10 +104,11 @@
   - On checkpoint
   (Ie: When we do a checkpoint, we have to ensure that all bitmaps are
   put on disk even if they are not in the page cache).
-  - When explicitely requested (for example on backup or after recvoery,
+  - When explicitely requested (for example on backup or after recovery,
   to simplify things)
 
  The flow of writing a row is that:
+ - Mark the bitmap not flushable (_ma_bitmap_flushable(X, 1))
  - Lock the bitmap
  - Decide which data pages we will write to
  - Mark them full in the bitmap page so that other threads do not try to
@@ -119,6 +120,7 @@
    pages (that is, we marked pages full but when we are done we realize
    we didn't fill them)
  - Unlock the bitmap.
+ - Mark the bitmap flushable (_ma_bitmap_flushable(X, -1))
 */
 
 #include "maria_def.h"
@@ -126,6 +128,12 @@
 
 #define FULL_HEAD_PAGE 4
 #define FULL_TAIL_PAGE 7
+
+const char *bits_to_txt[]=
+{
+  "empty", "00-30% full", "30-60% full", "60-90% full", "full",
+  "tail 00-40 % full", "tail 40-80 % full", "tail/blob full"
+};
 
 /*#define WRONG_BITMAP_FLUSH 1*/ /*define only for provoking bugs*/
 #undef WRONG_BITMAP_FLUSH
@@ -273,6 +281,12 @@ my_bool _ma_bitmap_end(MARIA_SHARE *share)
   delete_dynamic(&share->bitmap.pinned_pages);
   my_free(share->bitmap.map, MYF(MY_ALLOW_ZERO_PTR));
   share->bitmap.map= 0;
+  /*
+    This is to not get an assert in checkpoint. The bitmap will be flushed
+    at once by  _ma_once_end_block_record() as part of the normal flush
+    of the kfile.
+  */
+  share->bitmap.changed_not_flushed= 0;
   return res;
 }
 
@@ -353,6 +367,24 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   my_bool res= 0;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("_ma_bitmap_flush_all");
+
+#ifdef EXTRA_DEBUG_BITMAP
+  {
+    char buff[160];
+    uint len= my_sprintf(buff,
+                         (buff, "bitmap_flush:  fd: %d  id: %u  "
+                          "changed: %d  changed_not_flushed: %d  "
+                          "flush_all_requsted: %d",
+                          share->bitmap.file.file,
+                          share->id,
+                          bitmap->changed,
+                          bitmap->changed_not_flushed,
+                          bitmap->flush_all_requested));
+    (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
+                                   (uchar*) buff, len);
+  }
+#endif
+
   pthread_mutex_lock(&bitmap->bitmap_lock);
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
@@ -364,6 +396,15 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
     }
 #endif
+#ifdef EXTRA_DEBUG_BITMAP
+    {
+      char tmp[MAX_BITMAP_INFO_LENGTH];      
+      _ma_get_bitmap_description(bitmap, bitmap->map, bitmap->page, tmp);
+      (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
+                                     (uchar*) tmp, strlen(tmp));
+    }
+#endif
+
     DBUG_ASSERT(bitmap->flush_all_requested == 1);
     /*
       Bitmap is in a flushable state: its contents in memory are reflected by
@@ -680,7 +721,7 @@ static inline uint pattern_to_size(MARIA_FILE_BITMAP *bitmap, uint pattern)
   Print bitmap for debugging
 
   SYNOPSIS
-  _ma_print_bitmap()
+  _ma_print_bitmap_changes()
   bitmap	Bitmap to print
 
   IMPLEMENTATION
@@ -690,12 +731,6 @@ static inline uint pattern_to_size(MARIA_FILE_BITMAP *bitmap, uint pattern)
 */
 
 #ifndef DBUG_OFF
-
-const char *bits_to_txt[]=
-{
-  "empty", "00-30% full", "30-60% full", "60-90% full", "full",
-  "tail 00-40 % full", "tail 40-80 % full", "tail/blob full"
-};
 
 static void _ma_print_bitmap_changes(MARIA_FILE_BITMAP *bitmap)
 {
@@ -747,7 +782,6 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
   uchar *pos, *end;
   char llbuff[22];
 
-  end= bitmap->map + bitmap->used_size;
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE,"\nDump of bitmap page at %s\n", llstr(page, llbuff));
 
@@ -779,6 +813,56 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
 }
 
 #endif /* DBUG_OFF */
+
+
+/*
+  Return content of bitmap as a printable string
+*/
+
+void _ma_get_bitmap_description(MARIA_FILE_BITMAP *bitmap,
+                                uchar *bitmap_data,
+                                pgcache_page_no_t page,
+                                char *out)
+{
+  uchar *pos, *end;
+  uint count=0, dot_printed= 0, len;
+  char buff[80], last[80];
+
+  page++;
+  last[0]=0;
+  for (pos= bitmap_data, end= pos+ bitmap->used_size ; pos < end ; pos+= 6)
+  {
+    ulonglong bits= uint6korr(pos);    /* 6 bytes = 6*8/3= 16 patterns */
+    uint i;
+
+    for (i= 0; i < 16 ; i++, bits>>= 3)
+    {
+      if (count > 60)
+      {
+        if (memcmp(buff, last, count))
+        {
+          memcpy(last, buff, count);
+          len= my_sprintf(out, (out, "%8lu: ", (ulong) page - count));
+          memcpy(out+len, buff, count);
+          out+= len + count + 1;
+          out[-1]= '\n';
+          dot_printed= 0;
+        }
+        else if (!(dot_printed++))
+        {
+          out= strmov(out, "...\n");
+        }
+        count= 0;
+      }
+      buff[count++]= '0' + (uint) (bits & 7);
+      page++;
+    }
+  }
+  len= my_sprintf(out, (out, "%8lu: ", (ulong) page - count));
+  memcpy(out+len, buff, count);
+  out[len + count]= '\n';
+  out[len + count + 1]= 0;
+}
 
 
 /***************************************************************************
@@ -2383,15 +2467,13 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
         The page has all bits set; The following test is an optimization
         to not set the bits to the same value as before.
       */
+      DBUG_ASSERT(current_bitmap_value ==
+                  _ma_bitmap_get_page_bits(info, bitmap, block->page));
+
       if (bits != current_bitmap_value)
       {
         if (set_page_bits(info, bitmap, block->page, bits))
           goto err;
-      }
-      else
-      {
-        DBUG_ASSERT(current_bitmap_value ==
-                    _ma_bitmap_get_page_bits(info, bitmap, block->page));
       }
     }
     else if (!(block->used & BLOCKUSED_USED) &&
@@ -2521,17 +2603,15 @@ my_bool _ma_bitmap_set(MARIA_HA *info, pgcache_page_no_t page, my_bool head,
     page_type	    What kind of page this is
     page	    Adress to page
     empty_space     Empty space on page
-    bitmap_pattern  Store here the pattern that was in the bitmap for the
-		    page. This is always updated.
+    bitmap_pattern  Bitmap pattern for page (from bitmap)
 
   RETURN
     0  ok
     1  error
 */
 
-my_bool _ma_check_bitmap_data(MARIA_HA *info,
-                              enum en_page_type page_type, pgcache_page_no_t page,
-                              uint empty_space, uint *bitmap_pattern)
+my_bool _ma_check_bitmap_data(MARIA_HA *info, enum en_page_type page_type,
+                              uint empty_space, uint bitmap_pattern)
 {
   uint bits;
   switch (page_type) {
@@ -2552,8 +2632,7 @@ my_bool _ma_check_bitmap_data(MARIA_HA *info,
     bits= 0; /* to satisfy compiler */
     DBUG_ASSERT(0);
   }
-  return ((*bitmap_pattern= _ma_bitmap_get_page_bits(info, &info->s->bitmap,
-                                                     page)) != bits);
+  return (bitmap_pattern != bits);
 }
 
 

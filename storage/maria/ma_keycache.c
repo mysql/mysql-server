@@ -79,8 +79,8 @@ int maria_assign_to_pagecache(MARIA_HA *info,
   if (flush_pagecache_blocks(share->pagecache, &share->kfile, FLUSH_RELEASE))
   {
     error= my_errno;
-    maria_print_error(info->s, HA_ERR_CRASHED);
-    maria_mark_crashed(info);		/* Mark that table must be checked */
+    /* Mark that table must be checked */
+    _ma_set_fatal_error(share, error);
   }
 
   /*

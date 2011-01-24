@@ -614,6 +614,26 @@ static my_bool pagecache_fwrite(PAGECACHE *pagecache,
   DBUG_ENTER("pagecache_fwrite");
   DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
 
+#ifdef EXTRA_DEBUG_BITMAP
+  /*
+    This code is very good when debugging changes in bitmaps or dirty lists
+    The above define should be defined for all Aria files if you want to
+    debug either of the above issues.
+  */
+
+  if (pagecache->extra_debug)
+  {
+    char buff[80];
+    uint len= my_sprintf(buff,
+                         (buff, "fwrite: fd: %d  id: %u  page: %lu",
+                          filedesc->file,
+                          _ma_file_callback_to_id(filedesc->callback_data),
+                          (ulong) pageno));
+    (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
+                                   (uchar*) buff, len);
+  }
+#endif
+
   /* Todo: Integrate this with write_callback so we have only one callback */
   if ((*filedesc->flush_log_callback)(buffer, pageno, filedesc->callback_data))
     DBUG_RETURN(1);

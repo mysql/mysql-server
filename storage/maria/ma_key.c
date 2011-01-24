@@ -636,8 +636,7 @@ int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
     {				/* Read only key */
       if (_ma_put_key_in_record(info,(uint) info->lastinx,buf))
       {
-        maria_print_error(info->s, HA_ERR_CRASHED);
-	my_errno=HA_ERR_CRASHED;
+        _ma_set_fatal_error(info->s, HA_ERR_CRASHED);
 	return -1;
       }
       info->update|= HA_STATE_AKTIV; /* We should find a record */

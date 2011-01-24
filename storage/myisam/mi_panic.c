@@ -71,8 +71,8 @@ int mi_panic(enum ha_panic_function flag)
       if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
 	error = my_errno;
       info->s->kfile=info->dfile= -1;	/* Files aren't open anymore */
-      break;
 #endif
+      break;
     case HA_PANIC_READ:			/* Restore to before WRITE */
 #ifdef CANT_OPEN_FILES_TWICE
       {					/* Open closed files */
