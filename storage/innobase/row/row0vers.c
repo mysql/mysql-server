@@ -681,7 +681,7 @@ row_vers_build_for_semi_consistent_read(
 		}
 
 		rw_lock_s_lock(&trx_sys->lock);
-		version_trx = trx_get_on_id_low(version_trx_id);
+		version_trx = trx_get_on_id(version_trx_id);
 		/* version_trx->state cannot change from or to
 		NOT_STARTED while we are holding the trx_sys->lock.
 		It may change from ACTIVE to PREPARED or COMMITTED. */

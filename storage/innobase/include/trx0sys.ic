@@ -246,13 +246,15 @@ trx_read_trx_id(
 }
 
 /****************************************************************//**
-Looks for the trx handle with the given id in trx_list. Because the list
-is ordered on trx id in descending order, we try and speed things up a bit
-@return	the trx handle or NULL if not found */
+Looks for the trx handle with the given id in trx_list.
+The caller must be holding trx_sys->lock.
+@return	the trx handle or NULL if not found;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
-trx_get_on_id_low(
-/*==============*/
+trx_get_on_id(
+/*==========*/
 	trx_id_t	trx_id)	/*!< in: trx id to search for */
 {
 	trx_t*		trx;
@@ -311,27 +313,7 @@ trx_get_on_id_low(
 }
 
 /****************************************************************//**
-Looks for the trx handle with the given id in trx_list.
-@return	the trx handle or NULL if not found */
-UNIV_INLINE
-trx_t*
-trx_get_on_id(
-/*==========*/
-	trx_id_t	trx_id)	/*!< in: trx id to search for */
-{
-	trx_t*	trx;
-
-	rw_lock_s_lock(&trx_sys->lock);
-
-	trx = trx_get_on_id_low(trx_id);
-
-	rw_lock_s_unlock(&trx_sys->lock);
-
-	return(trx);
-}
-
-/****************************************************************//**
-Returns the minumum trx id in trx list. This is the smallest id for which
+Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
 committed.). The caller must be holding the trx_sys_t::lock in shared mode.
@@ -412,7 +394,7 @@ trx_is_active_low(
 			*corrupt = TRUE;
 		}
 	} else {
-		trx = trx_get_on_id_low(trx_id);
+		trx = trx_get_on_id(trx_id);
 
 		if (trx != NULL
 		    && trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {

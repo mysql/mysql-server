@@ -261,15 +261,10 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
-@return	the trx handle or NULL if not found */
-UNIV_INLINE
-trx_t*
-trx_get_on_id_low(
-/*==============*/
-	trx_id_t	trx_id);/*!< in: trx id to search for */
-/****************************************************************//**
-Looks for the trx handle with the given id in trx_list.
-@return	the trx handle or NULL if not found */
+The caller must be holding trx_sys->lock.
+@return	the trx handle or NULL if not found;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_get_on_id(
