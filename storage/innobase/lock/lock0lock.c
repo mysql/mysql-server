@@ -368,14 +368,13 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
-						both the lock mutex and
-						trx_sys_t::lock. */
-	ulint	space,				/*!< in: space id */
-	ulint	zip_size,			/*!< in: compressed page size
-						in bytes or 0 for uncompressed
-						pages */
-	ulint	page_no);			/*!< in: page number */
+	ibool	locked_lock_trx_sys,	/*!< in: if the caller holds
+					both the lock mutex and
+					trx_sys_t->lock. */
+	ulint	space,			/*!< in: space id */
+	ulint	zip_size,		/*!< in: compressed page size
+					in bytes or 0 for uncompressed pages */
+	ulint	page_no);		/*!< in: page number */
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -587,10 +586,10 @@ lock_sys_create(
 	srv_n_lock_wait_time = 0;
 	srv_n_lock_max_wait_time = 0;
 	srv_lock_timeout_active = FALSE;
-	srv_n_lock_wait_current_count	= 0;
+	srv_n_lock_wait_current_count = 0;
 
-	lock_sys_sz = sizeof(*lock_sys) 
-		    + (OS_THREAD_MAX_N * sizeof(srv_slot_t));
+	lock_sys_sz = sizeof(*lock_sys)
+		+ OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
 	lock_sys = mem_zalloc(lock_sys_sz);
 
@@ -604,8 +603,6 @@ lock_sys_create(
 		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
 
 	lock_sys->rec_hash = hash_create(n_cells);
-
-	/* hash_create_mutexes(lock_sys->rec_hash, 2, SYNC_REC_LOCK); */
 
 	lock_latest_err_file = os_file_create_tmpfile();
 	ut_a(lock_latest_err_file);
@@ -825,7 +822,10 @@ lock_set_lock_and_trx_wait(
 	trx_t*	trx)	/*!< in/out: trx */
 {
 	ut_ad(lock);
+	ut_ad(lock->trx == trx);
 	ut_ad(trx->lock.wait_lock == NULL);
+	ut_ad(lock_mutex_own());
+	ut_ad(trx_mutex_own(trx));
 
 	trx->lock.wait_lock = lock;
 	lock->type_mode |= LOCK_WAIT;
@@ -1721,6 +1721,7 @@ lock_rec_create(
 	const page_t*	page;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
 
 	space = buf_block_get_space(block);
 	page_no	= buf_block_get_page_no(block);
@@ -1768,13 +1769,14 @@ lock_rec_create(
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), lock);
 
+	if (!caller_owns_trx_mutex) {
+		trx_mutex_enter(trx);
+	}
+	ut_ad(trx_mutex_own(trx));
+
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
-	}
-
-	if (!caller_owns_trx_mutex) {
-		trx_mutex_enter(trx);
 	}
 
 	UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
@@ -1921,6 +1923,7 @@ lock_rec_add_to_queue(
 	lock_t*	first_lock;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(caller_owns_trx_mutex == trx_mutex_own(trx));
 #ifdef UNIV_DEBUG
 	switch (type_mode & LOCK_MODE_MASK) {
 	case LOCK_X:
@@ -2832,9 +2835,7 @@ lock_move_rec_list_end(
 				lock_rec_reset_nth_bit(lock, heap_no);
 
 				if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
-					trx_mutex_enter(lock->trx);
 					lock_reset_lock_and_trx_wait(lock);
-					trx_mutex_exit(lock->trx);
 				}
 
 				if (comp) {
@@ -3718,17 +3719,11 @@ lock_deadlock_recursive(
 				lock_deadlock_fputs(
 					"*** WE ROLL BACK TRANSACTION (1)\n");
 
-				wait_lock->trx->lock.was_chosen_as_deadlock_victim
-					= TRUE;
-
-				/* We need to release the transaction mutex,
-				in case  start is granted its locks once we
-				release wait_lock. */
-
 				trx_mutex_enter(wait_lock->trx);
+				wait_lock->trx->lock
+					.was_chosen_as_deadlock_victim = TRUE;
 
 				lock_cancel_waiting_and_release(wait_lock);
-
 				trx_mutex_exit(wait_lock->trx);
 
 				trx_mutex_enter(start);
@@ -4954,9 +4949,10 @@ static
 ibool
 lock_rec_queue_validate(
 /*====================*/
-	ibool			have_lock_trx_sys_mutex,
+	ibool			locked_lock_trx_sys,
 					/*!< in: if the caller holds
-					both the lock and trx sys mutexes. */
+					both the lock mutex and
+					trx_sys_t->lock. */
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record to look at */
 	dict_index_t*		index,	/*!< in: index, or NULL if not known */
@@ -4970,16 +4966,20 @@ lock_rec_queue_validate(
 	ut_a(block->frame == page_align(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
+	ut_ad(lock_mutex_own() == locked_lock_trx_sys);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
+	      == locked_lock_trx_sys);
+#endif /* UNIV_SYNC_DEBUG */
 
 	heap_no = page_rec_get_heap_no(rec);
 
+	if (!locked_lock_trx_sys) {
+		lock_mutex_enter();
+		rw_lock_s_lock(&trx_sys->lock);
+	}
+
 	if (!page_rec_is_user_rec(rec)) {
-
-		if (!have_lock_trx_sys_mutex) {
-			lock_mutex_enter();
-
-			rw_lock_s_lock(&trx_sys->lock);
-		}
 
 		for (lock = lock_rec_get_first(block, heap_no);
 		     lock != NULL;
@@ -4996,19 +4996,7 @@ lock_rec_queue_validate(
 			}
 		}
 
-		if (!have_lock_trx_sys_mutex) {
-			rw_lock_s_unlock(&trx_sys->lock);
-
-			lock_mutex_exit();
-		}
-
-		return(TRUE);
-	}
-
-	if (!have_lock_trx_sys_mutex) {
-		lock_mutex_enter();
-
-		rw_lock_s_lock(&trx_sys->lock);
+		goto func_exit;
 	}
 
 	if (!index);
@@ -5062,11 +5050,10 @@ lock_rec_queue_validate(
 		}
 	}
 
-	if (!have_lock_trx_sys_mutex) {
-
-		rw_lock_s_unlock(&trx_sys->lock);
-
+func_exit:
+	if (!locked_lock_trx_sys) {
 		lock_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 	}
 
 	return(TRUE);
@@ -5079,14 +5066,13 @@ static
 ibool
 lock_rec_validate_page(
 /*===================*/
-	ibool	have_lock_trx_sys_mutex,	/*!< in: if the caller holds
-						both the lock and trx sys
-						mutexes. */
-	ulint	space,				/*!< in: space id */
-	ulint	zip_size,			/*!< in: compressed page size
-						in bytes or 0 for uncompressed
-						pages */
-	ulint	page_no)			/*!< in: page number */
+	ibool	locked_lock_trx_sys,	/*!< in: if the caller holds
+					both the lock mutex and
+					trx_sys_t->lock. */
+	ulint	space,			/*!< in: space id */
+	ulint	zip_size,		/*!< in: compressed page size
+					in bytes or 0 for uncompressed pages */
+	ulint	page_no)		/*!< in: page number */
 {
 	dict_index_t*	index;
 	buf_block_t*	block;
@@ -5103,10 +5089,9 @@ lock_rec_validate_page(
 	rec_offs_init(offsets_);
 
 	/* This is to preserve latching order. */
-	if (have_lock_trx_sys_mutex) {
-		rw_lock_s_unlock(&trx_sys->lock);
-
+	if (locked_lock_trx_sys) {
 		lock_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 	}
 
 	ut_ad(!lock_mutex_own());
@@ -5190,10 +5175,9 @@ function_exit:
 
 	mtr_commit(&mtr);
 
-	if (!have_lock_trx_sys_mutex) {
-		rw_lock_s_unlock(&trx_sys->lock);
-
+	if (!locked_lock_trx_sys) {
 		lock_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
