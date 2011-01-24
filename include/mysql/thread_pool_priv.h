@@ -50,6 +50,6 @@ extern MYSQL_PLUGIN_IMPORT ulong thread_created;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern MYSQL_PLUGIN_IMPORT mysql_cond_t COND_thread_count;
 extern MYSQL_PLUGIN_IMPORT pthread_attr_t connection_attrib;
-extern MYSQL_PLUGIN_IMPORT I_List<THD> threads;
+/* extern MYSQL_PLUGIN_IMPORT I_List<THD> threads; */
 extern MYSQL_PLUGIN_IMPORT PSI_thread_key key_thread_one_connection;
 #endif
