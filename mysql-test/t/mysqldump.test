@@ -2169,6 +2169,15 @@ SELECT LENGTH(a) FROM t2;
 DROP TABLE t1, t2;
 
 ###########################################################################
+
+--echo #
+--echo # Bug #13618 : mysqldump --xml ommit comment on table field
+--echo #
+
+CREATE TABLE `comment_table` (i INT COMMENT 'FIELD COMMENT') COMMENT = 'TABLE COMMENT';
+--exec $MYSQL_DUMP --compact --skip-create --xml test
+DROP TABLE `comment_table`;
+
 --echo #
 --echo # End of 5.1 tests
 --echo #

@@ -25,7 +25,6 @@
 LIST *heap_open_list=0,*heap_share_list=0;
 
 #ifdef HAVE_PSI_INTERFACE
-#ifdef THREAD
 PSI_mutex_key hp_key_mutex_HP_SHARE_intern_lock;
 
 static PSI_mutex_info all_heap_mutexes[]=
@@ -36,11 +35,9 @@ static PSI_mutex_info all_heap_mutexes[]=
     THR_LOCK_heap is part of mysys, not storage/heap.
   */
 };
-#endif /* THREAD */
 
 void init_heap_psi_keys()
 {
-#ifdef THREAD
   const char* category= "memory";
   int count;
 
@@ -49,7 +46,6 @@ void init_heap_psi_keys()
 
   count= array_elements(all_heap_mutexes);
   PSI_server->register_mutex(category, all_heap_mutexes, count);
-#endif /* THREAD */
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -6476,12 +6476,11 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
 	  if (thd->variables.optimizer_switch &
               OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map);
+              make_cond_for_table(tmp, tab->table->map, tab->table->map);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -10043,7 +10042,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
-    if (field->field->eq_def(result))
+    /*
+      Fields that are used as arguments to the DEFAULT() function already have
+      their data pointers set to the default value during name resulotion. See
+      Item_default_value::fix_fields.
+    */
+    if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
     return result;
   }
@@ -12036,7 +12040,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
-      if (!table->maybe_null || error > 0)
+      if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -12057,7 +12061,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
-      if (!table->maybe_null || error > 0)
+      if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -13095,7 +13099,7 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table)
 	new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
+	Item_cond_or do not need fix_fields for execution, its parameters
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();

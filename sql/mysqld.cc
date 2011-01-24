@@ -283,6 +283,7 @@ const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
+static my_bool opt_autocommit; ///< for --autocommit command-line option
 
 /*
   Used with --help for detailed option
@@ -4206,8 +4207,10 @@ int mysqld_main(int argc, char **argv)
 
   orig_argc= argc;
   orig_argv= argv;
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
   remaining_argc= argc;
@@ -5655,8 +5658,9 @@ struct my_option my_long_options[]=
     Because Sys_var_bit does not support command-line options, we need to
     explicitely add one for --autocommit
   */
-  {"autocommit", OPT_AUTOCOMMIT, "Set default value for autocommit (0 or 1)",
-   NULL, NULL, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, NULL},
+  {"autocommit", 0, "Set default value for autocommit (0 or 1)",
+   &opt_autocommit, &opt_autocommit, 0,
+   GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, NULL},
   {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
    &my_bind_addr_str, &my_bind_addr_str, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7111,13 +7115,6 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
-  case OPT_AUTOCOMMIT:
-    const ulonglong turn_bit_on= (argument && (atoi(argument) == 0)) ?
-      OPTION_NOT_AUTOCOMMIT : OPTION_AUTOCOMMIT;
-    global_system_variables.option_bits=
-      (global_system_variables.option_bits &
-       ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
-    break;
   }
   return 0;
 }
@@ -7268,10 +7265,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else
     global_system_variables.option_bits&= ~OPTION_BIG_SELECTS;
 
-  if (global_system_variables.option_bits & OPTION_AUTOCOMMIT)
-    global_system_variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
-  else
-    global_system_variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+  // Synchronize @@global.autocommit on --autocommit
+  const ulonglong turn_bit_on= opt_autocommit ?
+    OPTION_AUTOCOMMIT : OPTION_NOT_AUTOCOMMIT;
+  global_system_variables.option_bits=
+    (global_system_variables.option_bits &
+     ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode);

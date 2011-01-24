@@ -15,15 +15,6 @@
 
 #include <my_global.h>
 
-#ifndef THREAD
-
-int main(int argc __attribute__((unused)), char **argv __attribute__((unused)))
-{
-  printf("This test must be compiled with multithread support to work\n");
-  exit(1);
-}
-#else
-
 #include <my_sys.h>
 #include <my_pthread.h>
 #include "mysql.h"
@@ -254,4 +245,3 @@ int main(int argc, char **argv)
   return 0;					/* Keep some compilers happy */
 }
 
-#endif /* THREAD */
