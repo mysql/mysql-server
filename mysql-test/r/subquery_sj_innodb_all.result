@@ -141,4 +141,23 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2)
 drop table t2, t3;
+# 
+# BUG#57431: subquery returns wrong result (semijoin=on) with pred AND
+# 
+CREATE TABLE t1 (
+i INT
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (2),(4);
+CREATE TABLE t2 (
+i INT,
+vc VARCHAR(1)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (8,NULL);
+SELECT i
+FROM t1
+WHERE i IN (SELECT innr.i
+FROM t2 LEFT JOIN t2 innr ON innr.vc)
+AND i = 2;
+i
+DROP TABLE t1, t2;
 set optimizer_switch=default;
