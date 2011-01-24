@@ -4317,6 +4317,7 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
           break;
       }
     }
+    m_last_part= part;
   }
   else
   {
