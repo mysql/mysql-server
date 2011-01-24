@@ -670,7 +670,7 @@ row_vers_build_for_semi_consistent_read(
 	version = rec;
 
 	for (;;) {
-		trx_t*		version_trx;
+		const trx_t*	version_trx;
 		mem_heap_t*	heap2;
 		rec_t*		prev_version;
 		trx_id_t	version_trx_id;
@@ -680,12 +680,19 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		version_trx = trx_get_on_id(version_trx_id);
+		rw_lock_s_lock(&trx_sys->lock);
+		version_trx = trx_get_on_id_low(version_trx_id);
+		/* version_trx->state cannot change from or to
+		NOT_STARTED while we are holding the trx_sys->lock.
+		It may change from ACTIVE to PREPARED or COMMITTED. */
+		if (version_trx
+		    && trx_state_eq(version_trx,
+				    TRX_STATE_COMMITTED_IN_MEMORY)) {
+			version_trx = NULL;
+		}
+		rw_lock_s_unlock(&trx_sys->lock);
 
-		if (!version_trx
-		    || version_trx->state == TRX_STATE_NOT_STARTED
-		    || version_trx->state
-		    == TRX_STATE_COMMITTED_IN_MEMORY) {
+		if (!version_trx) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */

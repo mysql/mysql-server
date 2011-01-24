@@ -149,7 +149,7 @@ UNIV_INTERN
 int
 trx_rollback_for_mysql(
 /*===================*/
-	trx_t*	trx);	/*!< in: transaction handle */
+	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
 Rollback the latest SQL statement for MySQL.
 @return	error code or DB_SUCCESS */
@@ -157,7 +157,7 @@ UNIV_INTERN
 int
 trx_rollback_last_sql_stat_for_mysql(
 /*=================================*/
-	trx_t*	trx);	/*!< in: transaction handle */
+	trx_t*	trx);	/*!< in/out: transaction */
 /*******************************************************************//**
 Rollback a transaction used in MySQL.
 @return	error code or DB_SUCCESS */

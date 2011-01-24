@@ -331,7 +331,7 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	trx_t*	in_trx);/*!< in: trx */
+	const trx_t*	in_trx);/*!< in: transaction */
 #endif /* UNIV_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry

@@ -152,7 +152,7 @@ UNIV_INTERN
 ulint
 trx_commit_for_mysql(
 /*=================*/
-	trx_t*	trx);	/*!< in: trx handle */
+	trx_t*	trx);	/*!< in/out: transaction */
 /**********************************************************************//**
 Does the transaction prepare for MySQL. */
 UNIV_INTERN
@@ -212,7 +212,7 @@ UNIV_INTERN
 void
 trx_commit_or_rollback_prepare(
 /*===========================*/
-	trx_t*		trx);		/*!< in: transaction */
+	trx_t*	trx);	/*!< in/out: transaction */
 /*********************************************************************//**
 Creates a commit command node struct.
 @return	own: commit node struct */
@@ -314,6 +314,31 @@ trx_set_dict_operation(
 					TRX_DICT_OP_NONE */
 
 #ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
+Determines if a transaction is in the given state.
+The caller must hold trx_sys->lock, or it must be the thread
+that is serving a running transaction.
+@return	TRUE if trx->state == state */
+UNIV_INLINE
+ibool
+trx_state_eq(
+/*=========*/
+	const trx_t*	trx,	/*!< in: transaction */
+	trx_state_t	state)	/*!< in: state */
+	__attribute__((nonnull, warn_unused_result));
+# ifdef UNIV_DEBUG
+/**********************************************************************//**
+Asserts that a transaction has been started.
+The caller must hold trx_sys->lock.
+@return TRUE if started */
+UNIV_INTERN
+ibool
+trx_assert_started(
+/*===============*/
+	const trx_t*	trx)	/*!< in: transaction */
+	__attribute__((nonnull, warn_unused_result));
+# endif /* UNIV_DEBUG */
+
 /**********************************************************************//**
 Determines if the currently running transaction has been interrupted.
 @return	TRUE if interrupted */

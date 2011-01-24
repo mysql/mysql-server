@@ -259,8 +259,9 @@ UNIV_INLINE
 read_view_t*
 read_view_clone(
 /*============*/
-	read_view_t*	view,	/*!< in: view to clone */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	const read_view_t*	view,	/*!< in: view to clone */
+	mem_heap_t*		heap)	/*!< in: memory heap
+					from which allocated */
 {
 	ulint		sz;
 	read_view_t*	clone;
@@ -374,14 +375,13 @@ read_view_open_now_low(
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		ut_ad(trx->in_trx_list);
+
 		/* trx->state cannot change from or to NOT_STARTED
 		while we are holding the trx_sys->lock. It may change
 		from ACTIVE to PREPARED or COMMITTED. */
 
 		if (trx->id != cr_trx_id
-		    && (trx->state == TRX_STATE_ACTIVE
-			|| trx->state == TRX_STATE_PREPARED)) {
-
+		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_ad(n_trx < view->n_trx_ids);
 
 			view->trx_ids[n_trx++] = trx->id;
@@ -391,6 +391,11 @@ read_view_open_now_low(
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
 			IB_ULONGLONG_MAX. */
+
+			/* trx->no is protected by trx_sys->lock, which
+			we are holding. It is assigned by trx_commit()
+			before lock_trx_release_locks() assigns
+			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
 
 			if (view->low_limit_no > trx->no) {
 
@@ -675,11 +680,10 @@ read_cursor_view_create_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		ut_ad(trx->in_trx_list);
-
-		if (trx->state == TRX_STATE_ACTIVE
-		    || trx->state == TRX_STATE_PREPARED) {
-
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		from ACTIVE to PREPARED or COMMITTED. */
+		if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_a(n_trx < view->n_trx_ids);
 
 			view->trx_ids[n_trx++] = trx->id;
@@ -689,6 +693,11 @@ read_cursor_view_create_for_mysql(
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
 			IB_ULONGLONG_MAX. */
+
+			/* trx->no is protected by trx_sys->lock, which
+			we are holding. It is assigned by trx_commit()
+			before lock_trx_release_locks() assigns
+			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
 
 			if (view->low_limit_no > trx->no) {
 
