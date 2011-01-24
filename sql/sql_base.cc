@@ -8120,6 +8120,29 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 }
 
 
+/**
+  Wrap Item_ident
+
+  @param thd             thread handle
+  @param conds           pointer to the condition which should be wrapped
+*/
+
+void wrap_ident(THD *thd, Item **conds)
+{
+  Item_direct_ref_to_ident *wrapper;
+  DBUG_ASSERT((*conds)->type() == Item::FIELD_ITEM || (*conds)->type() == Item::REF_ITEM);
+  Query_arena *arena= thd->stmt_arena, backup;
+  if (arena->is_conventional())
+    arena= 0;
+  else
+    thd->set_n_backup_active_arena(arena, &backup);
+  if ((wrapper= new Item_direct_ref_to_ident((Item_ident *)(*conds))))
+    (*conds)= (Item*) wrapper;
+  if (arena)
+    thd->restore_active_arena(arena, &backup);
+}
+
+
 /*
   Fix all conditions and outer join expressions.
 
@@ -8183,6 +8206,12 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                  print_where(*conds,
                              "WHERE in setup_conds",
                              QT_ORDINARY););
+    /*
+      Wrap alone field in WHERE clause in case it will be outer field of subquery
+      which need persistent pointer on it, but conds could be changed by optimizer
+    */
+    if ((*conds)->type() == Item::FIELD_ITEM)
+      wrap_ident(thd, conds);
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;

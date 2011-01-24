@@ -6619,6 +6619,40 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 }
 
 
+Item* Item_direct_ref_to_ident::transform(Item_transformer transformer,
+                                          uchar *argument)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+
+  Item *new_item= ident->transform(transformer, argument);
+  if (!new_item)
+    return 0;
+  DBUG_ASSERT(new_item->type() == FIELD_ITEM || new_item->type() == REF_ITEM);
+
+  if (ident != new_item)
+    current_thd->change_item_tree((Item**)&ident, new_item);
+  return (this->*transformer)(argument);
+}
+
+
+Item* Item_direct_ref_to_ident::compile(Item_analyzer analyzer, uchar **arg_p,
+                                        Item_transformer transformer,
+                                        uchar *arg_t)
+{
+  if (!(this->*analyzer)(arg_p))
+    return 0;
+
+  uchar *arg_v= *arg_p;
+  Item *new_item= ident->compile(analyzer, &arg_v, transformer, arg_t);
+  if (new_item && ident != new_item)
+  {
+    DBUG_ASSERT(new_item->type() == FIELD_ITEM || new_item->type() == REF_ITEM);
+    current_thd->change_item_tree((Item**)&ident, new_item);
+  }
+  return (this->*transformer)(arg_t);
+}
+
+
 Item_cache_wrapper::~Item_cache_wrapper()
 {
   delete expr_cache;

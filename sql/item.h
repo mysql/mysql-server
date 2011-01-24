@@ -518,7 +518,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM, EXPR_CACHE_ITEM};
+             VIEW_FIXER_ITEM, EXPR_CACHE_ITEM, UNKNOWN_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -612,7 +612,7 @@ public:
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
-  virtual enum Type type() const =0;
+  virtual enum Type type() const { return UNKNOWN_ITEM; };
   
   /*
     Return information about function monotonicity. See comment for
@@ -2608,6 +2608,43 @@ public:
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual Ref_Type ref_type() { return DIRECT_REF; }
 };
+
+
+/**
+  This class is the same as Item_direct_ref but created to wrap Item_ident
+  before fix_fields() call
+*/
+
+class Item_direct_ref_to_ident :public Item_direct_ref
+{
+  Item_ident *ident;
+public:
+  Item_direct_ref_to_ident(Item_ident *item)
+    :Item_direct_ref(item->context, (Item**)&item, item->table_name, item->field_name,
+                     FALSE)
+  {
+    ident= item;
+    ref= (Item**)&ident;
+  }
+
+  bool fix_fields(THD *thd, Item **it)
+  {
+    DBUG_ASSERT(ident->type() == FIELD_ITEM || ident->type() == REF_ITEM);
+    if ((!ident->fixed && ident->fix_fields(thd, ref)) ||
+        ident->check_cols(1))
+      return TRUE;
+    set_properties();
+    return FALSE;
+  }
+
+  virtual void print(String *str, enum_query_type query_type)
+  { ident->print(str, query_type); }
+
+  virtual Item* transform(Item_transformer transformer, uchar *arg);
+  virtual Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t);
+};
+
 
 class Expression_cache;
 class Item_cache;

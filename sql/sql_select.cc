@@ -543,6 +543,13 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
     select_lex->having_fix_field= 1;
+    /*
+      Wrap alone field in HAVING clause in case it will be outer field of subquery
+      which need persistent pointer on it, but having could be changed by optimizer
+    */
+    if (having->type() == Item::REF_ITEM &&
+        ((Item_ref *)having)->ref_type() == Item_ref::REF)
+      wrap_ident(thd, &having);
     bool having_fix_rc= (!having->fixed &&
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));

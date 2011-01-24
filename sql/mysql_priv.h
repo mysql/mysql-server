@@ -1612,6 +1612,7 @@ inline bool setup_fields_with_no_wrap(THD *thd, Item **ref_pointer_array,
 }
 int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
 		COND **conds);
+void wrap_ident(THD *thd, Item **conds);
 int setup_ftfuncs(SELECT_LEX* select);
 int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
 void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
