@@ -6445,6 +6445,7 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
   } while (keyuse->table == table && keyuse->is_for_hash_join());
   if (!key_parts)
     DBUG_RETURN(TRUE);
+  /* This memory is allocated only once for the joined table join_tab */
   if (!(keyinfo= (KEY *) thd->alloc(sizeof(KEY))) ||
       !(key_part_info = (KEY_PART_INFO *) thd->alloc(sizeof(KEY_PART_INFO)*
                                                      key_parts)))
@@ -6525,19 +6526,15 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     {
       if (!(~used_tables & keyuse->used_tables))
       {
-	if (is_hash_join_key_no(key) && 
-	    (keyparts == 0 || keyuse->keypart != (keyuse-1)->keypart))
-	{ 
-	  length+= keyinfo->key_part[keyparts].store_length;
-	  keyparts++;
-	}
-	else if (!is_hash_join_key_no(key) && keyparts == keyuse->keypart &&
-	         !(found_part_ref_or_null & keyuse->optimize))
-	{
-	  length+= keyinfo->key_part[keyuse->keypart].store_length;
-	  found_part_ref_or_null|= keyuse->optimize;
-	  keyparts++;
-	}
+        if ((is_hash_join_key_no(key) && 
+            (keyparts == 0 || keyuse->keypart != (keyuse-1)->keypart)) ||
+            (!is_hash_join_key_no(key) && keyparts == keyuse->keypart &&
+             !(found_part_ref_or_null & keyuse->optimize)))
+        {
+           length+= keyinfo->key_part[keyparts].store_length;
+           keyparts++;
+           found_part_ref_or_null|= keyuse->optimize & ~KEY_OPTIMIZE_EQ;
+        }
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);

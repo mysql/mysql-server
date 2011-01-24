@@ -46,14 +46,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=2;
 show variables like 'join_cache_level';
@@ -73,14 +75,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=3;
 show variables like 'join_cache_level';
@@ -100,14 +104,18 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
+
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
+
 
 set join_cache_level=4;
 show variables like 'join_cache_level';
@@ -127,14 +135,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=default;
 
@@ -158,14 +168,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=2;
 show variables like 'join_cache_level';
@@ -185,14 +197,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=3;
 show variables like 'join_cache_level';
@@ -212,14 +226,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=4;
 show variables like 'join_cache_level';
@@ -239,14 +255,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 set join_cache_level=default;
 set join_buffer_size=default;
@@ -290,14 +308,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -340,14 +360,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -391,14 +413,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -440,14 +464,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -489,14 +515,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -538,14 +566,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -590,14 +620,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -626,14 +658,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -662,14 +696,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -698,14 +734,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -734,14 +772,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
@@ -770,14 +810,16 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 SELECT City.Name, Country.Name, CountryLanguage.Language
   FROM City,Country,CountryLanguage
   WHERE City.Country=Country.Code AND
         CountryLanguage.Country=Country.Code AND
         City.Name LIKE 'L%' AND Country.Population > 3000000 AND
-        CountryLanguage.Percentage > 50;
+        CountryLanguage.Percentage > 50 AND
+        LENGTH(Language) < LENGTH(City.Name) - 2;
 
 EXPLAIN
 SELECT Name FROM City
