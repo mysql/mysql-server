@@ -1519,7 +1519,12 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
       exit(1);
     }
 
-    result= mysql_store_result(mysql);
+    if (!(result= mysql_store_result(mysql)))
+    {
+      fprintf(stderr, "%s: Error when storing result: %d %s\n",
+              my_progname, mysql_errno(mysql), mysql_error(mysql));
+      exit(1);
+    }
     primary_keys_number_of= mysql_num_rows(result);
 
     /* So why check this? Blackhole :) */
@@ -1891,10 +1896,15 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(mysql);
-          while ((row = mysql_fetch_row(result)))
-            counter++;
-          mysql_free_result(result);
+          if (!(result= mysql_store_result(mysql)))
+            fprintf(stderr, "%s: Error when storing result: %d %s\n",
+                    my_progname, mysql_errno(mysql), mysql_error(mysql));
+          else
+          {
+            while ((row= mysql_fetch_row(result)))
+              counter++;
+            mysql_free_result(result);
+          }
         }
       } while(mysql_next_result(mysql) == 0);
       queries++;
