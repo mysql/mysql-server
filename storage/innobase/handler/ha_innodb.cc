@@ -2269,8 +2269,6 @@ ha_innobase::reset_template(void)
 	/* Reset index condition pushdown state */
 	prebuilt->idx_cond = NULL;
 	prebuilt->idx_cond_n_cols = 0;
-	pushed_idx_cond = NULL;
-	pushed_idx_cond_keyno = MAX_KEY;
 }
 
 /*****************************************************************//**

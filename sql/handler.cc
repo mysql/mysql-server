@@ -2220,10 +2220,10 @@ int handler::ha_rnd_next(uchar *buf)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
   result= rnd_next(buf);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2232,10 +2232,10 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
   result= rnd_pos(buf, pos);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2246,10 +2246,10 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_read_map(buf, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2260,10 +2260,10 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, index, 0);
   result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2272,10 +2272,10 @@ int handler::ha_index_next(uchar * buf)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_next(buf);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2284,10 +2284,10 @@ int handler::ha_index_prev(uchar * buf)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_prev(buf);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2296,10 +2296,10 @@ int handler::ha_index_first(uchar * buf)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_first(buf);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2308,10 +2308,10 @@ int handler::ha_index_last(uchar * buf)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_last(buf);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2320,10 +2320,10 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_next_same(buf, key, keylen);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2333,10 +2333,10 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_read(buf, key, key_len, find_flag);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -2345,10 +2345,10 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   int result;
   MYSQL_TABLE_WAIT_VARIABLES(locker, state) /* no ';' */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_FETCH_ROW, active_index, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_FETCH_ROW, active_index, 0);
   result= index_read_last(buf, key, key_len);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   return result;
 }
 
@@ -4701,6 +4701,16 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
                                               n_ranges, mode, buf);
     DBUG_RETURN(retval);
   }
+
+  /* 
+    This assert will hit if we have pushed an index condition to the
+    primary key index and then "change our mind" and use a different
+    index for retrieving data with MRR.
+  */
+  DBUG_ASSERT(!h->pushed_idx_cond ||
+              h->pushed_idx_cond_keyno == h->active_index ||
+              h->pushed_idx_cond_keyno != table->s->primary_key);
+
   rowids_buf= buf->buffer;
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
@@ -5773,15 +5783,15 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     }
   }
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_EXTERNAL_LOCK, MAX_KEY, lock_type);
+  MYSQL_START_TABLE_LOCK_WAIT(locker, &state, m_psi,
+                              PSI_TABLE_EXTERNAL_LOCK, lock_type);
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
   int error= external_lock(thd, lock_type);
 
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_LOCK_WAIT(locker);
 
   if (error == 0)
   {
@@ -5820,7 +5830,7 @@ int handler::ha_external_lock(THD *thd, int lock_type)
 */
 int handler::ha_reset()
 {
-  DBUG_ENTER("ha_reset");
+  DBUG_ENTER("handler::ha_reset");
   /* Check that we have called all proper deallocation functions */
   DBUG_ASSERT((uchar*) table->def_read_set.bitmap +
               table->s->column_bitmap_size ==
@@ -5833,6 +5843,13 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  /* Reset information about pushed engine conditions */
+  pushed_cond= NULL;
+  /* Reset information about pushed index conditions */
+  pushed_idx_cond= NULL;
+  pushed_idx_cond_keyno= MAX_KEY;
+  in_range_check_pushed_down= false;
+ 
   const int retval= reset();
   DBUG_RETURN(retval);
 }
@@ -5848,12 +5865,12 @@ int handler::ha_write_row(uchar *buf)
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
 
   error= write_row(buf);
 
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
@@ -5879,12 +5896,12 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_UPDATE_ROW, MAX_KEY, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_UPDATE_ROW, MAX_KEY, 0);
 
   error= update_row(old_data, new_data);
 
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -5902,12 +5919,12 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_START_TABLE_WAIT(locker, &state, m_psi,
-                         PSI_TABLE_DELETE_ROW, MAX_KEY, 0);
+  MYSQL_START_TABLE_IO_WAIT(locker, &state, m_psi,
+                            PSI_TABLE_DELETE_ROW, MAX_KEY, 0);
 
   error= delete_row(buf);
 
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_IO_WAIT(locker);
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
