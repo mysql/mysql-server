@@ -1,6 +1,14 @@
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal          --vardir=var-normal --report-features 
 perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=n_mix          --vardir=var-n_mix                  --mysqld=--binlog-format=mixed
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_row --vardir=var-rpl_binlog_row --mysqld=--binlog-format=row --suite=rpl,binlog --skip-ndb
 perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=ps_row         --vardir=var-ps_row   --ps-protocol --mysqld=--binlog-format=row
 perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=embedded       --vardir=var-emebbed  --embedded
 perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=funcs_1        --vardir=var-funcs_1                                              --suite=funcs_1
-perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_row --vardir=var-rpl_binlog_row --mysqld=--binlog-format=row --suite=rpl,binlog --skip-ndb
-perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --mysqld=--binlog-checksum=CRC32  --vardir=var-rpl_binlog_checksum --suite=binlog,rpl
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps_funcs1   --suite=funcs_1 --ps-protocol --vardir=var-ps_funcs_1 --suite=funcs_1
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs2         --vardir=var-funcs2  --suite=funcs_2 
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=partitions     --vardir=var-parts --suite=parts   
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental  --comment=stress        --vardir=var-stress --suite=stress  
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental  --comment=jp            --vardir=var-jp --suite=jp      
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental  --comment=nist          --vardir=var-nist --suite=nist 
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental  --comment=nist+ps       --vardir=var-ps_nist --suite=nist --ps-protocol 
+perl mysql-test-run.pl --timer --force --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --vardir-var-rpl_binlog_checksum --mysqld=--binlog-checksum=CRC32  --vardir=var-rpl_binlog_checksum --suite=binlog,rpl
