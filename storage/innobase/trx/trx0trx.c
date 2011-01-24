@@ -335,6 +335,7 @@ trx_list_insert_ordered(
 	ut_a(srv_is_being_started);
 	ut_ad(!trx->in_trx_list);
 	ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+	ut_ad(trx->is_recovered);
 
 	for (trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx2 != NULL;
@@ -638,7 +639,8 @@ trx_start_low(
 
 	ut_ad(trx->rseg == NULL);
 
-	ut_ad(trx->state != TRX_STATE_ACTIVE);
+	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+	ut_ad(!trx->is_recovered);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
@@ -686,6 +688,9 @@ trx_commit(
 	trx_named_savept_t*	savep;
 	ib_uint64_t		lsn = 0;
 	page_t*			update_hdr_page;
+
+	ut_ad(trx->in_trx_list);
+	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
 		trx_rseg_t*	rseg;
@@ -945,26 +950,38 @@ UNIV_INTERN
 void
 trx_commit_or_rollback_prepare(
 /*===========================*/
-	trx_t*		trx)		/*!< in: transaction */
+	trx_t*	trx)		/*!< in/out: transaction */
 {
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	/* We are reading trx->state without holding trx_sys->lock
+	here, because the commit or rollback should be invoked for a
+	running (or recovered prepared) transaction that is associated
+	with the current thread. */
 
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
 		trx_start_low(trx);
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_PREPARED:
+		/* If the trx is in a lock wait state, moves the waiting
+		query thread to the suspended state */
+
+		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+
+			ut_a(trx->lock.wait_thr != NULL);
+			trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
+			trx->lock.wait_thr = NULL;
+
+			trx->lock.que_state = TRX_QUE_RUNNING;
+		}
+
+		ut_a(trx->lock.n_active_thrs == 1);
+		return;
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
 	}
 
-	/* If the trx is in a lock wait state, moves the waiting
-	query thread to the suspended state */
-
-	if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-
-		ut_a(trx->lock.wait_thr != NULL);
-		trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
-		trx->lock.wait_thr = NULL;
-
-		trx->lock.que_state = TRX_QUE_RUNNING;
-	}
-
-	ut_a(trx->lock.n_active_thrs == 1);
+	ut_error;
 }
 
 /*********************************************************************//**
@@ -1043,7 +1060,7 @@ UNIV_INTERN
 ulint
 trx_commit_for_mysql(
 /*=================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	/* Because we do not do the commit by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
@@ -1138,11 +1155,19 @@ trx_mark_sql_stat_end(
 {
 	ut_a(trx);
 
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	switch (trx->state) {
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
+	case TRX_STATE_NOT_STARTED:
 		trx->undo_no = 0;
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+		trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+		return;
 	}
 
-	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+	ut_error;
 }
 
 /**********************************************************************//**
@@ -1332,6 +1357,41 @@ trx_print(
 		      n_lock_rec, n_lock_struct, heap_size);
 	rw_lock_s_unlock(&trx_sys->lock);
 }
+
+#ifdef UNIV_DEBUG
+/**********************************************************************//**
+Asserts that a transaction has been started.
+The caller must hold trx_sys->lock.
+@return TRUE if started */
+UNIV_INTERN
+ibool
+trx_assert_started(
+/*===============*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+# ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+# endif /* UNIV_SYNC_DEBUG */
+
+	/* trx->state cannot change from or to NOT_STARTED while we
+	are holding trx_sys->lock. It may change from ACTIVE to
+	PREPARED. Unless we are holding lock_sys->mutex, it may also
+	change to COMMITTED. */
+
+	switch (trx->state) {
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		ut_ad(trx->in_trx_list);
+		return(TRUE);
+	case TRX_STATE_NOT_STARTED:
+		break;
+	}
+
+	ut_error;
+	return(FALSE);
+}
+#endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
 Compares the "weight" (or size) of two transactions. Transactions that
@@ -1534,9 +1594,11 @@ trx_recover_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		ut_ad(trx->in_trx_list);
-
-		if (trx->state == TRX_STATE_PREPARED) {
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		to PREPARED, but not if trx->is_recovered. It may also
+		change to COMMITTED. */
+		if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
 			xid_list[count] = trx->xid;
 
 			if (count == 0) {
@@ -1618,7 +1680,7 @@ trx_get_trx_by_xid(
 		}
 	}
 
-	if (trx != NULL && trx->state != TRX_STATE_PREPARED) {
+	if (trx != NULL && !trx_state_eq(trx, TRX_STATE_PREPARED)) {
 
 		trx = NULL;
 	}

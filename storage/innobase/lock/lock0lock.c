@@ -4726,13 +4726,13 @@ lock_print_info_all_transactions(
 /*=============================*/
 	FILE*	file)	/*!< in: file where to print */
 {
-	lock_t*	lock;
-	ibool	load_page_first = TRUE;
-	ulint	nth_trx		= 0;
-	ulint	nth_lock	= 0;
-	ulint	i;
-	mtr_t	mtr;
-	trx_t*	trx;
+	const lock_t*	lock;
+	ibool		load_page_first = TRUE;
+	ulint		nth_trx		= 0;
+	ulint		nth_lock	= 0;
+	ulint		i;
+	mtr_t		mtr;
+	const trx_t*	trx;
 
 	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
 
@@ -4747,16 +4747,14 @@ lock_print_info_all_transactions(
 	     trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
 
 		ut_ad(trx->in_mysql_trx_list);
+
 		/* trx->state cannot change from or to NOT_STARTED
 		while we are holding the trx_sys->lock. It may change
 		from ACTIVE to PREPARED, but it may not change to
 		COMMITTED, because we are holding the lock_sys->mutex. */
-		if (trx->state == TRX_STATE_NOT_STARTED) {
+		if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 			fputs("---", file);
 			trx_print_latched(file, trx, 600);
-			ut_ad(!trx->in_trx_list);
-		} else {
-			ut_ad(trx->in_trx_list);
 		}
 	}
 
@@ -4929,13 +4927,11 @@ lock_table_queue_validate(
 	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(un_member.tab_lock.locks, lock)) {
 
-		trx_mutex_enter(lock->trx);
-		ut_ad(lock->trx->in_trx_list);
-
-		ut_a((lock->trx->state == TRX_STATE_ACTIVE)
-		     || (lock->trx->state == TRX_STATE_PREPARED)
-		     || (lock->trx->state
-			 == TRX_STATE_COMMITTED_IN_MEMORY));
+		/* lock->trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		from ACTIVE to PREPARED, but it may not change to
+		COMMITTED, because we are holding the lock_sys->mutex. */
+		ut_ad(trx_assert_started(lock->trx));
 
 		if (!lock_get_wait(lock)) {
 
@@ -4946,8 +4942,6 @@ lock_table_queue_validate(
 
 			ut_a(lock_table_has_to_wait_in_queue(lock));
 		}
-
-		trx_mutex_exit(lock->trx);
 	}
 
 	return(TRUE);
@@ -4991,17 +4985,6 @@ lock_rec_queue_validate(
 		     lock != NULL;
 		     lock = lock_rec_get_next_const(heap_no, lock)) {
 
-			trx_mutex_enter(lock->trx);
-
-			switch(lock->trx->state) {
-			case TRX_STATE_ACTIVE:
-			case TRX_STATE_PREPARED:
-			case TRX_STATE_COMMITTED_IN_MEMORY:
-				break;
-			default:
-				ut_error;
-			}
-
 			ut_a(trx_in_trx_list(lock->trx));
 
 			if (lock_get_wait(lock)) {
@@ -5011,8 +4994,6 @@ lock_rec_queue_validate(
 			if (index) {
 				ut_a(lock->index == index);
 			}
-
-			trx_mutex_exit(lock->trx);
 		}
 
 		if (!have_lock_trx_sys_mutex) {
@@ -5057,11 +5038,6 @@ lock_rec_queue_validate(
 	     lock != NULL;
 	     lock = lock_rec_get_next_const(heap_no, lock)) {
 
-		trx_mutex_enter(lock->trx);
-
-		ut_a(lock->trx->state == TRX_STATE_ACTIVE
-		     || lock->trx->state == TRX_STATE_PREPARED
-		     || lock->trx->state == TRX_STATE_COMMITTED_IN_MEMORY);
 		ut_a(trx_in_trx_list(lock->trx));
 
 		if (index) {
@@ -5084,8 +5060,6 @@ lock_rec_queue_validate(
 
 			ut_a(lock_rec_has_to_wait_in_queue(lock));
 		}
-
-		trx_mutex_exit(lock->trx);
 	}
 
 	if (!have_lock_trx_sys_mutex) {
@@ -5171,14 +5145,6 @@ loop:
 	}
 
 	ut_a(trx_in_trx_list(lock->trx));
-
-	trx_mutex_enter(lock->trx);
-
-	ut_a(lock->trx->state == TRX_STATE_ACTIVE
-	     || lock->trx->state == TRX_STATE_PREPARED
-	     || lock->trx->state == TRX_STATE_COMMITTED_IN_MEMORY);
-
-	trx_mutex_exit(lock->trx);
 
 # ifdef UNIV_SYNC_DEBUG
 	/* Only validate the record queues when this thread is not

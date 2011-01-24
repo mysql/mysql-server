@@ -415,8 +415,7 @@ trx_is_active_low(
 		trx = trx_get_on_id_low(trx_id);
 
 		if (trx != NULL
-		    && (trx->state != TRX_STATE_ACTIVE
-			&& trx->state != TRX_STATE_PREPARED)) {
+		    && trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 
 			trx = NULL;
 		}

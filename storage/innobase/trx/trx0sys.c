@@ -637,13 +637,15 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	trx_t*	in_trx)	/*!< in: trx */
+	const trx_t*	in_trx)	/*!< in: transaction */
 {
-	trx_t*	trx;
+	const trx_t*	trx;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(trx_assert_started(in_trx));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx != in_trx;
@@ -984,22 +986,18 @@ trx_sys_init_at_db_start(void)
 
 	trx_lists_init_at_db_start();
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-		trx_t*	trx;
+		const trx_t*	trx;
 
-		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		     trx != NULL;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+			ut_ad(trx->is_recovered);
 
-		for (;;) {
-			ut_ad(trx->in_trx_list);
-
-			if (trx->state != TRX_STATE_PREPARED) {
+			if (trx_state_eq(trx, TRX_STATE_ACTIVE)) {
 				rows_to_undo += trx->undo_no;
-			}
-
-			trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-			if (!trx) {
-				break;
 			}
 		}
 
@@ -1018,6 +1016,8 @@ trx_sys_init_at_db_start(void)
 		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
 			(ullint) trx_sys->max_trx_id);
 	}
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	UT_LIST_INIT(trx_sys->view_list);
 
