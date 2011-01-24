@@ -9850,11 +9850,18 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name)
 {
+  // Copy db and table_name to stack buffers since functions used by
+  // ha_create_table_from_engine may convert to lowercase on some platforms
+  char db_buf[FN_REFLEN + 1];
+  char table_name_buf[FN_REFLEN + 1];
+  strnmov(db_buf, db, sizeof(db_buf));
+  strnmov(table_name_buf, table_name, sizeof(table_name_buf));
+
   LEX *old_lex= thd->lex, newlex;
   thd->lex= &newlex;
   newlex.current_select= NULL;
   lex_start(thd);
-  int res= ha_create_table_from_engine(thd, db, table_name);
+  int res= ha_create_table_from_engine(thd, db_buf, table_name_buf);
   thd->lex= old_lex;
   return res;
 }
