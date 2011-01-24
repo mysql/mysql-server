@@ -204,12 +204,12 @@ extern struct my_option my_long_options[];
 extern int mysqld_server_started;
 extern int orig_argc;
 extern char **orig_argv;
-extern pthread_attr_t connection_attrib;
+extern MYSQL_PLUGIN_IMPORT pthread_attr_t connection_attrib;
 extern MYSQL_FILE *bootstrap_file;
 extern my_bool old_mode;
 extern LEX_STRING opt_init_connect, opt_init_slave;
 extern int bootstrap_error;
-extern I_List<THD> threads;
+extern MYSQL_PLUGIN_IMPORT I_List<THD> threads;
 extern char err_shared_dir[];
 extern TYPELIB thread_handling_typelib;
 extern my_decimal decimal_zero;
@@ -263,7 +263,9 @@ extern PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
 
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
   key_thread_handle_manager, key_thread_kill_server, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_signal_hand;
+
+extern MYSQL_PLUGIN_IMPORT PSI_thread_key key_thread_one_connection;
 
 #ifdef HAVE_MMAP
 extern PSI_file_key key_file_map;
@@ -335,7 +337,7 @@ extern mysql_mutex_t LOCK_server_started;
 extern mysql_cond_t COND_server_started;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-extern mysql_cond_t COND_thread_count;
+extern MYSQL_PLUGIN_IMPORT mysql_cond_t COND_thread_count;
 extern mysql_cond_t COND_manager;
 extern int32 thread_running;
 extern my_atomic_rwlock_t thread_running_lock;
