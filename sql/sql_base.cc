@@ -8256,11 +8256,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
-  TABLE *table= 0;
-  List<TABLE> tbl_list;
+  TABLE *table= 0, *vcol_table= 0;
   bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
-  tbl_list.empty();
 
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
@@ -8283,7 +8281,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     f.rewind();
   }
   else if (thd->lex->unit.insert_table_with_stored_vcol)
-    tbl_list.push_back(thd->lex->unit.insert_table_with_stored_vcol);
+    vcol_table= thd->lex->unit.insert_table_with_stored_vcol;
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
@@ -8313,31 +8311,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
-    tbl_list.push_back(table);
+    DBUG_ASSERT(vcol_table == 0 || vcol_table == table);
+    vcol_table= table;
   }
   /* Update virtual fields*/
   thd->abort_on_warning= FALSE;
-  if (tbl_list.head())
+  if (vcol_table)
   {
-    List_iterator_fast<TABLE> it(tbl_list);
-    TABLE *prev_table= 0;
-    while ((table= it++))
+    if (vcol_table->vfield)
     {
-      /*
-        Do simple optimization to prevent unnecessary re-generating 
-        values for virtual fields
-      */
-      if (table != prev_table)
-      {
-        prev_table= table;
-        if (table->vfield)
-        {
-          if (update_virtual_fields(thd, table, TRUE))
-          {
-            goto err;
-          }
-        }
-      }
+      if (update_virtual_fields(thd, vcol_table, TRUE))
+        goto err;
     }
   }
   thd->abort_on_warning= abort_on_warning_saved;
