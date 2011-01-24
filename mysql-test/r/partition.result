@@ -1,5 +1,43 @@
 drop table if exists t1, t2;
 #
+# Bug#59297: Can't find record in 'tablename' on update inner join
+#
+CREATE TABLE t1 (
+a char(2) NOT NULL,
+b char(2) NOT NULL,
+c int(10) unsigned NOT NULL,
+d varchar(255) DEFAULT NULL,
+e varchar(1000) DEFAULT NULL,
+PRIMARY KEY (a, b, c),
+KEY (a),
+KEY (a, b)
+)
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 20 */;
+INSERT INTO t1 (a, b, c, d, e) VALUES
+('07', '03', 343, '1', '07_03_343'),
+('01', '04', 343, '2', '01_04_343'),
+('01', '06', 343, '3', '01_06_343'),
+('01', '07', 343, '4', '01_07_343'),
+('01', '08', 343, '5', '01_08_343'),
+('01', '09', 343, '6', '01_09_343'),
+('03', '03', 343, '7', '03_03_343'),
+('03', '06', 343, '8', '03_06_343'),
+('03', '07', 343, '9', '03_07_343'),
+('04', '03', 343, '10', '04_03_343'),
+('04', '06', 343, '11', '04_06_343'),
+('05', '03', 343, '12', '05_03_343'),
+('11', '03', 343, '13', '11_03_343'),
+('11', '04', 343, '14', '11_04_343')
+;
+UPDATE t1 AS A,
+(SELECT '03' AS a, '06' AS b, 343 AS c, 'last' AS d) AS B
+SET A.e = B.d  
+WHERE A.a = '03'  
+AND A.b = '06' 
+AND A.c = 343;
+DROP TABLE t1;
+#
 # Bug#57113: ha_partition::extra(ha_extra_function):
 #            Assertion `m_extra_cache' failed
 CREATE TABLE t1
