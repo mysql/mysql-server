@@ -180,11 +180,4 @@ trp_client::raw_sendFragmentedSignal(const NdbApiSignal * signal, Uint32 nodeId,
   return m_facade->sendFragmentedSignal(signal, nodeId, ptr, secs);
 }
 
-inline
-int
-trp_client::safe_sendSignal(const NdbApiSignal* signal, Uint32 nodeId)
-{
-  return m_facade->m_poll_owner->raw_sendSignal(signal, nodeId);
-}
-
 #endif
