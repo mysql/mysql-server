@@ -297,22 +297,32 @@ trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
-the trx_sys_t::lock in shared mode.
-@return	transaction instance if active or NULL */
+trx_sys->lock in shared mode. If the caller is not holding
+lock_sys->mutex, the transaction may already have been committed.
+@return	transaction instance if active, or NULL;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_is_active_low(
 /*==============*/
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
-	ibool*		corrupt);	/*!< out: TRUE if corrupt */
+	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
+					that will be set if corrupt */
 /****************************************************************//**
-Checks if a transaction with the given id is active.
-@return	transaction instance if active */
+Checks if a transaction with the given id is active. If the caller is
+not holding lock_sys->mutex, the transaction may already have been
+committed.
+@return	transaction instance if active, or NULL;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_is_active(
 /*==========*/
-	trx_id_t	trx_id);/*!< in: trx id of the transaction */
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
+					that will be set if corrupt */
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks that trx is in the trx list.
