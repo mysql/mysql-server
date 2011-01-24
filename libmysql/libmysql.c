@@ -51,7 +51,7 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
-#if defined(THREAD) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <my_pthread.h>				/* because of signal()	*/
 #endif
 #ifndef INADDR_NONE
@@ -172,10 +172,8 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
        result= init_embedded_server(argc, argv, groups);
 #endif
   }
-#ifdef THREAD
   else
     result= (int)my_thread_init();         /* Init if new thread */
-#endif
   return result;
 }
 
@@ -229,18 +227,12 @@ MYSQL_PARAMETERS *STDCALL mysql_get_parameters(void)
 
 my_bool STDCALL mysql_thread_init()
 {
-#ifdef THREAD
   return my_thread_init();
-#else
-  return 0;
-#endif
 }
 
 void STDCALL mysql_thread_end()
 {
-#ifdef THREAD
   my_thread_end();
-#endif
 }
 
 
@@ -1092,11 +1084,7 @@ void STDCALL mysql_get_character_set_info(MYSQL *mysql, MY_CHARSET_INFO *csinfo)
 
 uint STDCALL mysql_thread_safe(void)
 {
-#ifdef THREAD
   return 1;
-#else
-  return 0;
-#endif
 }
 
 
