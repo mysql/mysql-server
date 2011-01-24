@@ -1432,4 +1432,74 @@ WHERE t1.f1 = 4 AND t2.f1 IS NOT NULL AND t2.f2 IS NOT NULL
 GROUP BY t2.f1, t2.f2;
 f1	f1	f2
 DROP TABLE t1,t2;
+#
+# Bug#57034 incorrect OUTER JOIN result when joined on unique key
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, 
+col_int INT, 
+col_int_unique INT UNIQUE KEY);
+INSERT INTO t1 VALUES (1,NULL,2), (2,0,0);
+CREATE TABLE t2 (pk INT PRIMARY KEY,
+col_int INT,
+col_int_unique INT UNIQUE KEY);
+INSERT INTO t2 VALUES (1,0,1), (2,0,2);
+EXPLAIN
+SELECT * FROM t1 LEFT JOIN t2
+ON t1.col_int_unique = t2.col_int_unique AND t1.col_int = t2.col_int 
+WHERE t1.pk=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	
+1	SIMPLE	t2	const	col_int_unique	col_int_unique	5	const	1	
+SELECT * FROM t1 LEFT JOIN t2
+ON t1.col_int_unique = t2.col_int_unique AND t1.col_int = t2.col_int 
+WHERE t1.pk=1;
+pk	col_int	col_int_unique	pk	col_int	col_int_unique
+1	NULL	2	NULL	NULL	NULL
+DROP TABLE t1,t2;
+#
+# Bug#48046 Server incorrectly processing JOINs on NULL values
+#
+CREATE TABLE `BB` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`time_key` time DEFAULT NULL,
+`varchar_key` varchar(1) DEFAULT NULL,
+`varchar_nokey` varchar(1) DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `time_key` (`time_key`),
+KEY `varchar_key` (`varchar_key`)
+) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=latin1;
+INSERT INTO `BB` VALUES (10,'18:27:58',NULL,NULL);
+SELECT table1.time_key AS field1, table2.pk 
+FROM BB table1  LEFT JOIN BB table2 
+ON table2.varchar_nokey = table1.varchar_key
+HAVING field1;
+field1	pk
+18:27:58	NULL
+DROP TABLE BB;
+#
+# Bug#49600 Server incorrectly processing RIGHT JOIN with 
+#           constant WHERE clause and no index
+#
+CREATE TABLE `BB` (
+`col_datetime_key` datetime DEFAULT NULL,
+`col_varchar_key` varchar(1) DEFAULT NULL,
+`col_varchar_nokey` varchar(1) DEFAULT NULL,
+KEY `col_datetime_key` (`col_datetime_key`),
+KEY `col_varchar_key` (`col_varchar_key`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO `BB` VALUES ('1900-01-01 00:00:00',NULL,NULL);
+SELECT table1.col_datetime_key  
+FROM BB table1 RIGHT JOIN BB table2 
+ON table2 .col_varchar_nokey = table1.col_varchar_key
+WHERE 7;
+col_datetime_key
+NULL
+ALTER TABLE BB DISABLE KEYS;
+SELECT table1.col_datetime_key  
+FROM BB table1 RIGHT JOIN BB table2
+ON table2 .col_varchar_nokey = table1.col_varchar_key
+WHERE 7;
+col_datetime_key
+NULL
+DROP TABLE BB;
 End of 5.1 tests

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,10 +32,6 @@
 #include "probes_mysql.h"
 #include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
-
-#ifndef THREAD
-#define SKIP_DBUG_IN_FILESORT
-#endif
 
 /// How to write record_ref.
 #define WRITE_REF(file,from) \

@@ -91,23 +91,22 @@ my_bool my_basic_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
-#if defined(THREAD)
   if (my_thread_global_init())
     return 1;
-#  if defined(SAFE_MUTEX)
+
+#if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
-#  endif
 #endif
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+
+#if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
 #endif
-#ifdef THREAD
+
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
   if (my_thread_basic_global_init())
     return 1;
-#endif
 
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
@@ -138,10 +137,9 @@ my_bool my_init(void)
   if (my_basic_init())
     return 1;
 
-#ifdef THREAD
   if (my_thread_global_init())
     return 1;
-#endif /* THREAD */
+
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
@@ -240,7 +238,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   {
     DBUG_END();                /* Must be done before my_thread_end */
   }
-#ifdef THREAD
+
   my_thread_end();
   my_thread_global_end();
 #if defined(SAFE_MUTEX)
@@ -251,7 +249,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   safe_mutex_end((infoflag & (MY_GIVE_INFO | MY_CHECK_ERROR)) ? stderr :
                  (FILE *) 0);
 #endif /* defined(SAFE_MUTEX) */
-#endif /* THREAD */
 
 #ifdef __WIN__
   if (have_tcpip)
@@ -513,12 +510,12 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
-  key_THR_LOCK_open, key_THR_LOCK_threads, key_THR_LOCK_time,
+  key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-#if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
+#if !defined(HAVE_PREAD) && !defined(_WIN32)
   { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
 #endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
@@ -543,7 +540,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_time, "THR_LOCK_time", PSI_FLAG_GLOBAL},
   { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };

@@ -24,7 +24,6 @@
     mysql_real_connect()
   - Support for reading local file with LOAD DATA LOCAL
   - SHARED memory handling
-  - Protection against sigpipe
   - Prepared statements
   
   - Things that only works for the server
@@ -70,9 +69,9 @@ my_bool	net_flush(NET *net);
 #include "mysqld_error.h"
 #include "errmsg.h"
 #include <violite.h>
-#if defined(THREAD) && !defined(__WIN__)
+#if !defined(__WIN__)
 #include <my_pthread.h>				/* because of signal()	*/
-#endif /* defined(THREAD) && !defined(__WIN__) */
+#endif /* !defined(__WIN__) */
 
 #include <sys/stat.h>
 #include <signal.h>
@@ -287,7 +286,7 @@ static int wait_for_data(my_socket fd, uint timeout)
   {
     tv.tv_sec = (long) timeout;
     tv.tv_usec = 0;
-#if defined(HPUX10) && defined(THREAD)
+#if defined(HPUX10)
     if ((res = select(fd+1, NULL, (int*) &sfds, NULL, &tv)) > 0)
       break;
 #else
@@ -731,13 +730,9 @@ cli_safe_read(MYSQL *mysql)
 {
   NET *net= &mysql->net;
   ulong len=0;
-  init_sigpipe_variables
 
-  /* Don't give sigpipe errors if the client doesn't want them */
-  set_sigpipe(mysql);
   if (net->vio != 0)
     len=my_net_read(net);
-  reset_sigpipe(mysql);
 
   if (len == packet_error || len == 0)
   {
@@ -817,12 +812,8 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 {
   NET *net= &mysql->net;
   my_bool result= 1;
-  init_sigpipe_variables
   my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
   DBUG_ENTER("cli_advanced_command");
-
-  /* Don't give sigpipe errors if the client doesn't want them */
-  set_sigpipe(mysql);
 
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
@@ -872,7 +863,6 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     result= ((mysql->packet_length=cli_safe_read(mysql)) == packet_error ?
 	     1 : 0);
 end:
-  reset_sigpipe(mysql);
   DBUG_PRINT("exit",("result: %d", result));
   DBUG_RETURN(result);
 }
@@ -1089,14 +1079,11 @@ void end_server(MYSQL *mysql)
   DBUG_ENTER("end_server");
   if (mysql->net.vio != 0)
   {
-    init_sigpipe_variables
     DBUG_PRINT("info",("Net: %s", vio_description(mysql->net.vio)));
 #ifdef MYSQL_SERVER
     slave_io_thread_detach_vio();
 #endif
-    set_sigpipe(mysql);
     vio_delete(mysql->net.vio);
-    reset_sigpipe(mysql);
     mysql->net.vio= 0;          /* Marker */
     mysql_prune_stmt_list(mysql);
   }
@@ -1220,7 +1207,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
     char **option=argv;
     while (*++option)
     {
-      if (option[0] == args_separator)          /* skip arguments separator */
+      if (my_getopt_is_args_separator(option[0]))          /* skip arguments separator */
         continue;
       /* DBUG_PRINT("info",("option: %s",option[0])); */
       if (option[0][0] == '-' && option[0][1] == '-')
@@ -2939,7 +2926,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #ifdef HAVE_SYS_UN_H
   struct	sockaddr_un UNIXaddr;
 #endif
-  init_sigpipe_variables
   DBUG_ENTER("mysql_real_connect");
 
   DBUG_PRINT("enter",("host: %s  db: %s  user: %s (client)",
@@ -2954,8 +2940,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     DBUG_RETURN(0);
   }
 
-  /* Don't give sigpipe errors if the client doesn't want them */
-  set_sigpipe(mysql);
   mysql->methods= &client_methods;
   net->vio = 0;				/* If something goes wrong */
   mysql->client_flag=0;			/* For handshake */
@@ -3465,11 +3449,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #endif
 
   DBUG_PRINT("exit", ("Mysql handler: 0x%lx", (long) mysql));
-  reset_sigpipe(mysql);
   DBUG_RETURN(mysql);
 
 error:
-  reset_sigpipe(mysql);
   DBUG_PRINT("error",("message: %u/%s (%s)",
                       net->last_errno,
                       net->sqlstate,
