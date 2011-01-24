@@ -179,6 +179,56 @@ struct PFS_table_io_stat
   }
 };
 
+enum PFS_TL_LOCK_TYPE
+{
+  /* Locks from enum thr_lock */
+  PFS_TL_READ= 0,
+  PFS_TL_READ_WITH_SHARED_LOCKS= 1,
+  PFS_TL_READ_HIGH_PRIORITY= 2,
+  PFS_TL_READ_NO_INSERT= 3,
+  PFS_TL_WRITE_ALLOW_WRITE= 4,
+  PFS_TL_WRITE_CONCURRENT_INSERT= 5,
+  PFS_TL_WRITE_DELAYED= 6,
+  PFS_TL_WRITE_LOW_PRIORITY= 7,
+  PFS_TL_WRITE= 8,
+
+  /* Locks for handler::ha_external_lock() */
+  PFS_TL_READ_EXTERNAL= 9,
+  PFS_TL_WRITE_EXTERNAL= 10
+};
+
+#define COUNT_PFS_TL_LOCK_TYPE 11
+
+struct PFS_table_lock_stat
+{
+  PFS_single_stat m_stat[COUNT_PFS_TL_LOCK_TYPE];
+
+  inline void reset(void)
+  {
+    PFS_single_stat *pfs= & m_stat[0];
+    PFS_single_stat *pfs_last= & m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    for ( ; pfs < pfs_last ; pfs++)
+      pfs->reset();
+  }
+
+  inline void aggregate(const PFS_table_lock_stat *stat)
+  {
+    PFS_single_stat *pfs= & m_stat[0];
+    PFS_single_stat *pfs_last= & m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    const PFS_single_stat *pfs_from= & stat->m_stat[0];
+    for ( ; pfs < pfs_last ; pfs++, pfs_from++)
+      pfs->aggregate(pfs_from);
+  }
+
+  inline void sum(PFS_single_stat *result)
+  {
+    PFS_single_stat *pfs= & m_stat[0];
+    PFS_single_stat *pfs_last= & m_stat[COUNT_PFS_TL_LOCK_TYPE];
+    for ( ; pfs < pfs_last ; pfs++)
+      result->aggregate(pfs);
+  }
+};
+
 /** Statistics for TABLE usage. */
 struct PFS_table_stat
 {
@@ -189,8 +239,13 @@ struct PFS_table_stat
   */
   PFS_table_io_stat m_index_stat[MAX_KEY + 1];
 
-  /** Reset table statistic. */
-  inline void reset(void)
+  /**
+    Statistics, per lock type.
+  */
+  PFS_table_lock_stat m_lock_stat;
+
+  /** Reset table io statistic. */
+  inline void reset_io(void)
   {
     PFS_table_io_stat *stat= & m_index_stat[0];
     PFS_table_io_stat *stat_last= & m_index_stat[MAX_KEY + 1];
@@ -198,13 +253,37 @@ struct PFS_table_stat
       stat->reset();
   }
 
-  inline void aggregate(const PFS_table_stat *stat)
+  /** Reset table lock statistic. */
+  inline void reset_lock(void)
+  {
+    m_lock_stat.reset();
+  }
+
+  /** Reset table statistic. */
+  inline void reset(void)
+  {
+    reset_io();
+    reset_lock();
+  }
+
+  inline void aggregate_io(const PFS_table_stat *stat)
   {
     PFS_table_io_stat *to_stat= & m_index_stat[0];
     PFS_table_io_stat *to_stat_last= & m_index_stat[MAX_KEY + 1];
     const PFS_table_io_stat *from_stat= & stat->m_index_stat[0];
     for ( ; to_stat < to_stat_last ; from_stat++, to_stat++)
       to_stat->aggregate(from_stat);
+  }
+
+  inline void aggregate_lock(const PFS_table_stat *stat)
+  {
+    m_lock_stat.aggregate(& stat->m_lock_stat);
+  }
+
+  inline void aggregate(const PFS_table_stat *stat)
+  {
+    aggregate_io(stat);
+    aggregate_lock(stat);
   }
 
   inline void sum_io(PFS_single_stat *result)
@@ -215,10 +294,15 @@ struct PFS_table_stat
       stat->sum(result);
   }
 
+  inline void sum_lock(PFS_single_stat *result)
+  {
+    m_lock_stat.sum(result);
+  }
+
   inline void sum(PFS_single_stat *result)
   {
     sum_io(result);
-    /* sum_lock(result); */
+    sum_lock(result);
   }
 };
 

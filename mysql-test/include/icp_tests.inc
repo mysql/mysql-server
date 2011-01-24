@@ -675,3 +675,74 @@ SELECT * FROM t1
 WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE t1.i);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #58816 "Extra temporary duplicate rows in result set when 
+--echo #             switching ICP off"
+--echo #
+
+# Save optimizer switch setting
+set @save_optimizer_switch_bug58816= @@optimizer_switch;
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
+
+EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+DROP TABLE t1;
+
+# Restore optimzer switch setting
+set optimizer_switch= @save_optimizer_switch_bug58816;
+
+--echo #
+--echo # Bug#58837: ICP crash or valgrind error due to uninitialized 
+--echo #            value in innobase_index_cond
+--echo #
+
+CREATE TABLE t1 (
+  t1_int INT,
+  t1_time TIME
+);
+
+CREATE TABLE t2 ( 
+  t2_int int PRIMARY KEY,
+  t2_int2 INT
+);
+
+--disable_warnings
+INSERT INTO t2 VALUES ();
+INSERT INTO t1 VALUES ();
+--enable_warnings
+
+let $query=
+SELECT *
+FROM t1 AS t1a 
+WHERE NOT EXISTS
+  (SELECT *
+   FROM t1 AS t1b
+   WHERE t1b.t1_int NOT IN
+     (SELECT t2.t2_int 
+      FROM t2
+      WHERE t1b.t1_time LIKE t1b.t1_int
+      OR t1b.t1_time <> t2.t2_int2
+      AND 6=7 
+ )
+)
+;
+
+--echo
+--eval $query;
+--echo
+--eval EXPLAIN $query;
+--echo
+
+DROP TABLE t1,t2;

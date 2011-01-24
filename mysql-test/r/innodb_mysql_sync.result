@@ -66,3 +66,27 @@ SELECT ((@id := id) - id) FROM t2;
 KILL @id;
 SET DEBUG_SYNC= "now SIGNAL killed";
 DROP TABLE t1, t2;
+SET DEBUG_SYNC= "RESET";
+#
+# Bug#58933 Assertion `thd- >is_error()' fails on shutdown with ongoing
+#           OPTIMIZE TABLE
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+# Connection con1
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL waiting WAIT_FOR killed';
+# Sending:
+OPTIMIZE TABLE t1;
+# Connection default
+SET DEBUG_SYNC= 'now WAIT_FOR waiting';
+KILL QUERY ID;
+SET DEBUG_SYNC= 'now SIGNAL killed';
+# Connection con1
+# Reaping: OPTIMIZE TABLE t1
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	Operation failed
+# Connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
