@@ -41,7 +41,7 @@ index record.
 @return 0 if committed, else the active transaction id;
 NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
-trx_is_active(). */
+trx_is_active() while holding lock_sys->mutex. */
 UNIV_INTERN
 trx_id_t
 row_vers_impl_x_locked(

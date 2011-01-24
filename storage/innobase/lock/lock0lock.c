@@ -5033,15 +5033,16 @@ lock_rec_queue_validate(
 	if (!index);
 	else if (dict_index_is_clust(index)) {
 		trx_id_t	trx_id;
-		ibool		corrupt;
 
 		/* Unlike the non-debug code, this invariant can only succeed
 		if the check and assertion are covered by the lock mutex. */
 
-		trx_id  = lock_clust_rec_some_has_impl(rec, index, offsets);
+		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
+		impl_trx = trx_is_active_low(trx_id, NULL);
 
-
-		impl_trx = trx_is_active_low(trx_id, &corrupt);
+		ut_ad(lock_mutex_own());
+		/* impl_trx cannot be committed until lock_mutex_exit()
+		because lock_trx_release_locks() acquires lock_sys->mutex */
 
 		if (impl_trx != NULL
 		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
@@ -5050,45 +5051,6 @@ lock_rec_queue_validate(
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       block, heap_no, impl_trx));
 		}
-#if 0
-	} else {
-
-		/* If this thread is holding the file space latch
-		(fil_space_t::latch), the following check WILL break
-		latching order and may cause a deadlock of threads. */
-
-		/* NOTE: This is a bogus check that would fail in the
-		following case: Our transaction is updating a
-		row. After it has updated the clustered index record,
-		it goes to a secondary index record and finds someone
-		else holding an explicit S- or X-lock on that
-		secondary index record, presumably from a locking
-		read. Our transaction cannot update the secondary
-		index immediately, but places a waiting X-lock request
-		on the secondary index record. There is nothing
-		illegal in this. The assertion is simply too strong. */
-
-		/* From the locking point of view, each secondary
-		index is a separate table. A lock that is held on
-		secondary index rec does not give any rights to modify
-		or read the clustered index rec. Therefore, we can
-		think of the sec index as a separate 'table' from the
-		clust index 'table'. Conversely, a transaction that
-		has acquired a lock on and modified a clustered index
-		record may need to wait for a lock on the
-		corresponding record in a secondary index. */
-
-		impl_trx = lock_sec_rec_some_has_impl(
-			rec, index, offsets);
-
-		if (impl_trx
-		    && lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
-						   block, heap_no, impl_trx)) {
-
-			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
-					       block, heap_no, impl_trx));
-		}
-#endif
 	}
 
 	for (lock = lock_rec_get_first(block, heap_no);
@@ -5509,11 +5471,15 @@ lock_rec_convert_impl_to_expl(
 
 	if (dict_index_is_clust(index)) {
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
+		/* The clustered index record was last modified by
+		this transaction. The transaction may have been
+		committed a long time ago. */
 	} else {
 		trx_id = lock_sec_rec_some_has_impl(rec, index, offsets);
+		/* The transaction can be committed before the
+		trx_is_active(trx_id, NULL) check below, because we are not
+		holding lock_mutex. */
 	}
-
-	/* The state of the transaction can change after the check above. */
 
 	if (trx_id != 0) {
 		trx_t*	impl_trx;
@@ -5521,10 +5487,13 @@ lock_rec_convert_impl_to_expl(
 
 		lock_mutex_enter();
 
-		/* If the transaction has no explicit x-lock set on the
-		record, set one for it */
+		/* If the transaction is still active and has no
+		explicit x-lock set on the record, set one for it */
 
-		impl_trx = trx_is_active(trx_id);
+		impl_trx = trx_is_active(trx_id, NULL);
+
+		/* impl_trx cannot be committed until lock_mutex_exit()
+		because lock_trx_release_locks() acquires lock_sys->mutex */
 
 		if (impl_trx != NULL
 		    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
