@@ -573,7 +573,9 @@ trx_lists_init_at_db_start(void)
 			ibool	trx_created;
 
 			/* Check the trx_sys->trx_list first. */
+			rw_lock_s_lock(&trx_sys->lock);
 			trx = trx_get_on_id(undo->trx_id);
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			if (trx == NULL) {
 				trx = trx_allocate_for_background();
