@@ -29,9 +29,9 @@ static TABLE_LIST *alloc_join_nest(THD *thd);
 static 
 void fix_list_after_tbl_changes(SELECT_LEX *new_parent, List<TABLE_LIST> *tlist);
 static uint get_tmp_table_rec_length(List<Item> &items);
-static double get_tmp_table_lookup_cost(THD *thd, ha_rows row_count,
+static double get_tmp_table_lookup_cost(THD *thd, double row_count,
                                         uint row_size);
-static double get_tmp_table_write_cost(THD *thd, ha_rows row_count,
+static double get_tmp_table_write_cost(THD *thd, double row_count,
                                        uint row_size);
 bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables);
 static SJ_MATERIALIZATION_INFO *
@@ -1350,7 +1350,8 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   @return  the cost of one lookup
 */
 
-static double get_tmp_table_lookup_cost(THD *thd, ha_rows row_count, uint row_size)
+static double
+get_tmp_table_lookup_cost(THD *thd, double row_count, uint row_size)
 {
   if (row_count * row_size > thd->variables.max_heap_table_size)
     return (double) DISK_TEMPTABLE_LOOKUP_COST;
@@ -1369,7 +1370,8 @@ static double get_tmp_table_lookup_cost(THD *thd, ha_rows row_count, uint row_si
   @return  the cost of writing one row
 */
 
-static double get_tmp_table_write_cost(THD *thd, ha_rows row_count, uint row_size)
+static double
+get_tmp_table_write_cost(THD *thd, double row_count, uint row_size)
 {
   double lookup_cost= get_tmp_table_lookup_cost(thd, row_count, row_size);
   /*

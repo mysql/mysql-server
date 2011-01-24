@@ -19727,12 +19727,9 @@ void JOIN::save_query_plan(Query_plan_state *save_to)
   if (keyuse.elements)
   {
     DYNAMIC_ARRAY tmp_keyuse;
-    // TODO: isn't this allocated by update_ref_and_keys
-    //if (my_init_dynamic_array(save_keyuse, sizeof(KEYUSE), 20, 64))
-    //  return 1;
-    /* Swap the current and the backup keyuse arrays. */
+    /* Swap the current and the backup keyuse internal arrays. */
     tmp_keyuse= keyuse;
-    keyuse= save_to->keyuse;
+    keyuse= save_to->keyuse; /* keyuse is reset to an empty array. */
     save_to->keyuse= tmp_keyuse;
 
     for (uint i= 0; i < tables; i++)
@@ -19785,9 +19782,9 @@ void JOIN::restore_query_plan(Query_plan_state *restore_from)
   @param save_to      If != NULL, save here the state of the current query plan
 
   @notes
-  Given a query plan that already optimized taking into account some WHERE clause
-  'C', reoptimize this plan with a new WHERE clause 'C AND added_where'. The
-  reoptimization works as follows:
+  Given a query plan that was already optimized taking into account some WHERE
+  clause 'C', reoptimize this plan with a new WHERE clause 'C AND added_where'.
+  The reoptimization works as follows:
 
   1. Call update_ref_and_keys *only* for the new conditions 'added_where'
      that are about to be injected into the query.
@@ -19808,6 +19805,7 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
 {
   DYNAMIC_ARRAY added_keyuse;
   SARGABLE_PARAM *sargables= 0; /* Used only as a dummy parameter. */
+  uint org_keyuse_elements;
 
   /* Re-run the REF optimizer to take into account the new conditions. */
   if (update_ref_and_keys(thd, &added_keyuse, join_tab, tables, added_where,
@@ -19826,18 +19824,32 @@ JOIN::reoptimize(Item *added_where, table_map join_tables,
   if (save_to)
     save_query_plan(save_to);
 
-  /* Add the new access methods to the keyuse array. */
   if (!keyuse.buffer &&
       my_init_dynamic_array(&keyuse, sizeof(KEYUSE), 20, 64))
   {
     delete_dynamic(&added_keyuse);
     return REOPT_ERROR;
   }
-  allocate_dynamic(&keyuse, keyuse.elements + added_keyuse.elements);
+
+  org_keyuse_elements= save_to ? save_to->keyuse.elements : keyuse.elements;
+  allocate_dynamic(&keyuse, org_keyuse_elements + added_keyuse.elements);
+
+  /* If needed, add the access methods from the original query plan. */
+  if (save_to)
+  {
+    DBUG_ASSERT(!keyuse.elements);
+    memcpy(keyuse.buffer,
+           save_to->keyuse.buffer,
+           (size_t) save_to->keyuse.elements * keyuse.size_of_element);
+    keyuse.elements= save_to->keyuse.elements;
+  }
+
+  /* Add the new access methods to the keyuse array. */
   memcpy(keyuse.buffer + keyuse.elements * keyuse.size_of_element,
          added_keyuse.buffer,
          (size_t) added_keyuse.elements * added_keyuse.size_of_element);
   keyuse.elements+= added_keyuse.elements;
+  /* added_keyuse contents is copied, and it is no longer needed. */
   delete_dynamic(&added_keyuse);
 
   if (sort_and_filter_keyuse(&keyuse))
