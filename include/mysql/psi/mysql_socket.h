@@ -27,7 +27,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 #include <my_sys.h>
 /* For socket api */
 //#include <sys/socket.h>
-#include <netinet/in.h>
+#ifdef __WIN__
+  #include <ws2def.h>
+  #include <winsock2.h>
+  #define SOCKBUF_T char
+#else
+  #include <netinet/in.h>
+  #define SOCKBUF_T void
+#endif
 /**
   @file mysql/psi/mysql_socket.h
 [...]
@@ -140,14 +147,6 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t count)
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_socketpair(K, D, T, P, FDS) \
-    inline_mysql_socket_socketpair(K, D, T, P, FDS)
-#else
-  #define mysql_socket_socketpair(K, D, T, P, FDS) \
-    inline_mysql_socket_socketpair(D, T, P, FDS)
-#endif
-
-#ifdef HAVE_PSI_INTERFACE
   #define mysql_socket_bind(FD, A, L) \
     inline_mysql_socket_bind(__FILE__, __LINE__, FD, A, L)
 #else
@@ -212,22 +211,6 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t count)
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_sendmsg(FD, M, FL) \
-    inline_mysql_socket_sendmsg(__FILE__, __LINE__, FD, M, FL)
-#else
-  #define mysql_socket_sendmsg(FD, M, FL) \
-    inline_mysql_socket_sendmsg(FD, M, FL)
-#endif
-
-#ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_recvmsg(FD, M, FL) \
-    inline_mysql_socket_recvmsg(__FILE__, __LINE__, FD, M, FL)
-#else
-  #define_mysql_socket_recvmsg(FD, M, FL) \
-    inline_mysql_socket_recvmsg(FD, M, FL)
-#endif
-
-#ifdef HAVE_PSI_INTERFACE
   #define mysql_socket_getsockopt(FD, LV, ON, OP, OL) \
     inline_mysql_socket_getsockopt(__FILE__, __LINE__, FD, LV, ON, OP, OL)
 #else
@@ -259,16 +242,15 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t count)
     inline_mysql_socket_accept(FD, A, LP)
 #endif
 
+/** Not supported by P_S */
 #if 0
-
-#ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_accept4(K, FD, A, LP, FL) \
-    inline_mysql_socket_accept4(K, __FILE__, __LINE__, FD, A, LP, FL)
-#else
-  #define mysql_socket_accept4(FD, A, LP, FL) \
-    inline_mysql_socket_accept4(FD, A, LP, FL)
-#endif
-
+  #ifdef HAVE_PSI_INTERFACE
+    #define mysql_socket_accept4(K, FD, A, LP, FL) \
+      inline_mysql_socket_accept4(K, __FILE__, __LINE__, FD, A, LP, FL)
+  #else
+    #define mysql_socket_accept4(FD, A, LP, FL) \
+      inline_mysql_socket_accept4(FD, A, LP, FL)
+  #endif
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
@@ -287,21 +269,58 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t count)
     inline_mysql_socket_shutdown(FD, H)
 #endif
 
-#ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_sockatmark(FD) \
-    inline_mysql_socket_sockatmark(__FILE__, __LINE__, FD)
-#else
-  #define mysql_socket_sockatmark(FD) \
-    inline_mysql_socket_sockatmark(FD)
-#endif
+/** Not supported by Winsock */
+#ifdef __WIN__
 
-#ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_isfdtype(FD, FT) \
-    inline_mysql_socket_isfdtype(__FILE__, __LINE__, FD, FT)
+  #define mysql_socket_sendmsg(FD, M, FL)
+  #define mysql_socket_recvmsg(FD, M, FL)
+  #define mysql_socket_sockatmark(FD)
+  #define mysql_socket_isfdtype(FD, FT)
+  #define mysql_socket_socketpair(K, D, T, P, FDS)
+
 #else
-  #define mysql_socket_isfdtype(FD, FT) \
-    inline_mysql_socket_isfdtype(FD, FT)
-#endif
+
+  #ifdef HAVE_PSI_INTERFACE
+	  #define mysql_socket_sendmsg(FD, M, FL) \
+	  inline_mysql_socket_sendmsg(__FILE__, __LINE__, FD, M, FL)
+  #else
+	  #define mysql_socket_sendmsg(FD, M, FL) \
+	  inline_mysql_socket_sendmsg(FD, M, FL)
+  #endif
+
+  #ifdef HAVE_PSI_INTERFACE
+	  #define mysql_socket_recvmsg(FD, M, FL) \
+	  inline_mysql_socket_recvmsg(__FILE__, __LINE__, FD, M, FL)
+  #else
+	  #define_mysql_socket_recvmsg(FD, M, FL) \
+	  inline_mysql_socket_recvmsg(FD, M, FL)
+  #endif
+
+  #ifdef HAVE_PSI_INTERFACE
+	  #define mysql_socket_sockatmark(FD) \
+	  inline_mysql_socket_sockatmark(__FILE__, __LINE__, FD)
+  #else
+	  #define mysql_socket_sockatmark(FD) \
+	  inline_mysql_socket_sockatmark(FD)
+  #endif
+
+  #ifdef HAVE_PSI_INTERFACE
+	  #define mysql_socket_isfdtype(FD, FT) \
+	  inline_mysql_socket_isfdtype(__FILE__, __LINE__, FD, FT)
+  #else
+	  #define mysql_socket_isfdtype(FD, FT) \
+	  inline_mysql_socket_isfdtype(FD, FT)
+  #endif
+
+  #ifdef HAVE_PSI_INTERFACE
+	  #define mysql_socket_socketpair(K, D, T, P, FDS) \
+	  inline_mysql_socket_socketpair(K, D, T, P, FDS)
+  #else
+	  #define mysql_socket_socketpair(K, D, T, P, FDS) \
+	  inline_mysql_socket_socketpair(D, T, P, FDS)
+  #endif
+
+#endif //__WIN__
 
 struct st_mysql_socket
 {
@@ -351,39 +370,6 @@ inline_mysql_socket_socket
   return mysql_socket;
 }
 
-/** mysql_socket_socketpair */
-
-static inline int
-inline_mysql_socket_socketpair
-(
-#ifdef HAVE_PSI_INTERFACE
-  PSI_socket_key key,
-#endif
-  int domain, int type, int protocol, MYSQL_SOCKET mysql_socket[2])
-{
-  int result= 0;
-  int fds[2]= {0, 0};
-
-  mysql_socket[0].m_psi= PSI_server ? PSI_server->init_socket(key, &mysql_socket[0].fd)
-                                    : NULL;
-  mysql_socket[1].m_psi= PSI_server ? PSI_server->init_socket(key, &mysql_socket[1].fd)
-                                    : NULL;
-
-  result= socketpair(domain, type, protocol, fds);
-
-  mysql_socket[0].fd = fds[0];
-  mysql_socket[1].fd = fds[1];
-
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(mysql_socket[0].m_psi != NULL && mysql_socket[1].m_psi != NULL))
-  {
-    PSI_server->set_socket_descriptor(mysql_socket[0].m_psi, fds[0]);
-    PSI_server->set_socket_descriptor(mysql_socket[1].m_psi, fds[1]);
-  }
-#endif
-  return result;
-}
-
 /** mysql_socket_bind */
 
 static inline int
@@ -426,7 +412,7 @@ inline_mysql_socket_getsockname
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, __SOCKADDR_ARG addr, socklen_t *len)
+ MYSQL_SOCKET mysql_socket, struct sockaddr *addr, socklen_t *len)
 {
   int result;
 #ifdef HAVE_PSI_INTERFACE
@@ -456,7 +442,7 @@ inline_mysql_socket_connect
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, __CONST_SOCKADDR_ARG addr, socklen_t len)
+ MYSQL_SOCKET mysql_socket, const struct sockaddr *addr, socklen_t len)
 {
   int result;
 #ifdef HAVE_PSI_INTERFACE
@@ -486,7 +472,7 @@ inline_mysql_socket_getpeername
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, __SOCKADDR_ARG addr, socklen_t *len)
+ MYSQL_SOCKET mysql_socket, struct sockaddr *addr, socklen_t *len)
 {
   int result;
 #ifdef HAVE_PSI_INTERFACE
@@ -516,7 +502,7 @@ inline_mysql_socket_send
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, const void *buf, size_t n, int flags)
+ MYSQL_SOCKET mysql_socket, const SOCKBUF_T *buf, size_t n, int flags)
 {
   ssize_t result;
 #ifdef HAVE_PSI_INTERFACE
@@ -549,7 +535,7 @@ inline_mysql_socket_recv
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket,  void *buf, size_t n, int flags)
+ MYSQL_SOCKET mysql_socket,  SOCKBUF_T *buf, size_t n, int flags)
 {
   ssize_t result;
 #ifdef HAVE_PSI_INTERFACE
@@ -582,7 +568,7 @@ inline_mysql_socket_sendto
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, const void *buf, size_t n, int flags, __CONST_SOCKADDR_ARG addr, socklen_t addr_len)
+ MYSQL_SOCKET mysql_socket, const SOCKBUF_T *buf, size_t n, int flags, const struct sockaddr *addr, socklen_t addr_len)
 {
   ssize_t result;
 #ifdef HAVE_PSI_INTERFACE
@@ -615,7 +601,7 @@ inline_mysql_socket_recvfrom
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, void *buf, size_t n, int flags, __SOCKADDR_ARG addr, socklen_t *addr_len)
+ MYSQL_SOCKET mysql_socket, SOCKBUF_T *buf, size_t n, int flags, struct sockaddr *addr, socklen_t *addr_len)
 {
   ssize_t result;
 #ifdef HAVE_PSI_INTERFACE
@@ -640,72 +626,6 @@ inline_mysql_socket_recvfrom
   return result;
 }
 
-/** mysql_socket_sendmsg */
-
-static inline ssize_t
-inline_mysql_socket_sendmsg
-(
-#ifdef HAVE_PSI_INTERFACE
-  const char *src_file, uint src_line,
-#endif
- MYSQL_SOCKET mysql_socket, const struct msghdr *message, int flags)
-{
-  ssize_t result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
-  {
-    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_SEND);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-  }
-#endif
-  result= sendmsg(mysql_socket.fd, message, flags);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-  {
-    size_t bytes_written = (result > -1) ? result : 0;
-    PSI_server->end_socket_wait(locker, bytes_written);
-  }
-#endif
-  return result;
-}
-
-/** mysql_socket_recvmsg */
-
-static inline ssize_t
-inline_mysql_socket_recvmsg
-(
-#ifdef HAVE_PSI_INTERFACE
-  const char *src_file, uint src_line,
-#endif
- MYSQL_SOCKET mysql_socket, struct msghdr *message, int flags)
-{
-  ssize_t result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
-  {
-    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_RECV);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-  }
-#endif
-  result= recvmsg(mysql_socket.fd, message, flags);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-  {
-    size_t bytes_written = (result > -1) ? result : 0;
-    PSI_server->end_socket_wait(locker, bytes_written);
-  }
-#endif
-  return result;
-}
-
 /** mysql_socket_getsockopt */
 
 static inline int
@@ -714,7 +634,7 @@ inline_mysql_socket_getsockopt
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, int level, int optname, void *optval, socklen_t *optlen)
+ MYSQL_SOCKET mysql_socket, int level, int optname, SOCKBUF_T *optval, socklen_t *optlen)
 {
   int result;
 #ifdef HAVE_PSI_INTERFACE
@@ -744,7 +664,7 @@ inline_mysql_socket_setsockopt
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, int level, int optname, const void *optval, socklen_t optlen)
+ MYSQL_SOCKET mysql_socket, int level, int optname, const SOCKBUF_T *optval, socklen_t optlen)
 {
   int result;
 #ifdef HAVE_PSI_INTERFACE
@@ -835,45 +755,43 @@ inline_mysql_socket_accept
 }
 
 /** mysql_socket_accept4 */
+
 #if 0
-
-static inline MYSQL_SOCKET
-inline_mysql_socket_accept4
-(
-#ifdef HAVE_PSI_INTERFACE
-  PSI_socket_key key, const char *src_file, uint src_line,
-#endif
- MYSQL_SOCKET socket_listen, __SOCKADDR_ARG addr, socklen_t *addr_len, int flags)
-{
-  MYSQL_SOCKET socket_accept = {0, NULL};
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  socket_accept.m_psi = PSI_server ? PSI_server->init_socket(key, &socket_accept.fd)
-                                   : NULL;
-  if (likely(PSI_server != NULL && socket_accept.m_psi != NULL))
+  static inline MYSQL_SOCKET
+  inline_mysql_socket_accept4
+  (
+  #ifdef HAVE_PSI_INTERFACE
+    PSI_socket_key key, const char *src_file, uint src_line,
+  #endif
+   MYSQL_SOCKET socket_listen,  addr, socklen_t *addr_len, int flags)
   {
-    locker= PSI_server->get_thread_socket_locker(socket_accept.m_psi, PSI_SOCKET_CONNECT);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
+    MYSQL_SOCKET socket_accept = {0, NULL};
+  #ifdef HAVE_PSI_INTERFACE
+    struct PSI_socket_locker *locker= NULL;
+    PSI_socket_locker_state state;
+
+    socket_accept.m_psi = PSI_server ? PSI_server->init_socket(key, &socket_accept.fd)
+                                     : NULL;
+    if (likely(PSI_server != NULL && socket_accept.m_psi != NULL))
+    {
+      locker= PSI_server->get_thread_socket_locker(socket_accept.m_psi, PSI_SOCKET_CONNECT);
+      if (likely(locker !=NULL))
+        PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
+    }
+  #endif
+    socket_accept.fd= accept4(socket_listen.fd, addr, addr_len, flags);
+  #ifdef HAVE_PSI_INTERFACE
+    /** Set socket address info */
+    if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
+        && socket_accept.fd > -1))
+      PSI_server->set_socket_info(socket_accept.m_psi, socket_accept.fd, addr);
+
+    if (likely(locker != NULL))
+      PSI_server->end_socket_wait(locker, (size_t)0);
+  #endif
+    return socket_accept;
   }
 #endif
-  socket_accept.fd= accept4(socket_listen.fd, addr, addr_len, flags);
-#ifdef HAVE_PSI_INTERFACE
-  /** Set socket address info */
-  if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
-      && socket_accept.fd > -1))
-    PSI_server->set_socket_info(socket_accept.m_psi, socket_accept.fd, addr);
-
-  if (likely(locker != NULL))
-    PSI_server->end_socket_wait(locker, (size_t)0);
-#endif
-  return socket_accept;
-}
-
-#endif
-
 
 /** mysql_socket_close */
 
@@ -931,6 +849,76 @@ inline_mysql_socket_shutdown
 #ifdef HAVE_PSI_INTERFACE
   if (likely(locker != NULL))
     PSI_server->end_socket_wait(locker, (size_t)0);
+#endif
+  return result;
+}
+
+/** Not supported by Winsock */
+
+#ifndef __WIN__
+
+/** mysql_socket_sendmsg */
+
+static inline ssize_t
+inline_mysql_socket_sendmsg
+(
+#ifdef HAVE_PSI_INTERFACE
+  const char *src_file, uint src_line,
+#endif
+ MYSQL_SOCKET mysql_socket, const struct msghdr *message, int flags)
+{
+  ssize_t result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_socket_locker *locker= NULL;
+  PSI_socket_locker_state state;
+
+  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
+  {
+    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_SEND);
+    if (likely(locker !=NULL))
+      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
+  }
+#endif
+  result= sendmsg(mysql_socket.fd, message, flags);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+  {
+    size_t bytes_written = (result > -1) ? result : 0;
+    PSI_server->end_socket_wait(locker, bytes_written);
+  }
+#endif
+  return result;
+}
+
+/** mysql_socket_recvmsg */
+
+static inline ssize_t
+inline_mysql_socket_recvmsg
+(
+#ifdef HAVE_PSI_INTERFACE
+  const char *src_file, uint src_line,
+#endif
+ MYSQL_SOCKET mysql_socket, struct msghdr *message, int flags)
+{
+  ssize_t result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_socket_locker *locker= NULL;
+  PSI_socket_locker_state state;
+
+  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
+  {
+    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_RECV);
+    if (likely(locker !=NULL))
+      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
+  }
+#endif
+  result= recvmsg(mysql_socket.fd, message, flags);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+  {
+    size_t bytes_written = (result > -1) ? result : 0;
+    PSI_server->end_socket_wait(locker, bytes_written);
+  }
 #endif
   return result;
 }
@@ -994,6 +982,41 @@ inline_mysql_socket_isfdtype
 #endif
   return result;
 }
+
+/** mysql_socket_socketpair */
+
+static inline int
+inline_mysql_socket_socketpair
+(
+#ifdef HAVE_PSI_INTERFACE
+  PSI_socket_key key,
+#endif
+  int domain, int type, int protocol, MYSQL_SOCKET mysql_socket[2])
+{
+  int result= 0;
+  int fds[2]= {0, 0};
+
+  mysql_socket[0].m_psi= PSI_server ? PSI_server->init_socket(key, &mysql_socket[0].fd)
+                                    : NULL;
+  mysql_socket[1].m_psi= PSI_server ? PSI_server->init_socket(key, &mysql_socket[1].fd)
+                                    : NULL;
+
+  result= socketpair(domain, type, protocol, fds);
+
+  mysql_socket[0].fd = fds[0];
+  mysql_socket[1].fd = fds[1];
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(mysql_socket[0].m_psi != NULL && mysql_socket[1].m_psi != NULL))
+  {
+    PSI_server->set_socket_descriptor(mysql_socket[0].m_psi, fds[0]);
+    PSI_server->set_socket_descriptor(mysql_socket[1].m_psi, fds[1]);
+  }
+#endif
+  return result;
+}
+
+#endif // __WIN__
 
 /** @} (end of group Socket_instrumentation) */
 
