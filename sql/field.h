@@ -103,8 +103,10 @@ public:
   const char	**table_name, *field_name;
   LEX_STRING	comment;
   /* Field is part of the following keys */
-  key_map	key_start, part_of_key, part_of_key_not_clustered;
-  key_map       part_of_sortkey;
+  key_map key_start;                /* Keys that starts with this field */
+  key_map part_of_key;              /* All keys that includes this field */
+  key_map part_of_key_not_clustered;/* ^ but only for non-clustered keys */
+  key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
   /* 
     We use three additional unireg types for TIMESTAMP to overcome limitation 
     of current binary format of .frm file. We'd like to be able to support 

@@ -2407,7 +2407,7 @@ int subselect_single_select_engine::exec()
 int subselect_union_engine::exec()
 {
   char const *save_where= thd->where;
-  int res= unit->exec();
+  int res= (unit->optimize() || unit->exec());
   thd->where= save_where;
   return res;
 }

@@ -4349,7 +4349,7 @@ double handler::index_only_read_time(uint keynr, double records)
 {
   double read_time;
   uint keys_per_block= (stats.block_size/2/
-			(table_share->key_info[keynr].key_length + ref_length) +
+                        (table_share->key_info[keynr].key_length + ref_length) +
                         1);
   read_time=((double) (records + keys_per_block-1) /
              (double) keys_per_block);

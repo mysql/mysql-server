@@ -2013,8 +2013,8 @@ public:
   /*
     The set of those tables whose fields are referenced in all subqueries
     of the query.
-    Since this field is meaningless for quieries with subqueries (subqueries
-    has their own table maps) this field is used only for non-SELECT
+    Since this field is meaningless for queries with subqueries (subqueries
+    has their own table maps), this field is used only for non-SELECT
     queries. For SELECT the JOIN::select_list_tables field is used instead.
   */
   table_map  used_tables;
@@ -3001,7 +3001,7 @@ protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
 public:
-  /*
+  /**
     Number of records estimated in this result.
     Valid only for materialized derived tables/views.
   */
@@ -3281,11 +3281,11 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
-  /*
+  /**
     TRUE <=> don't actually create table handler when creating the result
     table. This allows range optimizer to add indexes later.
     Used for materialized derived tables/views.
-    See TABLE_LIST::update_derived_keys.
+    @see TABLE_LIST::update_derived_keys.
   */
   bool skip_create_table;
   /*

@@ -510,11 +510,11 @@ protected:
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
 
+  select_result *result;
   ulonglong found_rows_for_union;
   bool saved_error;
 
 public:
-  select_result *result;
   // Ensures that at least all members used during cleanup() are initialized.
   st_select_lex_unit()
     : union_result(NULL), table(NULL), result(NULL),
@@ -576,6 +576,7 @@ public:
   }
   void exclude_level();
   void exclude_tree();
+  inline select_result *get_result() { return result; }
 
   /* UNION methods */
   bool prepare(THD *thd, select_result *result, ulong additional_options);
@@ -751,6 +752,12 @@ public:
           defined as SUM_FUNC_USED.
   */
   uint8 full_group_by_flag;
+  /**
+    The set of those tables whose fields are referenced in the select list of
+    this select level.
+  */
+  table_map select_list_tables;
+
   void init_query();
   void init_select();
   st_select_lex_unit* master_unit();

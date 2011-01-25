@@ -33,7 +33,6 @@
 #include "sql_select.h"
 #include "sql_cache.h"                          // query_cache_*
 #include "sql_table.h"                          // primary_key_name
-#include "sql_cursor.h"
 #include "sql_derived.h"
 #include "probes_mysql.h"
 #include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
@@ -254,7 +253,6 @@ static bool update_sum_func(Item_sum **func);
 void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
-static bool generate_derived_keys(SELECT_LEX *select_lex);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool replace_subcondition(JOIN *join, Item **tree, 
                                  Item *old_cond, Item *new_cond,
@@ -456,7 +454,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
     if (!ref->fixed && ref->fix_fields(thd, 0))
       return TRUE;
     thd->used_tables|= item->used_tables();
-    thd->lex->current_select->join->select_list_tables|= item->used_tables();
+    thd->lex->current_select->select_list_tables|= item->used_tables();
   }
   return res;
 }
@@ -2401,10 +2399,10 @@ JOIN::optimize()
       res= unit->item->
 		  change_engine(new subselect_indexsubquery_engine(thd,
 								   join_tab,
-								   unit->item,
-								   conds,
+                                                                   unit->item,
+                                                                   conds,
                                                                    having,
-								   1));
+                                                                   1));
     }
     if (join_tab[0].type == JT_INDEX_SUBQUERY ||
         join_tab[0].type == JT_UNIQUE_SUBQUERY)
@@ -2413,7 +2411,7 @@ JOIN::optimize()
         We came here when a subquery in WHERE is being executed.
         Materialize the derived table prior to reading it.
       */
-      if (join_tab->table->pos_in_table_list->is_materialized_derived())
+      if (!res && join_tab->table->pos_in_table_list->is_materialized_derived())
       {
         TABLE_LIST *derived= join_tab->table->pos_in_table_list;
         res= (mysql_derived_create(thd, thd->lex, derived) ||
@@ -2620,9 +2618,9 @@ JOIN::optimize()
       JOIN_TAB *last_join_tab= join_tab+tables-1;
       do
       {
-	if (select_list_tables & last_join_tab->table->map)
-	  break;
-	last_join_tab->not_used_in_distinct=1;
+        if (select_lex->select_list_tables & last_join_tab->table->map)
+          break;
+        last_join_tab->not_used_in_distinct= 1;
       } while (last_join_tab-- != join_tab);
       /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
       if (order && skip_sort_order)
@@ -4471,6 +4469,24 @@ bool pull_out_semijoin_tables(JOIN *join)
   Approximate how many records will be used in each table
 *****************************************************************************/
 
+/**
+  @brief
+  Returns estimated number of rows that could be fetched by given select
+
+  @param thd    thread handle
+  @param select select to test
+  @param table  source table
+  @param keys   allowed keys
+  @param limit  select limit
+
+  @notes
+    In case of valid range a QUICK_SELECT_I object will be constructed and
+    saved in select->quick.
+
+  @return
+    HA_POS_ERROR for derived tables/views or if an error occur
+    estimated number of rows otherwise
+*/
 
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 				      TABLE *table,
@@ -4497,7 +4513,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
     }
     DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
   }
-  DBUG_RETURN(HA_POS_ERROR);			/* This shouldn't happend */
+  DBUG_RETURN(HA_POS_ERROR);
 }
 
 /*
@@ -5512,7 +5528,8 @@ warn_index_not_applicable(THD *thd, const Field *field,
     @param cond            Condition predicate
     @param field           Field used in comparision
     @param eq_func         True if we used =, <=> or IS NULL
-    @param value           Value used for comparison with field
+    @param value           Array of values used for comparison with field
+    @param num_values      Number of elements in the array of values
     @param usable_tables   Tables which can be used for key optimization
     @param sargables       IN/OUT Array of found sargable candidates
 
@@ -6244,27 +6261,11 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 
   if (my_init_dynamic_array(keyuse, sizeof(Key_use), 20, 64))
     return TRUE;
+
   if (cond)
-  {
     add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
                    sargables);
-    KEY_FIELD *saved= field;
-    for (; field != end ; field++)
-    {
-      /* Mark that we can optimize LEFT JOIN */
-      if (field->val->type() == Item::NULL_ITEM &&
-	  !field->field->real_maybe_null())
-      {
-        /*
-          Example:
-          SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
-          this just wants rows of t1 where t1.a does not exist in t2.
-        */
-        field->field->table->reginfo.not_exists_optimize=1;
-      }
-    }
-    field= saved;
-  }
+
   for (i=0 ; i < tables ; i++)
   {
     /*
@@ -6295,12 +6296,23 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   }
 
   /* Generate keys descriptions for derived tables */
-  if (generate_derived_keys(select_lex))
+  if (select_lex->join->generate_derived_keys())
     return TRUE;
 
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
   {
+    /* Mark that we can optimize LEFT JOIN */
+    if (field->val->type() == Item::NULL_ITEM &&
+        !field->field->real_maybe_null())
+    {
+      /*
+        Example:
+        SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
+        this just wants rows of t1 where t1.a does not exist in t2.
+      */
+      field->field->table->reginfo.not_exists_optimize=1;
+    }
     if (add_key_part(keyuse,field))
       return TRUE;
   }
@@ -6556,7 +6568,6 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 
   if (!possible_keys.is_clear_all())
     join_tab->const_keys.merge(possible_keys);
-  return;
 }
 
 
@@ -9949,27 +9960,18 @@ static bool make_join_select(JOIN *join, Item *cond)
   @param select_lex generate derived keys for select_lex's derived tables
 
   @details
-  This function generates keys for all derived tables/views of the given
-  select_lex list with help of the TABLE_LIST:generate_keys function.
+  This function generates keys for all derived tables/views of the select_lex
+  to which this join corresponds to with help of the TABLE_LIST:generate_keys
+  function.
 
   @return FALSE all keys were successfully added.
   @return TRUE OOM error
 */
 
-bool generate_derived_keys(SELECT_LEX *select_lex)
+bool JOIN::generate_derived_keys()
 {
   TABLE_LIST *table= select_lex->leaf_tables;
-  JOIN *join= select_lex->join;
-  /*
-    Reserve space for a key for GROUP BY which could be added later.
-    see add_group_and_distinct_keys.
-  */
-  if (join->tables == 1 &&
-      table->is_materialized_derived() &&
-      table->table->file->stats.records > 1 &&
-      (join->tmp_table_param.sum_func_count || join->group ||
-       join->select_distinct))
-    table->table->max_keys++;
+
   for (; table; table= table->next_leaf)
   {
     table->derived_keys_ready= TRUE;
@@ -9982,15 +9984,14 @@ bool generate_derived_keys(SELECT_LEX *select_lex)
 }
 
 
-/*
+/**
   @brief
-  Drops unused keys for each materialized derived table/view
+  Drop unused keys for each materialized derived table/view
 
   @details
-  For materialized derived tables only ref access can be used, it employs
-  only one index, thus we don't need the rest. For each materialized derived
-  table/view call TABLE::use_index to save one index chosen by the optimizer
-  and free others. No key is chosen then all keys will be dropped.
+  For each materialized derived table/view, call TABLE::use_index to save one
+  index chosen by the optimizer and ignore others. If no key is chosen, then all
+  keys will be ignored.
 */
 
 void JOIN::drop_unused_derived_keys()
@@ -10000,21 +10001,24 @@ void JOIN::drop_unused_derived_keys()
     JOIN_TAB *tab= join_tab + i;
     TABLE *table= tab->table;
     /*
-     No need to drop keys descriptions if:
-     1) not a materialized derive table
-     2) it's already materialized
-     3) no keys are defined for it
-     4) only one key and it is already used
+     Save chosen key description if:
+     1) it's a materialized derived table
+     2) it's not yet instantiated
+     3) some keys are defined for it
+     4) only one key defined and it's not chosen (this is used when there is
+        only one defined key and we need to leave it as is if it's used or
+        ignore it otherwise).
     */
-    if (!table->pos_in_table_list->is_materialized_derived() || // (1)
-        table->created ||                                       // (2)
-        table->max_keys == 0 ||                                 // (3)
-        (table->max_keys == 1 && tab->ref.key == 0))            // (4)
-      continue;
-    table->use_index(tab->ref.key);
-    /* Now there is only 1 index, point to it. */
-    if (tab->ref.key > 0)
-      tab->ref.key= 0;
+    if (table->pos_in_table_list->is_materialized_derived() && // (1)
+        !table->created &&                                       // (2)
+        table->max_keys != 0 &&                                 // (3)
+        (table->max_keys != 1 || tab->ref.key != 0))            // (4)
+    {
+      table->use_index(tab->ref.key);
+      /* Now there is only 1 index, point to it. */
+      if (tab->ref.key > 0)
+        tab->ref.key= 0;
+    }
   }
 }
 
@@ -15931,17 +15935,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       Field *field=(*cur_group->item)->get_tmp_table_field();
       DBUG_ASSERT(field->table == table);
       bool maybe_null=(*cur_group->item)->maybe_null;
-      key_part_info->null_bit=0;
-      key_part_info->field=  field;
-      key_part_info->offset= field->offset(table->record[0]);
-      key_part_info->length= (uint16) field->key_length();
-      key_part_info->type=   (uint8) field->key_type();
-      key_part_info->key_type =
-	((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
-	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
-	0 : FIELDFLAG_BINARY;
-      key_part_info->key_part_flag= 0;
+      key_part_info->init_from_field(field);
       if (!using_unique_constraint)
       {
 	cur_group->buff=(char*) group_buff;
@@ -15960,9 +15954,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	    The NULL flag is updated in 'end_update()' and 'end_write()'
 	  */
 	  keyinfo->flags|= HA_NULL_ARE_EQUAL;	// def. that NULL == NULL
-	  key_part_info->null_bit=field->null_bit;
-	  key_part_info->null_offset= (uint) (field->null_ptr -
-					      (uchar*) table->record[0]);
           cur_group->buff++;                        // Pointer to field data
 	  group_buff++;                         // Skipp null flag
 	}
@@ -15970,7 +15961,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL;
 	group_buff+= cur_group->field->pack_length();
       }
-      keyinfo->key_length+=  key_part_info->length;
+      keyinfo->key_length+=  key_part_info->store_length;
     }
   }
 
@@ -16003,13 +15994,13 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                      keyinfo->key_parts * sizeof(KEY_PART_INFO))))
       goto err;
     bzero((void*) key_part_info, keyinfo->key_parts * sizeof(KEY_PART_INFO));
-    table->key_info=share->key_info= keyinfo;
-    keyinfo->key_part=key_part_info;
-    keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
+    table->key_info= share->key_info= keyinfo;
+    keyinfo->key_part= key_part_info;
+    keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    keyinfo->rec_per_key=0;
+    keyinfo->rec_per_key= 0;
 
     /*
       Create an extra field to hold NULL bits so that unique indexes on
@@ -16075,14 +16066,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   share->db_record_offset= 1;
   if (!param->skip_create_table)
   {
-    if (share->db_type() == myisam_hton)
-    {
-      if (create_myisam_tmp_table(table, param->keyinfo, param->start_recinfo,
-                                  &param->recinfo, select_options,
-                                  thd->variables.big_tables))
-        goto err;
-    }
-    if (open_tmp_table(table))
+    if (instantiate_tmp_table(table, param->keyinfo, param->start_recinfo,
+                              &param->recinfo, select_options,
+                              thd->variables.big_tables))
       goto err;
   }
 
@@ -16396,15 +16382,12 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     goto err;
   share->db_record_offset= 1;
   if (share->db_type() == myisam_hton)
-  {
     recinfo++;
-    if (create_myisam_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0, 0))
-      goto err;
-  }
+  if (instantiate_tmp_table(table, keyinfo, start_recinfo, &recinfo, 0, 0))
+    goto err;
+
   sjtbl->start_recinfo= start_recinfo;
   sjtbl->recinfo=       recinfo;
-  if (open_tmp_table(table))
-    goto err;
 
   thd->mem_root= mem_root_save;
   DBUG_RETURN(table);
@@ -16649,7 +16632,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     {
       /* Create an unique key */
       bzero((char*) &keydef,sizeof(keydef));
-      keydef.flag= keyinfo->flags;//HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+      keydef.flag= keyinfo->flags;
       keydef.keysegs=  keyinfo->key_parts;
       keydef.seg= seg;
     }
@@ -16698,11 +16681,11 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     create_info.data_file_length= ~(ulonglong) 0;
 
   if ((error=mi_create(share->table_name.str, share->keys, &keydef,
-		       (uint) (*recinfo - start_recinfo),
-		       start_recinfo,
-		       share->uniques, &uniquedef,
-		       &create_info,
-		       HA_CREATE_TMP_TABLE)))
+                       (uint) (*recinfo - start_recinfo),
+                       start_recinfo,
+                       share->uniques, &uniquedef,
+                       &create_info,
+                       HA_CREATE_TMP_TABLE)))
   {
     table->file->print_error(error,MYF(0));	/* purecov: inspected */
     table->db_stat=0;
@@ -16715,6 +16698,41 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   DBUG_RETURN(1);
 }
 
+
+/**
+  @brief
+  Instantiates temporary table
+
+  @param  table           Table object that describes the table to be
+                          instantiated
+  @param  keyinfo         Description of the index (there is always one index)
+  @param  start_recinfo   Column descriptions
+  @param  recinfo INOUT   End of column descriptions
+  @param  options         Option bits
+
+  @details
+    Creates tmp table and opens it.
+
+  @return
+     FALSE - OK
+     TRUE  - Error
+*/
+
+bool instantiate_tmp_table(TABLE *table, KEY *keyinfo, 
+                           MI_COLUMNDEF *start_recinfo,
+                           MI_COLUMNDEF **recinfo, 
+                           ulonglong options, my_bool big_tables)
+{
+  if (table->s->db_type() == myisam_hton)
+  {
+    if (create_myisam_tmp_table(table, keyinfo, start_recinfo, recinfo,
+                                options, big_tables))
+      return TRUE;
+  }
+  if (open_tmp_table(table))
+    return TRUE;
+  return FALSE;
+}
 
 void
 free_tmp_table(THD *thd, TABLE *entry)
@@ -23205,7 +23223,7 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           need_order=0;
           extra.append(STRING_WITH_LEN("; Using filesort"));
         }
-        if (distinct && test_all_bits(used_tables,thd->used_tables))
+        if (distinct && test_all_bits(used_tables, thd->used_tables))
           extra.append(STRING_WITH_LEN("; Distinct"));
 
         if (tab->loosescan_match_tab)
@@ -23344,7 +23362,7 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
-      res= unit->exec();
+      res= (unit->optimize() || unit->exec());
     res|= unit->cleanup();
   }
   else

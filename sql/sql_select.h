@@ -268,10 +268,11 @@ typedef struct st_join_table : public Sql_alloc
   Next_select_func next_select;
   READ_RECORD	read_record;
   /* 
-    Currently the following two fields are used only for a [NOT] IN subquery
-    if it is executed by an alternative full table scan when the left operand of
+    The following two fields are used for a [NOT] IN subquery if it is
+    executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
-  */  
+    save_read_first_record is also used during derived tables materialization.
+  */
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
   double	worst_seeks;
@@ -1691,12 +1692,15 @@ public:
 
 
   Next_select_func first_select;
-  /*
+  /**
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
     account the changes made by test_if_skip_sort_order()).
   */
   double   best_read;
+  /**
+    The estimated row count of the plan with best read time (see above).
+  */
   ha_rows  best_rowcount;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
@@ -1846,11 +1850,6 @@ public:
   TABLE *table_reexec[1];                       // make_simple_join()
   JOIN_TAB *join_tab_reexec;                    // make_simple_join()
   /* end of allocation caching storage */
-  /**
-    The set of those tables whose fields are referenced in the select list of
-    this select level.
-  */
-  table_map select_list_tables;
 
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
@@ -1904,7 +1903,6 @@ public:
     optimized= 0;
     cond_equal= 0;
     group_optimized_away= 0;
-    select_list_tables= 0;
 
     all_fields= fields_arg;
     if (&fields_list != &fields_arg)      /* Avoid valgrind-warning */
@@ -1978,6 +1976,7 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
+  bool generate_derived_keys();
   void drop_unused_derived_keys();
   /* 
     Return the table for which an index scan can be used to satisfy 
@@ -2257,9 +2256,8 @@ ORDER *simple_remove_const(ORDER *order, Item *where);
 bool const_expression_in_where(Item *cond, Item *comp_item,
                                Field *comp_field= NULL,
                                Item **const_item= NULL);
-bool open_tmp_table(TABLE *table);
-bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
-                             MI_COLUMNDEF *start_recinfo,
-                             MI_COLUMNDEF **recinfo,
-                             ulonglong options, my_bool big_tables);
+bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
+                           MI_COLUMNDEF *start_recinfo,
+                           MI_COLUMNDEF **recinfo,
+                           ulonglong options, my_bool big_tables);
 #endif /* SQL_SELECT_INCLUDED */

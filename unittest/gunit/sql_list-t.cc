@@ -216,4 +216,24 @@ TEST(SqlIlistTest, Iterate)
   }
 }
 
+static int cmp_test(void *a, void *b, void *c)
+{
+  EXPECT_EQ((int)c, 0xFEE1BEEF);
+  return (*(int*)a < *(int*)b) ? -1 : (*(int*)a > *(int*)b) ? 1 : 0;
+}
+
+// Tests list sorting.
+TEST_F(SqlListTest, Sort)
+{
+  int values[] = {1, 9, 2, 7, 3, 6, 4, 5, 8};
+  insert_values(values, &m_int_list);
+  m_int_list.sort(cmp_test, (void*)0xFEE1BEEF);
+  for (int i= 9; i > 0 ; i--)
+  {
+    EXPECT_EQ(*m_int_list.pop(), i);
+  }
+  EXPECT_TRUE(m_int_list.is_empty());
+}
+
+
 }  // namespace
