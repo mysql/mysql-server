@@ -879,6 +879,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
                                      MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
     DBUG_VOID_RETURN;
   table= table_list->table;
+  /* Create derived tables result table prior to reading it's fields list. */
   mysql_handle_single_derived(thd->lex, table_list, &mysql_derived_create);
   List<Item> field_list;
 

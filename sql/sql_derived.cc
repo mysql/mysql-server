@@ -29,15 +29,22 @@
 #include "sql_acl.h"                          // SELECT_ACL
 
 
-/*
+/**
+  @brief
   Call given derived table processor (preparing or filling tables)
 
-  SYNOPSIS
-    mysql_handle_derived()
-    lex                 LEX for this thread
-    processor           procedure of derived table processing
+  @param lex        LEX for this thread
+  @param processor  procedure of derived table processing
 
-  RETURN
+  @details
+  This function runs all derived tables present in the query through specified
+  'phases' and used for preparing derived tables and instantiating result
+  tables. Derived tables are processed in the top->bottom order.
+  This differs from the mysql_handle_derived where recursion goes bottom->up.
+
+  @see TABLE_LIST::handle_derived.
+
+  @return
     FALSE  OK
     TRUE   Error
 */
@@ -50,25 +57,24 @@ mysql_handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*))
   {
     lex->thd->derived_tables_processing= TRUE;
     for (SELECT_LEX *sl= lex->all_selects_list;
-	 sl;
-	 sl= sl->next_select_in_list())
+         sl;
+         sl= sl->next_select_in_list())
     {
       for (TABLE_LIST *table_ref= sl->get_table_list();
-	   table_ref;
-	   table_ref= table_ref->next_local)
+           table_ref;
+           table_ref= table_ref->next_local)
       {
-	if (table_ref->is_view_or_derived() &&
-            (res= (*processor)(lex->thd, lex, table_ref)))
-	  goto out;
+        if ((res= mysql_handle_single_derived(lex, table_ref, processor)))
+          goto out;
       }
       if (lex->describe)
       {
-	/*
-	  Force join->join_tmp creation, because we will use this JOIN
-	  twice for EXPLAIN and we have to have unchanged join for EXPLAINing
-	*/
-	sl->uncacheable|= UNCACHEABLE_EXPLAIN;
-	sl->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+        /*
+          Force join->join_tmp creation, because we will use this JOIN
+          twice for EXPLAIN and we have to have unchanged join for EXPLAINing
+        */
+        sl->uncacheable|= UNCACHEABLE_EXPLAIN;
+        sl->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
       }
     }
   }
@@ -78,8 +84,17 @@ out:
 }
 
 
-/*
+/**
+  @brief
   Run processor on the given derived table.
+
+  @param  thd	    Thread handle
+  @param  lex       LEX for this thread
+  @param  derived   TABLE_LIST for the upper SELECT
+
+  @return
+    false  OK
+    true   Error
 */
 
 bool
@@ -250,9 +265,8 @@ exit:
   Runs optimize phase for the query expression that represents a derived
   table/view.
 
-  @details
-  Runs optimize phase for the query expression that represents a derived
-  table/view. If optimizer finds out that the derived table/view is of the type
+  @note
+  If optimizer finds out that the derived table/view is of the type
   "SELECT a_constant" this functions also materializes it.
 
   @param thd thread handle
@@ -271,15 +285,13 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   // optimize union without execution
   if (unit->optimize() || thd->is_error())
-    goto err;
+    return TRUE;
 
-  if (unit->result->estimated_rowcount <= 1 &&
+  if (unit->get_result()->estimated_rowcount <= 1 &&
       (mysql_derived_create(thd, lex, derived) ||
        mysql_derived_materialize(thd, lex, derived)))
-    goto err;
+    return TRUE;
   return FALSE;
-err:
-  return TRUE;
 }
 
 
@@ -317,21 +329,16 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (!derived->is_materialized_derived() || !table || table->created)
     return FALSE;
   /* create tmp table */
-  select_union *result= (select_union*)unit->result;
+  select_union *result= (select_union*)unit->get_result();
 
-  if (table->s->db_type() == myisam_hton)
-  {
-    if (create_myisam_tmp_table(table, table->key_info,
-                                  result->tmp_table_param.start_recinfo,
-                                  &result->tmp_table_param.recinfo,
-                                  (unit->first_select()->options |
-                                   thd->lex->select_lex.options |
-                                   thd->variables.option_bits |
-                                   TMP_TABLE_ALL_COLUMNS),
-                                   thd->variables.big_tables))
-      return TRUE;
-  }
-  if (open_tmp_table(table))
+  if (instantiate_tmp_table(table, table->key_info,
+                            result->tmp_table_param.start_recinfo,
+                            &result->tmp_table_param.recinfo,
+                            (unit->first_select()->options |
+                             thd->lex->select_lex.options |
+                             thd->variables.option_bits |
+                             TMP_TABLE_ALL_COLUMNS),
+                             thd->variables.big_tables))
     return TRUE;
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
@@ -344,24 +351,23 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 
 /**
   @brief
-  Fill derived table
+  Materialize derived table
 
   @param  thd	    Thread handle
   @param  lex       LEX for this thread
-  @param  unit      node that contains all SELECT's for derived tables
   @param  derived   TABLE_LIST for the upper SELECT
 
   @details
   Derived table is resolved with temporary table. It is created based on the
-  queries defined. After temporary table is filled, if this is not EXPLAIN,
-  then the entire unit / node is deleted. unit is deleted if UNION is used
-  for derived table and node is deleted is it is a  simple SELECT.
+  queries defined. After temporary table is materialized, if this is not
+  EXPLAIN, then the entire unit / node is deleted. unit is deleted if UNION is
+  used for derived table and node is deleted is it is a  simple SELECT.
   If you use this function, make sure it's not called at prepare.
   Due to evaluation of LIMIT clause it can not be used at prepared stage.
 
   @return  FALSE  OK
   @return  TRUE   Error
-  */
+*/
 
 bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 {
@@ -374,9 +380,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (derived->materialized)
     return FALSE;
 
-  SELECT_LEX *first_select= unit->first_select();
   select_union *derived_result= derived->derived_result;
-  SELECT_LEX *save_current_select= lex->current_select;
 
   if (unit->is_union())
   {
@@ -385,28 +389,20 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   }
   else
   {
+    SELECT_LEX *first_select= unit->first_select();
     JOIN *join= first_select->join;
-    unit->set_limit(first_select);
-    if (unit->select_limit_cnt == HA_POS_ERROR)
-      first_select->options&= ~OPTION_FOUND_ROWS;
-
+    SELECT_LEX *save_current_select= lex->current_select;
     lex->current_select= first_select;
 
     DBUG_ASSERT(join && join->optimized);
 
-    if (thd->lex->describe & DESCRIBE_EXTENDED)
-    {
-      join->conds_history= join->conds;
-      join->having_history= (join->having?join->having:join->tmp_having);
-    }
+    unit->set_limit(first_select);
+    if (unit->select_limit_cnt == HA_POS_ERROR)
+      first_select->options&= ~OPTION_FOUND_ROWS;
 
     join->exec();
-
-    if (thd->lex->describe & DESCRIBE_EXTENDED)
-    {
-      first_select->where= join->conds_history;
-      first_select->having= join->having_history;
-    }
+    res= join->error;
+    lex->current_select= save_current_select;
   }
 
   if (!res)
@@ -420,7 +416,6 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
     derived->materialized= TRUE;
   }
-  lex->current_select= save_current_select;
 
   return res;
 }

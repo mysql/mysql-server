@@ -23,7 +23,7 @@ class String;
 struct TABLE;
 typedef struct st_bitmap MY_BITMAP;
 typedef struct st_key KEY;
-typedef struct st_key_part_info KEY_PART_INFO;
+class KEY_PART_INFO;
 
 int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
                  uint *key_length, uint *keypart);

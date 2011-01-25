@@ -1770,6 +1770,7 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
+  select_list_tables= 0;
 }
 
 void st_select_lex::init_select()
@@ -3172,7 +3173,7 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 bool st_select_lex::handle_derived(LEX *lex,
                                    bool (*processor)(THD*, LEX*, TABLE_LIST*))
 {
-  for (TABLE_LIST *table_ref= (TABLE_LIST*) table_list.first;
+  for (TABLE_LIST *table_ref= get_table_list();
        table_ref;
        table_ref= table_ref->next_local)
   {

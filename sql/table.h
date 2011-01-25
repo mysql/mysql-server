@@ -584,7 +584,7 @@ struct TABLE_SHARE
   Field **field;
   Field **found_next_number_field;
   Field *timestamp_field;               /* Used only during open */
-  KEY  *key_info;			/* data of keys in database */
+  KEY  *key_info;			/* data of keys defined for the table */
   uint	*blob_field;			/* Index to blobs in Field arrray*/
 
   uchar	*default_values;		/* row with default values */
@@ -635,8 +635,13 @@ struct TABLE_SHARE
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
-  uint keys, key_parts;
-  uint max_key_length, max_unique_length, total_key_length;
+  uint keys;                            /* Number of keys defined for the table*/
+  uint key_parts;                       /* Number of key parts of all keys
+                                           defined for the table
+                                        */
+  uint max_key_length;                  /* Length of the longest key */
+  uint max_unique_length;               /* Length of the longest unique key */
+  uint total_key_length;
   uint uniques;                         /* Number of UNIQUE index */
   uint null_fields;			/* number of null fields */
   uint blob_fields;			/* number of blob fields */
@@ -948,7 +953,7 @@ public:
   key_map keys_in_use_for_group_by;
   /* Map of keys that can be used to calculate ORDER BY without sorting */
   key_map keys_in_use_for_order_by;
-  KEY  *key_info;			/* data of keys in database */
+  KEY  *key_info;			/* data of keys defined for the table */
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
@@ -1089,7 +1094,7 @@ public:
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   my_bool m_needs_reopen;
-  bool created; /* For tmp tables. TRUE <=> tmp table was actually created.*/
+  bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
   uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
@@ -1349,7 +1354,7 @@ enum enum_open_type
   OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
 };
 
-/*
+/**
   This structure is used to keep info about possible key for the result table
   of a derived table/view.
   The 'referenced_by' is the table map of tables to which this possible
@@ -1358,7 +1363,8 @@ enum enum_open_type
   See also the comment for the TABLE_LIST::update_derived_keys function.
 */
 
-struct Derived_key {
+class Derived_key: public Sql_alloc {
+public:
   table_map referenced_by;
   key_map used_fields;
 };
@@ -1720,6 +1726,7 @@ struct TABLE_LIST
   LEX_STRING view_body_utf8;
 
    /* End of view definition context. */
+  /* List of possible keys. Valid only for materialized derived tables/views. */
   List<Derived_key> derived_key_list;
 
   /**
@@ -1777,6 +1784,9 @@ struct TABLE_LIST
       return prep_where(thd, conds, no_where_clause);
     return FALSE;
   }
+  /**
+    TRUE <=> this is a materializable derived table/view.
+  */
   inline bool is_materialized_derived()
   {
     return (effective_algorithm == VIEW_ALGORITHM_TMPTABLE ||

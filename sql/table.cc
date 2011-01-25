@@ -749,6 +749,60 @@ err_not_open:
 }
 
 
+/**
+  Initialize key_part_flag from source field.
+*/
+
+void KEY_PART_INFO::init_flags()
+{
+  if (field->type() == MYSQL_TYPE_BLOB ||
+      field->real_type() == MYSQL_TYPE_VARCHAR ||
+      field->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    if (field->type() == MYSQL_TYPE_BLOB ||
+        field->type() == MYSQL_TYPE_GEOMETRY)
+      key_part_flag|= HA_BLOB_PART;
+    else
+      key_part_flag|= HA_VAR_LENGTH_PART;
+  }
+  if (field->type() == MYSQL_TYPE_BIT)
+    key_part_flag|= HA_BIT_PART;
+}
+
+
+/**
+  Initialize KEY_PART_INFO from the given field.
+*/
+
+void KEY_PART_INFO::init_from_field(Field *fld)
+{
+  field= fld;
+  fieldnr= field->field_index;
+  null_bit= field->null_bit;
+  null_offset= (uint) (field->null_ptr - (uchar*) field->table->record[0]);
+  offset= field->offset(field->table->record[0]);
+  length= (uint16) field->key_length();
+  store_length= length;
+  key_part_flag= 0;
+
+  if (field->real_maybe_null())
+    store_length+= HA_KEY_NULL_LENGTH;
+  if (field->type() == MYSQL_TYPE_BLOB ||
+      field->real_type() == MYSQL_TYPE_VARCHAR ||
+      field->type() == MYSQL_TYPE_GEOMETRY)
+  {
+    store_length+= HA_KEY_BLOB_LENGTH;
+  }
+  init_flags();
+
+  type=  (uint8) field->key_type();
+  key_type =
+    ((ha_base_keytype) type == HA_KEYTYPE_TEXT ||
+     (ha_base_keytype) type == HA_KEYTYPE_VARTEXT1 ||
+     (ha_base_keytype) type == HA_KEYTYPE_VARTEXT2) ?
+    0 : FIELDFLAG_BINARY;
+}
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 
@@ -1538,17 +1592,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             field->real_type() == MYSQL_TYPE_VARCHAR ||
             field->type() == MYSQL_TYPE_GEOMETRY)
         {
-          if (field->type() == MYSQL_TYPE_BLOB ||
-              field->type() == MYSQL_TYPE_GEOMETRY)
-            key_part->key_part_flag|= HA_BLOB_PART;
-          else
-            key_part->key_part_flag|= HA_VAR_LENGTH_PART;
           key_part->store_length+=HA_KEY_BLOB_LENGTH;
           keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
         }
-        if (field->type() == MYSQL_TYPE_BIT)
-          key_part->key_part_flag|= HA_BIT_PART;
-
+        key_part->init_flags();
         if (i == 0 && key != primary_key)
           field->flags |= (((keyinfo->flags & HA_NOSAME) &&
                            (keyinfo->key_parts == 1)) ?
@@ -5098,31 +5145,29 @@ bool TABLE::alloc_keys(uint key_count)
 
 
 /**
-  @brief Adds one key to a temporary table.
+  @brief Add one key to a temporary table.
 
   @param key_parts      bitmap of fields that take a part in the key.
   @param key_name       name of the key
-  @param covering       create a covering key for all fields
 
   @details
   Creates a key for this table from fields which corresponds the bits set to 1
   in the 'key_parts' bitmap. The 'key_name' name is given to the newly created
   key.
-  When covering is TRUE then key_fields forms the key prefix and other fields
-  forms the rest.
+  @see add_derived_key
 
   @TODO somehow manage to create keys in tmp_table_param for unification
         purposes
 
   @return TRUE OOM error.
-  @return FALSE the key was created or ignored.
+  @return FALSE the key was created or ignored (key over a BLOB field).
 */
 
 bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 {
   DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
 
-  KEY* keyinfo;
+  KEY* cur_key;
   Field **reg_field;
   uint i= 0;
   bool key_start= TRUE;
@@ -5139,7 +5184,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   }
   uint key_part_count= my_count_bits(key_parts);
 
-  /* Allocate keys in the tables' mem_root. */
+  /* Allocate key parts in the tables' mem_root. */
   size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count +
                        sizeof(ulong) * key_part_count;
   key_buf= (uchar*) alloc_root(&mem_root, key_buf_size);
@@ -5147,20 +5192,19 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   if (!key_buf)
     return TRUE;
   memset(key_buf, 0, key_buf_size);
-  keyinfo= key_info + s->keys;
-  keyinfo->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
-  keyinfo->usable_key_parts= keyinfo->key_parts= key_part_count;
+  cur_key= key_info + s->keys;
+  cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
+  cur_key->usable_key_parts= cur_key->key_parts= key_part_count;
   s->key_parts+= key_part_count;
-  keyinfo->key_length=0;
-  keyinfo->algorithm= HA_KEY_ALG_BTREE;
-  keyinfo->name= key_name;
-  keyinfo->flags= HA_GENERATED_KEY;
-  keyinfo->rec_per_key= (ulong*) (key_buf + sizeof(KEY_PART_INFO) * key_part_count);
+  cur_key->key_length=0;
+  cur_key->algorithm= HA_KEY_ALG_BTREE;
+  cur_key->name= key_name;
+  cur_key->flags= HA_GENERATED_KEY;
+  cur_key->rec_per_key= (ulong*) (key_buf + sizeof(KEY_PART_INFO) * key_part_count);
 
   if (field_count == key_part_count)
     covering_keys.set_bit(s->keys);
 
-  keys_in_use_for_query.set_bit(s->keys);
   keys_in_use_for_group_by.set_bit(s->keys);
   keys_in_use_for_order_by.set_bit(s->keys);
   for (i= 0, reg_field=field ; *reg_field; i++, reg_field++)
@@ -5174,57 +5218,26 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
     (*reg_field)->part_of_key.set_bit(s->keys);
     (*reg_field)->part_of_sortkey.set_bit(s->keys);
     (*reg_field)->flags|= PART_KEY_FLAG;
-    key_part_info->fieldnr= i + 1;
-    key_part_info->null_bit= (*reg_field)->null_bit;
-    key_part_info->null_offset= (uint) ((*reg_field)->null_ptr -
-                                          (uchar*) record[0]);
-    key_part_info->field=    *reg_field;
-    key_part_info->offset=   (*reg_field)->offset(record[0]);
-    key_part_info->length=   (uint16) (*reg_field)->key_length();
-    keyinfo->key_length+= key_part_info->length;
-    /* TODO:
-      The below method of computing the key format length of a
-      key part is a copy/paste from opt_range.cc, and table.cc.
-      This should be factored out, e.g. as a method of Field.
-      In addition it is not clear if any of the Field::*_length
-      methods is supposed to compute the same length. If so, it
-      might be reused.
-    */
-    key_part_info->store_length= key_part_info->length;
-    key_part_info->key_part_flag= 0;
-
-    if ((*reg_field)->real_maybe_null())
-      key_part_info->store_length+= HA_KEY_NULL_LENGTH;
-    if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
-        (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
-    {
-      key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
-      key_part_info->key_part_flag|= HA_BLOB_PART;
-    }
-
-    key_part_info->type=     (uint8) (*reg_field)->key_type();
-    key_part_info->key_type =
-      ((ha_base_keytype) key_part_info->type == HA_KEYTYPE_TEXT ||
-       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
-       (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
-      0 : FIELDFLAG_BINARY;
+    key_part_info->init_from_field(*reg_field);
+    cur_key->key_length+= key_part_info->store_length;
     key_part_info++;
   }
-  set_if_bigger(s->max_key_length, keyinfo->key_length);
+  set_if_bigger(s->max_key_length, cur_key->key_length);
   s->keys++;
   return FALSE;
 }
 
 /*
   @brief
-  Drop all indexes except specified one.
+  Save the specified index for later use for ref access.
 
   @param key_to_save the key to save
 
   @details
-  Drop all indexes on this table except 'key_to_save'. The saved key becomes
-  key #0. Memory occupied by key parts will be freed along with the table.
-  If the 'key_to_save' is negative then all keys are freed.
+  Save given index as index #0. Table is configured to ignore other indexes.
+  Memory occupied by other indexes and index parts will be freed along with
+  the table. If the 'key_to_save' is negative then all indexes are freed.
+  @see add_derived_key
 */
 
 void TABLE::use_index(int key_to_save)
@@ -5547,7 +5560,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
   @details
   Retrieve number of rows in the table referred by this TABLE_LIST and
   store it in the table's stats.records variable. If this TABLE_LIST refers
-  to a materialized derived table/view then the estimated number of rows of
+  to a materialized derived table/view, then the estimated number of rows of
   the derived table/view is used instead.
 
   @return 0          ok
@@ -5558,45 +5571,60 @@ int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
   if (is_materialized_derived() && !materialized)
-    table->file->stats.records= derived->result->estimated_rowcount;
+    table->file->stats.records= derived->get_result()->estimated_rowcount;
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
   return error;
 }
 
-/*
-  Procedure of keys generation for result tables of materialized derived
-  tables/views.
 
-  A key is generated for each equi-join pair derived table-another table.
+/**
+  A helper function to add a derived key to the list of possible keys
+
+  @param derived_key_list  list of all possible derived keys
+  @param field             referenced field
+  @param ref_by_tbl        the table that refers to given field
+
+  @details The possible key to be used for join with table with ref_by_tbl
+  table map is extended to include 'field'. If ref_by_tbl == 0 then the key
+  that includes all referred fields is extended.
+
+  @note
+  Procedure of keys generation for result tables of materialized derived
+  tables/views for allowing ref access to them.
+
+  A key is generated for each equi-join pair (derived table, another table).
   Each generated key consists of fields of derived table used in equi-join.
   Example:
 
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
-                  t1 ON tt.f1=t1.f3 and tt.f2.=t1.f4;
-  In this case for the derived table tt one key will be generated. It will
-  consist of two parts f1 and f2. Beside one-per-table keys one additional key
-  is generated. It includes all fields referenced by other tables.
+                  t1 ON tt.f1=t1.f3 and tt.f2=t1.f4;
 
+  In this case for the derived table tt one key will be generated. It will
+  consist of two parts f1 and f2.
   Example:
 
-    SELECT * FROM (SELECT f1, f2. count(*) FROM t1 GROUP BY f1) tt JOIN
+    SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 JOIN
                   t2 ON tt.f2=t2.f4;
+
   In this case for the derived table tt two keys will be generated.
   One key over f1 field, and another key over f2 field.
   Currently optimizer may choose to use only one such key, thus the second
-  one will be dropped after range optimizer is finished.
+  one will be dropped after the range optimizer is finished.
   See also JOIN::drop_unused_derived_keys function.
   Example:
 
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=a_function(t1.f3);
+
   In this case for the derived table tt one key will be generated. It will
   consist of one field - f1.
+  In all cases beside one-per-table keys one additional key is generated.
+  It includes all fields referenced by other tables.
 
   Implementation is split in two steps:
-    gathering information on all used fields of derived tables/view and
+    gather information on all used fields of derived tables/view and
       store it in lists of possible keys, one per a derived table/view.
     add keys to result tables of derived tables/view using info from above
       lists.
@@ -5608,8 +5636,9 @@ int TABLE_LIST::fetch_number_of_rows()
                           (Step one)
     generate_derived_keys This function is called at the moment when all
                           possible info on keys is gathered and it's safe to
-                          add keys. Walk over list of derived tables/views and
-                          calls to TABLE_LIST::generate_keys to actually
+                          add keys - no keys or key parts would be missed.
+                          Walk over list of derived tables/views and
+                          call to TABLE_LIST::generate_keys to actually
                           generate keys. (Step two)
     TABLE_LIST::generate_keys
                           Walks over list of possible keys for this derived
@@ -5621,30 +5650,19 @@ int TABLE_LIST::fetch_number_of_rows()
   There is also the fifth function called TABLE::use_index. It saves used
   key and frees others. It is called when the optimizer has chosen which key
   it will use, thus we don't need other keys anymore.
-*/
-
-/*
-  A helper function to add a derived key to the list of possible keys
-
-  @param derived_key_list  list of all possible derived keys
-  @param field             referenced field
-  @param ref_by_tbl        the table that refers to given field
-
-  @details The possible key to be used for join with table with ref_by_tbl
-  table map is extended to include 'field'. If ref_by_tbl == 0 then the key
-  that includes all referred fields is extended.
 
   @return TRUE  OOM
   @return FALSE otherwise
 */
 
-static bool make_derived_key(List<Derived_key> &derived_key_list, Field *field,
+static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
                              table_map ref_by_tbl)
 {
   uint key= 0;
   Derived_key *entry= 0;
   List_iterator<Derived_key> ki(derived_key_list);
 
+  /* Search for already existing possible key. */
   while ((entry= ki++))
   {
     key++;
@@ -5659,25 +5677,23 @@ static bool make_derived_key(List<Derived_key> &derived_key_list, Field *field,
         break;
     }
   }
+  /* Add new possible key if nothing is found. */
   if (!entry)
   {
     THD *thd= field->table->in_use;
     key++;
-    entry= (Derived_key*)alloc_root(thd->stmt_arena->mem_root,
-                                        sizeof(Derived_key));
+    entry= new (thd->stmt_arena->mem_root) Derived_key();
     if (!entry)
       return TRUE;
     entry->referenced_by= ref_by_tbl;
     entry->used_fields.clear_all();
     if (derived_key_list.push_back(entry, thd->stmt_arena->mem_root))
       return TRUE;
-    field->key_start.set_bit(key - 1);
     field->table->max_keys++;
   }
   field->part_of_key.set_bit(key - 1);
   field->flags|= PART_KEY_FLAG;
   entry->used_fields.set_bit(field->field_index);
-  entry->referenced_by|= ref_by_tbl;
   return FALSE;
 }
 
@@ -5694,7 +5710,8 @@ static bool make_derived_key(List<Derived_key> &derived_key_list, Field *field,
   table/view. For each table used by a value from the 'values' array the
   corresponding possible key is extended to include the 'field'.
   If there is no such possible key then it is created. field's
-  key_start/part_of_key bitmaps are updated accordingly.
+  part_of_key bitmaps are updated accordingly.
+  @see add_derived_key
 
   @return TRUE  new possible key can't be allocated.
   @return FALSE list of possible keys successfully updated.
@@ -5709,7 +5726,7 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
     return FALSE;
 
   /* Allow all keys to be used. */
-  if (!derived_key_list.elements)
+  if (derived_key_list.elements == 0)
   {
     table->keys_in_use_for_query.set_all();
     table->s->uniques= 0;
@@ -5725,12 +5742,12 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
     {
       if (! (tables & tbl))
         continue;
-      if (make_derived_key(derived_key_list, field, tbl))
+      if (add_derived_key(derived_key_list, field, tbl))
         return TRUE;
     }
   }
   /* Extend key which includes all referenced fields. */
-  if (make_derived_key(derived_key_list, field, (table_map)0))
+  if (add_derived_key(derived_key_list, field, (table_map)0))
     return TRUE;
   return FALSE;
 }
@@ -5755,9 +5772,10 @@ static int DKL_sort_func(Derived_key *e1, Derived_key *e2, void *arg)
 
   @details
   This function adds keys to the result table by walking over the list of
-  possible keys for this derived table/view and calling to the
+  possible keys for this derived table/view and calling the
   TABLE::add_tmp_key to actually add keys. A name "auto_key" with a
   sequential number is given to each key to ease debugging.
+  @see add_derived_key
 
   @return TRUE  an error occur.
   @return FALSE all keys were successfully added.
@@ -5797,9 +5815,14 @@ bool TABLE_LIST::generate_keys()
   @param phases derived tables/views handling phases to run
                 (set of DT_XXX constants)
   @details
-  This function runs this derived table through specified 'phases'.
-  Underlying tables of this select are handled prior to this derived.
-  'lex' is passed as an argument to called functions.
+  This function runs this derived table through specified 'phases' and used for
+  handling materialized derived tables. They are processed in the bottom->up
+  order i.e. derived tables that belong to selects of this derived table are
+  handled prior to this derived table itself. This differs from the
+  mysql_handle_derived where recursion goes top->bottom. 'lex' is passed as
+  an argument to called functions.
+
+  @see mysql_handle_derived.
 
   @return TRUE on error
   @return FALSE ok

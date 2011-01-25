@@ -165,6 +165,20 @@ struct list_node :public Sql_alloc
 
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
+
+/**
+  Comparison function for list sorting.
+
+  @param n1   Info of 1st node
+  @param n2   Info of 2nd node
+  @param arg  Additional info
+
+  @return
+    -1  n1 < n2
+     0  n1 == n2
+     1  n1 > n2
+*/
+
 typedef int (*Node_cmp_func)(void *n1, void *n2, void *arg);
 
 class base_list :public Sql_alloc
@@ -285,33 +299,35 @@ public:
       elements+= list->elements;
     }
   }
-  /*
-    The function sorts list nodes by the exchange sort algorithm.
-    As this isn't an effective algorithm the list to be sorted is
-    supposed to be short.
+  /**
+    @brief
+    Sort the list
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+
+    @details
+    The function sorts list nodes by an exchange sort algorithm.
+    The order of list nodes isn't changed, values of info fields are
+    swapped instead. As this isn't an effective algorithm the list to be
+    sorted is supposed to be short.
   */
   void sort(Node_cmp_func cmp, void *arg)
   {
-    bool swap;
-    do
+    if (elements < 2)
+      return;
+    for (list_node *n1= first; n1 && n1 != &end_of_list; n1= n1->next)
     {
-      list_node *n1= first;
-      list_node *n2= first;
-
-      swap= FALSE;
-      while ((n2= n2->next) && n2 != &end_of_list)
+      for (list_node *n2= n1->next; n2 && n2 != &end_of_list; n2= n2->next)
       {
         if ((*cmp)(n1->info, n2->info, arg) < 0)
         {
           void *tmp= n1->info;
           n1->info= n2->info;
           n2->info= tmp;
-          swap= TRUE;
         }
-        else
-          n1= n2;
       }
-    } while (swap);
+    }
   }
   /**
     Swap two lists.
@@ -507,6 +523,13 @@ public:
     }
     empty();
   }
+  /**
+    @brief
+    Sort the list according to provided comparison function
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+  */
   inline void sort(Node_cmp_func cmp, void *arg)
   {
     base_list::sort(cmp, arg);

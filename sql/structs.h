@@ -61,7 +61,8 @@ typedef struct st_keyfile_info {	/* used with ha_info() */
 } KEYFILE_INFO;
 
 
-typedef struct st_key_part_info {	/* Info about a key part */
+class KEY_PART_INFO {	/* Info about a key part */
+public:
   Field *field;
   uint	offset;				/* offset in record (from 0) */
   uint	null_offset;			/* Offset to null_bit in record */
@@ -79,7 +80,9 @@ typedef struct st_key_part_info {	/* Info about a key part */
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
   uint8 null_bit;			/* Position to null_bit */
-} KEY_PART_INFO ;
+  void init_from_field(Field *fld);     /* Fill data from given field */
+  void init_flags();                    /* Set key_part_flag from field */
+};
 
 
 typedef struct st_key {
