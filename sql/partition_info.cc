@@ -139,7 +139,7 @@ bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
       if (is_sub_partitioned())
       {
         /* Mark all subpartitions in the partition */
-        uint j, start= part_def->part_id * num_subparts;
+        uint j, start= part_def->part_id;
         uint end= start + num_subparts;
         for (j= start; j < end; j++)
           bitmap_set_bit(&read_partitions, j);
@@ -642,7 +642,7 @@ char *partition_info::has_unique_names()
   const uchar *curr_name= NULL;
   size_t length;
   List_iterator<partition_element> parts_it(partitions);
-  partition_element *el;  
+  partition_element *p_elem;  
 
   DBUG_ENTER("partition_info::has_unique_names");
   
@@ -662,20 +662,20 @@ char *partition_info::has_unique_names()
     curr_name= (const uchar*) "Internal failure";
     goto error;
   }
-  while ((el= (parts_it++)))
+  while ((p_elem= (parts_it++)))
   {
-    curr_name= (const uchar*) el->partition_name;
-    length= strlen(el->partition_name);
+    curr_name= (const uchar*) p_elem->partition_name;
+    length= strlen(p_elem->partition_name);
     if (my_hash_insert(&partition_names, curr_name))
       goto error;
 
-    if (!el->subpartitions.is_empty())
+    if (!p_elem->subpartitions.is_empty())
     {
-      List_iterator<partition_element> subparts_it(el->subpartitions);
-      partition_element *subel;
-      while ((subel= (subparts_it++)))
+      List_iterator<partition_element> subparts_it(p_elem->subpartitions);
+      partition_element *subp_elem;
+      while ((subp_elem= (subparts_it++)))
       {
-        curr_name= (const uchar*) subel->partition_name;
+        curr_name= (const uchar*) subp_elem->partition_name;
         if (my_hash_insert(&partition_names, curr_name))
           goto error;
       }

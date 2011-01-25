@@ -64,6 +64,7 @@
 
 #include "debug_sync.h"
 
+#define PAR_FILE_ENGINE_OFFSET 12
 static const char *ha_par_ext= ".par";
 
 /****************************************************************************
@@ -2195,7 +2196,7 @@ bool ha_partition::create_handler_file(const char *name)
   tot_len_byte= 4 * tot_len_words;
   if (!(file_buffer= (uchar *) my_malloc(tot_len_byte, MYF(MY_ZEROFILL))))
     DBUG_RETURN(TRUE);
-  engine_array= (file_buffer + 12);
+  engine_array= (file_buffer + PAR_FILE_ENGINE_OFFSET);
   name_buffer_ptr= (char*) (file_buffer + ((4 + tot_partition_words) * 4));
   part_it.rewind();
   for (i= 0; i < num_parts; i++)
@@ -2235,7 +2236,8 @@ bool ha_partition::create_handler_file(const char *name)
   chksum= 0;
   int4store(file_buffer, tot_len_words);
   int4store(file_buffer + 8, tot_parts);
-  int4store(file_buffer + 12 + (tot_partition_words * 4), tot_name_len);
+  int4store(file_buffer + PAR_FILE_ENGINE_OFFSET + (tot_partition_words * 4),
+            tot_name_len);
   for (i= 0; i < tot_len_words; i++)
     chksum^= uint4korr(file_buffer + 4 * i);
   int4store(file_buffer + 4, chksum);
@@ -2456,11 +2458,12 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   m_tot_parts= uint4korr((file_buffer) + 8);
   DBUG_PRINT("info", ("No of parts = %u", m_tot_parts));
   tot_partition_words= (m_tot_parts + 3) / 4;
-  first_db_type= (enum legacy_db_type) file_buffer[12];
+  first_db_type= (enum legacy_db_type) file_buffer[PAR_FILE_ENGINE_OFFSET];
   first_engine= ha_resolve_by_legacy_type(ha_thd(), first_db_type);
   if (!first_engine)
     goto err2;
-  address_tot_name_len= file_buffer + 12 + 4 * tot_partition_words;
+  address_tot_name_len= file_buffer + PAR_FILE_ENGINE_OFFSET +
+                        4 * tot_partition_words;
   tot_name_words= (uint4korr(address_tot_name_len) + 3) / 4;
   if (len_words != (tot_partition_words + tot_name_words + 4))
     goto err2;
@@ -2475,7 +2478,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
 
   for (i= 0; i < m_tot_parts; i++)
   {
-    db_type= (enum legacy_db_type) file_buffer[12 + i];
+    db_type= (enum legacy_db_type) file_buffer[PAR_FILE_ENGINE_OFFSET + i];
     if (db_type != first_db_type)
     {
       DBUG_PRINT("error", ("partition %u engine %d is not same as "
@@ -2581,7 +2584,7 @@ bool ha_partition::populate_partition_name_hash()
     if (part_elem->part_state == PART_NORMAL)
     {
       if (insert_partition_name_in_hash(part_elem->partition_name,
-                                        i, false))
+                                        i * num_subparts, false))
         goto err;
       if (m_is_sub_partitioned)
       {
