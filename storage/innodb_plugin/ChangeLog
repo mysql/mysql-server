@@ -1,3 +1,12 @@
+2011-01-25	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0sea.c,
+	buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
+	include/buf0buf.h, include/buf0buf.ic, include/buf0lru.h,
+	mem/mem0mem.c, page/page0zip.c:
+	Fix Bug#59707 Unused compression-related parameters
+	in buffer pool functions
+
 2011-01-18	The InnoDB Team
 
 	* include/sync0rw.h, sync/sync0arr.c, sync/sync0rw.c:
