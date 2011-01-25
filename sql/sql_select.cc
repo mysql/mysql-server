@@ -749,7 +749,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   unit= unit_arg;
 
   if (tmp_table_param.sum_func_count && !group_list)
+  {
     implicit_grouping= TRUE;
+    // Result will contain zero or one row - ordering is meaningless
+    order= NULL;
+  }
 
 #ifdef RESTRICTED_GROUP
   if (implicit_grouping)
