@@ -550,8 +550,8 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
   data->type=lock_type;
   data->owner= owner;                           /* Must be reset ! */
 
-  MYSQL_START_TABLE_WAIT(locker, &state, data->m_psi,
-                         PSI_TABLE_LOCK, 0, lock_type);
+  MYSQL_START_TABLE_LOCK_WAIT(locker, &state, data->m_psi,
+                              PSI_TABLE_LOCK, lock_type);
 
   mysql_mutex_lock(&lock->mutex);
   DBUG_PRINT("lock",("data: 0x%lx  thread: 0x%lx  lock: 0x%lx  type: %d",
@@ -783,11 +783,11 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
   }
   /* Can't get lock yet;  Wait for it */
   result= wait_for_lock(wait_queue, data, 0, lock_wait_timeout);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_LOCK_WAIT(locker);
   DBUG_RETURN(result);
 end:
   mysql_mutex_unlock(&lock->mutex);
-  MYSQL_END_TABLE_WAIT(locker);
+  MYSQL_END_TABLE_LOCK_WAIT(locker);
   DBUG_RETURN(result);
 }
 
