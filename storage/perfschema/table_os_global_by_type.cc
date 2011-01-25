@@ -101,7 +101,8 @@ table_os_global_by_type::create(void)
 int
 table_os_global_by_type::delete_all_rows(void)
 {
-  reset_per_thread_wait_stat();
+  reset_table_waits_by_table_handle();
+  reset_table_waits_by_table();
   return 0;
 }
 
