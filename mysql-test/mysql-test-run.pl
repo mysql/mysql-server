@@ -108,6 +108,7 @@ require "lib/mtr_misc.pl";
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
+my $mysql_version_extra;
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -1667,12 +1668,13 @@ sub collect_mysqld_features {
       # Look for version
       my $exe_name= basename($exe_mysqld);
       mtr_verbose("exe_name: $exe_name");
-      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)/ )
+      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
       {
 	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
 	#print "mysql_version_id: $mysql_version_id\n";
 	mtr_report("MySQL Version $1.$2.$3");
+	$mysql_version_extra= $4;
       }
     }
     else
@@ -1757,12 +1759,13 @@ sub collect_mysqld_features_from_running_server ()
 
   # Parse version
   my $version_str= $mysqld_variables{'version'};
-  if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)/ )
+  if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
   {
     #print "Major: $1 Minor: $2 Build: $3\n";
     $mysql_version_id= $1*10000 + $2*100 + $3;
     #print "mysql_version_id: $mysql_version_id\n";
     mtr_report("MySQL Version $1.$2.$3");
+    $mysql_version_extra= $4;
   }
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
 }
@@ -2537,6 +2540,17 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  # Check if this is MySQL Cluster, ie. mysql version string ends
+  # with -ndb-Y.Y.Y[-status]
+  if ( defined $mysql_version_extra &&
+       $mysql_version_extra =~ /^-ndb-/ )
+  {
+    mtr_report(" - MySQL Cluster");
+    # Enable ndb engine and add more test suites
+    $opt_include_ndbcluster = 1;
+    $DEFAULT_SUITES.=",ndb";
+  }
 
   if ($opt_include_ndbcluster)
   {
@@ -4220,8 +4234,10 @@ sub check_expected_crash_and_restart {
     {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
 
-      for (my $waits = 0;  $waits < 50;  $waits++)
+      for (my $waits = 0;  $waits < 50;  mtr_milli_sleep(100), $waits++)
       {
+	# Race condition seen on Windows: try again until file not empty
+	next if -z $expect_file;
 	# If last line in expect file starts with "wait"
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
@@ -4230,10 +4246,11 @@ sub check_expected_crash_and_restart {
 	if ($last_line =~ /^wait/ )
 	{
 	  mtr_verbose("Test says wait before restart") if $waits == 0;
-	  mtr_milli_sleep(100);
 	  next;
 	}
 
+	# Ignore any partial or unknown command
+	next unless $last_line =~ /^restart/;
 	# If last line begins "restart:", the rest of the line is read as
         # extra command line options to add to the restarted mysqld.
         # Anything other than 'wait' or 'restart:' (with a colon) will
@@ -4617,6 +4634,8 @@ sub mysqld_start ($$) {
   my @all_opts= @$extra_opts;
   if (exists $mysqld->{'restart_opts'}) {
     push (@all_opts, @{$mysqld->{'restart_opts'}});
+    mtr_verbose(My::Options::toStr("mysqld_start restart",
+				   @{$mysqld->{'restart_opts'}}));
   }
   mysqld_arguments($args,$mysqld,\@all_opts);
 
