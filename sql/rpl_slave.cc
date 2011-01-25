@@ -628,6 +628,31 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   mysql_mutex_t *sql_lock = &mi->rli->run_lock, *io_lock = &mi->run_lock;
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
 
+  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
+  {
+    DBUG_PRINT("info",("Terminating SQL thread"));
+    mi->rli->abort_slave= 1;
+    if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
+                                      &mi->rli->stop_cond,
+                                      &mi->rli->slave_running,
+                                      skip_lock)) &&
+        !force_all)
+      DBUG_RETURN(error);
+
+    mysql_mutex_lock(log_lock);
+
+    DBUG_PRINT("info",("Flushing relay-log info file."));
+    if (current_thd)
+      thd_proc_info(current_thd, "Flushing relay-log info file.");
+
+    /*
+      Flushes the relay log info regardles of the sync_relay_log_info option.
+    */
+    if (mi->rli->flush_info(TRUE))
+      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
+
+    mysql_mutex_unlock(log_lock);
+  }
   if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating IO thread"));
@@ -656,31 +681,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     */
     if (mi->rli->relay_log.is_open() &&
         mi->rli->relay_log.flush_and_sync(0, TRUE))
-      DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
-
-    mysql_mutex_unlock(log_lock);
-  }
-  if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
-  {
-    DBUG_PRINT("info",("Terminating SQL thread"));
-    mi->rli->abort_slave= 1;
-    if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
-                                      &mi->rli->stop_cond,
-                                      &mi->rli->slave_running,
-                                      skip_lock)) &&
-        !force_all)
-      DBUG_RETURN(error);
-
-    mysql_mutex_lock(log_lock);
-
-    DBUG_PRINT("info",("Flushing relay-log info file."));
-    if (current_thd)
-      thd_proc_info(current_thd, "Flushing relay-log info file.");
-
-    /*
-      Flushes the relay log info regardles of the sync_relay_log_info option.
-    */
-    if (mi->rli->flush_info(TRUE))
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
 
     mysql_mutex_unlock(log_lock);
