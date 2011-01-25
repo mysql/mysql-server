@@ -21,7 +21,7 @@ def checkglobals(libname, exceptsymbols, verbose):
             type = match.group(2)
             symbol = match.group(3)
             if verbose: print type, symbol
-            match = re.match("^toku_|^__toku|^db_env_set", symbol)
+            match = re.match("^toku|^__toku|^db_", symbol)
             if match == None and not exceptsymbols.has_key(symbol):
                 print "non toku symbol=", symbol
                 badglobals = 1
