@@ -1,5 +1,11 @@
 2011-01-25	The InnoDB Team
 
+	* row/row0upd.c:
+	Bug#59585 Fix 58912 introduces compiler warning
+	due to potentially uninitialized variable
+
+2011-01-25	The InnoDB Team
+
 	* mtr/mtr0log.c:
 	Bug#59486 Incorrect usage of UNIV_UNLIKELY() in mlog_parse_string()
 
