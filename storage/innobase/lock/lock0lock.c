@@ -4174,8 +4174,11 @@ lock_rec_unlock(
 	ulint	heap_no;
 	size_t	stmt_len;
 
-	ut_ad(trx && rec);
+	ut_ad(trx);
+	ut_ad(rec);
 	ut_ad(block->frame == page_align(rec));
+	ut_ad(!trx->lock.wait_lock);
+	ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -6117,6 +6120,9 @@ lock_unlock_table_autoinc(
 {
 	ut_ad(!lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
+	ut_ad(!trx->lock.wait_lock);
+	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED)
+	      || trx_state_eq(trx, TRX_STATE_ACTIVE));
 
 	/* This function is invoked for a running transaction by the
 	thread that is serving the transaction. Therefore it is not
