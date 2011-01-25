@@ -4440,7 +4440,7 @@ page_zip_reorganize(
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-	temp_block = buf_block_alloc(buf_pool, 0);
+	temp_block = buf_block_alloc(buf_pool);
 	btr_search_drop_page_hash_index(block);
 	block->check_index_page_at_flush = TRUE;
 #else /* !UNIV_HOTBACKUP */
