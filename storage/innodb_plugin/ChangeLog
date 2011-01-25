@@ -1,5 +1,10 @@
 2011-01-25	The InnoDB Team
 
+	* row/row0vers.c:
+	Fix Bug#59464 Race condition in row_vers_build_for_semi_consistent_read
+
+2011-01-25	The InnoDB Team
+
 	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0sea.c,
 	buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
 	include/buf0buf.h, include/buf0buf.ic, include/buf0lru.h,
