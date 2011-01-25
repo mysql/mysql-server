@@ -6949,6 +6949,7 @@ int ha_ndbcluster::create(const char *name,
   size_t pack_length, length;
   uint i, pk_length= 0;
   uchar *data= NULL, *pack_data= NULL;
+  bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   const char *tablespace= create_info->tablespace;
@@ -6958,6 +6959,19 @@ int ha_ndbcluster::create(const char *name,
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  if (create_temporary)
+  {
+    /*
+      Ndb does not support temporary tables
+     */
+    my_errno= ER_ILLEGAL_HA_CREATE_OPTION;
+    DBUG_PRINT("info", ("Ndb doesn't support temporary tables"));
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "Ndb doesn't support temporary tables");
+    DBUG_RETURN(my_errno);
+  }
 
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
   set_dbname(name);
