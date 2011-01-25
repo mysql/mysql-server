@@ -108,6 +108,7 @@ static PFS_thread_class *thread_class_array= NULL;
 PFS_table_share *table_share_array= NULL;
 
 PFS_instr_class global_table_io_class;
+PFS_instr_class global_table_lock_class;
 
 /**
   Hash index for instrumented table shares.
@@ -146,7 +147,7 @@ void init_event_name_sizing(const PFS_global_param *param)
   cond_class_start= rwlock_class_start + param->m_rwlock_class_sizing;
   file_class_start= cond_class_start + param->m_cond_class_sizing;
   table_class_start= file_class_start + param->m_file_class_sizing;
-  max_instrument_class= table_class_start + 1; /* global table io */
+  max_instrument_class= table_class_start + 2; /* global table io, lock */
 
   memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
   global_table_io_class.m_name_length= 25;
@@ -154,8 +155,14 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_io_class.m_enabled= true;
   global_table_io_class.m_timed= true;
   global_table_io_class.m_event_name_index= table_class_start;
-}
 
+  memcpy(global_table_lock_class.m_name, "wait/lock/table/sql/handler", 27);
+  global_table_lock_class.m_name_length= 27;
+  global_table_lock_class.m_flags= 0;
+  global_table_lock_class.m_enabled= true;
+  global_table_lock_class.m_timed= true;
+  global_table_lock_class.m_event_name_index= table_class_start + 1;
+}
 
 /**
   Initialize the instrument synch class buffers.
@@ -334,10 +341,12 @@ void cleanup_table_share_hash(void)
 */
 LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 {
-  if (! table_share_hash_inited)
-    return NULL;
   if (unlikely(thread->m_table_share_hash_pins == NULL))
+  {
+    if (! table_share_hash_inited)
+      return NULL;
     thread->m_table_share_hash_pins= lf_hash_get_pins(&table_share_hash);
+  }
   return thread->m_table_share_hash_pins;
 }
 
@@ -758,12 +767,15 @@ PFS_instr_class *find_table_class(uint index)
 {
   if (index == 1)
     return & global_table_io_class;
+  if (index == 2)
+    return & global_table_lock_class;
   return NULL;
 }
 
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe)
 {
-  if (likely(& global_table_io_class == unsafe))
+  if (likely((& global_table_io_class == unsafe) ||
+             (& global_table_lock_class == unsafe)))
     return unsafe;
   return NULL;
 }
@@ -943,6 +955,22 @@ search:
 
   table_share_lost++;
   return NULL;
+}
+
+void PFS_table_share::aggregate_io(void)
+{
+  uint index= global_table_io_class.m_event_name_index;
+  PFS_single_stat *table_io_total= & global_instr_class_waits_array[index];
+  m_table_stat.sum_io(table_io_total);
+  m_table_stat.reset_io();
+}
+
+void PFS_table_share::aggregate_lock(void)
+{
+  uint index= global_table_lock_class.m_event_name_index;
+  PFS_single_stat *table_lock_total= & global_instr_class_waits_array[index];
+  m_table_stat.sum_lock(table_lock_total);
+  m_table_stat.reset_lock();
 }
 
 void release_table_share(PFS_table_share *pfs)
