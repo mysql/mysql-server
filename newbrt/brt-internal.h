@@ -357,7 +357,9 @@ void mempool_release(struct mempool *); // release anything that was not release
 
 void toku_verify_all_in_mempool(BRTNODE node);
 
-int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height, struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot, int recurse)
+int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height, struct kv_pair *lesser_pivot, struct kv_pair *greatereq_pivot, 
+                         int (*progress_callback)(void *extra, float progress), void *extra,
+                         int recurse, int verbose, int keep_on_going)
     __attribute__ ((warn_unused_result));
 
 void toku_brtheader_free (struct brt_header *h);

@@ -5805,6 +5805,31 @@ locked_db_get_indexer(DB *db, DB_INDEXER **indexer_ptr) {
     toku_ydb_lock(); *indexer_ptr = toku_db_get_indexer(db); toku_ydb_unlock();
 }
 
+struct ydb_verify_context {
+    int (*progress_callback)(void *extra, float progress);
+    void *progress_extra;
+};
+
+static int
+ydb_verify_progress_callback(void *extra, float progress) {
+    struct ydb_verify_context *context = (struct ydb_verify_context *) extra;
+    toku_ydb_unlock_and_yield(1000);
+    int r = 0;
+    if (context->progress_callback)
+        r = context->progress_callback(context->progress_extra, progress);
+    toku_ydb_lock();
+    return r;
+}
+
+static int
+locked_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float progress), void *progress_extra, int verbose, int keep_going) {
+    struct ydb_verify_context context = { progress_callback, progress_extra };
+    toku_ydb_lock();
+    int r = toku_verify_brt_with_progress(db->i->brt, ydb_verify_progress_callback, &context, verbose, keep_going);
+    toku_ydb_unlock();
+    return r;
+}
+
 static int 
 toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
@@ -5851,6 +5876,7 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     SDB(get_fragmentation);
     SDB(set_indexer);
     SDB(get_indexer);
+    SDB(verify_with_progress);
 #undef SDB
     result->dbt_pos_infty = toku_db_dbt_pos_infty;
     result->dbt_neg_infty = toku_db_dbt_neg_infty;
