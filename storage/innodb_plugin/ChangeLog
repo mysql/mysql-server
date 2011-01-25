@@ -1,5 +1,10 @@
 2011-01-25	The InnoDB Team
 
+	* mtr/mtr0log.c:
+	Bug#59486 Incorrect usage of UNIV_UNLIKELY() in mlog_parse_string()
+
+2011-01-25	The InnoDB Team
+
 	* row/row0vers.c:
 	Fix Bug#59464 Race condition in row_vers_build_for_semi_consistent_read
 
