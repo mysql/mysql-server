@@ -21,6 +21,14 @@ drop table t1;
 
 
 #
+# create temporary like on an ndb table should give an error (bug#57437)
+#
+CREATE TABLE bar ( id TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY ) ENGINE=NDBCluster ;
+--error ER_CANT_CREATE_TABLE
+CREATE TEMPORARY TABLE foo LIKE bar ;
+DROP TABLE bar;
+
+#
 # if default storage engine=ndb, temporary tables
 # without explicit engine= should be created as myisam
 #

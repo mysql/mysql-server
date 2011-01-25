@@ -5402,9 +5402,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   err= ha_create_table(thd, dst_path, db, table_name, create_info, 1);
   VOID(pthread_mutex_unlock(&LOCK_open));
 
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  if (!err && create_info->options & HA_LEX_CREATE_TMP_TABLE)
   {
-    if (err || !open_temporary_table(thd, dst_path, db, table_name, 1,
+    if (!open_temporary_table(thd, dst_path, db, table_name, 1,
                                      OTM_OPEN))
     {
       (void) rm_temporary_table(create_info->db_type,
