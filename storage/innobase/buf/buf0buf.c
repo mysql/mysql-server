@@ -424,9 +424,9 @@ UNIV_INTERN
 buf_block_t*
 buf_block_alloc(
 /*============*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		zip_size)	/*!< in: compressed page size in bytes,
-					or 0 if uncompressed tablespace */
+	buf_pool_t*	buf_pool)	/*!< in/out: buffer pool instance,
+					or NULL for round-robin selection
+					of the buffer pool */
 {
 	buf_block_t*	block;
 	ulint		index;
@@ -439,7 +439,7 @@ buf_block_alloc(
 		buf_pool = buf_pool_from_array(index);
 	}
 
-	block = buf_LRU_get_free_block(buf_pool, zip_size);
+	block = buf_LRU_get_free_block(buf_pool);
 
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
@@ -1650,8 +1650,7 @@ shrink_again:
 				dirty++;
 			} else {
 				mutex_exit(&block->mutex);
-				if (buf_LRU_free_block(&block->page,
-						       TRUE, NULL)
+				if (buf_LRU_free_block(&block->page, TRUE)
 				   != BUF_LRU_FREED) {
 					nonfree++;
 				}
@@ -2429,7 +2428,7 @@ buf_block_try_discard_uncompressed(
 	bpage = buf_page_hash_get(buf_pool, space, offset);
 
 	if (bpage) {
-		buf_LRU_free_block(bpage, FALSE, NULL);
+		buf_LRU_free_block(bpage, FALSE);
 	}
 
 	buf_pool_mutex_exit(buf_pool);
@@ -3053,7 +3052,7 @@ wait_until_unfixed:
 
 		/* Allocate an uncompressed page. */
 		mutex_exit(block_mutex);
-		block = buf_LRU_get_free_block(buf_pool, 0);
+		block = buf_LRU_get_free_block(buf_pool);
 		ut_a(block);
 
 		buf_pool_mutex_enter(buf_pool);
@@ -3216,8 +3215,7 @@ wait_until_unfixed:
 		relocated or enter or exit the buf_pool while we
 		are holding the buf_pool->mutex. */
 
-		if (buf_LRU_free_block(&block->page, TRUE, NULL)
-		    == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(&block->page, TRUE) == BUF_LRU_FREED) {
 			buf_pool_mutex_exit(buf_pool);
 			rw_lock_x_lock(hash_lock);
 
@@ -3817,7 +3815,7 @@ buf_page_init_for_read(
 	    && UNIV_LIKELY(!recv_recovery_is_on())) {
 		block = NULL;
 	} else {
-		block = buf_LRU_get_free_block(buf_pool, 0);
+		block = buf_LRU_get_free_block(buf_pool);
 		ut_ad(block);
 		ut_ad(buf_pool_from_block(block) == buf_pool);
 	}
@@ -4042,7 +4040,7 @@ buf_page_create(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(space || !zip_size);
 
-	free_block = buf_LRU_get_free_block(buf_pool, 0);
+	free_block = buf_LRU_get_free_block(buf_pool);
 
 	fold = buf_page_address_fold(space, offset);
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
