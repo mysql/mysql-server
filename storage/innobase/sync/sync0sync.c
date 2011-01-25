@@ -1525,7 +1525,7 @@ sync_close(void)
 
 	for (mutex = UT_LIST_GET_FIRST(mutex_list);
 	     mutex != NULL;
-	     mutex = UT_LIST_GET_FIRST(mutex_list)) {
+	     /* No op */) {
 
 #ifdef UNIV_MEM_DEBUG
 		if (mutex == &mem_hash_mutex) {
@@ -1535,6 +1535,8 @@ sync_close(void)
 #endif /* UNIV_MEM_DEBUG */
 
 		mutex_free(mutex);
+
+	        mutex = UT_LIST_GET_FIRST(mutex_list);
 	}
 
 	mutex_free(&mutex_list_mutex);
