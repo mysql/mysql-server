@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,28 +181,31 @@
   bits in alter_table_flags:
 */
 /*
-  These bits are set if different kinds of indexes can be created
-  off-line without re-create of the table (but with a table lock).
+  These bits are set if different kinds of indexes can be created or dropped
+  in-place without re-creating the table using a temporary table.
+  NO_READ_WRITE indicates that the handler needs concurrent reads and writes
+  of table data to be blocked.
   Partitioning needs both ADD and DROP to be supported by its underlying
   handlers, due to error handling, see bug#57778.
 */
-#define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
-#define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    (1L << 2) /*add unique w/lock*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   (1L << 3) /*drop uniq. w/lock*/
-#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        (1L << 4) /*add prim. w/lock*/
-#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       (1L << 5) /*drop prim. w/lock*/
+#define HA_INPLACE_ADD_INDEX_NO_READ_WRITE         (1L << 0)
+#define HA_INPLACE_DROP_INDEX_NO_READ_WRITE        (1L << 1)
+#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE  (1L << 2)
+#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE (1L << 3)
+#define HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE      (1L << 4)
+#define HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE     (1L << 5)
 /*
-  These are set if different kinds of indexes can be created on-line
-  (without a table lock). If a handler is capable of one or more of
-  these, it should also set the corresponding *_NO_WRITES bit(s).
+  These are set if different kinds of indexes can be created or dropped
+  in-place while still allowing concurrent reads (but not writes) of table
+  data. If a handler is capable of one or more of these, it should also set
+  the corresponding *_NO_READ_WRITE bit(s).
 */
-#define HA_ONLINE_ADD_INDEX                     (1L << 6) /*add index online*/
-#define HA_ONLINE_DROP_INDEX                    (1L << 7) /*drop index online*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX              (1L << 8) /*add unique online*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
-#define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
-#define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+#define HA_INPLACE_ADD_INDEX_NO_WRITE              (1L << 6)
+#define HA_INPLACE_DROP_INDEX_NO_WRITE             (1L << 7)
+#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE       (1L << 8)
+#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
+#define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
+#define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
 /*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
