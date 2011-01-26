@@ -959,9 +959,35 @@ Ndb *ha_ndbcluster::get_ndb(THD *thd)
 void ha_ndbcluster::set_rec_per_key()
 {
   DBUG_ENTER("ha_ndbcluster::set_rec_per_key");
+  /*
+    Set up the 'rec_per_key[]' for keys which we have good knowledge
+    about the distribution. 'rec_per_key[]' is init'ed to '0' by 
+    open_binary_frm(), which is interpreted as 'unknown' by optimizer.
+    -> Not setting 'rec_per_key[]' will force the optimizer to use
+    its own heuristic to estimate 'records pr. key'.
+  */
   for (uint i=0 ; i < table_share->keys ; i++)
   {
-    table->key_info[i].rec_per_key[table->key_info[i].key_parts-1]= 1;
+    switch (get_index_type(i))
+    {
+    case UNIQUE_ORDERED_INDEX:
+    case PRIMARY_KEY_ORDERED_INDEX:
+    case UNIQUE_INDEX:
+    case PRIMARY_KEY_INDEX:
+    {
+      // Index is unique when all 'key_parts' are specified,
+      // else distribution is unknown and not specified here.
+      KEY* key_info= table->key_info + i;
+      key_info->rec_per_key[key_info->key_parts-1]= 1;
+      break;
+    }
+    case ORDERED_INDEX:
+      // 'Records pr. key' are unknown for non-unique indexes.
+      // (May change when we get better index statistics.)
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
   }
   DBUG_VOID_RETURN;
 }
@@ -7639,6 +7665,7 @@ int ha_ndbcluster::create(const char *name,
   size_t pack_length, length;
   uint i, pk_length= 0;
   uchar *data= NULL, *pack_data= NULL;
+  bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   const char *tablespace= create_info->tablespace;
@@ -7650,6 +7677,19 @@ int ha_ndbcluster::create(const char *name,
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
+
+  if (create_temporary)
+  {
+    /*
+      Ndb does not support temporary tables
+     */
+    my_errno= ER_ILLEGAL_HA_CREATE_OPTION;
+    DBUG_PRINT("info", ("Ndb doesn't support temporary tables"));
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "Ndb doesn't support temporary tables");
+    DBUG_RETURN(my_errno);
+  }
 
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
   set_dbname(name);
@@ -10582,8 +10622,10 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
   // Read from hash index with full key
   // This is a "const" table which returns only one record!      
   if ((idx_type != ORDERED_INDEX) &&
-      ((min_key && min_key->length == key_length) || 
-       (max_key && max_key->length == key_length)))
+      ((min_key && min_key->length == key_length) &&
+       (max_key && max_key->length == key_length) &&
+       (min_key->key==max_key->key ||
+        memcmp(min_key->key, max_key->key, key_length)==0)))
     DBUG_RETURN(1);
   
   if ((idx_type == PRIMARY_KEY_ORDERED_INDEX ||
@@ -12783,12 +12825,24 @@ Item*
 ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("cond_push");
+
+  if (cond->used_tables() & ~table->map)
+  {
+    /**
+     * 'cond' refers fields from other tables, or other instances 
+     * of this table, -> reject it.
+     * (Optimizer need to have a better understanding of what is 
+     *  pushable by each handler.)
+     */
+    DBUG_EXECUTE("where",print_where((Item *)cond, "Rejected cond_push", QT_ORDINARY););
+    DBUG_RETURN(cond);
+  }
   if (!m_cond) 
     m_cond= new ha_ndbcluster_cond;
   if (!m_cond)
   {
     my_errno= HA_ERR_OUT_OF_MEM;
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(cond);
   }
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
   DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));

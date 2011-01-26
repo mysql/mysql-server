@@ -27,6 +27,7 @@
 #include <signaldata/NodeStateSignalData.hpp>
 #include "trp_client.hpp"
 #include "trp_node.hpp"
+#include <signaldata/DisconnectRep.hpp>
 
 extern "C" void* runClusterMgr_C(void * me);
 
@@ -56,9 +57,12 @@ public:
   void set_max_api_reg_req_interval(unsigned int millisec) {
     m_max_api_reg_req_interval = millisec;
   }
-  void force_update_connections();
+
+  void lock() { NdbMutex_Lock(clusterMgrThreadMutex); trp_client::lock(); }
+  void unlock() { trp_client::unlock();NdbMutex_Unlock(clusterMgrThreadMutex); }
 
 private:
+  void startup();
   void threadMain();
   
   int  theStop;
@@ -108,15 +112,15 @@ private:
    */
   NdbMutex*     clusterMgrThreadMutex;
 
-  void reportNodeFailed(NodeId nodeId, bool disconnect = false);
-  
   /**
    * Signals received
    */
   void execAPI_REGREQ    (const Uint32 * theData);
-  void execAPI_REGCONF   (const Uint32 * theData);
+  void execAPI_REGCONF   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execAPI_REGREF    (const Uint32 * theData);
-  void execNODE_FAILREP  (const Uint32 * theData);
+  void execCONNECT_REP   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execDISCONNECT_REP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 
   void check_wait_for_hb(NodeId nodeId);
@@ -138,6 +142,8 @@ private:
     }
     node.m_alive = alive;
   }
+
+  void set_node_dead(trp_node&);
 
   void print_nodes(const char* where, NdbOut& out = ndbout);
   void recalcMinDbVersion();

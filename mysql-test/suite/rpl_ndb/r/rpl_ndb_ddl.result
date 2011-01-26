@@ -928,12 +928,12 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 -------- switch to master -------
 SHOW INDEX FROM mysqltest1.t5;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t5	1	my_idx5	1	f1	A	0	NULL	NULL	YES	BTREE	
+t5	1	my_idx5	1	f1	A	NULL	NULL	NULL	YES	BTREE	
 
 -------- switch to slave --------
 SHOW INDEX FROM mysqltest1.t5;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t5	1	my_idx5	1	f1	A	0	NULL	NULL	YES	BTREE	
+t5	1	my_idx5	1	f1	A	NULL	NULL	NULL	YES	BTREE	
 
 -------- switch to master -------
 

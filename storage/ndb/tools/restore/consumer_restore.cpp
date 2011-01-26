@@ -21,6 +21,7 @@
 #include <kernel/ndb_limits.h>
 #include <my_sys.h>
 #include <NdbSleep.h>
+#include <NdbTick.h>
 
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
@@ -362,6 +363,7 @@ BackupRestore::rebuild_indexes(const TableS& table)
   for(size_t i = 0; i<indexes.size(); i++)
   {
     NdbDictionary::Index * idx = indexes[i];
+    Uint64 start = NdbTick_CurrentMillisecond();
     info << "Rebuilding index " << idx->getName() << " on table "
         << tab->getName() << " ..." << flush;
     if (dict->createIndex(* idx, 1) != 0)
@@ -373,7 +375,8 @@ BackupRestore::rebuild_indexes(const TableS& table)
 
       return false;
     }
-    info << "OK" << endl;
+    Uint64 stop = NdbTick_CurrentMillisecond();
+    info << "OK (" << ((stop - start)/1000) << "s)" <<endl;
   }
 
   return true;

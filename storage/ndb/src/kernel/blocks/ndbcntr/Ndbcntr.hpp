@@ -325,6 +325,7 @@ private:
   UintR cnoWaitrep6;
   UintR cnoWaitrep7;
   UintR ctcConnectionP;
+  Uint32 ctcReference;
   UintR ctcReqInfo;
   Uint8 ctransidPhase;
   Uint16 cresponses;

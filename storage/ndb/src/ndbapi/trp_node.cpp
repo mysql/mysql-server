@@ -21,7 +21,7 @@
 trp_node::trp_node()
 {
   compatible = nfCompleteRep = true;
-  m_connected = defined = m_alive = m_api_reg_conf = false;
+  m_connected = defined = m_alive = m_api_reg_conf = m_node_fail_rep = false;
   bzero(&m_state, sizeof(m_state));
   m_state.init();
   m_state.startLevel = NodeState::SL_NOTHING;
@@ -37,6 +37,7 @@ trp_node::operator==(const trp_node& other) const
           defined == other.defined &&
           m_alive == other.m_alive &&
           m_api_reg_conf == other.m_api_reg_conf &&
+          m_node_fail_rep == other.m_node_fail_rep &&
           minDbVersion == other.minDbVersion &&
           memcmp(&m_state, &other.m_state, sizeof(m_state)) == 0);
 }
@@ -50,6 +51,7 @@ operator<<(NdbOut& out, const trp_node& n)
       << ", connected: " << n.m_connected
       << ", api_reg_conf: " << n.m_api_reg_conf
       << ", alive: " << n.m_alive
+      << ", nodefailrep: " << n.m_node_fail_rep
       << ", nfCompleteRep: " << n.nfCompleteRep
       << ", minDbVersion: " << n.minDbVersion
       << ", state: " << n.m_state
