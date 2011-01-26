@@ -30,7 +30,25 @@ extern "C" {
 #else
 #include <pthread.h>
 #endif
+#ifndef NDB_MUTEX_STAT
 typedef pthread_mutex_t NdbMutex;
+#else
+typedef struct {
+  pthread_mutex_t mutex;
+  unsigned cnt_lock;
+  unsigned cnt_lock_contention;
+  unsigned cnt_trylock_ok;
+  unsigned cnt_trylock_nok;
+  unsigned long long min_lock_wait_time_ns;
+  unsigned long long sum_lock_wait_time_ns;
+  unsigned long long max_lock_wait_time_ns;
+  unsigned long long min_hold_time_ns;
+  unsigned long long sum_hold_time_ns;
+  unsigned long long max_hold_time_ns;
+  unsigned long long lock_start_time_ns;
+  char name[32];
+} NdbMutex;
+#endif
 
 /**
  * Create a mutex
@@ -40,6 +58,7 @@ typedef pthread_mutex_t NdbMutex;
  * returnvalue: pointer to the mutex structure
  */
 NdbMutex* NdbMutex_Create(void);
+NdbMutex* NdbMutex_CreateWithName(const char * name);
 
 /**
  * Initialize a mutex created with file-storage or on the stack
@@ -48,6 +67,7 @@ NdbMutex* NdbMutex_Create(void);
  * * returnvalue: 0 = succeeded, -1 = failed
  */
 int NdbMutex_Init(NdbMutex* p_mutex);
+int NdbMutex_InitWithName(NdbMutex* p_mutex, const char * name);
 
 /**
  * Destroy a mutex
