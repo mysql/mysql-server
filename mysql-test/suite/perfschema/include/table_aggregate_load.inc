@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,6 +39,10 @@ truncate performance_schema.table_lock_waits_summary_by_table;
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
+
+# Check the configuration is ok
+show variables like "performance_schema%";
+show status like "performance_schema%";
 
 echo "================== Step 1 ==================";
 execute dump_thread;
