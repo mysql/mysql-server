@@ -3071,8 +3071,7 @@ void do_remove_files_wildcard(struct st_command *command)
     if (ds_wild.length &&
         wild_compare(file->name, ds_wild.str, 0))
       continue;
-    ds_file_to_remove.length= ds_directory.length + 1;
-    ds_file_to_remove.str[ds_directory.length + 1]= 0;
+    ds_file_to_remove.length= ds_directory.length;
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     if ((error= (my_delete(ds_file_to_remove.str, MYF(MY_WME)) != 0)))

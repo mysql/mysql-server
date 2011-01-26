@@ -1063,7 +1063,7 @@ set_warning_flags()
       warnings="$warnings -Wcomment -W"
       warnings="$warnings -Wchar-subscripts -Wformat -Wparentheses -Wsign-compare"
       warnings="$warnings -Wwrite-strings -Wunused-function -Wunused-label"
-      warnings="$warnings -Wunused-value -Wunused-variable"
+      warnings="$warnings -Wunused-value -Wunused-variable -Wno-uninitialized"
 
       if test "x$warning_mode" = "extra" ; then
         warnings="$warnings -Wshadow"
@@ -1094,7 +1094,8 @@ set_with_debug_flags()
 {
   if test "x$with_debug_flag" = "xyes" ; then
     if test "x$developer_flag" = "xyes" ; then
-      loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+      loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG"
+      loc_debug_flags="$loc_debug_flags -Wuninitialized -DFORCE_INIT_OF_VARS"
       loc_debug_flags="$loc_debug_flags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC"
       compiler_flags="$compiler_flags $loc_debug_flags"
     fi

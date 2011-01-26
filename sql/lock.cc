@@ -923,7 +923,10 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     *to++= table;
     if (locks)
       for ( ; org_locks != locks ; org_locks++)
+      {
 	(*org_locks)->debug_print_param= (void *) table;
+	(*org_locks)->lock->name=         table->alias;
+      }
   }
   /*
     We do not use 'tables', because there are cases where store_lock()

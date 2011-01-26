@@ -123,7 +123,7 @@ typedef struct st_thr_lock_data {
   struct st_thr_lock *lock;
   pthread_cond_t *cond;
   void *status_param;			/* Param to status functions */
-  void *debug_print_param;
+  void *debug_print_param;		/* Used by MariaDB for TABLE ref */
   enum thr_lock_type type;
   uint priority;
 } THR_LOCK_DATA;
@@ -149,6 +149,7 @@ typedef struct st_thr_lock {
   my_bool (*start_trans)(void*);	/* When all locks are taken */
   my_bool (*check_status)(void *);
   void   (*fix_status)(void *, void *);/* For thr_merge_locks() */
+  const char *name;                     /* Used for error reporting */
   my_bool allow_multiple_concurrent_insert;
 } THR_LOCK;
 

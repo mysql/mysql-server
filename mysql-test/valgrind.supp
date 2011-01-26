@@ -489,6 +489,21 @@
 }
 
 {
+   dlsym memory loss from plugin on SuSE 11.1 x64
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so
+   obj:/lib*/libdl-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libdl-*.so
+   fun:dlsym
+   fun:*plugin_dl_add*
+}
+
+{
    dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
    Memcheck:Leak
    fun:*alloc
