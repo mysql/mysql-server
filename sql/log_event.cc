@@ -9210,7 +9210,7 @@ int Rows_log_event::find_key()
   KEY *key, *best_key;
   ulong best_rec_per_key, tmp;
   DBUG_ENTER("Rows_log_event::find_key");
-  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+  DBUG_ASSERT(m_table);
 
   best_key_nr= MAX_KEY;
   LINT_INIT(best_key);
