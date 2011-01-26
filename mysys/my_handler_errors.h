@@ -65,7 +65,8 @@ static const char *handler_error_messages[]=
   "Got a fatal error during initialzaction of handler",
   "File to short; Expected more data in file",
   "Read page with wrong checksum",
-  "Too many active concurrent transactions"
+  "Too many active concurrent transactions",
+  "Record not matching the given partition set"
 };
 
 #endif /* MYSYS_MY_HANDLER_ERRORS_INCLUDED */

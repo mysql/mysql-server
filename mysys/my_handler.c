@@ -587,7 +587,7 @@ void my_handler_error_register(void)
   /*
     If you got compilation error here about compile_time_assert array, check
     that every HA_ERR_xxx constant has a corresponding error message in
-    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    handler_error_messages[] list (check mysys/my_handler_errors.h and
     include/my_base.h).
   */
   compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
