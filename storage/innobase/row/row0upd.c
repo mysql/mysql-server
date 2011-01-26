@@ -1250,6 +1250,10 @@ row_upd_changes_ord_field_binary(
 		    || dfield_is_null(dfield)) {
 			/* do nothing special */
 		} else if (UNIV_LIKELY_NULL(ext)) {
+			/* Silence a compiler warning without
+			silencing a Valgrind error. */
+			dfield_len = 0;
+			UNIV_MEM_INVALID(&dfield_len, sizeof dfield_len);
 			/* See if the column is stored externally. */
 			buf = row_ext_lookup(ext, col_no, &dfield_len);
 
