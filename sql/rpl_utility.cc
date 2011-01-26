@@ -1058,6 +1058,8 @@ table_def::~table_def()
 
 #ifndef MYSQL_CLIENT
 
+#define HASH_ROWS_POS_SEARCH_INVALID -1
+
 /**
   Utility methods for handling row based operations.
  */ 
@@ -1071,9 +1073,8 @@ table_def::~table_def()
    entry_ptr= preamble_ptr+1;
    
    preamble_ptr  -----> |-HASH_ROWS_POS_PREAMBLE--|
-                        | - key                   |
-                        | - length                |
                         | - hash_value            |
+                        | - length                |
                         | - is_search_state_inited|
                         | - search_state          |
                         |                         |
@@ -1098,19 +1099,14 @@ typedef struct hash_row_pos_preamble
 {
   
   /**
-     The pointer to the hash table key.
+     The actual key.
   */
-  uchar* key;
-  
+  my_hash_value_type hash_value;
+
   /**
      Length of the key.
   */
   uint length;
-  
-  /**
-     The actual key.
-  */
-  my_hash_value_type hash_value;
   
   /**
      The search state used to iterate over multiple entries for a
@@ -1163,7 +1159,7 @@ hash_slave_rows_get_key(const uchar *record,
   HASH_ROW_POS_PREAMBLE *preamble=(HASH_ROW_POS_PREAMBLE *) record;
   *length= preamble->length;
 
-  DBUG_RETURN((uchar*) preamble->key);
+  DBUG_RETURN((uchar*) &preamble->hash_value);
 }
 
 static void 
@@ -1186,16 +1182,16 @@ bool Hash_slave_rows::is_empty(void)
 
 bool Hash_slave_rows::init(void)
 {
-  my_hash_init(&m_hash,
-               &my_charset_bin,                /* the charater set information */
-               16 /* TODO */,                  /* growth size */
-               0,                              /* key offset */
-               0,                              /* key length */
-               hash_slave_rows_get_key,                        /* get function pointer */
-               (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
-               MYF(0));                        /* flags */
-
-  return 0;
+  if (my_hash_init(&m_hash,
+                   &my_charset_bin,                /* the charater set information */
+                   16 /* TODO */,                  /* growth size */
+                   0,                              /* key offset */
+                   0,                              /* key length */
+                   hash_slave_rows_get_key,                        /* get function pointer */
+                   (my_hash_free_key) hash_slave_rows_free_entry,  /* freefunction pointer */
+                   MYF(0)))                        /* flags */
+    return true;
+  return false;
 }
 
 bool Hash_slave_rows::deinit(void)
@@ -1230,10 +1226,9 @@ HASH_ROW_POS_ENTRY* Hash_slave_rows::make_entry(const uchar* bi_start, const uch
   /**
      Filling in the preamble.
    */
-  preamble->key= (uchar*)&preamble->hash_value;
+  preamble->hash_value= 0;
   preamble->length= sizeof(my_hash_value_type);
-  preamble->search_state= -1;
-  preamble->hash_value= -1;
+  preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
   preamble->is_search_state_inited= false;
     
   /**
@@ -1311,6 +1306,7 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
 {
   DBUG_ENTER("Hash_slave_rows::next");
+  DBUG_ASSERT(*entry);
 
   if (*entry == NULL)
     DBUG_RETURN(true);
@@ -1328,7 +1324,7 @@ bool Hash_slave_rows::next(HASH_ROW_POS_ENTRY** entry)
     used in the search below (and search state is used in a
     one-time-only basis).
    */
-  preamble->search_state= -1;
+  preamble->search_state= HASH_ROWS_POS_SEARCH_INVALID;
   preamble->is_search_state_inited= false;
   
   DBUG_PRINT("debug", ("Looking for record with key=%u in the hash (next).", key));
@@ -1361,9 +1357,9 @@ bool
 Hash_slave_rows::del(HASH_ROW_POS_ENTRY* entry)
 {
   DBUG_ENTER("Hash_slave_rows::del");
-  if (entry)
-    my_hash_delete(&m_hash, (uchar *) get_preamble(entry));
-  else
+  DBUG_ASSERT(entry);
+
+  if (my_hash_delete(&m_hash, (uchar *) get_preamble(entry)))
     DBUG_RETURN(true);
   DBUG_RETURN(false);
 }

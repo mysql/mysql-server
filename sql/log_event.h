@@ -3752,6 +3752,7 @@ protected:
   const uchar *m_curr_row;     /* Start of the row being processed */
   const uchar *m_curr_row_end; /* One-after the end of the current row */
   uchar    *m_key;      /* Buffer to keep key value during searches */
+  uint     m_key_index;
 
   int find_row(const Relay_log_info *const);
 
