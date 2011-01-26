@@ -3024,7 +3024,8 @@ innobase_rollback(
 	if (innobase_release_locks_early && trx->conc_state == TRX_PREPARED
 	    && UT_LIST_GET_LEN(trx->trx_locks) == 0) {
 		sql_print_error("Rollback after releasing locks! "
-				"errno=%d, dberr=%d", errno, trx->error_state);
+				"errno=%d, dberr="ULINTPF,
+				errno, trx->error_state);
 		ut_error;
 	}
 
