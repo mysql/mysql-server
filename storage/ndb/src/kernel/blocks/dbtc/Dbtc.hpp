@@ -1248,7 +1248,12 @@ public:
     // This is needed to correctly propagate 'node masks' when scanning via the
     // SPJ block.
     bool m_pass_all_confs;
-  };   
+
+    /**
+     * Send opcount/total len as different words
+     */
+    bool m_4word_conf;
+  };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
   /*************************************************************************>*/

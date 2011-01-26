@@ -2532,6 +2532,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
     ScanTabReq::setNoDiskFlag(reqInfo, !root.diskInUserProjection());
+    ScanTabReq::set4WordConf(reqInfo, 1);
 
     // Assume LockMode LM_ReadCommited, set related lock flags
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive

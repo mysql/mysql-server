@@ -107,6 +107,7 @@ private:
   static UintR getNoDiskFlag(const UintR & requestInfo);
   static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
   static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
+  static Uint32 get4WordConf(const Uint32&);
 
   /**
    * Set:ers for requestInfo
@@ -125,6 +126,7 @@ private:
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
   static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
   static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
+  static void set4WordConf(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -147,10 +149,11 @@ private:
  n = No disk flag          - 1  Bit 9
  j = Via SPJ flag          - 1  Bit 27
  a = Pass all confs flag   - 1  Bit 28
+ f = 4 word conf           - 1  Bit 29
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbdja
+ pppppppplnhcktzxbbbbbbbbbbdjaf
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -187,8 +190,8 @@ private:
 #define SCAN_NODISK_MASK (1)
 
 #define SCAN_SPJ_SHIFT (27)
-
 #define SCAN_PASS_CONF_SHIFT (28)
+#define SCAN_4WORD_CONF_SHIFT (29)
 
 inline
 Uint8
@@ -376,6 +379,19 @@ ScanTabReq::setPassAllConfsFlag(UintR & requestInfo, Uint32 flag){
   requestInfo |= (flag << SCAN_PASS_CONF_SHIFT);
 }
 
+inline
+UintR
+ScanTabReq::get4WordConf(const UintR & requestInfo){
+  return (requestInfo >> SCAN_4WORD_CONF_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
+  requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+}
+
 /**
  * 
  * SENDER:  Dbtc
@@ -428,17 +444,21 @@ private:
     Uint32 rows;
     Uint32 len;
   };
+
+  /** for 3 word conf */
+  static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 10; };
+  static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 1023;}
 };
 
 /**
  * request info
  *
- o = received operations        - 7  Bits -> Max 255 (Bit 0-7)
- s = status of scan             - 2  Bits -> Max ??? (Bit 8-?) 
+ o = received operations        - 8  Bits -> Max 255 (Bit 0-7)
+ e = end of data                - 1  bit (31)
 
            1111111111222222222233
  01234567890123456789012345678901
- ooooooooss
+ oooooooo                       e
 */
 
 #define OPERATIONS_SHIFT     (0)
