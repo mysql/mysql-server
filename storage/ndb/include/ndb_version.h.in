@@ -435,20 +435,6 @@ ndb_check_hb_order_version(Uint32 x)
   }
 }
 
-/**
- * TODO fix version when merging to main-clone(s)
- */
-#define NDBD_4WORD_SCAN_TABCONF_70 NDB_MAKE_VERSION(7,0,16)
-
-static
-inline
-int
-ndbd_4word_scan_tabconf(Uint32 version)
-{
-  (void)version;
-  return 1;
-}
-
 #define NDBD_SYNCH_SP_70 NDB_MAKE_VERSION(7,0,17)
 #define NDBD_SYNCH_SP_71 NDB_MAKE_VERSION(7,1,6)
 

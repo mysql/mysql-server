@@ -91,9 +91,9 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
 
   if (checkState_TransId(&conf->transId1)) {
     
-    /*
-      If EndOfData is set, close the scan.
-    */
+    /**
+     * If EndOfData is set, close the scan.
+     */
     if (conf->requestInfo == ScanTabConf::EndOfData) {
       if (theScanningOp) {
         theScanningOp->execCLOSE_SCAN_REP();
@@ -105,12 +105,24 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
     }
 
     int scanStatus = 0;
-    for(Uint32 i = 0; i<len; i += 4)
+    Uint32 words_per_op = theScanningOp ? 3 : 4;
+    for(Uint32 i = 0; i<len; i += words_per_op)
     {
       Uint32 ptrI = * ops++;
       Uint32 tcPtrI = * ops++;
-      Uint32 opCount = * ops++;
-      Uint32 totalLen = * ops++;
+      Uint32 opCount;
+      Uint32 totalLen;
+      if (words_per_op == 3)
+      {
+        Uint32 info = * ops++;
+        opCount  = ScanTabConf::getRows(info);
+        totalLen = ScanTabConf::getLength(info);
+      }
+      else
+      {
+        opCount = * ops++;
+        totalLen = * ops++;
+      }
       
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now

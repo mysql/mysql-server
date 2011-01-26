@@ -10273,6 +10273,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->m_scan_cookie = RNIL;
   scanptr.p->m_close_scan_req = false;
   scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
+  scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
 
   ScanFragList list(c_scan_frag_pool, 
 		    scanptr.p->m_running_scan_frags);
@@ -11607,7 +11608,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 
   Uint32 words_per_op = 4;
   const Uint32 ref = apiConnectptr.p->ndbapiBlockref;
-  if (!ndbd_4word_scan_tabconf(getNodeInfo(refToNode(ref)).m_version))
+  if (!scanPtr.p->m_4word_conf)
   {
     jam();
     words_per_op = 3;
@@ -11642,7 +11643,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       
       * ops++ = curr.p->m_apiPtr;
       * ops++ = done ? RNIL : curr.i;
-      if (likely(words_per_op == 4))
+      if (words_per_op == 4)
       {
         * ops++ = curr.p->m_ops;
         * ops++ = curr.p->m_totalLen;
