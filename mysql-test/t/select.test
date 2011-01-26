@@ -4167,4 +4167,47 @@ SET SESSION optimizer_switch=DEFAULT;
 
 DROP TABLE t1,t2,t3;
 
+
+--echo #
+--echo # Bug #707555: crash with equality substitution in ref 
+--echo #
+
+CREATE TABLE t1 (f11 int, f12 int, PRIMARY KEY (f11), KEY (f12)) ;
+INSERT INTO t1 VALUES (1,NULL), (8,NULL);
+
+CREATE TABLE t2 (f21 int, f22 int, f23 int, KEY (f22)) ;
+INSERT INTO t2 VALUES (1,NULL,3), (2,7,8);
+
+CREATE TABLE t3 (f31 int, f32 int(11), PRIMARY KEY (f31), KEY (f32)) ;
+INSERT INTO t3 VALUES (1,494862336);
+
+CREATE TABLE t4 (f41 int, f42 int, PRIMARY KEY (f41), KEY (f42)) ;
+INSERT INTO t4 VALUES (1,NULL), (8,NULL);
+
+CREATE TABLE t5 (f51 int, PRIMARY KEY (f51)) ;
+INSERT IGNORE INTO t5 VALUES (100);
+
+CREATE TABLE t6 (f61 int, f62 int, KEY (f61)) ;
+INSERT INTO t6 VALUES (NULL,1), (3,10);
+
+CREATE TABLE t7 (f71 int, f72 int, KEY (f72)) ;
+INSERT INTO t7 VALUES (1,NULL), (2,7);
+
+EXPLAIN
+SELECT t2.f23 FROM
+  (t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+  LEFT JOIN
+  (((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+  ON t3.f31 = t6.f61
+    WHERE t7.f71>0;
+
+SELECT t2.f23 FROM
+  (t1 LEFT JOIN (t2 JOIN t3 ON t2.f22=t3.f32) ON t1.f11=t3.f31)
+  LEFT JOIN
+  (((t4 JOIN t5 ON t4.f42=t5.f51) LEFT JOIN t6 ON t6.f62>0) JOIN t7 ON t6.f61>0)
+  ON t3.f31 = t6.f61
+    WHERE t7.f71>0;
+
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+
 --echo End of 5.1 tests

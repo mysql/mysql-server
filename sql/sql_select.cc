@@ -1059,6 +1059,8 @@ JOIN::optimize()
       
       Item **ref_item_ptr= tab->ref.items+i;
       Item *ref_item= *ref_item_ptr;
+      if (!ref_item->used_tables() && !(select_options & SELECT_DESCRIBE))
+        continue;
       COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
 	                                     cond_equal;
       ref_item= substitute_for_best_equal_field(ref_item, equals, map2table);
@@ -1067,10 +1069,11 @@ JOIN::optimize()
       {
         *ref_item_ptr= ref_item;
         Item *item= ref_item->real_item();
-        if (item->type() == Item::FIELD_ITEM)
-        {
-          store_key_field *key_copy= (store_key_field *) tab->ref.key_copy[i];
-          key_copy->change_source_field((Item_field *) item);
+        store_key *key_copy= tab->ref.key_copy[i];
+        if (key_copy->type() == store_key::FIELD_STORE_KEY)
+	{
+          store_key_field *field_copy= ((store_key_field *)key_copy);
+          field_copy->change_source_field((Item_field *) item);
         }
       }
     }

@@ -997,6 +997,7 @@ class store_key :public Sql_alloc
 public:
   bool null_key; /* TRUE <=> the value of the key has a null part */
   enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
+  enum Type { FIELD_STORE_KEY, ITEM_STORE_KEY, CONST_ITEM_STORE_KEY };
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)
   {
@@ -1017,6 +1018,7 @@ public:
                                         ptr, null, 1);
   }
   virtual ~store_key() {}			/** Not actually needed */
+  virtual enum Type type() const=0;
   virtual const char *name() const=0;
 
   /**
@@ -1068,7 +1070,9 @@ class store_key_field: public store_key
     {
       copy_field.set(to_field,from_field,0);
     }
-  }
+  }  
+
+  enum Type type() const { return FIELD_STORE_KEY; }
   const char *name() const { return field_name; }
 
   void change_source_field(Item_field *fld_item)
@@ -1116,6 +1120,8 @@ public:
 	       null_ptr_arg ? null_ptr_arg : item_arg->maybe_null ?
 	       &err : (uchar*) 0, length), item(item_arg), use_value(val)
   {}
+
+  enum Type type() const { return ITEM_STORE_KEY; }
   const char *name() const { return "func"; }
 
  protected:  
@@ -1164,6 +1170,8 @@ public:
 		    &err : (uchar*) 0, length, item_arg, FALSE), inited(0)
   {
   }
+
+  enum Type type() const { return CONST_ITEM_STORE_KEY; }
   const char *name() const { return "const"; }
 
 protected:  
