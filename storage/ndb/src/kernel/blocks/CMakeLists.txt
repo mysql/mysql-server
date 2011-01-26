@@ -72,9 +72,9 @@ ADD_LIBRARY(ndbblocks STATIC
     dbtup/DbtupClient.cpp
     ${EXTRA_SRC})
 
-ADD_EXECUTABLE(ndb_print_file
-    print_file.cpp
-    diskpage.cpp
-    dbtup/tuppage.cpp
-)
+MYSQL_ADD_EXECUTABLE(ndb_print_file
+  print_file.cpp
+  diskpage.cpp
+  dbtup/tuppage.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_print_file ndbclient)
