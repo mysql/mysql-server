@@ -6348,6 +6348,31 @@ uint8 ha_partition::table_cache_type()
 }
 
 
+/**
+  Calculate hash value for KEY partitioning using an array of fields.
+
+  @param field_array   An array of the fields in KEY partitioning
+
+  @return hash_value calculated
+
+  @note Uses the hash function on the character set of the field.
+  Integer and floating point fields use the binary character set by default.
+*/
+
+uint32 ha_partition::calculate_key_hash_value(Field **field_array)
+{
+  ulong nr1= 1;
+  ulong nr2= 4;
+
+  do
+  {
+    Field *field= *field_array;
+    field->hash(&nr1, &nr2);
+  } while (*(++field_array));
+  return (uint32) nr1;
+}
+
+
 /****************************************************************************
                 MODULE print messages
 ****************************************************************************/
