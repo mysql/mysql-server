@@ -18,30 +18,58 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
 
-ADD_EXECUTABLE(ndb_waiter waiter.cpp)
+MYSQL_ADD_EXECUTABLE(ndb_waiter
+  waiter.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_waiter ndbportlib ndbNDBT)
-ADD_EXECUTABLE(ndb_drop_table drop_tab.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_drop_table
+  drop_tab.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_drop_table ndbNDBT ndbgeneral)
-ADD_EXECUTABLE(ndb_delete_all delete_all.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_delete_all
+  delete_all.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_delete_all ndbNDBT)
-ADD_EXECUTABLE(ndb_desc desc.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_desc
+  desc.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_desc ndbNDBT)
-ADD_EXECUTABLE(ndb_drop_index drop_index.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_drop_index
+  drop_index.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_drop_index ndbNDBT)
-ADD_EXECUTABLE(ndb_show_tables listTables.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_show_tables
+  listTables.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_show_tables ndbclient ndbNDBT)
-ADD_EXECUTABLE(ndb_select_all select_all.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_select_all
+  select_all.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_select_all ndbNDBT)
-ADD_EXECUTABLE(ndb_select_count select_count.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_select_count
+  select_count.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_select_count ndbNDBT)
-ADD_EXECUTABLE(ndb_restore
-               restore/restore_main.cpp
-               restore/consumer.cpp
-               restore/consumer_restore.cpp
-               restore/consumer_printer.cpp
-               restore/Restore.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_restore
+  restore/restore_main.cpp
+  restore/consumer.cpp
+  restore/consumer_restore.cpp
+  restore/consumer_printer.cpp
+  restore/Restore.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_restore ndbNDBT ndbgeneral)
-ADD_EXECUTABLE(ndb_config ndb_config.cpp)
+
+MYSQL_ADD_EXECUTABLE(ndb_config
+  ndb_config.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_config ndbmgmclient ndbconf)
 
 SET(options "-I${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi")
