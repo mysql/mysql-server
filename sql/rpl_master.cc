@@ -25,6 +25,7 @@
 #include <my_dir.h>
 #include "rpl_handler.h"
 #include "rpl_master.h"
+#include "debug_sync.h"
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -918,6 +919,19 @@ impossible position";
         coord->pos= uint4korr(packet->ptr() + ev_offset + LOG_POS_OFFSET);
 
       event_type= (Log_event_type)((*packet)[LOG_EVENT_OFFSET+ev_offset]);
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if (event_type == XID_EVENT)
+                        {
+                          net_flush(net);
+                          const char act[]=
+                            "now "
+                            "wait_for signal.continue";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        }
+                      });
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
@@ -959,6 +973,14 @@ impossible position";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
+
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if (event_type == XID_EVENT)
+                        {
+                          net_flush(net);
+                        }
+                      });
 
       DBUG_PRINT("info", ("log event code %d", event_type));
       if (event_type == LOAD_EVENT)

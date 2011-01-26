@@ -85,75 +85,39 @@ void table_setup_instruments::reset_position(void)
 
 int table_setup_instruments::rnd_next(void)
 {
-  PFS_mutex_class *mutex_class;
-  PFS_rwlock_class *rwlock_class;
-  PFS_cond_class *cond_class;
-  PFS_file_class *file_class;
-  PFS_instr_class *table_class;
-  PFS_socket_class *socket_class;
+  PFS_instr_class *instr_class;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
        m_pos.next_view())
   {
-    switch (m_pos.m_index_1) {
+    switch (m_pos.m_index_1)
+    {
     case pos_setup_instruments::VIEW_MUTEX:
-      mutex_class= find_mutex_class(m_pos.m_index_2);
-      if (mutex_class)
-      {
-        make_row(mutex_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_mutex_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_RWLOCK:
-      rwlock_class= find_rwlock_class(m_pos.m_index_2);
-      if (rwlock_class)
-      {
-        make_row(rwlock_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_rwlock_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_COND:
-      cond_class= find_cond_class(m_pos.m_index_2);
-      if (cond_class)
-      {
-        make_row(cond_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_cond_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_THREAD:
-      /* Reserved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
+      /* Not used yet  */
+      instr_class= NULL;
       break;
     case pos_setup_instruments::VIEW_FILE:
-      file_class= find_file_class(m_pos.m_index_2);
-      if (file_class)
-      {
-        make_row(file_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
-      break;
-    case pos_setup_instruments::VIEW_SOCKET:
-      socket_class= find_socket_class(m_pos.m_index_2);
-      if (socket_class)
-      {
-        make_row(socket_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_file_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_TABLE:
-      table_class= find_table_class(m_pos.m_index_2);
-      if (table_class)
-      {
-        make_row(table_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_table_class(m_pos.m_index_2);
       break;
+    }
+    if (instr_class)
+    {
+      make_row(instr_class);
+      m_next_pos.set_after(&m_pos);
+      return 0;
     }
   }
 
@@ -162,66 +126,36 @@ int table_setup_instruments::rnd_next(void)
 
 int table_setup_instruments::rnd_pos(const void *pos)
 {
-  PFS_mutex_class *mutex_class;
-  PFS_rwlock_class *rwlock_class;
-  PFS_cond_class *cond_class;
-  PFS_file_class *file_class;
-  PFS_instr_class *table_class;
-  PFS_socket_class *socket_class;
+  PFS_instr_class *instr_class;
+
   set_position(pos);
 
-  switch (m_pos.m_index_1) {
+  switch (m_pos.m_index_1)
+  {
   case pos_setup_instruments::VIEW_MUTEX:
-    mutex_class= find_mutex_class(m_pos.m_index_2);
-    if (mutex_class)
-    {
-      make_row(mutex_class);
-      return 0;
-    }
+    instr_class= find_mutex_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_RWLOCK:
-    rwlock_class= find_rwlock_class(m_pos.m_index_2);
-    if (rwlock_class)
-    {
-      make_row(rwlock_class);
-      return 0;
-    }
+    instr_class= find_rwlock_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_COND:
-    cond_class= find_cond_class(m_pos.m_index_2);
-    if (cond_class)
-    {
-      make_row(cond_class);
-      return 0;
-    }
+    instr_class= find_cond_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_THREAD:
-    /* Reserved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
+    /* Not used yet */
+    instr_class= NULL;
     break;
   case pos_setup_instruments::VIEW_FILE:
-    file_class= find_file_class(m_pos.m_index_2);
-    if (file_class)
-    {
-      make_row(file_class);
-      return 0;
-    }
-    break;
-  case pos_setup_instruments::VIEW_SOCKET:
-    socket_class= find_socket_class(m_pos.m_index_2);
-    if (socket_class)
-    {
-      make_row(socket_class);
-      return 0;
-    }
+    instr_class= find_file_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_TABLE:
-    table_class= find_table_class(m_pos.m_index_2);
-    if (table_class)
-    {
-      make_row(table_class);
-      return 0;
-    }
+    instr_class= find_table_class(m_pos.m_index_2);
     break;
+  }
+  if (instr_class)
+  {
+    make_row(instr_class);
+    return 0;
   }
 
   return HA_ERR_RECORD_DELETED;
