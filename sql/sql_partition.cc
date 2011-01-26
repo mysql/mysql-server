@@ -761,6 +761,9 @@ static bool handle_list_of_fields(List_iterator<char> it,
   bool result;
   char *field_name;
   bool is_list_empty= TRUE;
+  int fields_handled = 0;
+  char* field_name_array[MAX_KEY];
+
   DBUG_ENTER("handle_list_of_fields");
 
   while ((field_name= it++))
@@ -776,6 +779,25 @@ static bool handle_list_of_fields(List_iterator<char> it,
       result= TRUE;
       goto end;
     }
+
+    /*
+      Check for duplicate fields in the list.
+      Assuming that there are not many fields in the partition key list.
+      If there were, it would be better to replace the for-loop
+      with a more efficient algorithm.
+    */
+
+    field_name_array[fields_handled] = field_name;
+    for (int i = 0; i < fields_handled; ++i)
+    {
+      if (my_strcasecmp(system_charset_info,
+                        field_name_array[i], field_name) == 0)
+      {
+        my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+    }
+    fields_handled++;
   }
   if (is_list_empty)
   {
