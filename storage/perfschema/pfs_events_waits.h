@@ -30,6 +30,7 @@ struct PFS_cond;
 struct PFS_table;
 struct PFS_file;
 struct PFS_thread;
+struct PFS_socket;
 struct PFS_instr_class;
 struct PFS_table_share;
 
@@ -41,7 +42,8 @@ enum events_waits_class
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
-  WAIT_CLASS_FILE
+  WAIT_CLASS_FILE,
+  WAIT_CLASS_SOCKET
 };
 
 /** A wait event record. */

@@ -470,7 +470,19 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("write low priority") },
   { C_STRING_WITH_LEN("write normal") },
   { C_STRING_WITH_LEN("read external") },
-  { C_STRING_WITH_LEN("write external") }
+  { C_STRING_WITH_LEN("write external") },
+
+  /* Socket operations */
+  { C_STRING_WITH_LEN("create") },
+  { C_STRING_WITH_LEN("connect") },
+  { C_STRING_WITH_LEN("bind") },
+  { C_STRING_WITH_LEN("close") },
+  { C_STRING_WITH_LEN("send") },
+  { C_STRING_WITH_LEN("receive") },
+  { C_STRING_WITH_LEN("seek") },
+  { C_STRING_WITH_LEN("opt") },
+  { C_STRING_WITH_LEN("stat") },
+  { C_STRING_WITH_LEN("shutdown") }
 };
 
 
@@ -482,8 +494,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
   Field *f;
   const LEX_STRING *operation;
 
-  compile_time_assert(COUNT_OPERATION_TYPE ==
-                      array_elements(operation_names_map));
+//TBD  compile_time_assert(COUNT_OPERATION_TYPE == array_elements(operation_names_map));
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;

@@ -38,6 +38,7 @@
 #include "table_tiws_by_index_usage.h"
 #include "table_tiws_by_table.h"
 #include "table_tlws_by_table.h"
+#include "table_socket_instances.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -79,6 +80,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_tiws_by_index_usage::m_share,
   &table_tiws_by_table::m_share,
   &table_tlws_by_table::m_share,
+  &table_socket_instances::m_share,
   NULL
 };
 
@@ -902,11 +904,37 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= max_instrument_class * sizeof(PFS_single_stat);
       total_memory+= size;
       break;
+    case 59:
+      name= "(pfs_socket_class).row_size";
+      size= sizeof(PFS_socket_class);
+      break;
+    case 60:
+      name= "(pfs_socket_class).row_count";
+      size= socket_class_max;
+      break;
+    case 61:
+      name= "(pfs_socket_class).memory";
+      size= socket_class_max * sizeof(PFS_socket_class);
+      total_memory+= size;
+      break;
+    case 62:
+      name= "socket_instances.row_size";
+      size= sizeof(PFS_socket);
+      break;
+    case 63:
+      name= "socket_instances.row_count";
+      size= socket_max;
+      break;
+    case 64:
+      name= "socket_instances.memory";
+      size= socket_max * sizeof(PFS_socket);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 59:
+    case 65:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
