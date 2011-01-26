@@ -40,3 +40,8 @@ rpl_bhs.*                                # skozlov : WL#5139 - rpl_bhs suite gen
 main.gis-rtree                           # svoj: due to BUG#38965
 main.type_float                          # svoj: due to BUG#38965
 main.type_newdecimal                     # svoj: due to BUG#38965
+
+# Not a test, utility to troubleshoot test failures
+# Flagged as experimental since output will vary
+performance_schema.debug_env             # Bug#59740 2011-02-26 Marc Alff, script needed to investigate the failure
+
