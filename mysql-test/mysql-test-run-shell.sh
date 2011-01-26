@@ -150,7 +150,7 @@ find_valgrind()
   fi
   # >=2.1.2 requires the --tool option, some versions write to stdout, some to stderr
   valgrind --help 2>&1 | grep "\-\-tool" > /dev/null && FIND_VALGRIND="$FIND_VALGRIND --tool=memcheck"
-  FIND_VALGRIND="$FIND_VALGRIND --alignment=8 --leak-check=yes --num-callers=16 --suppressions=$MYSQL_TEST_DIR/valgrind.supp"
+  FIND_VALGRIND="$FIND_VALGRIND --leak-check=yes --num-callers=16 --suppressions=$MYSQL_TEST_DIR/valgrind.supp"
 }
 
 # No paths below as we can't be sure where the program is!
