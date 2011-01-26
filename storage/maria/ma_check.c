@@ -1247,7 +1247,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
     block_info.next_filepos=pos;
     do
     {
-      if (_ma_read_cache(&param->read_cache, block_info.header,
+      if (_ma_read_cache(info, &param->read_cache, block_info.header,
                          (start_block=block_info.next_filepos),
                          sizeof(block_info.header),
                          (flag ? 0 : READING_NEXT) | READING_HEADER))
@@ -1265,7 +1265,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
                               llstr(start_block,llbuff));
         DBUG_RETURN(1);
       }
-      b_type= _ma_get_block_info(&block_info,-1,start_block);
+      b_type= _ma_get_block_info(info, &block_info,-1,start_block);
       if (b_type & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
                     BLOCK_FATAL_ERROR))
       {
@@ -1361,7 +1361,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
         got_error=1;
         break;
       }
-      if (_ma_read_cache(&param->read_cache, to, block_info.filepos,
+      if (_ma_read_cache(info, &param->read_cache, to, block_info.filepos,
                          (uint) block_info.data_len,
                          flag == 1 ? READING_NEXT : 0))
       {
@@ -1464,7 +1464,7 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
     if (_ma_killed_ptr(param))
       DBUG_RETURN(-1);
 
-    if (_ma_read_cache(&param->read_cache, block_info.header, pos,
+    if (_ma_read_cache(info, &param->read_cache, block_info.header, pos,
                        share->pack.ref_length, READING_NEXT))
     {
       _ma_check_print_error(param,
@@ -1489,7 +1489,7 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
       got_error=1;
       goto end;
     }
-    if (_ma_read_cache(&param->read_cache, info->rec_buff,
+    if (_ma_read_cache(info, &param->read_cache, info->rec_buff,
                        block_info.filepos, block_info.rec_len, READING_NEXT))
     {
       _ma_check_print_error(param,
@@ -4850,7 +4850,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	  _ma_check_print_info(param,"Block: %s used by record at %s",
 		     llstr(param->search_after_block,llbuff),
 		     llstr(sort_param->start_recpos,llbuff2));
-	if (_ma_read_cache(&sort_param->read_cache,
+	if (_ma_read_cache(info, &sort_param->read_cache,
                            block_info.header, pos,
 			   MARIA_BLOCK_INFO_HEADER_LENGTH,
 			   (! found_record ? READING_NEXT : 0) |
@@ -4872,7 +4872,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           param->testflag|=T_RETRY_WITHOUT_QUICK;
 	  DBUG_RETURN(1);	/* Something wrong with data */
 	}
-	b_type= _ma_get_block_info(&block_info,-1,pos);
+	b_type= _ma_get_block_info(info, &block_info,-1,pos);
 	if ((b_type & (BLOCK_ERROR | BLOCK_FATAL_ERROR)) ||
 	   ((b_type & BLOCK_FIRST) &&
 	     (block_info.rec_len < (uint) share->base.min_pack_length ||
@@ -5063,7 +5063,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           }
         }
         if (block_info.data_len &&
-            _ma_read_cache(&sort_param->read_cache,to,block_info.filepos,
+            _ma_read_cache(info, &sort_param->read_cache,to,block_info.filepos,
                            block_info.data_len,
                            (found_record == 1 ? READING_NEXT : 0) |
                            parallel_flag))
@@ -5133,7 +5133,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
   case COMPRESSED_RECORD:
     for (searching=0 ;; searching=1, sort_param->pos++)
     {
-      if (_ma_read_cache(&sort_param->read_cache, block_info.header,
+      if (_ma_read_cache(info, &sort_param->read_cache, block_info.header,
 			 sort_param->pos,
 			 share->pack.ref_length,READING_NEXT))
 	DBUG_RETURN(-1);
@@ -5165,7 +5165,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
                                llstr(sort_param->pos,llbuff));
 	continue;
       }
-      if (_ma_read_cache(&sort_param->read_cache, sort_param->rec_buff,
+      if (_ma_read_cache(info, &sort_param->read_cache, sort_param->rec_buff,
 			 block_info.filepos, block_info.rec_len,
 			 READING_NEXT))
       {
@@ -6830,7 +6830,10 @@ static void print_bitmap_description(MARIA_SHARE *share,
                                      pgcache_page_no_t page,
                                      uchar *bitmap_data)
 {
-  char tmp[MAX_BITMAP_INFO_LENGTH];
+  char *tmp= my_malloc(MAX_BITMAP_INFO_LENGTH, MYF(MY_WME));
+  if (!tmp)
+    return;
   _ma_get_bitmap_description(&share->bitmap, bitmap_data, page, tmp);
   printf("Bitmap page %lu\n%s", (ulong) page, tmp);
+  my_free(tmp, MYF(0));
 }

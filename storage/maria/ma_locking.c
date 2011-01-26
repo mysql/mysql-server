@@ -536,6 +536,7 @@ void _ma_mark_file_crashed(MARIA_SHARE *share)
 
 void _ma_set_fatal_error(MARIA_SHARE *share, int error)
 {
+  DBUG_PRINT("error", ("error: %d", error));
   maria_mark_crashed_share(share);
   if (!(share->state.changed & STATE_CRASHED_PRINTED))
   {

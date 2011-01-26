@@ -193,7 +193,7 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   /* Only the first three bytes of magic number are independent of version. */
   if (memcmp(header, maria_pack_file_magic, 3))
   {
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
     goto err0;
   }
   share->pack.version= header[3]; /* fourth uchar of magic number */
@@ -330,7 +330,7 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   DBUG_RETURN(0);
 
 err3:
-  my_errno=HA_ERR_WRONG_IN_RECORD;
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
 err2:
   my_free(share->decode_tables, MYF(0));
 err1:
@@ -759,7 +759,7 @@ int _ma_read_pack_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
   DBUG_RETURN(_ma_pack_rec_unpack(info,&info->bit_buff, buf,
                                   info->rec_buff, block_info.rec_len));
 panic:
-  my_errno=HA_ERR_WRONG_IN_RECORD;
+  _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
 err:
   DBUG_RETURN(my_errno);
 }
@@ -794,7 +794,8 @@ int _ma_pack_rec_unpack(register MARIA_HA *info, MARIA_BIT_BUFF *bit_buff,
       bit_buff->pos - bit_buff->bits / 8 == bit_buff->end)
     DBUG_RETURN(0);
   info->update&= ~HA_STATE_AKTIV;
-  DBUG_RETURN(my_errno=HA_ERR_WRONG_IN_RECORD);
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
+  DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
 } /* _ma_pack_rec_unpack */
 
 
@@ -1359,7 +1360,7 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
   file= info->dfile.file;
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_ma_read_cache(&info->rec_cache, block_info.header,
+    if (_ma_read_cache(info, &info->rec_cache, block_info.header,
                        filepos, share->pack.ref_length,
                        skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
@@ -1372,14 +1373,14 @@ int _ma_read_rnd_pack_record(MARIA_HA *info,
 #ifndef DBUG_OFF
   if (block_info.rec_len > share->max_pack_length)
   {
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
     goto err;
   }
 #endif
 
   if (info->opt_flag & READ_CACHE_USED)
   {
-    if (_ma_read_cache(&info->rec_cache, info->rec_buff,
+    if (_ma_read_cache(info, &info->rec_cache, info->rec_buff,
                        block_info.filepos, block_info.rec_len,
                        skip_deleted_blocks ? READING_NEXT : 0))
       goto err;
@@ -1645,7 +1646,7 @@ static int _ma_read_rnd_mempack_record(MARIA_HA *info,
 #ifndef DBUG_OFF
   if (block_info.rec_len > info->s->max_pack_length)
   {
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
     goto err;
   }
 #endif

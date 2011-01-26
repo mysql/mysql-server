@@ -297,6 +297,6 @@ int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
   }
   /* my_errno should be set if rec_cache.error == -1 */
   if (info->rec_cache.error != -1 || my_errno == 0)
-    my_errno=HA_ERR_WRONG_IN_RECORD;
+    _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
   DBUG_RETURN(my_errno);			/* Something wrong (EOF?) */
 }

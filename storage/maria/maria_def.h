@@ -1018,7 +1018,7 @@ extern MARIA_KEY *_ma_pack_key(MARIA_HA *info, MARIA_KEY *int_key,
                                HA_KEYSEG ** last_used_keyseg);
 extern void _ma_copy_key(MARIA_KEY *to, const MARIA_KEY *from);
 extern int _ma_read_key_record(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS);
-extern my_bool _ma_read_cache(IO_CACHE *info, uchar *buff,
+extern my_bool _ma_read_cache(MARIA_HA *, IO_CACHE *info, uchar *buff,
                               MARIA_RECORD_POS pos, size_t length,
                               uint re_read_if_possibly);
 extern ulonglong ma_retrieve_auto_increment(const uchar *key, uint8 key_type);
@@ -1100,7 +1100,7 @@ typedef struct st_maria_block_info
 #define fast_ma_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _ma_writeinfo((INFO),0)
 #define fast_ma_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _ma_readinfo((INFO),F_RDLCK,1)
 
-extern uint _ma_get_block_info(MARIA_BLOCK_INFO *, File, my_off_t);
+extern uint _ma_get_block_info(MARIA_HA *, MARIA_BLOCK_INFO *, File, my_off_t);
 extern uint _ma_rec_pack(MARIA_HA *info, uchar *to, const uchar *from);
 extern uint _ma_pack_get_block_info(MARIA_HA *maria, MARIA_BIT_BUFF *bit_buff,
                                     MARIA_BLOCK_INFO *info, uchar **rec_buff_p,

@@ -391,12 +391,12 @@ static int _ma_find_writepos(MARIA_HA *info,
     *filepos=info->s->state.dellink;
     block_info.second_read=0;
     info->rec_cache.seek_not_done=1;
-    if (!(_ma_get_block_info(&block_info, info->dfile.file,
+    if (!(_ma_get_block_info(info, &block_info, info->dfile.file,
                              info->s->state.dellink) &
 	   BLOCK_DELETED))
     {
       DBUG_PRINT("error",("Delete link crashed"));
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(-1);
     }
     info->s->state.dellink=block_info.next_filepos;
@@ -452,7 +452,8 @@ static my_bool unlink_deleted_block(MARIA_HA *info,
     MARIA_BLOCK_INFO tmp;
     tmp.second_read=0;
     /* Unlink block from the previous block */
-    if (!(_ma_get_block_info(&tmp, info->dfile.file, block_info->prev_filepos)
+    if (!(_ma_get_block_info(info, &tmp, info->dfile.file,
+                             block_info->prev_filepos)
 	  & BLOCK_DELETED))
       DBUG_RETURN(1);				/* Something is wrong */
     mi_sizestore(tmp.header+4,block_info->next_filepos);
@@ -462,7 +463,7 @@ static my_bool unlink_deleted_block(MARIA_HA *info,
     /* Unlink block from next block */
     if (block_info->next_filepos != HA_OFFSET_ERROR)
     {
-      if (!(_ma_get_block_info(&tmp, info->dfile.file,
+      if (!(_ma_get_block_info(info, &tmp, info->dfile.file,
                                block_info->next_filepos)
 	    & BLOCK_DELETED))
 	DBUG_RETURN(1);				/* Something is wrong */
@@ -514,7 +515,7 @@ static my_bool update_backward_delete_link(MARIA_HA *info,
   if (delete_block != HA_OFFSET_ERROR)
   {
     block_info.second_read=0;
-    if (_ma_get_block_info(&block_info, info->dfile.file, delete_block)
+    if (_ma_get_block_info(info, &block_info, info->dfile.file, delete_block)
 	& BLOCK_DELETED)
     {
       uchar buff[8];
@@ -524,7 +525,7 @@ static my_bool update_backward_delete_link(MARIA_HA *info,
     }
     else
     {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(1);				/* Wrong delete link */
     }
   }
@@ -550,19 +551,21 @@ static my_bool delete_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
   do
   {
     /* Remove block at 'filepos' */
-    if ((b_type= _ma_get_block_info(&block_info, info->dfile.file, filepos))
+    if ((b_type= _ma_get_block_info(info, &block_info, info->dfile.file,
+                                    filepos))
 	& (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	   BLOCK_FATAL_ERROR) ||
 	(length=(uint) (block_info.filepos-filepos) +block_info.block_len) <
 	MARIA_MIN_BLOCK_LENGTH)
     {
-      my_errno=HA_ERR_WRONG_IN_RECORD;
+      _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
       DBUG_RETURN(1);
     }
     /* Check if next block is a delete block */
     del_block.second_read=0;
     remove_next_block=0;
-    if (_ma_get_block_info(&del_block, info->dfile.file, filepos + length) &
+    if (_ma_get_block_info(info, &del_block, info->dfile.file,
+                           filepos + length) &
 	BLOCK_DELETED && del_block.block_len+length <
         MARIA_DYN_MAX_BLOCK_LENGTH)
     {
@@ -722,7 +725,7 @@ int _ma_write_part_record(MARIA_HA *info,
     if (next_block < info->state->data_file_length &&
 	info->s->state.dellink != HA_OFFSET_ERROR)
     {
-      if ((_ma_get_block_info(&del_block, info->dfile.file, next_block)
+      if ((_ma_get_block_info(info, &del_block, info->dfile.file, next_block)
 	   & BLOCK_DELETED) &&
 	  res_length + del_block.block_len < MARIA_DYN_MAX_BLOCK_LENGTH)
       {
@@ -834,13 +837,14 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
     if (filepos != info->s->state.dellink)
     {
       block_info.next_filepos= HA_OFFSET_ERROR;
-      if ((error= _ma_get_block_info(&block_info, info->dfile.file, filepos))
+      if ((error= _ma_get_block_info(info, &block_info, info->dfile.file,
+                                     filepos))
 	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	     BLOCK_FATAL_ERROR))
       {
 	DBUG_PRINT("error",("Got wrong block info"));
 	if (!(error & BLOCK_FATAL_ERROR))
-	  my_errno=HA_ERR_WRONG_IN_RECORD;
+          _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
 	goto err;
       }
       length=(ulong) (block_info.filepos-filepos) + block_info.block_len;
@@ -875,7 +879,7 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
 
 	  MARIA_BLOCK_INFO del_block;
 	  del_block.second_read=0;
-	  if (_ma_get_block_info(&del_block, info->dfile.file,
+	  if (_ma_get_block_info(info, &del_block, info->dfile.file,
 				 block_info.filepos + block_info.block_len) &
 	      BLOCK_DELETED)
 	  {
@@ -1346,7 +1350,7 @@ ulong _ma_rec_unpack(register MARIA_HA *info, register uchar *to, uchar *from,
     DBUG_RETURN(found_length);
 
 err:
-  my_errno= HA_ERR_WRONG_IN_RECORD;
+  _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
   DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
 		      (long) to, (long) to_end, (long) from, (long) from_end));
   DBUG_DUMP("from", info->rec_buff, info->s->base.min_pack_length);
@@ -1473,7 +1477,7 @@ int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
         flush_io_cache(&info->rec_cache))
       goto err;
     info->rec_cache.seek_not_done=1;
-    if ((b_type= _ma_get_block_info(&block_info, file, filepos)) &
+    if ((b_type= _ma_get_block_info(info, &block_info, file, filepos)) &
         (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
          BLOCK_FATAL_ERROR))
     {
@@ -1545,7 +1549,7 @@ err:
   DBUG_RETURN(my_errno);
 
 panic:
-  my_errno=HA_ERR_WRONG_IN_RECORD;
+  _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
   goto err;
 }
 
@@ -1627,7 +1631,7 @@ my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
     block_info.next_filepos=filepos;
     while (reclength > 0)
     {
-      if ((b_type= _ma_get_block_info(&block_info, info->dfile.file,
+      if ((b_type= _ma_get_block_info(info, &block_info, info->dfile.file,
 				    block_info.next_filepos))
 	  & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
 	     BLOCK_FATAL_ERROR))
@@ -1646,7 +1650,7 @@ my_bool _ma_cmp_dynamic_record(register MARIA_HA *info,
 	}
       } else if (reclength < block_info.data_len)
       {
-	my_errno=HA_ERR_WRONG_IN_RECORD;
+        _ma_set_fatal_error(info->s, HA_ERR_WRONG_IN_RECORD);
 	goto err;
       }
       reclength-= block_info.data_len;
@@ -1779,12 +1783,12 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
     }
     if (info->opt_flag & READ_CACHE_USED)
     {
-      if (_ma_read_cache(&info->rec_cache, block_info.header, filepos,
+      if (_ma_read_cache(info, &info->rec_cache, block_info.header, filepos,
 			 sizeof(block_info.header),
 			 (!block_of_record && skip_deleted_blocks ?
                           READING_NEXT : 0) | READING_HEADER))
 	goto panic;
-      b_type= _ma_get_block_info(&block_info,-1,filepos);
+      b_type= _ma_get_block_info(info, &block_info,-1,filepos);
     }
     else
     {
@@ -1793,7 +1797,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	  flush_io_cache(&info->rec_cache))
 	DBUG_RETURN(my_errno);
       info->rec_cache.seek_not_done=1;
-      b_type= _ma_get_block_info(&block_info, info->dfile.file, filepos);
+      b_type= _ma_get_block_info(info, &block_info, info->dfile.file, filepos);
     }
 
     if (b_type & (BLOCK_DELETED | BLOCK_ERROR | BLOCK_SYNC_ERROR |
@@ -1855,7 +1859,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
     {
       if (info->opt_flag & READ_CACHE_USED)
       {
-	if (_ma_read_cache(&info->rec_cache, to,filepos,
+	if (_ma_read_cache(info, &info->rec_cache, to,filepos,
 			   block_info.data_len,
 			   (!block_of_record && skip_deleted_blocks) ?
                            READING_NEXT : 0))
@@ -1872,7 +1876,10 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
 	if (my_read(info->dfile.file, to, block_info.data_len, MYF(MY_NABP)))
 	{
 	  if (my_errno == HA_ERR_FILE_TOO_SHORT)
-	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
+          {
+            /* Unexpected end of file */
+            _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
+          }
 	  goto err;
 	}
       }
@@ -1899,7 +1906,8 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
   DBUG_RETURN(my_errno);			/* Wrong record */
 
 panic:
-  my_errno=HA_ERR_WRONG_IN_RECORD;		/* Something is fatal wrong */
+  /* Something is fatal wrong */
+  _ma_set_fatal_error(share, HA_ERR_WRONG_IN_RECORD);
 err:
   fast_ma_writeinfo(info);
   DBUG_RETURN(my_errno);
@@ -1908,7 +1916,8 @@ err:
 
 	/* Read and process header from a dynamic-record-file */
 
-uint _ma_get_block_info(MARIA_BLOCK_INFO *info, File file, my_off_t filepos)
+uint _ma_get_block_info(MARIA_HA *handler, MARIA_BLOCK_INFO *info, File file,
+                        my_off_t filepos)
 {
   uint return_val=0;
   uchar *header=info->header;
@@ -1923,7 +1932,14 @@ uint _ma_get_block_info(MARIA_BLOCK_INFO *info, File file, my_off_t filepos)
     VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
     if (my_read(file, header, sizeof(info->header),MYF(0)) !=
 	sizeof(info->header))
-      goto err;
+    {
+      /*
+        This is either an error or just reading at end of file.
+        Don't give a fatal error for this case.
+      */
+      my_errno= HA_ERR_WRONG_IN_RECORD;
+      return BLOCK_ERROR;
+    }
   }
   DBUG_DUMP("header",header,MARIA_BLOCK_INFO_HEADER_LENGTH);
   if (info->second_read)
@@ -2037,6 +2053,6 @@ uint _ma_get_block_info(MARIA_BLOCK_INFO *info, File file, my_off_t filepos)
   }
 
 err:
-  my_errno=HA_ERR_WRONG_IN_RECORD;	 /* Garbage */
+  _ma_set_fatal_error(handler->s, HA_ERR_WRONG_IN_RECORD);
   return BLOCK_ERROR;
 }

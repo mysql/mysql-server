@@ -35,8 +35,8 @@
 
 #include "maria_def.h"
 
-my_bool _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
-                       size_t length, uint flag)
+my_bool _ma_read_cache(MARIA_HA *handler, IO_CACHE *info, uchar *buff,
+                       my_off_t pos, size_t length, uint flag)
 {
   size_t read_length,in_buff_length;
   my_off_t offset;
@@ -98,7 +98,7 @@ my_bool _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
                ("Error %d reading next-multi-part block (Got %d bytes)",
                 my_errno, (int) read_length));
     if (!my_errno || my_errno == HA_ERR_FILE_TOO_SHORT)
-      my_errno= HA_ERR_WRONG_IN_RECORD;
+      _ma_set_fatal_error(handler->s, HA_ERR_WRONG_IN_RECORD);
     DBUG_RETURN(1);
   }
   bzero(buff+read_length,MARIA_BLOCK_INFO_HEADER_LENGTH - in_buff_length -
