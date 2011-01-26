@@ -60,7 +60,7 @@
 */
 
 #ifndef SAFEMALLOC
-#define SAFEMALLOC			/* Get protos from my_sys */
+#define SAFEMALLOC 1                    /* Get protos from my_sys */
 #endif
 
 #include "mysys_priv.h"
