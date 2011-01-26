@@ -7255,8 +7255,12 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
       mysql_free_result(res);     /* Free normal result set with meta data */
 
-      /* Clear prepare warnings */
-      dynstr_set(&ds_prepare_warnings, NULL);
+      /*
+        Clear prepare warnings if there are execute warnings,
+        since they are probably duplicated.
+      */
+      if (ds_execute_warnings.length || mysql->warning_count)
+        dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
