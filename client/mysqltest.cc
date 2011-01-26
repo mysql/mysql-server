@@ -3024,6 +3024,7 @@ void do_remove_files_wildcard(struct st_command *command)
 {
   int error= 0, sys_errno= 0;
   uint i;
+  size_t directory_length;
   MY_DIR *dir_info;
   FILEINFO *file;
   char dir_separator[2];
@@ -3054,8 +3055,8 @@ void do_remove_files_wildcard(struct st_command *command)
   }
   init_dynamic_string(&ds_file_to_remove, dirname, 1024, 1024);
   dir_separator[0]= FN_LIBCHAR;
-  dir_separator[1]= 0;
-  dynstr_append(&ds_file_to_remove, dir_separator);
+  dynstr_append_mem(&ds_file_to_remove, dir_separator, 1);
+  directory_length= ds_file_to_remove.length;
   
   /* Set default wild chars for wild_compare, is changed in embedded mode */
   set_wild_chars(1);
@@ -3071,7 +3072,7 @@ void do_remove_files_wildcard(struct st_command *command)
     if (ds_wild.length &&
         wild_compare(file->name, ds_wild.str, 0))
       continue;
-    ds_file_to_remove.length= ds_directory.length;
+    ds_file_to_remove.length= directory_length;
     dynstr_append(&ds_file_to_remove, file->name);
     DBUG_PRINT("info", ("removing file: %s", ds_file_to_remove.str));
     if ((error= (my_delete(ds_file_to_remove.str, MYF(MY_WME)) != 0)))
