@@ -15,7 +15,6 @@
 
 # About "mysqlclient_notls", see note in "client/CMakeLists.txt"
 
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
 ADD_DEFINITIONS("-DMYSQL_CLIENT")
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)

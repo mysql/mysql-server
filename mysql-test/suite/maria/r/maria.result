@@ -1,6 +1,6 @@
 select * from INFORMATION_SCHEMA.ENGINES where ENGINE="ARIA";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
-Aria	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
+Aria	YES	Crash-safe tables with MyISAM heritage	NO	NO	NO
 set global storage_engine=aria;
 set session storage_engine=aria;
 set global aria_page_checksum=0;

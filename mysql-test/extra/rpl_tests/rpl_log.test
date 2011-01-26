@@ -14,6 +14,7 @@ source include/stop_slave.inc;
 reset master;
 reset slave;
 source include/start_slave.inc;
+source include/binlog_start_pos.inc;
 
 let $VERSION=`select version()`;
 

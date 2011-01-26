@@ -16,9 +16,6 @@
 # This is the CMakeLists for InnoDB Plugin
 
 
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DSAFEMALLOC -DSAFE_MUTEX")
-
 # Starting at 5.1.38, MySQL CMake files are simplified. But the plugin
 # CMakeLists.txt still needs to work with previous versions of MySQL.
 IF (MYSQL_VERSION_ID GREATER "50137")

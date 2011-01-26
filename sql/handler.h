@@ -137,6 +137,7 @@
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
 /* Has automatic checksums and uses the new checksum format */
 #define HA_HAS_NEW_CHECKSUM    (LL(1) << 36)
+#define HA_CAN_VIRTUAL_COLUMNS (LL(1) << 37)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -2043,17 +2044,6 @@ public:
   }
 
   LEX_STRING *engine_name() { return hton_name(ht); }
-
-  /*
-    @brief
-    Check whether the engine supports virtual columns
-    
-    @retval
-      FALSE   if the engine does not support virtual columns    
-    @retval
-      TRUE    if the engine supports virtual columns
-  */
-  virtual bool check_if_supported_virtual_columns(void) { return FALSE;}
 
 protected:
   /* deprecated, don't use in new engines */

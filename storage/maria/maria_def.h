@@ -152,11 +152,13 @@ typedef struct st_maria_state_info
 #define MARIA_COLUMNDEF_SIZE	(2*7+1+1+4)
 #define MARIA_BASE_INFO_SIZE	(MY_UUID_SIZE + 5*8 + 6*4 + 11*2 + 6 + 5*2 + 1 + 16)
 #define MARIA_INDEX_BLOCK_MARGIN 16	/* Safety margin for .MYI tables */
+#define MARIA_MAX_POINTER_LENGTH 7	/* Node pointer */
 /* Internal management bytes needed to store 2 transid/key on an index page */
 #define MARIA_MAX_PACK_TRANSID_SIZE   (TRANSID_SIZE+1)
 #define MARIA_TRANSID_PACK_OFFSET     (256- TRANSID_SIZE - 1)
 #define MARIA_MIN_TRANSID_PACK_OFFSET (MARIA_TRANSID_PACK_OFFSET-TRANSID_SIZE)
-#define MARIA_INDEX_OVERHEAD_SIZE     (MARIA_MAX_PACK_TRANSID_SIZE * 2)
+#define MARIA_INDEX_OVERHEAD_SIZE     (MARIA_MAX_PACK_TRANSID_SIZE * 2 + \
+                                       MARIA_MAX_POINTER_LENGTH)
 #define MARIA_DELETE_KEY_NR  255	/* keynr for deleted blocks */
 
 /*

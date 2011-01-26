@@ -467,7 +467,8 @@ public:
   void new_file();
 
   void reset_gathered_updates(THD *thd);
-  bool write(Log_event* event_info); // binary log write
+  bool write(Log_event* event_info,
+             my_bool *with_annotate= 0); // binary log write
   bool write_transaction_to_binlog(THD *thd, binlog_trx_data *trx_data,
                                    Log_event *end_ev, bool all);
 

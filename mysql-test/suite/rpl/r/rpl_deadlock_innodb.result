@@ -55,7 +55,7 @@ Checking that both slave threads are running.
 *** Test lock wait timeout ***
 include/stop_slave.inc
 DELETE FROM t2;
-CHANGE MASTER TO MASTER_LOG_POS=MASTER_POS_BEGIN;
+CHANGE MASTER TO MASTER_LOG_POS=<master_pos_begin>;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a
@@ -81,7 +81,7 @@ SET @my_max_relay_log_size= @@global.max_relay_log_size;
 SET global max_relay_log_size=0;
 include/stop_slave.inc
 DELETE FROM t2;
-CHANGE MASTER TO MASTER_LOG_POS=MASTER_POS_BEGIN;
+CHANGE MASTER TO MASTER_LOG_POS=<master_pos_begin>;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a

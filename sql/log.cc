@@ -4259,10 +4259,12 @@ binlog_start_consistent_snapshot(handlerton *hton, THD *thd)
 }
 
 /*
-  Write a table map to the binary log.
+  Write a table map to the binary log. If with_annotate != NULL and
+  *with_annotate = TRUE write also Annotate_rows before the table map.
  */
 
-int THD::binlog_write_table_map(TABLE *table, bool is_trans)
+int THD::binlog_write_table_map(TABLE *table, bool is_trans,
+                                my_bool *with_annotate)
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
@@ -4280,7 +4282,7 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
   if (is_trans && binlog_table_maps == 0)
     binlog_start_trans_and_stmt();
 
-  if ((error= mysql_bin_log.write(&the_event)))
+  if ((error= mysql_bin_log.write(&the_event, with_annotate)))
     DBUG_RETURN(error);
 
   binlog_table_maps++;
@@ -4410,10 +4412,12 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
 }
 
 /**
-  Write an event to the binary log.
+  Write an event to the binary log. If with_annotate != NULL and
+  *with_annotate = TRUE write also Annotate_rows before the event
+  (this should happen only if the event is a Table_map).
 */
 
-bool MYSQL_BIN_LOG::write(Log_event *event_info)
+bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
 {
   THD *thd= event_info->thd;
   bool error= 1;
@@ -4519,6 +4523,16 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       1. Write first log events which describe the 'run environment'
       of the SQL command
     */
+
+    if (with_annotate && *with_annotate)
+    {
+      DBUG_ASSERT(event_info->get_type_code() == TABLE_MAP_EVENT);
+      Annotate_rows_log_event anno(thd);
+      /* Annotate event should be written not more than once */
+      *with_annotate= 0;
+      if (anno.write(file))
+        goto err;
+    }
 
     /*
       If row-based binlogging, Insert_id, Rand and other kind of "setting

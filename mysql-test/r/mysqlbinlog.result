@@ -1,15 +1,17 @@
 reset master;
+SET @save_binlog_size= @@global.max_binlog_size;
+SET @@global.max_binlog_size= 4096;
 set timestamp=1000000000;
 drop table if exists t1,t2,t3,t4,t5,t03,t04;
 create table t1 (word varchar(20));
 create table t2 (id int auto_increment not null primary key);
 insert into t1 values ("abirvalg");
 insert into t2 values ();
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
-load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words3.dat' into table t1;
+load data infile '../../std_data/words3.dat' into table t1;
+load data infile '../../std_data/words3.dat' into table t1;
+load data infile '../../std_data/words3.dat' into table t1;
+load data infile '../../std_data/words3.dat' into table t1;
 insert into t1 values ("Alas");
 flush logs;
 
@@ -220,7 +222,6 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1108844556/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -228,6 +229,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
+use test/*!*/;
 SET TIMESTAMP=1108844555/*!*/;
 insert t1 values (1)
 /*!*/;
@@ -239,7 +241,6 @@ Warning: The option '--position' is deprecated and will be removed in a future r
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1108844556/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
@@ -247,6 +248,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
+use test/*!*/;
 SET TIMESTAMP=1108844555/*!*/;
 insert t1 values (1)
 /*!*/;
@@ -255,6 +257,7 @@ DELIMITER ;
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 drop table t1,t2;
+SET @@global.max_binlog_size= @save_binlog_size;
 flush logs;
 flush logs;
 select * from t5  /* must be (1),(1) */;
@@ -377,14 +380,14 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FI
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=7/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-a-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`)
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`)
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-b-0' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`)
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`)
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-c-0' INTO TABLE `t1` CHARACTER SET koi8r FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`)
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO TABLE `t1` CHARACTER SET koi8r FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`)
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 drop table t1
@@ -581,7 +584,6 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 SavePoint mixed_cases
 /*!*/;
@@ -592,11 +594,9 @@ INSERT INTO db1.t2 VALUES("in savepoint mixed_cases")
 SET TIMESTAMP=1266652094/*!*/;
 INSERT INTO db1.t1 VALUES(40)
 /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 ROLLBACK TO mixed_cases
 /*!*/;
-use db1/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 INSERT INTO db1.t2 VALUES("after rollback to")
 /*!*/;
@@ -624,7 +624,6 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
 SET TIMESTAMP=1266652094/*!*/;
 SavePoint mixed_cases
 /*!*/;

@@ -167,7 +167,7 @@ void mysql_client_binlog_statement(THD* thd)
       */
       if (!have_fd_event)
       {
-        int type = bufptr[EVENT_TYPE_OFFSET];
+        int type = (uchar)bufptr[EVENT_TYPE_OFFSET];
         if (type == FORMAT_DESCRIPTION_EVENT || type == START_EVENT_V3)
           have_fd_event= TRUE;
         else

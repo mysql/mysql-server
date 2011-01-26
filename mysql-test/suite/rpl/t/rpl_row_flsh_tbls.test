@@ -1,7 +1,8 @@
 # depends on the binlog output
 -- source include/have_binlog_format_row.inc
+--source include/binlog_start_pos.inc
 
-let $rename_event_pos= 925;
+let $rename_event_pos= `select @binlog_start_pos + 819`;
 
 # Bug#18326: Do not lock table for writing during prepare of statement
 # The use of the ps protocol causes extra table maps in the binlog, so

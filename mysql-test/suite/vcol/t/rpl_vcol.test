@@ -27,7 +27,7 @@
 
 ##### Storage engine to be tested
 # Set the session storage engine
---source include/have_innodb.inc
+--source include/have_xtradb.inc
 SET @@session.storage_engine = 'InnoDB';
 
 #------------------------------------------------------------------------------#

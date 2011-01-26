@@ -61,7 +61,7 @@ int mi_close(register MI_INFO *info)
   if (flag)
   {
     DBUG_EXECUTE_IF("crash_before_flush_keys",
-                    if (share->kfile >= 0) abort(););
+                    if (share->kfile >= 0) DBUG_ABORT(););
     if (share->kfile >= 0 &&
 	flush_key_blocks(share->key_cache, share->kfile,
                          &share->dirty_part_map,

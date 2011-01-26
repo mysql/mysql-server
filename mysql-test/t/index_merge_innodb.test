@@ -64,12 +64,14 @@ INSERT INTO t1 VALUES (1000000, 0, 0);
 
 SET SESSION sort_buffer_size = 1024*36;
 
+# We have to use FORCE INDEX here as Innodb gives inconsistent estimates
+# which causes different query plans.
 EXPLAIN
 SELECT COUNT(*) FROM 
-  (SELECT * FROM t1 
+  (SELECT * FROM t1 FORCE INDEX(primary,idx)
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 SELECT COUNT(*) FROM 
-  (SELECT * FROM t1 
+  (SELECT * FROM t1 FORCE INDEX(primary,idx)
      WHERE a BETWEEN 2 AND 7 OR pk=1000000) AS t;
 
 --replace_column 9 #

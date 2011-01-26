@@ -512,6 +512,7 @@ my_bool opt_local_infile, opt_slave_compressed_protocol;
 my_bool opt_safe_user_create = 0, opt_no_mix_types = 0;
 my_bool opt_show_slave_auth_info, opt_sql_bin_update = 0;
 my_bool opt_log_slave_updates= 0;
+my_bool opt_replicate_annotate_rows_events= 0;
 bool slave_warning_issued = false;
 
 /*
@@ -5873,6 +5874,8 @@ enum options_mysqld
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
   OPT_BINLOG_FORMAT,
+  OPT_BINLOG_ANNOTATE_ROWS_EVENTS,
+  OPT_REPLICATE_ANNOTATE_ROWS_EVENTS,
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
@@ -6099,6 +6102,18 @@ struct my_option my_long_options[] =
 #endif
    , &opt_binlog_format, &opt_binlog_format,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"binlog-annotate-rows-events", OPT_BINLOG_ANNOTATE_ROWS_EVENTS,
+   "Tells the master to annotate RBR events with the statement that "
+   "caused these events.",
+   (uchar**) &global_system_variables.binlog_annotate_rows_events,
+   (uchar**) &max_system_variables.binlog_annotate_rows_events,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"replicate-annotate-rows-events", OPT_REPLICATE_ANNOTATE_ROWS_EVENTS,
+   "Tells the slave to write annotate rows events recieved from the master "
+   "to its own binary log. Sensible only in pair with log-slave-updates option.",
+   (uchar**) &opt_replicate_annotate_rows_events,
+   (uchar**) &opt_replicate_annotate_rows_events,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",

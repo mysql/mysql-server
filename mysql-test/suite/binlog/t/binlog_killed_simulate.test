@@ -1,5 +1,6 @@
 -- source include/have_debug.inc
 -- source include/have_binlog_format_statement.inc
+-- source include/binlog_start_pos.inc
 #
 # bug#27571 asynchronous setting mysql_$query()'s local error and 
 #           Query_log_event::error_code
@@ -24,7 +25,7 @@ update t1 set a=2 /* will be "killed" after work has been done */;
 #      for some constants like the offset of the first real event
 #      that is different between severs versions.
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_start_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))

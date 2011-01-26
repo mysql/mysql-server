@@ -352,6 +352,19 @@ connection pcon4;
 select user(), current_user();
 disconnect pcon4;
 
+#
+# lpbug#683112 Maria 5.2 incorrectly reports "(using password: NO)"
+#              even when password is specified
+#
+# test "access denied" error for nonexisting user with and without a password
+#
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon5,localhost,mysqltest_nouser,newpw,,$MASTER_MYPORT,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon5,localhost,mysqltest_nouser,,,$MASTER_MYPORT,);
+
 connection default;
 DROP USER mysqltest_up1@'%';
 DROP USER mysqltest_up2@'%';

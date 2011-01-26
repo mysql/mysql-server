@@ -1630,6 +1630,11 @@ SET @@join_buffer_size= @save_join_buffer_size;
 # BUG#47012 archive tables are not upgradeable, and server crashes on any access
 #
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+# Remove files to handle possible restart of test
+flush tables;
+remove_files_wildcard $MYSQLD_DATADIR/test t1.*;
+
 copy_file std_data/bug47012.frm $MYSQLD_DATADIR/test/t1.frm;
 copy_file std_data/bug47012.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
 copy_file std_data/bug47012.ARM $MYSQLD_DATADIR/test/t1.ARM;
