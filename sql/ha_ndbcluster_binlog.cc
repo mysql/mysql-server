@@ -5248,8 +5248,9 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
 /*
   Handle error states on events from the storage nodes
 */
-static int ndb_binlog_thread_handle_error(Ndb *ndb, NdbEventOperation *pOp,
-                                          ndb_binlog_index_row &row)
+static int
+ndb_binlog_thread_handle_error(Ndb *ndb,
+                               NdbEventOperation *pOp)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
   NDB_SHARE *share= event_data->share;
@@ -6570,7 +6571,7 @@ restart_cluster_failure:
           event_count++;
 #endif
           if (pOp->hasError() &&
-              ndb_binlog_thread_handle_error(i_ndb, pOp, *rows) < 0)
+              ndb_binlog_thread_handle_error(i_ndb, pOp) < 0)
             goto err;
 
 #ifndef DBUG_OFF
