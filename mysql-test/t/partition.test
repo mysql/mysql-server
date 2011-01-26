@@ -2267,3 +2267,19 @@ DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 
 --echo End of 5.1 tests
+--echo # Start of 5.5 tests
+
+--echo # Moved from lock.test
+--echo # Separate case for partitioned tables is important
+--echo # because each partition has an own thr_lock object.
+--echo #
+create table t1 (i int) partition by list (i)
+  (partition p0 values in (1),
+   partition p1 values in (2,3),
+   partition p2 values in (4,5));
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+
+--echo # End of 5.5 tests
