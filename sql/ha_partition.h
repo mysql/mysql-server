@@ -164,6 +164,8 @@ private:
   ha_rows   m_bulk_inserted_rows;
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
+  /** keep track of locked partitions */
+  MY_BITMAP m_locked_partitions;
 public:
   handler *clone(MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
@@ -243,11 +245,10 @@ private:
                             handler *file, const char *part_name,
                             partition_element *p_elem);
   /*
-    delete_table, rename_table and create uses very similar logic which
+    delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_cre_table(const char *from, const char *to,
-                         TABLE *table_arg, HA_CREATE_INFO *create_info);
+  uint del_ren_table(const char *from, const char *to);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
@@ -261,9 +262,11 @@ private:
   int set_up_table_before_create(TABLE *table_arg,
                                  const char *partition_name_with_path,
                                  HA_CREATE_INFO *info,
-                                 uint part_id,
                                  partition_element *p_elem);
   partition_element *find_partition_element(uint part_id);
+  bool insert_partition_name_in_hash(const char *name, uint part_id,
+                                     bool is_subpart);
+  bool populate_partition_name_hash();
 
 public:
 
@@ -367,10 +370,13 @@ public:
   virtual bool is_fatal_error(int error, uint flags)
   {
     if (!handler::is_fatal_error(error, flags) ||
-        error == HA_ERR_NO_PARTITION_FOUND)
+        error == HA_ERR_NO_PARTITION_FOUND ||
+        error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
       return FALSE;
     return TRUE;
   }
+
+
   /*
     -------------------------------------------------------------------------
     MODULE full table scan

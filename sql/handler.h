@@ -1442,7 +1442,6 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
-  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const Item *pushed_cond;
 
@@ -1511,15 +1510,19 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    implicit_emptied(0),
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL), m_lock_type(F_UNLCK)
-    {}
+    {
+      DBUG_PRINT("info",
+                 ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
+                  F_UNLCK, F_RDLCK, F_UNLCK));
+    }
   virtual ~handler(void)
   {
-    DBUG_ASSERT(locked == FALSE);
+    DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -1860,6 +1863,7 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
+      DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
       position(record);
       return ha_rnd_pos(record, ref);
     }
