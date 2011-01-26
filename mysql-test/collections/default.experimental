@@ -43,5 +43,5 @@ main.type_newdecimal                     # svoj: due to BUG#38965
 
 # Not a test, utility to troubleshoot test failures
 # Flagged as experimental since output will vary
-performance_schema.debug_env             # Bug#59740 2011-02-26 Marc Alff, script needed to investigate the failure
+perfschema.debug_env                     # Bug#59740 2011-02-26 Marc Alff, script needed to investigate the failure
 
