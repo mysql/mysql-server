@@ -52,14 +52,16 @@ IF(WIN32)
     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin)
 ENDIF()
 
-ADD_EXECUTABLE(ndbd
-  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC})
+MYSQL_ADD_EXECUTABLE(ndbd
+  main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC}
+  DESTINATION ${INSTALL_SBINDIR}
+  COMPONENT ClusterDataNode)
 TARGET_LINK_LIBRARIES(ndbd ${NDBD_LIBS} ndbsched ${LIBDL})
-INSTALL(TARGETS ndbd DESTINATION libexec)
 
 IF(NDB_BUILD_NDBMTD)
-  ADD_EXECUTABLE(ndbmtd
-    main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC})
+  MYSQL_ADD_EXECUTABLE(ndbmtd
+    main.cpp ndbd.cpp angel.cpp SimBlockList.cpp ${NDBD_EXTRA_SRC}
+    DESTINATION ${INSTALL_SBINDIR}
+    COMPONENT ClusterDataNode)
   TARGET_LINK_LIBRARIES(ndbmtd ${NDBD_LIBS} ndbsched_mt ${LIBDL})
-  INSTALL(TARGETS ndbmtd DESTINATION libexec)
 ENDIF()
