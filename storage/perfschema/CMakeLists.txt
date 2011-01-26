@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,74 +21,84 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
+#
+# Maintainer: keep this list sorted, to avoid merge collisions.
+# Tip: ls -1 *.h, ls -1 *.cc
+#
 SET(PERFSCHEMA_SOURCES ha_perfschema.h
-  pfs_column_types.h
-  pfs_column_values.h
-  pfs_defaults.h
-  pfs_events_waits.h
-  pfs_global.h
-  pfs.h
-  pfs_instr.h
-  pfs_instr_class.h
-  pfs_lock.h
-  pfs_atomic.h
-  pfs_server.h
-  pfs_setup_actor.h
-  pfs_setup_object.h
-  pfs_stat.h
-  pfs_engine_table.h
-  pfs_timer.h
-  table_all_instr.h
-  table_events_waits.h
-  table_events_waits_summary.h
-  table_ews_by_thread_by_event_name.h
-  table_ews_global_by_event_name.h
-  table_file_instances.h
-  table_file_summary.h
-  table_socket_instances.h
-  table_helper.h
-  table_os_global_by_type.h
-  table_performance_timers.h
-  table_setup_actors.h
-  table_setup_consumers.h
-  table_setup_instruments.h
-  table_setup_objects.h
-  table_setup_timers.h
-  table_sync_instances.h
-  table_threads.h
-  ha_perfschema.cc
-  pfs.cc
-  pfs_column_values.cc
-  pfs_defaults.cc
-  pfs_events_waits.cc
-  pfs_global.cc
-  pfs_instr.cc
-  pfs_instr_class.cc
-  pfs_server.cc
-  pfs_setup_actor.cc
-  pfs_setup_object.cc
-  pfs_engine_table.cc
-  pfs_timer.cc
-  table_all_instr.cc
-  table_events_waits.cc
-  table_events_waits_summary.cc
-  table_ews_by_thread_by_event_name.cc
-  table_ews_global_by_event_name.cc
-  table_file_instances.cc
-  table_file_summary.cc
-  table_socket_instances.cc
-  table_helper.cc
-  table_os_global_by_type.cc
-  table_performance_timers.cc
-  table_setup_actors.cc
-  table_setup_consumers.cc
-  table_setup_instruments.cc
-  table_setup_objects.cc
-  table_setup_timers.cc
-  table_sync_instances.cc
-  table_threads.cc
-  pfs_atomic.cc
-  pfs_check.cc
+pfs.h
+pfs_atomic.h
+pfs_column_types.h
+pfs_column_values.h
+pfs_defaults.h
+pfs_engine_table.h
+pfs_events_waits.h
+pfs_global.h
+pfs_instr.h
+pfs_instr_class.h
+pfs_lock.h
+pfs_server.h
+pfs_setup_actor.h
+pfs_setup_object.h
+pfs_stat.h
+pfs_timer.h
+pfs_visitor.h
+table_all_instr.h
+table_events_waits.h
+table_events_waits_summary.h
+table_ews_by_thread_by_event_name.h
+table_ews_global_by_event_name.h
+table_file_instances.h
+table_file_summary.h
+table_helper.h
+table_os_global_by_type.h
+table_performance_timers.h
+table_setup_actors.h
+table_setup_consumers.h
+table_setup_instruments.h
+table_setup_objects.h
+table_setup_timers.h
+table_sync_instances.h
+table_threads.h
+table_tiws_by_index_usage.h
+table_tiws_by_table.h
+table_tlws_by_table.h
+ha_perfschema.cc
+pfs.cc
+pfs_atomic.cc
+pfs_check.cc
+pfs_column_values.cc
+pfs_defaults.cc
+pfs_engine_table.cc
+pfs_events_waits.cc
+pfs_global.cc
+pfs_instr.cc
+pfs_instr_class.cc
+pfs_server.cc
+pfs_setup_actor.cc
+pfs_setup_object.cc
+pfs_timer.cc
+pfs_visitor.cc
+table_all_instr.cc
+table_events_waits.cc
+table_events_waits_summary.cc
+table_ews_by_thread_by_event_name.cc
+table_ews_global_by_event_name.cc
+table_file_instances.cc
+table_file_summary.cc
+table_helper.cc
+table_os_global_by_type.cc
+table_performance_timers.cc
+table_setup_actors.cc
+table_setup_consumers.cc
+table_setup_instruments.cc
+table_setup_objects.cc
+table_setup_timers.cc
+table_sync_instances.cc
+table_threads.cc
+table_tiws_by_index_usage.cc
+table_tiws_by_table.cc
+table_tlws_by_table.cc
 )
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)

@@ -30,8 +30,8 @@ struct PFS_cond;
 struct PFS_table;
 struct PFS_file;
 struct PFS_thread;
-struct PFS_socket;
 struct PFS_instr_class;
+struct PFS_table_share;
 
 /** Class of a wait event. */
 enum events_waits_class
@@ -41,25 +41,7 @@ enum events_waits_class
   WAIT_CLASS_RWLOCK,
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
-  WAIT_CLASS_FILE,
-  WAIT_CLASS_SOCKET
-};
-
-/** Target object a wait event is waiting on. */
-union events_waits_target
-{
-  /** Mutex waited on. */
-  PFS_mutex *m_mutex;
-  /** RWLock waited on. */
-  PFS_rwlock *m_rwlock;
-  /** Condition waited on. */
-  PFS_cond *m_cond;
-  /** Table waited on. */
-  PFS_table *m_table;
-  /** File waited on. */
-  PFS_file *m_file;
-  /** Socket waited on. */
-  PFS_socket *m_socket;
+  WAIT_CLASS_FILE
 };
 
 /** A wait event record. */
@@ -95,16 +77,14 @@ struct PFS_events_waits
     This member is populated only if m_timed is true.
   */
   ulonglong m_timer_end;
-  /** Schema name. */
-  const char *m_schema_name;
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
   /** Object type */
   enum_object_type m_object_type;
-  /** Object name. */
-  const char *m_object_name;
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  /** Table share, for table operations only. */
+  PFS_table_share *m_weak_table_share;
+  /** File, for file operations only. */
+  PFS_file *m_weak_file;
+  /** For weak pointers, target object version. */
+  uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */
   const void *m_object_instance_addr;
   /** Location of the instrumentation in the source code (file name). */
@@ -148,6 +128,13 @@ void cleanup_events_waits_history_long();
 void reset_events_waits_current();
 void reset_events_waits_history();
 void reset_events_waits_history_long();
+
+void reset_table_waits_by_table();
+void reset_table_io_waits_by_table();
+void reset_table_lock_waits_by_table();
+void reset_table_waits_by_table_handle();
+void reset_table_io_waits_by_table_handle();
+void reset_table_lock_waits_by_table_handle();
 
 #endif
 

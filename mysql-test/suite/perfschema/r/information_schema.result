@@ -21,6 +21,9 @@ performance_schema	setup_consumers	def
 performance_schema	setup_instruments	def
 performance_schema	setup_objects	def
 performance_schema	setup_timers	def
+performance_schema	table_io_waits_summary_by_index_usage	def
+performance_schema	table_io_waits_summary_by_table	def
+performance_schema	table_lock_waits_summary_by_table	def
 performance_schema	threads	def
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
 from information_schema.tables
@@ -45,6 +48,9 @@ setup_consumers	BASE TABLE	PERFORMANCE_SCHEMA
 setup_instruments	BASE TABLE	PERFORMANCE_SCHEMA
 setup_objects	BASE TABLE	PERFORMANCE_SCHEMA
 setup_timers	BASE TABLE	PERFORMANCE_SCHEMA
+table_io_waits_summary_by_index_usage	BASE TABLE	PERFORMANCE_SCHEMA
+table_io_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
+table_lock_waits_summary_by_table	BASE TABLE	PERFORMANCE_SCHEMA
 threads	BASE TABLE	PERFORMANCE_SCHEMA
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
 from information_schema.tables
@@ -69,6 +75,9 @@ setup_consumers	10	Dynamic
 setup_instruments	10	Dynamic
 setup_objects	10	Dynamic
 setup_timers	10	Dynamic
+table_io_waits_summary_by_index_usage	10	Dynamic
+table_io_waits_summary_by_table	10	Dynamic
+table_lock_waits_summary_by_table	10	Dynamic
 threads	10	Dynamic
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
 from information_schema.tables
@@ -93,6 +102,9 @@ setup_consumers	5	0
 setup_instruments	1000	0
 setup_objects	3	0
 setup_timers	1	0
+table_io_waits_summary_by_index_usage	1000	0
+table_io_waits_summary_by_table	1000	0
+table_lock_waits_summary_by_table	1000	0
 threads	1000	0
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
 from information_schema.tables
@@ -117,6 +129,9 @@ setup_consumers	0	0
 setup_instruments	0	0
 setup_objects	0	0
 setup_timers	0	0
+table_io_waits_summary_by_index_usage	0	0
+table_io_waits_summary_by_table	0	0
+table_lock_waits_summary_by_table	0	0
 threads	0	0
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
 from information_schema.tables
@@ -141,6 +156,9 @@ setup_consumers	0	0	NULL
 setup_instruments	0	0	NULL
 setup_objects	0	0	NULL
 setup_timers	0	0	NULL
+table_io_waits_summary_by_index_usage	0	0	NULL
+table_io_waits_summary_by_table	0	0	NULL
+table_lock_waits_summary_by_table	0	0	NULL
 threads	0	0	NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
 from information_schema.tables
@@ -165,6 +183,9 @@ setup_consumers	NULL	NULL	NULL
 setup_instruments	NULL	NULL	NULL
 setup_objects	NULL	NULL	NULL
 setup_timers	NULL	NULL	NULL
+table_io_waits_summary_by_index_usage	NULL	NULL	NULL
+table_io_waits_summary_by_table	NULL	NULL	NULL
+table_lock_waits_summary_by_table	NULL	NULL	NULL
 threads	NULL	NULL	NULL
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
 from information_schema.tables
@@ -189,6 +210,9 @@ setup_consumers	utf8_general_ci	NULL
 setup_instruments	utf8_general_ci	NULL
 setup_objects	utf8_general_ci	NULL
 setup_timers	utf8_general_ci	NULL
+table_io_waits_summary_by_index_usage	utf8_general_ci	NULL
+table_io_waits_summary_by_table	utf8_general_ci	NULL
+table_lock_waits_summary_by_table	utf8_general_ci	NULL
 threads	utf8_general_ci	NULL
 select lower(TABLE_NAME), TABLE_COMMENT
 from information_schema.tables
@@ -213,4 +237,7 @@ setup_consumers
 setup_instruments	
 setup_objects	
 setup_timers	
+table_io_waits_summary_by_index_usage	
+table_io_waits_summary_by_table	
+table_lock_waits_summary_by_table	
 threads	
