@@ -537,6 +537,8 @@ public:
     //
     uint primary_key;
 
+    int check(THD *thd, HA_CHECK_OPT *check_opt);
+
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
