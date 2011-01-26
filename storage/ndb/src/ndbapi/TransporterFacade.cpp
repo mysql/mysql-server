@@ -485,9 +485,9 @@ void TransporterFacade::threadMainReceive(void)
 #endif
   while(!theStopReceive)
   {
-    NdbMutex_Lock(theMutexPtr);
+    theClusterMgr->lock();
     theTransporterRegistry->update_connections();
-    NdbMutex_Unlock(theMutexPtr);
+    theClusterMgr->unlock();
     NdbSleep_MilliSleep(100);
   }//while
   theTransporterRegistry->stopReceiving();
@@ -541,7 +541,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
-  theMutexPtr = NdbMutex_Create();
+  theMutexPtr = NdbMutex_CreateWithName("TTFM");
   sendPerformedLastInterval = 0;
 
   for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
@@ -599,14 +599,6 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
     }
   }
 
-  /**
-   * Also setup Loopback Transporter
-   */
-  if (is_mgmd(nodeId, conf))
-  {
-    doConnect(nodeId);
-  }
-
   DBUG_RETURN(true);
 }
 
@@ -624,7 +616,7 @@ TransporterFacade::configure(NodeId nodeId,
   if (!IPCConfig::configureTransporters(nodeId,
                                         * conf,
                                         * theTransporterRegistry,
-                                        is_mgmd(nodeId, conf)))
+                                        true))
     DBUG_RETURN(false);
 
   // Configure cluster manager
@@ -663,7 +655,12 @@ TransporterFacade::configure(NodeId nodeId,
   // Open connection between MGM servers
   if (!do_connect_mgm(nodeId, conf))
     DBUG_RETURN(false);
-  
+
+  /**
+   * Also setup Loopback Transporter
+   */
+  doConnect(nodeId);
+
   DBUG_RETURN(true);
 }
 
@@ -874,7 +871,9 @@ TransporterFacade::sendSignal(const NdbApiSignal * aSignal, NodeId aNode)
     if (ss == SEND_OK)
     {
       assert(theClusterMgr->getNodeInfo(aNode).is_confirmed() ||
-             aSignal->readSignalNumber() == GSN_API_REGREQ);
+             aSignal->readSignalNumber() == GSN_API_REGREQ ||
+             (aSignal->readSignalNumber() == GSN_CONNECT_REP &&
+              aNode == ownId()));
     }
     return (ss == SEND_OK ? 0 : -1);
   }
@@ -1978,7 +1977,9 @@ TransporterFacade::ext_set_max_api_reg_req_interval(Uint32 interval)
 void
 TransporterFacade::ext_update_connections()
 {
-  theClusterMgr->force_update_connections();
+  theClusterMgr->lock();
+  theTransporterRegistry->update_connections();
+  theClusterMgr->unlock();
 }
 
 struct in_addr
@@ -1996,14 +1997,19 @@ TransporterFacade::ext_forceHB()
 bool
 TransporterFacade::ext_isConnected(NodeId aNodeId)
 {
-  return theTransporterRegistry->is_connected(aNodeId);
+  bool val;
+  theClusterMgr->lock();
+  val = theClusterMgr->theNodes[aNodeId].is_connected();
+  theClusterMgr->unlock();
+  return val;
 }
 
 void
 TransporterFacade::ext_doConnect(int aNodeId)
 {
-  lock_mutex();
+  theClusterMgr->lock();
+  assert(theClusterMgr->theNodes[aNodeId].is_connected() == false);
   doConnect(aNodeId);
-  unlock_mutex();
+  theClusterMgr->unlock();
 }
 
