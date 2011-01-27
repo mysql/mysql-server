@@ -7674,6 +7674,7 @@ int ha_ndbcluster::create(const char *name,
   bool ndb_sys_table= FALSE;
   partition_info *part_info;
   int result= 0;
+  NdbDictionary::ObjectId objId;
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -7700,7 +7701,6 @@ int ha_ndbcluster::create(const char *name,
   
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict);
 
 #ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
@@ -7754,6 +7754,7 @@ int ha_ndbcluster::create(const char *name,
 
   if (is_truncate)
   {
+    Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
     if (!(m_table= ndbtab_g.get_table()))
       ERR_RETURN(dict->getNdbError());
@@ -7781,7 +7782,9 @@ int ha_ndbcluster::create(const char *name,
   {
     if (THDVAR(thd, table_temporary))
     {
+#ifdef DOES_NOT_WORK_CURRENTLY
       tab.setTemporary(TRUE);
+#endif
       tab.setLogging(FALSE);
     }
     else if (THDVAR(thd, table_no_logging))
@@ -8055,34 +8058,22 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Create the table in NDB     
-  if (dict->createTable(tab) != 0) 
+  if (dict->createTable(tab, &objId) != 0)
   {
     const NdbError err= dict->getNdbError();
     set_ndb_err(thd, err);
     my_errno= ndb_to_mysql_error(&err);
     goto abort;
-  }
-
-  ndbtab_g.init(m_tabname);
-  // temporary set m_table during create
-  // reset at return
-  m_table= ndbtab_g.get_table();
-  // TODO check also that we have the same frm...
-  if (!m_table)
-  {
-    /* purecov: begin deadcode */
-    const NdbError err= dict->getNdbError();
-    set_ndb_err(thd, err);
-    my_errno= ndb_to_mysql_error(&err);
-    goto abort;
-    /* purecov: end */
   }
 
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
 
   // Create secondary indexes
+  tab.assignObjId(objId);
+  m_table= &tab;
   my_errno= create_indexes(thd, ndb, form);
+  m_table= 0;
 
   if (!my_errno)
   {
@@ -8118,6 +8109,13 @@ err_return:
     m_table= 0;
     ERR_RETURN(dict->getNdbError());
   }
+
+  /**
+   * createTable/index schema transaction OK
+   */
+  Ndb_table_guard ndbtab_g(dict, m_tabname);
+  m_table= ndbtab_g.get_table();
+
   if (my_errno)
   {
     /*
