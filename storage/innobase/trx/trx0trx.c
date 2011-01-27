@@ -1646,19 +1646,20 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL; note that the trx may have been committed,
-unless the caller is holding lock_sys->mutex */
+@return	trx or NULL; on match, the trx->xid will be invalidated;
+note that the trx may have been committed, unless the caller is
+holding lock_sys->mutex */
 UNIV_INTERN
 trx_t*
 trx_get_trx_by_xid(
 /*===============*/
-	const XID*	xid)	/*!< in: X/Open XA transaction identification */
+	const XID*	xid)	/*!< in: X/Open XA transaction identifier */
 {
 	trx_t*	trx;
 
 	if (xid == NULL) {
 
-		return (NULL);
+		return(NULL);
 	}
 
 	rw_lock_s_lock(&trx_sys->lock);
@@ -1672,19 +1673,20 @@ trx_get_trx_by_xid(
 		of gtrid_length+bqual_length bytes should be
 		the same */
 
-		ut_ad(trx->in_trx_list);
-
-		if (xid->gtrid_length == trx->xid.gtrid_length
+		if (trx_state_eq(trx, TRX_STATE_PREPARED)
+		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,
 			      xid->gtrid_length + xid->bqual_length) == 0) {
+
+			/* Invalidate the XID, so that subsequent calls
+			will not find it. */
+			memset(&trx->xid, 0, sizeof(trx->xid));
+			trx->xid.formatID = -1;
 			break;
 		}
-	}
 
-	if (trx != NULL && !trx_state_eq(trx, TRX_STATE_PREPARED)) {
-
-		trx = NULL;
+		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
 	rw_lock_s_unlock(&trx_sys->lock);

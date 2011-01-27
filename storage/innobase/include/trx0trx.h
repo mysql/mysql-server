@@ -173,13 +173,14 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL; note that the trx may have been committed,
-unless the caller is holding lock_sys->mutex */
+@return	trx or NULL; on match, the trx->xid will be invalidated;
+note that the trx may have been committed, unless the caller is
+holding lock_sys->mutex */
 UNIV_INTERN
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
-	const XID*	xid);	/*!< in: X/Open XA transaction identification */
+	const XID*	xid);	/*!< in: X/Open XA transaction identifier */
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE.
