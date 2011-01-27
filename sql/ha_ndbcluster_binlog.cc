@@ -3470,13 +3470,12 @@ ndb_binlog_index_table__write_rows(THD *thd,
   // Set all columns to be written
   ndb_binlog_index->use_all_columns();
 
-  /*
-    Intialize ndb_binlog_index->record[0]
-  */
   do
   {
     ulonglong epoch= 0, orig_epoch= 0;
     uint orig_server_id= 0;
+
+    // Intialize ndb_binlog_index->record[0]
     empty_record(ndb_binlog_index);
 
     ndb_binlog_index->field[0]->store(first->master_log_pos, true);
