@@ -1,6 +1,6 @@
 # test the auto-recover (--myisam-recover) of partitioned myisam tables
 
-call mtr.add_suppression("./test/t1_will_crash");
+call mtr.add_suppression("t1_will_crash");
 call mtr.add_suppression("Got an error from unknown thread, ha_myisam.cc");
 
 --source include/have_partition.inc
@@ -20,6 +20,8 @@ FLUSH TABLES;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
+--replace_result \\ /
+--replace_regex /Table '.*data/Table './
 SELECT * FROM t1_will_crash;
 DROP TABLE t1_will_crash;
 CREATE TABLE t1_will_crash (a INT, KEY (a))
@@ -33,5 +35,7 @@ FLUSH TABLES;
 --echo # head -c1024 t1#P#p1.MYI > corrupt_t1#P#p1.MYI 
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 --copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
+--replace_result \\ /
+--replace_regex /Table '.*data/Table './
 SELECT * FROM t1_will_crash;
 DROP TABLE t1_will_crash;
