@@ -1,3 +1,9 @@
+2011-01-27	The InnoDB Team
+
+	* include/trx0trx.h, trx/trx0trx.c:
+	Bug#59440 Race condition in XA ROLLBACK and XA COMMIT
+	after server restart
+
 2011-01-25	The InnoDB Team
 
 	* row/row0upd.c:
