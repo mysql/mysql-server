@@ -7,11 +7,13 @@ INSERT INTO t1 (k, a, b, c) VALUES (4, 0, 0, 0);
 RESET MASTER;
 SET DEBUG_SYNC= 'RESET';
 # Connection c1
+SET binlog_format= mixed;
 BEGIN;
 UPDATE t1 SET a=10 WHERE k=1;
 SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c1_prepared WAIT_FOR c2_committing";
 COMMIT;
 # Connection c2
+SET binlog_format= mixed;
 SET DEBUG_SYNC="now WAIT_FOR c1_prepared";
 BEGIN;
 SELECT * FROM t1 WHERE k=1 FOR UPDATE;
@@ -41,17 +43,17 @@ Warning	1639	debug sync point wait timed out
 # Connection c2
 SHOW BINLOG EVENTS LIMIT 2,12;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	174	Query	1	265	use `test`; UPDATE t1 SET a=10 WHERE k=1
-master-bin.000001	265	Xid	1	292	COMMIT /* xid=XX */
-master-bin.000001	292	Query	1	360	BEGIN
-master-bin.000001	360	Query	1	451	use `test`; UPDATE t1 SET a=20 WHERE k=1
-master-bin.000001	451	Xid	1	478	COMMIT /* xid=XX */
-master-bin.000001	478	Query	1	546	BEGIN
-master-bin.000001	546	Query	1	637	use `test`; UPDATE t1 SET a=10 WHERE k=2
-master-bin.000001	637	Xid	1	664	COMMIT /* xid=XX */
-master-bin.000001	664	Query	1	732	BEGIN
-master-bin.000001	732	Query	1	823	use `test`; UPDATE t1 SET a=20 WHERE k=2
-master-bin.000001	823	Xid	1	850	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=10 WHERE k=1
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=20 WHERE k=1
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=10 WHERE k=2
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=20 WHERE k=2
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
 # Connection c1
 RESET MASTER;
 SET DEBUG_SYNC="commit_after_release_LOCK_prepare_ordered SIGNAL c1_prepared WAIT_FOR c2_committing";
@@ -80,18 +82,18 @@ Warning	1639	debug sync point wait timed out
 # Connection c2
 SHOW BINLOG EVENTS LIMIT 1,12;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	106	Query	1	174	BEGIN
-master-bin.000001	174	Query	1	265	use `test`; UPDATE t1 SET a=10 WHERE k=3
-master-bin.000001	265	Xid	1	292	COMMIT /* xid=XX */
-master-bin.000001	292	Query	1	360	BEGIN
-master-bin.000001	360	Query	1	451	use `test`; UPDATE t1 SET a=20 WHERE k=3
-master-bin.000001	451	Xid	1	478	COMMIT /* xid=XX */
-master-bin.000001	478	Query	1	546	BEGIN
-master-bin.000001	546	Query	1	637	use `test`; UPDATE t1 SET a=10 WHERE k=4
-master-bin.000001	637	Xid	1	664	COMMIT /* xid=XX */
-master-bin.000001	664	Query	1	732	BEGIN
-master-bin.000001	732	Query	1	823	use `test`; UPDATE t1 SET a=20 WHERE k=4
-master-bin.000001	823	Xid	1	850	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=10 WHERE k=3
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=20 WHERE k=3
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=10 WHERE k=4
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; UPDATE t1 SET a=20 WHERE k=4
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
 SELECT * FROM t1 ORDER BY k;
 k	a	b	c
 1	20	0	0

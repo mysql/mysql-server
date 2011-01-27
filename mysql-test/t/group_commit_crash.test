@@ -65,6 +65,7 @@ while ($numtests)
 
   # table and binlog should be in sync.
   SELECT * FROM t1 ORDER BY id;
+--replace_column 2 # 5 #
   SHOW BINLOG EVENTS LIMIT 2,1;
 
   delete from t1;

@@ -28,6 +28,8 @@ connect(c2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
 connection c1;
 --echo # Connection c1
+# Fix binlog format (otherwise SHOW BINLOG EVENTS will fluctuate).
+SET binlog_format= mixed;
 
 # First verify that row locks are released early.
 BEGIN;
@@ -38,6 +40,7 @@ send COMMIT;
 
     connection c2;
     --echo # Connection c2
+    SET binlog_format= mixed;
     SET DEBUG_SYNC="now WAIT_FOR c1_prepared";
     BEGIN;
     SELECT * FROM t1 WHERE k=1 FOR UPDATE;
@@ -75,6 +78,7 @@ connection c2;
 --echo # Connection c2
 reap;
 
+--replace_column 2 # 5 #
 --replace_regex /xid=[0-9]+/xid=XX/
 SHOW BINLOG EVENTS LIMIT 2,12;
 
@@ -121,6 +125,7 @@ connection c2;
 --echo # Connection c2
 reap;
 
+--replace_column 2 # 5 #
 --replace_regex /xid=[0-9]+/xid=XX/
 SHOW BINLOG EVENTS LIMIT 1,12;
 

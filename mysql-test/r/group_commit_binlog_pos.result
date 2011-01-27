@@ -30,6 +30,6 @@ a
 1
 2
 3
-InnoDB: Last MySQL binlog file position 0 767, file name ./master-bin.000001
+InnoDB: Last MySQL binlog file position 0 901, file name ./master-bin.000001
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
