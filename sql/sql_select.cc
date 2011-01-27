@@ -4134,22 +4134,38 @@ skip_conversion:
     (*subq)->fixed= 1;
 
     Item *substitute= (*subq)->substitution;
-    bool do_fix_fields= !(*subq)->substitution->fixed;
-    Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
-                   &conds : &((*subq)->embedding_join_nest->on_expr);
+    const bool do_fix_fields= !(*subq)->substitution->fixed;
+    const bool subquery_in_join_clause=
+      ((*subq)->embedding_join_nest != (TABLE_LIST*)1);
+
+    Item **tree= subquery_in_join_clause ?
+                   &((*subq)->embedding_join_nest->on_expr) :
+                   &conds;
     if (replace_subcondition(this, tree, *subq, substitute, do_fix_fields))
       DBUG_RETURN(TRUE);
     (*subq)->substitution= NULL;
      
     if (!thd->stmt_arena->is_conventional())
     {
-      tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
-                     &select_lex->prep_where :
-                     &((*subq)->embedding_join_nest->prep_on_expr);
+      if (subquery_in_join_clause)
+      {
+        tree= &((*subq)->embedding_join_nest->prep_on_expr);
+        /*
+          Some precaution is needed when dealing with PS/SP:
+          fix_prepare_info_in_table_list() sets prep_on_expr, but only for
+          tables, not for join nest objects. This is instead populated in
+          simplify_joins(), which is called after this function. Hence, we need
+          to check that *tree is non-NULL before calling replace_subcondition.
+        */
+        DBUG_ASSERT((*subq)->embedding_join_nest->nested_join ?
+                    *tree == NULL :
+                    *tree != NULL);
+      }
+      else
+        tree= &select_lex->prep_where;
 
-      if (replace_subcondition(this, tree, *subq, substitute, 
-                                     FALSE))
-        DBUG_RETURN(TRUE);
+      if (*tree && replace_subcondition(this, tree, *subq, substitute, false))
+        DBUG_RETURN(true);
     }
   }
 
