@@ -337,7 +337,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	658	Query	1	726	BEGIN
 master-bin.000001	726	Query	1	823	use `test`; INSERT INTO t2 VALUES (1,0), (2,0)
 master-bin.000001	823	Xid	1	850	COMMIT /* XID */
--- CHANGE MASTER TO MASTER_LOG_FILE='./master-bin.000001', MASTER_LOG_POS=850;
+-- CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=850;
 SELECT * FROM t1 ORDER BY a;
 a
 1
