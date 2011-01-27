@@ -1507,7 +1507,7 @@ SELECT MAX(pk) as max, i
 FROM t1
 ORDER BY max;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using temporary
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 
 # Only 11 is correct for collumn i in this result
 SELECT MAX(pk) as max, i

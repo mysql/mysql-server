@@ -11,6 +11,21 @@ drop table if exists t1, t2;
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 --echo #
+--echo # Bug#57924: crash when creating partitioned table with
+--echo #            multiple columns in the partition key
+--echo #
+--error ER_SAME_NAME_PARTITION_FIELD
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a,b))
+PARTITION BY KEY(a, b, a);
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a,b))
+PARTITION BY KEY(A, b);
+DROP TABLE t1;
+--error ER_SAME_NAME_PARTITION_FIELD
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a,b))
+PARTITION BY KEY(a, b, A);
+
+
+--echo #
 --echo # Bug#54483: valgrind errors when making warnings for multiline inserts
 --echo #            into partition
 --echo #
@@ -669,7 +684,6 @@ PARTITION BY HASH (TIME_TO_SEC(a));
 --error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
 CREATE TABLE t1 (a INT)
 PARTITION BY HASH (TIME_TO_SEC(a));
-
 
 --echo #
 --echo # Bug#50036: Inconsistent errors when using TIMESTAMP

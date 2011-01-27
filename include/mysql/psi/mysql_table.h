@@ -36,8 +36,10 @@
   Do not use a ';' after this macro
   @param LOCKER the locker
   @param STATE the locker state
-  @sa MYSQL_START_TABLE_WAIT.
-  @sa MYSQL_END_TABLE_WAIT.
+  @sa MYSQL_START_TABLE_IO_WAIT.
+  @sa MYSQL_END_TABLE_IO_WAIT.
+  @sa MYSQL_START_TABLE_LOCK_WAIT.
+  @sa MYSQL_END_TABLE_LOCK_WAIT.
 */
 #ifdef HAVE_PSI_INTERFACE
   #define MYSQL_TABLE_WAIT_VARIABLES(LOCKER, STATE) \
@@ -48,8 +50,8 @@
 #endif
 
 /**
-  @def MYSQL_START_TABLE_WAIT
-  Instrumentation helper for table waits.
+  @def MYSQL_START_TABLE_IO_WAIT
+  Instrumentation helper for table io_waits.
   This instrumentation marks the start of a wait event.
   @param LOCKER the locker
   @param STATE the locker state
@@ -60,59 +62,128 @@
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_INTERFACE
-  #define MYSQL_START_TABLE_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
-    LOCKER= inline_mysql_start_table_wait(STATE, PSI, \
-                                          OP, INDEX, FLAGS, __FILE__, __LINE__)
+  #define MYSQL_START_TABLE_IO_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
+    LOCKER= inline_mysql_start_table_io_wait(STATE, PSI, \
+                                             OP, INDEX, __FILE__, __LINE__)
 #else
-  #define MYSQL_START_TABLE_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
+  #define MYSQL_START_TABLE_IO_WAIT(LOCKER, STATE, PSI, OP, INDEX, FLAGS) \
     do {} while (0)
 #endif
 
 /**
-  @def MYSQL_END_TABLE_WAIT
-  Instrumentation helper for table waits.
+  @def MYSQL_END_TABLE_IO_WAIT
+  Instrumentation helper for table io waits.
   This instrumentation marks the end of a wait event.
   @param LOCKER the locker
-  @sa MYSQL_START_TABLE_WAIT.
+  @sa MYSQL_START_TABLE_IO_WAIT.
 */
 #ifdef HAVE_PSI_INTERFACE
-  #define MYSQL_END_TABLE_WAIT(LOCKER) \
-    inline_mysql_end_table_wait(LOCKER)
+  #define MYSQL_END_TABLE_IO_WAIT(LOCKER) \
+    inline_mysql_end_table_io_wait(LOCKER)
 #else
-  #define MYSQL_END_TABLE_WAIT(LOCKER) \
+  #define MYSQL_END_TABLE_IO_WAIT(LOCKER) \
     do {} while (0)
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
 /**
-  Instrumentation calls for MYSQL_START_TABLE_WAIT.
-  @sa MYSQL_START_TABLE_WAIT.
+  Instrumentation calls for MYSQL_START_TABLE_IO_WAIT.
+  @sa MYSQL_END_TABLE_IO_WAIT.
 */
 static inline struct PSI_table_locker *
-inline_mysql_start_table_wait(PSI_table_locker_state *state,
-                              struct PSI_table *psi, enum PSI_table_operation op,
-                              uint index, ulong flags,
-                              const char *src_file, int src_line)
+inline_mysql_start_table_io_wait(PSI_table_locker_state *state,
+                                 struct PSI_table *psi,
+                                 enum PSI_table_io_operation op,
+                                 uint index,
+                                 const char *src_file, int src_line)
 {
   struct PSI_table_locker *locker= NULL;
   if (likely(PSI_server && psi))
   {
-    locker= PSI_server->get_thread_table_locker(state, psi, op, flags);
+    locker= PSI_server->get_thread_table_io_locker(state, psi, op, index);
     if (likely(locker != NULL))
-      PSI_server->start_table_wait(locker, index, src_file, src_line);
+      PSI_server->start_table_io_wait(locker, src_file, src_line);
   }
   return locker;
 }
 
 /**
-  Instrumentation calls for MYSQL_END_TABLE_WAIT.
-  @sa MYSQL_END_TABLE_WAIT.
+  Instrumentation calls for MYSQL_END_TABLE_IO_WAIT.
+  @sa MYSQL_START_TABLE_IO_WAIT.
 */
 static inline void
-inline_mysql_end_table_wait(struct PSI_table_locker *locker)
+inline_mysql_end_table_io_wait(struct PSI_table_locker *locker)
 {
   if (likely(locker != NULL))
-    PSI_server->end_table_wait(locker);
+    PSI_server->end_table_io_wait(locker);
+}
+#endif
+
+/**
+  @def MYSQL_START_TABLE_LOCK_WAIT
+  Instrumentation helper for table lock waits.
+  This instrumentation marks the start of a wait event.
+  @param LOCKER the locker
+  @param STATE the locker state
+  @param PSI the instrumented table
+  @param OP the table operation to be performed
+  @param FLAGS per table operation flags.
+  @sa MYSQL_END_TABLE_LOCK_WAIT.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define MYSQL_START_TABLE_LOCK_WAIT(LOCKER, STATE, PSI, OP, FLAGS) \
+    LOCKER= inline_mysql_start_table_lock_wait(STATE, PSI, \
+                                               OP, FLAGS, __FILE__, __LINE__)
+#else
+  #define MYSQL_START_TABLE_LOCK_WAIT(LOCKER, STATE, PSI, OP, FLAGS) \
+    do {} while (0)
+#endif
+
+/**
+  @def MYSQL_END_TABLE_LOCK_WAIT
+  Instrumentation helper for table lock waits.
+  This instrumentation marks the end of a wait event.
+  @param LOCKER the locker
+  @sa MYSQL_START_TABLE_LOCK_WAIT.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define MYSQL_END_TABLE_LOCK_WAIT(LOCKER) \
+    inline_mysql_end_table_lock_wait(LOCKER)
+#else
+  #define MYSQL_END_TABLE_LOCK_WAIT(LOCKER) \
+    do {} while (0)
+#endif
+
+#ifdef HAVE_PSI_INTERFACE
+/**
+  Instrumentation calls for MYSQL_START_TABLE_LOCK_WAIT.
+  @sa MYSQL_END_TABLE_LOCK_WAIT.
+*/
+static inline struct PSI_table_locker *
+inline_mysql_start_table_lock_wait(PSI_table_locker_state *state,
+                                   struct PSI_table *psi,
+                                   enum PSI_table_lock_operation op,
+                                   ulong flags, const char *src_file, int src_line)
+{
+  struct PSI_table_locker *locker= NULL;
+  if (likely(PSI_server && psi))
+  {
+    locker= PSI_server->get_thread_table_lock_locker(state, psi, op, flags);
+    if (likely(locker != NULL))
+      PSI_server->start_table_lock_wait(locker, src_file, src_line);
+  }
+  return locker;
+}
+
+/**
+  Instrumentation calls for MYSQL_END_TABLE_LOCK_WAIT.
+  @sa MYSQL_START_TABLE_LOCK_WAIT.
+*/
+static inline void
+inline_mysql_end_table_lock_wait(struct PSI_table_locker *locker)
+{
+  if (likely(locker != NULL))
+    PSI_server->end_table_lock_wait(locker);
 }
 #endif
 
