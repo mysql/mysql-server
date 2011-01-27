@@ -811,7 +811,14 @@ struct srv_slot_struct{
 	ibool		suspended;		/*!< TRUE if the thread is waiting for the
 						event of this slot */
 	ib_time_t	suspend_time;		/*!< time when the thread was
-						suspended */
+						suspended. Initialized by
+						lock_wait_table_reserve_slot()
+						for lock wait */
+	ulong		wait_timeout;		/*!< wait time that if exceeded
+						the thread will be timed out.
+						Initialized by
+						lock_wait_table_reserve_slot()
+						for lock wait */
 	os_event_t	event;			/*!< event used in suspending the
 						thread when it has nothing to
 						do */
