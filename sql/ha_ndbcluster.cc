@@ -7782,7 +7782,9 @@ int ha_ndbcluster::create(const char *name,
   {
     if (THDVAR(thd, table_temporary))
     {
+#ifdef DOES_NOT_WORK_CURRENTLY
       tab.setTemporary(TRUE);
+#endif
       tab.setLogging(FALSE);
     }
     else if (THDVAR(thd, table_no_logging))
