@@ -9902,12 +9902,16 @@ static COND* substitute_for_best_equal_field(COND *cond,
     cond= eliminate_item_equal(0, cond_equal, item_equal);
     return cond ? cond : org_cond;
   }
-  else if (cond_equal)
+  else 
   {
-    List_iterator_fast<Item_equal> it(cond_equal->current_level);
-    while((item_equal= it++))
+    while (cond_equal)
     {
-      cond= cond->transform(&Item::replace_equal_field, (uchar *) item_equal);
+      List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      while((item_equal= it++))
+      {
+        cond= cond->transform(&Item::replace_equal_field, (uchar *) item_equal);
+      }
+      cond_equal= cond_equal->upper_levels;
     }
   }
   return cond;

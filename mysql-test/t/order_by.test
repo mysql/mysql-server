@@ -1497,5 +1497,23 @@ LIMIT 2;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug #707848: WHERE condition with OR + ORDER BY + field substitution  
+--echo #
+
+CREATE TABLE t1 (a int PRIMARY KEY);
+INSERT INTO t1 VALUES
+  (9), (7), (11), (15), (2), (4), (1), (5), (14), (54), (3), (8);
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 r JOIN t1 s ON r.a = s.a 
+  WHERE s.a IN (2,9) OR s.a < 100  AND s.a != 0
+    ORDER BY 1 LIMIT 10;
+
+SELECT * FROM t1 r JOIN t1 s ON r.a = s.a 
+  WHERE s.a IN (2,9) OR s.a < 100 AND s.a != 0
+    ORDER BY 1 LIMIT 10;
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests
