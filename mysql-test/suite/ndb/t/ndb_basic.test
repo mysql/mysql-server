@@ -898,4 +898,16 @@ SELECT * FROM child ORDER BY id;
 
 DROP TABLE child, parent;
 
+#
+# bug#59756
+#
+--error 1005
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
+ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 24;
+show warnings;
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
+ENGINE=ndb;
+show warnings;
+drop table t1;
+
 --echo End of 5.1 tests
