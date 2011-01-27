@@ -2585,23 +2585,6 @@ ibuf_contract_ext(
 
 	if (UNIV_UNLIKELY(ibuf->empty)
 	    && UNIV_LIKELY(!srv_shutdown_state)) {
-ibuf_is_empty:
-
-#if 0 /* TODO */
-		if (srv_shutdown_state) {
-			/* If the insert buffer becomes empty during
-			shutdown, note it in the system tablespace. */
-
-			trx_sys_set_ibuf_format(TRX_SYS_IBUF_EMPTY);
-		}
-
-		/* TO DO: call trx_sys_set_ibuf_format() at startup
-		and whenever ibuf_use is changed to allow buffered
-		delete-marking or deleting.  Never downgrade the
-		stamped format except when the insert buffer becomes
-		empty. */
-#endif
-
 		return(0);
 	}
 
@@ -2631,7 +2614,7 @@ ibuf_is_empty:
 		mtr_commit(&mtr);
 		btr_pcur_close(&pcur);
 
-		goto ibuf_is_empty;
+		return(0);
 	}
 
 	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
