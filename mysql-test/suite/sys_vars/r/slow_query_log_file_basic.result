@@ -14,4 +14,4 @@ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='slow_query_log_file';
 @@global.slow_query_log_file = VARIABLE_VALUE
 1
-SET @@global.slow_query_log_file= 'slowtest.log';
+SET @@global.slow_query_log_file= 'start_value';

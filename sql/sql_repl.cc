@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>
+#include "debug_sync.h"
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -556,6 +557,20 @@ impossible position";
       }
 #endif
 
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if ((*packet)[EVENT_TYPE_OFFSET+1] == XID_EVENT)
+                        {
+                          net_flush(net);
+                          const char act[]=
+                            "now "
+                            "wait_for signal.continue";
+                          DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                          DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                             STRING_WITH_LEN(act)));
+                        }
+                      });
+
       if ((*packet)[EVENT_TYPE_OFFSET+1] == FORMAT_DESCRIPTION_EVENT)
       {
         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+1] &
@@ -571,6 +586,14 @@ impossible position";
 	my_errno= ER_UNKNOWN_ERROR;
 	goto err;
       }
+
+      DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
+                      {
+                        if ((*packet)[EVENT_TYPE_OFFSET+1] == XID_EVENT)
+                        {
+                          net_flush(net);
+                        }
+                      });
 
       DBUG_PRINT("info", ("log event code %d",
 			  (*packet)[LOG_EVENT_OFFSET+1] ));
