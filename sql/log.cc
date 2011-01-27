@@ -6591,8 +6591,8 @@ mysql_bin_log_commit_pos(THD *thd, ulonglong *out_pos, const char **out_file)
   }
   else
   {
-    *out_pos= NULL;
     *out_file= NULL;
+    *out_pos= 0;
   }
 }
 #endif /* INNODB_COMPATIBILITY_HOOKS */
