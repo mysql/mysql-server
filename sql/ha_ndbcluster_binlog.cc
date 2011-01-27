@@ -3515,6 +3515,14 @@ ndb_binlog_index_table__write_rows(THD *thd,
   } while (row);
 
 add_ndb_binlog_index_err:
+  /*
+    Explicitly commit or rollback the writes(although we normally
+    use a non transactional engine for the ndb_binlog_index table)
+  */
+  thd->stmt_da->can_overwrite_status= TRUE;
+  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+  thd->stmt_da->can_overwrite_status= FALSE;
+
   close_thread_tables(thd);
   reenable_binlog(thd);
   return error;
