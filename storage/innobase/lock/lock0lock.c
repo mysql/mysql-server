@@ -6121,8 +6121,10 @@ lock_unlock_table_autoinc(
 	ut_ad(!lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
 	ut_ad(!trx->lock.wait_lock);
+	/* This can be invoked on NOT_STARTED, ACTIVE, PREPARED,
+	but not COMMITTED transactions. */
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED)
-	      || trx_state_eq(trx, TRX_STATE_ACTIVE));
+	      || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	/* This function is invoked for a running transaction by the
 	thread that is serving the transaction. Therefore it is not
