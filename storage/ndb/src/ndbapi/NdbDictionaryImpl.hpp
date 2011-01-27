@@ -817,7 +817,7 @@ public:
   bool setTransporter(class Ndb * ndb, class TransporterFacade * tf);
   bool setTransporter(class TransporterFacade * tf);
 
-  int createTable(NdbTableImpl &t);
+  int createTable(NdbTableImpl &t, NdbDictObjectImpl &);
   int optimizeTable(const NdbTableImpl &t,
                     NdbOptimizeTableHandleImpl &h);
   int optimizeIndex(const NdbIndexImpl &index,
