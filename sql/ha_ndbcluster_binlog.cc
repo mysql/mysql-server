@@ -3404,13 +3404,13 @@ static int
 ndb_binlog_index_table__open(THD *thd, TABLE_LIST *tables,
                              TABLE **ndb_binlog_index)
 {
-  const char *save_proc_info= thd->proc_info;
+  const char *save_proc_info=
+    thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
 
   bzero((char*) tables, sizeof(*tables));
   tables->db= repdb;
   tables->alias= tables->table_name= reptable;
   tables->lock_type= TL_WRITE;
-  thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
   tables->required_type= FRMTYPE_TABLE;
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -3420,12 +3420,14 @@ ndb_binlog_index_table__open(THD *thd, TABLE_LIST *tables,
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
                       thd_stmt_da(thd)->sql_errno(),
                       thd_stmt_da(thd)->message());
-    thd->proc_info= save_proc_info;
+    thd_proc_info(thd, save_proc_info);
     return -1;
   }
   *ndb_binlog_index= tables->table;
-  thd->proc_info= save_proc_info;
   (*ndb_binlog_index)->use_all_columns();
+
+  thd_proc_info(thd, save_proc_info);
+
   return 0;
 }
 
