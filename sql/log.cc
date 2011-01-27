@@ -6651,6 +6651,18 @@ static struct st_mysql_sys_var *binlog_sys_vars[]=
 
 
 /*
+  Copy out the non-directory part of binlog position filename for the
+  `binlog_snapshot_file' status variable, same way as it is done for
+  SHOW MASTER STATUS.
+*/
+static void
+set_binlog_snapshot_file(const char *src)
+{
+  int dir_len = dirname_length(src);
+  strmake(binlog_snapshot_file, src + dir_len, sizeof(binlog_snapshot_file)-1);
+}
+
+/*
   Copy out current values of status variables, for SHOW STATUS or
   information_schema.global_status.
 
@@ -6666,21 +6678,21 @@ TC_LOG_BINLOG::set_status_variables(THD *thd)
   else
     trx_data= NULL;
 
+  bool have_snapshot=
+    (trx_data && 0 != strcmp(trx_data->last_commit_pos_file, ""));
   pthread_mutex_lock(&LOCK_commit_ordered);
   binlog_status_var_num_commits= this->num_commits;
   binlog_status_var_num_group_commits= this->num_group_commits;
-  if (!trx_data || 0 == strcmp(trx_data->last_commit_pos_file, ""))
+  if (!have_snapshot)
   {
-    strmake(binlog_snapshot_file, last_commit_pos_file,
-            sizeof(binlog_snapshot_file)-1);
+    set_binlog_snapshot_file(last_commit_pos_file);
     binlog_snapshot_position= last_commit_pos_offset;
   }
   pthread_mutex_unlock(&LOCK_commit_ordered);
 
-  if (trx_data && 0 != strcmp(trx_data->last_commit_pos_file, ""))
+  if (have_snapshot)
   {
-    strmake(binlog_snapshot_file, trx_data->last_commit_pos_file,
-            sizeof(binlog_snapshot_file)-1);
+    set_binlog_snapshot_file(trx_data->last_commit_pos_file);
     binlog_snapshot_position= trx_data->last_commit_pos_offset;
   }
 }
