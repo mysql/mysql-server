@@ -1041,6 +1041,14 @@ public:
      *   passing NULL pointer will equal to bitmap with all columns set
      */
     int checkColumns(const Uint32* bitmap, unsigned len_in_bytes) const;
+
+    /**
+     * Set tableId,tableVersion on a table...
+     *   this is a "work-around" since createIndex can't (currently)
+     *   accept an ObjectId instead of table-object in createIndex
+     *   this as way way too much stuff is pushed into NdbDictInterface
+     */
+    void assignObjId(const ObjectId &);
 #endif
 
     // these 2 are not de-doxygenated
@@ -2209,6 +2217,14 @@ public:
      * @return 0 if successful otherwise -1.
      */
     int createTable(const Table &table);
+
+    /**
+     * Create defined table given defined Table instance
+     *   return ObjectId
+     * @param table Table to create
+     * @return 0 if successful otherwise -1.
+     */
+    int createTable(const Table &table, ObjectId * objid);
 
     /**
      * Start table optimization given defined table object

@@ -873,4 +873,16 @@ id	parent_id
 2	2
 3	3
 DROP TABLE child, parent;
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
+ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 24;
+ERROR HY000: Can't create table 'test.t1' (errno: 140)
+show warnings;
+Level	Code	Message
+Error	1296	Got error 1224 'Too many fragments' from NDB
+Error	1005	Can't create table 'test.t1' (errno: 140)
+CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
+ENGINE=ndb;
+show warnings;
+Level	Code	Message
+drop table t1;
 End of 5.1 tests
