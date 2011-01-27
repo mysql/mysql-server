@@ -3412,7 +3412,6 @@ ndb_binlog_index_table__open(THD *thd, TABLE_LIST *tables,
   tables->lock_type= TL_WRITE;
   thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
   tables->required_type= FRMTYPE_TABLE;
-  thd->clear_error();
   if (simple_open_n_lock_tables(thd, tables))
   {
     if (thd->killed)
@@ -3442,6 +3441,13 @@ ndb_binlog_index_table__write_rows(THD *thd,
   ndb_binlog_index_row *first= row;
   TABLE *ndb_binlog_index= 0;
   TABLE_LIST binlog_tables;
+
+  /*
+    Assume this function is not called with an error set in thd
+    (but clear for safety in release version)
+   */
+  assert(!thd->is_error());
+  thd->clear_error();
 
   /*
     Turn of binlogging to prevent the table changes to be written to
