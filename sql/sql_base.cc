@@ -6097,6 +6097,9 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
       continue;
     }
 
+    if (tl->table)
+      continue; // Skip if it's already opened.
+
     if (open_temporary_table(thd, tl))
       DBUG_RETURN(TRUE);
   }
