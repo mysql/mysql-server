@@ -2879,7 +2879,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
  * Create table and alter table
  */
 int
-NdbDictionaryImpl::createTable(NdbTableImpl &t)
+NdbDictionaryImpl::createTable(NdbTableImpl &t, NdbDictObjectImpl & objid)
 { 
   DBUG_ENTER("NdbDictionaryImpl::createTable");
 
@@ -2910,6 +2910,8 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   Uint32* data = (Uint32*)m_receiver.m_buffer.get_data();
   t.m_id = data[0];
   t.m_version = data[1];
+  objid.m_id = data[0];
+  objid.m_version = data[1];
 
   // update table def from DICT - by-pass cache
   NdbTableImpl* t2 =
@@ -3014,7 +3016,8 @@ NdbDictionaryImpl::createBlobTables(const NdbTableImpl& t)
       assert(bc != NULL);
       bc->setStorageType(d);
     }
-    if (createTable(bt) != 0) {
+    NdbDictionary::ObjectId objId; // ignore objid
+    if (createTable(bt, NdbDictObjectImpl::getImpl(objId)) != 0) {
       DBUG_RETURN(-1);
     }
   }
