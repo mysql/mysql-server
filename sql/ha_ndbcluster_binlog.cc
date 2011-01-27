@@ -32,8 +32,6 @@
 #include "ha_ndbcluster_binlog.h"
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
-#include <util/NdbAutoPtr.hpp>
-#include <portlib/NdbTick.h>
 
 #ifdef ndb_dynamite
 #undef assert
