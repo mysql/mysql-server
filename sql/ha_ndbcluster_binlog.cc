@@ -3401,18 +3401,25 @@ struct ndb_binlog_index_row {
   Open the ndb_binlog_index table for writing
 */
 static int
-ndb_binlog_index_table__open(THD *thd, TABLE_LIST *tables,
+ndb_binlog_index_table__open(THD *thd,
                              TABLE **ndb_binlog_index)
 {
   const char *save_proc_info=
     thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
 
-  bzero((char*) tables, sizeof(*tables));
-  tables->db= repdb;
-  tables->alias= tables->table_name= reptable;
-  tables->lock_type= TL_WRITE;
-  tables->required_type= FRMTYPE_TABLE;
-  if (simple_open_n_lock_tables(thd, tables))
+  TABLE_LIST tables;
+  tables.init_one_table(STRING_WITH_LEN(NDB_REP_DB),    // db
+                        STRING_WITH_LEN(NDB_REP_TABLE), // name
+                        NDB_REP_TABLE,                  // alias
+                        TL_WRITE);                      // for write
+
+  /* Only allow real table to be opened */
+  tables.required_type= FRMTYPE_TABLE;
+
+  const bool derived = false;
+  const uint flags =
+    MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */
+  if (open_and_lock_tables(thd, &tables, derived, flags))
   {
     if (thd->killed)
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
@@ -3423,11 +3430,8 @@ ndb_binlog_index_table__open(THD *thd, TABLE_LIST *tables,
     thd_proc_info(thd, save_proc_info);
     return -1;
   }
-  *ndb_binlog_index= tables->table;
-  (*ndb_binlog_index)->use_all_columns();
-
+  *ndb_binlog_index= tables.table;
   thd_proc_info(thd, save_proc_info);
-
   return 0;
 }
 
@@ -3442,7 +3446,6 @@ ndb_binlog_index_table__write_rows(THD *thd,
   int error= 0;
   ndb_binlog_index_row *first= row;
   TABLE *ndb_binlog_index= 0;
-  TABLE_LIST binlog_tables;
 
   /*
     Assume this function is not called with an error set in thd
@@ -3457,12 +3460,15 @@ ndb_binlog_index_table__write_rows(THD *thd,
   */
   tmp_disable_binlog(thd);
 
-  if (ndb_binlog_index_table__open(thd, &binlog_tables, &ndb_binlog_index))
+  if (ndb_binlog_index_table__open(thd, &ndb_binlog_index))
   {
     sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
     error= -1;
     goto add_ndb_binlog_index_err;
   }
+
+  // Set all columns to be written
+  ndb_binlog_index->use_all_columns();
 
   /*
     Intialize ndb_binlog_index->record[0]
@@ -3531,7 +3537,12 @@ add_ndb_binlog_index_err:
   thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
   thd->stmt_da->can_overwrite_status= FALSE;
 
+  // Close the tables this thread has opened
   close_thread_tables(thd);
+
+  // Release MDL locks on the opened table
+  thd->mdl_context.release_transactional_locks();
+
   reenable_binlog(thd);
   return error;
 }
