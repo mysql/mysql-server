@@ -585,6 +585,8 @@ c127 int,
 c128 int,
 primary key using hash(c1)) engine=ndb partition by key(c1);
 drop table t1;
+create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
+ERROR HY000: Field in list of fields for partition function not found in table
 create table t1 (
 a1234567890123456789012345678901234567890 int primary key,
 a12345678901234567890123456789a1234567890 int,
