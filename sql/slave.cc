@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -408,17 +408,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   pthread_mutex_t *sql_lock = &mi->rli.run_lock, *io_lock = &mi->run_lock;
 
-  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
-  {
-    DBUG_PRINT("info",("Terminating IO thread"));
-    mi->abort_slave=1;
-    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
-                                      &mi->stop_cond,
-                                      &mi->slave_running,
-                                      skip_lock)) &&
-        !force_all)
-      DBUG_RETURN(error);
-  }
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
@@ -426,6 +415,17 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
     if ((error=terminate_slave_thread(mi->rli.sql_thd, sql_lock,
                                       &mi->rli.stop_cond,
                                       &mi->rli.slave_running,
+                                      skip_lock)) &&
+        !force_all)
+      DBUG_RETURN(error);
+  }
+  if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
+  {
+    DBUG_PRINT("info",("Terminating IO thread"));
+    mi->abort_slave=1;
+    if ((error=terminate_slave_thread(mi->io_thd, io_lock,
+                                      &mi->stop_cond,
+                                      &mi->slave_running,
                                       skip_lock)) &&
         !force_all)
       DBUG_RETURN(error);
