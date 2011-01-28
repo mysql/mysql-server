@@ -417,6 +417,14 @@ sub main {
   my $server_port = $server->sockport();
   mtr_report("Using server port $server_port");
 
+  # --------------------------------------------------------------------------
+  # Read definitions from include/plugin.defs
+  #
+  read_plugin_defs("include/plugin.defs");
+
+  # Simplify reference to semisync plugins
+  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
+
   # Create child processes
   my %children;
   for my $child_num (1..$opt_parallel){
@@ -1973,7 +1981,7 @@ sub find_plugin($$)
 {
   my ($plugin, $location)  = @_;
   my $plugin_filename;
-    
+
   if (IS_WINDOWS)
   {
      $plugin_filename = $plugin.".dll"; 
@@ -1983,13 +1991,13 @@ sub find_plugin($$)
      $plugin_filename = $plugin.".so";
   }
 
-  my $lib_example_plugin=
+  my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
                     );
-  return $lib_example_plugin;
+  return $lib_plugin;
 }
 
 #
@@ -1999,9 +2007,15 @@ sub find_plugin($$)
 sub read_plugin_defs($)
 {
   my ($defs_file)= @_;
+  my $running_debug= 0;
 
   open(PLUGDEF, '<', $defs_file)
     or mtr_error("Can't read plugin defintions file $defs_file");
+
+  # Need to check if we will be running mysqld-debug
+  if ($opt_debug) {
+    $running_debug= 1 if find_mysqld($basedir) =~ /-debug$/;
+  }
 
   while (<PLUGDEF>) {
     next if /^#/;
@@ -2009,6 +2023,9 @@ sub read_plugin_defs($)
     # Allow empty lines
     next unless $plug_file;
     mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
+
+    # If running debug server, plugins will be in 'debug' subdirectory
+    $plug_file= "debug/$plug_file" if $running_debug;
 
     my ($plugin)= find_plugin($plug_file, $plug_loc);
 
@@ -2074,18 +2091,9 @@ sub environment_setup {
     push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
   }
 
-  # --------------------------------------------------------------------------
-  # Read definitions from include/plugin.defs
-  #
   # Plugin settings should no longer be added here, instead
   # place definitions in include/plugin.defs.
   # See comment in that file for details.
-  # --------------------------------------------------------------------------
-  read_plugin_defs("include/plugin.defs");
-
-  # Simplify reference to semisync plugins
-  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
-
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
