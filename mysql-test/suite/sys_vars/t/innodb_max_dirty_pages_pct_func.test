@@ -117,12 +117,12 @@ BEGIN
    END WHILE;
 END//
 
-CREATE PROCEDURE check_pct(IN num DECIMAL)
+CREATE PROCEDURE check_pct(IN success_on_wait BOOLEAN)
 BEGIN
-   IF (dirty_pct() < num) THEN
+   IF (success_on_wait > 0) THEN
       SELECT 'BELOW_MAX' AS PCT_VALUE;
    ELSE
-      SELECT 'ABOVE_MAX' AS PCT_VALUE;
+      SELECT 'ABOVE_MAX or TimeOut Of The Test' AS PCT_VALUE;
    END IF;
 END//
 
@@ -155,7 +155,8 @@ let $wait_condition= SELECT (dirty_pct() <= @@global.innodb_max_dirty_pages_pct)
 --source include/wait_condition.inc
 
 --echo 'We expect dirty pages pct to be BELOW_MAX after some time depending on performance'
-CALL check_pct(10);
+# Value For $sucess will be set from include/wait_condition.inc file. It can have values 1 or 0. It will be 1 if dirty_pct() <= @@global.innodb_max_dirty_pages_pct else it will be 0.
+eval CALL check_pct($success);
 DROP PROCEDURE add_records;
 DROP PROCEDURE add_until;
 DROP PROCEDURE check_pct;
