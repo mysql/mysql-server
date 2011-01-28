@@ -11758,7 +11758,7 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     
     while ((check= pOp->nextResult(&dummyRowPtr, TRUE, TRUE)) == 0)
     {
-      DBUG_PRINT("info", ("nextResult rows: %d  commits: %d",
+      DBUG_PRINT("info", ("nextResult rows: %d  commits: %d"
                           "fixed_mem_size %d var_mem_size %d "
                           "fragmentid %d extent_space %d free_extent_space %d",
                           (int)rows, (int)commits, (int)fixed_mem,
