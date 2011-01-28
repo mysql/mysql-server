@@ -28,9 +28,8 @@ DELETE FROM t0_definition WHERE state = 'new';
 let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
 #echo MYSQLD_DATADIR: $MYSQLD_DATADIR;
 
-# Dump the current definition of the table t1 to tmp1
-let $show_file= $MYSQLD_DATADIR/test/tmp1;
---exec echo "SHOW CREATE TABLE t1; exit; " | $MYSQL_TEST > $show_file 2>&1
+# Save the current definition of the table t1
+let $show_create= `SHOW CREATE TABLE t1`;
 
 if ($do_file_tests)
 {
@@ -52,7 +51,7 @@ if (!$do_file_tests)
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'new',
-     create_command = load_file('$show_file'),
+     create_command = "$show_create",
      file_list      = @aux;
 
 # Print the old and new table layout, if they differ
