@@ -27,6 +27,8 @@
 #include "partition_info.h"
 #include "sql_parse.h"                        // test_if_data_home_dir
 #include "sql_acl.h"                          // *_ACL
+#include "table.h"                            // TABLE_LIST
+#include "my_bitmap.h"                        // bitmap*
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -34,17 +36,21 @@
 
 partition_info *partition_info::get_clone()
 {
+  DBUG_ENTER("partition_info::get_clone");
   if (!this)
-    return 0;
+    DBUG_RETURN(NULL);
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
   partition_info *clone= new partition_info();
   if (!clone)
   {
     mem_alloc_error(sizeof(partition_info));
-    return NULL;
+    DBUG_RETURN(NULL);
   }
   memcpy(clone, this, sizeof(partition_info));
+  memset(&(clone->read_partitions), 0, sizeof(clone->read_partitions));
+  memset(&(clone->lock_partitions), 0, sizeof(clone->lock_partitions));
+  clone->bitmaps_are_initialized= FALSE;
   clone->partitions.empty();
 
   while ((part= (part_it++)))
@@ -55,7 +61,7 @@ partition_info *partition_info::get_clone()
     if (!part_clone)
     {
       mem_alloc_error(sizeof(partition_element));
-      return NULL;
+      DBUG_RETURN(NULL);
     }
     memcpy(part_clone, part, sizeof(partition_element));
     part_clone->subpartitions.empty();
@@ -65,15 +71,130 @@ partition_info *partition_info::get_clone()
       if (!subpart_clone)
       {
         mem_alloc_error(sizeof(partition_element));
-        return NULL;
+        DBUG_RETURN(NULL);
       }
       memcpy(subpart_clone, subpart, sizeof(partition_element));
       part_clone->subpartitions.push_back(subpart_clone);
     }
     clone->partitions.push_back(part_clone);
   }
-  return clone;
+  DBUG_RETURN(clone);
 }
+
+
+/**
+  Prune away partitions not mentioned in the PARTITION () clause,
+  if used.
+
+    @param table_list  Table list pointing to table to prune.
+
+  @return Operation status
+    @retval true  Failure
+    @retval false Success
+*/
+bool partition_info::prune_partition_bitmaps(TABLE_LIST *table_list)
+{
+  List_iterator<String> partition_names_it(*(table_list->partition_names));
+  uint num_names= table_list->partition_names->elements;
+  uint i= 0;
+  HASH *part_name_hash;
+  DBUG_ENTER("partition_info::prune_partition_bitmaps");
+
+  DBUG_ASSERT(table && table->s && table->s->ha_part_data);
+  part_name_hash= &table->s->ha_part_data->partition_name_hash;
+  DBUG_ASSERT(part_name_hash->records);
+  if (num_names < 1)
+    DBUG_RETURN(true);
+
+  /*
+    TODO: When adding support for FK in partitioned tables, the referenced
+    table must probably lock all partitions for read, and also write depending
+    of ON DELETE/UPDATE.
+  */
+  bitmap_clear_all(&read_partitions);
+
+  /* No check for duplicate names or overlapping partitions/subpartitions. */
+
+  DBUG_PRINT("info", ("Searching through partition_name_hash"));
+  do
+  {
+    String *part_name_str= partition_names_it++;
+    const char *part_name= part_name_str->c_ptr_safe();
+    PART_NAME_DEF *part_def;
+    part_def= (PART_NAME_DEF*) my_hash_search(part_name_hash,
+                                              (const uchar*) part_name,
+                                              strlen(part_name));
+    if (!part_def)
+    {
+      my_error(ER_NO_SUCH_PARTITION, MYF(0), part_name);
+      DBUG_RETURN(true);
+    }
+
+    if (part_def->is_subpart)
+    {
+      bitmap_set_bit(&read_partitions, part_def->part_id);
+    }
+    else
+    {
+      if (is_sub_partitioned())
+      {
+        /* Mark all subpartitions in the partition */
+        uint j, start= part_def->part_id;
+        uint end= start + num_subparts;
+        for (j= start; j < end; j++)
+          bitmap_set_bit(&read_partitions, j);
+      }
+      else
+        bitmap_set_bit(&read_partitions, part_def->part_id);
+    }
+
+    DBUG_PRINT("info", ("Found partition %u is_subpart %d for name %s",
+                        part_def->part_id, part_def->is_subpart,
+                        part_name));
+  } while (++i < num_names);
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Set read/lock_partitions bitmap over non pruned partitions
+
+  @param table_list   Possible TABLE_LIST which can contain
+                      list of partition names to query
+
+  @return Operation status
+    @retval FALSE  OK
+    @retval TRUE   Failed to allocate memory for bitmap or list of partitions
+                   did not match
+
+  @note OK to call multiple times without the need for free_bitmaps.
+*/
+
+bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
+{
+  DBUG_ENTER("partition_info::set_partition_bitmaps");
+
+  DBUG_ASSERT(bitmaps_are_initialized);
+  DBUG_ASSERT(table);
+  if (!bitmaps_are_initialized)
+    DBUG_RETURN(TRUE);
+
+  if (table_list &&
+      table_list->partition_names &&
+      table_list->partition_names->elements)
+  {
+    if (prune_partition_bitmaps(table_list))
+      DBUG_RETURN(TRUE);
+  }
+  else
+  {
+    bitmap_set_all(&read_partitions);
+    DBUG_PRINT("info", ("Set all partitions"));
+  }
+  bitmap_copy(&lock_partitions, &read_partitions);
+  DBUG_RETURN(FALSE);
+}
+
 
 /*
   Create a memory area where default partition names are stored and fill it
@@ -420,47 +541,6 @@ char* partition_info::has_unique_fields()
   DBUG_RETURN(NULL);
 }
 
-/*
-  A support function to check if a partition element's name is unique
-  
-  SYNOPSIS
-    has_unique_name()
-    partition_element  element to check
-
-  RETURN VALUES
-    TRUE               Has unique name
-    FALSE              Doesn't
-*/
-
-bool partition_info::has_unique_name(partition_element *element)
-{
-  DBUG_ENTER("partition_info::has_unique_name");
-  
-  const char *name_to_check= element->partition_name;
-  List_iterator<partition_element> parts_it(partitions);
-  
-  partition_element *el;
-  while ((el= (parts_it++)))
-  {
-    if (!(my_strcasecmp(system_charset_info, el->partition_name, 
-                        name_to_check)) && el != element)
-        DBUG_RETURN(FALSE);
-
-    if (!el->subpartitions.is_empty()) 
-    {
-      partition_element *sub_el;    
-      List_iterator<partition_element> subparts_it(el->subpartitions);
-      while ((sub_el= (subparts_it++)))
-      {
-        if (!(my_strcasecmp(system_charset_info, sub_el->partition_name, 
-                            name_to_check)) && sub_el != element)
-            DBUG_RETURN(FALSE);
-      }
-    }
-  } 
-  DBUG_RETURN(TRUE);
-}
-
 
 /**
   @brief Get part_elem and part_id from partition name
@@ -528,6 +608,17 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
 }
 
 
+/**
+  Helper function to has_unique_names.
+*/
+
+static const char *get_part_name_from_elem(const char *name, size_t *length,
+                                      my_bool not_used __attribute__((unused)))
+{
+  *length= strlen(name);
+  return name;
+}
+
 /*
   A support function to check partition names for duplication in a
   partitioned table
@@ -536,8 +627,8 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
     has_unique_names()
 
   RETURN VALUES
-    TRUE               Has unique part and subpart names
-    FALSE              Doesn't
+    NULL               Has unique part and subpart names
+    !NULL              Pointer to duplicated name
 
   DESCRIPTION
     Checks that the list of names in the partitions doesn't contain any
@@ -546,28 +637,55 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
 
 char *partition_info::has_unique_names()
 {
+  HASH partition_names;
+  uint max_names;
+  const uchar *curr_name= NULL;
+  size_t length;
+  List_iterator<partition_element> parts_it(partitions);
+  partition_element *p_elem;  
+
   DBUG_ENTER("partition_info::has_unique_names");
   
-  List_iterator<partition_element> parts_it(partitions);
+  /*
+    TODO: If table->s->ha_part_data->partition_name_hash.elements is > 0,
+    then we could just return NULL, but that has not been verified.
+    And this only happens when in ALTER TABLE with full table copy.
+  */
 
-  partition_element *el;  
-  while ((el= (parts_it++)))
+  max_names= num_parts;
+  if (is_sub_partitioned())
+    max_names+= num_parts * num_subparts;
+  if (my_hash_init(&partition_names, system_charset_info, max_names, 0, 0,
+                   (my_hash_get_key) get_part_name_from_elem, 0, HASH_UNIQUE))
   {
-    if (! has_unique_name(el))
-      DBUG_RETURN(el->partition_name);
-      
-    if (!el->subpartitions.is_empty())
+    DBUG_ASSERT(0);
+    curr_name= (const uchar*) "Internal failure";
+    goto error;
+  }
+  while ((p_elem= (parts_it++)))
+  {
+    curr_name= (const uchar*) p_elem->partition_name;
+    length= strlen(p_elem->partition_name);
+    if (my_hash_insert(&partition_names, curr_name))
+      goto error;
+
+    if (!p_elem->subpartitions.is_empty())
     {
-      List_iterator<partition_element> subparts_it(el->subpartitions);
-      partition_element *subel;
-      while ((subel= (subparts_it++)))
+      List_iterator<partition_element> subparts_it(p_elem->subpartitions);
+      partition_element *subp_elem;
+      while ((subp_elem= (subparts_it++)))
       {
-        if (! has_unique_name(subel))
-          DBUG_RETURN(subel->partition_name);
+        curr_name= (const uchar*) subp_elem->partition_name;
+        if (my_hash_insert(&partition_names, curr_name))
+          goto error;
       }
     }
   } 
+  my_hash_free(&partition_names);
   DBUG_RETURN(NULL);
+error:
+  my_hash_free(&partition_names);
+  DBUG_RETURN((char*) curr_name);
 }
 
 

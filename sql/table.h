@@ -487,6 +487,18 @@ typedef struct st_table_field_def
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+/** Struct to be used for partition_name_hash */
+typedef struct st_part_name_def
+{
+  uchar *partition_name;
+  uint length;
+  uint32 part_id;
+  my_bool is_subpart;
+} PART_NAME_DEF;
+
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                     my_bool not_used __attribute__((unused)));
+
 /**
   Partition specific ha_data struct.
 */
@@ -495,6 +507,11 @@ typedef struct st_ha_data_partition
   bool auto_inc_initialized;
   mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
   ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  /**
+    Hash of partition names. Initialized in the first ha_partition::open()
+    for the table_share. After that it is read-only, i.e. no locking required.
+  */
+  HASH partition_name_hash;
 } HA_DATA_PARTITION;
 #endif
 
@@ -1710,6 +1727,11 @@ struct TABLE_LIST
   enum enum_schema_table_state schema_table_state;
 
   MDL_request mdl_request;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* List to carry partition names from PARTITION (...) clause in statement */
+  List<String> *partition_names;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
