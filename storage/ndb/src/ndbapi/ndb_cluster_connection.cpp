@@ -229,6 +229,38 @@ Ndb_cluster_connection::node_id()
   return m_impl.m_transporter_facade->ownId();
 }
 
+unsigned
+Ndb_cluster_connection::max_nodegroup()
+{
+  TransporterFacade *tp = m_impl.m_transporter_facade;
+  if (tp == 0 || tp->ownId() == 0)
+    return 0;
+
+  Bitmask<MAX_NDB_NODES> ng;
+  tp->lock_mutex();
+  for(unsigned i= 0; i < no_db_nodes(); i++)
+  {
+    //************************************************
+    // If any node is answering, ndb is answering
+    //************************************************
+    trp_node n = tp->theClusterMgr->getNodeInfo(m_impl.m_all_nodes[i].id);
+    if (n.is_confirmed() && n.m_state.nodeGroup <= MAX_NDB_NODES)
+      ng.set(n.m_state.nodeGroup);
+  }
+  tp->unlock_mutex();
+
+  if (ng.isclear())
+    return 0;
+
+  Uint32 n = ng.find_first();
+  Uint32 m;
+  do
+  {
+    m = n;
+  } while ((n = ng.find(n+1)) != ng.NotFound);
+
+  return m;
+}
 
 int Ndb_cluster_connection::get_no_ready()
 {

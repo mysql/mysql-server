@@ -7658,20 +7658,73 @@ static uint get_no_fragments(ulonglong max_rows)
   of number of nodes and never more than 4 times the number of nodes.
 
 */
-static bool adjusted_frag_count(uint no_fragments, 
-                                uint no_nodes,
-                                uint &reported_frags)
+static
+bool
+adjusted_frag_count(Ndb* ndb,
+                    uint requested_frags,
+                    uint &reported_frags)
 {
-  uint i= 0;
+  unsigned no_nodes= g_ndb_cluster_connection->no_db_nodes();
+  unsigned no_replicas= no_nodes == 1 ? 1 : 2;
 
-  // Should really depend on #replicas
-  uint max_per_node = no_nodes == 1 ? 8 : 4;
+  unsigned no_threads= 1;
+  const unsigned no_nodegroups= g_ndb_cluster_connection->max_nodegroup() + 1;
 
-  reported_frags= no_nodes;
-  while (reported_frags < no_fragments && ++i < max_per_node &&
-         (reported_frags + no_nodes) < MAX_PARTITIONS) 
-    reported_frags+= no_nodes;
-  return (reported_frags < no_fragments);
+  {
+    /**
+     * Use SYSTAB_0 to get #replicas, and to guess #threads
+     */
+    char dbname[FN_HEADLEN];
+    snprintf(dbname, sizeof(dbname), "%s", ndb->getDatabaseName());
+    ndb->setDatabaseName("sys");
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), "SYSTAB_0");
+    const NdbDictionary::Table * tab = ndbtab_g.get_table();
+    if (tab)
+    {
+      no_replicas= ndbtab_g.get_table()->getReplicaCount();
+
+      /**
+       * Guess #threads
+       */
+      {
+        const Uint32 frags = tab->getFragmentCount();
+        Uint32 node = 0;
+        Uint32 cnt = 0;
+        for (Uint32 i = 0; i<frags; i++)
+        {
+          Uint32 replicas[4];
+          if (tab->getFragmentNodes(i, replicas, NDB_ARRAY_SIZE(replicas)))
+          {
+            if (node == replicas[0] || node == 0)
+            {
+              node = replicas[0];
+              cnt ++;
+            }
+          }
+        }
+        no_threads = cnt; // No of primary replica on 1-node
+      }
+    }
+    ndb->setDatabaseName(dbname);
+  }
+
+  const unsigned usable_nodes = no_replicas * no_nodegroups;
+  const uint max_replicas = 8 * usable_nodes * no_threads;
+
+  reported_frags = usable_nodes * no_threads; // Start with 1 frag per threads
+  Uint32 replicas = reported_frags * no_replicas;
+
+  /**
+   * Loop until requested replicas, and not exceed max-replicas
+   */
+  while (reported_frags < requested_frags &&
+         (replicas + usable_nodes * no_threads * no_replicas) <= max_replicas)
+  {
+    reported_frags += usable_nodes * no_threads;
+    replicas += usable_nodes * no_threads * no_replicas;
+  }
+
+  return (reported_frags < requested_frags);
 }
 
 
@@ -8013,30 +8066,8 @@ int ha_ndbcluster::create(const char *name,
       create_info->max_rows : 
       create_info->min_rows;
     uint no_fragments= get_no_fragments(rows);
-
-    uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
-    {
-      /**
-       * Use SYSTAB_0 to guess #threads per node
-       */
-      ndb->setDatabaseName("sys");
-      Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
-      if (ndbtab_g.get_table())
-      {
-        Uint32 frags= ndbtab_g.get_table()->getFragmentCount();
-        if (frags > no_nodes)
-        {
-          /**
-           * And use this as argument adjusted_frag_count...
-           */
-          no_nodes= frags;
-        }
-      }
-      ndb->setDatabaseName(m_dbname);
-    }
-
     uint reported_frags= no_fragments;
-    if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
+    if (adjusted_frag_count(ndb, no_fragments, reported_frags))
     {
       push_warning(current_thd,
                    MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
@@ -13016,39 +13047,38 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
 
 int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
 {
+  if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
+  {
+err:
+    my_error(HA_ERR_NO_CONNECTION, MYF(0));
+    return -1;
+  }
+
+  THD* thd = current_thd;
+  if (thd == 0)
+    goto err;
+  Thd_ndb * thd_ndb = get_thd_ndb(thd);
+  if (thd_ndb == 0)
+    goto err;
+
   ha_rows max_rows, min_rows;
   if (create_info)
   {
     max_rows= create_info->max_rows;
     min_rows= create_info->min_rows;
-    
-    /**
-     * we hate this method...just return 1??
-     */
-    return 1;
   }
   else
   {
     max_rows= table_share->max_rows;
     min_rows= table_share->min_rows;
   }
+  uint no_fragments= get_no_fragments(max_rows >= min_rows ?
+                                      max_rows : min_rows);
   uint reported_frags;
-  uint no_fragments=
-    get_no_fragments(max_rows >= min_rows ? max_rows : min_rows);
-  if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
-  {
-    my_error(HA_ERR_NO_CONNECTION, MYF(0));
-    return -1;
-  }
-  uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
-
-  if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
-  {
-    push_warning(current_thd,
-                 MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-    "Ndb might have problems storing the max amount of rows specified");
-  }
-  return (int)reported_frags;
+  adjusted_frag_count(thd_ndb->ndb,
+                      no_fragments,
+                      reported_frags);
+  return reported_frags;
 }
 
 uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
