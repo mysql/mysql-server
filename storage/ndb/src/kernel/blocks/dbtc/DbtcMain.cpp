@@ -7813,7 +7813,8 @@ void Dbtc::execGCP_NOMORETRANS(Signal* signal)
 {
   jamEntry();
   GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtr();
-  c_gcp_ref = req->senderData;
+  c_gcp_ref = req->senderRef;
+  c_gcp_data = req->senderData;
   Uint32 gci_lo = req->gci_lo;
   Uint32 gci_hi = req->gci_hi;
   tcheckGcpId = gci_lo | (Uint64(gci_hi) << 32);
@@ -11629,10 +11630,10 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
 void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 {
   GCPTCFinished* conf = (GCPTCFinished*)signal->getDataPtrSend();
-  conf->senderData = c_gcp_ref;
+  conf->senderData = c_gcp_data;
   conf->gci_hi = Uint32(gci >> 32);
   conf->gci_lo = Uint32(gci);
-  sendSignal(cdihblockref, GSN_GCP_TCFINISHED, signal, 
+  sendSignal(c_gcp_ref, GSN_GCP_TCFINISHED, signal,
              GCPTCFinished::SignalLength, JBB);
 }//Dbtc::gcpTcfinished()
 
