@@ -10036,8 +10036,8 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
                           bool other_tbls_ok)
 {
-  if (!cond)
-    return NULL;
+  DBUG_ASSERT(cond != NULL);
+
   if (cond->type() == Item::COND_ITEM)
   {
     uint n_marked= 0;
@@ -10046,7 +10046,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       table_map used_tables= 0;
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (Item*) 0;
+	return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -10063,7 +10063,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (Item*) 0;
+	return NULL;
       case 1:
         new_cond->used_tables_cache= used_tables;
 	return new_cond->argument_list()->head();
@@ -10077,14 +10077,14 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
     {
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (Item*) 0;
+	return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
 	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
 	if (!fix)
-	  return (Item*) 0;
+	  return NULL;
 	new_cond->argument_list()->push_back(fix);
         n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
@@ -10098,7 +10098,15 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
   }
 
   if (!uses_index_fields_only(cond, table, keyno, other_tbls_ok))
-    return (Item*) 0;
+  {
+    /* 
+      Reset marker since it might have the value
+      ICP_COND_USES_INDEX_ONLY if this condition is part of the select
+      condition for multiple tables.
+    */
+    cond->marker= 0;
+    return NULL;
+  }
   cond->marker= ICP_COND_USES_INDEX_ONLY;
   return cond;
 }
@@ -10182,11 +10190,11 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
 static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
 {
   DBUG_ENTER("push_index_cond");
-  Item *idx_cond;
 
   /*
     We will only attempt to push down an index condition when the
     following criteria are true:
+    0. The table has a select condition
     1. The storage engine supports ICP.
     2. The system variable for enabling ICP is ON.
     3. The query is not a multi-table update or delete statement. The reason
@@ -10196,7 +10204,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
        when doing the update part and result in either not finding
        the record to update or updating the wrong record.
   */
-  if (tab->table->file->index_flags(keyno, 0, 1) &
+  if (tab->select_cond &&
+      tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
       tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
@@ -10204,8 +10213,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););
-    idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
-                                  other_tbls_ok);
+    Item *idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
+                                        other_tbls_ok);
     DBUG_EXECUTE("where", print_where(idx_cond, "idx cond", QT_ORDINARY););
     if (idx_cond)
     {
