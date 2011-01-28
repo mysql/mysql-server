@@ -319,7 +319,7 @@ Proxied_user
 With_grant	1
 FLUSH PRIVILEGES;
 #
-# Bug#58139 : default-auth option not recognized in MySQL standardi
+# Bug#58139 : default-auth option not recognized in MySQL standard
 #             command line clients
 #
 # Executing 'mysql'
@@ -328,4 +328,6 @@ FLUSH PRIVILEGES;
 # Executing 'mysqladmin'
 mysqld is alive
 # Executing 'mysqldump'
+# Executing 'mysql_upgrade'
+The --upgrade-system-tables option was used, databases won't be touched.
 End of 5.5 tests
