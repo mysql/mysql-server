@@ -177,6 +177,7 @@ public:
   void set_optimized_node_selection(int val);
 
   unsigned no_db_nodes();
+  unsigned max_nodegroup();
   unsigned node_id();
   unsigned get_connect_count() const;
 
