@@ -27,6 +27,7 @@
 #include "pfs_global.h"
 #include "pfs_instr.h"
 #include "pfs_timer.h"
+#include "pfs_visitor.h"
 
 THR_LOCK table_ews_global_by_event_name::m_table_lock;
 
@@ -94,7 +95,8 @@ int
 table_ews_global_by_event_name::delete_all_rows(void)
 {
   reset_events_waits_by_instance();
-  /* FIXME: table io */
+  reset_table_waits_by_table_handle();
+  reset_table_waits_by_table();
   reset_global_wait_stat();
   return 0;
 }
@@ -169,6 +171,12 @@ int table_ews_global_by_event_name::rnd_next(void)
         m_next_pos.set_after(&m_pos);
         return 0;
       }
+      if (m_pos.m_index_2 == 2)
+      {
+        make_table_lock_row(&global_table_lock_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
       break;
     default:
       break;
@@ -226,236 +234,93 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
     }
     break;
   case pos_ews_global_by_event_name::VIEW_TABLE:
-    DBUG_ASSERT(m_pos.m_index_2 == 1);
-    make_table_io_row(&global_table_io_class);
+    DBUG_ASSERT(m_pos.m_index_2 >= 1);
+    DBUG_ASSERT(m_pos.m_index_2 <= 2);
+    if (m_pos.m_index_2 == 1)
+      make_table_io_row(&global_table_io_class);
+    else
+      make_table_lock_row(&global_table_lock_class);
     break;
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-
 void table_ews_global_by_event_name
 ::make_mutex_row(PFS_mutex_class *klass)
 {
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
-  uint index= klass->m_event_name_index;
-  PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
+  m_row.m_event_name.make_row(klass);
 
-  if (klass->is_singleton())
-  {
-    PFS_mutex *pfs= sanitize_mutex(klass->m_singleton);
-    if (likely(pfs != NULL))
-    {
-      if (likely(pfs->m_lock.is_populated()))
-      {
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
-  else
-  {
-    /* For all the mutex instances ... */
-    PFS_mutex *pfs= mutex_array;
-    PFS_mutex *pfs_last= mutex_array + mutex_max;
-    for ( ; pfs < pfs_last; pfs++)
-    {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
-      {
-        /*
-          If the instance belongs to this class,
-          aggregate the instance statistics.
-        */
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
+  PFS_instance_wait_visitor visitor;
+  PFS_instance_iterator::visit_mutex_instances(klass, & visitor);
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
 void table_ews_global_by_event_name
 ::make_rwlock_row(PFS_rwlock_class *klass)
 {
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
-  uint index= klass->m_event_name_index;
-  PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
+  m_row.m_event_name.make_row(klass);
 
-  if (klass->is_singleton())
-  {
-    PFS_rwlock *pfs= sanitize_rwlock(klass->m_singleton);
-    if (likely(pfs != NULL))
-    {
-      if (likely(pfs->m_lock.is_populated()))
-      {
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
-  else
-  {
-    /* For all the rwlock instances ... */
-    PFS_rwlock *pfs= rwlock_array;
-    PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
-    for ( ; pfs < pfs_last; pfs++)
-    {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
-      {
-        /*
-          If the instance belongs to this class,
-          aggregate the instance statistics.
-        */
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
+  PFS_instance_wait_visitor visitor;
+  PFS_instance_iterator::visit_rwlock_instances(klass, & visitor);
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
 void table_ews_global_by_event_name
 ::make_cond_row(PFS_cond_class *klass)
 {
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
-  uint index= klass->m_event_name_index;
-  PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
+  m_row.m_event_name.make_row(klass);
 
-  if (klass->is_singleton())
-  {
-    PFS_cond *pfs= sanitize_cond(klass->m_singleton);
-    if (likely(pfs != NULL))
-    {
-      if (likely(pfs->m_lock.is_populated()))
-      {
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
-  else
-  {
-    /* For all the cond instances ... */
-    PFS_cond *pfs= cond_array;
-    PFS_cond *pfs_last= cond_array + cond_max;
-    for ( ; pfs < pfs_last; pfs++)
-    {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
-      {
-        /*
-          If the instance belongs to this class,
-          aggregate the instance statistics.
-        */
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
+  PFS_instance_wait_visitor visitor;
+  PFS_instance_iterator::visit_cond_instances(klass, & visitor);
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
 void table_ews_global_by_event_name
 ::make_file_row(PFS_file_class *klass)
 {
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
-  uint index= klass->m_event_name_index;
-  PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
+  m_row.m_event_name.make_row(klass);
 
-  if (klass->is_singleton())
-  {
-    PFS_file *pfs= sanitize_file(klass->m_singleton);
-    if (likely(pfs != NULL))
-    {
-      if (likely(pfs->m_lock.is_populated()))
-      {
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
-  else
-  {
-    /* For all the file instances ... */
-    PFS_file *pfs= file_array;
-    PFS_file *pfs_last= file_array + file_max;
-    for ( ; pfs < pfs_last; pfs++)
-    {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
-      {
-        /*
-          If the instance belongs to this class,
-          aggregate the instance statistics.
-        */
-        cumulated_stat.aggregate(& pfs->m_wait_stat);
-      }
-    }
-  }
-
-  /* FIXME: */
-  /* For all the file handles ... */
+  PFS_instance_wait_visitor visitor;
+  PFS_instance_iterator::visit_file_instances(klass, & visitor);
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
 void table_ews_global_by_event_name
 ::make_table_io_row(PFS_instr_class *klass)
 {
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
-  uint index= klass->m_event_name_index;
-  PFS_single_stat cumulated_stat= global_instr_class_waits_array[index];
-  PFS_table_io_stat cumulated_io_stat;
+  m_row.m_event_name.make_row(klass);
 
-  /* For all the table shares ... */
-  PFS_table_share *share= table_share_array;
-  PFS_table_share *share_last= table_share_array + table_share_max;
-  for ( ; share < share_last; share++)
-  {
-    if (share->m_lock.is_populated())
-    {
-      /* Aggregate index stats */
-      for (index= 0; index <= share->m_key_count; index++)
-        cumulated_io_stat.aggregate(& share->m_table_stat.m_index_stat[index]);
-
-      /* Aggregate global stats */
-      cumulated_io_stat.aggregate(& share->m_table_stat.m_index_stat[MAX_KEY]);
-    }
-  }
-
-  /* For all the table handles ... */
-  PFS_table *table= table_array;
-  PFS_table *table_last= table_array + table_max;
-  for ( ; table < table_last; table++)
-  {
-    if (table->m_lock.is_populated())
-    {
-      PFS_table_share *safe_share= sanitize_table_share(table->m_share);
-
-      if (likely(safe_share != NULL))
-      {
-        /* Aggregate index stats */
-        for (index= 0; index <= safe_share->m_key_count; index++)
-          cumulated_io_stat.aggregate(& table->m_table_stat.m_index_stat[index]);
-
-        /* Aggregate global stats */
-        cumulated_io_stat.aggregate(& table->m_table_stat.m_index_stat[MAX_KEY]);
-      }
-    }
-  }
-
-  cumulated_io_stat.sum(& cumulated_stat);
+  PFS_table_io_wait_visitor visitor;
+  PFS_object_iterator::visit_all_tables(& visitor);
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, &cumulated_stat);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row_exists= true;
+}
+
+void table_ews_global_by_event_name
+::make_table_lock_row(PFS_instr_class *klass)
+{
+  m_row.m_event_name.make_row(klass);
+
+  PFS_table_lock_wait_visitor visitor;
+  PFS_object_iterator::visit_all_tables(& visitor);
+  
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
   m_row_exists= true;
 }
 
@@ -477,26 +342,12 @@ int table_ews_global_by_event_name
     {
       switch(f->field_index)
       {
-      case 0: /* NAME */
-        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+      case 0: /* EVENT_NAME */
+        m_row.m_event_name.set_field(f);
         break;
-      case 1: /* COUNT */
-        set_field_ulonglong(f, m_row.m_stat.m_count);
+      default: /* 1, ... COUNT/SUM/MIN/AVG/MAX */
+        m_row.m_stat.set_field(f->field_index - 1, f);
         break;
-      case 2: /* SUM */
-        set_field_ulonglong(f, m_row.m_stat.m_sum);
-        break;
-      case 3: /* MIN */
-        set_field_ulonglong(f, m_row.m_stat.m_min);
-        break;
-      case 4: /* AVG */
-        set_field_ulonglong(f, m_row.m_stat.m_avg);
-        break;
-      case 5: /* MAX */
-        set_field_ulonglong(f, m_row.m_stat.m_max);
-        break;
-      default:
-        DBUG_ASSERT(false);
       }
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -749,7 +749,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   unit= unit_arg;
 
   if (tmp_table_param.sum_func_count && !group_list)
+  {
     implicit_grouping= TRUE;
+    // Result will contain zero or one row - ordering is meaningless
+    order= NULL;
+  }
 
 #ifdef RESTRICTED_GROUP
   if (implicit_grouping)
@@ -3219,6 +3223,32 @@ JOIN::exec()
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having",
                                          QT_ORDINARY););
+
+        /*
+          If we have pushed parts of the condition down to the handler
+          then we need to add this to the original pre-ICP select
+          condition since the original select condition may be used in
+          test_if_skip_sort_order(). 
+          Note: here we call make_cond_for_table() a second time in order
+          to get sort_table_cond. An alternative could be to use
+          Item::copy_andor_structure() to make a copy of sort_table_cond.
+        */
+        if (curr_table->pre_idx_push_select_cond)
+        {
+          sort_table_cond= make_cond_for_table(curr_join->tmp_having,
+                                               used_tables, used_tables, 0);
+          if (!sort_table_cond)
+            DBUG_VOID_RETURN;
+          Item* new_pre_idx_push_select_cond= 
+            new Item_cond_and(curr_table->pre_idx_push_select_cond, 
+                              sort_table_cond);
+          if (!new_pre_idx_push_select_cond)
+            DBUG_VOID_RETURN;
+          if (new_pre_idx_push_select_cond->fix_fields(thd, 0))
+            DBUG_VOID_RETURN;
+          curr_table->pre_idx_push_select_cond= new_pre_idx_push_select_cond;
+	}
+
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables, 0);
@@ -6165,9 +6195,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     can be not more than select_lex->max_equal_elems such 
     substitutions.
   */ 
-  sz= max(sizeof(KEY_FIELD),sizeof(SARGABLE_PARAM))*
-      (((thd->lex->current_select->cond_count+1)*2 +
-	thd->lex->current_select->between_count)*m+1);
+  sz= max(sizeof(KEY_FIELD), sizeof(SARGABLE_PARAM)) *
+      (((select_lex->cond_count + 1) * 2 +
+	select_lex->between_count) * m + 1);
   if (!(key_fields=(KEY_FIELD*)	thd->alloc(sz)))
     return TRUE; /* purecov: inspected */
   and_level= 0;
@@ -8929,29 +8959,37 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
+      store_key* key= get_store_key(thd,
+				    keyuse,join->const_table_map,
+				    &keyinfo->key_part[i],
+				    key_buff, maybe_null);
+      if (unlikely(!key || thd->is_fatal_error))
+        DBUG_RETURN(TRUE);
+
       if (keyuse->used_tables || thd->lex->describe)
         /* 
           Comparing against a non-constant or executing an EXPLAIN
           query (which refers to this info when printing the 'ref'
           column of the query plan)
         */
-        *ref_key++= get_store_key(thd,
-                                  keyuse,join->const_table_map,
-                                  &keyinfo->key_part[i],
-                                  key_buff, maybe_null);
+        *ref_key++= key;
       else
-      { // Compare against constant
-        store_key_item tmp(thd, keyinfo->key_part[i].field,
-                           key_buff + maybe_null,
-                           maybe_null ?  key_buff : 0,
-                           keyinfo->key_part[i].length, keyuse->val);
-        if (thd->is_fatal_error)
-          DBUG_RETURN(TRUE);
-        /* 
-          The constant is the value to look for with this key. Copy
-          the value to ref->key_buff
-        */
-        tmp.copy(); 
+      {
+        /* key is const, copy value now and possibly skip it while ::exec() */
+        enum store_key::store_key_result result= key->copy();
+
+        /* Depending on 'result' it should be reevaluated in ::exec(), if either:
+         *  1) '::copy()' failed, in case we reevaluate - and refail in 
+         *       JOIN::exec() where the error can be handled.
+         *  2)  Constant evaluated to NULL value which we might need to 
+         *      handle as a special case during JOIN::exec()
+         *      (As in : 'Full scan on NULL key')
+         */
+        if (result!=store_key::STORE_KEY_OK  ||    // 1)
+            key->null_key)                         // 2)
+        {
+	  *ref_key++= key;  // Reevaluate in JOIN::exec() 
+        }
       }
       /*
 	Remember if we are going to use REF_OR_NULL
@@ -9676,7 +9714,7 @@ static bool make_join_select(JOIN *join, Item *cond)
               !first_inner_tab)
           {
             Item *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, 0);
+              make_cond_for_table(tmp, tab->table->map, tab->table->map, 0);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -17841,7 +17879,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
-      if (!table->maybe_null || error > 0)
+      if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -17862,7 +17900,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       /* Mark for EXPLAIN that the row was not found */
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
-      if (!table->maybe_null || error > 0)
+      if (!table->pos_in_table_list->outer_join || error > 0)
 	DBUG_RETURN(error);
     }
   }
@@ -19140,7 +19178,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
+	Item_cond_or do not need fix_fields for execution, its parameters
 	are fixed or do not need fix_fields, too
       */
       new_cond->quick_fix_field();

@@ -20,7 +20,8 @@ show databases;
 select count(*) from performance_schema.performance_timers;
 select count(*) from performance_schema.setup_consumers;
 # wait/io/table/sql/handler is a native instrument
-select count(*) > 1 from performance_schema.setup_instruments;
+# wait/lock/table/sql/handler is a native instrument
+select count(*) > 2 from performance_schema.setup_instruments;
 select count(*) from performance_schema.setup_timers;
 
 # Make sure we don't crash, no matter what the starting parameters are
@@ -45,6 +46,9 @@ select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
+select * from performance_schema.table_io_waits_summary_by_index_usage;
+select * from performance_schema.table_io_waits_summary_by_table;
+select * from performance_schema.table_lock_waits_summary_by_table;
 select * from performance_schema.threads;
 --enable_result_log
 

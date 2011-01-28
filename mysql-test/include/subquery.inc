@@ -5116,6 +5116,65 @@ EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 --echo
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#58561: Server Crash with correlated subquery and MyISAM tables 
+--echo #
+
+CREATE TABLE cc (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO cc VALUES (10,7,'v');
+INSERT INTO cc VALUES (11,1,'r');
+
+CREATE TABLE bb (
+  pk INT,
+  col_date_key DATE,
+  PRIMARY KEY (pk),
+  KEY col_date_key (col_date_key)
+) ENGINE=MyISAM;
+INSERT INTO bb VALUES (10,'2002-02-21');
+
+CREATE TABLE c (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO c VALUES (1,NULL,'w');
+INSERT INTO c VALUES (19,NULL,'f');
+
+CREATE TABLE b (
+  pk INT,
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+INSERT INTO b VALUES (1,7,'f');
+
+SELECT col_int_key
+FROM b granparent1
+WHERE (col_int_key, col_int_key) IN (
+    SELECT parent1.pk, parent1.pk
+    FROM bb parent1 JOIN cc parent2
+                    ON parent2.col_varchar_key = parent2.col_varchar_key
+    WHERE granparent1.col_varchar_key IN (
+        SELECT col_varchar_key
+        FROM c)
+      AND parent1.pk = granparent1.col_int_key
+    ORDER BY parent1.col_date_key 
+);
+
+DROP TABLE bb, b, cc, c;
+
 --echo End of 5.6 tests
 
 --echo #

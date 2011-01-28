@@ -176,7 +176,7 @@ int handle_options(int *argc, char ***argv,
   */
   for (pos= *argv, pos_end=pos+ *argc; pos != pos_end ; pos++)
   {
-    if (*pos == args_separator)
+    if (my_getopt_is_args_separator(*pos))
     {
       is_cmdline_arg= 0;
       break;
@@ -188,7 +188,7 @@ int handle_options(int *argc, char ***argv,
     char **first= pos;
     char *cur_arg= *pos;
     opt_found= 0;
-    if (!is_cmdline_arg && (cur_arg == args_separator))
+    if (!is_cmdline_arg && (my_getopt_is_args_separator(cur_arg)))
     {
       is_cmdline_arg= 1;
 
@@ -612,13 +612,21 @@ static char *check_struct_option(char *cur_arg, char *key_name)
    @param[in] argument The value argument
    @return boolean value
 */
-static my_bool get_bool_argument(const char *argument)
+static my_bool get_bool_argument(const struct my_option *opts,
+                                 const char *argument)
 {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
-      !my_strcasecmp(&my_charset_latin1, argument, "on"))
+      !my_strcasecmp(&my_charset_latin1, argument, "on") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "1"))
     return 1;
-  else
-    return (my_bool) atoi(argument);
+  else if (!my_strcasecmp(&my_charset_latin1, argument, "false") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "off") ||
+      !my_strcasecmp(&my_charset_latin1, argument, "0"))
+    return 0;
+  my_getopt_error_reporter(WARNING_LEVEL,
+      "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
+      opts->name, argument);
+  return 0;
 }
 
 /*
@@ -648,7 +656,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= get_bool_argument(argument);
+      *((my_bool*) value)= get_bool_argument(opts, argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);

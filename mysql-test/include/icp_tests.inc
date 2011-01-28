@@ -655,6 +655,33 @@ select 1 from t1 where b <= 1 and a <> '';
 drop table t1;
 
 --echo #
+--echo # Bug #58816 "Extra temporary duplicate rows in result set when 
+--echo #             switching ICP off"
+--echo #
+
+# Save optimizer switch setting
+set @save_optimizer_switch_bug58816= @@optimizer_switch;
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
+
+EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+SET SESSION optimizer_switch='index_condition_pushdown=off';
+
+SELECT pk, c1 FROM t1 WHERE pk <> 3;
+
+DROP TABLE t1;
+
+# Restore optimzer switch setting
+set optimizer_switch= @save_optimizer_switch_bug58816;
+
+--echo #
 --echo # Bug#58837: ICP crash or valgrind error due to uninitialized 
 --echo #            value in innobase_index_cond
 --echo #
@@ -697,3 +724,24 @@ WHERE NOT EXISTS
 --echo
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#58838 "Wrong results with HAVING + LIMIT without GROUP BY when 
+--echo #            ICP is enabled"
+--echo # 
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (c1)
+);
+
+INSERT INTO t1 VALUES (1,37),(2,8),(3,-25),(4,NULL),(5,55);
+
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 0;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 1;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 2;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 5;
+
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "sql_audit.h"
+#include "debug_sync.h"
 
 #ifndef EMBEDDED_LIBRARY
 static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
@@ -920,7 +921,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (lock_type == TL_WRITE_DELAYED)
     {
       LEX_STRING const st_query = { query, thd->query_length() };
+      DEBUG_SYNC(thd, "before_write_delayed");
       error=write_delayed(thd, table, duplic, st_query, ignore, log_on);
+      DEBUG_SYNC(thd, "after_write_delayed");
       query=0;
     }
     else
@@ -2239,7 +2242,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
         The thread could be killed with an error message if
         di->handle_inserts() or di->open_and_lock_table() fails.
         The thread could be killed without an error message if
-        killed using mysql_notify_thread_having_shared_lock() or
+        killed using THD::notify_shared_lock() or
         kill_delayed_threads_for_table().
       */
       if (!thd.is_error() || thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
@@ -2345,8 +2348,6 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                        (ulong) query.length));
 
   thd_proc_info(thd, "waiting for handler insert");
-  DBUG_EXECUTE_IF("waiting_for_delayed_insert_queue_is_empty",
-                  while(di->stacked_inserts) sleep(1););
   mysql_mutex_lock(&di->mutex);
   while (di->stacked_inserts >= delayed_queue_size && !thd->killed)
     mysql_cond_wait(&di->cond_client, &di->mutex);
@@ -3103,6 +3104,15 @@ bool Delayed_insert::handle_inserts(void)
     goto err;
   }
   query_cache_invalidate3(&thd, table, 1);
+  DBUG_EXECUTE_IF("after_handle_inserts",
+                  {
+                    const char act[]=
+                      "now "
+                      "signal inserts_handled";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(&thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
   mysql_mutex_lock(&mutex);
   DBUG_RETURN(0);
 

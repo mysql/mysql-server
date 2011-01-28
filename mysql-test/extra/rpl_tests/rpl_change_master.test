@@ -4,6 +4,9 @@
 
 call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum");
 
+connection slave;
+let $save_master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+
 connection master;
 # Make SQL slave thread advance a bit
 create table t1(n int);
@@ -307,3 +310,9 @@ if (!$check_ipv6_supported)
 # Test with no bind address(check that reset works)
 let $master_bind='';
 --source extra/rpl_tests/rpl_change_master_bind.inc
+
+### Revert to original master_host value
+--source include/stop_slave.inc
+--replace_result $save_master_host SAVE_MASTER_HOST
+--eval CHANGE MASTER TO master_host='$save_master_host'
+--source include/start_slave.inc

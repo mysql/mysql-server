@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -731,7 +731,8 @@ void MDL_map::remove(MDL_lock *lock)
 */
 
 MDL_context::MDL_context()
-  : m_thd(NULL),
+  :
+  m_owner(NULL),
   m_needs_thr_lock_abort(FALSE),
   m_waiting_for(NULL)
 {
@@ -950,6 +951,7 @@ void MDL_wait::reset_status()
 /**
   Wait for the status to be assigned to this wait slot.
 
+  @param owner           MDL context owner.
   @param abs_timeout     Absolute time after which waiting should stop.
   @param set_status_on_timeout TRUE  - If in case of timeout waiting
                                        context should close the wait slot by
@@ -961,7 +963,7 @@ void MDL_wait::reset_status()
 */
 
 MDL_wait::enum_wait_status
-MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
+MDL_wait::timed_wait(MDL_context_owner *owner, struct timespec *abs_timeout,
                      bool set_status_on_timeout, const char *wait_state_name)
 {
   const char *old_msg;
@@ -970,10 +972,9 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
 
   mysql_mutex_lock(&m_LOCK_wait_status);
 
-  old_msg= thd_enter_cond(thd, &m_COND_wait_status, &m_LOCK_wait_status,
-                          wait_state_name);
-
-  while (!m_wait_status && !thd_killed(thd) &&
+  old_msg= owner->enter_cond(&m_COND_wait_status, &m_LOCK_wait_status,
+                             wait_state_name);
+  while (!m_wait_status && !owner->is_killed() &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
@@ -992,14 +993,14 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
       false, which means that the caller intends to restart the
       wait.
     */
-    if (thd_killed(thd))
+    if (owner->is_killed())
       m_wait_status= KILLED;
     else if (set_status_on_timeout)
       m_wait_status= TIMEOUT;
   }
   result= m_wait_status;
 
-  thd_exit_cond(thd, old_msg);
+  owner->exit_cond(old_msg);
 
   return result;
 }
@@ -1696,9 +1697,9 @@ void MDL_object_lock::notify_conflicting_locks(MDL_context *ctx)
         lock or some other non-MDL resource we might need to wake it up
         by calling code outside of MDL.
       */
-      mysql_notify_thread_having_shared_lock(ctx->get_thd(),
-                                 conflicting_ctx->get_thd(),
-                                 conflicting_ctx->get_needs_thr_lock_abort());
+      ctx->get_owner()->
+        notify_shared_lock(conflicting_ctx->get_owner(),
+                           conflicting_ctx->get_needs_thr_lock_abort());
     }
   }
 }
@@ -1728,9 +1729,9 @@ void MDL_scoped_lock::notify_conflicting_locks(MDL_context *ctx)
         insert delayed. We need to kill such threads in order to get
         global shared lock. We do this my calling code outside of MDL.
       */
-      mysql_notify_thread_having_shared_lock(ctx->get_thd(),
-                                 conflicting_ctx->get_thd(),
-                                 conflicting_ctx->get_needs_thr_lock_abort());
+      ctx->get_owner()->
+        notify_shared_lock(conflicting_ctx->get_owner(),
+                           conflicting_ctx->get_needs_thr_lock_abort());
     }
   }
 }
@@ -1797,7 +1798,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
   will_wait_for(ticket);
 
   /* There is a shared or exclusive lock on the object. */
-  DEBUG_SYNC(m_thd, "mdl_acquire_lock_wait");
+  DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
 
   find_deadlock();
 
@@ -1810,7 +1811,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
     while (cmp_timespec(abs_shortwait, abs_timeout) <= 0)
     {
       /* abs_timeout is far away. Wait a short while and notify locks. */
-      wait_status= m_wait.timed_wait(m_thd, &abs_shortwait, FALSE,
+      wait_status= m_wait.timed_wait(m_owner, &abs_shortwait, FALSE,
                                      mdl_request->key.get_wait_state_name());
 
       if (wait_status != MDL_wait::EMPTY)
@@ -1822,11 +1823,11 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       set_timespec(abs_shortwait, 1);
     }
     if (wait_status == MDL_wait::EMPTY)
-      wait_status= m_wait.timed_wait(m_thd, &abs_timeout, TRUE,
+      wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
                                      mdl_request->key.get_wait_state_name());
   }
   else
-    wait_status= m_wait.timed_wait(m_thd, &abs_timeout, TRUE,
+    wait_status= m_wait.timed_wait(m_owner, &abs_timeout, TRUE,
                                    mdl_request->key.get_wait_state_name());
 
   done_waiting_for();
