@@ -2981,6 +2981,9 @@ btr_estimate_number_of_different_key_vals(
 		while (!page_rec_is_supremum(rec)) {
 			rec_t*	next_rec = page_rec_get_next(rec);
 			if (page_rec_is_supremum(next_rec)) {
+				total_external_size +=
+					btr_rec_get_externally_stored_len(
+						rec, offsets_rec);
 				break;
 			}
 
@@ -2988,7 +2991,8 @@ btr_estimate_number_of_different_key_vals(
 			matched_bytes = 0;
 			offsets_next_rec = rec_get_offsets(next_rec, index,
 							   offsets_next_rec,
-							   n_cols, &heap);
+							   ULINT_UNDEFINED,
+							   &heap);
 
 			cmp_rec_rec_with_match(rec, next_rec,
 					       offsets_rec, offsets_next_rec,
@@ -3043,10 +3047,6 @@ btr_estimate_number_of_different_key_vals(
 			}
 		}
 
-		offsets_rec = rec_get_offsets(rec, index, offsets_rec,
-					      ULINT_UNDEFINED, &heap);
-		total_external_size += btr_rec_get_externally_stored_len(
-			rec, offsets_rec);
 		mtr_commit(&mtr);
 	}
 
