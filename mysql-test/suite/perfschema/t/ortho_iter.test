@@ -142,13 +142,18 @@ show status like "performance_schema%";
 call check_instrument("wait/synch/mutex/");
 call check_instrument("wait/synch/rwlock/");
 call check_instrument("wait/synch/cond/");
+call check_instrument("wait/synch/");
 call check_instrument("wait/io/file/");
 call check_instrument("wait/io/net/");
 call check_instrument("wait/io/table/");
+call check_instrument("wait/io/");
 call check_instrument("wait/lock/table/");
+call check_instrument("wait/lock/");
+call check_instrument("wait/");
 call check_instrument("stage/");
 call check_instrument("statement/com/");
 call check_instrument("statement/sql/");
+call check_instrument("statement/");
 
 drop procedure check_instrument;
 
