@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ st_parsing_options::reset()
 }
 
 Lex_input_stream::Lex_input_stream(THD *thd,
-                                   const char* buffer,
+                                   char* buffer,
                                    unsigned int length)
 : m_thd(thd),
   yylineno(1),
@@ -580,7 +580,7 @@ int MYSQLlex(void *arg, void *yythd)
         state=MY_LEX_COMMENT;
         break;
       }
-      yylval->lex_str.str=(char*) (lip->ptr=lip->tok_start);// Set to first chr
+      yylval->lex_str.str=lip->ptr=(char*)lip->tok_start;// Set to first chr
       yylval->lex_str.length=1;
       c=yyGet();
       if (c != ')')
@@ -946,6 +946,9 @@ int MYSQLlex(void *arg, void *yythd)
       state = MY_LEX_START;		// Try again
       break;
     case MY_LEX_LONG_COMMENT:		/* Long C comment? */
+    {
+      char *version_mark= NULL;
+
       if (yyPeek() != '*')
       {
 	state=MY_LEX_CHAR;		// Probable division
@@ -956,6 +959,8 @@ int MYSQLlex(void *arg, void *yythd)
       if (yyPeek() == '!')		// MySQL command in comment
       {
 	ulong version=MYSQL_VERSION_ID;
+        version_mark= lip->ptr;
+
 	yySkip();
 	state=MY_LEX_START;
 	if (my_isdigit(cs,yyPeek()))
@@ -964,9 +969,18 @@ int MYSQLlex(void *arg, void *yythd)
 	}
 	if (version <= MYSQL_VERSION_ID)
 	{
-	  lex->in_comment=1;
+          lex->in_comment=1;
+          version_mark= NULL;
 	  break;
 	}
+        else
+        {
+          /*
+            Patch and skip the conditional comment to avoid it
+            being propagated infinitely (eg. to a slave).
+          */
+          *version_mark= ' ';
+        }
       }
       /*
         Discard:
@@ -995,8 +1009,13 @@ int MYSQLlex(void *arg, void *yythd)
       }
       /* Unbalanced comments with a missing '*' '/' are a syntax error */
       if (! comment_closed)
+      {
+        if (version_mark != NULL)
+          *version_mark= '!';
         return (ABORT_SYM);
+      }
       break;
+    }
     case MY_LEX_END_LONG_COMMENT:
       if (lex->in_comment && yyPeek() == '/')
       {
