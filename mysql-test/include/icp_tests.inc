@@ -724,3 +724,24 @@ WHERE NOT EXISTS
 --echo
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#58838 "Wrong results with HAVING + LIMIT without GROUP BY when 
+--echo #            ICP is enabled"
+--echo # 
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (c1)
+);
+
+INSERT INTO t1 VALUES (1,37),(2,8),(3,-25),(4,NULL),(5,55);
+
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 0;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 1;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 2;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 5;
+
+DROP TABLE t1;

@@ -671,5 +671,28 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	DEPENDENT SUBQUERY	t2	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using where; Full scan on NULL key
 
 DROP TABLE t1,t2;
+#
+# Bug#58838 "Wrong results with HAVING + LIMIT without GROUP BY when 
+#            ICP is enabled"
+# 
+CREATE TABLE t1 (
+pk INT NOT NULL,
+c1 INT,
+PRIMARY KEY (pk),
+KEY col_int_key (c1)
+);
+INSERT INTO t1 VALUES (1,37),(2,8),(3,-25),(4,NULL),(5,55);
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 0;
+pk
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 1;
+pk
+3
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 2;
+pk
+3
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 5;
+pk
+3
+DROP TABLE t1;
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;
