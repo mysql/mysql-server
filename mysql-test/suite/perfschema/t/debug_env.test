@@ -36,7 +36,10 @@ select * from setup_timers;
 
 # Investigating bug#59740
 select * from threads;
+select count(*) from threads;
 select count(*) from setup_instruments;
-select count(*) from events_waits_summary_by_thread_by_event_name;
 
+show status like "%handler%";
+select count(*) from events_waits_summary_by_thread_by_event_name;
+show status like "%handler%";
 
