@@ -194,6 +194,11 @@ struct pfs_lock
             (copy->m_state == PFS_atomic::load_32(&m_state)) &&
             (copy->m_state == PFS_LOCK_ALLOCATED));
   }
+
+  uint32 get_version()
+  {
+    return PFS_atomic::load_u32(&m_version);
+  }
 };
 
 

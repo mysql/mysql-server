@@ -25,6 +25,7 @@
 #include "pfs_column_values.h"
 #include "table_ews_by_thread_by_event_name.h"
 #include "pfs_global.h"
+#include "pfs_visitor.h"
 
 THR_LOCK table_ews_by_thread_by_event_name::m_table_lock;
 
@@ -302,26 +303,25 @@ void table_ews_by_thread_by_event_name
 ::make_row(PFS_thread *thread, PFS_instr_class *klass)
 {
   pfs_lock lock;
-  PFS_single_stat *event_name_array;
-  PFS_single_stat *stat;
-  uint index= klass->m_event_name_index;
-  event_name_array= thread->m_instr_class_wait_stats;
-
   m_row_exists= false;
 
   /* Protect this reader against a thread termination */
   thread->m_lock.begin_optimistic_lock(&lock);
 
   m_row.m_thread_internal_id= thread->m_thread_internal_id;
-  m_row.m_name= klass->m_name;
-  m_row.m_name_length= klass->m_name_length;
 
-  stat= & event_name_array[index];
+  m_row.m_event_name.make_row(klass);
+
+  PFS_connection_wait_visitor visitor(klass);
+  PFS_connection_iterator::visit_thread(thread, & visitor);
+
+  if (! thread->m_lock.end_optimistic_lock(&lock))
+    return;
+
+  m_row_exists= true;
+
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, stat);
-
-  if (thread->m_lock.end_optimistic_lock(&lock))
-    m_row_exists= true;
+  m_row.m_stat.set(normalizer, & visitor.m_stat);
 }
 
 int table_ews_by_thread_by_event_name
@@ -345,26 +345,12 @@ int table_ews_by_thread_by_event_name
       case 0: /* THREAD_ID */
         set_field_ulong(f, m_row.m_thread_internal_id);
         break;
-      case 1: /* NAME */
-        set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
+      case 1: /* EVENT_NAME */
+        m_row.m_event_name.set_field(f);
         break;
-      case 2: /* COUNT */
-        set_field_ulonglong(f, m_row.m_stat.m_count);
+      default: /* 2, ... COUNT/SUM/MIN/AVG/MAX */
+        m_row.m_stat.set_field(f->field_index - 2, f);
         break;
-      case 3: /* SUM */
-        set_field_ulonglong(f, m_row.m_stat.m_sum);
-        break;
-      case 4: /* MIN */
-        set_field_ulonglong(f, m_row.m_stat.m_min);
-        break;
-      case 5: /* AVG */
-        set_field_ulonglong(f, m_row.m_stat.m_avg);
-        break;
-      case 6: /* MAX */
-        set_field_ulonglong(f, m_row.m_stat.m_max);
-        break;
-      default:
-        DBUG_ASSERT(false);
       }
     }
   }
