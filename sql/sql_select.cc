@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3223,6 +3223,32 @@ JOIN::exec()
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having",
                                          QT_ORDINARY););
+
+        /*
+          If we have pushed parts of the condition down to the handler
+          then we need to add this to the original pre-ICP select
+          condition since the original select condition may be used in
+          test_if_skip_sort_order(). 
+          Note: here we call make_cond_for_table() a second time in order
+          to get sort_table_cond. An alternative could be to use
+          Item::copy_andor_structure() to make a copy of sort_table_cond.
+        */
+        if (curr_table->pre_idx_push_select_cond)
+        {
+          sort_table_cond= make_cond_for_table(curr_join->tmp_having,
+                                               used_tables, used_tables, 0);
+          if (!sort_table_cond)
+            DBUG_VOID_RETURN;
+          Item* new_pre_idx_push_select_cond= 
+            new Item_cond_and(curr_table->pre_idx_push_select_cond, 
+                              sort_table_cond);
+          if (!new_pre_idx_push_select_cond)
+            DBUG_VOID_RETURN;
+          if (new_pre_idx_push_select_cond->fix_fields(thd, 0))
+            DBUG_VOID_RETURN;
+          curr_table->pre_idx_push_select_cond= new_pre_idx_push_select_cond;
+	}
+
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables, 0);
