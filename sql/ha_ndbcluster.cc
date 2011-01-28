@@ -7674,8 +7674,9 @@ adjusted_frag_count(Ndb* ndb,
     /**
      * Use SYSTAB_0 to get #replicas, and to guess #threads
      */
-    char dbname[FN_HEADLEN];
-    snprintf(dbname, sizeof(dbname), "%s", ndb->getDatabaseName());
+    char dbname[FN_HEADLEN+1];
+    dbname[FN_HEADLEN]= 0;
+    strnmov(dbname, ndb->getDatabaseName(), sizeof(dbname) - 1);
     ndb->setDatabaseName("sys");
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), "SYSTAB_0");
     const NdbDictionary::Table * tab = ndbtab_g.get_table();
