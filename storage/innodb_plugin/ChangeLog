@@ -1,5 +1,11 @@
 2011-01-27	The InnoDB Team
 
+	* btr/btr0cur.c:
+	Bug#59465 btr_estimate_number_of_different_key_vals use
+	incorrect offset for external_size
+
+2011-01-27	The InnoDB Team
+
 	* include/trx0trx.h, trx/trx0trx.c:
 	Bug#59440 Race condition in XA ROLLBACK and XA COMMIT
 	after server restart
@@ -29,6 +35,7 @@
 	Fix Bug#59707 Unused compression-related parameters
 	in buffer pool functions
 
+>>>>>>> MERGE-SOURCE
 2011-01-18	The InnoDB Team
 
 	* include/sync0rw.h, sync/sync0arr.c, sync/sync0rw.c:
