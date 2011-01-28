@@ -203,9 +203,18 @@ SELECT COUNT(*) FROM t1;
 # WL#5568: Check disk space usage.
 ########################################
 
-select  TABLE_NAME, PARTITION_NAME, TABLE_ROWS, DATA_LENGTH, MAX_DATA_LENGTH, DATA_FREE from INFORMATION_SCHEMA.partitions where table_name='t1';
+SELECT table_name, 
+       SUM(table_rows),
+       SUM(data_length),
+       MAX(max_data_length),
+       SUM(data_free)
+FROM INFORMATION_SCHEMA.partitions
+WHERE table_name='t1'
+GROUP BY table_name;
 
-select  TABLE_NAME, TABLE_ROWS, DATA_LENGTH, MAX_DATA_LENGTH, DATA_FREE from INFORMATION_SCHEMA.tables where table_name='t1';
+SELECT table_name, table_rows, data_length, max_data_length, data_free
+FROM information_schema.tables
+WHERE table_name='t1';
 
 ####################################
 # Test error cases with size numbers
