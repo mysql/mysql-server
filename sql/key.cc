@@ -663,8 +663,6 @@ ulong key_hashnr(KEY *key_info, uint used_key_parts, const uchar *key)
         switch (key_part->type) {
         case HA_KEYTYPE_VARTEXT1:
         case HA_KEYTYPE_VARBINARY1:
-          key++;
-          break;
         case HA_KEYTYPE_VARTEXT2:
         case HA_KEYTYPE_VARBINARY2:
           key+= 2;
@@ -769,8 +767,6 @@ bool key_buf_cmp(KEY *key_info, uint used_key_parts,
         switch (key_part->type) {
         case HA_KEYTYPE_VARTEXT1:
         case HA_KEYTYPE_VARBINARY1:
-          key1++; key2++;
-          break;
         case HA_KEYTYPE_VARTEXT2:
         case HA_KEYTYPE_VARBINARY2:
           key1+= 2; key2+= 2;
@@ -778,10 +774,10 @@ bool key_buf_cmp(KEY *key_info, uint used_key_parts,
         default:
           ;
         }
-    continue;
+        continue;
       }
       if (*pos1 != *pos2)
-        return FALSE;
+        return TRUE;
       pos1++; pos2++;
     }
 
