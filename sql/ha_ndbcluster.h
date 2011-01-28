@@ -164,6 +164,8 @@ struct Ndb_statistics {
   Uint64 commit_count;
   ulong row_size;
   Uint64 fragment_memory;
+  Uint64 fragment_extent_space; 
+  Uint64 fragment_extent_free_space;
 };
 
 typedef struct st_ndbcluster_share {
@@ -883,7 +885,8 @@ private:
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd);
 
-  int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE);
+  int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
+                   uint part_id= ~(uint)0);
 };
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,

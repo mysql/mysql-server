@@ -369,7 +369,8 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
 
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *,
-                                    bool have_lock= FALSE);
+                                    bool have_lock= FALSE,
+                                    uint part_id= ~(uint)0);
 
 THD *injector_thd= 0;
 
@@ -5943,13 +5944,36 @@ int ha_ndbcluster::info(uint flag)
 void ha_ndbcluster::get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                                uint part_id)
 {
-  /* 
-     This functions should be fixed. Suggested fix: to
-     implement ndb function which retrives the statistics
-     about ndb partitions.
-  */
+  DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
+
   bzero((char*) stat_info, sizeof(PARTITION_STATS));
-  return;
+  int error = 0;
+  THD *thd = table->in_use;
+
+  if (!thd)
+    thd = current_thd;
+  if (!m_table_info)
+  {
+    if ((error = check_ndb_connection(thd)))
+      goto err;
+  }
+  error = update_stats(thd, 1, false, part_id);
+
+  if (error == 0)
+  {
+    stat_info->records = stats.records;
+    stat_info->mean_rec_length = stats.mean_rec_length;
+    stat_info->data_file_length = stats.data_file_length;
+    stat_info->delete_length = stats.delete_length;
+    stat_info->max_data_file_length = stats.max_data_file_length;
+    return;
+  }
+
+err: 
+
+  DBUG_PRINT("warning", 
+    ("ha_ndbcluster::get_dynamic_partition_info failed with error code %u", 
+     error));
 }
 
 
@@ -7634,20 +7658,74 @@ static uint get_no_fragments(ulonglong max_rows)
   of number of nodes and never more than 4 times the number of nodes.
 
 */
-static bool adjusted_frag_count(uint no_fragments, 
-                                uint no_nodes,
-                                uint &reported_frags)
+static
+bool
+adjusted_frag_count(Ndb* ndb,
+                    uint requested_frags,
+                    uint &reported_frags)
 {
-  uint i= 0;
+  unsigned no_nodes= g_ndb_cluster_connection->no_db_nodes();
+  unsigned no_replicas= no_nodes == 1 ? 1 : 2;
 
-  // Should really depend on #replicas
-  uint max_per_node = no_nodes == 1 ? 8 : 4;
+  unsigned no_threads= 1;
+  const unsigned no_nodegroups= g_ndb_cluster_connection->max_nodegroup() + 1;
 
-  reported_frags= no_nodes;
-  while (reported_frags < no_fragments && ++i < max_per_node &&
-         (reported_frags + no_nodes) < MAX_PARTITIONS) 
-    reported_frags+= no_nodes;
-  return (reported_frags < no_fragments);
+  {
+    /**
+     * Use SYSTAB_0 to get #replicas, and to guess #threads
+     */
+    char dbname[FN_HEADLEN+1];
+    dbname[FN_HEADLEN]= 0;
+    strnmov(dbname, ndb->getDatabaseName(), sizeof(dbname) - 1);
+    ndb->setDatabaseName("sys");
+    Ndb_table_guard ndbtab_g(ndb->getDictionary(), "SYSTAB_0");
+    const NdbDictionary::Table * tab = ndbtab_g.get_table();
+    if (tab)
+    {
+      no_replicas= ndbtab_g.get_table()->getReplicaCount();
+
+      /**
+       * Guess #threads
+       */
+      {
+        const Uint32 frags = tab->getFragmentCount();
+        Uint32 node = 0;
+        Uint32 cnt = 0;
+        for (Uint32 i = 0; i<frags; i++)
+        {
+          Uint32 replicas[4];
+          if (tab->getFragmentNodes(i, replicas, NDB_ARRAY_SIZE(replicas)))
+          {
+            if (node == replicas[0] || node == 0)
+            {
+              node = replicas[0];
+              cnt ++;
+            }
+          }
+        }
+        no_threads = cnt; // No of primary replica on 1-node
+      }
+    }
+    ndb->setDatabaseName(dbname);
+  }
+
+  const unsigned usable_nodes = no_replicas * no_nodegroups;
+  const uint max_replicas = 8 * usable_nodes * no_threads;
+
+  reported_frags = usable_nodes * no_threads; // Start with 1 frag per threads
+  Uint32 replicas = reported_frags * no_replicas;
+
+  /**
+   * Loop until requested replicas, and not exceed max-replicas
+   */
+  while (reported_frags < requested_frags &&
+         (replicas + usable_nodes * no_threads * no_replicas) <= max_replicas)
+  {
+    reported_frags += usable_nodes * no_threads;
+    replicas += usable_nodes * no_threads * no_replicas;
+  }
+
+  return (reported_frags < requested_frags);
 }
 
 
@@ -7674,6 +7752,7 @@ int ha_ndbcluster::create(const char *name,
   bool ndb_sys_table= FALSE;
   partition_info *part_info;
   int result= 0;
+  NdbDictionary::ObjectId objId;
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -7700,7 +7779,6 @@ int ha_ndbcluster::create(const char *name,
   
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
-  Ndb_table_guard ndbtab_g(dict);
 
 #ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
@@ -7754,6 +7832,7 @@ int ha_ndbcluster::create(const char *name,
 
   if (is_truncate)
   {
+    Ndb_table_guard ndbtab_g(dict);
     ndbtab_g.init(m_tabname);
     if (!(m_table= ndbtab_g.get_table()))
       ERR_RETURN(dict->getNdbError());
@@ -7781,7 +7860,9 @@ int ha_ndbcluster::create(const char *name,
   {
     if (THDVAR(thd, table_temporary))
     {
+#ifdef DOES_NOT_WORK_CURRENTLY
       tab.setTemporary(TRUE);
+#endif
       tab.setLogging(FALSE);
     }
     else if (THDVAR(thd, table_no_logging))
@@ -7986,30 +8067,8 @@ int ha_ndbcluster::create(const char *name,
       create_info->max_rows : 
       create_info->min_rows;
     uint no_fragments= get_no_fragments(rows);
-
-    uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
-    {
-      /**
-       * Use SYSTAB_0 to guess #threads per node
-       */
-      ndb->setDatabaseName("sys");
-      Ndb_table_guard ndbtab_g(dict, "SYSTAB_0");
-      if (ndbtab_g.get_table())
-      {
-        Uint32 frags= ndbtab_g.get_table()->getFragmentCount();
-        if (frags > no_nodes)
-        {
-          /**
-           * And use this as argument adjusted_frag_count...
-           */
-          no_nodes= frags;
-        }
-      }
-      ndb->setDatabaseName(m_dbname);
-    }
-
     uint reported_frags= no_fragments;
-    if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
+    if (adjusted_frag_count(ndb, no_fragments, reported_frags))
     {
       push_warning(current_thd,
                    MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
@@ -8055,34 +8114,22 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Create the table in NDB     
-  if (dict->createTable(tab) != 0) 
+  if (dict->createTable(tab, &objId) != 0)
   {
     const NdbError err= dict->getNdbError();
     set_ndb_err(thd, err);
     my_errno= ndb_to_mysql_error(&err);
     goto abort;
-  }
-
-  ndbtab_g.init(m_tabname);
-  // temporary set m_table during create
-  // reset at return
-  m_table= ndbtab_g.get_table();
-  // TODO check also that we have the same frm...
-  if (!m_table)
-  {
-    /* purecov: begin deadcode */
-    const NdbError err= dict->getNdbError();
-    set_ndb_err(thd, err);
-    my_errno= ndb_to_mysql_error(&err);
-    goto abort;
-    /* purecov: end */
   }
 
   DBUG_PRINT("info", ("Table %s/%s created successfully", 
                       m_dbname, m_tabname));
 
   // Create secondary indexes
+  tab.assignObjId(objId);
+  m_table= &tab;
   my_errno= create_indexes(thd, ndb, form);
+  m_table= 0;
 
   if (!my_errno)
   {
@@ -8118,6 +8165,13 @@ err_return:
     m_table= 0;
     ERR_RETURN(dict->getNdbError());
   }
+
+  /**
+   * createTable/index schema transaction OK
+   */
+  Ndb_table_guard ndbtab_g(dict, m_tabname);
+  m_table= ndbtab_g.get_table();
+
   if (my_errno)
   {
     /*
@@ -11562,7 +11616,8 @@ struct ndb_table_statistics_row {
 
 int ha_ndbcluster::update_stats(THD *thd,
                                 bool do_read_stat,
-                                bool have_lock)
+                                bool have_lock,
+                                uint part_id)
 {
   struct Ndb_statistics stat;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -11576,7 +11631,7 @@ int ha_ndbcluster::update_stats(THD *thd,
     }
     if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
                                           m_ndb_record, &stat,
-                                          have_lock))
+                                          have_lock, part_id))
     {
       DBUG_RETURN(err);
     }
@@ -11602,21 +11657,34 @@ int ha_ndbcluster::update_stats(THD *thd,
   stats.mean_rec_length= stat.row_size;
   stats.data_file_length= stat.fragment_memory;
   stats.records= stat.row_count + no_uncommitted_rows_count;
+  stats.max_data_file_length= stat.fragment_extent_space;
+  stats.delete_length= stat.fragment_extent_free_space;
+
   DBUG_PRINT("exit", ("stats.records: %d  "
                       "stat->row_count: %d  "
-                      "no_uncommitted_rows_count: %d",
+                      "no_uncommitted_rows_count: %d"
+                      "stat->fragment_extent_space: %u  "
+                      "stat->fragment_extent_free_space: %u",
                       (int)stats.records,
                       (int)stat.row_count,
-                      (int)no_uncommitted_rows_count));
+                      (int)no_uncommitted_rows_count,
+                      (uint)stat.fragment_extent_space,
+                      (uint)stat.fragment_extent_free_space));
   DBUG_RETURN(0);
 }
 
+/* If part_id contains a legal partition id, ndbstat returns the
+   partition-statistics pertaining to that partition only.
+   Otherwise, it returns the table-statistics,
+   which is an aggregate over all partitions of that table.
+ */
 static 
 int
 ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
                          const NdbRecord *record,
                          struct Ndb_statistics * ndbstat,
-                         bool have_lock)
+                         bool have_lock,
+                         uint part_id)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   NdbTransaction* pTrans;
@@ -11625,12 +11693,11 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
   int reterr= 0;
   int retry_sleep= 30; /* 30 milliseconds */
   const char *dummyRowPtr;
-  const Uint32 extraCols= 5;
-  NdbOperation::GetValueSpec extraGets[extraCols];
-  Uint64 rows, commits, fixed_mem, var_mem;
-  Uint32 size;
+  NdbOperation::GetValueSpec extraGets[8];
+  Uint64 rows, commits, fixed_mem, var_mem, ext_space, free_ext_space;
+  Uint32 size, fragid;
 #ifndef DBUG_OFF
-  char buff[22], buff2[22], buff3[22], buff4[22];
+  char buff[22], buff2[22], buff3[22], buff4[22], buff5[22], buff6[22];
 #endif
   DBUG_ENTER("ndb_get_table_statistics");
 
@@ -11651,6 +11718,12 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
   extraGets[3].appStorage= &fixed_mem;
   extraGets[4].column= NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
   extraGets[4].appStorage= &var_mem;
+  extraGets[5].column= NdbDictionary::Column::FRAGMENT_EXTENT_SPACE;
+  extraGets[5].appStorage= &ext_space;
+  extraGets[6].column= NdbDictionary::Column::FRAGMENT_FREE_EXTENT_SPACE;
+  extraGets[6].appStorage= &free_ext_space;
+  extraGets[7].column= NdbDictionary::Column::FRAGMENT;
+  extraGets[7].appStorage= &fragid;
 
   const Uint32 codeWords= 1;
   Uint32 codeSpace[ codeWords ];
@@ -11673,6 +11746,8 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     Uint64 sum_commits= 0;
     Uint64 sum_row_size= 0;
     Uint64 sum_mem= 0;
+    Uint64 sum_ext_space= 0;
+    Uint64 sum_free_ext_space= 0;
     NdbScanOperation*pOp;
     int check;
 
@@ -11689,7 +11764,7 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     /* Set batch_size=1, as we need only one row per fragment. */
     options.batch= 1;
     options.extraGetValues= &extraGets[0];
-    options.numExtraGetValues= extraCols;
+    options.numExtraGetValues= sizeof(extraGets)/sizeof(extraGets[0]); 
     options.interpretedCode= &code;
 
     if ((pOp= pTrans->scanTable(record, NdbOperation::LM_CommittedRead,
@@ -11715,14 +11790,31 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     
     while ((check= pOp->nextResult(&dummyRowPtr, TRUE, TRUE)) == 0)
     {
-      DBUG_PRINT("info", ("nextResult rows: %d  commits: %d",
-                          (int)rows, (int)commits));
+      DBUG_PRINT("info", ("nextResult rows: %d  commits: %d"
+                          "fixed_mem_size %d var_mem_size %d "
+                          "fragmentid %d extent_space %d free_extent_space %d",
+                          (int)rows, (int)commits, (int)fixed_mem,
+                          (int)var_mem, (int)fragid, (int)ext_space,
+                          (int)free_ext_space));
+
+      if ((part_id != ~(uint)0) && fragid != part_id)
+      {
+        continue;
+      }
+
       sum_rows+= rows;
       sum_commits+= commits;
       if (sum_row_size < size)
         sum_row_size= size;
       sum_mem+= fixed_mem + var_mem;
       count++;
+      sum_ext_space += ext_space;
+      sum_free_ext_space += free_ext_space;
+
+      if ((part_id != ~(uint)0) && fragid == part_id)
+      {
+        break;
+      }
     }
     
     if (check == -1)
@@ -11739,13 +11831,19 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     ndbstat->commit_count= sum_commits;
     ndbstat->row_size= (ulong)sum_row_size;
     ndbstat->fragment_memory= sum_mem;
+    ndbstat->fragment_extent_space= sum_ext_space;
+    ndbstat->fragment_extent_free_space= sum_free_ext_space;
 
     DBUG_PRINT("exit", ("records: %s  commits: %s "
-                        "row_size: %s  mem: %s count: %u",
+                        "row_size: %s  mem: %s "
+                        "allocated: %s  free: %s "
+                        "count: %u",
 			llstr(sum_rows, buff),
                         llstr(sum_commits, buff2),
                         llstr(sum_row_size, buff3),
                         llstr(sum_mem, buff4),
+                        llstr(sum_ext_space, buff5),
+                        llstr(sum_free_ext_space, buff6),
                         count));
 
     DBUG_RETURN(0);
@@ -12950,39 +13048,38 @@ ndbcluster_show_status(handlerton *hton, THD* thd, stat_print_fn *stat_print,
 
 int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
 {
+  if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
+  {
+err:
+    my_error(HA_ERR_NO_CONNECTION, MYF(0));
+    return -1;
+  }
+
+  THD* thd = current_thd;
+  if (thd == 0)
+    goto err;
+  Thd_ndb * thd_ndb = get_thd_ndb(thd);
+  if (thd_ndb == 0)
+    goto err;
+
   ha_rows max_rows, min_rows;
   if (create_info)
   {
     max_rows= create_info->max_rows;
     min_rows= create_info->min_rows;
-    
-    /**
-     * we hate this method...just return 1??
-     */
-    return 1;
   }
   else
   {
     max_rows= table_share->max_rows;
     min_rows= table_share->min_rows;
   }
+  uint no_fragments= get_no_fragments(max_rows >= min_rows ?
+                                      max_rows : min_rows);
   uint reported_frags;
-  uint no_fragments=
-    get_no_fragments(max_rows >= min_rows ? max_rows : min_rows);
-  if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
-  {
-    my_error(HA_ERR_NO_CONNECTION, MYF(0));
-    return -1;
-  }
-  uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
-
-  if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
-  {
-    push_warning(current_thd,
-                 MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
-    "Ndb might have problems storing the max amount of rows specified");
-  }
-  return (int)reported_frags;
+  adjusted_frag_count(thd_ndb->ndb,
+                      no_fragments,
+                      reported_frags);
+  return reported_frags;
 }
 
 uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
