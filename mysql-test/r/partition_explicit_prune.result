@@ -1,0 +1,1435 @@
+# Original tests for WL#5217
+# Must have InnoDB as engine to get the same statistics results.
+# embedded uses MyISAM as default. CREATE SELECT uses the default engine.
+SET @old_default_storage_engine = @@default_storage_engine;
+SET @@default_storage_engine = 'InnoDB';
+# Test to show if I_S affects HANDLER_ counts
+FLUSH STATUS;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_WRITE	17
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	35
+# OK, seems to add number of variables processed before HANDLER_WRITE
+# and number of variables + 1 evaluated in the previous call in RND_NEXT
+CREATE TABLE t1
+(a INT NOT NULL,
+b varchar (64),
+INDEX (b,a),
+PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 2
+(PARTITION pNeg VALUES LESS THAN (0)
+(SUBPARTITION subp0,
+SUBPARTITION subp1),
+PARTITION `p0-9` VALUES LESS THAN (10)
+(SUBPARTITION subp2,
+SUBPARTITION subp3),
+PARTITION `p10-99` VALUES LESS THAN (100)
+(SUBPARTITION subp4,
+SUBPARTITION subp5),
+PARTITION `p100-99999` VALUES LESS THAN (100000)
+(SUBPARTITION subp6,
+SUBPARTITION subp7));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`,`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION pNeg VALUES LESS THAN (0)
+ (SUBPARTITION subp0 ENGINE = InnoDB,
+  SUBPARTITION subp1 ENGINE = InnoDB),
+ PARTITION `p0-9` VALUES LESS THAN (10)
+ (SUBPARTITION subp2 ENGINE = InnoDB,
+  SUBPARTITION subp3 ENGINE = InnoDB),
+ PARTITION `p10-99` VALUES LESS THAN (100)
+ (SUBPARTITION subp4 ENGINE = InnoDB,
+  SUBPARTITION subp5 ENGINE = InnoDB),
+ PARTITION `p100-99999` VALUES LESS THAN (100000)
+ (SUBPARTITION subp6 ENGINE = InnoDB,
+  SUBPARTITION subp7 ENGINE = InnoDB)) */
+# First test that the syntax is OK
+SHOW CREATE TABLE t1 PARTITION (subp0);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION (subp0)' at line 1
+# Not a correct partition list
+INSERT INTO t1 PARTITION () VALUES (1, "error");
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') VALUES (1, "error")' at line 1
+INSERT INTO t1 PARTITION (pNonExisting) VALUES (1, "error");
+ERROR HY000: partition 'pNonExisting' doesn't exist
+INSERT INTO t1 PARTITION (pNeg, pNonExisting) VALUES (1, "error");
+ERROR HY000: partition 'pNonExisting' doesn't exist
+# Duplicate partitions and overlapping partitions and subpartitios is OK
+FLUSH STATUS;
+INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_WRITE	18
+# Should be 1 commit
+# 6 external locks
+# (1 ha_partition + 2 ha_innobase) x 2 (lock + unlock)
+# and 18 write (1 ha_innobase + 17 internal I_S write)
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, "(pNeg-)subp0");
+# should be correct
+INSERT INTO t1 PARTITION (`p100-99999`) VALUES (100, "`p100-99999`(-subp6)"), (101, "`p100-99999`(-subp7)"), (1000, "`p100-99999`(-subp6)");
+INSERT INTO t1 PARTITION(`p10-99`,subp3) VALUES (1, "subp3"), (10, "p10-99");
+FLUSH STATUS;
+INSERT INTO t1 PARTITION(subp3) VALUES (3, "subp3");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# Should be 1 commit
+# 4 external locks
+# (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
+# and 18 write (1 ha_innobase + 17 internal I_S write)
+FLUSH STATUS;
+LOCK TABLE t1 WRITE;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_WRITE	17
+# should be 1 commit
+# 9 locks (1 ha_partition + 8 ha_innobase)
+# 17 writes (internal I_S)
+INSERT INTO t1 PARTITION(`p0-9`) VALUES (5, "p0-9:subp3");
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	36
+# + 1 commit
+# + 19 rnd next (internal I_S)
+# + 19 write (18 internal I_S + 1 insert)
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_RND_NEXT	38
+HANDLER_WRITE	54
+# + 9 locks (unlocks)
+# + 19 rnd next (internal I_S)
+# + 18 write (internal I_S)
+# Not matching partitions with inserted value
+INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (1, "error");
+ERROR HY000: Found a row not matching the given partition set
+INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (1, "error");
+ERROR HY000: Found a row not matching the given partition set
+INSERT INTO t1 PARTITION (`p100-99999`) VALUES (1, "error"), (10, "error");
+ERROR HY000: Found a row not matching the given partition set
+INSERT INTO t1 VALUES (1000000, "error"), (9999999, "error");
+ERROR HY000: Table has no partition for value 1000000
+INSERT INTO t1 PARTITION (`p100-99999`) VALUES (1000000, "error"), (9999999, "error");
+ERROR HY000: Table has no partition for value 1000000
+INSERT INTO t1 PARTITION (pNeg, subp4) VALUES (-7, "pNeg(-subp1)"), (-10, "pNeg(-subp0)"), (-1, "pNeg(-subp1)"), (-99, "pNeg(-subp1)");
+Got one of the listed errors
+SELECT * FROM t1 ORDER BY a;
+a	b
+-3	pNeg(-subp1)
+-2	(pNeg-)subp0
+-1	pNeg(-subp1)
+1	subp3
+3	subp3
+5	p0-9:subp3
+10	p10-99
+100	`p100-99999`(-subp6)
+101	`p100-99999`(-subp7)
+1000	`p100-99999`(-subp6)
+SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test'
+AND TABLE_NAME = 't1' ORDER BY SUBPARTITION_NAME;
+PARTITION_NAME	SUBPARTITION_NAME	TABLE_ROWS
+pNeg	subp0	1
+pNeg	subp1	2
+p0-9	subp2	0
+p0-9	subp3	3
+p10-99	subp4	1
+p10-99	subp5	0
+p100-99999	subp6	2
+p100-99999	subp7	1
+FLUSH STATUS;
+SELECT * FROM t1 PARTITION (pNonexistent);
+ERROR HY000: partition 'pNonexistent' doesn't exist
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_WRITE	17
+# should have failed before locking (only 17 internal I_S writes)
+FLUSH STATUS;
+SELECT * FROM t1 PARTITION (subp2);
+a	b
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	2
+HANDLER_WRITE	17
+# Should be 1 commit
+# 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
+# 1 read first (also calls index_read)
+# 2 read key (first from innobase_get_index and second from index first)
+# 17 writes (internal I_S)
+FLUSH STATUS;
+SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
+a	b
+-2	(pNeg-)subp0
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_READ_FIRST	3
+HANDLER_READ_KEY	6
+HANDLER_READ_NEXT	3
+HANDLER_WRITE	17
+# Should be 1 commit
+# 8 locks (1 ha_partition + 2 + 1 ha_innobase) x 2
+# 3 read first (one for each partition)
+# 6 read key (3 from read first and 3 from innobase_get_index)
+# 3 read next (one next call after each read row)
+# 17 writes (internal I_S)
+FLUSH STATUS;
+LOCK TABLE t1 READ, t1 as TableAlias READ;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_KEY	18
+HANDLER_WRITE	17
+# 1 commit
+# 18 locks
+# 18 READ KEY from opening a new partition table instance,
+# (1 innobase_get_index for each index, per partition, 1 x 2 x 8 = 16
+#  + info(HA_STATUS_CONST) call on the partition with the most number
+#  of rows, 2 innobase_get_index for updating both index statistics)
+# 17 writes (internal I_S)
+SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
+a	b
+5	p0-9:subp3
+1	subp3
+3	subp3
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	20
+HANDLER_READ_NEXT	3
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	35
+# + 1 commit
+# + 1 read first (read first key from index in one partition)
+# + 2 read key (innobase_get_index from index_init + from index_first)
+# + 3 read next (one after each row)
+# + 19 rnd next (from the last I_S query)
+# + 18 write (internal I_S)
+SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
+COUNT(*)
+1
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	3
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_FIRST	3
+HANDLER_READ_KEY	24
+HANDLER_READ_NEXT	4
+HANDLER_READ_RND_NEXT	38
+HANDLER_WRITE	53
+# + 1 commit
+# + 2 read first (one for each subpart)
+# + 4 read key (innobase_get_index from index_init + from index_first)
+# + 1 read next (one after each row)
+# + 19 rnd next (from the last I_S query)
+# + 18 write (internal I_S)
+SELECT * FROM t1 WHERE a = 1000000;
+a	b
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	4
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_FIRST	3
+HANDLER_READ_KEY	24
+HANDLER_READ_NEXT	4
+HANDLER_READ_RND_NEXT	57
+HANDLER_WRITE	71
+# No matching partition, only + 1 commit + internal I_S.
+SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
+a	b
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	5
+HANDLER_EXTERNAL_LOCK	36
+HANDLER_READ_FIRST	3
+HANDLER_READ_KEY	24
+HANDLER_READ_NEXT	4
+HANDLER_READ_RND_NEXT	76
+HANDLER_WRITE	89
+# + 18 for unlock (same as lock above) (100 is not in pNeg, no match)
+# Test that EXPLAIN PARTITION works
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
+ERROR HY000: partition 'pNonexistent' doesn't exist
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p0-9_subp2	index	NULL	b	71	NULL	2	Using index
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2,pNeg) AS TableAlias;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TableAlias	pNeg_subp0,pNeg_subp1,p0-9_subp2	index	NULL	b	71	NULL	4	Using index
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	8
+HANDLER_WRITE	17
+# 8 locks (1 ha_partition + 3 ha_innobase) x 2 (lock/unlock)
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp3) AS TableAlias;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TableAlias	p0-9_subp3	index	NULL	b	71	NULL	3	Using index
+EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 PARTITION (`p10-99`);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p10-99_subp4,p10-99_subp5	index	NULL	PRIMARY	4	NULL	2	Using index
+EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 1000000;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+# Test how it changes the alias/keywords/reserved words
+SELECT * FROM t1 PARTITION;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT * FROM t1 `PARTITION`;
+a	b
+-2	(pNeg-)subp0
+5	p0-9:subp3
+10	p10-99
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+1	subp3
+3	subp3
+100	`p100-99999`(-subp6)
+1000	`p100-99999`(-subp6)
+101	`p100-99999`(-subp7)
+SELECT * FROM t1 AS PARTITION;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION' at line 1
+SELECT * FROM t1 AS `PARTITION`;
+a	b
+-2	(pNeg-)subp0
+5	p0-9:subp3
+10	p10-99
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+1	subp3
+3	subp3
+100	`p100-99999`(-subp6)
+1000	`p100-99999`(-subp6)
+101	`p100-99999`(-subp7)
+#
+# Test REPLACE
+#
+FLUSH STATUS;
+REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
+ERROR HY000: Found a row not matching the given partition set
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	17
+# 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
+# 1 rollback (failure)
+# 17 writes (I_S internal)
+FLUSH STATUS;
+REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	18
+# 1 commit
+# 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
+# 18 writes (17 I_S internal, 1 ha_innobase)
+SELECT * FROM t1 PARTITION (pNeg);
+a	b
+-2	(pNeg-)subp0
+-21	Insert by REPLACE
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+FLUSH STATUS;
+REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_KEY	2
+HANDLER_UPDATE	1
+HANDLER_WRITE	18
+# 1 commit
+# 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
+# 2 read key (1 innobase_get_index when init the index + 1 index read
+# to get the position to update)
+# 1 update (updated one row, since there is no delete trigger, update
+# is used instead of delete+insert)
+# 18 write (17 from I_S, 1 for the failed insert)
+SELECT * FROM t1 PARTITION (pNeg);
+a	b
+-2	(pNeg-)subp0
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+-21	REPLACEd by REPLACE
+FLUSH STATUS;
+LOCK TABLE t1 WRITE;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_WRITE	17
+# 1 commit
+# 9 locks
+# 17 write (internal I_S)
+DELETE FROM t1 PARTITION(subp1) WHERE b = "REPLACEd by REPLACE";
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	3
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	35
+# + 1 commit
+# + 1 delete (one row deleted)
+# + 3 read key (1 innodb_get_index in records_in_range,
+#   1 innodb_get_index in index_init, 1 index_read in index_read_first)
+# + 1 read next (search for another row in secondary index)
+# + 19 rnd next (internal I_S)
+# + 18 write (internal I_S)
+REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
+ERROR HY000: Found a row not matching the given partition set
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	3
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND_NEXT	38
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	53
+# Failed before start_stmt/execution.
+# + 19 rnd next (internal I_S)
+# + 1 rollback (failed statement)
+# + 18 write (internal I_S)
+REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	3
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	3
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND_NEXT	57
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	72
+# + 1 commit
+# + 19 rnd next (internal I_S)
+# + 19 write (18 internal I_S + 1 real write)
+REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	4
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	5
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND_NEXT	76
+HANDLER_ROLLBACK	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	91
+# + 1 commit
+# + 2 read key (see non locked query)
+# + 19 rnd next (internal I_S)
+# + 1 update (see non locked query)
+# + 19 write (18 internal I_S + 1 failed write)
+SELECT * FROM t1 PARTITION (subp1);
+a	b
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+-21	REPLACEd by REPLACE
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	5
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	7
+HANDLER_READ_NEXT	4
+HANDLER_READ_RND_NEXT	95
+HANDLER_ROLLBACK	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	109
+# + 1 commit
+# + 1 read first 
+# + 2 read key 
+# + 3 read next
+# + 19 rnd next (internal I_S)
+# + 18 write (internal I_S)
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	5
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	7
+HANDLER_READ_NEXT	4
+HANDLER_READ_RND_NEXT	114
+HANDLER_ROLLBACK	1
+HANDLER_UPDATE	1
+HANDLER_WRITE	127
+# + 9 locks
+# + 19 rnd next (internal I_S)
+# + 18 write (internal I_S)
+#
+# Test LOAD
+#
+SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
+a	b
+-2	(pNeg-)subp0
+10	p10-99
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+-21	REPLACEd by REPLACE
+FLUSH STATUS;
+SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	10
+HANDLER_READ_FIRST	4
+HANDLER_READ_KEY	8
+HANDLER_READ_NEXT	5
+HANDLER_WRITE	17
+# 1 commit
+# 10 locks (1 ha_partition + 4 ha_innobase) x 2 (lock/unlock)
+# 4 read first (for reading the first row in 4 partitions)
+# 8 read key (4 from read first + 4 for index init)
+# 5 read next (one after each row)
+# 17 write (internal I_S)
+FLUSH STATUS;
+ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_WRITE	17
+# 18 locks (Note that locks all partitions!!!)
+SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
+a	b
+FLUSH STATUS;
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg);
+ERROR HY000: Found a row not matching the given partition set
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	18
+# 6 locks (1 ha_partiiton + 2 ha_innobase) x 2 (lock+unlock)
+# 1 rollback
+SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
+a	b
+FLUSH STATUS;
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, subp4, subp5);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	10
+HANDLER_WRITE	22
+# 10 lock (1 ha_partition + 4 ha_innobase) x 2 (lock + unlock)
+ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
+FLUSH STATUS;
+LOCK TABLE t1 WRITE;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	18
+HANDLER_WRITE	17
+# 9 locks
+# 18 read key (ALTER forces table to be closed, see above for open)
+LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	18
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	40
+# + 23 write (18 internal I_S + 5 rows)
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_KEY	18
+HANDLER_READ_RND_NEXT	38
+HANDLER_WRITE	58
+# + 9 locks
+#
+# Test UPDATE
+#
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	2
+HANDLER_READ_RND_NEXT	2
+HANDLER_UPDATE	1
+HANDLER_WRITE	17
+# 1 commit
+# 4 lock (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
+# 1 read first (read first row, called from first rnd_next)
+# 2 read key (innobase_get_index from rnd_init +
+#             read next row from second rnd_next)
+# 1 update (update the row)
+SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
+a	b
+-2	(pNeg-)subp0, Updated
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	17
+# 1 commit
+# 4 lock
+# nothing more since all partitions is pruned away.
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
+WHERE a = 100;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_WRITE	17
+# 1 commit
+# 4 lock
+# nothing more since all partitions is pruned away.
+FLUSH STATUS;
+UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
+WHERE a = 100;
+ERROR HY000: Found a row not matching the given partition set
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_READ_KEY	4
+HANDLER_READ_RND	1
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	17
+# 6 lock
+# 4 read key (1 index init + 1 index read + 1 rnd init + 1 rnd pos)
+# 1 read rnd (rnd pos)
+# 1 rollback
+FLUSH STATUS;
+UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -2, b = concat(b, ', Updated from a = 100')
+WHERE a = 100;
+Got one of the listed errors
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_EXTERNAL_LOCK	10
+HANDLER_READ_KEY	4
+HANDLER_READ_RND	1
+HANDLER_ROLLBACK	1
+HANDLER_WRITE	18
+# 10 locks
+# 4 read key
+# 1 read rnd
+# 1 rollback
+# 18 write (17 internal I_S + 1 failed insert)
+FLUSH STATUS;
+UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -222, b = concat(b, ', Updated from a = 100')
+WHERE a = 100;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	10
+HANDLER_READ_KEY	4
+HANDLER_READ_RND	1
+HANDLER_WRITE	18
+# 1 commit
+# 1 delete
+# 4 read key
+# 1 read rnd
+# 18 write (17 internal I_S + 1 insert)
+SELECT * FROM t1 ORDER BY a;
+a	b
+-222	`p100-99999`(-subp6), Updated from a = 100
+-21	REPLACEd by REPLACE
+-3	pNeg(-subp1)
+-2	(pNeg-)subp0, Updated
+-1	pNeg(-subp1)
+1	subp3
+3	subp3
+5	p0-9:subp3
+10	p10-99
+101	`p100-99999`(-subp7)
+1000	`p100-99999`(-subp6)
+# Test of non matching partition (i.e ER_NO_PARTITION_FOUND)
+FLUSH STATUS;
+UPDATE t1 SET b = concat(b, ', Updated2') WHERE a = 1000000;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_WRITE	17
+# only 18 lock and 1 commit (no matching partition found, but no pruning)
+FLUSH STATUS;
+UPDATE t1 PARTITION (pNeg) SET b = concat(b, ', Updated2') WHERE a = 1000000;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_WRITE	17
+# only 6 lock and 1 commit (no matching partition found, with pruning)
+FLUSH STATUS;
+LOCK TABLE t1 WRITE;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_WRITE	17
+# 9 locks
+UPDATE t1 PARTITION (subp7) SET b = concat(b, ', Updated to 103'), a = 103 WHERE a = 101;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	4
+HANDLER_READ_RND	1
+HANDLER_READ_RND_NEXT	19
+HANDLER_UPDATE	1
+HANDLER_WRITE	35
+# + 4 read key
+# + 1 read rnd
+# + 1 update
+UPDATE t1 PARTITION (`p100-99999`) SET b = concat(b, ', Updated to 110'), a = 110 WHERE a = 103;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	3
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	8
+HANDLER_READ_RND	2
+HANDLER_READ_RND_NEXT	38
+HANDLER_UPDATE	1
+HANDLER_WRITE	54
+# + 1 delete
+# + 4 read key
+# + 1 read rnd
+# + 19 write (18 internal I_S + 1 insert)
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	3
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_KEY	8
+HANDLER_READ_RND	2
+HANDLER_READ_RND_NEXT	57
+HANDLER_UPDATE	1
+HANDLER_WRITE	72
++ 9 locks
+#
+# Test DELETE
+#
+SELECT * FROM t1 ORDER BY b, a;
+a	b
+-2	(pNeg-)subp0, Updated
+5	p0-9:subp3
+10	p10-99
+-3	pNeg(-subp1)
+-1	pNeg(-subp1)
+-21	REPLACEd by REPLACE
+1	subp3
+3	subp3
+1000	`p100-99999`(-subp6)
+-222	`p100-99999`(-subp6), Updated from a = 100
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+FLUSH STATUS;
+DELETE FROM t1 PARTITION (pNeg) WHERE a = -1;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	6
+HANDLER_READ_KEY	2
+HANDLER_WRITE	17
+# 1 delete
+# 6 locks
+# 2 read key (index init + index read)
+FLUSH STATUS;
+DELETE FROM t1 PARTITION (subp1) WHERE b like '%subp1%';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	4
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	2
+HANDLER_READ_RND_NEXT	3
+HANDLER_WRITE	17
+# 1 delete
+# 4 locks
+# 1 read first
+# 2 read key
+# 3 read rnd
+FLUSH STATUS;
+LOCK TABLE t1 WRITE;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_WRITE	17
+# 9 locks
+DELETE FROM t1 PARTITION (subp1) WHERE b = 'p0-9:subp3';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	2
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	3
+HANDLER_READ_RND_NEXT	19
+HANDLER_WRITE	35
+# + 3 read key (1 innodb_get_index in records_in_range
+#               + 1 innobase_get_index in index_init + 1 index read)
+DELETE FROM t1 PARTITION (`p0-9`) WHERE b = 'p0-9:subp3';
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	3
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	9
+HANDLER_READ_KEY	9
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND_NEXT	38
+HANDLER_WRITE	53
+# + 1 delete
+# + 6 read key (same as above, but for two subpartitions)
+# + 1 read next (read next after found row)
+UNLOCK TABLES;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	3
+HANDLER_DELETE	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_READ_KEY	9
+HANDLER_READ_NEXT	1
+HANDLER_READ_RND_NEXT	57
+HANDLER_WRITE	71
+# + 9 locks
+# Test multi-table DELETE
+# Can be expressed in two different ways.
+FLUSH STATUS;
+CREATE TABLE t2 LIKE t1;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_WRITE	17
+FLUSH STATUS;
+INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	30
+HANDLER_READ_FIRST	5
+HANDLER_READ_KEY	28
+HANDLER_READ_NEXT	5
+HANDLER_WRITE	22
+FLUSH STATUS;
+CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	14
+HANDLER_READ_FIRST	5
+HANDLER_READ_KEY	10
+HANDLER_READ_NEXT	7
+HANDLER_WRITE	24
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`,`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION pNeg VALUES LESS THAN (0)
+ (SUBPARTITION subp0 ENGINE = InnoDB,
+  SUBPARTITION subp1 ENGINE = InnoDB),
+ PARTITION `p0-9` VALUES LESS THAN (10)
+ (SUBPARTITION subp2 ENGINE = InnoDB,
+  SUBPARTITION subp3 ENGINE = InnoDB),
+ PARTITION `p10-99` VALUES LESS THAN (100)
+ (SUBPARTITION subp4 ENGINE = InnoDB,
+  SUBPARTITION subp5 ENGINE = InnoDB),
+ PARTITION `p100-99999` VALUES LESS THAN (100000)
+ (SUBPARTITION subp6 ENGINE = InnoDB,
+  SUBPARTITION subp7 ENGINE = InnoDB)) */
+SELECT * FROM t1;
+a	b
+-2	(pNeg-)subp0, Updated
+10	p10-99
+-21	REPLACEd by REPLACE
+1	subp3
+3	subp3
+1000	`p100-99999`(-subp6)
+-222	`p100-99999`(-subp6), Updated from a = 100
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`,`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION pNeg VALUES LESS THAN (0)
+ (SUBPARTITION subp0 ENGINE = InnoDB,
+  SUBPARTITION subp1 ENGINE = InnoDB),
+ PARTITION `p0-9` VALUES LESS THAN (10)
+ (SUBPARTITION subp2 ENGINE = InnoDB,
+  SUBPARTITION subp3 ENGINE = InnoDB),
+ PARTITION `p10-99` VALUES LESS THAN (100)
+ (SUBPARTITION subp4 ENGINE = InnoDB,
+  SUBPARTITION subp5 ENGINE = InnoDB),
+ PARTITION `p100-99999` VALUES LESS THAN (100000)
+ (SUBPARTITION subp6 ENGINE = InnoDB,
+  SUBPARTITION subp7 ENGINE = InnoDB)) */
+SELECT * FROM t2;
+a	b
+10	p10-99
+1	subp3
+3	subp3
+1000	`p100-99999`(-subp6)
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t3;
+a	b
+-2	(pNeg-)subp0, Updated
+-21	REPLACEd by REPLACE
+1	subp3
+3	subp3
+1000	`p100-99999`(-subp6)
+-222	`p100-99999`(-subp6), Updated from a = 100
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+FLUSH STATUS;
+DELETE t1 PARTITION (pNeg), t3 FROM t1, t3
+WHERE t1.a = t3.a AND t3.b = 'subp3';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION (pNeg), t3 FROM t1, t3
+WHERE t1.a = t3.a AND t3.b = 'subp3'' at line 1
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_WRITE	17
+# Multi table delete without any matching rows
+FLUSH STATUS;
+DELETE t1, t2 FROM t1 PARTITION (pNeg), t3, t2 PARTITION (subp3)
+WHERE t1.a = t3.a AND t3.b = 'subp3' AND t3.a = t2.a;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	12
+HANDLER_READ_FIRST	1
+HANDLER_READ_KEY	4
+HANDLER_READ_RND_NEXT	3
+HANDLER_WRITE	17
+# 12 locks (3 in t1, 1 in t3, 2 in t2) x 2 (lock + unlock)
+# 1 read first (first rnd_next in t2)
+# 4 read key (1 innodb_get_index in rnd_init in t2 + index read in t2
+#             + 2 innodb_get_index in index_init in t1)
+# 3 read rnd next (3 rnd next in t2, 2 rows + 1 empty) 
+# Multi table delete matching all rows in subp3 (2 rows in per table)
+FLUSH STATUS;
+DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
+WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_DELETE	4
+HANDLER_EXTERNAL_LOCK	12
+HANDLER_READ_FIRST	3
+HANDLER_READ_KEY	17
+HANDLER_READ_NEXT	2
+HANDLER_READ_RND	4
+HANDLER_READ_RND_NEXT	16
+HANDLER_WRITE	17
+# 4 delete (2 in t2 + 2 in t3)
+# 12 locks (3 in t2, 1 in t3, 2 in t1) x 2 (lock + unlock)
+# 3 read first (1 in t1 + 1 in t3 + 1 in t3, for second row in t1)
+# 17 read key (1 index_init in t1 + 1 read first in t1 + 
+#              2 index_init in t2 + 1 index read in t2 +
+#              1 index_init in t3 + 1 index read in t3 +
+#              1 index read in t2 +
+#              1 index_init in t3 + 1 index read in t3 +
+#              2 index_init in t2 + 2 index read in t2 (from rnd_pos)
+#              1 index_init in t3 + 2 index read in t3 (from rnd_pos))
+# 2 read next (1 in t1 + 1 in t1, second row)
+# 4 read rnd (position on 4 found rows to delete)
+# 16 rnd next (8 in t3 + 8 in t3, for second row)
+SELECT * FROM t1 ORDER BY a;
+a	b
+-222	`p100-99999`(-subp6), Updated from a = 100
+-21	REPLACEd by REPLACE
+-2	(pNeg-)subp0, Updated
+1	subp3
+3	subp3
+10	p10-99
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+1000	`p100-99999`(-subp6)
+SELECT * FROM t2 ORDER BY a;
+a	b
+10	p10-99
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+1000	`p100-99999`(-subp6)
+SELECT * FROM t3 ORDER BY a;
+a	b
+-222	`p100-99999`(-subp6), Updated from a = 100
+-21	REPLACEd by REPLACE
+-2	(pNeg-)subp0, Updated
+110	`p100-99999`(-subp7), Updated to 103, Updated to 110
+1000	`p100-99999`(-subp6)
+# Test TRUNCATE TABLE (should fail, since one should use
+# ALTER TABLE ... TRUNCATE PARTITION instead)
+TRUNCATE TABLE t1 PARTITION(`p10-99`);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PARTITION(`p10-99`)' at line 1
+# Test of locking in TRUNCATE PARTITION
+# Note that it does not support truncating subpartitions
+FLUSH STATUS;
+ALTER TABLE t1 TRUNCATE PARTITION pNeg;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+VARIABLE_NAME	VARIABLE_VALUE
+HANDLER_COMMIT	1
+HANDLER_EXTERNAL_LOCK	18
+HANDLER_WRITE	17
+# 18 locks (Since ALTER, no lock pruning, the same with TRUNCATE...)
+# Test on non partitioned table
+SELECT * FROM t3 PARTITION (pNeg);
+ERROR HY000: PARTITION () clause on non partitioned table
+DROP TABLE t1, t2, t3;
+SET @@default_storage_engine = @old_default_storage_engine;
+# Test from superseeded WL# 2682
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+CREATE TABLE `t1` (
+`id` int(11) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (6) ENGINE = MyISAM,
+PARTITION p1 VALUES LESS THAN (11) ENGINE = MyISAM,
+PARTITION p2 VALUES LESS THAN (16) ENGINE = MyISAM,
+PARTITION p3 VALUES LESS THAN (21) ENGINE = MyISAM);
+INSERT INTO `t1` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+(11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+SELECT * FROM t1;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+SELECT * FROM t1 PARTITION (p0);
+id
+1
+2
+3
+4
+5
+SELECT * FROM t1 PARTITION (p1);
+id
+6
+7
+8
+9
+10
+SELECT * FROM t1 PARTITION (p2);
+id
+11
+12
+13
+14
+15
+SELECT * FROM t1 PARTITION (p3);
+id
+16
+17
+18
+19
+20
+SELECT * FROM t1 PARTITION (p3) WHERE id = 2;
+id
+SELECT * FROM t1 PARTITION (foo);
+ERROR HY000: partition 'foo' doesn't exist
+CREATE TABLE `t2` (
+`id` int(11) NOT NULL DEFAULT 0,
+PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (6) ENGINE = MyISAM,
+PARTITION p1 VALUES LESS THAN (11) ENGINE = MyISAM,
+PARTITION p2 VALUES LESS THAN (16) ENGINE = MyISAM,
+PARTITION p3 VALUES LESS THAN (21) ENGINE = MyISAM);
+INSERT INTO `t2` VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10),
+(11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
+SELECT * FROM t2;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+SELECT * FROM t2 PARTITION (p0);
+id
+1
+2
+3
+4
+5
+SELECT * FROM t2 PARTITION (p1);
+id
+6
+7
+8
+9
+10
+SELECT * FROM t2 PARTITION (p2);
+id
+11
+12
+13
+14
+15
+SELECT * FROM t2 PARTITION (p3);
+id
+16
+17
+18
+19
+20
+SELECT * FROM t2 PARTITION (p3) ORDER BY id;
+id
+16
+17
+18
+19
+20
+SELECT * FROM t2 PARTITION (p3) WHERE id = 2;
+id
+SELECT * FROM t2 PARTITION (foo);
+ERROR HY000: partition 'foo' doesn't exist
+CREATE TABLE `t3` (
+`id` int(32) default NULL,
+`name` varchar(32) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 
+PARTITION BY LIST (id) (
+PARTITION p0 VALUES IN (1,3,5,7),
+PARTITION p1 VALUES IN (0,2,4,6,8),
+PARTITION p2 VALUES IN (9,10,11,12,13)
+);
+INSERT INTO `t3` VALUES (1,'first'), (3,'third'),(5,'fifth'),(7,'seventh'),(0,'zilch'),(2,'second'),(4,'fourth'),(6,'sixth'),(8,'eighth'),(9,'ninth'),(10,'tenth'),(11,'eleventh'),(12,'twelfth'),(13,'thirteenth');
+SELECT * FROM `t3`;
+id	name
+1	first
+3	third
+5	fifth
+7	seventh
+0	zilch
+2	second
+4	fourth
+6	sixth
+8	eighth
+9	ninth
+10	tenth
+11	eleventh
+12	twelfth
+13	thirteenth
+SELECT * FROM `t3` PARTITION (p0);
+id	name
+1	first
+3	third
+5	fifth
+7	seventh
+SELECT * FROM `t3` PARTITION (p1);
+id	name
+0	zilch
+2	second
+4	fourth
+6	sixth
+8	eighth
+SELECT * FROM `t3` PARTITION (p2);
+id	name
+9	ninth
+10	tenth
+11	eleventh
+12	twelfth
+13	thirteenth
+SELECT * FROM `t3` PARTITION (p2) ORDER BY id;
+id	name
+9	ninth
+10	tenth
+11	eleventh
+12	twelfth
+13	thirteenth
+DROP TABLE IF EXISTS `t4`;
+Warnings:
+Note	1051	Unknown table 'test.t4'
+CREATE TABLE `t4` (
+`id` int(32) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 PARTITION BY HASH (id) ;
+INSERT INTO `t4` SELECT * FROM `t2`;
+INSERT INTO `t4` SELECT * FROM `t2` ORDER BY id;
+CREATE TABLE `t5` (
+id int(32),
+name varchar(64),
+purchased date)
+PARTITION BY RANGE( YEAR(purchased) )
+SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0,
+SUBPARTITION s1
+),
+PARTITION p1 VALUES LESS THAN (2000) (
+SUBPARTITION s2,
+SUBPARTITION s3
+),
+PARTITION p2 VALUES LESS THAN MAXVALUE (
+SUBPARTITION s4,
+SUBPARTITION s5
+)
+);
+INSERT INTO `t5` VALUES (1, 'aaaaaaa', '2006-01-05 00:00:00');
+INSERT INTO `t5` VALUES (2, 'bbbbbbb', '2005-08-05 00:00:00');
+INSERT INTO `t5` VALUES (3, 'ccccccc', '1985-08-07 00:00:00');
+INSERT INTO `t5` VALUES (4, 'ddddddd', '2000-01-01 00:00:00');
+INSERT INTO `t5` VALUES (5, 'eeeeeee', '1999-12-01 00:00:00');
+INSERT INTO `t5` VALUES (6, 'fffffff', '2003-11-12 00:00:00');
+INSERT INTO `t5` VALUES (7, 'ggggggg', '1990-01-05 00:00:00');
+INSERT INTO `t5` VALUES (8, 'hhhhhhh', '1978-01-05 00:00:00');
+INSERT INTO `t5` VALUES (9, 'iiiiiii', '1979-01-05 00:00:00');
+INSERT INTO `t5` VALUES (10, 'jjjjjjj', '1992-01-05 00:00:00');
+INSERT INTO `t5` VALUES (11, 'kkkkkkk', '1993-01-05 00:00:00');
+INSERT INTO `t5` VALUES (12, 'mmmmmmm', '1994-01-05 00:00:00');
+INSERT INTO `t5` VALUES (13, 'nnnnnnn', '1989-01-05 00:00:00');
+INSERT INTO `t5` VALUES (14, 'ooooooo', '1983-12-05 00:00:00');
+INSERT INTO `t5` VALUES (15, 'ppppppp', '1986-06-05 00:00:00');
+INSERT INTO `t5` VALUES (16, 'qqqqqqq', '1974-04-11 00:00:00');
+INSERT INTO `t5` VALUES (17, 'qqqqqqq', '1960-03-15 00:00:00');
+INSERT INTO `t5` VALUES (18, 'sssssss', '1950-09-23 00:00:00');
+INSERT INTO `t5` VALUES (19, 'ttttttt', '1999-08-02 00:00:00');
+INSERT INTO `t5` VALUES (20, 'uuuuuuu', '1994-05-28 00:00:00');
+SELECT * FROM `t5`;
+id	name	purchased
+8	hhhhhhh	1978-01-05
+13	nnnnnnn	1989-01-05
+14	ooooooo	1983-12-05
+18	sssssss	1950-09-23
+3	ccccccc	1985-08-07
+9	iiiiiii	1979-01-05
+15	ppppppp	1986-06-05
+16	qqqqqqq	1974-04-11
+17	qqqqqqq	1960-03-15
+5	eeeeeee	1999-12-01
+12	mmmmmmm	1994-01-05
+7	ggggggg	1990-01-05
+10	jjjjjjj	1992-01-05
+11	kkkkkkk	1993-01-05
+19	ttttttt	1999-08-02
+20	uuuuuuu	1994-05-28
+2	bbbbbbb	2005-08-05
+6	fffffff	2003-11-12
+1	aaaaaaa	2006-01-05
+4	ddddddd	2000-01-01
+SELECT * FROM `t5` PARTITION(p0) ORDER BY id;
+id	name	purchased
+3	ccccccc	1985-08-07
+8	hhhhhhh	1978-01-05
+9	iiiiiii	1979-01-05
+13	nnnnnnn	1989-01-05
+14	ooooooo	1983-12-05
+15	ppppppp	1986-06-05
+16	qqqqqqq	1974-04-11
+17	qqqqqqq	1960-03-15
+18	sssssss	1950-09-23
+SELECT * FROM `t5` PARTITION(s0) ORDER BY id;
+id	name	purchased
+8	hhhhhhh	1978-01-05
+13	nnnnnnn	1989-01-05
+14	ooooooo	1983-12-05
+18	sssssss	1950-09-23
+SELECT * FROM `t5` PARTITION(s1) ORDER BY id;
+id	name	purchased
+3	ccccccc	1985-08-07
+9	iiiiiii	1979-01-05
+15	ppppppp	1986-06-05
+16	qqqqqqq	1974-04-11
+17	qqqqqqq	1960-03-15
+SELECT * FROM `t5` PARTITION(p1) ORDER BY id;
+id	name	purchased
+5	eeeeeee	1999-12-01
+7	ggggggg	1990-01-05
+10	jjjjjjj	1992-01-05
+11	kkkkkkk	1993-01-05
+12	mmmmmmm	1994-01-05
+19	ttttttt	1999-08-02
+20	uuuuuuu	1994-05-28
+SELECT * FROM `t5` PARTITION(s2) ORDER BY id;
+id	name	purchased
+5	eeeeeee	1999-12-01
+12	mmmmmmm	1994-01-05
+SELECT * FROM `t5` PARTITION(s3) ORDER BY id;
+id	name	purchased
+7	ggggggg	1990-01-05
+10	jjjjjjj	1992-01-05
+11	kkkkkkk	1993-01-05
+19	ttttttt	1999-08-02
+20	uuuuuuu	1994-05-28
+SELECT * FROM `t5` PARTITION(p2) ORDER BY id;
+id	name	purchased
+1	aaaaaaa	2006-01-05
+2	bbbbbbb	2005-08-05
+4	ddddddd	2000-01-01
+6	fffffff	2003-11-12
+SELECT * FROM `t5` PARTITION(s4) ORDER BY id;
+id	name	purchased
+2	bbbbbbb	2005-08-05
+6	fffffff	2003-11-12
+SELECT * FROM `t5` PARTITION(s5) ORDER BY id;
+id	name	purchased
+1	aaaaaaa	2006-01-05
+4	ddddddd	2000-01-01
+drop table t1,t2,t3,t4,t5;
+create table t1 (a int) partition by hash(a) partitions 3;
+insert into t1 values(1),(2),(3);
+explain partitions select * from t1 where a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 partition (p1) where a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 partition (p1) where a=1 or a=2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	2	Using where
+explain partitions select * from t1 partition (p2) where a=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
+drop table t1;

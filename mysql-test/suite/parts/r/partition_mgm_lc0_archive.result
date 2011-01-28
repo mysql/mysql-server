@@ -32,7 +32,7 @@ ALTER TABLE TableA ADD PARTITION
 (PARTITION partA,
 PARTITION Parta,
 PARTITION PartA);
-ERROR HY000: Duplicate partition name parta
+ERROR HY000: Duplicate partition name partA
 ALTER TABLE TableA ADD PARTITION
 (PARTITION partE,
 PARTITION Partf,
@@ -135,7 +135,7 @@ Partc	YES
 ALTER TABLE TableA EXCHANGE PARTITION parta WITH TABLE TableB;
 INSERT INTO TableB VALUES (11);
 ALTER TABLE TableA EXCHANGE PARTITION Partc WITH TABLE TableB;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 DROP TABLE TableB;
 SELECT * FROM TableA;
 a
@@ -309,7 +309,7 @@ PARTITION BY HASH (a)
 PARTITION partA ,
 PARTITION Parta ,
 PARTITION PartA );
-ERROR HY000: Duplicate partition name parta
+ERROR HY000: Duplicate partition name partA
 # Creating Hash partitioned table
 CREATE TABLE TableA (a INT)
 ENGINE = 'Archive'
@@ -340,7 +340,7 @@ ALTER TABLE TableA ADD PARTITION
 (PARTITION partA,
 PARTITION Parta,
 PARTITION PartA);
-ERROR HY000: Duplicate partition name parta
+ERROR HY000: Duplicate partition name partA
 ALTER TABLE TableA ADD PARTITION
 (PARTITION partE,
 PARTITION Partf,
@@ -565,7 +565,7 @@ a
 # expecting duplicate partition name
 ALTER TABLE TableA ADD PARTITION
 (PARTITION partA VALUES LESS THAN (MAXVALUE));
-ERROR HY000: Duplicate partition name parta
+ERROR HY000: Duplicate partition name partA
 ALTER TABLE TableA ADD PARTITION
 (PARTITION partE VALUES LESS THAN (16),
 PARTITION Partf VALUES LESS THAN (19),
@@ -796,7 +796,7 @@ a
 # expecting duplicate partition name
 ALTER TABLE TableA ADD PARTITION
 (PARTITION partA VALUES IN (0));
-ERROR HY000: Duplicate partition name parta
+ERROR HY000: Duplicate partition name partA
 ALTER TABLE TableA ADD PARTITION
 (PARTITION partE VALUES IN (16),
 PARTITION Partf VALUES IN (19),
