@@ -595,10 +595,19 @@ NdbEventOperationImpl::execute_nolock()
     int res = myDict->beginSchemaTrans();
     if (res != 0)
     {
-      m_error.code= myDict->getNdbError().code;
-      DBUG_RETURN(-1);
+      switch(myDict->getNdbError().code){
+      case 711:
+        // ignore;
+        break;
+      default:
+        m_error.code= myDict->getNdbError().code;
+        DBUG_RETURN(-1);
+      }
     }
-    schemaTrans = true;
+    else
+    {
+      schemaTrans = true;
+    }
   }
 
   if (theFirstPkAttrs[0] == NULL && 
