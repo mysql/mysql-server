@@ -43,11 +43,11 @@ public interface SessionSPI extends Session {
     public ResultData selectUnique(DomainTypeHandler<?> domainTypeHandler,
             ValueHandler keyHandler, BitSet fields);
 
-    void insert(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler);
+    Operation insert(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler);
 
-    void update(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler);
+    Operation update(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler);
 
-    void delete(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler);
+    Operation delete(DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler);
 
     int deletePersistentAll(DomainTypeHandler<?> domainTypeHandler);
 
