@@ -1,0 +1,642 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"  xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Fragment>
+    <Property Id="PortTemplate" Value="#####" />
+
+    <!--
+      Installation parameters that can be passed via msiexec command line
+      For "booleans" (like skip networking), just providing any value means property set to "yes".
+    -->
+    <!-- instalation directory (default under program files)-->
+    <!--- (defined elsewhere) <Property Id="INSTALLDIR" Secure="yes" /> -->
+
+    <!-- Database data directory (default under INSTALLDIR\data) -->
+    <!--- (defined elsewhere) <Property Id="DATADIR" Secure="yes"/> -->
+
+    <!-- Service name of database instanced (default MySQL in GUI, nothing with command line) -->
+    <!--  (defined elsewhere) <Property Id="SERVICENAME" Secure="yes" /> -->
+
+    <!-- Root password -->
+    <Property Id="PASSWORD" Hidden="yes" Secure="yes" />
+    <!-- Database port -->
+    <Property Id="PORT" Value="3306" Secure="yes"/>
+    <!-- Whether to allow remote access for root user -->
+    <Property Id="ALLOWREMOTEROOTACCESS" Secure="yes" />
+    <!-- Skip networking. This will switch configuration to use named pipe-->
+    <Property Id="SKIPNETWORKING" Secure="yes"/>
+    <!-- Whether to keep default (unauthenticated) user. Default is no-->
+    <Property Id="DEFAULTUSER" Secure="yes"/>
+    <!-- Whether to data on uninstall (default yes, after asking user consent) -->
+    <Property Id="CLEANUPDATA" Secure="yes" Value="1"/>
+
+
+    <!-- 
+      User interface dialogs 
+     -->
+    <WixVariable Id='WixUIBannerBmp' Value='@CMAKE_CURRENT_SOURCE_DIR@\WixUIBannerBmp.jpg' />
+    <WixVariable Id='WixUIDialogBmp' Value='@CMAKE_CURRENT_SOURCE_DIR@\WixUIDialogBmp.jpg' />
+    <UI>
+
+      <!-- Dialog on uninstall of the database -->
+      <Dialog Id="ConfirmDataCleanupDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+
+        <!--<Control Id="CleanupDataCheckBox" Type="CheckBox" X="20" Y="100" Height="30" Property="CLEANUPDATA" Width="300" CheckBoxValue="1"
+                Text="{\Font1}Remove default database directory &#xD;&#xA;'[DATADIR]'"/>
+                -->
+        <Control Id="RemoveDatadirButton" Type="PushButton" X="40" Y="65" Width="80" Height="18"
+                  Text="Remove data">
+          <Publish Property="CLEANUPDATA" Value="1">1</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">WixUI_InstallMode</Publish>
+          <Publish Event="EndDialog" Value="Return">NOT WixUI_InstallMode</Publish>
+
+        </Control>
+        <Control Id="RemoveDatadirText" Type="Text" X="60" Y="85" Width="280" Height="20">
+          <Text>Remove default database directory [DATADIR]. Ensures proper cleanup on uninstall.</Text>
+        </Control>
+
+        <Control Id="KeepDatadirButton" Type="PushButton" X="40" Y="118" Width="80" Height="18"
+                 Text="Keep data">
+          <Publish Property="CLEANUPDATA">1</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">WixUI_InstallMode</Publish>
+          <Publish Event="EndDialog" Value="Return">NOT WixUI_InstallMode</Publish>
+        </Control>
+        <Control Id="KeepDataDirText" Type="Text" X="60" Y="138" Width="280" Height="70" >
+          <Text>Do not remove [DATADIR]. Choose this option if you intend to use data in the future</Text>
+        </Control>
+
+
+        <!-- Navigation buttons-->
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="CustomizeDlg">WixUI_InstallMode="Change"</Publish>
+          <Condition Action="disable">NOT WixUI_InstallMode</Condition>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Disabled="yes" Text="&amp;Next">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">WixUI_InstallMode</Publish>
+          <Publish Event="EndDialog" Value="Return">NOT WixUI_InstallMode</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>Remove default [ProductName] database</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}Default instance properties</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+      </Dialog>
+
+      <!-- Error popup dialog -->
+      <Dialog Id="WarningDlg" Width="320" Height="85" Title="[ProductName] Setup" NoMinimize="yes">
+        <Control Id="Ok" Type="PushButton" X="132" Y="57" Width="56" Height="17"
+          Default="yes" Cancel="yes" Text="OK">
+          <Publish Property="WarningText">1</Publish>
+          <Publish Event="EndDialog" Value="Return">1</Publish>
+        </Control>
+        <Control Id="Text" Type="Text" X="48" Y="15" Width="260" Height="30">
+          <Text>[WarningText]</Text>
+        </Control>
+      </Dialog>
+
+
+      <Property Id="ModifyRootPassword" Value="1"/>
+      <TextStyle Id="Font1" FaceName="Tahoma" Size="8" Red="0" Green="0" Blue="0" Bold="yes" />
+
+      <!-- Root password plus default user dialog  -->
+      <Dialog Id="UserSettingsDlg" X="50" Y="50" Width="370" Height="270" Title="User settings">
+        <Control Id="EditRootPassword" Type="Edit" X="104" Y="82" Width="91" Height="15" Property="PASSWORD" Password="yes" TabSkip="no">
+          <Text>{100}</Text>
+          <Condition Action="enable">ModifyRootPassword</Condition>
+          <Condition Action="disable">NOT ModifyRootPassword</Condition>
+        </Control>
+        <Control Id="EditRootPasswordConfirm" Type="Edit" X="104" Y="103" Width="91" Height="15" Property="RootPasswordConfirm"  Password="yes" TabSkip="no">
+          <Text>{100}</Text>
+          <Condition Action="enable">ModifyRootPassword</Condition>
+          <Condition Action="disable">NOT ModifyRootPassword</Condition>
+        </Control>
+
+        <Control Id="CheckBoxModifyRootPassword" Type="CheckBox" X="8" Y="62" Width="222" Height="18" Property="ModifyRootPassword" CheckBoxValue="1" TabSkip="no">
+          <Text>{\Font1}Modify root password</Text>
+          <Publish Property="PASSWORD" >NOT ModifyRootPassword</Publish>
+          <Publish Property="RootPasswordConfirm">NOT ModifyRootPassword</Publish>
+          <Publish Property="ALLOWREMOTEROOTACCESS">NOT ModifyRootPassword</Publish>
+          <Publish Property="ALLOWREMOTEROOTACCESS" Value="1">ModifyRootPassword</Publish>
+        </Control>
+
+        <Control Id="Text5" Type="Text" X="23" Y="82" Width="77" Height="14" TabSkip="yes">
+          <Text>New root password:</Text>
+        </Control>
+        <Control Id="Text6" Type="Text" X="201" Y="85" Width="100" Height="17" TabSkip="yes">
+          <Text>Enter new root password</Text>
+        </Control>
+        <Control Id="Text8" Type="Text" X="23" Y="105" Width="75" Height="17" TabSkip="yes">
+          <Text>Confirm:</Text>
+        </Control>
+
+        <Control Id="Text10" Type="Text" X="201" Y="104" Width="100" Height="17" TabSkip="yes">
+          <Text>Retype the password</Text>
+        </Control>
+        <Control Id="CheckBoxALLOWREMOTEROOTACCESS" Type="CheckBox" X="23" Y="122" Width="196" Height="18" Property="ALLOWREMOTEROOTACCESS"
+                 CheckBoxValue="--allow-remote-root-access" TabSkip="no">
+          <Text>{\Font1}Enable root access from remote machines</Text>
+          <Condition Action="enable">ModifyRootPassword</Condition>
+          <Condition Action="disable">NOT ModifyRootPassword</Condition>
+        </Control>
+
+        <Control Id="CheckBoxCreateDefaultUser" Type="CheckBox" X="8" Y="154" Width="200" Height="18" Property="DEFAULTUSER"
+                 CheckBoxValue="--default-user" TabSkip="no">
+          <Text>{\Font1}Create An Anonymous Account</Text>
+        </Control>
+        <Control Id="Text14" Type="Text" X="21" Y="174" Width="268" Height="16" TabSkip="yes">
+          <Text>This option will create an anonymous account on this server. </Text>
+        </Control>
+        <Control Id="Text13" Type="Text" X="21" Y="190" Width="254" Height="24" TabSkip="yes">
+          <Text>Please note: this setting can lead to insecure systems.</Text>
+        </Control>
+
+        <!-- Navigation buttons-->
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+          <Publish Property="WarningText" Value="Passwords do not match."><![CDATA[PASSWORD <> RootPasswordConfirm]]></Publish>
+          <Publish Event="SpawnDialog" Value="WarningDlg"><![CDATA[WarningText <>""]]></Publish>
+          <Publish Property="SERVICENAME" Value="MySQL">NOT SERVICENAME AND NOT WarningText</Publish>
+          <Publish Event="NewDialog" Value="ServicePortDlg"><![CDATA[WarningText=""]]></Publish>
+          <Condition Action="enable"><![CDATA[NOT ModifyRootPassword OR PASSWORD]]> </Condition>
+          <Condition Action="disable"><![CDATA[ModifyRootPassword AND (NOT PASSWORD)]]> </Condition>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text> [ProductName] database configuration</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}Default instance properties</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+      </Dialog>
+
+      <Property Id="InstallService" Value="1"/>
+      <Property Id="EnableNetworking" Value="1"/>
+
+      <!-- Service and port configuration -->
+      <Dialog Id="ServicePortDlg" Width="370" Height="270" Title="Database settings">
+        <Control Id="InstallAsService" Type="CheckBox" X="9" Y="61" Width="222" Height="19" Property="InstallService" CheckBoxValue="1" TabSkip="no">
+          <Text>{\Font1}Install as service</Text>
+        </Control>
+        <Control Id="EditServiceName" Type="Edit" X="104" Y="82" Width="91" Height="15" Property="SERVICENAME" TabSkip="no">
+          <Text>{20}</Text>
+          <Condition Action="enable">InstallService</Condition>
+          <Condition Action="disable">Not InstallService</Condition>
+        </Control>
+        <Control Id="Text5" Type="Text" X="25" Y="82" Width="77" Height="14" TabSkip="yes">
+          <Text>Service Name:</Text>
+        </Control>
+        <Control Id="CheckBoxEnableNetworking" Type="CheckBox" Height="18" Width="102" X="9" Y="117" Property="EnableNetworking" CheckBoxValue="1">
+          <Text>{\Font1}Enable networking</Text>
+          <!--<Publish Property="PORT">NOT EnableNetworking</Publish>-->
+          <Publish Property="SKIPNETWORKING" Value="--skip-networking">NOT EnableNetworking</Publish>
+          <Publish Property="SKIPNETWORKING">EnableNetworking</Publish>
+        </Control>
+        <Control Id="LabelTCPPort" Type="Text" Height="17" Width="75" X="25" Y="142" Text="TCP port:" />
+        <Control Id="Port" Type="MaskedEdit" X="104" Y="140" Width="28" Height="15" Property="PORT"  Sunken="yes" Text="[PortTemplate]">
+          <Condition Action="enable" >EnableNetworking</Condition>
+          <Condition Action="disable">Not EnableNetworking</Condition>
+        </Control>
+        <!-- Navigation buttons-->
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="UserSettingsDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="no" Text="&amp;Next">
+          <Publish Property="SERVICENAME">NOT InstallService</Publish>
+          <Publish Property="WarningText" Value="Please enter valid port or uncheck 'Enable Networking' checkbox">
+            <![CDATA[EnableNetworking AND NOT PORT AND NOT WarningText]]>
+          </Publish>
+          <Publish Property="WarningText" Value="Please enter valid service name port or uncheck 'Install Service' checkbox">
+            <![CDATA[InstallService AND NOT SERVICENAME AND NOT WarningText]]>
+          </Publish>
+          <Publish Event="DoAction" Value="CheckDatabaseProperties">NOT WarningText</Publish>
+          <Publish Event="SpawnDialog" Value="WarningDlg">WarningText</Publish>
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">Not WarningText</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="no" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>[ProductName] database configuration</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="2" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}Default instance properties</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="2" />
+      </Dialog>
+    </UI>
+
+    <Property Id="CRLF" Value="&#xD;&#xA;" />
+    <CustomAction Id="CheckDataDirectoryEmpty" BinaryKey="wixca.dll" DllEntry="CheckDataDirectoryEmpty" Execute="immediate" Impersonate="yes"/>
+    <!--  What to do when navigation buttons are clicked -->
+    <UI Id="MyWixUI_Mondo">
+      <UIRef Id="WixUI_FeatureTree" />
+      <UIRef Id="WixUI_ErrorProgressText" />
+      <Publish Dialog="WelcomeDlg"  Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="999">
+        OLDERVERSIONBEINGUPGRADED
+      </Publish>
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServicePortDlg" Order="3" ><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3"> <![CDATA[OLDERVERSIONBEINGUPGRADED <>""]]></Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="1" ><![CDATA[(&DBInstance=2) AND (!DBInstance=3)]]></Publish>
+
+
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="DoAction" Value="CheckDataDirectoryEmpty" Order="1"><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
+      <Publish Dialog="CustomizeDlg" Property="DATADIRNOTEMPTY" Control="Next"  Order="1"><![CDATA[NOT(&DBInstance=3 AND NOT !DBInstance=3)]]></Publish>
+      <Publish  Dialog="CustomizeDlg" Control="Next"  Property="WarningText" Order="2"
+         Value="Selected data directory [DATADIR] is not empty. Either clean it, or choose another location for 'Database Instance' feature.">
+        DATADIRNOTEMPTY
+      </Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="SpawnDialog" Value="WarningDlg" Order="3">WarningText</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="4">
+        <![CDATA[(&DBInstance=2) AND (!DBInstance=3)]]>
+      </Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="UserSettingsDlg" Order="5">
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND NOT WarningText]]>
+      </Publish>
+
+      <Publish Dialog="ConfirmDataCleanupDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg">WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="999">
+        !DBInstance=3 AND (CLEANUPDATA Or USECONFIRMDATACLEANUPDLG)
+      </Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Property="USECONFIRMDATACLEANUPDLG" Value="1" Order="999">
+        !DBInstance=3 AND CLEANUPDATA
+      </Publish>
+      <Publish Dialog="ConfirmDataCleanupDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg">WixUI_InstallMode = "Remove"</Publish>
+    </UI>
+
+    <!-- End of UI section -->
+
+    <!-- Extra folders we need (DATADIR and shortcut folder) -->
+    <DirectoryRef Id='INSTALLDIR'>
+      <Directory Id="DATADIR" Name="data">
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ShortcutFolder" Name="@CPACK_WIX_PACKAGE_NAME@">
+        </Directory>
+      </Directory>
+    </DirectoryRef>
+
+
+    <!-- Extra feature (database instance). This could be split to several subfeatures if desired (e.g firewall exception)-->
+    <Feature Id='DBInstance'
+         Title='Database instance'
+         Description=
+             'Install database instance. Only new database can be installed with this feature.'
+         ConfigurableDirectory='DATADIR'
+         AllowAdvertise='no'
+         Level='1'>
+
+      <!-- Data directory with some reasonable security settings -->
+      <Component Id="C.datadir" Guid="*" Directory="DATADIR">
+        <RegistryValue Root='HKLM'
+           Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+           Name='DATADIR' Value='[DATADIR]' Type='string' KeyPath='yes'/>
+        <CreateFolder>
+          <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+          <util:PermissionEx User="NetworkService" GenericAll="yes" />
+        </CreateFolder>
+      </Component>
+
+      <!-- Database service conditioned on SERVICENAME property-->
+      <Component Id="C.service" Guid="*" Directory="DATADIR">
+        <Condition>SERVICENAME</Condition>
+        <RegistryValue Root='HKLM'
+           Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+           Name='SERVICENAME' Value='[SERVICENAME]' Type='string' KeyPath='yes'/>
+        <ServiceControl Id='DBInstanceServiceStop' Name='[SERVICENAME]'  Stop='both' Remove='uninstall' Wait='yes'/>
+        <ServiceControl Id='DBInstanceServiceStart' Name='[SERVICENAME]' Start='install' Wait='yes'/>
+      </Component>
+
+      <!--- Grant service account permission to the database folder (Windows 7 and later) -->
+      <Component Id="C.serviceaccount.permission" Guid="*" Directory='DATADIR' Transitive='yes'>
+        <Condition><![CDATA[SERVICENAME AND (VersionNT > 600)]]></Condition>
+        <RegistryValue Root='HKLM'
+             Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+             Name='servicepermission' Value='1' Type='string' KeyPath='yes'/>
+        <CreateFolder>
+          <util:PermissionEx User="NT SERVICE\[SERVICENAME]" GenericAll="yes" />
+        </CreateFolder>
+      </Component>
+
+      <!-- Shortcuts in program menu (mysql client etc) -->
+      <Component Id="c.shortcuts" Guid="*" Directory="ShortcutFolder">
+        <!-- shortcut to my.ini-->
+        <RegistryValue  Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall" Name="shortcuts" Value="1" Type="string" KeyPath="yes"  />
+        <RemoveFolder Id="RemoveShorcutFolder" On="uninstall" />
+        <Shortcut Id="shortcut.my.ini"
+          Name="my.ini (@CPACK_WIX_PACKAGE_NAME@)"
+          Target="[System64Folder]notepad.exe"
+          Arguments="&quot;[DATADIR]my.ini&quot;"
+          Directory="ShortcutFolder"
+          Description="Edit database configuration" />
+        <Shortcut Id="shortcut.errorlog"
+          Name="Error log (@CPACK_WIX_PACKAGE_NAME@)"
+          Target="[System64Folder]notepad.exe"
+          Arguments="&quot;[DATADIR][ComputerName].err&quot;"
+          Directory="ShortcutFolder"
+          Description="View Database Error log" />
+        <Shortcut Id="shortcut.dbfolder" Name="Database directory (@CPACK_WIX_PACKAGE_NAME@)"
+          Target="[DATADIR]" />
+      </Component>
+
+      <!-- add reference so mysql client won't get uninstalled and we have a shortcut pointing to nowhere-->
+      <ComponentRef Id="C.bin.mysql.exe"/>
+
+      <Component Id="c.shortcuts.commandline" Guid="*" Directory="ShortcutFolder">
+        <RegistryValue
+          Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall"
+          Name="shortcuts.commandline"
+          Value="1" Type="string" KeyPath="yes" />
+        <!-- shortcut to client-->
+        <Shortcut Id="shortcut.mysql.exe"
+          Name="MySQL Client (@CPACK_WIX_PACKAGE_NAME@)"
+          Target="[System64Folder]cmd.exe"
+          Arguments="/k &quot; &quot;[D.bin]mysql.exe&quot; &quot;--defaults-file=[DATADIR]my.ini&quot; -uroot -p&quot;"
+          Directory="ShortcutFolder"
+          WorkingDirectory="D.bin"
+          Description="Starts mysql.exe for root user"  />
+      </Component>
+      <Component Id="c.shortcuts.commandprompt.db"  Guid="*"  Directory="ShortcutFolder" Transitive="yes">
+        <Condition>SERVICENAME</Condition>
+        <RegistryValue
+        Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall"
+        Name="shortcuts.commandprompt.db"
+        Value="1" Type="string" KeyPath="yes" />
+        <!-- just command prompt in the bin directory (so all utilities can be called) -->
+        <Shortcut Id="shortcut.commandprompt.exe.db"
+          Name="Command Prompt (@CPACK_WIX_PACKAGE_NAME@)"
+          Target="[System64Folder]cmd.exe"
+          Directory="ShortcutFolder"
+          Arguments="/k  &quot;set MYSQL_HOME=[DATADIR]&amp;&amp; set PATH=[D.bin];%PATH%;&amp;&amp;echo Setting environment for [ProductName] &quot;"
+          Description="Opens command line in the installation bin directory" />
+      </Component>
+    </Feature>
+
+    <Feature Id="SharedClientServerComponents"
+      Title='Utilities used by both server and client.'
+      Description=
+      'Client utilities that are also used with server.Required for upgrade.'
+      ConfigurableDirectory='INSTALLDIR'
+      AllowAdvertise='no'
+      Level='1'
+      Display='hidden'>
+      <ComponentRef Id='C.bin.mysql.exe'/>
+      <ComponentRef Id='C.bin.mysqladmin.exe'/>
+      <ComponentRef Id='C.bin.mysql_upgrade.exe'/>
+      <ComponentRef Id='C.bin.mysqlcheck.exe'/>
+      <Component Id="c.shortcuts.commandprompt.nodb"  Guid="*"  Directory="ShortcutFolder" Transitive="yes">
+        <Condition>NOT SERVICENAME</Condition>
+        <RegistryValue
+          Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall"
+          Name="shortcuts.commandprompt.nodb"
+          Value="1" Type="string" KeyPath="yes" />
+        <!-- just command prompt in the bin directory (so all utilities can be called) -->
+        <Shortcut Id="shortcut.commandprompt.exe.nodb"
+          Name="Command Prompt (@CPACK_WIX_PACKAGE_NAME@)"
+          Target="[System64Folder]cmd.exe"
+          Directory="ShortcutFolder"
+          Arguments="/k  &quot;set PATH=[D.bin];%PATH%;&amp;&amp;echo Setting environment for [ProductName] &quot;"
+          Description="Opens command line in the installation bin directory" />
+      </Component>
+    </Feature>
+
+    <!--  Custom action, call mysql_install_db  -->
+    <SetProperty  Sequence='execute'  Before='CreateDatabaseCommand' Id="SKIPNETWORKING"  Value="--skip-networking" >SKIPNETWORKING</SetProperty>
+    <SetProperty Sequence='execute'  Before='CreateDatabaseCommand'  Id="ALLOWREMOTEROOTACCESS" Value="--allow-remote-root-access">ALLOWREMOTEROOTACCESS</SetProperty>
+    <SetProperty Sequence='execute'  Before='CreateDatabaseCommand' Id="DEFAULTUSER" Value="--default-user">DEFAULTUSER</SetProperty>
+    <CustomAction Id='CheckDatabaseProperties' BinaryKey='wixca.dll' DllEntry='CheckDatabaseProperties' />
+    <CustomAction Id="CreateDatabaseCommand" Property="CreateDatabase"
+    Value=
+    "&quot;[#F.bin.mysql_install_db.exe]&quot;  &quot;--service=[SERVICENAME]&quot; --port=[PORT] &quot;--password=[PASSWORD]&quot; &quot;--datadir=[DATADIR]\&quot; [SKIPNETWORKING] [ALLOWREMOTEROOTACCESS] [DEFAULTUSER]"
+     Execute="immediate"
+     HideTarget="yes"
+     />
+    <CustomAction Id="CreateDatabaseRollbackCommand" Property="CreateDatabaseRollback"
+        Value="[SERVICENAME]\[DATADIR]"
+        Execute="immediate"/>
+    <CustomAction Id="CreateDatabase" BinaryKey="WixCA" DllEntry="CAQuietExec"
+            Execute="deferred" Return="check" Impersonate="no" />
+    <CustomAction Id="CreateDatabaseRollback" BinaryKey="wixca.dll" DllEntry="CreateDatabaseRollback"
+        Execute="rollback" Return="check" Impersonate="no"/>
+    <UI>
+      <ProgressText Action="CreateDatabase">Running mysql_install_db.exe</ProgressText>
+    </UI>
+
+    <!-- Error injection script activated by TEST_FAIL=1 passed to msiexec (to see how good custom action rollback works)  -->
+    <Property Id="FailureProgram">
+      <![CDATA[
+         Function Main()
+         Main = 3
+         End Function
+         ]]>
+    </Property>
+    <CustomAction Id="FakeFailure"
+     VBScriptCall="Main"
+     Property="FailureProgram"
+     Execute="deferred" />
+
+    <CustomAction Id='ErrorDataDirNotEmpty' 
+                  Error='Chosen data directory [DATADIR] is not empty. It must be empty prior to installation.'/>
+    <InstallExecuteSequence>
+      <Custom Action="CheckDataDirectoryEmpty" After="CostFinalize">
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
+      </Custom>
+      <Custom Action="ErrorDataDirNotEmpty" After="CheckDataDirectoryEmpty" >DATADIRNOTEMPTY</Custom>
+
+      <Custom Action="CreateDatabaseCommand" After="CostFinalize" >
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
+      </Custom>
+      <Custom Action="CreateDatabase" After="InstallFiles">
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
+      </Custom>
+      <Custom Action="CreateDatabaseRollbackCommand" After="CostFinalize">
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
+      </Custom>
+      <Custom Action="CreateDatabaseRollback" Before="CreateDatabase">
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED=""]]>
+      </Custom>
+      <Custom Action='FakeFailure' Before='InstallFinalize'>
+        <![CDATA[&DBInstance=3 AND NOT !DBInstance=3 AND OLDERVERSIONBEINGUPGRADED="" AND TESTFAIL]]>
+      </Custom>
+    </InstallExecuteSequence>
+
+
+    <!-- Custom action to remove data on uninstall  -->
+    <Binary Id='wixca.dll' SourceFile='@WIXCA_LOCATION@' />
+    <CustomAction Id="RemoveDataDirectory.SetProperty" Return="check" 
+                  Property="RemoveDataDirectory" Value="[DATADIR]" />
+    <CustomAction Id="RemoveDataDirectory"  BinaryKey="wixca.dll"
+                  DllEntry="RemoveDataDirectory"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore"   />
+    <InstallExecuteSequence>
+      <Custom Action="RemoveDataDirectory.SetProperty" After="CreateDatabaseCommand" >
+        <![CDATA[($C.datadir=2) AND (CLEANUPDATA) AND NOT UPGRADINGPRODUCTCODE]]>
+      </Custom>
+      <Custom Action="RemoveDataDirectory" Before="RemoveFiles">
+        <![CDATA[($C.datadir=2) AND (CLEANUPDATA) AND NOT UPGRADINGPRODUCTCODE]]>
+      </Custom>
+    </InstallExecuteSequence>
+
+    <InstallExecuteSequence>
+      <StopServices>SERVICENAME</StopServices>
+      <DeleteServices>SERVICENAME</DeleteServices>
+    </InstallExecuteSequence>
+    <CustomAction Id="CheckDBInUse" Return="ignore" 
+                  BinaryKey="wixca.dll" DllEntry="CheckDBInUse"  Execute="firstSequence"/>
+    <InstallExecuteSequence>
+      <Custom Action="CheckDBInUse" Before="LaunchConditions">Installed</Custom>
+    </InstallExecuteSequence>
+    <InstallUISequence>
+      <Custom Action="CheckDBInUse" Before="LaunchConditions">Installed</Custom>
+    </InstallUISequence>
+
+    <!-- Store some properties persistently in registry, mainly for upgrades -->
+
+    <Feature Id='StoreInstallLocation' Level='1' Absent='disallow' Display='hidden'>
+      <Component Directory='INSTALLDIR' Guid='*' Id='C.storeinstalllocation'>
+        <RegistryValue Root='HKLM' Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@' 
+                       Name='INSTALLDIR' Value='[INSTALLDIR]' Type='string'  KeyPath='yes'/>
+      </Component>
+    </Feature>
+
+    <?foreach STOREDVAR in SERVICENAME;DATADIR;INSTALLDIR?>
+
+    <Property Id='$(var.STOREDVAR)' Secure='yes'>
+      <RegistrySearch Id='$(var.STOREDVAR)Property' Root='HKLM'
+                      Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+                      Name='$(var.STOREDVAR)' Type='raw' />
+    </Property>
+    <CustomAction Id='SaveCmdLineValue_$(var.STOREDVAR)' Property='CMDLINE_$(var.STOREDVAR)'
+              Value='[$(var.STOREDVAR)]' Execute='firstSequence' />
+    <CustomAction Id='SetFromCmdLineValue_$(var.STOREDVAR)' Property='$(var.STOREDVAR)' 
+                  Value='[CMDLINE_$(var.STOREDVAR)]' Execute='firstSequence' />
+    <InstallUISequence>
+      <Custom Action='SaveCmdLineValue_$(var.STOREDVAR)' Before='AppSearch' />
+      <Custom Action='SetFromCmdLineValue_$(var.STOREDVAR)' After='AppSearch'>CMDLINE_$(var.STOREDVAR)</Custom>
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action='SaveCmdLineValue_$(var.STOREDVAR)' Before='AppSearch' />
+      <Custom Action='SetFromCmdLineValue_$(var.STOREDVAR)' After='AppSearch'>CMDLINE_$(var.STOREDVAR)</Custom>
+    </InstallExecuteSequence>
+
+    <?endforeach?>
+
+    <!-- 
+      Optionally, start upgrade wizard on exit.
+    -->
+    
+    <!--
+      Check, if upgrade wizard was built 
+      It currently requires MFC, which is not in SDK 
+      neither in express edítions of VS.
+    -->
+    <?ifndef HaveUpgradeWizard ?>
+      <?define HaveUpgradeWizard="1"?>
+    <?endif?>
+    
+    <?if $(var.HaveUpgradeWizard) != "0" ?>
+    <UI>
+      <Publish Dialog="ExitDialog"
+          Control="Finish"
+          Event="DoAction"
+          Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+    </UI>
+    <Property 
+      Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" 
+      Value="Launch wizard to upgrade existing MariaDB or MySQL services." />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
+    <Property Id="WixShellExecTarget" Value="[#F.bin.upgrade_wizard.exe]" />
+    <CustomAction Id="LaunchApplication"
+        BinaryKey="WixCA"
+        DllEntry="WixShellExec"
+        Impersonate="yes" />
+    <CustomAction 
+      Id="CheckServiceUpgrades"   Return="ignore" BinaryKey="wixca.dll" 
+      DllEntry="CheckServiceUpgrades"
+      Execute="immediate" />
+    <InstallUISequence>
+      <Custom Action="CheckServiceUpgrades" Before="ExecuteAction">
+        $C.bin.upgrade_wizard.exe = 3 AND NOT Installed
+      </Custom>
+    </InstallUISequence>
+    <SetProperty Before="ExecuteAction" Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" 
+       Sequence="ui"  Value="[NonExistentProperty]">
+      <![CDATA[($C.bin.upgrade_wizard.exe <> 3) AND NOT Installed]]>
+    </SetProperty>
+    <SetProperty Before="ExecuteAction" Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" 
+       Sequence="ui"  Value="[NonExistentProperty]">
+      <![CDATA[($C.bin.upgrade_wizard.exe <> 3) AND NOT Installed]]>
+    </SetProperty>
+    
+    <?endif ?> <!-- HaveUpgradeWizard -->
+
+    <!-- 
+      Author the registry entries for "add or remove programs" 
+      We choose to define ARPSYSTEMCOMPONENT to 1 because we want to show 
+      "do you want to remove data directory" on uninstall
+    -->
+    <Property Id="ARPSYSTEMCOMPONENT" Value="1" Secure="yes" />
+    <Property Id="ARPINSTALLLOCATION" Secure="yes"/>
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="InstallValidate"  Sequence="execute"/>
+    <Feature Id='ARPRegistryEntries'
+          Title='Add or remove program entries'
+          Description='Add or remove program entries'
+          AllowAdvertise='no'
+          Absent='disallow'  Display='hidden'
+          Level='1'>
+      <Component Id="C.arp_entries" Guid="*" Directory="INSTALLDIR">
+        <RemoveFolder Id="RemoveINSTALLDIR" On="uninstall"/>
+        <RegistryValue Root='HKLM'
+           Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+           Name='DisplayName' Value='[ProductName]' Type='string' KeyPath='yes'/>
+        <RegistryValue Root='HKLM'
+          Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+          Name='Publisher' Value='@MANUFACTURER@' Type='string'/>
+        <RegistryValue Root='HKLM'
+          Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+          Name='DisplayVersion' Value='[ProductVersion]' Type='string'/>
+        <RegistryValue Root='HKLM'
+          Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+          Name='InstallLocation' Value='[INSTALLDIR]' Type='string'/>
+        <RegistryValue Root='HKLM'
+          Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+          Name='UninstallString' Value='msiexec.exe /I [ProductCode]' Type='string'/>
+        <RegistryValue Root='HKLM'
+          Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+          Name='MajorVersion' Value='@MAJOR_VERSION@' Type='string'/>
+        <RegistryValue Root='HKLM'
+          Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\@CPACK_WIX_PACKAGE_NAME@'
+          Name='MinorVersion' Value='@MINOR_VERSION@' Type='string'/>
+      </Component>
+    </Feature>
+
+    <!-- Extra condition to block the installer if NSIS based installation is detected-->
+    <Property Id="NSISINSTALLKEY">
+      <RegistrySearch Id='NSISKey' Type='raw'
+        Root='HKLM' Key='Software\Microsoft\Windows\CurrentVersion\Uninstall\MariaDB' Name='DisplayName' />
+    </Property>
+    <Condition
+      Message=
+      'Previous version of MariaDB was found, that used incompatible installer.&#xD;&#xA;Please remove &quot;[NSISINSTALLKEY]&quot; before you proceed with this installation.'
+      >
+      NOT NSISINSTALLKEY OR Installed
+    </Condition>
+  </Fragment>
+</Wix>
