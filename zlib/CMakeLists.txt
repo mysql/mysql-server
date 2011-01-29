@@ -27,6 +27,4 @@ SET(ZLIB_SOURCES  adler32.c compress.c crc32.c crc32.h deflate.c deflate.h gzio.
 			zutil.c zutil.h)
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(zlib ${ZLIB_SOURCES})
-  
-  INSTALL(TARGETS zlib DESTINATION lib/opt COMPONENT runtime) # TODO: Component
 ENDIF(NOT SOURCE_SUBLIBS)

@@ -31,16 +31,16 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c 
 MYSQL_STORAGE_ENGINE(MYISAM)
 
 IF(NOT SOURCE_SUBLIBS)
-  ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
+  MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c DESTINATION bin)
   TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)
 
-  ADD_EXECUTABLE(myisamchk myisamchk.c)
+  MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c DESTINATION bin)
   TARGET_LINK_LIBRARIES(myisamchk myisam mysys debug dbug strings zlib wsock32)
 
-  ADD_EXECUTABLE(myisamlog myisamlog.c)
+  MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c DESTINATION bin)
   TARGET_LINK_LIBRARIES(myisamlog myisam mysys debug dbug strings zlib wsock32)
 
-  ADD_EXECUTABLE(myisampack myisampack.c)
+  MYSQL_ADD_EXECUTABLE(myisampack myisampack.c DESTINATION bin)
   TARGET_LINK_LIBRARIES(myisampack myisam mysys debug dbug strings zlib wsock32)
 
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
@@ -59,14 +59,5 @@ IF(NOT SOURCE_SUBLIBS)
   TARGET_LINK_LIBRARIES(rt_test myisam mysys debug dbug strings zlib wsock32)
   
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
-
-  IF(EMBED_MANIFESTS)
-    MYSQL_EMBED_MANIFEST("myisam_ftdump" "asInvoker")
-    MYSQL_EMBED_MANIFEST("myisamchk" "asInvoker")
-    MYSQL_EMBED_MANIFEST("myisamlog" "asInvoker")
-    MYSQL_EMBED_MANIFEST("myisampack" "asInvoker")
-  ENDIF(EMBED_MANIFESTS)
-
-  INSTALL(TARGETS myisam_ftdump myisamchk myisamlog myisampack DESTINATION bin COMPONENT runtime)
 
 ENDIF(NOT SOURCE_SUBLIBS)

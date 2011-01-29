@@ -16,7 +16,10 @@ IF(NOT SOURCE_SUBLIBS)
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/zlib
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
+                    ${CMAKE_BINARY_DIR}/include
+                   ${CMAKE_BINARY_DIR}/sql
+  )
   STRING(TOUPPER ${engine} engine)
   STRING(TOLOWER ${engine} libname)
   IF(${ENGINE_BUILD_TYPE} STREQUAL "STATIC")
@@ -33,13 +36,13 @@ IF(NOT SOURCE_SUBLIBS)
     #Create a DLL.The name of the dll is ha_<storage_engine>.dll
     #The dll is linked to the mysqld executable
     SET(dyn_libname ha_${libname})
-    ADD_LIBRARY(${dyn_libname} SHARED ${${engine}_SOURCES})
-    TARGET_LINK_LIBRARIES (${dyn_libname} mysqlservices mysqld)
+    ADD_LIBRARY(${dyn_libname} MODULE ${${engine}_SOURCES})
+    TARGET_LINK_LIBRARIES (${dyn_libname}  mysqlservices mysqld)
     IF(${engine}_LIBS)
       TARGET_LINK_LIBRARIES(${dyn_libname} ${${engine}_LIBS})
     ENDIF(${engine}_LIBS)
     # Install the plugin
-    INSTALL(TARGETS ${dyn_libname} DESTINATION lib/plugin COMPONENT runtime)
+    MYSQL_INSTALL_TARGETS(${dyn_libname} DESTINATION lib/plugin COMPONENT Server)
     MESSAGE("build ${engine} as DLL")
   ENDIF(${ENGINE_BUILD_TYPE} STREQUAL "STATIC")
 ENDIF(NOT SOURCE_SUBLIBS)

@@ -26,16 +26,17 @@ ENDIF(WIN32)
 
 ADD_DEFINITIONS(-DEMBEDDED_LIBRARY)
 
-ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
+
+MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc
-               ../../client/sql_string.cc)
+               COMPONENT Test) 
 TARGET_LINK_LIBRARIES(mysql_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-TARGET_LINK_LIBRARIES(mysql_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
 
-ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
+MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysqltest_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-TARGET_LINK_LIBRARIES(mysqltest_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 
-ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysql_client_test_embedded debug dbug strings mysys vio yassl taocrypt regex ws2_32)
-TARGET_LINK_LIBRARIES(mysql_client_test_embedded libmysqld)
+TARGET_LINK_LIBRARIES(mysql_client_test_embedded mysqlserver)

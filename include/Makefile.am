@@ -46,7 +46,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
                         atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
                         wqueue.h waiting_threads.h
 
-EXTRA_DIST =            mysql.h.pp mysql/plugin_auth.h.pp mysql/client_plugin.h.pp
+EXTRA_DIST =            mysql.h.pp mysql/plugin_auth.h.pp mysql/client_plugin.h.pp CMakeLists.txt
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl

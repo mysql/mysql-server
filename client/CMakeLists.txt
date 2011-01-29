@@ -25,63 +25,48 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libmysql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/strings)
+                    ${CMAKE_SOURCE_DIR}/strings
+					${CMAKE_CURRENT_BINARY_DIR})
 
-ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../mysys/my_conio.c)
+MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc ../mysys/my_conio.c DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysql mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqltest mysqltest.cc)
+MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc DESTINATION bin)
 SET_SOURCE_FILES_PROPERTIES(mysqltest.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient mysys regex wsock32 dbug)
 
-ADD_EXECUTABLE(mysqlcheck mysqlcheck.c)
+MYSQL_ADD_EXECUTABLE(mysqlcheck mysqlcheck.c DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysqlcheck mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c ../mysys/mf_getdate.c)
+MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.c ../sql-common/my_user.c ../mysys/mf_getdate.c DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqlimport mysqlimport.c)
+MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c ../mysys/my_getpagesize.c)
+MYSQL_ADD_EXECUTABLE(mysql_upgrade mysql_upgrade.c DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient_notls wsock32)
 ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs)
 
-ADD_EXECUTABLE(mysqlshow mysqlshow.c)
+MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
+MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc
 			   ../mysys/mf_tempdir.c
 			   ../mysys/my_new.cc
 			   ../mysys/my_bit.c
 			   ../mysys/my_bitmap.c
 			   ../mysys/my_vle.c
-			   ../mysys/base64.c)
+			   ../mysys/base64.c
+			   DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysqlbinlog mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqladmin mysqladmin.cc)
+MYSQL_ADD_EXECUTABLE(mysqladmin mysqladmin.cc DESTINATION bin)
 TARGET_LINK_LIBRARIES(mysqladmin mysqlclient_notls wsock32)
 
-ADD_EXECUTABLE(mysqlslap mysqlslap.c)
+MYSQL_ADD_EXECUTABLE(mysqlslap mysqlslap.c DESTINATION bin)
 SET_SOURCE_FILES_PROPERTIES(mysqlslap.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlslap mysqlclient mysys zlib wsock32 dbug)
 
-ADD_EXECUTABLE(echo echo.c)
 
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("mysql" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqltest" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqlcheck" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqldump" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqlimport" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysql_upgrade" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqlshow" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqlbinlog" "asInvoker")
-  MYSQL_EMBED_MANIFEST("mysqladmin" "asInvoker")
-  MYSQL_EMBED_MANIFEST("echo" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
-
-ADD_DEFINITIONS(-DHAVE_DLOPEN)
-
-INSTALL(TARGETS mysql mysqltest mysqlcheck mysqldump mysqlimport mysql_upgrade mysqlshow
-	mysqlbinlog mysqladmin mysqlslap echo DESTINATION bin COMPONENT runtime)
+MYSQL_ADD_EXECUTABLE(echo echo.c COMPONENT Test)

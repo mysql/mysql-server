@@ -13,16 +13,42 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-SET(INSTALL_ARGS 
-  DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" 
-  COMPONENT Test
+SET (dirs 
+danish
+german 
+slovak
+dutch
+greek
+norwegian
+spanish
+english
+hungarian
+norwegian-ny
+swedish
+italian
+polish
+ukrainian
+japanese
+portuguese
+romanian
+estonian 
+korean
+russian
+czech
+french
+serbian
 )
 
-IF (WIN32)
-  MYSQL_ADD_EXECUTABLE(my_safe_process safe_process_win.cc ${INSTALL_ARGS})
-  MYSQL_ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc ${INSTALL_ARGS})
-ELSE()
-  MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS})
-ENDIF()
+SET(files 
+ errmsg.txt
+)
 
-INSTALL(FILES safe_process.pl Base.pm DESTINATION "${INSTALL_MYSQLTESTDIR}/lib/My/SafeProcess" COMPONENT Test)
+FOREACH (dir ${dirs})
+ INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${dir} 
+  DESTINATION share COMPONENT Server)
+ENDFOREACH()
+INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/charsets DESTINATION share COMPONENT Server
+  PATTERN "languages.html" EXCLUDE
+)
+
+INSTALL(FILES ${files} DESTINATION share COMPONENT Server)

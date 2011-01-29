@@ -136,6 +136,7 @@ DROP TABLE `@`;
 
 CREATE TABLE `я` (a INT);
 SET NAMES DEFAULT;
+call mtr.add_suppression("@003f.frm' \\(errno: 22\\)");
 --echo mysqlcheck --default-character-set="latin1" --databases test
 # Error returned depends on platform, replace it with "Table doesn't exist"
 --replace_result "Can't find file: './test/@003f.frm' (errno: 22)" "Table doesn't exist" "Table 'test.?' doesn't exist" "Table doesn't exist"

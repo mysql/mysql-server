@@ -21,17 +21,19 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql 
                     ${CMAKE_SOURCE_DIR}/regex 
                     ${CMAKE_SOURCE_DIR}/zlib
-                    ${CMAKE_SOURCE_DIR}/extra/libevent 
+                    ${CMAKE_SOURCE_DIR}/extra/libevent
+                    ${CMAKE_BINARY_DIR}/extra/libevent
+                    ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-SET_SOURCE_FILES_PROPERTIES(${CMAKE_SOURCE_DIR}/sql/sql_yacc.h 
-                            ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
-                            ${CMAKE_SOURCE_DIR}/include/mysql_version.h
-                            ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
-                            ${CMAKE_SOURCE_DIR}/sql/lex_hash.h 
-                            ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-                            ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-                            ${PROJECT_SOURCE_DIR}/include/sql_state.h 
+SET_SOURCE_FILES_PROPERTIES(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+                            ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+                            ${CMAKE_BINARY_DIR}/include/mysql_version.h
+                            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+                            ${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+                            ${CMAKE_BINARY_DIR}/include/mysqld_error.h
+                            ${CMAKE_BINARY_DIR}/include/mysqld_ername.h
+                            ${CMAKE_BINARY_DIR}/include/sql_state.h 
                               PROPERTIES GENERATED 1)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER -D_CONSOLE -DHAVE_DLOPEN -DHAVE_EVENT_SCHEDULER)
@@ -74,20 +76,22 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc opt_table_elimination.cc
                create_options.cc
-               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-               ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
-               ${PROJECT_SOURCE_DIR}/include/mysqld_ername.h 
-               ${PROJECT_SOURCE_DIR}/include/sql_state.h
-               ${PROJECT_SOURCE_DIR}/include/mysql_version.h 
-               ${PROJECT_SOURCE_DIR}/sql/sql_builtin.cc
-               ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
+               ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+               ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+               ${CMAKE_BINARY_DIR}/include/mysqld_error.h
+               ${CMAKE_BINARY_DIR}/include/mysqld_ername.h 
+               ${CMAKE_BINARY_DIR}/include/sql_state.h
+               ${CMAKE_BINARY_DIR}/include/mysql_version.h 
+               ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+               ${CMAKE_BINARY_DIR}/sql/lex_hash.h)
 ADD_LIBRARY(sql ${SQL_SOURCE})
 
-IF (NOT EXISTS cmake_dummy.cc)
-  FILE (WRITE cmake_dummy.cc "")
-ENDIF (NOT EXISTS cmake_dummy.cc)
-ADD_EXECUTABLE(mysqld cmake_dummy.cc message.rc)
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/win/cmake/dummy.in cmake_dummy.cc COPYONLY)
+MYSQL_ADD_EXECUTABLE(mysqld cmake_dummy.cc message.rc DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)
+INSTALL_DEBUG_TARGET(mysqld 
+  DESTINATION ${INSTALL_SBINDIR} 
+  PDB_DESTINATION ${INSTALL_SBINDIR}/debug
+  RENAME mysqld-debug)
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES OUTPUT_NAME mysqld${MYSQLD_EXE_SUFFIX})
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE)
@@ -111,17 +115,17 @@ IF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
   ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
     COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
                   ${PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/sql)
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF(MSVC AND NOT WITHOUT_DYNAMIC_PLUGINS)
 
 ADD_DEPENDENCIES(sql GenError)
 
 # Sql Parser custom command
 ADD_CUSTOM_COMMAND(
-        OUTPUT ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-               ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
+        OUTPUT ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+               ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
         COMMAND bison ARGS -y -p MYSQL --defines=sql_yacc.h
-                               --output=sql_yacc.cc sql_yacc.yy
+                               --output=sql_yacc.cc "${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy"
         DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.yy)
 
 
@@ -130,17 +134,15 @@ ADD_EXECUTABLE(gen_lex_hash gen_lex_hash.cc)
 TARGET_LINK_LIBRARIES(gen_lex_hash debug dbug mysqlclient strings wsock32)
 GET_TARGET_PROPERTY(GEN_LEX_HASH_EXE gen_lex_hash LOCATION)
 ADD_CUSTOM_COMMAND(
-        OUTPUT ${PROJECT_SOURCE_DIR}/sql/lex_hash.h
+        OUTPUT ${CMAKE_BINARY_DIR}/sql/lex_hash.h
         COMMAND ${GEN_LEX_HASH_EXE} ARGS > lex_hash.h
         DEPENDS ${GEN_LEX_HASH_EXE})
 
 ADD_CUSTOM_TARGET(
         GenServerSource ALL
-        DEPENDS ${PROJECT_SOURCE_DIR}/sql/sql_yacc.h
-                ${PROJECT_SOURCE_DIR}/sql/sql_yacc.cc
-                ${PROJECT_SOURCE_DIR}/sql/message.h
-                ${PROJECT_SOURCE_DIR}/sql/message.rc
-                ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
+        DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+                ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+                ${CMAKE_BINARY_DIR}/sql/lex_hash.h)
 
 ADD_DEPENDENCIES(mysqld GenServerSource)
 
@@ -152,7 +154,88 @@ ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
 ADD_DEPENDENCIES(udf_example strings GenError)
 TARGET_LINK_LIBRARIES(udf_example strings wsock32)
 
-INSTALL(TARGETS mysqld
-	RUNTIME DESTINATION bin COMPONENT runtime
-	LIBRARY DESTINATION lib COMPONENT runtime
-	ARCHIVE DESTINATION lib COMPONENT runtime)
+ADD_SUBDIRECTORY(share)
+
+IF(WIN32)
+  SET(my_bootstrap_sql ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql)
+  FILE(TO_NATIVE_PATH ${my_bootstrap_sql}  native_outfile)
+
+  # Create bootstrapper SQL script
+  ADD_CUSTOM_COMMAND(OUTPUT    
+    ${my_bootstrap_sql}
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR}/scripts
+    cmd /c copy mysql_system_tables.sql+mysql_system_tables_data.sql+fill_help_tables.sql ${native_outfile}
+    DEPENDS
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables.sql
+    ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables_data.sql
+    ${CMAKE_SOURCE_DIR}/scripts/fill_help_tables.sql
+   )
+   
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mysql_bootstrap_sql.c
+  COMMAND comp_sql
+  mysql_bootstrap_sql
+  ${CMAKE_CURRENT_BINARY_DIR}/my_bootstrap.sql
+  mysql_bootstrap_sql.c
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql ${my_bootstrap_sql})
+  
+  MYSQL_ADD_EXECUTABLE(mysql_install_db 
+    mysql_install_db.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_bootstrap_sql.c
+    COMPONENT Server)
+  TARGET_LINK_LIBRARIES(mysql_install_db mysys strings dbug)
+
+  MYSQL_ADD_EXECUTABLE(mysql_upgrade_service
+    mysql_upgrade_service.cc
+    COMPONENT Server)
+  TARGET_LINK_LIBRARIES(mysql_upgrade_service mysys strings dbug)
+
+  # mysql_install_db should be in the same directory as mysqld
+  # to work correctly
+  GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+  IF(NOT MYSQLD_EXECUTABLE)
+    MESSAGE(FATAL_ERROR "Unexpected")
+  ENDIF()
+ENDIF()
+
+# We need to create empty directories (data/test) the installation.  
+# This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
+# Avoid completely empty directories and install dummy file instead.
+SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
+FILE(WRITE ${DUMMY_FILE} "")
+INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
+
+# Install initial database on windows
+IF(NOT CMAKE_CROSSCOMPILING)
+  GET_TARGET_PROPERTY(MYSQLD_EXECUTABLE mysqld LOCATION)
+ENDIF()
+IF(WIN32 AND MYSQLD_EXECUTABLE)
+  CONFIGURE_FILE(
+    ${CMAKE_SOURCE_DIR}/win/cmake/create_initial_db.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
+    @ONLY
+  )
+  
+  IF(MSVC_IDE OR CMAKE_GENERATOR MATCHES "Xcode")
+    SET (CONFIG_PARAM -DCONFIG=${CMAKE_CFG_INTDIR})
+  ENDIF()
+  MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/data)
+  ADD_CUSTOM_COMMAND(
+     OUTPUT initdb.dep
+     COMMAND ${CMAKE_COMMAND}
+     ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
+     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+     COMMAND  ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/initdb.dep
+     DEPENDS mysqld
+  )
+  ADD_CUSTOM_TARGET(initial_database  
+    ALL
+    DEPENDS  initdb.dep
+  )
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+  COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
+ELSE()
+  # Not windows or cross compiling, just install an empty directory
+  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
+ENDIF()

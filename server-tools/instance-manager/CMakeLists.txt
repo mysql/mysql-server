@@ -34,5 +34,3 @@ TARGET_LINK_LIBRARIES(mysqlmanager debug dbug mysys strings taocrypt vio yassl z
 IF(EMBED_MANIFESTS)
   MYSQL_EMBED_MANIFEST("mysqlmanager" "asInvoker")
 ENDIF(EMBED_MANIFESTS)
-
-INSTALL(TARGETS mysqlmanager DESTINATION bin COMPONENT runtime)
