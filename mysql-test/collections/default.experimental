@@ -40,3 +40,48 @@ rpl_bhs.*                                # skozlov : WL#5139 - rpl_bhs suite gen
 main.gis-rtree                           # svoj: due to BUG#38965
 main.type_float                          # svoj: due to BUG#38965
 main.type_newdecimal                     # svoj: due to BUG#38965
+
+# Not a test, utility to troubleshoot test failures
+# Flagged as experimental since output will vary
+perfschema.debug_env                         # Bug#59740 2011-02-26 Marc Alff, script needed to investigate the failure
+
+perfschema.ortho_iter                        # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.event_aggregate                   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_off               # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_global_2u_2t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_global_2u_3t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_global_4u_2t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_global_4u_3t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_hist_2u_2t        # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_hist_2u_3t        # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_hist_4u_2t        # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_hist_4u_3t        # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_thread_2u_2t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_thread_2u_3t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_thread_4u_2t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_aggregate_thread_4u_3t      # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_global_2u_2t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_global_2u_3t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_global_4u_2t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_global_4u_3t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_hist_2u_2t     # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_hist_2u_3t     # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_hist_4u_2t     # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_hist_4u_3t     # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_thread_2u_2t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_thread_2u_3t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_thread_4u_2t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_io_aggregate_thread_4u_3t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_global_2u_2t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_global_2u_3t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_global_4u_2t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_global_4u_3t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_hist_2u_2t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_hist_2u_3t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_hist_4u_2t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_hist_4u_3t   # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_thread_2u_2t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_thread_2u_3t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_thread_4u_2t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+perfschema.table_lock_aggregate_thread_4u_3t # BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+

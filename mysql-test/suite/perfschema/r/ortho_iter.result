@@ -91,6 +91,42 @@ close pfs_cursor;
 signal sqlstate '01000' set message_text='Done', mysql_errno=12000;
 end
 $
+show variables like "performance_schema%";
+Variable_name	Value
+performance_schema	ON
+performance_schema_events_waits_history_long_size	10000
+performance_schema_events_waits_history_size	10
+performance_schema_max_cond_classes	80
+performance_schema_max_cond_instances	1000
+performance_schema_max_file_classes	50
+performance_schema_max_file_handles	32768
+performance_schema_max_file_instances	10000
+performance_schema_max_mutex_classes	200
+performance_schema_max_mutex_instances	10000
+performance_schema_max_rwlock_classes	30
+performance_schema_max_rwlock_instances	10000
+performance_schema_max_table_handles	1000
+performance_schema_max_table_instances	500
+performance_schema_max_thread_classes	50
+performance_schema_max_thread_instances	1000
+performance_schema_setup_actors_size	100
+performance_schema_setup_objects_size	100
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
 call check_instrument("wait/synch/mutex/");
 instr_name	is_wait	is_stage	is_statement
 wait/synch/mutex/	1	0	0
@@ -112,6 +148,15 @@ Warning	12000	Done
 call check_instrument("wait/synch/cond/");
 instr_name	is_wait	is_stage	is_statement
 wait/synch/cond/	1	0	0
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("wait/synch/");
+instr_name	is_wait	is_stage	is_statement
+wait/synch/	1	0	0
 status
 Checking table events_waits_summary_by_thread_by_event_name ...
 status
@@ -145,9 +190,36 @@ status
 Checking table events_waits_summary_global_by_event_name ...
 Warnings:
 Warning	12000	Done
+call check_instrument("wait/io/");
+instr_name	is_wait	is_stage	is_statement
+wait/io/	1	0	0
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
 call check_instrument("wait/lock/table/");
 instr_name	is_wait	is_stage	is_statement
 wait/lock/table/	1	0	0
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("wait/lock/");
+instr_name	is_wait	is_stage	is_statement
+wait/lock/	1	0	0
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("wait/");
+instr_name	is_wait	is_stage	is_statement
+wait/	1	0	0
 status
 Checking table events_waits_summary_by_thread_by_event_name ...
 status
@@ -175,6 +247,15 @@ Warning	12000	Done
 call check_instrument("statement/sql/");
 instr_name	is_wait	is_stage	is_statement
 statement/sql/	0	0	1
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("statement/");
+instr_name	is_wait	is_stage	is_statement
+statement/	0	0	1
 status
 Checking table events_waits_summary_by_thread_by_event_name ...
 status
