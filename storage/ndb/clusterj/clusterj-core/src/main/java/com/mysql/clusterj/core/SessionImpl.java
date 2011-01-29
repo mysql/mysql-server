@@ -395,7 +395,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         return object;
     }
 
-    public void insert(
+    public Operation insert(
             DomainTypeHandler<?> domainTypeHandler, ValueHandler valueHandler) {
         startAutoTransaction();
         setPartitionKey(domainTypeHandler, valueHandler);
@@ -424,6 +424,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     local.message("ERR_Insert", storeTable.getName()), rtex);
         }
         endAutoTransaction();
+        return op;
     }
 
     /** Make a number of instances persistent.
@@ -468,7 +469,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         delete(domainTypeHandler, valueHandler);
     }
 
-    public void delete(DomainTypeHandler domainTypeHandler, ValueHandler valueHandler) {
+    public Operation delete(DomainTypeHandler domainTypeHandler, ValueHandler valueHandler) {
         startAutoTransaction();
         Table storeTable = domainTypeHandler.getStoreTable();
         setPartitionKey(domainTypeHandler, valueHandler);
@@ -482,6 +483,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     local.message("ERR_Delete", storeTable.getName()), ex);
         }
         endAutoTransaction();
+        return op;
     }
 
     /** Delete the instances corresponding to the parameters.
@@ -598,13 +600,13 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         update(domainTypeHandler, valueHandler);
     }
 
-    public void update(DomainTypeHandler domainTypeHandler, ValueHandler valueHandler) {
+    public Operation update(DomainTypeHandler domainTypeHandler, ValueHandler valueHandler) {
         startAutoTransaction();
         setPartitionKey(domainTypeHandler, valueHandler);
         Table storeTable = null;
+        Operation op = null;
         try {
             storeTable = domainTypeHandler.getStoreTable();
-            Operation op = null;
             op = clusterTransaction.getUpdateOperation(storeTable);
             domainTypeHandler.operationSetKeys(valueHandler, op);
             domainTypeHandler.operationSetModifiedNonPKValues(valueHandler, op);
@@ -616,6 +618,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     local.message("ERR_Update", storeTable.getName()) ,ex);
         }
         endAutoTransaction();
+        return op;
     }
 
     /** Update the instances corresponding to the parameters.
