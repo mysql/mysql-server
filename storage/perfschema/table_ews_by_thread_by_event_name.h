@@ -49,46 +49,41 @@ struct row_ews_by_thread_by_event_name
 /**
   Position of a cursor on
   PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
-  Index 1 on instrument view
-  Index 2 on instrument class (1 based)
-  Index 3 on thread (0 based)
+  Index 1 on thread (0 based)
+  Index 2 on instrument view
+  Index 3 on instrument class (1 based)
 */
 struct pos_ews_by_thread_by_event_name
 : public PFS_triple_index, public PFS_instrument_view_constants
 {
   pos_ews_by_thread_by_event_name()
-    : PFS_triple_index(FIRST_VIEW, 1, 0)
+    : PFS_triple_index(0, FIRST_VIEW, 1)
   {}
 
   inline void reset(void)
   {
-    m_index_1= FIRST_VIEW;
-    m_index_2= 1;
-    m_index_3= 0;
+    m_index_1= 0;
+    m_index_2= FIRST_VIEW;
+    m_index_3= 1;
   }
-
-  inline bool has_more_view(void)
-  { return (m_index_1 <= LAST_VIEW); }
 
   inline bool has_more_thread(void)
-  { return (m_index_3 < thread_max); }
-
-  inline void next_view(void)
-  {
-    m_index_1++;
-    m_index_2= 1;
-    m_index_3= 0;
-  }
-
-  inline void next_instrument(void)
-  {
-    m_index_2++;
-    m_index_3= 0;
-  }
+  { return (m_index_1 < thread_max); }
 
   inline void next_thread(void)
   {
-    m_index_3++;
+    m_index_1++;
+    m_index_2= FIRST_VIEW;
+    m_index_3= 1;
+  }
+
+  inline bool has_more_view(void)
+  { return (m_index_2 <= LAST_VIEW); }
+
+  inline void next_view(void)
+  {
+    m_index_2++;
+    m_index_3= 1;
   }
 };
 

@@ -147,6 +147,139 @@ SET DEBUG_SYNC= 'RESET';
 disconnect con1;
 
 
+--echo #
+--echo # Bug#42230 during add index, cannot do queries on storage engines
+--echo #           that implement add_index
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect(con1,localhost,root);
+connect(con2,localhost,root);
+
+--echo # Test 1: Secondary index, should not block reads (original test case).
+
+--echo # Connection default
+connection default;
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, value INT) engine=innodb;
+INSERT INTO db1.t1(value) VALUES (1), (2);
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE db1.t1 ADD INDEX(value)
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+# Neither of these two statements should be blocked
+USE db1;
+SELECT * FROM t1;
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE db1.t1 ADD INDEX(value)
+--reap
+DROP DATABASE db1;
+
+--echo # Test 2: Primary index (implicit), should block reads.
+
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD UNIQUE INDEX(a)
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+USE test;
+--echo # Sending:
+--send SELECT * FROM t1
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for SELECT to be blocked by the metadata lock on t1
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for table metadata lock'
+  AND info='SELECT * FROM t1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD UNIQUE INDEX(a)
+--reap
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: SELECT * FROM t1
+--reap
+
+--echo # Test 3: Primary index (explicit), should block reads.
+
+--echo # Connection default
+connection default;
+ALTER TABLE t1 DROP INDEX a;
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD PRIMARY KEY (a)
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+--echo # Sending:
+--send SELECT * FROM t1
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for SELECT to be blocked by the metadata lock on t1
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for table metadata lock'
+  AND info='SELECT * FROM t1';
+--source include/wait_condition.inc
+SET DEBUG_SYNC= "now SIGNAL query";
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD PRIMARY KEY (a)
+--reap
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: SELECT * FROM t1
+--reap
+
+--echo # Test 4: Secondary unique index, should not block reads.
+# This requires HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE to be supported
+# by InnoDB. Adding this flag currently introduces a regression so
+# this test is disabled until the regression has been fixed.
+
+--echo # Connection default
+connection default;
+#SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+#--echo # Sending:
+#--send ALTER TABLE t1 ADD UNIQUE (b)
+
+#--echo # Connection con1
+#connection con1;
+#SET DEBUG_SYNC= "now WAIT_FOR manage";
+#SELECT * FROM t1;
+#SET DEBUG_SYNC= "now SIGNAL query";
+
+#--echo # Connection default
+#connection default;
+#--echo # Reaping: ALTER TABLE t1 ADD UNIQUE (b)
+#--reap
+
+disconnect con1;
+disconnect con2;
+SET DEBUG_SYNC= "RESET";
+DROP TABLE t1;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

@@ -64,7 +64,7 @@ enum PSI_table_io_operation
 enum PSI_table_lock_operation
 {
   PSI_TABLE_LOCK= 0,
-  PSI_TABLE_EXTERNAL_LOCK= 1,
+  PSI_TABLE_EXTERNAL_LOCK= 1
 };
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
