@@ -20,7 +20,6 @@
 #include <kernel/ndb_limits.h>
 
 struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
 
 class NdbSqlUtil {
 public:

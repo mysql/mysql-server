@@ -20,7 +20,7 @@
 
 class Ndb;
 struct charset_info_st;
-typedef struct charset_info_st CHARSET_INFO;
+typedef const struct charset_info_st CHARSET_INFO;
 
 /**
  * @class NdbDictionary
