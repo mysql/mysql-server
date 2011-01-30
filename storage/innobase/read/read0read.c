@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -186,7 +186,9 @@ read_view_validate(
 {
 	ulint	i;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (i = 1; i < view->n_trx_ids; ++i) {
@@ -207,7 +209,9 @@ read_view_list_validate(void)
 	const read_view_t*	view;
 	const read_view_t*	prev_view = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mutex_enter(&trx_sys->read_view_mutex);
 
@@ -237,8 +241,6 @@ read_view_create_low(
 {
 	read_view_t*	view;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
-
 	view = mem_heap_alloc(heap, sizeof(*view) + n * sizeof(*view->trx_ids));
 
 	view->n_trx_ids = n;
@@ -257,14 +259,17 @@ UNIV_INLINE
 read_view_t*
 read_view_clone(
 /*============*/
-	read_view_t*	view,	/*!< in: view to clone */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	const read_view_t*	view,	/*!< in: view to clone */
+	mem_heap_t*		heap)	/*!< in: memory heap
+					from which allocated */
 {
 	ulint		sz;
 	read_view_t*	clone;
 	read_view_t*	new_view;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&trx_sys->read_view_mutex));
 
 	/* Allocate space for two views. */
@@ -303,6 +308,9 @@ read_view_add(
 	read_view_t*	elem;
 	read_view_t*	prev_elem;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(read_view_validate(view));
 
 	mutex_enter(&trx_sys->read_view_mutex);
@@ -343,7 +351,9 @@ read_view_open_now_low(
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	view = read_view_create_low(n_trx, heap);
 
@@ -364,14 +374,14 @@ read_view_open_now_low(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		/* Note: We are doing a dirty read of the trx_t::state
-		without the cover of the trx_t::mutex. The state change
-		to TRX_STATE_PREPARED is done using only the trx_t::mutex. */
+		ut_ad(trx->in_trx_list);
+
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		from ACTIVE to PREPARED or COMMITTED. */
 
 		if (trx->id != cr_trx_id
-		    && (trx->state == TRX_STATE_ACTIVE
-			|| trx->state == TRX_STATE_PREPARED)) {
-
+		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_ad(n_trx < view->n_trx_ids);
 
 			view->trx_ids[n_trx++] = trx->id;
@@ -381,6 +391,11 @@ read_view_open_now_low(
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
 			IB_ULONGLONG_MAX. */
+
+			/* trx->no is protected by trx_sys->lock, which
+			we are holding. It is assigned by trx_commit()
+			before lock_trx_release_locks() assigns
+			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
 
 			if (view->low_limit_no > trx->no) {
 
@@ -665,9 +680,10 @@ read_cursor_view_create_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx->state == TRX_STATE_ACTIVE
-		    || trx->state == TRX_STATE_PREPARED) {
-
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		from ACTIVE to PREPARED or COMMITTED. */
+		if (!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 			ut_a(n_trx < view->n_trx_ids);
 
 			view->trx_ids[n_trx++] = trx->id;
@@ -677,6 +693,11 @@ read_cursor_view_create_for_mysql(
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
 			IB_ULONGLONG_MAX. */
+
+			/* trx->no is protected by trx_sys->lock, which
+			we are holding. It is assigned by trx_commit()
+			before lock_trx_release_locks() assigns
+			trx->state = TRX_STATE_COMMITTED_IN_MEMORY. */
 
 			if (view->low_limit_no > trx->no) {
 
