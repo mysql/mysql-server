@@ -2141,10 +2141,12 @@ sub environment_setup {
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
-    mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy");
-  # Since mysqltest interprets the real path as "false" in an if,
-  # use 1 ("true") to indicate "not exists" so it can be tested for
-  $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
+    mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy") ||
+    mtr_pl_maybe_exists("$path_client_bindir/mysqlhotcopy");
+  if ($mysqlhotcopy)
+  {
+    $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy;
+  }
 
   # ----------------------------------------------------
   # perror
@@ -4093,8 +4095,10 @@ sub check_expected_crash_and_restart {
     {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
 
-      for (my $waits = 0;  $waits < 50;  $waits++)
+      for (my $waits = 0;  $waits < 50;  mtr_milli_sleep(100), $waits++)
       {
+	# Race condition seen on Windows: try again until file not empty
+	next if -z $expect_file;
 	# If last line in expect file starts with "wait"
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
@@ -4103,10 +4107,11 @@ sub check_expected_crash_and_restart {
 	if ($last_line =~ /^wait/ )
 	{
 	  mtr_verbose("Test says wait before restart") if $waits == 0;
-	  mtr_milli_sleep(100);
 	  next;
 	}
 
+	# Ignore any partial or unknown command
+	next unless $last_line =~ /^restart/;
 	# If last line begins "restart:", the rest of the line is read as
         # extra command line options to add to the restarted mysqld.
         # Anything other than 'wait' or 'restart:' (with a colon) will
@@ -4471,6 +4476,8 @@ sub mysqld_start ($$) {
   my @all_opts= @$extra_opts;
   if (exists $mysqld->{'restart_opts'}) {
     push (@all_opts, @{$mysqld->{'restart_opts'}});
+    mtr_verbose(My::Options::toStr("mysqld_start restart",
+				   @{$mysqld->{'restart_opts'}}));
   }
   mysqld_arguments($args,$mysqld,\@all_opts);
 
