@@ -15,7 +15,7 @@
 
 /* Do udiv and urem if machine dosn't have it */
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <math.h>
 
 unsigned long udiv(long unsigned int a, long unsigned int b)

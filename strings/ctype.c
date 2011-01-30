@@ -13,13 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <my_xml.h>
-#ifndef SCO
-#include <m_string.h>
-#endif
-
 
 /*
 

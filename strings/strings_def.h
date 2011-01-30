@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,19 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/*
-  Wrapper for longlong2str.s
+/* This file is to be include first in all files in the string directory */
 
-  We need this because the assembler code can't access the local variable
-  _dig_vector in a portable manner.
+#include <my_global.h>		/* Define standar vars */
+#include "m_string.h"		/* Exernal defintions of string functions */
+
+/*
+  We can't use the original DBUG_ASSERT() (which includes _db_flush())
+  in the strings library as libdbug is compiled after the the strings
+  library and we don't want to have strings depending on libdbug which
+  depends on mysys and strings.
 */
 
-#include "strings_def.h"
-
-extern char *longlong2str_with_dig_vector(longlong val,char *dst,int radix,
-                                          const char *dig_vector);
-
-char *longlong2str(longlong val,char *dst,int radix)
-{
-  return longlong2str_with_dig_vector(val, dst, radix, _dig_vec_upper);
-}
+#if !defined(DBUG_OFF)
+#undef DBUG_ASSERT
+#define DBUG_ASSERT(A) assert(A)
+#endif

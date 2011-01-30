@@ -40,7 +40,7 @@
    /* see 'strtoll.c' and 'strtoull.c' for the reasons */
 #endif
 
-#include "m_ctype.h"
+#include <m_ctype.h>
 #include "my_sys.h"			/* defines errno */
 #include <errno.h>
 

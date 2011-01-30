@@ -23,8 +23,7 @@
     strfill() returns pointer to dest+len;
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 char * strfill(char *s, size_t len, pchar fill)
 {

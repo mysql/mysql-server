@@ -25,8 +25,7 @@
     char is 1.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 size_t strinstr(reg1 const char *str,reg4 const char *search)
 {
