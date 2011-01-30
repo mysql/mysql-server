@@ -165,10 +165,8 @@ Allocates a buffer block.
 @return	own: the allocated block, in state BUF_BLOCK_MEMORY */
 UNIV_INLINE
 buf_block_t*
-buf_block_alloc(
-/*============*/
-	ulint	zip_size);	/*!< in: compressed page size in bytes,
-				or 0 if uncompressed tablespace */
+buf_block_alloc(void);
+/*=================*/
 /********************************************************************//**
 Frees a buffer block which does not contain a file page. */
 UNIV_INLINE
