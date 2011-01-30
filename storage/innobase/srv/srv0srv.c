@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -254,6 +254,11 @@ UNIV_INTERN ulong srv_purge_batch_size = 20;
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
 
+/* Internal setting for "innodb_stats_method". Decides how InnoDB treats
+NULL value when collecting statistics. By default, it is set to
+SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
+ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+
 /* here we count the amount of data written in total (in bytes) */
 UNIV_INTERN ulint srv_data_written = 0;
 
@@ -434,8 +439,10 @@ UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
 UNIV_INTERN mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
+# ifndef HAVE_ATOMIC_BUILTINS
 /* Key to register server_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	server_mutex_key;
+# endif /* !HAVE_ATOMIC_BUILTINS */
 /* Key to register srv_innodb_monitor_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 /* Key to register srv_monitor_file_mutex with performance schema */
@@ -616,8 +623,10 @@ struct srv_sys_struct{
 						activity */
 };
 
-/*!< Mutex protecting the server global variables. */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
 UNIV_INTERN mutex_t	server_mutex;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 static srv_sys_t*	srv_sys	= NULL;
 
@@ -908,7 +917,9 @@ srv_init(void)
 	ulint			i;
 	ulint			srv_sys_sz;
 
-	mutex_create(server_mutex_key, &server_mutex, SYNC_NO_ORDER_CHECK);
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
@@ -920,7 +931,7 @@ srv_init(void)
 	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
 	mutex_create(srv_sys_tasks_mutex_key,
-		     &srv_sys->tasks_mutex, SYNC_NO_ORDER_CHECK);
+		     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
@@ -1038,16 +1049,14 @@ srv_conc_enter_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
-	if (trx->declared_to_be_inside_innodb) {
+	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
+		os_fast_mutex_unlock(&srv_conc_mutex);
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: trying to declare trx"
 		      " to enter InnoDB, but\n"
 		      "InnoDB: it already is declared.\n", stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
-		rw_lock_s_unlock(&trx_sys->lock);
 		putc('\n', stderr);
-		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
 	}
@@ -1511,6 +1520,7 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_n_threads,
 		(ulong) srv_conc_n_waiting_threads);
 
+	/* This is a dirty read, without holding trx_sys->read_view_mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1684,6 +1694,7 @@ srv_monitor_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_monitor_thread_key);
 #endif
+	srv_monitor_active = TRUE;
 
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = ut_time();
@@ -1693,12 +1704,6 @@ srv_monitor_thread(
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
-	server_mutex_enter();
-
-	srv_monitor_active = TRUE;
-
-	server_mutex_exit();
-
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information or if signalled at shutdown. */
 
@@ -1716,7 +1721,7 @@ loop:
 		if (srv_print_innodb_monitor) {
 			/* Reset mutex_skipped counter everytime
 			srv_print_innodb_monitor changes. This is to
-			ensure we will not be blocked by server_mutex
+			ensure we will not be blocked by lock_sys->mutex
 			for short duration information printing,
 			such as requested by sync_array_print_long_waits() */
 			if (!last_srv_print_monitor) {
@@ -1811,12 +1816,6 @@ loop:
 		goto loop;
 	}
 
-	server_mutex_enter();
-
-	srv_monitor_active = FALSE;
-
-	server_mutex_exit();
-
 	goto loop;
 
 exit_func:
@@ -1858,14 +1857,9 @@ srv_error_monitor_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_error_monitor_thread_key);
 #endif
-
-loop:
-	server_mutex_enter();
-
 	srv_error_monitor_active = TRUE;
 
-	server_mutex_exit();
-
+loop:
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
 
@@ -1935,11 +1929,7 @@ loop:
 		goto loop;
 	}
 
-	server_mutex_enter();
-
 	srv_error_monitor_active = FALSE;
-
-	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -1997,8 +1987,6 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
-	server_mutex_enter();
-
 	if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
 	} else if (srv_lock_timeout_active) {
@@ -2006,8 +1994,6 @@ srv_any_background_threads_are_active(void)
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
 	}
-
-	server_mutex_exit();
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);

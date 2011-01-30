@@ -1118,7 +1118,8 @@ trx_purge_dml_delay(void)
 	/* If we cannot advance the 'purge view' because of an old
 	'consistent read view', then the DML statements cannot be delayed.
 	Also, srv_max_purge_lag <= 0 means 'infinity'. Note: we do a dirty
-	read of the trx_sys_t data structure here. */
+	read of the trx_sys_t data structure here, without holding
+	trx_sys->read_view_mutex. */
 	if (srv_max_purge_lag > 0
 	    && !UT_LIST_GET_LAST(trx_sys->view_list)) {
 		float	ratio = (float) trx_sys->rseg_history_len

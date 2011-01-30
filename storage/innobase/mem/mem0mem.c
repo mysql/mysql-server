@@ -347,7 +347,7 @@ mem_heap_create_block(
 				return(NULL);
 			}
 		} else {
-			buf_block = buf_block_alloc(NULL, 0);
+			buf_block = buf_block_alloc(NULL);
 		}
 
 		block = (mem_block_t*) buf_block->frame;

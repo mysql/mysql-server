@@ -2054,6 +2054,11 @@ undo_size_ok:
 			(1 + dict_index_get_n_unique(new_index))
 			* sizeof(*new_index->stat_n_sample_sizes));
 
+		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_non_null_key_vals));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
