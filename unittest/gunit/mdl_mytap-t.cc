@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /**
-   This is a port of the corresponding mdl_test.cc (written for googletest)
+   This is a port of the corresponding mdl_test.cc (written for Google Test)
    to mytap. Do a 'tkdiff mdl-t.cc mdl_mytap-t.cc' to see the differences.
-   In order to illustrate (some of) the features of googletest, I have
+   In order to illustrate (some of) the features of Google Test, I have
    added some extensions below, notably support for reporting of line
    numbers in case of failures.
  */
@@ -35,34 +35,14 @@
 
 #include "thr_malloc.h"
 #include "thread_utils.h"
+#include "test_mdl_context_owner.h"
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
 mysql_mutex_t LOCK_open;
 uint    opt_debug_sync_timeout= 0;
 
-static mysql_mutex_t *current_mutex= NULL;
-extern "C"
-const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
-                           mysql_mutex_t *mutex, const char *msg)
-{
-  current_mutex= mutex;
-  return NULL;
-}
-
-extern "C"
-void thd_exit_cond(MYSQL_THD thd, const char *old_msg)
-{
-  mysql_mutex_unlock(current_mutex);
-}
-
-extern "C" int thd_killed(const MYSQL_THD thd)
-{
-  return 0;
-}
-
-
-// Reimplemented some macros from googletest, so that the tests below
+// Reimplemented some macros from Google Test, so that the tests below
 // could be kept unchanged.  No support for streaming of user messages
 // in this simplified version.
 void print_message(const char* file, int line, const char* message)
@@ -132,50 +112,6 @@ extern "C" void sql_alloc_error_handler(void)
   FAIL();
 }
 
-namespace {
-bool notify_thread(THD*);
-}
-
-/*
-  We need to mock away this global function, because the real version
-  pulls in a lot of dependencies.
-  (The @note for the real version of this function indicates that the
-  coupling between THD and MDL is too tight.)
-   @retval  TRUE  if the thread was woken up
-   @retval  FALSE otherwise.
-*/
-bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
-                                            bool needs_thr_lock_abort)
-{
-  if (in_use != NULL)
-    return notify_thread(in_use);
-  return FALSE;
-}
-
-/*
-  Mock away this function as well, with an empty function.
-  @todo didrik: Consider verifying that the MDL module actually calls
-  this with correct arguments.
-*/
-void mysql_ha_flush(THD *)
-{
-  DBUG_PRINT("mysql_ha_flush", ("mock version"));
-}
-
-/*
-  We need to mock away this global function, the real version pulls in
-  too many dependencies.
- */
-extern "C" const char *set_thd_proc_info(void *thd, const char *info,
-                                         const char *calling_function,
-                                         const char *calling_file,
-                                         const unsigned int calling_line)
-{
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line,
-                           (info != NULL) ? info : "(null)"));
-  return info;
-}
-
 /*
   Mock away this global function.
   We don't need DEBUG_SYNC functionality in a unit test.
@@ -204,7 +140,7 @@ const ulong zero_timeout= 0;
 const ulong long_timeout= (ulong) 3600L*24L*365L;
 
 
-class MDLTest
+class MDLTest : public Test_MDL_context_owner
 {
 public:
   // Utility function to run one test case.
@@ -216,8 +152,7 @@ public:
 
 protected:
   MDLTest()
-  : m_thd(NULL),
-    m_null_ticket(NULL),
+  : m_null_ticket(NULL),
     m_null_request(NULL)
   {
   }
@@ -231,7 +166,7 @@ protected:
   {
     expected_error= 0;
     mdl_init();
-    m_mdl_context.init(m_thd);
+    m_mdl_context.init(this);
     EXPECT_FALSE(m_mdl_context.has_locks());
     m_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                           MDL_TRANSACTION);
@@ -241,6 +176,12 @@ protected:
   {
     m_mdl_context.destroy();
     mdl_destroy();
+  }
+
+  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+                                  bool needs_thr_lock_abort)
+  {
+    return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
   }
 
   // A utility member for testing single lock requests.
@@ -265,7 +206,6 @@ protected:
   void ConcurrentExclusiveShared();
   void ConcurrentUpgrade();
 
-  THD               *m_thd;
   const MDL_ticket  *m_null_ticket;
   const MDL_request *m_null_request;
   MDL_context        m_mdl_context;
@@ -282,7 +222,7 @@ private:
   The two notifications are for synchronizing with the main thread.
   Does *not* take ownership of the notifications.
 */
-class MDL_thread : public Thread
+class MDL_thread : public Thread, public Test_MDL_context_owner
 {
 public:
   MDL_thread(const char   *table_name,
@@ -295,8 +235,7 @@ public:
     m_release_locks(release_locks),
     m_ignore_notify(false)
   {
-    m_thd= reinterpret_cast<THD*>(this);    // See notify_thread below.
-    m_mdl_context.init(m_thd);
+    m_mdl_context.init(this);
   }
 
   ~MDL_thread()
@@ -307,8 +246,12 @@ public:
   virtual void run();
   void ignore_notify() { m_ignore_notify= true; }
 
-  bool notify()
+  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+                                  bool needs_thr_lock_abort)
   {
+    if (in_use)
+      return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+
     if (m_ignore_notify)
       return false;
     m_release_locks->notify();
@@ -321,17 +264,8 @@ private:
   Notification  *m_lock_grabbed;
   Notification  *m_release_locks;
   bool           m_ignore_notify;
-  THD           *m_thd;
   MDL_context    m_mdl_context;
 };
-
-
-// Admittedly an ugly hack, to avoid pulling in the THD in this unit test.
-bool notify_thread(THD *thd)
-{
-  MDL_thread *thread = (MDL_thread*) thd;
-  return thread->notify();
-}
 
 
 void MDL_thread::run()
@@ -360,7 +294,7 @@ void MDL_thread::run()
   m_mdl_context.release_transactional_locks();
 }
 
-// googletest recommends DeathTest suffix for classes use in death tests.
+// Google Test recommends DeathTest suffix for classes use in death tests.
 typedef MDLTest MDLDeathTest;
 
 // Our own (simplified) version of the TEST_F macro.
@@ -506,9 +440,8 @@ TEST_F(MDLTest, TwoShared)
  */
 TEST_F(MDLTest, SharedLocksBetweenContexts)
 {
-  THD         *thd2= (THD*) this;
   MDL_context  mdl_context2;
-  mdl_context2.init(thd2);
+  mdl_context2.init(this);
   MDL_request request_2;
   m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
                  MDL_TRANSACTION);
