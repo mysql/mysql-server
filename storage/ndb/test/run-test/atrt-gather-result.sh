@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (C) 2003, 2007 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
