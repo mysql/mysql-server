@@ -222,21 +222,40 @@ UNIV_INTERN mysql_pfs_key_t	mutex_list_mutex_key;
 UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
 #endif /* UNIV_SYNC_DEBUG */
 
-/** Mutexes or rw-locks held by a thread */
-struct sync_thread_struct{
-	os_thread_id_t	id;	/*!< OS thread id */
-	sync_level_t*	levels;	/*!< level array for this thread; if
-				this is NULL this slot is unused */
+/** Number of slots reserved for each OS thread in the sync level array */
+static const ulint SYNC_THREAD_N_LEVELS = 10000;
+
+typedef struct sync_arr_struct sync_arr_t;
+
+/** Array for tracking sync levels per thread. */
+struct sync_arr_struct {
+	ulint		in_use;		/*!< Number of active cells */
+	ulint		n_elems;	/*!< Number of elements in the array */
+	ulint		max_elems;	/*!< Maximum elements */
+	ulint		next_free;	/*!< ULINT_UNDEFINED or index of next
+					free slot */
+	sync_level_t*	elems;		/*!< Array elements */
 };
 
-/** Number of slots reserved for each OS thread in the sync level array */
-#define SYNC_THREAD_N_LEVELS	10000
+/** Mutexes or rw-locks held by a thread */
+struct sync_thread_struct{
+	os_thread_id_t	id;		/*!< OS thread id */
+	sync_arr_t*	levels;		/*!< level array for this thread; if
+					this is NULL this slot is unused */
+};
 
 /** An acquired mutex or rw-lock and its level in the latching order */
 struct sync_level_struct{
-	void*	latch;	/*!< pointer to a mutex or an rw-lock; NULL means that
-			the slot is empty */
-	ulint	level;	/*!< level of the latch in the latching order */
+	void*		latch;		/*!< pointer to a mutex or an
+					rw-lock; NULL means that
+					the slot is empty */
+	ulint		level;		/*!< level of the latch in the
+					latching order. This field is
+					overloaded to serve as a node in a
+					linked list of free nodes too. When
+					latch == NULL then this will contain
+					the ordinal value of the next free
+					element */
 };
 
 /******************************************************************//**
@@ -745,27 +764,28 @@ mutex_n_reserved(void)
 /*==================*/
 {
 	mutex_t*	mutex;
-	ulint		count		= 0;
+	ulint		count	= 0;
 
 	mutex_enter(&mutex_list_mutex);
 
-	mutex = UT_LIST_GET_FIRST(mutex_list);
+	for (mutex = UT_LIST_GET_FIRST(mutex_list);
+	     mutex != NULL;
+	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
 
-	while (mutex != NULL) {
 		if (mutex_get_lock_word(mutex) != 0) {
 
 			count++;
 		}
-
-		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
 	mutex_exit(&mutex_list_mutex);
 
 	ut_a(count >= 1);
 
-	return(count - 1); /* Subtract one, because this function itself
-			   was holding one mutex (mutex_list_mutex) */
+	/* Subtract one, because this function itself was holding
+	one mutex (mutex_list_mutex) */
+
+	return(count - 1);
 }
 
 /******************************************************************//**
@@ -781,20 +801,6 @@ sync_all_freed(void)
 }
 
 /******************************************************************//**
-Gets the value in the nth slot in the thread level arrays.
-@return	pointer to thread slot */
-static
-sync_thread_t*
-sync_thread_level_arrays_get_nth(
-/*=============================*/
-	ulint	n)	/*!< in: slot number */
-{
-	ut_ad(n < OS_THREAD_MAX_N);
-
-	return(sync_thread_level_arrays + n);
-}
-
-/******************************************************************//**
 Looks for the thread slot for the calling thread.
 @return	pointer to thread slot, NULL if not found */
 static
@@ -803,15 +809,15 @@ sync_thread_level_arrays_find_slot(void)
 /*====================================*/
 
 {
-	sync_thread_t*	slot;
-	os_thread_id_t	id;
 	ulint		i;
+	os_thread_id_t	id;
 
 	id = os_thread_get_curr_id();
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		sync_thread_t*	slot;
 
-		slot = sync_thread_level_arrays_get_nth(i);
+		slot = &sync_thread_level_arrays[i];
 
 		if (slot->levels && os_thread_eq(slot->id, id)) {
 
@@ -831,12 +837,12 @@ sync_thread_level_arrays_find_free(void)
 /*====================================*/
 
 {
-	sync_thread_t*	slot;
 	ulint		i;
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		sync_thread_t*	slot;
 
-		slot = sync_thread_level_arrays_get_nth(i);
+		slot = &sync_thread_level_arrays[i];
 
 		if (slot->levels == NULL) {
 
@@ -848,19 +854,44 @@ sync_thread_level_arrays_find_free(void)
 }
 
 /******************************************************************//**
-Gets the value in the nth slot in the thread level array.
-@return	pointer to level slot */
+Print warning. */
 static
-sync_level_t*
-sync_thread_levels_get_nth(
-/*=======================*/
-	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
-				thread */
-	ulint		n)	/*!< in: slot number */
+void
+sync_print_warning(
+/*===============*/
+	const sync_level_t*	slot)	/*!< in: slot for which to
+					print warning */
 {
-	ut_ad(n < SYNC_THREAD_N_LEVELS);
+	mutex_t*	mutex;
 
-	return(arr + n);
+	mutex = slot->latch;
+
+	if (mutex->magic_n == MUTEX_MAGIC_N) {
+		fprintf(stderr,
+			"Mutex created at %s %lu\n",
+			mutex->cfile_name, (ulong) mutex->cline);
+
+		if (mutex_get_lock_word(mutex) != 0) {
+			ulint		line;
+			const char*	file_name;
+			os_thread_id_t	thread_id;
+
+			mutex_get_debug_info(
+				mutex, &file_name, &line, &thread_id);
+
+			fprintf(stderr,
+				"InnoDB: Locked mutex:"
+				" addr %p thread %ld file %s line %ld\n",
+				(void*) mutex, os_thread_pf(thread_id),
+				file_name, (ulong) line);
+		} else {
+			fputs("Not locked\n", stderr);
+		}
+	} else {
+		rw_lock_t*	lock = slot->latch;
+
+		rw_lock_print(lock);
+	}
 }
 
 /******************************************************************//**
@@ -871,69 +902,29 @@ static
 ibool
 sync_thread_levels_g(
 /*=================*/
-	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
+	sync_arr_t*	arr,	/*!< in: pointer to level array for an OS
 				thread */
 	ulint		limit,	/*!< in: level limit */
 	ulint		warn)	/*!< in: TRUE=display a diagnostic message */
 {
-	sync_level_t*	slot;
-	rw_lock_t*	lock;
-	mutex_t*	mutex;
 	ulint		i;
 
-	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+	for (i = 0; i < arr->n_elems; i++) {
+		const sync_level_t*	slot;
 
-		slot = sync_thread_levels_get_nth(arr, i);
+		slot = &arr->elems[i];
 
-		if (slot->latch != NULL) {
-			if (slot->level <= limit) {
-
-				if (!warn) {
-
-					return(FALSE);
-				}
-
-				lock = slot->latch;
-				mutex = slot->latch;
-
+		if (slot->latch != NULL && slot->level <= limit) {
+			if (warn) {
 				fprintf(stderr,
 					"InnoDB: sync levels should be"
 					" > %lu but a level is %lu\n",
 					(ulong) limit, (ulong) slot->level);
 
-				if (mutex->magic_n == MUTEX_MAGIC_N) {
-					fprintf(stderr,
-						"Mutex created at %s %lu\n",
-						mutex->cfile_name,
-						(ulong) mutex->cline);
-
-					if (mutex_get_lock_word(mutex) != 0) {
-						const char*	file_name;
-						ulint		line;
-						os_thread_id_t	thread_id;
-
-						mutex_get_debug_info(
-							mutex, &file_name,
-							&line, &thread_id);
-
-						fprintf(stderr,
-							"InnoDB: Locked mutex:"
-							" addr %p thread %ld"
-							" file %s line %ld\n",
-							(void*) mutex,
-							os_thread_pf(
-								thread_id),
-							file_name,
-							(ulong) line);
-					} else {
-						fputs("Not locked\n", stderr);
-					}
-				} else {
-					rw_lock_print(lock);
-				}
-
-				return(FALSE);
+				sync_print_warning(slot);
 			}
+
+			return(FALSE);
 		}
 	}
 
@@ -942,31 +933,29 @@ sync_thread_levels_g(
 
 /******************************************************************//**
 Checks if the level value is stored in the level array.
-@return	TRUE if stored */
+@return	slot if found or NULL */
 static
-ibool
+const sync_level_t*
 sync_thread_levels_contain(
 /*=======================*/
-	sync_level_t*	arr,	/*!< in: pointer to level array for an OS
+	sync_arr_t*	arr,	/*!< in: pointer to level array for an OS
 				thread */
 	ulint		level)	/*!< in: level */
 {
-	sync_level_t*	slot;
 	ulint		i;
 
-	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+	for (i = 0; i < arr->n_elems; i++) {
+		const sync_level_t*	slot;
 
-		slot = sync_thread_levels_get_nth(arr, i);
+		slot = &arr->elems[i];
 
-		if (slot->latch != NULL) {
-			if (slot->level == level) {
+		if (slot->latch != NULL && slot->level == level) {
 
-				return(TRUE);
-			}
+			return(slot);
 		}
 	}
 
-	return(FALSE);
+	return(NULL);
 }
 
 /******************************************************************//**
@@ -980,10 +969,9 @@ sync_thread_levels_contains(
 	ulint	level)			/*!< in: latching order level
 					(SYNC_DICT, ...)*/
 {
-	sync_level_t*	arr;
-	sync_thread_t*	thread_slot;
-	sync_level_t*	slot;
 	ulint		i;
+	sync_arr_t*	arr;
+	sync_thread_t*	thread_slot;
 
 	if (!sync_order_checks_on) {
 
@@ -1003,9 +991,10 @@ sync_thread_levels_contains(
 
 	arr = thread_slot->levels;
 
-	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+	for (i = 0; i < arr->n_elems; i++) {
+		sync_level_t*	slot;
 
-		slot = sync_thread_levels_get_nth(arr, i);
+		slot = &arr->elems[i];
 
 		if (slot->latch != NULL && slot->level == level) {
 
@@ -1031,10 +1020,9 @@ sync_thread_levels_nonempty_gen(
 					also purge_is_running mutex is
 					allowed */
 {
-	sync_level_t*	arr;
-	sync_thread_t*	thread_slot;
-	sync_level_t*	slot;
 	ulint		i;
+	sync_arr_t*	arr;
+	sync_thread_t*	thread_slot;
 
 	if (!sync_order_checks_on) {
 
@@ -1054,9 +1042,10 @@ sync_thread_levels_nonempty_gen(
 
 	arr = thread_slot->levels;
 
-	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+	for (i = 0; i < arr->n_elems; ++i) {
+		const sync_level_t*	slot;
 
-		slot = sync_thread_levels_get_nth(arr, i);
+		slot = &arr->elems[i];
 
 		if (slot->latch != NULL
 		    && (!dict_mutex_allowed
@@ -1098,10 +1087,10 @@ sync_thread_add_level(
 	ulint	level)	/*!< in: level in the latching order; if
 			SYNC_LEVEL_VARYING, nothing is done */
 {
-	sync_level_t*	array;
-	sync_level_t*	slot;
-	sync_thread_t*	thread_slot;
 	ulint		i;
+	sync_level_t*	slot;
+	sync_arr_t*	array;
+	sync_thread_t*	thread_slot;
 
 	if (!sync_order_checks_on) {
 
@@ -1126,20 +1115,23 @@ sync_thread_add_level(
 	thread_slot = sync_thread_level_arrays_find_slot();
 
 	if (thread_slot == NULL) {
+		ulint	sz;
+
+		sz = sizeof(*array)
+		   + (sizeof(*array->elems) * SYNC_THREAD_N_LEVELS);
+
 		/* We have to allocate the level array for a new thread */
-		array = ut_malloc(sizeof(sync_level_t) * SYNC_THREAD_N_LEVELS);
+		array = calloc(sz, sizeof(char));
+		ut_a(array != NULL);
+
+		array->next_free = ULINT_UNDEFINED;
+		array->max_elems = SYNC_THREAD_N_LEVELS;
+		array->elems = (sync_level_t*) &array[1];
 
 		thread_slot = sync_thread_level_arrays_find_free();
 
-		thread_slot->id = os_thread_get_curr_id();
 		thread_slot->levels = array;
-
-		for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
-
-			slot = sync_thread_levels_get_nth(array, i);
-
-			slot->latch = NULL;
-		}
+		thread_slot->id = os_thread_get_curr_id();
 	}
 
 	array = thread_slot->levels;
@@ -1303,19 +1295,26 @@ sync_thread_add_level(
 		ut_error;
 	}
 
-	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+	if (array->next_free == ULINT_UNDEFINED) {
+		ut_a(array->n_elems < array->max_elems);
 
-		slot = sync_thread_levels_get_nth(array, i);
-
-		if (slot->latch == NULL) {
-			slot->latch = latch;
-			slot->level = level;
-
-			break;
-		}
+		i = array->n_elems++;
+	} else {
+		i = array->next_free;
+		array->next_free = array->elems[i].level;
 	}
 
-	ut_a(i < SYNC_THREAD_N_LEVELS);
+	ut_a(i < array->n_elems);
+	ut_a(i != ULINT_UNDEFINED);
+
+	++array->in_use;
+
+	slot = &array->elems[i];
+
+	ut_a(slot->latch == NULL);
+
+	slot->latch = latch;
+	slot->level = level;
 
 	mutex_exit(&sync_thread_mutex);
 }
@@ -1331,8 +1330,7 @@ sync_thread_reset_level(
 /*====================*/
 	void*	latch)	/*!< in: pointer to a mutex or an rw-lock */
 {
-	sync_level_t*	array;
-	sync_level_t*	slot;
+	sync_arr_t*	array;
 	sync_thread_t*	thread_slot;
 	ulint		i;
 
@@ -1363,17 +1361,37 @@ sync_thread_reset_level(
 
 	array = thread_slot->levels;
 
-	for (i = 0; i < SYNC_THREAD_N_LEVELS; i++) {
+	for (i = 0; i < array->n_elems; i++) {
+		sync_level_t*	slot;
 
-		slot = sync_thread_levels_get_nth(array, i);
+		slot = &array->elems[i];
 
-		if (slot->latch == latch) {
-			slot->latch = NULL;
-
-			mutex_exit(&sync_thread_mutex);
-
-			return(TRUE);
+		if (slot->latch != latch) {
+			continue;
 		}
+
+		slot->latch = NULL;
+
+		/* Update the free slot list. See comment in sync_level_t
+		for the level field. */
+		slot->level = array->next_free;
+		array->next_free = i;
+
+		ut_a(array->in_use >= 1);
+		--array->in_use;
+
+		/* If all cells are idle then reset the free
+		list. The assumption is that this will save
+		time when we need to scan up to n_elems. */
+
+		if (array->in_use == 0) {
+			array->n_elems = 0;
+			array->next_free = ULINT_UNDEFINED;
+		}
+
+		mutex_exit(&sync_thread_mutex);
+
+		return(TRUE);
 	}
 
 	if (((mutex_t*) latch)->magic_n != MUTEX_MAGIC_N) {
@@ -1403,11 +1421,6 @@ void
 sync_init(void)
 /*===========*/
 {
-#ifdef UNIV_SYNC_DEBUG
-	sync_thread_t*	thread_slot;
-	ulint		i;
-#endif /* UNIV_SYNC_DEBUG */
-
 	ut_a(sync_initialized == FALSE);
 
 	sync_initialized = TRUE;
@@ -1421,13 +1434,10 @@ sync_init(void)
 	/* Create the thread latch level array where the latch levels
 	are stored for each OS thread */
 
-	sync_thread_level_arrays = ut_malloc(OS_THREAD_MAX_N
-					     * sizeof(sync_thread_t));
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+	sync_thread_level_arrays = calloc(
+		sizeof(sync_thread_t), OS_THREAD_MAX_N);
+	ut_a(sync_thread_level_arrays != NULL);
 
-		thread_slot = sync_thread_level_arrays_get_nth(i);
-		thread_slot->levels = NULL;
-	}
 #endif /* UNIV_SYNC_DEBUG */
 	/* Init the mutex list and create the mutex to protect it. */
 
@@ -1454,6 +1464,34 @@ sync_init(void)
 #endif /* UNIV_SYNC_DEBUG */
 }
 
+#ifdef UNIV_SYNC_DEBUG
+/******************************************************************//**
+Frees all debug memory. */
+static
+void
+sync_thread_level_arrays_free(void)
+/*===============================*/
+
+{
+	ulint	i;
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		sync_thread_t*	slot;
+
+		slot = &sync_thread_level_arrays[i];
+
+		/* If this slot was allocated then free the slot memory too. */
+		if (slot->levels != NULL) {
+			free(slot->levels);
+			slot->levels = NULL;
+		}
+	}
+
+	free(sync_thread_level_arrays);
+	sync_thread_level_arrays = NULL;
+}
+#endif /* UNIV_SYNC_DEBUG */
+
 /******************************************************************//**
 Frees the resources in InnoDB's own synchronization data structures. Use
 os_sync_free() after calling this. */
@@ -1466,17 +1504,20 @@ sync_close(void)
 
 	sync_array_free(sync_primary_wait_array);
 
-	mutex = UT_LIST_GET_FIRST(mutex_list);
+	for (mutex = UT_LIST_GET_FIRST(mutex_list);
+	     mutex != NULL;
+	     /* No op */) {
 
-	while (mutex) {
 #ifdef UNIV_MEM_DEBUG
 		if (mutex == &mem_hash_mutex) {
 			mutex = UT_LIST_GET_NEXT(list, mutex);
 			continue;
 		}
 #endif /* UNIV_MEM_DEBUG */
+
 		mutex_free(mutex);
-		mutex = UT_LIST_GET_FIRST(mutex_list);
+
+	        mutex = UT_LIST_GET_FIRST(mutex_list);
 	}
 
 	mutex_free(&mutex_list_mutex);
@@ -1485,6 +1526,8 @@ sync_close(void)
 
 	/* Switch latching order checks on in sync0sync.c */
 	sync_order_checks_on = FALSE;
+
+	sync_thread_level_arrays_free();
 #endif /* UNIV_SYNC_DEBUG */
 
 	sync_initialized = FALSE;	
