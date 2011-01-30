@@ -1930,3 +1930,6 @@ libmysqld/debug_sync.cc
 storage/pbxt/bin/xtstat
 mysql-test/mtr_command
 scripts/convert-debug-for-diff
+client/strings_def.h
+libmysql/strings_def.h
+libmysql_r/strings_def.h
