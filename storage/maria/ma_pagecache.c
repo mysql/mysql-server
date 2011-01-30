@@ -113,7 +113,7 @@
               (uint)((B)->hash_link ? \
                      (B)->hash_link->requests : \
                        0), \
-              block->wlocks, block->rlocks, block->rlocks_queue, \
+              (B)->wlocks, (B)->rlocks, (B)->rlocks_queue, \
               (uint)(B)->pins, (uint)(B)->status, \
               page_cache_page_type_str[(B)->type]))
 
@@ -153,8 +153,20 @@ struct st_pagecache_hash_link
 /* simple states of a block */
 #define PCBLOCK_ERROR       1 /* an error occurred when performing disk i/o  */
 #define PCBLOCK_READ        2 /* the is page in the block buffer             */
-#define PCBLOCK_IN_SWITCH   4 /* block is preparing to read new page         */
-#define PCBLOCK_REASSIGNED  8 /* block does not accept requests for old page */
+
+/*
+  A tread is reading the data to the page. The page is not yet ready
+  to be used.
+*/
+#define PCBLOCK_IN_SWITCH   4
+/*
+  Block does not accept new requests for old page that would cause
+  the page to be pinned or written to.
+  (Reads that copies the block can still continue).
+  This state happens when another thread is waiting for readers to finish
+  to read/write new data to the block.
+*/
+#define PCBLOCK_REASSIGNED  8
 #define PCBLOCK_IN_FLUSH   16 /* block is in flush operation                 */
 #define PCBLOCK_CHANGED    32 /* block buffer contains a dirty page          */
 #define PCBLOCK_DIRECT_W   64 /* possible direct write to the block          */
@@ -1807,7 +1819,9 @@ restart:
       pageno              number of the page in the file
       init_hits_left      how initialize the block counter for the page
       wrmode              <-> get for writing
-      reg_req             Register request to thye page
+      block_is_copied     1 if block will be copied from page cache under
+                          the pagelock mutex.
+      reg_req             Register request to the page
       page_st        out  {PAGE_READ,PAGE_TO_BE_READ,PAGE_WAIT_TO_BE_READ}
 
   RETURN VALUE
@@ -1836,6 +1850,7 @@ static PAGECACHE_BLOCK_LINK *find_block(PAGECACHE *pagecache,
                                         pgcache_page_no_t pageno,
                                         int init_hits_left,
                                         my_bool wrmode,
+                                        my_bool block_is_copied,
                                         my_bool reg_req,
                                         int *page_st)
 {
@@ -1941,7 +1956,7 @@ restart:
        Only reading requests can proceed until the old dirty page is flushed,
        all others are to be suspended, then resubmitted
     */
-    if (!wrmode && !(block->status & PCBLOCK_REASSIGNED))
+    if (!wrmode && block_is_copied && !(block->status & PCBLOCK_REASSIGNED))
     {
       if (reg_req)
         reg_requests(pagecache, block, 1);
@@ -2135,7 +2150,7 @@ restart:
                             (my_bool)(block->hash_link ? 1 : 0));
           PCBLOCK_INFO(block);
           block->status= error ? PCBLOCK_ERROR : 0;
-          block->error=  (int16) my_errno;
+          block->error=  error ? (int16) my_errno : 0;
 #ifndef DBUG_OFF
           block->type= PAGECACHE_EMPTY_PAGE;
           if (error)
@@ -2536,22 +2551,13 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
                                  my_bool any)
 {
   DBUG_ENTER("make_lock_and_pin");
+  DBUG_PRINT("enter", ("block: 0x%lx (%u)  lock: %s  pin: %s any %d",
+                       (ulong)block, PCBLOCK_NUMBER(pagecache, block),
+                       page_cache_page_lock_str[lock],
+                       page_cache_page_pin_str[pin], (int)any));
+  PCBLOCK_INFO(block);
 
-  DBUG_PRINT("enter", ("block: 0x%lx", (ulong)block));
-#ifndef DBUG_OFF
-  if (block)
-  {
-    DBUG_PRINT("enter", ("block: 0x%lx (%u)  wrlocks: %u  rdlocks: %u  "
-                         "rdlocks_q: %u  pins: %u  lock: %s  pin: %s any %d",
-                         (ulong)block, PCBLOCK_NUMBER(pagecache, block),
-                         block->wlocks, block->rlocks, block->rlocks_queue,
-                         block->pins,
-                         page_cache_page_lock_str[lock],
-                         page_cache_page_pin_str[pin], (int)any));
-    PCBLOCK_INFO(block);
-  }
-#endif
-
+  DBUG_ASSERT(block);
   DBUG_ASSERT(!any ||
               ((lock == PAGECACHE_LOCK_LEFT_UNLOCKED) &&
                (pin == PAGECACHE_UNPIN)));
@@ -2619,17 +2625,13 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     DBUG_ASSERT(0); /* Never should happened */
   }
 
-#ifndef DBUG_OFF
-  if (block)
-    PCBLOCK_INFO(block);
-#endif
+  PCBLOCK_INFO(block);
   DBUG_RETURN(0);
 retry:
   DBUG_PRINT("INFO", ("Retry block 0x%lx", (ulong)block));
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block->hash_link->requests > 0);
   block->hash_link->requests--;
-  PCBLOCK_INFO(block);
   DBUG_RETURN(1);
 
 }
@@ -2661,7 +2663,6 @@ static void read_block(PAGECACHE *pagecache,
                        PAGECACHE_BLOCK_LINK *block,
                        my_bool primary)
 {
-
   DBUG_ENTER("read_block");
   DBUG_PRINT("enter", ("read block: 0x%lx  primary: %d",
                        (ulong)block, primary));
@@ -2823,8 +2824,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
                        page_cache_page_pin_str[pin]));
   /* we do not allow any lock/pin increasing here */
   DBUG_ASSERT(pin != PAGECACHE_PIN);
-  DBUG_ASSERT(lock != PAGECACHE_LOCK_READ);
-  DBUG_ASSERT(lock != PAGECACHE_LOCK_WRITE);
+  DBUG_ASSERT(lock != PAGECACHE_LOCK_READ && lock != PAGECACHE_LOCK_WRITE);
 
   pagecache_pthread_mutex_lock(&pagecache->cache_lock);
   /*
@@ -2835,7 +2835,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
 
   inc_counter_for_resize_op(pagecache);
   /* See NOTE for pagecache_unlock about registering requests */
-  block= find_block(pagecache, file, pageno, 0, 0,
+  block= find_block(pagecache, file, pageno, 0, 0, 0,
                     pin == PAGECACHE_PIN_LEFT_UNPINNED, &page_st);
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block != 0 && page_st == PAGE_READ);
@@ -2924,7 +2924,7 @@ void pagecache_unpin(PAGECACHE *pagecache,
 
   inc_counter_for_resize_op(pagecache);
   /* See NOTE for pagecache_unlock about registering requests */
-  block= find_block(pagecache, file, pageno, 0, 0, 0, &page_st);
+  block= find_block(pagecache, file, pageno, 0, 0, 0, 0, &page_st);
   DBUG_ASSERT(block != 0);
   DBUG_ASSERT(page_st == PAGE_READ);
   /* we can't unpin such page without unlock */
@@ -3367,7 +3367,7 @@ restart:
     /* See NOTE for pagecache_unlock about registering requests. */
     reg_request= ((new_pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                   (new_pin == PAGECACHE_PIN));
-    block= find_block(pagecache, file, pageno, level,
+    block= find_block(pagecache, file, pageno, level, buff != 0,
                       lock == PAGECACHE_LOCK_WRITE,
                       reg_request, &page_st);
     DBUG_PRINT("info", ("Block type: %s current type %s",
@@ -3785,7 +3785,6 @@ restart:
     /* See NOTE for pagecache_unlock about registering requests. */
     if (pin == PAGECACHE_PIN)
       reg_requests(pagecache, block, 1);
-    DBUG_ASSERT(block != 0);
     if (make_lock_and_pin(pagecache, block, lock, pin, FALSE))
     {
       /*
@@ -3964,7 +3963,7 @@ restart:
     reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                   (pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
-                      TRUE,
+                      TRUE, FALSE,
                       reg_request, &page_st);
     if (!block)
     {

@@ -249,7 +249,9 @@ typedef struct st_maria_file_bitmap
   my_bool changed;                     /* 1 if page needs to be written */
   my_bool changed_not_flushed;         /* 1 if some bitmap is not flushed */
   uint flush_all_requested;            /**< If _ma_bitmap_flush_all waiting */
+  uint waiting_for_flush_all_requested; /* If someone is waiting for above */
   uint non_flushable;                  /**< 0 if bitmap and log are in sync */
+  uint waiting_for_non_flushable;      /* If someone is waiting for above */
   PAGECACHE_FILE file;		       /* datafile where bitmap is stored */
 
 #ifdef THREAD

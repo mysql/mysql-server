@@ -3922,8 +3922,11 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
     goto err;
   block= blocks->block;
   block->empty_space= row_pos.empty_space;
-  block->org_bitmap_value= _ma_free_size_to_head_pattern(&share->bitmap,
-                                                         org_empty_size);
+  block->org_bitmap_value=
+    _ma_free_size_to_head_pattern(&share->bitmap,
+                                  (enough_free_entries_on_page(share, buff) ?
+                                   org_empty_size : 0));
+                            
   DBUG_ASSERT(block->org_bitmap_value ==
               _ma_bitmap_get_page_bits(info, &info->s->bitmap, page));
   block->used|= BLOCKUSED_USE_ORG_BITMAP;
