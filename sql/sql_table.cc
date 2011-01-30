@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4935,7 +4935,7 @@ err:
  
   @details Checks if any index is being modified (present as both DROP INDEX 
     and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
-    online ALTER TABLE.
+    in-place ALTER TABLE.
   
   @param table       The table being altered
   @param alter_info  The ALTER TABLE structure
@@ -5052,7 +5052,7 @@ mysql_compare_tables(TABLE *table,
     like to keep mysql_compare_tables() idempotent (not altering any
     of the arguments) we create a copy of alter_info here and
     pass it to mysql_prepare_create_table, then use the result
-    to evaluate possibility of fast ALTER TABLE, and then
+    to evaluate possibility of in-place ALTER TABLE, and then
     destroy the copy.
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
@@ -5093,9 +5093,9 @@ mysql_compare_tables(TABLE *table,
 
     There was a bug prior to mysql-4.0.25. Number of null fields was
     calculated incorrectly. As a result frm and data files gets out of
-    sync after fast alter table. There is no way to determine by which
+    sync after in-place alter table. There is no way to determine by which
     mysql version (in 4.0 and 4.1 branches) table was created, thus we
-    disable fast alter table for all tables created by mysql versions
+    disable in-place alter table for all tables created by mysql versions
     prior to 5.0 branch.
     See BUG#6236.
   */
@@ -5118,7 +5118,7 @@ mysql_compare_tables(TABLE *table,
   }
 
   /*
-    Use transformed info to evaluate possibility of fast ALTER TABLE
+    Use transformed info to evaluate possibility of in-place ALTER TABLE
     but use the preserved field to persist modifications.
   */
   new_field_it.init(alter_info->create_list);
@@ -5410,7 +5410,7 @@ blob_length_by_type(enum_field_types type)
   semantic checks.
 
   This function is invoked when we know that we're going to
-  perform ALTER TABLE via a temporary table -- i.e. fast ALTER TABLE
+  perform ALTER TABLE via a temporary table -- i.e. in-place ALTER TABLE
   is not possible, perhaps because the ALTER statement contains
   instructions that require change in table data, not only in
   table definition or indexes.
@@ -6307,7 +6307,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   /*
-    If there are index changes only, try to do them online. "Index
+    If there are index changes only, try to do them in-place. "Index
     changes only" means also that the handler for the table does not
     change. The table is open and locked. The handler can be accessed.
   */
@@ -6315,8 +6315,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     int   pk_changed= 0;
     ulong alter_flags= 0;
-    ulong needed_online_flags= 0;
-    ulong needed_fast_flags= 0;
+    ulong needed_inplace_with_read_flags= 0;
+    ulong needed_inplace_flags= 0;
     KEY   *key;
     uint  *idx_p;
     uint  *idx_end_p;
@@ -6340,8 +6340,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         {
           DBUG_PRINT("info", ("Dropping primary key"));
           /* Primary key. */
-          needed_online_flags|=  HA_ONLINE_DROP_PK_INDEX;
-          needed_fast_flags|= HA_ONLINE_DROP_PK_INDEX_NO_WRITES;
+          needed_inplace_with_read_flags|= HA_INPLACE_DROP_PK_INDEX_NO_WRITE;
+          needed_inplace_flags|= HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE;
           pk_changed++;
           candidate_key_count--;
         }
@@ -6351,8 +6351,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
           bool is_candidate_key= true;
 
           /* Non-primary unique key. */
-          needed_online_flags|=  HA_ONLINE_DROP_UNIQUE_INDEX;
-          needed_fast_flags|= HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES;
+          needed_inplace_with_read_flags|=
+            HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE;
+          needed_inplace_flags|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
 
           /*
             Check if all fields in key are declared
@@ -6371,12 +6372,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       else
       {
         /* Non-unique key. */
-        needed_online_flags|=  HA_ONLINE_DROP_INDEX;
-        needed_fast_flags|= HA_ONLINE_DROP_INDEX_NO_WRITES;
+        needed_inplace_with_read_flags|= HA_INPLACE_DROP_INDEX_NO_WRITE;
+        needed_inplace_flags|= HA_INPLACE_DROP_INDEX_NO_READ_WRITE;
       }
     }
     no_pk= ((table->s->primary_key == MAX_KEY) ||
-            (needed_online_flags & HA_ONLINE_DROP_PK_INDEX));
+            (needed_inplace_with_read_flags &
+             HA_INPLACE_DROP_PK_INDEX_NO_WRITE));
     /* Check added indexes. */
     for (idx_p= index_add_buffer, idx_end_p= idx_p + index_add_count;
          idx_p < idx_end_p;
@@ -6414,57 +6416,59 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         {
           DBUG_PRINT("info", ("Adding primary key"));
           /* Primary key. */
-          needed_online_flags|=  HA_ONLINE_ADD_PK_INDEX;
-          needed_fast_flags|= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
+          needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+          needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
           pk_changed++;
           no_pk= false;
         }
         else
         {
           /* Non-primary unique key. */
-          needed_online_flags|=  HA_ONLINE_ADD_UNIQUE_INDEX;
-          needed_fast_flags|= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
+          needed_inplace_with_read_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
+          needed_inplace_flags|= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
         }
       }
       else
       {
         /* Non-unique key. */
-        needed_online_flags|=  HA_ONLINE_ADD_INDEX;
-        needed_fast_flags|= HA_ONLINE_ADD_INDEX_NO_WRITES;
+        needed_inplace_with_read_flags|= HA_INPLACE_ADD_INDEX_NO_WRITE;
+        needed_inplace_flags|= HA_INPLACE_ADD_INDEX_NO_READ_WRITE;
       }
     }
 
-    if ((candidate_key_count > 0) && 
-        (needed_online_flags & HA_ONLINE_DROP_PK_INDEX))
+    if ((candidate_key_count > 0) &&
+        (needed_inplace_with_read_flags & HA_INPLACE_DROP_PK_INDEX_NO_WRITE))
     {
       /*
         Dropped primary key when there is some other unique 
         not null key that should be converted to primary key
       */
-      needed_online_flags|=  HA_ONLINE_ADD_PK_INDEX;
-      needed_fast_flags|= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
+      needed_inplace_with_read_flags|= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+      needed_inplace_flags|= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
       pk_changed= 2;
     }
 
-    DBUG_PRINT("info", ("needed_online_flags: 0x%lx, needed_fast_flags: 0x%lx",
-                        needed_online_flags, needed_fast_flags));
+    DBUG_PRINT("info",
+          ("needed_inplace_with_read_flags: 0x%lx, needed_inplace_flags: 0x%lx",
+           needed_inplace_with_read_flags, needed_inplace_flags));
     /*
-      Online or fast add/drop index is possible only if
+      In-place add/drop index is possible only if
       the primary key is not added and dropped in the same statement.
       Otherwise we have to recreate the table.
       need_copy_table is no-zero at this place.
     */
     if ( pk_changed < 2 )
     {
-      if ((alter_flags & needed_online_flags) == needed_online_flags)
+      if ((alter_flags & needed_inplace_with_read_flags) ==
+          needed_inplace_with_read_flags)
       {
-        /* All required online flags are present. */
+        /* All required in-place flags to allow concurrent reads are present. */
         need_copy_table= ALTER_TABLE_METADATA_ONLY;
         need_lock_for_indexes= FALSE;
       }
-      else if ((alter_flags & needed_fast_flags) == needed_fast_flags)
+      else if ((alter_flags & needed_inplace_flags) == needed_inplace_flags)
       {
-        /* All required fast flags are present. */
+        /* All required in-place flags are present. */
         need_copy_table= ALTER_TABLE_METADATA_ONLY;
       }
     }
@@ -6618,10 +6622,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
   else
   {
-    if (!table->s->tmp_table &&
+    /*
+      Ensure that we will upgrade the metadata lock if
+      handler::enable/disable_indexes() will be called.
+    */
+    if (alter_info->keys_onoff != LEAVE_AS_IS ||
+        table->file->indexes_are_disabled())
+      need_lock_for_indexes= true;
+    if (!table->s->tmp_table && need_lock_for_indexes &&
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto err_new_table_cleanup;
     thd_proc_info(thd, "manage keys");
+    DEBUG_SYNC(thd, "alter_table_manage_keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
     error= trans_commit_stmt(thd);

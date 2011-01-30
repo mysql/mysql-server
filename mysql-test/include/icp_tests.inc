@@ -746,3 +746,55 @@ WHERE NOT EXISTS
 --echo
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#59186 Wrong results of join when ICP is enabled
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(3) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,'y'),(0,'or');
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  c1 VARCHAR(3) NOT NULL,
+  c2 VARCHAR(6) NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (6,'y','RPOYT'),(10,'m','JINQE');
+
+let query=
+SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
+WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
+      (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#58838 "Wrong results with HAVING + LIMIT without GROUP BY when 
+--echo #            ICP is enabled"
+--echo # 
+
+CREATE TABLE t1 (
+  pk INT NOT NULL,
+  c1 INT,
+  PRIMARY KEY (pk),
+  KEY col_int_key (c1)
+);
+
+INSERT INTO t1 VALUES (1,37),(2,8),(3,-25),(4,NULL),(5,55);
+
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 0;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 1;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 2;
+SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 5;
+
+DROP TABLE t1;

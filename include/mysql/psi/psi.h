@@ -256,7 +256,7 @@ enum PSI_table_lock_operation
   /** Table lock, in the server layer. */
   PSI_TABLE_LOCK= 0,
   /** Table lock, in the storage engine layer. */
-  PSI_TABLE_EXTERNAL_LOCK= 1,
+  PSI_TABLE_EXTERNAL_LOCK= 1
 };
 
 /**
