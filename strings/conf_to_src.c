@@ -13,8 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
-#include <m_string.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <fcntl.h>
 #include <my_xml.h>
@@ -250,7 +249,7 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n"
+"/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems Inc., 2010-2011 Monty Program Ab\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"

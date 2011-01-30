@@ -32,10 +32,8 @@
 */
 
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
-
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #define MY_UCA_CNT_FLAG_SIZE 4096
 #define MY_UCA_CNT_FLAG_MASK 4095

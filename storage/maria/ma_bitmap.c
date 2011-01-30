@@ -235,7 +235,8 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
     The +1 is to add the bitmap page, as this doesn't have to be covered
   */
   bitmap->pages_covered= aligned_bit_blocks * 16 + 1;
-  bitmap->flush_all_requested= 0;
+  bitmap->flush_all_requested= bitmap->waiting_for_flush_all_requested= 
+    bitmap->waiting_for_non_flushable= 0;
   bitmap->non_flushable= 0;
 
   /* Update size for bits */
@@ -365,6 +366,7 @@ filter_flush_bitmap_pages(enum pagecache_page_type type
 my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
 {
   my_bool res= 0;
+  uint send_signal= 0;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("_ma_bitmap_flush_all");
 
@@ -374,7 +376,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
     uint len= my_sprintf(buff,
                          (buff, "bitmap_flush:  fd: %d  id: %u  "
                           "changed: %d  changed_not_flushed: %d  "
-                          "flush_all_requsted: %d",
+                          "flush_all_requested: %d",
                           share->bitmap.file.file,
                           share->id,
                           bitmap->changed,
@@ -389,6 +391,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested++;
+    bitmap->waiting_for_non_flushable++;
 #ifndef WRONG_BITMAP_FLUSH
     while (bitmap->non_flushable > 0)
     {
@@ -396,6 +399,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
     }
 #endif
+    bitmap->waiting_for_non_flushable--;
 #ifdef EXTRA_DEBUG_BITMAP
     {
       char tmp[MAX_BITMAP_INFO_LENGTH];      
@@ -440,10 +444,12 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       become false, wake them up.
     */
     DBUG_PRINT("info", ("bitmap flusher waking up others"));
-    if (bitmap->flush_all_requested)
-      pthread_cond_broadcast(&bitmap->bitmap_cond);
+    send_signal= (bitmap->waiting_for_flush_all_requested |
+                  bitmap->waiting_for_non_flushable);
   }
   pthread_mutex_unlock(&bitmap->bitmap_lock);
+  if (send_signal)
+    pthread_cond_broadcast(&bitmap->bitmap_cond);
   DBUG_RETURN(res);
 }
 
@@ -473,11 +479,13 @@ void _ma_bitmap_lock(MARIA_SHARE *share)
 
   pthread_mutex_lock(&bitmap->bitmap_lock);
   bitmap->flush_all_requested++;
+  bitmap->waiting_for_non_flushable++;
   while (bitmap->non_flushable)
   {
     DBUG_PRINT("info", ("waiting for bitmap to be flushable"));
     pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
+  bitmap->waiting_for_non_flushable--;
   /*
     Ensure that _ma_bitmap_flush_all() and _ma_bitmap_lock() are blocked.
     ma_bitmap_flushable() is blocked thanks to 'flush_all_requested'.
@@ -497,6 +505,7 @@ void _ma_bitmap_lock(MARIA_SHARE *share)
 void _ma_bitmap_unlock(MARIA_SHARE *share)
 {
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  uint send_signal;
   DBUG_ENTER("_ma_bitmap_unlock");
 
   if (!share->now_transactional)
@@ -504,10 +513,12 @@ void _ma_bitmap_unlock(MARIA_SHARE *share)
   DBUG_ASSERT(bitmap->flush_all_requested > 0 && bitmap->non_flushable == 1);
 
   pthread_mutex_lock(&bitmap->bitmap_lock);
-  bitmap->flush_all_requested--;
   bitmap->non_flushable= 0;
+  send_signal= bitmap->waiting_for_non_flushable;
+  if (!--bitmap->flush_all_requested)
+    send_signal|= bitmap->waiting_for_flush_all_requested;
   pthread_mutex_unlock(&bitmap->bitmap_lock);
-  if (bitmap->flush_all_requested > 0)
+  if (send_signal)
     pthread_cond_broadcast(&bitmap->bitmap_cond);
   DBUG_VOID_RETURN;
 }
@@ -2334,7 +2345,7 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
         the bitmap's mutex.
       */
       _ma_bitmap_unpin_all(share);
-      if (unlikely(bitmap->flush_all_requested))
+      if (unlikely(bitmap->waiting_for_non_flushable))
       {
         DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
         pthread_cond_broadcast(&bitmap->bitmap_cond);
@@ -2347,6 +2358,8 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
   }
   DBUG_ASSERT(non_flushable_inc == 1);
   DBUG_ASSERT(info->non_flushable_state == 0);
+  
+  bitmap->waiting_for_flush_all_requested++;
   while (unlikely(bitmap->flush_all_requested))
   {
     /*
@@ -2363,6 +2376,7 @@ void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc)
     DBUG_PRINT("info", ("waiting for bitmap flusher"));
     pthread_cond_wait(&bitmap->bitmap_cond, &bitmap->bitmap_lock);
   }
+  bitmap->waiting_for_flush_all_requested--;
   bitmap->non_flushable++;
   DBUG_PRINT("info", ("bitmap->non_flushable: %u", bitmap->non_flushable));
   pthread_mutex_unlock(&bitmap->bitmap_lock);
@@ -2490,7 +2504,7 @@ my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks)
     if (--bitmap->non_flushable == 0)
     {
       _ma_bitmap_unpin_all(info->s);
-      if (unlikely(bitmap->flush_all_requested))
+      if (unlikely(bitmap->waiting_for_non_flushable))
       {
         DBUG_PRINT("info", ("bitmap flushable waking up flusher"));
         pthread_cond_broadcast(&bitmap->bitmap_cond);

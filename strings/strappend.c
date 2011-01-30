@@ -23,8 +23,7 @@
     trunked. The des+len character is allways set to NULL.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 
 void strappend(register char *s, size_t len, pchar fill)

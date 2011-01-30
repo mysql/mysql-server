@@ -13,9 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <my_sys.h>            /* Needed for MY_ERRNO_ERANGE */
-#include <m_string.h>
 
 #undef  ULONGLONG_MAX
 /*

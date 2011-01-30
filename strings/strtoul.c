@@ -20,8 +20,7 @@
    functions, especially they handle tricks for Tru64 where 'long' is
    64 bit already and our 'longlong' is just a 'long'.
  */
-#include <my_global.h>
-#include <m_string.h>
+#include "strings_def.h"
 
 #if !defined(MSDOS) && !defined(HAVE_STRTOUL)
 #define USE_UNSIGNED

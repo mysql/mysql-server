@@ -41,7 +41,7 @@ link_sources:
 	  ms=`echo $(mysysobjects) | sed "s;\.lo;.c;g"`; \
 	  vs=`echo $(vio_objects) | sed "s;\.lo;.c;g"`; \
 	  scs=`echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"`; \
-	  for f in $$ss; do \
+	  for f in $$ss $(mystringsheaders); do \
 	    rm -f $$f; \
 	    @LN_CP_F@ $(top_srcdir)/strings/$$f $$f; \
 	  done; \

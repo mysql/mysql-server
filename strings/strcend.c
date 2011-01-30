@@ -22,8 +22,7 @@
     occurs,  or a pointer to the end-null of s if c does not occur in s.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 #if defined(MC68000) && defined(DS90)
 

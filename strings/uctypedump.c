@@ -13,15 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-/*
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-*/
-#include <my_global.h>
-#include <m_string.h>
+#include "strings_def.h"
 #include <m_ctype.h>
-#include "m_ctype.h"
 
 
 typedef struct my_ctype_name_st
@@ -204,7 +197,7 @@ int main(int ac, char ** av)
       int charnum=0;
       int num=0;
       
-      printf("static unsigned char uctype_page%02X[256]=\n{\n",plane);
+      printf("static unsigned char uctype_page%02X[256]=\n{\n", (uint) plane);
       
       for(charnum=0;charnum<256;charnum++)
       {
@@ -231,7 +224,7 @@ int main(int ac, char ** av)
   {
     char plane_name[128]="NULL";
     if(uctype[plane].ctype){
-      sprintf(plane_name,"uctype_page%02X",plane);
+      sprintf(plane_name,"uctype_page%02X",(uint) plane);
     }
     printf("\t{%d,%s}%s\n",uctype[plane].pctype,plane_name,plane<255?",":"");
   }

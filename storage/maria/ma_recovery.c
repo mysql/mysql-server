@@ -1,5 +1,5 @@
 /* Copyright (C) 2006, 2007 MySQL AB
-   Copyright (C) 2010 Monty Program Ab
+   Copyright (C) 2010-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1292,6 +1292,21 @@ prototype_redo_exec_hook(FILE_ID)
   {
     tprint(tracef, "   Closing table '%s'\n", info->s->open_file_name.str);
     prepare_table_for_close(info, rec->lsn);
+
+    /*
+      Ensure that open count is 1 on close.  This is needed as the
+      table may initially had an open_count > 0 when we initially
+      opened it as the server may have crashed without closing it
+      properly.  As we now have applied all redo's for the table up to
+      now, we know the table is ok, so it's safe to reset the open
+      count to 0.
+    */
+    if (info->s->state.open_count != 0 && info->s->reopen == 1)
+    {
+      /* let ma_close() mark the table properly closed */
+      info->s->state.open_count= 1;
+      info->s->global_changed= 1;
+    }
     if (maria_close(info))
     {
       eprint(tracef, "Failed to close table");
@@ -3412,7 +3427,7 @@ static int close_all_tables(void)
     */
     if (info->s->state.open_count != 0)
     {
-      /* let ma_close() mark the table properly closed */
+      /* let maria_close() mark the table properly closed */
       info->s->state.open_count= 1;
       info->s->global_changed= 1;
     }

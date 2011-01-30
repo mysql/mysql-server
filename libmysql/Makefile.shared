@@ -50,6 +50,7 @@ mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
                         strmov_overlapp.lo
 
 mystringsextra= 	strto.c
+mystringsheaders=	strings_def.h
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
 vioheaders =		vio_priv.h

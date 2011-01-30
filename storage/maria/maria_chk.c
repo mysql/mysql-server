@@ -42,7 +42,7 @@ static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
 static my_bool opt_transaction_logging, opt_debug, opt_require_control_file;
-static my_bool opt_warning_for_wrong_transid;
+static my_bool opt_warning_for_wrong_transid, opt_update_state;
 
 static const char *type_names[]=
 {
@@ -348,7 +348,8 @@ static struct my_option my_long_options[] =
    "Mark tables as crashed if any errors were found and clean if check didn't "
    "find any errors. This allows one to get rid of warnings like 'table not "
    "properly closed'",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_update_state, &opt_update_state, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {"unpack", 'u',
    "Unpack file packed with maria_pack.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -483,8 +484,12 @@ static void usage(void)
   -i, --information   Print statistics information about table that is checked.\n\
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases.\n\
+  -T, --read-only     Don't mark table as checked.\n\
   -U, --update-state  Mark tables as crashed if you find any errors.\n\
-  -T, --read-only     Don't mark table as checked.\n");
+  --warning-for-wrong-transaction-id\n\
+   Give a warning if we find a transaction id in the table that is bigger\n\
+   than what exists in the control file. Use --skip-... to disable warning\n\
+  ");
 
   puts("\
 Recover (repair)/ options (When using '--recover' or '--safe-recover'):\n\
@@ -856,6 +861,7 @@ static void get_options(register int *argc,register char ***argv)
   default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
+  check_param.testflag= T_UPDATE_STATE;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -1326,13 +1332,18 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                   (my_bool) !test(param->testflag & T_AUTO_INC));
 
   if (info->update & HA_STATE_CHANGED && ! (param->testflag & T_READONLY))
+  {
     error|=maria_update_state_info(param, info,
                                    UPDATE_OPEN_COUNT |
-                                   (((param->testflag & T_REP_ANY) ?
+                                   (((param->testflag &
+                                      (T_REP_ANY | T_UPDATE_STATE)) ?
                                      UPDATE_TIME : 0) |
                                     (state_updated ? UPDATE_STAT : 0) |
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
+    if (!(param->testflag & T_SILENT))
+      printf("State updated\n");
+  }
   info->update&= ~HA_STATE_CHANGED;
   _ma_reenable_logging_for_table(info, FALSE);
   maria_lock_database(info, F_UNLCK);
@@ -1438,7 +1449,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     if (share->state.check_time)
     {
       get_date(buff,1,share->state.check_time);
-      printf("Recover time:        %s\n",buff);
+      printf("Check/recover time:  %s\n",buff);
     }
     if (share->base.born_transactional)
     {

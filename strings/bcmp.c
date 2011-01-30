@@ -21,8 +21,7 @@
   comparing a shorter string with bcmp.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 #ifdef HAVE_valgrind
 #undef bcmp

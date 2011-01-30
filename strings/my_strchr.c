@@ -21,9 +21,8 @@
   frequently.
 */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 
 char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
