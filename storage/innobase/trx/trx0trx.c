@@ -1685,8 +1685,6 @@ trx_get_trx_by_xid(
 			trx->xid.formatID = -1;
 			break;
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
 	rw_lock_s_unlock(&trx_sys->lock);
