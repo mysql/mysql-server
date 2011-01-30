@@ -153,6 +153,7 @@ BUILT_SOURCES =		$(BUILT_MAINT_SRC) lex_hash.h link_sources
 EXTRA_DIST =		udf_example.c udf_example.def $(BUILT_MAINT_SRC) \
 			nt_servc.cc nt_servc.h mysql_install_db.cc mysql_upgrade_service.cc \
 			message.mc  message.h message.rc MSG00001.bin \
+			winservice.c winservice.h
 			CMakeLists.txt
 
 CLEANFILES =        	lex_hash.h sql_yacc.output link_sources

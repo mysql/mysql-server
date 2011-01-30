@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+#include <winservice.h>
+
 using namespace std;
 
 #ifdef _DEBUG
@@ -75,7 +77,7 @@ vector<ServiceProperties> services;
   <unknown> , of executable does not have any version
   info embedded (like MySQL 5.1 for example)
 */
-string GetExeVersion(const string& filename, int *major, int *minor, int *patch)
+void GetExeVersion(const string& filename, int *major, int *minor, int *patch)
 {
   DWORD handle;
   *major= *minor= *patch= 0;
@@ -85,20 +87,17 @@ string GetExeVersion(const string& filename, int *major, int *minor, int *patch)
   if (!GetFileVersionInfo(filename.c_str(), handle, size, versionInfo))
   {
     delete[] versionInfo;
-    return "<unknown>";
+    return;
   }
   // we have version information
   UINT len = 0;
   VS_FIXEDFILEINFO*   vsfi = NULL;
   VerQueryValue(versionInfo, "\\", (void**)&vsfi, &len);
-  char arr[64];
 
   *major= (int)HIWORD(vsfi->dwFileVersionMS);
   *minor= (int)LOWORD(vsfi->dwFileVersionMS);
   *patch= (int)HIWORD(vsfi->dwFileVersionLS);
-  sprintf_s(arr,"%d.%d.%d", *major, *minor, *patch); 
   delete[] versionInfo;
-  return string(arr);
 }
 
 
@@ -122,19 +121,6 @@ void CUpgradeDlg::SelectService(int index)
 }
 
 
-/* Remove quotes from string */
-static char *RemoveQuotes(char *s)
-{
-  if(s[0]=='"')
-  {
-    s++;
-    char *p= strchr(s, '"');
-    if(p)
-      *p= 0;
-  }
-  return s;
-}
-
 
 /*
   Iterate over services, lookup for mysqld.exe ones.
@@ -157,8 +143,7 @@ void CUpgradeDlg::PopulateServicesList()
 
   static BYTE buf[64*1024];
   static BYTE configBuffer[8*1024];
-  char datadirBuf[MAX_PATH];
-  char datadirNormalized[MAX_PATH];
+
   DWORD bufsize= sizeof(buf);
   DWORD bufneed;
   DWORD num_services;
@@ -184,70 +169,39 @@ void CUpgradeDlg::PopulateServicesList()
     CloseServiceHandle(service);
     if (ok)
     {
-      int argc;
-      wchar_t **wargv = CommandLineToArgvW(config->lpBinaryPathName, &argc);
+      mysqld_service_properties service_props;
 
-      // We expect  path\to\mysqld --defaults-file=<path> <servicename>
-      if(argc == 3)  
+      if (get_mysql_service_properties(config->lpBinaryPathName, 
+          &service_props))
+        continue;
+
+      /* Check if service uses mysqld in installation directory */
+      if (_strnicmp(service_props.mysqld_exe, m_InstallDir.c_str(),
+            m_InstallDir.size()) == 0)
+        continue;
+
+      if(m_MajorVersion > service_props.version_major || 
+        (m_MajorVersion == service_props.version_major && m_MinorVersion >= 
+        service_props.version_minor))
       {
-        
-         // Convert wide strings to ANSI 
-        char *argv[3];
-        for(int k=0; k < 3;k++)
+        ServiceProperties props;
+        props.myini= service_props.inifile;
+        props.datadir= service_props.datadir;
+        props.servicename = info[i].lpServiceName;
+        if (service_props.version_major)
         {
-          size_t nbytes = 2*wcslen(wargv[k])+1; 
-          argv[k]= new char[nbytes];
-          wcstombs(argv[k], wargv[k], nbytes);
+          char ver[64];
+          sprintf(ver, "%d.%d.%d", service_props.version_major, 
+            service_props.version_minor, service_props.version_patch);
+          props.version= ver;
         }
+        else
+          props.version= "<unknown>";
 
-        size_t len= strlen(argv[0]);
-        char path[MAX_PATH]={0};
-        char *filepart;
-        GetFullPathName(argv[0],MAX_PATH, path, &filepart);
-        if(_stricmp(filepart, "mysqld.exe") == 0 ||
-          _stricmp(filepart, "mysqld") == 0)
-        {
-          if(_strnicmp(argv[1],"--defaults-file=",16) == 0)
-          {
-            /* Remove quotes around defaults-file */
-            char *inifile= argv[1] + 16;
-            inifile = RemoveQuotes(inifile);
-
-            char *datadir=datadirBuf;
-            GetPrivateProfileString("mysqld", "datadir", NULL, datadirBuf,
-              MAX_PATH, inifile);
-
-            /* Remove quotes from datadir */
-            datadir= RemoveQuotes(datadir);
-
-            GetFullPathName(datadir, MAX_PATH, datadirNormalized, NULL);
-            ServiceProperties props;
-
-            props.myini = inifile;
-            props.servicename = info[i].lpServiceName;
-            string exefilename(argv[0]);
-            if(!strstr(argv[0], ".exe"))
-              exefilename += ".exe";
-            int major, minor, patch;
-            props.version= GetExeVersion(exefilename, &major, &minor, &patch);
-            if(m_MajorVersion > major || 
-              (m_MajorVersion == major && m_MinorVersion >= minor))
-            {
-              if (_strnicmp(exefilename.c_str(), m_InstallDir.c_str(),
-                m_InstallDir.size()) != 0)
-              {
-                props.datadir = datadirNormalized;
-                index = m_Services.AddString(info[i].lpServiceName);
-                services.resize(index+1);
-                services[index] = props;
-              }
-            }
-          }
-        }
-        for(int k=0; k< 3;k++)
-          delete[] argv[k];
+        index = m_Services.AddString(info[i].lpServiceName);
+        services.resize(index+1);
+        services[index] = props;
       }
-      LocalFree((HLOCAL)wargv);
     }
     if (index != -1)
     {

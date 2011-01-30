@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include <strsafe.h>
 #include <assert.h>
 
+#include <winservice.h>
 
 UINT ExecRemoveDataDirectory(wchar_t *dir)
 {
@@ -547,49 +548,6 @@ LExit:
   return WcaFinalize(er); 
 }
 
-/* 
- Extract major and minor version from
- mysqld.exe, using commandline in service definition
-*/
-static void GetMySQLVersion(
-  wchar_t *cmdline,
-  wchar_t *programBuf,
-  bool *isMySQL, int *major, int *minor)
-{
-   *major= 0;
-   *minor= 0;
-   *isMySQL= false;
-   int argc;
-   wchar_t **wargv = CommandLineToArgvW(cmdline, &argc);
-   if(argc != 3)
-     return;
-
-   wchar_t path[MAX_PATH];
-   wchar_t *filepart;
-
-   wcscpy_s(programBuf, MAX_PATH, wargv[0]);
-   if(!wcsstr(programBuf, L".exe"))
-     wcscat_s(programBuf,MAX_PATH, L".exe");
-
-   GetFullPathNameW(programBuf,MAX_PATH, path, &filepart);
-   if(wcsicmp(filepart, L"mysqld.exe") == 0)
-   {
-      *isMySQL = true;
-      DWORD handle;
-      DWORD size = GetFileVersionInfoSizeW(path, &handle);
-      BYTE* versionInfo = new BYTE[size];
-      if (GetFileVersionInfo(path, handle, size, versionInfo))
-      {
-         UINT len = 0;
-         VS_FIXEDFILEINFO*   vsfi = NULL;
-         VerQueryValueW(versionInfo, L"\\", (void**)&vsfi, &len);
-        *major= HIWORD(vsfi->dwFileVersionMS); 
-        *minor= LOWORD(vsfi->dwFileVersionMS);
-      }
-      delete[] versionInfo; 
-   }
-}
-
 
 /*
   Enables/disables optional "Launch upgrade wizard" checkbox at the end of installation
@@ -603,7 +561,7 @@ extern "C" UINT __stdcall CheckServiceUpgrades(MSIHANDLE hInstall)
   wchar_t* service= 0;
   wchar_t* dir= 0;
   wchar_t installerVersion[MAX_VERSION_PROPERTY_SIZE];
-  wchar_t installDir[MAX_PATH];
+  char installDir[MAX_PATH];
   DWORD size =MAX_VERSION_PROPERTY_SIZE;
   int installerMajorVersion, installerMinorVersion, installerPatchVersion;
   bool upgradableServiceFound=false;
@@ -623,7 +581,7 @@ extern "C" UINT __stdcall CheckServiceUpgrades(MSIHANDLE hInstall)
   }
 
   size= MAX_PATH;
-  if (MsiGetPropertyW(hInstall,L"INSTALLDIR", installDir, &size)
+  if (MsiGetPropertyA(hInstall,"INSTALLDIR", installDir, &size)
     != ERROR_SUCCESS)
   {
     hr = HRESULT_FROM_WIN32(GetLastError());

@@ -186,10 +186,13 @@ ADD_CUSTOM_COMMAND(
     COMPONENT Server)
   TARGET_LINK_LIBRARIES(mysql_install_db mysys strings dbug)
 
+  ADD_LIBRARY(winservice STATIC winservice.c)
+  
   MYSQL_ADD_EXECUTABLE(mysql_upgrade_service
     mysql_upgrade_service.cc
     COMPONENT Server)
-  TARGET_LINK_LIBRARIES(mysql_upgrade_service mysys strings dbug)
+	
+  TARGET_LINK_LIBRARIES(mysql_upgrade_service mysys strings dbug winservice)
 
   # mysql_install_db should be in the same directory as mysqld
   # to work correctly

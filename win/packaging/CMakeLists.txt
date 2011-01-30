@@ -23,6 +23,7 @@ FIND_PATH(WIX_DIR heat.exe
    $ENV{ProgramFiles}/wix/bin
   "$ENV{ProgramFiles}/Windows Installer XML v3/bin"
   "$ENV{ProgramFiles}/Windows Installer XML v3.5/bin"
+  "$ENV{ProgramFiles}/Windows Installer XML v3.6/bin"
 )
 
 SET(CPACK_WIX_PACKAGE_BASE_NAME "MariaDB")

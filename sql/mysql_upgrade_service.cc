@@ -26,6 +26,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql_version.h>
+#include <winservice.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,8 +39,8 @@ static char mysqld_path[MAX_PATH];
 static char mysqladmin_path[MAX_PATH];
 static char mysqlupgrade_path[MAX_PATH];
 
-static char defaults_file_param[FN_REFLEN];
-static char logfile_path[FN_REFLEN];
+static char defaults_file_param[MAX_PATH + 16]; /*--defaults-file=<path> */
+static char logfile_path[MAX_PATH];
 static char *opt_service;
 static SC_HANDLE service;
 static SC_HANDLE scm;
@@ -301,7 +302,7 @@ end:
 /* 
   Shutdown mysql server. Not using mysqladmin, since 
   our --skip-grant-tables do not work anymore after mysql_upgrade
-  that does "flush privileges". Instead, the shutdown handle is set.
+  that does "flush privileges". Instead, the shutdown event  is set.
 */
 void initiate_mysqld_shutdown()
 {
@@ -327,8 +328,7 @@ void initiate_mysqld_shutdown()
 */
 static void change_service_config()
 {
-  wchar_t old_mysqld_path[MAX_PATH];
-  wchar_t *file_part;
+
   char defaults_file[MAX_PATH];
   char default_character_set[64];
 
@@ -346,59 +346,32 @@ static void change_service_config()
   if (!QueryServiceConfigW(service, config, size, &needed))
     die("QueryServiceConfig failed with %d\n", GetLastError());
 
-  int numargs;
-  LPWSTR *args= CommandLineToArgvW(config->lpBinaryPathName, &numargs);
-
-  char commandline[3*FN_REFLEN +32];
-
-  /* Run some checks to ensure we're really upgrading mysql service */
-
-  if(numargs != 3)
+  mysqld_service_properties props;
+  if (get_mysql_service_properties(config->lpBinaryPathName, &props))
   {
-    die("Expected 3 parameters in service configuration binPath,"
-      "got %d parameters instead\n. binPath: %S", numargs, 
-      config->lpBinaryPathName);
-  }
-  if(wcsncmp(args[1], L"--defaults-file=", 16) != 0)
-  {
-    die("Unexpected service configuration, second parameter must start with "
-      "--defaults-file. binPath= %S", config->lpBinaryPathName);
-  }
-  GetFullPathNameW(args[0], MAX_PATH, old_mysqld_path, &file_part);
-
-  if(wcsicmp(file_part, L"mysqld.exe") != 0 && 
-    wcsicmp(file_part, L"mysqld") != 0)
-  {
-    die("The service executable is not mysqld. binPath: %S", 
-         config->lpBinaryPathName);
+    die("Not a valid MySQL service");
   }
 
-  if(wcsicmp(file_part, L"mysqld") == 0)
-    wcscat_s(old_mysqld_path, L".exe");
-
-  int old_mysqld_major, old_mysqld_minor;
-  get_file_version(old_mysqld_path, &old_mysqld_major, &old_mysqld_minor);
   int my_major= MYSQL_VERSION_ID/10000;
   int my_minor= (MYSQL_VERSION_ID - 10000*my_major)/100;
 
-  if(my_major < old_mysqld_major || 
-    (my_major == old_mysqld_major && my_minor < old_mysqld_minor))
+  if(my_major < props.version_major || 
+    (my_major == props.version_minor && my_minor < props.version_patch))
   {
     die("Can not downgrade, the service is currently running as version %d.%d"
-      ", my version is %d.%d", old_mysqld_major, old_mysqld_minor, my_major, 
-      my_minor);
+      ", my version is %d.%d", props.version_major, props.version_minor, 
+      my_major, my_minor);
   }
 
-  wcstombs(defaults_file, args[1] + 16, MAX_PATH);
   /*
     Remove basedir from defaults file, otherwise the service wont come up in 
     the new  version, and will complain about mismatched message file.
   */
-  WritePrivateProfileString("mysqld", "basedir",NULL, defaults_file);
+  WritePrivateProfileString("mysqld", "basedir",NULL, props.inifile);
 
 #ifdef _WIN64
   /* Currently, pbxt is non-functional on x64 */
-  WritePrivateProfileString("mysqld", "loose-skip-pbxt","1", defaults_file);
+  WritePrivateProfileString("mysqld", "loose-skip-pbxt","1", props.inifile);
 #endif
   /* 
     Replace default-character-set  with character-set-server, to avoid 
@@ -406,7 +379,7 @@ static void change_service_config()
     message.
   */
   default_character_set[0]=0;
-  GetPrivateProfileStringA("mysqld", "default-character-set", NULL,
+  GetPrivateProfileString("mysqld", "default-character-set", NULL,
     default_character_set, sizeof(default_character_set), defaults_file);
   if(default_character_set[0])
   {
@@ -416,15 +389,16 @@ static void change_service_config()
       default_character_set, defaults_file);
   }
 
-  sprintf_s(commandline, "\"%s\" \"%S\" \"%S\"", mysqld_path, args[1], args[2]);
+  sprintf(defaults_file_param,"--defaults-file=%s", props.inifile);
+  char commandline[3*MAX_PATH + 19];
+  sprintf_s(commandline, "\"%s\" \"%s\" \"%s\"", mysqld_path, 
+   defaults_file_param, opt_service);
   if (!ChangeServiceConfig(service, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, 
          SERVICE_NO_CHANGE, commandline, NULL, NULL, NULL, NULL, NULL, NULL))
   {
     die("ChangeServiceConfigW failed with %d", GetLastError());
   }
 
-  sprintf_s(defaults_file_param, "%S", args[1]);
-  LocalFree(args);
 }
 
 
@@ -483,13 +457,13 @@ int main(int argc, char **argv)
     for communication, for security reasons.
   */
   char socket_param[FN_REFLEN];
-  sprintf_s(socket_param,"--shared_memory_base_name=mysql_upgrade_service_%d", 
+  sprintf_s(socket_param,"--socket=mysql_upgrade_service_%d", 
     GetCurrentProcessId());
 
   log("Phase 3/8: Starting mysqld for upgrade");
   mysqld_process= (HANDLE)run_tool(P_NOWAIT, mysqld_path,
     defaults_file_param, "--skip-networking",  "--skip-grant-tables", 
-    "--enable-shared-memory",  socket_param, NULL);
+    "--enable-named-pipe",  socket_param, NULL);
 
   if(mysqld_process == INVALID_HANDLE_VALUE)
   {
@@ -503,7 +477,7 @@ int main(int argc, char **argv)
     if (WaitForSingleObject(mysqld_process, 0) != WAIT_TIMEOUT)
       die("mysqld.exe did not start");
 
-    if (run_tool(P_WAIT, mysqladmin_path, "--protocol=memory",
+    if (run_tool(P_WAIT, mysqladmin_path, "--protocol=pipe",
       socket_param, "ping",  NULL) == 0)
     {
       break;
@@ -516,7 +490,7 @@ int main(int argc, char **argv)
 
   log("Phase 5/8: Running mysql_upgrade");
   int upgrade_err = (int) run_tool(P_WAIT,  mysqlupgrade_path, 
-    "--protocol=memory", "--force",  socket_param,
+    "--protocol=pipe", "--force",  socket_param,
     NULL);
 
   log("Phase 6/8: Initiating server shutdown");

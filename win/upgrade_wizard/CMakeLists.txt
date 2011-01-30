@@ -18,9 +18,11 @@ SET(CMAKE_MFC_FLAG 1)
 # Enable exception handling (avoids warnings)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 
-MYSQL_ADD_EXECUTABLE(upgrade_wizard upgrade.cpp upgradeDlg.cpp upgrade.rc
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql)
+MYSQL_ADD_EXECUTABLE(upgrade_wizard
+  upgrade.cpp upgradeDlg.cpp upgrade.rc
   COMPONENT Server)
-
+TARGET_LINK_LIBRARIES(upgrade_wizard winservice)
 # upgrade_wizard is Windows executable, set WIN32_EXECUTABLE so it does not
 # create a console.
 SET_TARGET_PROPERTIES(upgrade_wizard PROPERTIES WIN32_EXECUTABLE 1)
