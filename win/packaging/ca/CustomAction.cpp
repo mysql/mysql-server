@@ -70,8 +70,12 @@ LExit:
   return WcaFinalize(er); 
 }
 
-/* Check for if directory is empty during install, sets "<PROPERTY>_NOT_EMPTY" otherise */
-extern "C" UINT __stdcall CheckDirectoryEmpty(MSIHANDLE hInstall, const wchar_t *PropertyName)
+/* 
+  Check for if directory is empty during install, 
+  sets "<PROPERTY>_NOT_EMPTY" otherise
+*/
+extern "C" UINT __stdcall CheckDirectoryEmpty(MSIHANDLE hInstall, 
+  const wchar_t *PropertyName)
 {
   HRESULT hr = S_OK;
   UINT er = ERROR_SUCCESS;
@@ -112,7 +116,8 @@ extern "C" UINT __stdcall CheckDirectoryEmpty(MSIHANDLE hInstall, const wchar_t 
   }
 
   if(empty)
-    WcaLog(LOGMSG_STANDARD, "Directory %S is empty or non-existent", PropertyName);
+    WcaLog(LOGMSG_STANDARD, "Directory %S is empty or non-existent", 
+    PropertyName);
   else
     WcaLog(LOGMSG_STANDARD, "Directory %S is NOT empty", PropertyName);
 
@@ -225,22 +230,22 @@ wchar_t *strip_quotes(wchar_t *s)
 
   It can happen that SERVICENAME or DATADIR 
   MSI properties are in inconsistent state after somebody upgraded database 
-  We catch this case during uninstall. In particular, either service is not removed
-  even if SERVICENAME was set (but this name is reused by someone else) or data 
-  directory is not removed (if it is used by someone else). To find out whether 
-  service name and datadirectory are in use For every service, configuration is
-  read and checked as follows:
+  We catch this case during uninstall. In particular, either service is not 
+  removed even if SERVICENAME was set (but this name is reused by someone else)
+  or data directory is not removed (if it is used by someone else). To find out
+  whether service name and datadirectory are in use For every service, 
+  configuration is read and checked as follows:
 
   - look if a service has to do something with mysql
-  - If so, check its name against SERVICENAME. if match, check binary path against 
-    INSTALLDIR\bin.  If binary path does not match, then service runs under different 
-    installation and won't be removed.
-  - Check options file for datadir and look if this is inside this installation's 
-  datadir don't remove datadir if this is the case.
+  - If so, check its name against SERVICENAME. if match, check binary path 
+    against INSTALLDIR\bin.  If binary path does not match, then service runs
+    under different  installation and won't be removed.
+  - Check options file for datadir and look if this is inside this
+    installation's datadir don't remove datadir if this is the case.
 
-  "Don't remove" in this context means that custom action is removing SERVICENAME property
-  or CLEANUPDATA property, which later on in course of installation mean that either datadir
-  or service is retained.
+  "Don't remove" in this context means that custom action is removing 
+  SERVICENAME property or CLEANUPDATA property, which later on in course of 
+  installation mean, that either datadir or service is kept.
 */
 
 void CheckServiceConfig(
@@ -262,7 +267,8 @@ void CheckServiceConfig(
     goto end;
   }
 
-  WcaLog(LOGMSG_STANDARD, "MySQL service %S found: CommandLine= %S", other_servicename, commandline);
+  WcaLog(LOGMSG_STANDARD, "MySQL service %S found: CommandLine= %S", 
+    other_servicename, commandline);
   if (wcsstr(argv[0], bindir))
   {
     WcaLog(LOGMSG_STANDARD, "executable under bin directory");
@@ -281,7 +287,8 @@ void CheckServiceConfig(
   else if (!same_bindir)
   {
     WcaLog(LOGMSG_STANDARD, 
-      "Service name matches, but not the executable path directory, mine is %S", bindir);
+      "Service name matches, but not the executable path directory, mine is %S", 
+      bindir);
     WcaSetProperty(L"SERVICENAME", L"");
   }
 
@@ -299,8 +306,8 @@ void CheckServiceConfig(
 
   WcaLog(LOGMSG_STANDARD, "parsed defaults file is %S", defaults_file);
 
-  if (GetPrivateProfileStringW(L"mysqld", L"datadir", NULL, current_datadir, MAX_PATH, 
-    defaults_file) == 0)
+  if (GetPrivateProfileStringW(L"mysqld", L"datadir", NULL, current_datadir, 
+    MAX_PATH, defaults_file) == 0)
   {
     WcaLog(LOGMSG_STANDARD, 
       "Cannot find datadir in ini file '%S'", defaults_file);
@@ -311,16 +318,19 @@ void CheckServiceConfig(
   strip_quotes(current_datadir);
 
   /* Convert to Windows path */
-  if (GetFullPathNameW(current_datadir, MAX_PATH, normalized_current_datadir, NULL))
+  if (GetFullPathNameW(current_datadir, MAX_PATH, normalized_current_datadir, 
+    NULL))
   {
     /* Add backslash to be compatible with directory formats in MSI */
     wcsncat(normalized_current_datadir, L"\\", MAX_PATH+1);
-    WcaLog(LOGMSG_STANDARD, "normalized current datadir is '%S'", normalized_current_datadir);
+    WcaLog(LOGMSG_STANDARD, "normalized current datadir is '%S'", 
+      normalized_current_datadir);
   }
 
   if (_wcsicmp(datadir, normalized_current_datadir) == 0 && !same_bindir)
   {
-    WcaLog(LOGMSG_STANDARD, "database directory from current installation, but different mysqld.exe");
+    WcaLog(LOGMSG_STANDARD, 
+      "database directory from current installation, but different mysqld.exe");
     WcaSetProperty(L"CLEANUPDATA", L"");
   }
 
@@ -335,22 +345,22 @@ end:
   would normally mean user has done an upgrade of the database and in this case 
   uninstall should neither delete service nor database directory.
 
-  If this function find that service is modified by user (mysqld.exe used by service
-  does not point to the installation bin directory), MSI public variable SERVICENAME is 
-  removed, if DATADIR is used by some other service, variables DATADIR and CLEANUPDATA
-  are removed.
+  If this function find that service is modified by user (mysqld.exe used by 
+  service does not point to the installation bin directory), MSI public variable
+  SERVICENAME is removed, if DATADIR is used by some other service, variables 
+  DATADIR and CLEANUPDATA are removed.
 
-  The effect of variable removal is that service does not get uninstalled and datadir
-  is not touched by uninstallation.
+  The effect of variable removal is that service does not get uninstalled and
+  datadir is not touched by uninstallation.
 
-  Note that this function is running without elevation and does not use anything that would
-  require special privileges.
+  Note that this function is running without elevation and does not use anything
+  that would require special privileges.
 
 */
 extern "C" UINT CheckDBInUse(MSIHANDLE hInstall)
 {
   static BYTE buf[256*1024]; /* largest possible buffer for EnumServices */
-  static char config_buffer[8*1024]; /*largest possible buffer for QueryServiceConfig */
+  static char config_buffer[8*1024]; /*largest buffer for QueryServiceConfig */
   HRESULT hr = S_OK;
   UINT er = ERROR_SUCCESS;
   wchar_t *servicename= NULL;
@@ -373,7 +383,8 @@ extern "C" UINT CheckDBInUse(MSIHANDLE hInstall)
   WcaLog(LOGMSG_STANDARD,"SERVICENAME=%S, DATADIR=%S, bindir=%S",
     servicename, datadir, bindir);
 
-  scm = OpenSCManager(NULL, NULL, SC_MANAGER_ENUMERATE_SERVICE | SC_MANAGER_CONNECT);  
+  scm = OpenSCManager(NULL, NULL, 
+    SC_MANAGER_ENUMERATE_SERVICE | SC_MANAGER_CONNECT);  
   if (scm == NULL) 
   { 
     ExitOnFailure(E_FAIL, "OpenSCManager failed");
@@ -397,17 +408,21 @@ extern "C" UINT CheckDBInUse(MSIHANDLE hInstall)
   info = (LPENUM_SERVICE_STATUS_PROCESS)buf; 
   for (ULONG i=0; i < num_services; i++)
   {
-    SC_HANDLE service= OpenServiceW(scm, info[i].lpServiceName, SERVICE_QUERY_CONFIG);
+    SC_HANDLE service= OpenServiceW(scm, info[i].lpServiceName, 
+      SERVICE_QUERY_CONFIG);
     if (!service)
       continue;
     WcaLog(LOGMSG_VERBOSE, "Checking Service %S", info[i].lpServiceName);
-    QUERY_SERVICE_CONFIGW *config= (QUERY_SERVICE_CONFIGW *)(void *)config_buffer;
+    QUERY_SERVICE_CONFIGW *config= 
+      (QUERY_SERVICE_CONFIGW *)(void *)config_buffer;
     DWORD needed;
-    BOOL ok= QueryServiceConfigW(service, config,sizeof(config_buffer), &needed);
+    BOOL ok= QueryServiceConfigW(service, config,sizeof(config_buffer), 
+      &needed);
     CloseServiceHandle(service);
     if (ok)
     {
-       CheckServiceConfig(servicename, datadir, bindir, info[i].lpServiceName, config);
+       CheckServiceConfig(servicename, datadir, bindir, info[i].lpServiceName, 
+         config);
     }
   }
 
@@ -454,14 +469,17 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
     }
     if(CheckServiceExists(ServiceName))
     {
-      ErrorMsg= L"A service with the same name already exists. Please use a different name.";
+      ErrorMsg=
+        L"A service with the same name already exists. "
+        L"Please use a different name.";
       goto err;
     }
   }
 
   DWORD SkipNetworkingLen= MAX_PATH;
 
-  MsiGetPropertyW(hInstall, L"SKIPNETWORKING", SkipNetworking, &SkipNetworkingLen);
+  MsiGetPropertyW(hInstall, L"SKIPNETWORKING", SkipNetworking, 
+    &SkipNetworkingLen);
   MsiGetPropertyW(hInstall, L"PORT", Port, &PortLen);
   
   if(SkipNetworking[0]==0 && Port[0] != 0)
@@ -488,14 +506,17 @@ extern "C" UINT  __stdcall CheckDatabaseProperties (MSIHANDLE hInstall)
     }
     if (haveInvalidPort)
     {
-      ErrorMsg = L"Invalid port number. Please use a number between 1025 and 65535.";
+      ErrorMsg =
+        L"Invalid port number. Please use a number between 1025 and 65535.";
       goto err;
     }
 
     short port = (short)_wtoi(Port);
     if (!IsPortFree(port))
     {
-      ErrorMsg = L"The TCP Port you selected is already in use. Please choose a different port.";
+      ErrorMsg = 
+        L"The TCP Port you selected is already in use. "
+        L"Please choose a different port.";
       goto err;
     }
   }
@@ -550,7 +571,8 @@ LExit:
 
 
 /*
-  Enables/disables optional "Launch upgrade wizard" checkbox at the end of installation
+  Enables/disables optional "Launch upgrade wizard" checkbox at the end of 
+  installation
 */
 #define MAX_VERSION_PROPERTY_SIZE 64
 
@@ -589,7 +611,8 @@ extern "C" UINT __stdcall CheckServiceUpgrades(MSIHANDLE hInstall)
   }
  
 
-  SC_HANDLE scm = OpenSCManager(NULL, NULL, SC_MANAGER_ENUMERATE_SERVICE | SC_MANAGER_CONNECT);  
+  SC_HANDLE scm = OpenSCManager(NULL, NULL, 
+    SC_MANAGER_ENUMERATE_SERVICE | SC_MANAGER_CONNECT);  
   if (scm == NULL) 
   { 
     hr = HRESULT_FROM_WIN32(GetLastError());
@@ -621,31 +644,30 @@ extern "C" UINT __stdcall CheckServiceUpgrades(MSIHANDLE hInstall)
     QUERY_SERVICE_CONFIGW *config= 
       (QUERY_SERVICE_CONFIGW*)(void *)config_buffer;
     DWORD needed;
-    BOOL ok= QueryServiceConfigW(service, config,sizeof(config_buffer), &needed);
+    BOOL ok= QueryServiceConfigW(service, config,sizeof(config_buffer),
+      &needed);
     CloseServiceHandle(service);
     if (ok)
     {
-      bool isMySQL;
-      int major;
-      int minor;
-      wchar_t program[MAX_PATH]={0};
-      GetMySQLVersion(config->lpBinaryPathName, program, &isMySQL, &major, &minor);
-      
-      /* 
-        Only look for services that have mysqld.exe outside of the current
-        installation directory.
-      */
-      if(isMySQL && (wcsstr(program,installDir) == 0))
-      {
-         WcaLog(LOGMSG_STANDARD, "found service %S, major=%d, minor=%d",
-           info[i].lpServiceName, major, minor);
-        if(major < installerMajorVersion
-          || (major == installerMajorVersion && minor <= installerMinorVersion))
+        mysqld_service_properties props;
+       if (get_mysql_service_properties(config->lpBinaryPathName, &props))
+                  continue;
+        /* 
+          Only look for services that have mysqld.exe outside of the current
+          installation directory.
+        */
+       if(strstr(props.mysqld_exe,installDir) == 0)
         {
-          upgradableServiceFound= true;
-          break;
-        }
-      }
+           WcaLog(LOGMSG_STANDARD, "found service %S, major=%d, minor=%d",
+            info[i].lpServiceName, props.version_major, props.version_minor);
+          if(props.version_major < installerMajorVersion
+            || (props.version_major == installerMajorVersion && 
+                props.version_minor <= installerMinorVersion))
+          {
+            upgradableServiceFound= true;
+            break;
+          }
+       }
     }
   }
 
