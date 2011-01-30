@@ -108,6 +108,7 @@ require "lib/mtr_misc.pl";
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 
 our $mysql_version_id;
+my $mysql_version_extra;
 our $glob_mysql_test_dir;
 our $basedir;
 our $bindir;
@@ -175,6 +176,7 @@ our $opt_big_test= 0;
 our @opt_combinations;
 
 our @opt_extra_mysqld_opt;
+our @opt_mysqld_envs;
 
 my $opt_compress;
 my $opt_ssl;
@@ -414,6 +416,14 @@ sub main {
   mtr_error("Could not create testcase server port: $!") unless $server;
   my $server_port = $server->sockport();
   mtr_report("Using server port $server_port");
+
+  # --------------------------------------------------------------------------
+  # Read definitions from include/plugin.defs
+  #
+  read_plugin_defs("include/plugin.defs");
+
+  # Simplify reference to semisync plugins
+  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
 
   # Create child processes
   my %children;
@@ -961,6 +971,7 @@ sub command_line_setup {
 
              # Extra options used when starting mysqld
              'mysqld=s'                 => \@opt_extra_mysqld_opt,
+             'mysqld-env=s'             => \@opt_mysqld_envs,
 
              # Run test on running server
              'extern=s'                  => \%opts_extern, # Append to hash
@@ -1667,12 +1678,13 @@ sub collect_mysqld_features {
       # Look for version
       my $exe_name= basename($exe_mysqld);
       mtr_verbose("exe_name: $exe_name");
-      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)/ )
+      if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
       {
 	#print "Major: $1 Minor: $2 Build: $3\n";
 	$mysql_version_id= $1*10000 + $2*100 + $3;
 	#print "mysql_version_id: $mysql_version_id\n";
 	mtr_report("MySQL Version $1.$2.$3");
+	$mysql_version_extra= $4;
       }
     }
     else
@@ -1757,12 +1769,13 @@ sub collect_mysqld_features_from_running_server ()
 
   # Parse version
   my $version_str= $mysqld_variables{'version'};
-  if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)/ )
+  if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
   {
     #print "Major: $1 Minor: $2 Build: $3\n";
     $mysql_version_id= $1*10000 + $2*100 + $3;
     #print "mysql_version_id: $mysql_version_id\n";
     mtr_report("MySQL Version $1.$2.$3");
+    $mysql_version_extra= $4;
   }
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
 }
@@ -1968,7 +1981,7 @@ sub find_plugin($$)
 {
   my ($plugin, $location)  = @_;
   my $plugin_filename;
-    
+
   if (IS_WINDOWS)
   {
      $plugin_filename = $plugin.".dll"; 
@@ -1978,13 +1991,13 @@ sub find_plugin($$)
      $plugin_filename = $plugin.".so";
   }
 
-  my $lib_example_plugin=
+  my $lib_plugin=
     mtr_file_exists(vs_config_dirs($location,$plugin_filename),
                     "$basedir/lib/plugin/".$plugin_filename,
                     "$basedir/$location/.libs/".$plugin_filename,
                     "$basedir/lib/mysql/plugin/".$plugin_filename,
                     );
-  return $lib_example_plugin;
+  return $lib_plugin;
 }
 
 #
@@ -1994,9 +2007,15 @@ sub find_plugin($$)
 sub read_plugin_defs($)
 {
   my ($defs_file)= @_;
+  my $running_debug= 0;
 
   open(PLUGDEF, '<', $defs_file)
     or mtr_error("Can't read plugin defintions file $defs_file");
+
+  # Need to check if we will be running mysqld-debug
+  if ($opt_debug) {
+    $running_debug= 1 if find_mysqld($basedir) =~ /-debug$/;
+  }
 
   while (<PLUGDEF>) {
     next if /^#/;
@@ -2004,6 +2023,9 @@ sub read_plugin_defs($)
     # Allow empty lines
     next unless $plug_file;
     mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
+
+    # If running debug server, plugins will be in 'debug' subdirectory
+    $plug_file= "debug/$plug_file" if $running_debug;
 
     my ($plugin)= find_plugin($plug_file, $plug_loc);
 
@@ -2069,18 +2091,9 @@ sub environment_setup {
     push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
   }
 
-  # --------------------------------------------------------------------------
-  # Read definitions from include/plugin.defs
-  #
   # Plugin settings should no longer be added here, instead
   # place definitions in include/plugin.defs.
   # See comment in that file for details.
-  # --------------------------------------------------------------------------
-  read_plugin_defs("include/plugin.defs");
-
-  # Simplify reference to semisync plugins
-  $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
-
   # --------------------------------------------------------------------------
   # Valgrind need to be run with debug libraries otherwise it's almost
   # impossible to add correct supressions, that means if "/usr/lib/debug"
@@ -2537,6 +2550,17 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
+
+  # Check if this is MySQL Cluster, ie. mysql version string ends
+  # with -ndb-Y.Y.Y[-status]
+  if ( defined $mysql_version_extra &&
+       $mysql_version_extra =~ /^-ndb-/ )
+  {
+    mtr_report(" - MySQL Cluster");
+    # Enable ndb engine and add more test suites
+    $opt_include_ndbcluster = 1;
+    $DEFAULT_SUITES.=",ndb";
+  }
 
   if ($opt_include_ndbcluster)
   {
@@ -4220,8 +4244,10 @@ sub check_expected_crash_and_restart {
     {
       mtr_verbose("Crash was expected, file '$expect_file' exists");
 
-      for (my $waits = 0;  $waits < 50;  $waits++)
+      for (my $waits = 0;  $waits < 50;  mtr_milli_sleep(100), $waits++)
       {
+	# Race condition seen on Windows: try again until file not empty
+	next if -z $expect_file;
 	# If last line in expect file starts with "wait"
 	# sleep a little and try again, thus allowing the
 	# test script to control when the server should start
@@ -4230,10 +4256,11 @@ sub check_expected_crash_and_restart {
 	if ($last_line =~ /^wait/ )
 	{
 	  mtr_verbose("Test says wait before restart") if $waits == 0;
-	  mtr_milli_sleep(100);
 	  next;
 	}
 
+	# Ignore any partial or unknown command
+	next unless $last_line =~ /^restart/;
 	# If last line begins "restart:", the rest of the line is read as
         # extra command line options to add to the restarted mysqld.
         # Anything other than 'wait' or 'restart:' (with a colon) will
@@ -4617,6 +4644,8 @@ sub mysqld_start ($$) {
   my @all_opts= @$extra_opts;
   if (exists $mysqld->{'restart_opts'}) {
     push (@all_opts, @{$mysqld->{'restart_opts'}});
+    mtr_verbose(My::Options::toStr("mysqld_start restart",
+				   @{$mysqld->{'restart_opts'}}));
   }
   mysqld_arguments($args,$mysqld,\@all_opts);
 
@@ -4691,6 +4720,7 @@ sub mysqld_start ($$) {
        nocore        => $opt_skip_core,
        host          => undef,
        shutdown      => sub { mysqld_stop($mysqld) },
+       envs          => \@opt_mysqld_envs,
       );
     mtr_verbose("Started $mysqld->{proc}");
   }
@@ -5705,9 +5735,10 @@ Options for test case authoring
   check-testcases       Check testcases for sideeffects
   mark-progress         Log line number and elapsed time to <testname>.progress
 
-Options that pass on options
+Options that pass on options (these may be repeated)
 
   mysqld=ARGS           Specify additional arguments to "mysqld"
+  mysqld-env=VAR=VAL    Specify additional environment settings for "mysqld"
 
 Options to run test on running server
 
