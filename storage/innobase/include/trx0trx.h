@@ -319,13 +319,17 @@ trx_set_dict_operation(
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->lock, or it must be the thread
 that is serving a running transaction.
+A running transaction must be in trx_sys->trx_list.
 @return	TRUE if trx->state == state */
 UNIV_INLINE
 ibool
 trx_state_eq(
 /*=========*/
 	const trx_t*	trx,	/*!< in: transaction */
-	trx_state_t	state)	/*!< in: state */
+	trx_state_t	state)	/*!< in: state;
+				if state != TRX_STATE_NOT_STARTED
+				asserts that
+				trx->state != TRX_STATE_NOT_STARTED */
 	__attribute__((nonnull, warn_unused_result));
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
