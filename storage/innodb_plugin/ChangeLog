@@ -35,7 +35,6 @@
 	Fix Bug#59707 Unused compression-related parameters
 	in buffer pool functions
 
->>>>>>> MERGE-SOURCE
 2011-01-18	The InnoDB Team
 
 	* include/sync0rw.h, sync/sync0arr.c, sync/sync0rw.c:
