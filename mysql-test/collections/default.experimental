@@ -15,6 +15,7 @@ main.mysqlslap @windows                  # Bug#54024 2010-08-10 alik mysqlslap f
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
+main.subquery_sj_none @solaris           # Bug#47791 2011-01-28 anitha Several test cases fail on Solaris with error Thread stack overrun
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeout fails on OpenSolaris
 
