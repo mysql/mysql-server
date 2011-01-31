@@ -1098,7 +1098,6 @@ HANDLER_WRITE	17
 SELECT * FROM t3 PARTITION (pNeg);
 ERROR HY000: PARTITION () clause on non partitioned table
 DROP TABLE t1, t2, t3;
-SET @@default_storage_engine = @old_default_storage_engine;
 # Test from superseeded WL# 2682
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 CREATE TABLE `t1` (
@@ -1433,3 +1432,4 @@ explain partitions select * from t1 partition (p2) where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 drop table t1;
+SET @@default_storage_engine = @old_default_storage_engine;

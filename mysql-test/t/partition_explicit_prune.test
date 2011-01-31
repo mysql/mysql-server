@@ -496,7 +496,6 @@ eval $get_handler_status_counts;
 SELECT * FROM t3 PARTITION (pNeg);
 
 DROP TABLE t1, t2, t3;
-SET @@default_storage_engine = @old_default_storage_engine;
 #
 --echo # Test from superseeded WL# 2682
 # Partition select tests.
@@ -648,3 +647,4 @@ explain partitions select * from t1 partition (p1) where a=1 or a=2;
 explain partitions select * from t1 partition (p2) where a=1;
 
 drop table t1;
+SET @@default_storage_engine = @old_default_storage_engine;
