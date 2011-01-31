@@ -1192,25 +1192,31 @@ NOTE: we compare the fields as binary strings!
 @return TRUE if update vector changes an ordering field in the index record */
 UNIV_INTERN
 ibool
-row_upd_changes_ord_field_binary(
-/*=============================*/
+row_upd_changes_ord_field_binary_func(
+/*==================================*/
+	dict_index_t*	index,	/*!< in: index of the record */
+	const upd_t*	update,	/*!< in: update vector for the row; NOTE: the
+				field numbers in this MUST be clustered index
+				positions! */
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,	/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	const dtuple_t*	row,	/*!< in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
-	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+	const row_ext_t*ext)	/*!< NULL, or prefixes of the externally
 				stored columns in the old row */
-	dict_index_t*	index,	/*!< in: index of the record */
-	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
-				field numbers in this MUST be clustered index
-				positions! */
 {
 	ulint			n_unique;
 	ulint			i;
 	const dict_index_t*	clust_index;
 
-	ut_ad(update);
 	ut_ad(index);
+	ut_ad(update);
+	ut_ad(thr);
+	ut_ad(thr->graph);
+	ut_ad(thr->graph->trx);
 
 	n_unique = dict_index_get_n_unique(index);
 
@@ -1263,9 +1269,14 @@ row_upd_changes_ord_field_binary(
 
 			if (UNIV_LIKELY_NULL(buf)) {
 				if (UNIV_UNLIKELY(buf == field_ref_zero)) {
-					/* This should never happen, but
-					we try to fail safe here. */
-					ut_ad(0);
+					/* The externally stored field
+					was not written yet. This
+					record should only be seen by
+					recv_recovery_rollback_active(),
+					when the server had crashed before
+					storing the field. */
+					ut_ad(thr->graph->trx->is_recovered);
+					ut_ad(trx_is_recv(thr->graph->trx));
 					return(TRUE);
 				}
 
@@ -1640,8 +1651,8 @@ row_upd_sec_step(
 	ut_ad(!dict_index_is_clust(node->index));
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
-	    || row_upd_changes_ord_field_binary(node->row, node->ext,
-						node->index, node->update)) {
+	    || row_upd_changes_ord_field_binary(node->index, node->update,
+						thr, node->row, node->ext)) {
 		return(row_upd_sec_index_entry(node, thr));
 	}
 
@@ -2169,8 +2180,8 @@ exit_func:
 
 	row_upd_store_row(node);
 
-	if (row_upd_changes_ord_field_binary(node->row, node->ext, index,
-					     node->update)) {
+	if (row_upd_changes_ord_field_binary(index, node->update, thr,
+					     node->row, node->ext)) {
 
 		/* Update causes an ordering field (ordering fields within
 		the B-tree) of the clustered index record to change: perform
