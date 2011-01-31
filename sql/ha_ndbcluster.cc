@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
