@@ -489,8 +489,11 @@ Purges an update of an existing record. Also purges an update of a delete
 marked record if that record contained an externally stored field. */
 static
 void
-row_purge_upd_exist_or_extern(
-/*==========================*/
+row_purge_upd_exist_or_extern_func(
+/*===============================*/
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,		/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	purge_node_t*	node,		/*!< in: row purge node */
 	trx_undo_rec_t*	undo_rec)	/*!< in: record to purge */
 {
@@ -516,8 +519,8 @@ row_purge_upd_exist_or_extern(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(NULL, NULL, node->index,
-						     node->update)) {
+		if (row_upd_changes_ord_field_binary(node->index, node->update,
+						     thr, NULL, NULL)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, NULL,
 						      index, heap);
@@ -598,6 +601,14 @@ skip_secondaries:
 		}
 	}
 }
+
+#ifdef UNIV_DEBUG
+# define row_purge_upd_exist_or_extern(thr,node,undo_rec)	\
+	row_purge_upd_exist_or_extern_func(thr,node,undo_rec)
+#else /* UNIV_DEBUG */
+# define row_purge_upd_exist_or_extern(thr,node,undo_rec)	\
+	row_purge_upd_exist_or_extern_func(node,undo_rec)
+#endif /* UNIV_DEBUG */
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
@@ -708,10 +719,13 @@ err_exit:
 Purges the parsed record. */
 static
 void
-row_purge_record(
-/*=============*/
+row_purge_record_func(
+/*==================*/
 	purge_node_t*	node,		/*!< in: row purge node */
 	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,		/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	ibool		updated_extern)	/*!< in: TRUE if external columns
 					were updated */
 {
@@ -727,7 +741,7 @@ row_purge_record(
 	} else if (updated_extern
 		   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
-		row_purge_upd_exist_or_extern(node, undo_rec);
+		row_purge_upd_exist_or_extern(thr, node, undo_rec);
 	}
 
 	MONITOR_INC(MONITOR_NUM_ROW_PURGE);
@@ -742,6 +756,14 @@ row_purge_record(
 	}
 
 }
+
+#ifdef UNIV_DEBUG
+# define row_purge_record(node,undo_rec,thr,updated_extern)	\
+	row_purge_record_func(node,undo_rec,thr,updated_extern)
+#else /* UNIV_DEBUG */
+# define row_purge_record(node,undo_rec,thr,updated_extern)	\
+	row_purge_record_func(node,undo_rec,updated_extern)
+#endif /* UNIV_DEBUG */
 
 /***********************************************************//**
 Fetches an undo log record and does the purge for the recorded operation.
@@ -763,7 +785,7 @@ row_purge(
 		if (row_purge_parse_undo_rec(
 			node, undo_rec, &updated_extern, thr)) {
 
-			row_purge_record(node, undo_rec, updated_extern);
+			row_purge_record(node, undo_rec, thr, updated_extern);
 
 			rw_lock_s_unlock_gen(&dict_operation_lock, 0);
 		}
