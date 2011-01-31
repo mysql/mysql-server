@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2010 Sun Microsystems Inc.
+Copyright 2010 Sun Microsystems, Inc.
 All rights reserved. Use is subject to license terms.
 
 This program is free software; you can redistribute it and/or modify
