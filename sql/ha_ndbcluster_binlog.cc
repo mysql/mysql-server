@@ -3423,11 +3423,14 @@ struct ndb_binlog_index_row {
   struct ndb_binlog_index_row *next;
 };
 
+
 /*
-  Open the ndb_binlog_index table
+  Open the ndb_binlog_index table for writing
 */
-static int open_and_lock_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
-                                          TABLE **ndb_binlog_index)
+static int
+ndb_binlog_index_table__open(THD *thd,
+                             TABLE_LIST *tables,
+                             TABLE **ndb_binlog_index)
 {
   const char *save_proc_info= thd->proc_info;
 
@@ -3455,12 +3458,13 @@ static int open_and_lock_ndb_binlog_index(THD *thd, TABLE_LIST *tables,
   return 0;
 }
 
-/*
-  Insert one row in the ndb_binlog_index
-*/
 
+/*
+  Write rows to the ndb_binlog_index table
+*/
 static int
-ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
+ndb_binlog_index_table__write_rows(THD *thd,
+                                   ndb_binlog_index_row *row)
 {
   int error= 0;
   ndb_binlog_index_row *first= row;
@@ -3473,7 +3477,7 @@ ndb_add_ndb_binlog_index(THD *thd, ndb_binlog_index_row *row)
   */
   tmp_disable_binlog(thd);
 
-  if (open_and_lock_ndb_binlog_index(thd, &binlog_tables, &ndb_binlog_index))
+  if (ndb_binlog_index_table__open(thd, &binlog_tables, &ndb_binlog_index))
   {
     sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
     error= -1;
@@ -6728,7 +6732,7 @@ restart_cluster_failure:
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
           if (opt_ndb_log_binlog_index)
           {
-            if (ndb_add_ndb_binlog_index(thd, rows))
+            if (ndb_binlog_index_table__write_rows(thd, rows))
             {
               /* 
                  Writing to ndb_binlog_index failed, check if we are
@@ -6740,7 +6744,7 @@ restart_cluster_failure:
                 volatile THD::killed_state killed= thd->killed;
                 /* We are cleaning up, allow for flushing last epoch */
                 thd->killed= THD::NOT_KILLED;
-                ndb_add_ndb_binlog_index(thd, rows);
+                ndb_binlog_index_table__write_rows(thd, rows);
                 /* Restore kill flag */
                 thd->killed= killed;
                 (void) mysql_mutex_unlock(&LOCK_thread_count);
