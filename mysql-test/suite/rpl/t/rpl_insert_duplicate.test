@@ -1,0 +1,14 @@
+#########################################
+# Wrapper for rpl_insert_duplicate.test #
+#########################################
+-- source include/master-slave.inc
+-- source include/have_innodb.inc
+#-- source include/have_binlog_format_mixed_or_statement.inc
+
+let $engine_type=innodb;
+-- source extra/rpl_tests/rpl_insert_duplicate.test
+
+let $engine_type=myisam;
+-- source extra/rpl_tests/rpl_insert_duplicate.test
+
+--source include/rpl_end.inc
