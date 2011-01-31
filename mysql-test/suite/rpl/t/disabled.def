@@ -11,7 +11,6 @@
 ##############################################################################
 
 rpl_row_create_table : Bug#51574 Feb 27 2010 andrei failed different way than earlier with bug#45576
-rpl_log_pos : BUG#55675 Sep 10 2010 27 2010 alfranio rpl.rpl_log_pos fails sporadically with error binlog truncated in the middle
 rpl_get_master_version_and_clock : Bug#59178 Jan 05 2011 joro Valgrind warnings rpl_get_master_version_and_clock
 rpl_row_until : BUG#59543 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
 rpl_stm_until : BUG#59543 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
