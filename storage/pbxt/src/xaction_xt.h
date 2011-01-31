@@ -193,6 +193,8 @@ void			xt_wakeup_sweeper(struct XTDatabase *db);
 
 xtBool			xt_xn_begin(struct XTThread *self);
 xtBool			xt_xn_commit(struct XTThread *self);
+xtBool			xt_xn_commit_fast(struct XTThread *self, xtBool writer);
+xtBool			xt_xn_commit_slow(struct XTThread *self, xtBool writer);
 xtBool			xt_xn_rollback(struct XTThread *self);
 xtBool			xt_xn_log_tab_id(struct XTThread *self, xtTableID tab_id);
 int				xt_xn_status(struct XTOpenTable *ot, xtXactID xn_id, xtRecordID rec_id);
