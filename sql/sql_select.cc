@@ -17090,6 +17090,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       last_tab->read_record.copy_field_end= sjm->copy_field +
                                             sjm->table_cols.elements;
       last_tab->read_record.read_record= rr_sequential_and_unpack;
+
+      // Clear possible outer join information from earlier use of this join tab
+      last_tab->last_inner= NULL;
     }
   }
   else
