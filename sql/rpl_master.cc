@@ -900,9 +900,12 @@ impossible position";
        file */
     if (reset_transmit_packet(thd, flags, &ev_offset, &errmsg))
       goto err;
+
+    my_off_t prev_pos= pos;
     while (!(error = Log_event::read_log_event(&log, packet, log_lock,
                                                current_checksum_alg)))
     {
+      prev_pos= my_b_tell(&log);
 #ifndef DBUG_OFF
       if (max_binlog_dump_events && !left_events--)
       {
@@ -1010,8 +1013,13 @@ impossible position";
       of a crash ?). treat any corruption as EOF
     */
     if (binlog_can_be_corrupted &&
-        (error != LOG_READ_MEM && error != LOG_READ_CHECKSUM_FAILURE))
+        error != LOG_READ_MEM &&
+        error != LOG_READ_CHECKSUM_FAILURE &&
+        error != LOG_READ_EOF)
+    {
+      my_b_seek(&log, prev_pos);
       error=LOG_READ_EOF;
+    }
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
