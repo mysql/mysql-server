@@ -404,7 +404,10 @@ btr_estimate_n_rows_in_range(
 /***********************************************************************
 Estimates the number of different key values in a given index, for
 each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals. */
+The estimates are stored in the array index->stat_n_diff_key_vals.
+If innodb_stats_method is nulls_ignored, we also record the number of
+non-null values for each prefix and stored the estimates in
+array index->stat_n_non_null_key_vals. */
 
 void
 btr_estimate_number_of_different_key_vals(

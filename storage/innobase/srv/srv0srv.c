@@ -218,6 +218,11 @@ ulong	srv_max_buf_pool_modified_pct	= 90;
 /* variable counts amount of data read in total (in bytes) */
 ulint srv_data_read = 0;
 
+/* Internal setting for "innodb_stats_method". Decides how InnoDB treats
+NULL value when collecting statistics. By default, it is set to
+SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
+ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
+
 /* here we count the amount of data written in total (in bytes) */
 ulint srv_data_written = 0;
 
