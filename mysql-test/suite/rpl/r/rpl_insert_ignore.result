@@ -30,11 +30,11 @@ CREATE TABLE t1 (
 a int unsigned not null auto_increment primary key,
 b int unsigned,
 unique (b)
-) ENGINE=innodb;
+) ENGINE=myisam;
 CREATE TABLE t2 (
 a int unsigned, # to force INSERT SELECT to have a certain order
 b int unsigned
-) ENGINE=innodb;
+) ENGINE=myisam;
 INSERT INTO t1 VALUES (NULL, 1);
 INSERT INTO t1 VALUES (NULL, 2);
 INSERT INTO t1 VALUES (NULL, 3);
