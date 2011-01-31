@@ -2266,9 +2266,14 @@ ha_innobase::reset_template(void)
 
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
-	/* Reset index condition pushdown state */
-	prebuilt->idx_cond = NULL;
-	prebuilt->idx_cond_n_cols = 0;
+	/* Reset index condition pushdown state. */
+	if (prebuilt->idx_cond) {
+		prebuilt->idx_cond = NULL;
+		prebuilt->idx_cond_n_cols = 0;
+		/* Invalidate prebuilt->mysql_template
+		in ha_innobase::write_row(). */
+		prebuilt->template_type = ROW_MYSQL_NO_TEMPLATE;
+	}
 }
 
 /*****************************************************************//**
