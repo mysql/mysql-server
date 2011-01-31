@@ -489,8 +489,11 @@ Purges an update of an existing record. Also purges an update of a delete
 marked record if that record contained an externally stored field. */
 static
 void
-row_purge_upd_exist_or_extern(
-/*==========================*/
+row_purge_upd_exist_or_extern_func(
+/*===============================*/
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,	/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	purge_node_t*	node)	/*!< in: row purge node */
 {
 	mem_heap_t*	heap;
@@ -515,8 +518,8 @@ row_purge_upd_exist_or_extern(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(NULL, NULL, node->index,
-						     node->update)) {
+		if (row_upd_changes_ord_field_binary(node->index, node->update,
+						     thr, NULL, NULL)) {
 			/* Build the older version of the index entry */
 			entry = row_build_index_entry(node->row, NULL,
 						      index, heap);
@@ -597,6 +600,14 @@ skip_secondaries:
 		}
 	}
 }
+
+#ifdef UNIV_DEBUG
+# define row_purge_upd_exist_or_extern(thr,node)	\
+	row_purge_upd_exist_or_extern_func(thr,node)
+#else /* UNIV_DEBUG */
+# define row_purge_upd_exist_or_extern(thr,node)	\
+	row_purge_upd_exist_or_extern_func(node)
+#endif /* UNIV_DEBUG */
 
 /***********************************************************//**
 Parses the row reference and other info in a modify undo log record.
@@ -756,7 +767,7 @@ row_purge(
 		} else if (updated_extern
 			   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
-			row_purge_upd_exist_or_extern(node);
+			row_purge_upd_exist_or_extern(thr, node);
 		}
 
 		if (node->found_clust) {
