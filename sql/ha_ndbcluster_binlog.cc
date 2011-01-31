@@ -3460,7 +3460,7 @@ ndb_binlog_index_table__write_rows(THD *thd,
 
   if (ndb_binlog_index_table__open(thd, &ndb_binlog_index))
   {
-    sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
+    sql_print_error("NDB Binlog: Unable to open ndb_binlog_index table");
     error= -1;
     goto add_ndb_binlog_index_err;
   }
