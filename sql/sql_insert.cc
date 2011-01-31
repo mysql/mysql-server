@@ -979,7 +979,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
 
-    if ((changed && error <= 0) ||
+    if (error <= 0 ||
         thd->transaction.stmt.modified_non_trans_table ||
         was_insert_delayed)
     {

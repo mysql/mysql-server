@@ -502,16 +502,16 @@ call p_verify_status_increment(2, 2, 2, 2);
 --echo # 12. Read-write statement: IODKU, change 0 rows. 
 --echo #
 insert t1 set a=2 on duplicate key update a=2;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(2, 2, 1, 0);
 commit;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(2, 2, 1, 0);
 
 --echo # 13. Read-write statement: INSERT IGNORE, change 0 rows. 
 --echo #
 insert ignore t1 set a=2;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(2, 2, 1, 0);
 commit;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(2, 2, 1, 0);
 
 --echo # 14. Read-write statement: INSERT IGNORE, change 1 row. 
 --echo #
