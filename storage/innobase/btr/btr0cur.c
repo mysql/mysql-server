@@ -1886,8 +1886,8 @@ btr_cur_update_in_place(
 		NOT call it if index is secondary */
 
 		if (!dict_index_is_clust(index)
-		    || row_upd_changes_ord_field_binary(NULL, NULL,
-							index, update)) {
+		    || row_upd_changes_ord_field_binary(index, update, thr,
+							NULL, NULL)) {
 
 			/* Remove possible hash index pointer to this record */
 			btr_search_update_hash_on_delete(cursor);

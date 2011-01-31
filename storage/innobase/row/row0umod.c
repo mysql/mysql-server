@@ -693,8 +693,9 @@ row_undo_mod_upd_exist_sec(
 	while (node->index != NULL) {
 		index = node->index;
 
-		if (row_upd_changes_ord_field_binary(
-			    node->row, node->ext, node->index, node->update)) {
+		if (row_upd_changes_ord_field_binary(node->index, node->update,
+						     thr,
+						     node->row, node->ext)) {
 
 			/* Build the newest version of the index entry */
 			entry = row_build_index_entry(node->row, node->ext,

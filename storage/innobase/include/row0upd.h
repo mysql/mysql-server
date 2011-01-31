@@ -280,19 +280,29 @@ NOTE: we compare the fields as binary strings!
 @return TRUE if update vector changes an ordering field in the index record */
 UNIV_INTERN
 ibool
-row_upd_changes_ord_field_binary(
-/*=============================*/
+row_upd_changes_ord_field_binary_func(
+/*==================================*/
+	dict_index_t*	index,	/*!< in: index of the record */
+	const upd_t*	update,	/*!< in: update vector for the row; NOTE: the
+				field numbers in this MUST be clustered index
+				positions! */
+#ifdef UNIV_DEBUG
+	const que_thr_t*thr,	/*!< in: query thread */
+#endif /* UNIV_DEBUG */
 	const dtuple_t*	row,	/*!< in: old value of row, or NULL if the
 				row and the data values in update are not
 				known when this function is called, e.g., at
 				compile time */
-	const row_ext_t*ext,	/*!< NULL, or prefixes of the externally
+	const row_ext_t*ext)	/*!< NULL, or prefixes of the externally
 				stored columns in the old row */
-	dict_index_t*	index,	/*!< in: index of the record */
-	const upd_t*	update)	/*!< in: update vector for the row; NOTE: the
-				field numbers in this MUST be clustered index
-				positions! */
-	__attribute__((nonnull(3,4), warn_unused_result));
+	__attribute__((nonnull(1,2), warn_unused_result));
+#ifdef UNIV_DEBUG
+# define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
+	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext)
+#else /* UNIV_DEBUG */
+# define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
+	row_upd_changes_ord_field_binary_func(index,update,row,ext)
+#endif /* UNIV_DEBUG */
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
