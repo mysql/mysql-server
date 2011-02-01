@@ -54,6 +54,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/DefaultConnectValuesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DeleteAllByClassTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DeleteInsertTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/DeleteQueryAllPrimitivesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DomainTypeHandlerFactoryTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DynamicObjectTest.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
