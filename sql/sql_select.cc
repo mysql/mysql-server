@@ -17642,26 +17642,41 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
-        if (tab->table->reginfo.not_exists_optimize)
-        {
-          /*
-            When not_exists_optimizer is set and a matching row is found, the
-            outer row should be excluded from the result set: no need to
-            explore this record and other records of 'tab', so we return "no
-            records". But as we set 'found' above, evaluate_join_record() at
-            the upper level will not yield a NULL-complemented record.
-          */
-          DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-        }
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
           will be re-evaluated again. It could be fixed, but, probably,
           it's not worth doing now.
         */
+        /*
+          not_exists_optimize has been created from a
+          select_cond containing 'is_null'. This 'is_null'
+          predicate is still present on any 'tab' with
+          'not_exists_optimize'. Furthermore, the usual rules
+          for condition guards also applies for
+          'not_exists_optimize' -> When 'is_null==false' we
+          know all cond. guards are open and we can apply
+          the 'not_exists_optimize'.
+        */
+        DBUG_ASSERT(!(tab->table->reginfo.not_exists_optimize &&
+                     !tab->select_cond));
+
         if (tab->select_cond && !tab->select_cond->val_int())
         {
           /* The condition attached to table tab is false */
+
+          if (tab->table->reginfo.not_exists_optimize)
+          {
+            /*
+              When not_exists_optimizer is set and a matching row is found, the
+              outer row should be excluded from the result set: no need to
+              explore this record and other records of 'tab', so we return "no
+              records". But as we set 'found' above, evaluate_join_record() at
+              the upper level will not yield a NULL-complemented record.
+            */
+            DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+          }
+
           if (tab == join_tab)
             found= 0;
           else
