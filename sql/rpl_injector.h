@@ -209,6 +209,16 @@ public:
       */
       int commit();
 
+#ifndef MCP_BUG58082
+       /*
+        Rollback a transaction.
+
+        This member function will clean up after a sequence of *_row calls by,
+        for example, releasing resource and unlocking files.
+      */
+      int rollback();
+#endif
+
       /*
         Get the position for the start of the transaction.
 

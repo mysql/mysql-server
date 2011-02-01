@@ -97,6 +97,21 @@ int injector::transaction::commit()
    DBUG_RETURN(error);
 }
 
+#ifndef MCP_BUG58082
+int injector::transaction::rollback()
+{
+   DBUG_ENTER("injector::transaction::rollback()");
+   trans_rollback_stmt(m_thd);
+   if (!trans_rollback(m_thd))
+   {
+     close_thread_tables(m_thd);
+     if (!m_thd->locked_tables_mode)
+       m_thd->mdl_context.release_transactional_locks();
+   }
+   DBUG_RETURN(0);
+}
+#endif
+
 
 int injector::transaction::use_table(server_id_type sid, table tbl)
 {
