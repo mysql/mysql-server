@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1039,6 +1039,14 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
   LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
   DBUG_ASSERT(list);
+
+  /*
+    In unit tests, LOCK_plugin may be uninitialized, so do not lock it.
+    Besides: there's no point in locking it, if there are no plugins to unlock.
+   */
+  if (count == 0)
+    DBUG_VOID_RETURN;
+
   mysql_mutex_lock(&LOCK_plugin);
   while (count--)
     intern_plugin_unlock(lex, *list++);
