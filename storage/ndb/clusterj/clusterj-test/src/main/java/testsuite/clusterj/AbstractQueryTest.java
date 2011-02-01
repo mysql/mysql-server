@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -229,6 +228,14 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             errorIfNotEqual("Wrong ids returned from " + theQuery + " query: ",
                     expectedSet, actualSet);
             }
+
+        public void checkDeletePersistentAll(String where, int expectedNumberOfDeletedInstances) {
+            int result = query.deletePersistentAll();
+            errorIfNotEqual("Wrong index used in  " + where + " delete  query: ",
+                    expectedIndex, query.explain().get("IndexUsed"));
+            errorIfNotEqual("Wrong number of instances deleted for " + where, 
+                    expectedNumberOfDeletedInstances, result);
+        }
     }
 
     /** This interface is for extra predicates. When the method is invoked, the
@@ -280,6 +287,21 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " equal");
+        tx.commit();
+    }
+
+    public void deleteEqualQuery(String propertyName, String expectedIndex,
+            Object parameterValue, int expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        // specify the where clause
+        holder.dobj.where(holder.equal);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        // get the results
+        holder.checkDeletePersistentAll(propertyName + " delete equal", expected);
         tx.commit();
     }
 
@@ -422,6 +444,24 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " lessThanAndGreaterThan");
+        tx.commit();
+    }
+
+    public void deleteGreaterThanAndLessThanQuery(String propertyName, String expectedIndex,
+            Object parameterLowerValue, Object parameterUpperValue,
+            int expected) {
+
+        tx.begin();
+        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        // set the where clause into the query
+        holder.dobj.where(holder.greaterThanAndLessThan);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterUpper(parameterUpperValue);
+        holder.setParameterLower(parameterLowerValue);
+        // get the results
+        holder.checkDeletePersistentAll(propertyName + " delete lessThanAndGreaterThan", expected);
         tx.commit();
     }
 

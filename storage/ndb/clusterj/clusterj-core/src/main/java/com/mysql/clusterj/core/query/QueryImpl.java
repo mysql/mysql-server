@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +75,14 @@ public class QueryImpl<E> implements Query<E> {
         // create new context, copying the parameters, for another execution
         context = new QueryExecutionContextImpl(context);
         return results;
+    }
+
+    /** Delete the instances that satisfy the query criteria.
+     * @return the number of instances deleted
+     */
+    public int deletePersistentAll() {
+        int result = dobj.deletePersistentAll(context);
+        return result;
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -501,54 +501,27 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @param cls the class of instances to delete
      */
     public <T> int deletePersistentAll(Class<T> cls) {
-        DomainTypeHandler domainTypeHandler = getDomainTypeHandler(cls);
+        DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls);
         return deletePersistentAll(domainTypeHandler);
     }
 
     /** Delete all instances of the parameter domainTypeHandler.
      * @param domainTypeHandler the domainTypeHandler of instances to delete
+     * @return the number of instances deleted
      */
-    public int deletePersistentAll(DomainTypeHandler domainTypeHandler) {
+    public int deletePersistentAll(DomainTypeHandler<?> domainTypeHandler) {
         startAutoTransaction();
         // cannot use early autocommit optimization here
         clusterTransaction.setAutocommit(false);
         Table storeTable = domainTypeHandler.getStoreTable();
         ScanOperation op = null;
         int count = 0;
-        int cacheCount = 0;
         try {
-            op = clusterTransaction.getSelectScanOperationLockModeExclusiveScanFlagKeyInfo(storeTable);
+            op = clusterTransaction.getTableScanOperationLockModeExclusiveScanFlagKeyInfo(storeTable);
 //                    Operation.LockMode.LM_Exclusive,
 //                    ScanOperation.ScanFlag.KEY_INFO, 0,0);
             clusterTransaction.executeNoCommit(true, true);
-            boolean done = false;
-            boolean fetch = true;
-            while (!done ) {
-                int result = op.nextResult(fetch);
-                switch (result) {
-                    case RESULT_READY:
-                        op.deleteCurrentTuple();
-                        ++count;
-                        ++cacheCount;
-                        fetch = false;
-                        break;
-                    case SCAN_FINISHED:
-                        done = true;
-                        if (cacheCount != 0) {
-                            clusterTransaction.executeNoCommit(true, true);
-                        }
-                        op.close();
-                        break;
-                    case CACHE_EMPTY:
-                        clusterTransaction.executeNoCommit(true, true);
-                        cacheCount = 0;
-                        fetch = true;
-                        break;
-                    default: 
-                        throw new ClusterJException(
-                                local.message("ERR_Next_Result_Illegal", result));
-                }
-            }
+            count = deletePersistentAll(op, true);
         } catch (ClusterJException ex) {
             failAutoTransaction();
             // TODO add table name to the error message
@@ -556,6 +529,45 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     local.message("ERR_Select_Scan"), ex);
         }
         endAutoTransaction();
+        return count;
+    }
+
+    /** Delete all instances retrieved by the operation. The operation must have exclusive
+     * access to the instances and have the ScanFlag.KEY_INFO flag set.
+     * @param op the scan operation
+     * @return the number of instances deleted
+     */
+    public int deletePersistentAll(ScanOperation op, boolean abort) {
+        int cacheCount = 0;
+        int count = 0;
+        boolean done = false;
+        boolean fetch = true;
+        while (!done ) {
+            int result = op.nextResult(fetch);
+            switch (result) {
+                case RESULT_READY:
+                    op.deleteCurrentTuple();
+                    ++count;
+                    ++cacheCount;
+                    fetch = false;
+                    break;
+                case SCAN_FINISHED:
+                    done = true;
+                    if (cacheCount != 0) {
+                        clusterTransaction.executeNoCommit(abort, true);
+                    }
+                    op.close();
+                    break;
+                case CACHE_EMPTY:
+                    clusterTransaction.executeNoCommit(abort, true);
+                    cacheCount = 0;
+                    fetch = true;
+                    break;
+                default: 
+                    throw new ClusterJException(
+                            local.message("ERR_Next_Result_Illegal", result));
+            }
+        }
         return count;
     }
 
@@ -1121,7 +1133,25 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         // TODO make this possible outside a transaction
         assertActive();
         try {
-            IndexScanOperation result = clusterTransaction.getSelectIndexScanOperation(storeIndex, storeTable);
+            IndexScanOperation result = clusterTransaction.getIndexScanOperation(storeIndex, storeTable);
+            return result;
+        } catch (ClusterJException ex) {
+            throw new ClusterJException(
+                    local.message("ERR_Index_Scan", storeTable.getName(), storeIndex.getName()), ex);
+        }
+    }
+
+    /** Create an index scan delete operation for an index and table.
+     * 
+     * @param storeIndex the index
+     * @param storeTable the table
+     * @return the index scan operation
+     */
+    public IndexScanOperation getIndexScanDeleteOperation(Index storeIndex, Table storeTable) {
+        // TODO make this possible outside a transaction
+        assertActive();
+        try {
+            IndexScanOperation result = clusterTransaction.getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(storeIndex, storeTable);
             return result;
         } catch (ClusterJException ex) {
             throw new ClusterJException(
@@ -1137,7 +1167,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     public ScanOperation getTableScanOperation(Table storeTable) {
         assertActive();
         try {
-            ScanOperation result = clusterTransaction.getSelectScanOperation(storeTable);
+            ScanOperation result = clusterTransaction.getTableScanOperation(storeTable);
             return result;
         } catch (ClusterJException ex) {
             throw new ClusterJException(
@@ -1145,16 +1175,32 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
         }
     }
 
+    /** Create a table scan delete operation for a table.
+    *
+    * @param storeTable the table
+    * @return the table scan operation
+    */
+   public ScanOperation getTableScanDeleteOperation(Table storeTable) {
+       assertActive();
+       try {
+           ScanOperation result = clusterTransaction.getTableScanOperationLockModeExclusiveScanFlagKeyInfo(storeTable);
+           return result;
+       } catch (ClusterJException ex) {
+           throw new ClusterJException(
+                   local.message("ERR_Table_Scan", storeTable.getName()), ex);
+       }
+   }
+
     /** Create an index operation for an index and table.
      *
      * @param storeIndex the index
      * @param storeTable the table
      * @return the index operation
      */
-    public IndexOperation getIndexOperation(Index storeIndex, Table storeTable) {
+    public IndexOperation getUniqueIndexOperation(Index storeIndex, Table storeTable) {
         assertActive();
         try {
-            IndexOperation result = clusterTransaction.getSelectUniqueOperation(storeIndex, storeTable);
+            IndexOperation result = clusterTransaction.getUniqueIndexOperation(storeIndex, storeTable);
             return result;
         } catch (ClusterJException ex) {
             throw new ClusterJException(
@@ -1177,6 +1223,39 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
                     local.message("ERR_Select_Scan", storeTable), ex);
         }
     }
+
+    /** Create a delete operation for a table.
+     * 
+     * @param storeTable the table
+     * @return the operation
+     */
+    public Operation getDeleteOperation(Table storeTable) {
+        assertActive();
+        try {
+            Operation result = clusterTransaction.getDeleteOperation(storeTable);
+            return result;
+        } catch (ClusterJException ex) {
+            throw new ClusterJException(
+                    local.message("ERR_Delete", storeTable), ex);
+        }
+    }
+
+    /** Create an index delete operation for an index and table.
+    *
+    * @param storeIndex the index
+    * @param storeTable the table
+    * @return the index operation
+    */
+   public IndexOperation getUniqueIndexDeleteOperation(Index storeIndex, Table storeTable) {
+       assertActive();
+       try {
+           IndexOperation result = clusterTransaction.getUniqueIndexDeleteOperation(storeIndex, storeTable);
+           return result;
+       } catch (ClusterJException ex) {
+           throw new ClusterJException(
+                   local.message("ERR_Index_Delete", storeTable.getName(), storeIndex.getName()), ex);
+       }
+   }
 
     public void flush() {
         if (logger.isDetailEnabled()) logger.detail("flush changes with changeList size: " + changeList.size());
@@ -1243,11 +1322,22 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
     /** Execute any pending operations (insert, delete, update, load)
      * and then perform post-execute operations (for load) via
      * clusterTransaction.postExecuteCallback().
+     * @param abort abort this transaction on error
+     * @param force force the operation to be sent immediately
+     */
+    public void executeNoCommit(boolean abort, boolean force) {
+        if (clusterTransaction != null) {
+            clusterTransaction.executeNoCommit(abort, force);
+        }
+    }
+
+    /** Execute any pending operations (insert, delete, update, load)
+     * and then perform post-execute operations (for load) via
+     * clusterTransaction.postExecuteCallback().
+     * Abort the transaction on error. Force the operation to be sent immediately.
      */
     public void executeNoCommit() {
-        if (clusterTransaction != null) {
-            clusterTransaction.executeNoCommit();
-        }
+        executeNoCommit(true, true);
     }
 
     public <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> domainTypeHandler) {

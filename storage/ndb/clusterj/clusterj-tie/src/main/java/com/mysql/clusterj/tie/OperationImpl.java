@@ -1,5 +1,5 @@
 /*
-   Copyright 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -283,6 +283,10 @@ class OperationImpl implements Operation {
         int returnCode = ndbOperation.setValue(storeColumn.getColumnId(), stringStorageBuffer);
         bufferManager.clearStringStorageBuffer();
         handleError(returnCode, ndbOperation);
+    }
+
+    public int errorCode() {
+        return ndbOperation.getNdbError().code();
     }
 
     protected void handleError(int returnCode, NdbOperation ndbOperation) {

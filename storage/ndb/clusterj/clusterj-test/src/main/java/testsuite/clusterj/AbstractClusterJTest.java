@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +37,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -488,25 +488,27 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     protected boolean testSchema() {
         try {
-            PreparedStatement ps = connection.prepareStatement(schemaDefinition.get(1));
-            ps.execute();
-            ps.close();
+            Statement statement = connection.createStatement();
+            statement.execute(schemaDefinition.get(1));
+            statement.close();
             return true;
         } catch (SQLException ex) {
-            if (debug) ex.printStackTrace();
-            System.out.println("Test schema failed (normal)" + schemaDefinition.get(1));
+            if (debug) {
+                ex.printStackTrace();
+            }
+            System.out.println("Test schema failed (normal) " + schemaDefinition.get(1));
             return false;
         }
     }
 
     protected boolean resetSchema() {
         try {
-            PreparedStatement ps = connection.prepareStatement(schemaDefinition.get(0));
-            ps.execute();
-            ps.close();
+            Statement statement = connection.createStatement();
+            statement.execute(schemaDefinition.get(0));
+            statement.close();
             return true;
         } catch (SQLException ex) {
-            System.out.println("Test schema failed (normal)" + schemaDefinition.get(0));
+            System.out.println("Test schema failed (normal) " + schemaDefinition.get(0));
             return false;
         }
     }

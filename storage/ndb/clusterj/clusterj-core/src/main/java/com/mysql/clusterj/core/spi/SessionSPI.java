@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,6 +50,8 @@ public interface SessionSPI extends Session {
 
     int deletePersistentAll(DomainTypeHandler<?> domainTypeHandler);
 
+    int deletePersistentAll(ScanOperation op, boolean abort);
+
     void begin();
 
     void commit();
@@ -67,15 +68,25 @@ public interface SessionSPI extends Session {
 
     void failAutoTransaction();
 
+    void executeNoCommit();
+
+    void executeNoCommit(boolean abort, boolean force);
+
     Operation getSelectOperation(Table storeTable);
 
-    void executeNoCommit();
+    Operation getDeleteOperation(Table storeTable);
+
+    IndexOperation getUniqueIndexOperation(Index storeIndex, Table storeTable);
+
+    IndexOperation getUniqueIndexDeleteOperation(Index storeIndex, Table storeTable);
 
     IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable);
 
+    IndexScanOperation getIndexScanDeleteOperation(Index storeIndex, Table storeTable);
+
     ScanOperation getTableScanOperation(Table storeTable);
 
-    IndexOperation getIndexOperation(Index storeIndex, Table storeTable);
+    ScanOperation getTableScanDeleteOperation(Table storeTable);
 
     Dictionary getDictionary();
 
