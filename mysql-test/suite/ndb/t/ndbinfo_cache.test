@@ -1,0 +1,31 @@
+--source include/have_query_cache.inc
+--source include/have_ndb.inc
+
+--source ndbinfo_create.inc
+
+USE ndbinfo;
+
+# BUG#59831 ndbinfo - counters not increasing after first query
+# - ndbinfo tables should never be cached in query cache
+
+# Turn on and reset query cache
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+
+# Perform same query several times, which were inserted
+# in the cache  before fix but not inserted anymore
+--disable_result_log
+select * from counters;
+select * from counters;
+select * from counters;
+--enable_result_log
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+
+# Turn off query cache
+SET GLOBAL query_cache_size=default;
+SET GLOBAL query_cache_type=default;
+
+--source ndbinfo_drop.inc
