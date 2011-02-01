@@ -55,7 +55,7 @@ drop table t4;
 create table t4 (a int, b int) ENGINE=MyISAM /* for killing update and delete */;
 create function bug27563(n int) 
 RETURNS int(11)
-DETERMINISTIC
+NOT DETERMINISTIC
 begin
 if @b > 0 then
 select get_lock("a", 20)  into @a;
