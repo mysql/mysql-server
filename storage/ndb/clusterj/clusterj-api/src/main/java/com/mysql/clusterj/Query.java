@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,6 +57,11 @@ public interface Query<E> {
      * @throws ClusterJDatastoreException if an exception is reported by the datastore
      */
     List<E> getResultList();
+
+    /** Delete the instances that satisfy the query criteria.
+     * @return the number of instances deleted
+     */
+    int deletePersistentAll();
 
     /** Execute the query with exactly one parameter.
      * @param parameter the parameter

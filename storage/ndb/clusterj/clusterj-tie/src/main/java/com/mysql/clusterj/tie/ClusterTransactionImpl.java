@@ -1,24 +1,22 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- *  All rights reserved. Use is subject to license terms.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 package com.mysql.clusterj.tie;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -219,7 +217,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new OperationImpl(ndbOperation, this);
     }
 
-    public IndexScanOperation getSelectIndexScanOperation(Index storeIndex, Table storeTable) {
+    public IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable) {
         enlist();
         IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
         handleError(ndbIndex, ndbDictionary);
@@ -227,6 +225,22 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbOperation, ndbTransaction);
         int lockMode = indexScanLockMode;
         int scanFlags = 0;
+        int parallel = 0;
+        int batch = 0;
+        int returnCode = ndbOperation.readTuples(lockMode, scanFlags, parallel, batch);
+        handleError(returnCode, ndbTransaction);
+        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
+        return new IndexScanOperationImpl(storeTable, ndbOperation, this);
+    }
+
+    public IndexScanOperation getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(Index storeIndex, Table storeTable) {
+        enlist();
+        IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
+        handleError(ndbIndex, ndbDictionary);
+        NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
+        handleError(ndbOperation, ndbTransaction);
+        int lockMode = com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_Exclusive;
+        int scanFlags = ScanFlag.SF_KeyInfo;
         int parallel = 0;
         int batch = 0;
         int returnCode = ndbOperation.readTuples(lockMode, scanFlags, parallel, batch);
@@ -248,7 +262,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new OperationImpl(storeTable, ndbOperation, this);
     }
 
-    public ScanOperation getSelectScanOperation(Table storeTable) {
+    public ScanOperation getTableScanOperation(Table storeTable) {
         enlist();
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
@@ -264,7 +278,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new ScanOperationImpl(storeTable, ndbScanOperation, this);
     }
 
-    public ScanOperation getSelectScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable) {
+    public ScanOperation getTableScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable) {
         enlist();
         TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
         handleError(ndbTable, ndbDictionary);
@@ -280,7 +294,7 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new ScanOperationImpl(storeTable, ndbScanOperation, this);
     }
 
-    public IndexOperation getSelectUniqueOperation(Index storeIndex, Table storeTable) {
+    public IndexOperation getUniqueIndexOperation(Index storeIndex, Table storeTable) {
         enlist();
         IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
         handleError(ndbIndex, ndbDictionary);
@@ -288,6 +302,18 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbIndexOperation, ndbTransaction);
         int lockMode = lookupLockMode;
         int returnCode = ndbIndexOperation.readTuple(lockMode);
+        handleError(returnCode, ndbTransaction);
+        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
+        return new IndexOperationImpl(storeTable, ndbIndexOperation, this);
+    }
+
+    public IndexOperation getUniqueIndexDeleteOperation(Index storeIndex, Table storeTable) {
+        enlist();
+        IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
+        handleError(ndbIndex, ndbDictionary);
+        NdbIndexOperation ndbIndexOperation = ndbTransaction.getNdbIndexOperation(ndbIndex);
+        handleError(ndbIndexOperation, ndbTransaction);
+        int returnCode = ndbIndexOperation.deleteTuple();
         handleError(returnCode, ndbTransaction);
         if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
         return new IndexOperationImpl(storeTable, ndbIndexOperation, this);

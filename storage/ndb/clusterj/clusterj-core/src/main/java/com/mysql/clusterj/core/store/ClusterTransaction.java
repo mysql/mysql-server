@@ -1,5 +1,5 @@
 /*
-   Copyright 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,23 +36,27 @@ public interface ClusterTransaction {
 
     public void executeRollback();
 
-    public Operation getDeleteOperation(Table storeTable);
-
-    public Operation getInsertOperation(Table storeTable);
-
-    public IndexScanOperation getSelectIndexScanOperation(Index storeIndex, Table storeTable);
-
     public Operation getSelectOperation(Table storeTable);
 
-    public ScanOperation getSelectScanOperation(Table storeTable);
-
-    public ScanOperation getSelectScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable);
-
-    public IndexOperation getSelectUniqueOperation(Index storeIndex, Table storeTable);
+    public Operation getInsertOperation(Table storeTable);
 
     public Operation getUpdateOperation(Table storeTable);
 
     public Operation getWriteOperation(Table storeTable);
+
+    public Operation getDeleteOperation(Table storeTable);
+
+    public IndexOperation getUniqueIndexOperation(Index storeIndex, Table storeTable);
+
+    public IndexOperation getUniqueIndexDeleteOperation(Index storeIndex, Table storeTable);
+
+    public IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable);
+
+    public IndexScanOperation getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(Index storeIndex, Table storeTable);
+
+    public ScanOperation getTableScanOperation(Table storeTable);
+
+    public ScanOperation getTableScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable);
 
     public boolean isEnlisted();
 
