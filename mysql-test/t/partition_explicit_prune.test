@@ -647,4 +647,74 @@ explain partitions select * from t1 partition (p1) where a=1 or a=2;
 explain partitions select * from t1 partition (p2) where a=1;
 
 drop table t1;
+
+--echo #
+--echo # Bug#59864: Crash if table empty: DELETE FROM t2 PARTITION (subp3).
+--echo #
+CREATE TABLE t1
+(a INT NOT NULL,
+ b varchar (64),
+ INDEX (b,a),
+ PRIMARY KEY (a))
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION pNeg VALUES LESS THAN (0)
+ (SUBPARTITION subp0,
+  SUBPARTITION subp1,
+  SUBPARTITION subp2),
+ PARTITION `p0-29` VALUES LESS THAN (30)
+ (SUBPARTITION subp3,
+  SUBPARTITION subp4,
+  SUBPARTITION subp5),
+ PARTITION `p30-299` VALUES LESS THAN (300)
+ (SUBPARTITION subp6,
+  SUBPARTITION subp7,
+  SUBPARTITION subp8),
+ PARTITION `p300-2999` VALUES LESS THAN (3000)
+ (SUBPARTITION subp9,
+  SUBPARTITION subp10,
+  SUBPARTITION subp11),
+ PARTITION `p3000-299999` VALUES LESS THAN (300000)
+ (SUBPARTITION subp12,
+  SUBPARTITION subp13,
+  SUBPARTITION subp14));
+
+eval SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (-9, "negative nine"), (-8, "-8"), (-7, "-7"), (-6, "-6"), (-5, "-5"), (-4, "-4"), (-3, "-3"), (-2, "-2"), (-1, "-1");
+INSERT INTO t1 VALUES (9, "nine"), (8, "8"), (7, "7"), (6, "6"), (5, "5"), (4, "4"), (3, "3"), (2, "2"), (1, "1");
+INSERT INTO t1 VALUES (39, "Thirty nine"), (38, "38"), (37, "37"), (36, "36"), (35, "35"), (34, "34"), (33, "33"), (32, "32"), (31, "31");
+INSERT INTO t1 VALUES (339, "Three hundred thirty nine"), (338, "338"), (337, "337"), (336, "336"), (335, "335"), (334, "334"), (333, "333"), (332, "332"), (331, "331");
+INSERT INTO t1 VALUES (3339, "Three thousand three hundred thirty nine"), (3338, "3338"), (3337, "3337"), (3336, "3336"), (3335, "3335"), (3334, "3334"), (3333, "3333"), (3332, "3332"), (3331, "3331");
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t1 PARTITION (subp3);
+
+DELETE FROM t1 PARTITION (subp3);
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t1 PARTITION (subp3);
+
+DELETE FROM t1 PARTITION (`p0-29`);
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t1 PARTITION (`p0-29`);
+
+ALTER TABLE t1 PARTITION BY HASH (a) PARTITIONS 3;
+
+DELETE FROM t1 PARTITION (p2);
+
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t1 PARTITION (p2);
+
+DROP TABLE t1;
+
 SET @@default_storage_engine = @old_default_storage_engine;

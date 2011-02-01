@@ -1432,4 +1432,240 @@ explain partitions select * from t1 partition (p2) where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1		ALL	NULL	NULL	NULL	NULL	0	Using where
 drop table t1;
+#
+# Bug#59864: Crash if table empty: DELETE FROM t2 PARTITION (subp3).
+#
+CREATE TABLE t1
+(a INT NOT NULL,
+b varchar (64),
+INDEX (b,a),
+PRIMARY KEY (a))
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a) SUBPARTITIONS 3
+(PARTITION pNeg VALUES LESS THAN (0)
+(SUBPARTITION subp0,
+SUBPARTITION subp1,
+SUBPARTITION subp2),
+PARTITION `p0-29` VALUES LESS THAN (30)
+(SUBPARTITION subp3,
+SUBPARTITION subp4,
+SUBPARTITION subp5),
+PARTITION `p30-299` VALUES LESS THAN (300)
+(SUBPARTITION subp6,
+SUBPARTITION subp7,
+SUBPARTITION subp8),
+PARTITION `p300-2999` VALUES LESS THAN (3000)
+(SUBPARTITION subp9,
+SUBPARTITION subp10,
+SUBPARTITION subp11),
+PARTITION `p3000-299999` VALUES LESS THAN (300000)
+(SUBPARTITION subp12,
+SUBPARTITION subp13,
+SUBPARTITION subp14));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`,`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION pNeg VALUES LESS THAN (0)
+ (SUBPARTITION subp0 ENGINE = InnoDB,
+  SUBPARTITION subp1 ENGINE = InnoDB,
+  SUBPARTITION subp2 ENGINE = InnoDB),
+ PARTITION `p0-29` VALUES LESS THAN (30)
+ (SUBPARTITION subp3 ENGINE = InnoDB,
+  SUBPARTITION subp4 ENGINE = InnoDB,
+  SUBPARTITION subp5 ENGINE = InnoDB),
+ PARTITION `p30-299` VALUES LESS THAN (300)
+ (SUBPARTITION subp6 ENGINE = InnoDB,
+  SUBPARTITION subp7 ENGINE = InnoDB,
+  SUBPARTITION subp8 ENGINE = InnoDB),
+ PARTITION `p300-2999` VALUES LESS THAN (3000)
+ (SUBPARTITION subp9 ENGINE = InnoDB,
+  SUBPARTITION subp10 ENGINE = InnoDB,
+  SUBPARTITION subp11 ENGINE = InnoDB),
+ PARTITION `p3000-299999` VALUES LESS THAN (300000)
+ (SUBPARTITION subp12 ENGINE = InnoDB,
+  SUBPARTITION subp13 ENGINE = InnoDB,
+  SUBPARTITION subp14 ENGINE = InnoDB)) */
+INSERT INTO t1 VALUES (-9, "negative nine"), (-8, "-8"), (-7, "-7"), (-6, "-6"), (-5, "-5"), (-4, "-4"), (-3, "-3"), (-2, "-2"), (-1, "-1");
+INSERT INTO t1 VALUES (9, "nine"), (8, "8"), (7, "7"), (6, "6"), (5, "5"), (4, "4"), (3, "3"), (2, "2"), (1, "1");
+INSERT INTO t1 VALUES (39, "Thirty nine"), (38, "38"), (37, "37"), (36, "36"), (35, "35"), (34, "34"), (33, "33"), (32, "32"), (31, "31");
+INSERT INTO t1 VALUES (339, "Three hundred thirty nine"), (338, "338"), (337, "337"), (336, "336"), (335, "335"), (334, "334"), (333, "333"), (332, "332"), (331, "331");
+INSERT INTO t1 VALUES (3339, "Three thousand three hundred thirty nine"), (3338, "3338"), (3337, "3337"), (3336, "3336"), (3335, "3335"), (3334, "3334"), (3333, "3333"), (3332, "3332"), (3331, "3331");
+SELECT * FROM t1;
+a	b
+-1	-1
+-2	-2
+-3	-3
+-4	-4
+-5	-5
+-6	-6
+-7	-7
+-8	-8
+-9	negative nine
+1	1
+2	2
+3	3
+31	31
+32	32
+33	33
+331	331
+332	332
+333	333
+3331	3331
+3332	3332
+3333	3333
+3334	3334
+3335	3335
+3336	3336
+3337	3337
+3338	3338
+3339	Three thousand three hundred thirty nine
+334	334
+335	335
+336	336
+337	337
+338	338
+339	Three hundred thirty nine
+34	34
+35	35
+36	36
+37	37
+38	38
+39	Thirty nine
+4	4
+5	5
+6	6
+7	7
+8	8
+9	nine
+SELECT * FROM t1 PARTITION (subp3);
+a	b
+3	3
+6	6
+9	nine
+DELETE FROM t1 PARTITION (subp3);
+SELECT * FROM t1;
+a	b
+-1	-1
+-2	-2
+-3	-3
+-4	-4
+-5	-5
+-6	-6
+-7	-7
+-8	-8
+-9	negative nine
+1	1
+2	2
+31	31
+32	32
+33	33
+331	331
+332	332
+333	333
+3331	3331
+3332	3332
+3333	3333
+3334	3334
+3335	3335
+3336	3336
+3337	3337
+3338	3338
+3339	Three thousand three hundred thirty nine
+334	334
+335	335
+336	336
+337	337
+338	338
+339	Three hundred thirty nine
+34	34
+35	35
+36	36
+37	37
+38	38
+39	Thirty nine
+4	4
+5	5
+7	7
+8	8
+SELECT * FROM t1 PARTITION (subp3);
+a	b
+DELETE FROM t1 PARTITION (`p0-29`);
+SELECT * FROM t1;
+a	b
+-1	-1
+-2	-2
+-3	-3
+-4	-4
+-5	-5
+-6	-6
+-7	-7
+-8	-8
+-9	negative nine
+31	31
+32	32
+33	33
+331	331
+332	332
+333	333
+3331	3331
+3332	3332
+3333	3333
+3334	3334
+3335	3335
+3336	3336
+3337	3337
+3338	3338
+3339	Three thousand three hundred thirty nine
+334	334
+335	335
+336	336
+337	337
+338	338
+339	Three hundred thirty nine
+34	34
+35	35
+36	36
+37	37
+38	38
+39	Thirty nine
+SELECT * FROM t1 PARTITION (`p0-29`);
+a	b
+ALTER TABLE t1 PARTITION BY HASH (a) PARTITIONS 3;
+DELETE FROM t1 PARTITION (p2);
+SELECT * FROM t1;
+a	b
+-1	-1
+-3	-3
+-4	-4
+-6	-6
+-7	-7
+-9	negative nine
+31	31
+33	33
+331	331
+333	333
+3331	3331
+3333	3333
+3334	3334
+3336	3336
+3337	3337
+3339	Three thousand three hundred thirty nine
+334	334
+336	336
+337	337
+339	Three hundred thirty nine
+34	34
+36	36
+37	37
+39	Thirty nine
+SELECT * FROM t1 PARTITION (p2);
+a	b
+DROP TABLE t1;
 SET @@default_storage_engine = @old_default_storage_engine;
