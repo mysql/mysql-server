@@ -3928,3 +3928,34 @@ DROP TABLE t1;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
+
+
+--echo #
+--echo # Bug #59696 Optimizer does not use equalities for conditions over view 
+--echo #
+
+CREATE TABLE t1 (a int NOT NULL);
+INSERT INTO t1 VALUES 
+  (9), (2), (8), (1), (3), (4), (2), (5),
+  (9), (2), (8), (1), (3), (4), (2), (5);
+
+CREATE TABLE t2 (pk int PRIMARY KEY, c int NOT NULL);
+INSERT INTO t2 VALUES
+  (9,90), (16, 160), (11,110), (1,10), (18,180), (2,20),
+  (14,140), (15, 150), (12,120), (3,30), (17,170), (19,190);
+
+EXPLAIN EXTENDED
+SELECT t1.a,t2.c  FROM t1,t2 WHERE t2.pk = t1.a AND t2.pk > 8;
+FLUSH STATUS;
+SELECT t1.a,t2.c  FROM t1,t2 WHERE t2.pk = t1.a AND t2.pk > 8;
+SHOW STATUS LIKE 'Handler_read_%';
+
+CREATE VIEW v AS SELECT * FROM t2;
+EXPLAIN EXTENDED
+SELECT t1.a,v.c  FROM t1,v WHERE v.pk = t1.a AND v.pk > 8;
+FLUSH STATUS;
+SELECT t1.a,v.c  FROM t1,v WHERE v.pk = t1.a AND v.pk > 8;
+SHOW STATUS LIKE 'Handler_read_%';
+DROP VIEW v;
+
+DROP TABLE t1, t2;

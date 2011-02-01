@@ -2493,6 +2493,9 @@ public:
     else
       return FALSE;
   }
+  Item* transform(Item_transformer, uchar *arg);
+  Item* compile(Item_analyzer analyzer, uchar **arg_p,
+                Item_transformer transformer, uchar *arg_t);
   bool enumerate_field_refs_processor(uchar *arg)
   { return (*ref)->enumerate_field_refs_processor(arg); }
   void no_rows_in_result()

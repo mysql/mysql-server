@@ -6307,6 +6307,85 @@ void Item_ref::cleanup()
 }
 
 
+/**
+  Transform an Item_ref object with a transformer callback function.
+
+  The function first applies the transform method to the item
+  referenced by this Item_reg object. If this returns a new item the
+  old item is substituted for a new one. After this the transformer
+  is applied to the Item_ref object.
+
+  @param transformer   the transformer callback function to be applied to
+                       the nodes of the tree of the object
+  @param argument      parameter to be passed to the transformer
+
+  @return Item returned as the result of transformation of the Item_ref object
+    @retval !NULL The transformation was successful
+    @retval NULL  Out of memory error
+*/
+
+Item* Item_ref::transform(Item_transformer transformer, uchar *arg)
+{
+  DBUG_ASSERT(!current_thd->is_stmt_prepare());
+  DBUG_ASSERT((*ref) != NULL);
+
+  /* Transform the object we are referencing. */
+  Item *new_item= (*ref)->transform(transformer, arg);
+  if (!new_item)
+    return NULL;
+
+  /*
+    THD::change_item_tree() should be called only if the tree was
+    really transformed, i.e. when a new item has been created.
+    Otherwise we'll be allocating a lot of unnecessary memory for
+    change records at each execution.
+  */
+  if (*ref != new_item)
+    current_thd->change_item_tree(ref, new_item);
+
+  /* Transform the item ref object. */
+  return (this->*transformer)(arg);
+}
+
+
+/**
+  Compile an Item_ref object with a processor and a transformer
+  callback functions.
+
+  First the function applies the analyzer to the Item_ref object. Then
+  if the analizer succeeeds we first applies the compile method to the
+  object the Item_ref object is referencing.  If this returns a new
+  item the old item is substituted for a new one.  After this the
+  transformer is applied to the Item_ref object itself.
+
+  @param analyzer      the analyzer callback function to be applied to the
+                       nodes of the tree of the object
+  @param[in,out] arg_p parameter to be passed to the processor
+  @param transformer   the transformer callback function to be applied to the
+                       nodes of the tree of the object
+  @param arg_t         parameter to be passed to the transformer
+
+  @return Item returned as the result of transformation of the Item_ref object
+*/
+
+Item* Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
+                        Item_transformer transformer, uchar *arg_t)
+{
+  /* Analyze this Item object. */
+  if (!(this->*analyzer)(arg_p))
+    return NULL;
+
+  /* Compile the Item we are referencing. */
+  DBUG_ASSERT((*ref) != NULL);
+  Item *new_item= (*ref)->compile(analyzer, arg_p, transformer, arg_t);
+  if (new_item && *ref != new_item)
+    current_thd->change_item_tree(ref, new_item);
+  
+  /* Transform this Item object. */
+  return (this->*transformer)(arg_t);
+}
+
+
 void Item_ref::print(String *str, enum_query_type query_type)
 {
   if (ref)
