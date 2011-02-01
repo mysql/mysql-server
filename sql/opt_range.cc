@@ -4925,7 +4925,7 @@ ha_rows get_table_cardinality_for_index_intersect(TABLE *table)
     ha_rows d;
     double q;
     for (q= table->file->stats.records, d= 1 ; q >= 10; q/= 10, d*= 10 ) ;
-    return (ha_rows) (round(q) * d);
+    return (ha_rows) (floor(q+0.5) * d);
   } 
 }
 
