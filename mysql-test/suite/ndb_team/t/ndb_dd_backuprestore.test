@@ -288,16 +288,22 @@ SHOW CREATE TABLE test.t5;
 
 SHOW CREATE TABLE test.t6;
 
+--replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't1'; 
 
+--replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't2'; 
 
+--replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't3'; 
 
+--replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't4'; 
 
+--replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't5'; 
 
+--replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't6'; 
 
 SELECT COUNT(*) FROM test.t1; 
