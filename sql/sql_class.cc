@@ -498,7 +498,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
-THD::THD()
+THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
@@ -527,6 +527,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+   m_enable_plugins(enable_plugins),
    main_warning_info(0)
 {
   ulong tmp;
@@ -928,7 +929,8 @@ extern "C"   THD *_current_thd_noinline(void)
 void THD::init(void)
 {
   mysql_mutex_lock(&LOCK_global_system_variables);
-  plugin_thdvar_init(this);
+  if (m_enable_plugins)
+    plugin_thdvar_init(this);
   /*
     variables= global_system_variables above has reset
     variables.pseudo_thread_id to 0. We need to correct it here to
@@ -1102,7 +1104,8 @@ THD::~THD()
   mdl_context.destroy();
   ha_close_connection(this);
   mysql_audit_release(this);
-  plugin_thdvar_cleanup(this);
+  if (m_enable_plugins)
+    plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
