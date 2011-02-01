@@ -98,7 +98,7 @@ ENDFOREACH(ENGINE_LIB)
 
 SET(SOURCE_SUBLIBS FALSE)
                             
-SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
+SET(LIBMYSQLD_SOURCES  libmysqld.c emb_qcache.cc lib_sql.cc 
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
@@ -154,6 +154,12 @@ FILE(WRITE cmake_dummy.c " ")
 ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
 TARGET_LINK_LIBRARIES(mysqlserver psapi.lib)
+
+IF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+  # Workaround cmake bug http://www.vtk.org/Bug/view.php?id=11240
+  SET_TARGET_PROPERTIES(mysqlserver PROPERTIES STATIC_LIBRARY_FLAGS
+    "/MACHINE:AMD64")
+ENDIF()
 
 # Add any additional libraries requested by engine(s)
 FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
