@@ -424,9 +424,10 @@ static int set_directory_permissions(const char *dir, const char *os_user)
     SetSecurityInfo(hDir,SE_FILE_OBJECT,DACL_SECURITY_INFORMATION,NULL, NULL,
       pNewDACL, NULL);
   }
-  LocalFree(pNewDACL); 
-  LocalFree(pSD);
-  LocalFree(pOldDACL); 
+  if(pSD != NULL) 
+    LocalFree((HLOCAL) pSD); 
+  if(pNewDACL != NULL) 
+    LocalFree((HLOCAL) pNewDACL);
   CloseHandle(hDir); 
   return 0;
 }
