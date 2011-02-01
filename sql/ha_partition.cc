@@ -3536,8 +3536,12 @@ int ha_partition::delete_all_rows()
   file= m_file;
   do
   {
-    if ((error= (*file)->ha_delete_all_rows()))
-      DBUG_RETURN(error);
+    /* Can be pruned, like DELETE FROM t PARTITION (pX) */
+    if (bitmap_is_set(&(m_part_info->read_partitions), file - m_file))
+    {
+      if ((error= (*file)->ha_delete_all_rows()))
+        DBUG_RETURN(error);
+    }
   } while (*(++file));
   DBUG_RETURN(0);
 }
