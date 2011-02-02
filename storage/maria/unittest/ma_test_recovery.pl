@@ -114,7 +114,7 @@ sub main
       die("can't guess table name");
     }
     $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
-    $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\"";
+    $com.= "| grep -v \"Creation time:\" | grep -v \"recover time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\"";
     $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
     my_exec($com);
     my $checksum= my_exec("$maria_exe_path/maria_chk$suffix -dss $table");
@@ -197,7 +197,7 @@ sub main
             die("can't guess table name");
           }
           $com=  "$maria_exe_path/maria_chk$suffix -dvv $table ";
-          $com.= "| grep -v \"Creation time:\" | grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" ";
+          $com.= "| grep -v \"Creation time:\" | grep -v \"recover time:\" | grep -v \"recover time:\" |grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" ";
           $com.= "> $tmp/maria_chk_message.good.txt 2>&1";
           $res= my_exec($com);
           print MY_LOG $res;
@@ -296,7 +296,7 @@ sub check_table_is_same
     print "checking if table $table has changed\n";
   }
 
-  $com=  "$maria_exe_path/maria_chk$suffix -dvv $table | grep -v \"Creation time:\" ";
+  $com=  "$maria_exe_path/maria_chk$suffix -dvv $table | grep -v \"Creation time:\" | grep -v \"recover time:\"";
   $com.= "| grep -v \"file length\" | grep -v \"LSNs:\" | grep -v \"UUID:\" > $tmp/maria_chk_message.txt 2>&1";
   $res= `$com`;
   print MY_LOG $res;
@@ -415,7 +415,7 @@ sub physical_cmp
         # save original tables to restore them later
         copy("$table.MAD", "$tmp/before_zerofill$table_no.MAD") || die();
         copy("$table.MAI", "$tmp/before_zerofill$table_no.MAI") || die();
-        $com= "$maria_exe_path/maria_chk$suffix -ss --zerofill-keep-lsn $table";
+        $com= "$maria_exe_path/maria_chk$suffix -ss --zerofill-keep-lsn --skip-update-state $table";
         $res= `$com`;
         print MY_LOG $res;
         $table_no= $table_no + 1;

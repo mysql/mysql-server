@@ -2290,10 +2290,10 @@ sub remove_stale_vardir () {
     # Running with "var" in some other place
     #
 
-    # Remove the var/ dir in mysql-test dir if any
-    # this could be an old symlink that shouldn't be there
-    mtr_verbose("Removing $default_vardir");
-    rmtree($default_vardir);
+    # Don't remove the var/ dir in mysql-test dir as it may be in
+    # use by another mysql-test-run run with --vardir
+    # mtr_verbose("Removing $default_vardir");
+    # rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");
@@ -4315,6 +4315,7 @@ sub extract_warning_lines ($) {
      qr/Plugin 'ndbcluster' will be forced to shutdown/,
      qr/InnoDB: Error: in ALTER TABLE `test`.`t[12]`/,
      qr/InnoDB: Error: table `test`.`t[12]` does not exist in the InnoDB internal/,
+     qr/InnoDB: Warning: a long semaphore wait:/,
      qr/Slave: Unknown table 't1' Error_code: 1051/,
      qr/Slave SQL:.*(Error_code: [[:digit:]]+|Query:.*)/,
      qr/slave SQL thread aborted/,

@@ -345,9 +345,11 @@ static struct my_option my_long_options[] =
    &opt_transaction_logging, &opt_transaction_logging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
-   "Mark tables as crashed if any errors were found and clean if check didn't "
-   "find any errors. This allows one to get rid of warnings like 'table not "
-   "properly closed'",
+   "Mark tables as crashed if any errors were found and clean if check "
+   "didn't find any errors but table was marked as 'not clean' before. This "
+   "allows one to get rid of warnings like 'table not properly closed'. "
+   "If table was updated, update also the timestamp for when check was made. "
+   "This option is on by default!",
    &opt_update_state, &opt_update_state, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"unpack", 'u',
@@ -485,7 +487,13 @@ static void usage(void)
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases.\n\
   -T, --read-only     Don't mark table as checked.\n\
-  -U, --update-state  Mark tables as crashed if you find any errors.\n\
+  -U, --update-state  Mark tables as crashed if any errors were found and\n\
+                      clean if check didn't find any errors but table was\n\
+	              marked as 'not clean' before. This allows one to get\n\
+ 		      rid of warnings like 'table not properly closed'. If\n\
+		      table was updated, update also the timestamp for when\n\
+ 		      the check was made. This option is on by default!\n\
+		      use --skip-update-state to disable.\n\
   --warning-for-wrong-transaction-id\n\
    Give a warning if we find a transaction id in the table that is bigger\n\
    than what exists in the control file. Use --skip-... to disable warning\n\
