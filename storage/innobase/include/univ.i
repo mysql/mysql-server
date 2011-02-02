@@ -51,7 +51,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	2
-#define INNODB_VERSION_BUGFIX	1
+#define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -68,8 +68,8 @@ component, i.e. we show M.N.P as M.N */
 	IB_TO_STR(INNODB_VERSION_BUGFIX)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
-	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
-	IB_TO_STR(MYSQL_MINOR_VERSION) "/en/"
+	IB_TO_STR(MYSQL_VERSION_MAJOR) "."		\
+	IB_TO_STR(MYSQL_VERSION_MINOR) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
@@ -122,11 +122,6 @@ if we are compiling on Windows. */
 
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
-
-# if !defined(__GNUC__) && !(defined(__SUNPRO_C) || defined(__SUNPRO_CC))
-#  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
-#  define UNIV_MUST_NOT_INLINE
-# endif
 
 # ifdef HAVE_PREAD
 #  define HAVE_PWRITE
@@ -442,7 +437,7 @@ it is read or written. */
 /* Use sun_prefetch when compile with Sun Studio */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
-# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many(addr)
+# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
 # define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 #else
 /* Dummy versions of the macros */

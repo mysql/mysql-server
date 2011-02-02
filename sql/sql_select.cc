@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3223,6 +3223,32 @@ JOIN::exec()
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having",
                                          QT_ORDINARY););
+
+        /*
+          If we have pushed parts of the condition down to the handler
+          then we need to add this to the original pre-ICP select
+          condition since the original select condition may be used in
+          test_if_skip_sort_order(). 
+          Note: here we call make_cond_for_table() a second time in order
+          to get sort_table_cond. An alternative could be to use
+          Item::copy_andor_structure() to make a copy of sort_table_cond.
+        */
+        if (curr_table->pre_idx_push_select_cond)
+        {
+          sort_table_cond= make_cond_for_table(curr_join->tmp_having,
+                                               used_tables, used_tables, 0);
+          if (!sort_table_cond)
+            DBUG_VOID_RETURN;
+          Item* new_pre_idx_push_select_cond= 
+            new Item_cond_and(curr_table->pre_idx_push_select_cond, 
+                              sort_table_cond);
+          if (!new_pre_idx_push_select_cond)
+            DBUG_VOID_RETURN;
+          if (new_pre_idx_push_select_cond->fix_fields(thd, 0))
+            DBUG_VOID_RETURN;
+          curr_table->pre_idx_push_select_cond= new_pre_idx_push_select_cond;
+	}
+
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables, 0);
@@ -5566,26 +5592,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
-      {
-        /* 
-          Additional optimization: if we're processing
-          "t.key BETWEEN c1 AND c1" then proceed as if we were processing
-          "t.key = c1".
-          TODO: This is a very limited fix. A more generic fix is possible. 
-          There are 2 options:
-          A) Make equality propagation code be able to handle BETWEEN
-             (including cases like t1.key BETWEEN t2.key AND t3.key)
-          B) Make range optimizer to infer additional "t.key = c" equalities
-             and use them in equality propagation process (see details in
-             OptimizerKBAndTodo)
-        */
-        if ((cond->functype() != Item_func::BETWEEN) ||
-            ((Item_func_between*) cond)->negated ||
-            !value[0]->eq(value[1], field->binary()))
-          return;
-        eq_func= TRUE;
-      }
-
+        return;
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -5797,9 +5804,65 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_KEY:
   {
     Item **values;
-    // BETWEEN, IN, NE
-    if (is_local_field (cond_func->key_item()) &&
-	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+    /*
+      Build list of possible keys for 'a BETWEEN low AND high'.
+      It is handled similar to the equivalent condition 
+      'a >= low AND a <= high':
+    */
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      Item_field *field_item;
+      bool equal_func= FALSE;
+      uint num_values= 2;
+      values= cond_func->arguments();
+
+      bool binary_cmp= (values[0]->real_item()->type() == Item::FIELD_ITEM)
+            ? ((Item_field*)values[0]->real_item())->field->binary()
+            : TRUE;
+
+      /*
+        Additional optimization: If 'low = high':
+        Handle as if the condition was "t.key = low".
+      */
+      if (!((Item_func_between*)cond_func)->negated &&
+          values[1]->eq(values[2], binary_cmp))
+      {
+        equal_func= TRUE;
+        num_values= 1;
+      }
+
+      /*
+        Append keys for 'field <cmp> value[]' if the
+        condition is of the form::
+        '<field> BETWEEN value[1] AND value[2]'
+      */
+      if (is_local_field (values[0]))
+      {
+        field_item= (Item_field *) (values[0]->real_item());
+        add_key_equal_fields(key_fields, *and_level, cond_func,
+                             field_item, equal_func, &values[1],
+                             num_values, usable_tables, sargables);
+      }
+      /*
+        Append keys for 'value[0] <cmp> field' if the
+        condition is of the form:
+        'value[0] BETWEEN field1 AND field2'
+      */
+      for (uint i= 1; i <= num_values; i++)
+      {
+        if (is_local_field (values[i]))
+        {
+          field_item= (Item_field *) (values[i]->real_item());
+          add_key_equal_fields(key_fields, *and_level, cond_func,
+                               field_item, equal_func, values,
+                               1, usable_tables, sargables);
+        }
+      }
+    } // if ( ... Item_func::BETWEEN)
+
+    // IN, NE
+    else if (is_local_field (cond_func->key_item()) &&
+            !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
@@ -5812,21 +5875,6 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            0, values, 
                            cond_func->argument_count()-1,
                            usable_tables, sargables);
-    }
-    if (cond_func->functype() == Item_func::BETWEEN)
-    {
-      values= cond_func->arguments();
-      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
-      {
-        Item_field *field_item;
-        if (is_local_field (cond_func->arguments()[i]))
-        {
-          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
-          add_key_equal_fields(key_fields, *and_level, cond_func,
-                               field_item, 0, values, 1, usable_tables, 
-                               sargables);
-        }
-      }  
     }
     break;
   }
@@ -10026,8 +10074,8 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
                           bool other_tbls_ok)
 {
-  if (!cond)
-    return NULL;
+  DBUG_ASSERT(cond != NULL);
+
   if (cond->type() == Item::COND_ITEM)
   {
     uint n_marked= 0;
@@ -10036,7 +10084,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
       table_map used_tables= 0;
       Item_cond_and *new_cond=new Item_cond_and;
       if (!new_cond)
-	return (Item*) 0;
+	return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
@@ -10053,7 +10101,7 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         cond->marker= ICP_COND_USES_INDEX_ONLY;
       switch (new_cond->argument_list()->elements) {
       case 0:
-	return (Item*) 0;
+	return NULL;
       case 1:
         new_cond->used_tables_cache= used_tables;
 	return new_cond->argument_list()->head();
@@ -10067,14 +10115,14 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
     {
       Item_cond_or *new_cond=new Item_cond_or;
       if (!new_cond)
-	return (Item*) 0;
+	return NULL;
       List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
       Item *item;
       while ((item=li++))
       {
 	Item *fix= make_cond_for_index(item, table, keyno, other_tbls_ok);
 	if (!fix)
-	  return (Item*) 0;
+	  return NULL;
 	new_cond->argument_list()->push_back(fix);
         n_marked += test(item->marker == ICP_COND_USES_INDEX_ONLY);
       }
@@ -10088,7 +10136,15 @@ Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
   }
 
   if (!uses_index_fields_only(cond, table, keyno, other_tbls_ok))
-    return (Item*) 0;
+  {
+    /* 
+      Reset marker since it might have the value
+      ICP_COND_USES_INDEX_ONLY if this condition is part of the select
+      condition for multiple tables.
+    */
+    cond->marker= 0;
+    return NULL;
+  }
   cond->marker= ICP_COND_USES_INDEX_ONLY;
   return cond;
 }
@@ -10172,11 +10228,11 @@ Item *make_cond_remainder(Item *cond, bool exclude_index)
 static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
 {
   DBUG_ENTER("push_index_cond");
-  Item *idx_cond;
 
   /*
     We will only attempt to push down an index condition when the
     following criteria are true:
+    0. The table has a select condition
     1. The storage engine supports ICP.
     2. The system variable for enabling ICP is ON.
     3. The query is not a multi-table update or delete statement. The reason
@@ -10186,7 +10242,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
        when doing the update part and result in either not finding
        the record to update or updating the wrong record.
   */
-  if (tab->table->file->index_flags(keyno, 0, 1) &
+  if (tab->select_cond &&
+      tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
       tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
@@ -10194,8 +10251,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););
-    idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
-                                  other_tbls_ok);
+    Item *idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
+                                        other_tbls_ok);
     DBUG_EXECUTE("where", print_where(idx_cond, "idx cond", QT_ORDINARY););
     if (idx_cond)
     {
@@ -17604,26 +17661,41 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
-        if (tab->table->reginfo.not_exists_optimize)
-        {
-          /*
-            When not_exists_optimizer is set and a matching row is found, the
-            outer row should be excluded from the result set: no need to
-            explore this record and other records of 'tab', so we return "no
-            records". But as we set 'found' above, evaluate_join_record() at
-            the upper level will not yield a NULL-complemented record.
-          */
-          DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-        }
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
           will be re-evaluated again. It could be fixed, but, probably,
           it's not worth doing now.
         */
+        /*
+          not_exists_optimize has been created from a
+          select_cond containing 'is_null'. This 'is_null'
+          predicate is still present on any 'tab' with
+          'not_exists_optimize'. Furthermore, the usual rules
+          for condition guards also applies for
+          'not_exists_optimize' -> When 'is_null==false' we
+          know all cond. guards are open and we can apply
+          the 'not_exists_optimize'.
+        */
+        DBUG_ASSERT(!(tab->table->reginfo.not_exists_optimize &&
+                     !tab->select_cond));
+
         if (tab->select_cond && !tab->select_cond->val_int())
         {
           /* The condition attached to table tab is false */
+
+          if (tab->table->reginfo.not_exists_optimize)
+          {
+            /*
+              When not_exists_optimizer is set and a matching row is found, the
+              outer row should be excluded from the result set: no need to
+              explore this record and other records of 'tab', so we return "no
+              records". But as we set 'found' above, evaluate_join_record() at
+              the upper level will not yield a NULL-complemented record.
+            */
+            DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+          }
+
           if (tab == join_tab)
             found= 0;
           else
