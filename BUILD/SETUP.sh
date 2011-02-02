@@ -142,7 +142,7 @@ valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
-debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
 debug_cflags="$debug_cflags -DSAFE_MUTEX"
 error_inject="--with-error-inject "
 #

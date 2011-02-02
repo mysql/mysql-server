@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -944,7 +944,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr);
 static bool add_terminator(DYNAMIC_ARRAY *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
-static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
 void handle_connections_sockets();
@@ -3551,7 +3550,7 @@ You should consider changing lower_case_table_names to 1 or 2",
 }
 
 
-static int init_thread_environment()
+int init_thread_environment()
 {
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);

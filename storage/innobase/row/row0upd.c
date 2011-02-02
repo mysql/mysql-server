@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1250,6 +1250,10 @@ row_upd_changes_ord_field_binary(
 		    || dfield_is_null(dfield)) {
 			/* do nothing special */
 		} else if (UNIV_LIKELY_NULL(ext)) {
+			/* Silence a compiler warning without
+			silencing a Valgrind error. */
+			dfield_len = 0;
+			UNIV_MEM_INVALID(&dfield_len, sizeof dfield_len);
 			/* See if the column is stored externally. */
 			buf = row_ext_lookup(ext, col_no, &dfield_len);
 
@@ -1559,11 +1563,7 @@ row_upd_sec_index_entry(
 		      "InnoDB: record ", stderr);
 		rec_print(stderr, rec, index);
 		putc('\n', stderr);
-
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
-		rw_lock_s_unlock(&trx_sys->lock);
-
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);

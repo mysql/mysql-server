@@ -580,3 +580,33 @@ DELETE v2 FROM v2;
 
 DROP VIEW v2, v1;
 DROP TABLE t1, t2;
+
+
+--echo #
+--echo # Bug#58709 assert in mysql_execute_command
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t2, t1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT PRIMARY KEY) engine=InnoDB;
+CREATE TABLE t2 (i INT, FOREIGN KEY (i) REFERENCES t1 (i) ON DELETE NO ACTION) engine=InnoDB;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+DELETE IGNORE FROM t1 WHERE i = 1;
+
+CREATE PROCEDURE p1() DELETE IGNORE FROM t1 WHERE i = 1;
+# This triggered the assert
+CALL p1();
+
+PREPARE stm FROM 'CALL p1()';
+# This also triggered the assert
+EXECUTE stm;
+DEALLOCATE PREPARE stm;
+
+DROP TABLE t2, t1;
+DROP PROCEDURE p1;
