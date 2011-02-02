@@ -843,7 +843,8 @@ create table t1(a int, b tinytext);
 insert into t1 values (1,2),(3,2);
 set session sort_buffer_size= 30000;
 set session max_sort_length= 2180;
---error 1038
+CALL mtr.add_suppression("Out of sort memory");
+--error ER_OUT_OF_SORTMEMORY
 select * from t1 order by b;
 drop table t1;
 
