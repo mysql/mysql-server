@@ -769,7 +769,7 @@ row_purge_record_func(
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
 parent node, which is always a query thread node. */
-static
+static __attribute__((nonnull))
 void
 row_purge(
 /*======*/
@@ -777,7 +777,8 @@ row_purge(
 	trx_undo_rec_t*	undo_rec,	/*!< in: record to purge */
 	que_thr_t*	thr)		/*!< in: query thread */
 {
-	ut_ad(node && thr);
+	ut_ad(node);
+	ut_ad(thr);
 
 	if (undo_rec != &trx_purge_dummy_rec) {
 		ibool	updated_extern;
