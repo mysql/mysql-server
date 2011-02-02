@@ -9476,6 +9476,7 @@ void Create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:
