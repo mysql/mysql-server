@@ -613,47 +613,32 @@ err_exit:
 /***********************************************************//**
 Fetches an undo log record and does the purge for the recorded operation.
 If none left, or the current purge completed, returns the control to the
-parent node, which is always a query thread node.
-@return	DB_SUCCESS if operation successfully completed, else error code */
-static
-ulint
+parent node, which is always a query thread node. */
+static __attribute__((nonnull))
+void
 row_purge(
 /*======*/
 	purge_node_t*	node,	/*!< in: row purge node */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	roll_ptr_t	roll_ptr;
-	ibool		purge_needed;
 	ibool		updated_extern;
-	trx_t*		trx;
 
-	ut_ad(node && thr);
+	ut_ad(node);
+	ut_ad(thr);
 
-	trx = thr_get_trx(thr);
-
-	node->undo_rec = trx_purge_fetch_next_rec(&roll_ptr,
-						  &(node->reservation),
+	node->undo_rec = trx_purge_fetch_next_rec(&node->roll_ptr,
+						  &node->reservation,
 						  node->heap);
 	if (!node->undo_rec) {
 		/* Purge completed for this query thread */
 
 		thr->run_node = que_node_get_parent(node);
 
-		return(DB_SUCCESS);
+		return;
 	}
 
-	node->roll_ptr = roll_ptr;
-
-	if (node->undo_rec == &trx_purge_dummy_rec) {
-		purge_needed = FALSE;
-	} else {
-		purge_needed = row_purge_parse_undo_rec(node, &updated_extern,
-							thr);
-		/* If purge_needed == TRUE, we must also remember to unfreeze
-		data dictionary! */
-	}
-
-	if (purge_needed) {
+	if (node->undo_rec != &trx_purge_dummy_rec
+	    && row_purge_parse_undo_rec(node, &updated_extern, thr)) {
 		node->found_clust = FALSE;
 
 		node->index = dict_table_get_next_index(
@@ -672,7 +657,7 @@ row_purge(
 			btr_pcur_close(&(node->pcur));
 		}
 
-		row_mysql_unfreeze_data_dictionary(trx);
+		row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
 	}
 
 	/* Do some cleanup */
@@ -680,8 +665,6 @@ row_purge(
 	mem_heap_empty(node->heap);
 
 	thr->run_node = node;
-
-	return(DB_SUCCESS);
 }
 
 /***********************************************************//**
@@ -695,9 +678,6 @@ row_purge_step(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	purge_node_t*	node;
-#ifdef UNIV_DEBUG
-	ulint		err;
-#endif /* UNIV_DEBUG */
 
 	ut_ad(thr);
 
@@ -705,12 +685,7 @@ row_purge_step(
 
 	ut_ad(que_node_get_type(node) == QUE_NODE_PURGE);
 
-#ifdef UNIV_DEBUG
-	err =
-#endif /* UNIV_DEBUG */
 	row_purge(node, thr);
-
-	ut_ad(err == DB_SUCCESS);
 
 	return(thr);
 }
