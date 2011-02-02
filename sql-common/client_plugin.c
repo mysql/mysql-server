@@ -31,11 +31,7 @@
 #include "mysql.h"
 #include <my_sys.h>
 #include <m_string.h>
-#ifdef THREAD
 #include <my_pthread.h>
-#else
-#include <my_no_pthread.h>
-#endif
 
 #include <sql_common.h>
 #include "errmsg.h"
@@ -67,9 +63,7 @@ static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS]=
   loading the same plugin twice in parallel.
 */
 struct st_client_plugin_int *plugin_list[MYSQL_CLIENT_MAX_PLUGINS];
-#ifdef THREAD
 static pthread_mutex_t LOCK_load_client_plugin;
-#endif
 
 static int is_not_initialized(MYSQL *mysql, const char *name)
 {
@@ -176,11 +170,11 @@ err2:
   if (plugin->deinit)
     plugin->deinit();
 err1:
-  if (dlhandle)
-    dlclose(dlhandle);
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
+  if (dlhandle)
+    dlclose(dlhandle);
   return NULL;
 }
 

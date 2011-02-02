@@ -25,7 +25,8 @@ int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                           const char *default_val);
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
-bool init_dynarray_intvar_from_file(char *buffer, char **buffer_act, IO_CACHE* f);
+bool init_dynarray_intvar_from_file(char *buffer, size_t size, 
+                                    char **buffer_act, IO_CACHE* f);
 
 Rpl_info_file::Rpl_info_file(const int nparam, const char* param_info_fname)
   :Rpl_info_handler(nparam), info_fd(-1)
@@ -158,12 +159,12 @@ void Rpl_info_file::do_end_info()
   DBUG_VOID_RETURN;
 }
 
-int Rpl_info_file::do_reset_info()
+int Rpl_info_file::do_remove_info()
 {
   MY_STAT stat_area;
   int error= 0;
 
-  DBUG_ENTER("Rpl_info_file::do_reset_info");
+  DBUG_ENTER("Rpl_info_file::do_remove_info");
 
   if (my_stat(info_fname, &stat_area, MYF(0)) && my_delete(info_fname, MYF(MY_WME)))
     error= 1;
@@ -213,23 +214,17 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
 bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 {
   bool error= TRUE;
-  char *server_ids_buffer= (char*) my_malloc((sizeof(::server_id) * 3 + 1) *
-                                   (1 + value->server_ids.elements), MYF(0));
-
-  if (server_ids_buffer == NULL)
-    return error;
+  String buffer;
 
   /*
     This produces a line listing the total number and all the server_ids.
   */
-  if (const_cast<Server_ids *>(value)->pack_server_ids(server_ids_buffer))
+  if (const_cast<Server_ids *>(value)->pack_server_ids(&buffer))
     goto err;
 
-  error= (my_b_printf(&info_file, "%s\n", server_ids_buffer) >
+  error= (my_b_printf(&info_file, "%s\n", buffer.c_ptr_safe()) >
           (size_t) 0 ? FALSE : TRUE);
-
 err:
-  my_free(server_ids_buffer);
   return error;
 }
 
@@ -268,11 +263,12 @@ bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
     Static buffer to use most of the times. However, if it is not big
     enough to accommodate the server ids, a new buffer is allocated.
   */
-  const int array_size= 16 * (sizeof(long) * 4 + 1);
+  const int array_size= 16 * (sizeof(long) * 3 + 1);
   char buffer[array_size];
   char *buffer_act= buffer;
 
-  bool error= init_dynarray_intvar_from_file(buffer, &buffer_act,
+  bool error= init_dynarray_intvar_from_file(buffer, sizeof(buffer),
+                                             &buffer_act,
                                              &info_file);
   if (!error)
     value->unpack_server_ids(buffer_act);
@@ -409,6 +405,9 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 }
 
 /**
+   TODO - Improve this function to use String and avoid this weird computation
+   to calculate the size of the buffers.
+
    Particularly, this function is responsible for restoring IGNORE_SERVER_IDS
    list of servers whose events the slave is going to ignore (to not log them
    in the relay log).
@@ -417,41 +416,43 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
    shorter or equal of @c long and separated by the single space.
 
    @param  buffer      Put the read values in this static buffer
+   @param  buffer      Size of the static buffer
    @param  buffer_act  Points to the final buffer as dynamic buffer may
                        be used if the static buffer is not big enough.
 
    @retval 0           All OK
    @retval non-zero  An error
 */
-bool init_dynarray_intvar_from_file(char *buffer, char **buffer_act, IO_CACHE* f)
+bool init_dynarray_intvar_from_file(char *buffer, size_t size,
+                                    char **buffer_act, IO_CACHE* f)
 {
   char *buf= buffer; // actual buffer can be dynamic if static is short
   char *buf_act= buffer;
   char *last;
-  uint num_items;     // number of items of `arr'
+  uint num_items;   // number of items of `arr'
   size_t read_size;
 
   DBUG_ENTER("init_dynarray_intvar_from_file");
 
-  if ((read_size= my_b_gets(f, buf_act, sizeof(buf))) == 0)
+  if ((read_size= my_b_gets(f, buf_act, size)) == 0)
   {
     DBUG_RETURN(FALSE); // no line in master.info
   }
-  if (read_size + 1 == sizeof(buf) && buf[sizeof(buf) - 2] != '\n')
+  if (read_size + 1 == size && buf[size - 2] != '\n')
   {
     /*
       short read happend; allocate sufficient memory and make the 2nd read
     */
-    char buf_work[(sizeof(long)*3 + 1)*16];
+    char buf_work[(sizeof(long) * 3 + 1) * 16];
     memcpy(buf_work, buf, sizeof(buf_work));
     num_items= atoi(strtok_r(buf_work, " ", &last));
     size_t snd_size;
     /*
-      max size lower bound approximate estimation bases on the formula:
+      max size upper bound approximate estimation bases on the formula:
       (the items number + items themselves) * 
           (decimal size + space) - 1 + `\n' + '\0'
     */
-    size_t max_size= (1 + num_items) * (sizeof(long)*3 + 1) + 1;
+    size_t max_size= (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
     buf_act= (char*) my_malloc(max_size, MYF(MY_WME));
     buffer_act= &buf_act;
     memcpy(buf_act, buf, read_size);

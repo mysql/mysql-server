@@ -1,15 +1,33 @@
 # ==== Purpose ====
 #
-# Save the master file and position of the current connection in
-# internal variables. This can later be used together with
-# sync_with_master.inc
+# Save the current binlog position on the master, just like the
+# built-in mysqltest command save_master_pos.  The advantage of this
+# script is that the saved position is available to the test script.
+#
 #
 # ==== Usage ====
 #
+# [--let $rpl_debug= 1]
 # --source include/save_master_pos.inc
 #
-# This will save the binlog position of the current connection in the
-# mysqltest variables $_saved_master_file and $_saved_master_pos.
+# Typically, you would use this script together with
+# include/sync_io_with_master.inc
+#
+# Parameters:
+#   $rpl_debug
+#     See include/rpl_init.inc
 
-let $_saved_master_file= query_get_value("SHOW MASTER STATUS", File, 1);
-let $_saved_master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+
+--let $include_filename= save_master_pos.inc
+--source include/begin_include_file.inc
+
+let $_master_file= query_get_value("SHOW MASTER STATUS", File, 1);
+let $_master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+
+if ($rpl_debug)
+{
+  --echo save_master_pos saved file='$_master_file', pos='$_master_pos'
+}
+
+--let $include_filename= save_master_pos.inc
+--source include/end_include_file.inc

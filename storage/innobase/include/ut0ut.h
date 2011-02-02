@@ -55,24 +55,24 @@ Created 1/20/1994 Heikki Tuuri
 typedef time_t	ib_time_t;
 
 #ifndef UNIV_HOTBACKUP
-#if defined(HAVE_IB_PAUSE_INSTRUCTION)
-#  ifdef WIN32
-     /* In the Win32 API, the x86 PAUSE instruction is executed by calling
-     the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
-     independent way by using YieldProcessor.*/
-#    define UT_RELAX_CPU() YieldProcessor()
-#  else
-     /* According to the gcc info page, asm volatile means that the
-     instruction has important side-effects and must not be removed.
-     Also asm volatile may trigger a memory barrier (spilling all registers
-     to memory). */
-#    define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
-#  endif
+#if defined(HAVE_PAUSE_INSTRUCTION)
+   /* According to the gcc info page, asm volatile means that the
+   instruction has important side-effects and must not be removed.
+   Also asm volatile may trigger a memory barrier (spilling all registers
+   to memory). */
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("pause")
+#elif defined(HAVE_FAKE_PAUSE_INSTRUCTION)
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("rep; nop")
 #elif defined(HAVE_ATOMIC_BUILTINS)
 #  define UT_RELAX_CPU() do { \
      volatile lint	volatile_var; \
      os_compare_and_swap_lint(&volatile_var, 0, 1); \
    } while (0)
+#elif defined(HAVE_WINDOWS_ATOMICS)
+   /* In the Win32 API, the x86 PAUSE instruction is executed by calling
+   the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
+   independent way by using YieldProcessor. */
+#  define UT_RELAX_CPU() YieldProcessor()
 #else
 #  define UT_RELAX_CPU() ((void)0) /* avoid warning for an empty statement */
 #endif

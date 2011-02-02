@@ -23,37 +23,34 @@ The transaction
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-/*************************************************************//**
-Starts the transaction if it is not yet started. */
+/**********************************************************************//**
+Determines if a transaction is in the given state.
+The caller must hold trx_sys->lock, or it must be the thread
+that is serving a running transaction.
+@return	TRUE if trx->state == state */
 UNIV_INLINE
-void
-trx_start_if_not_started(
-/*=====================*/
-	trx_t*	trx)	/*!< in: transaction */
+ibool
+trx_state_eq(
+/*=========*/
+	const trx_t*	trx,	/*!< in: transaction */
+	trx_state_t	state)	/*!< in: state */
 {
-	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
-
-	if (trx->conc_state == TRX_NOT_STARTED) {
-
-		trx_start(trx, ULINT_UNDEFINED);
+#ifdef UNIV_DEBUG
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
+		/* This state is not allowed for running transactions. */
+		ut_a(state == TRX_STATE_NOT_STARTED);
+		ut_ad(!trx->in_trx_list);
+		return(state == trx->state);
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+	case TRX_STATE_PREPARED:
+		ut_ad(trx->in_trx_list);
+		return(state == trx->state);
 	}
-}
-
-/*************************************************************//**
-Starts the transaction if it is not yet started. Assumes we have reserved
-the kernel mutex! */
-UNIV_INLINE
-void
-trx_start_if_not_started_low(
-/*=========================*/
-	trx_t*	trx)	/*!< in: transaction */
-{
-	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
-
-	if (trx->conc_state == TRX_NOT_STARTED) {
-
-		trx_start_low(trx, ULINT_UNDEFINED);
-	}
+	ut_error;
+#endif /* UNIV_DEBUG */
+	return(trx->state == state);
 }
 
 /****************************************************************//**
@@ -79,7 +76,7 @@ trx_get_que_state_str(
 	const trx_t*	trx)	/*!< in: transaction */
 {
 	/* be sure to adjust TRX_QUE_STATE_STR_MAX_LEN if you change this */
-	switch (trx->que_state) {
+	switch (trx->lock.que_state) {
 	case TRX_QUE_RUNNING:
 		return("RUNNING");
 	case TRX_QUE_LOCK_WAIT:

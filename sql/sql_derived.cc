@@ -151,10 +151,11 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
     if (!(derived_result= new select_union))
       DBUG_RETURN(TRUE); // out of memory
 
+    lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_DERIVED;
     // st_select_lex_unit::prepare correctly work for single select
     if ((res= unit->prepare(thd, derived_result, 0)))
       goto exit;
-
+    lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_DERIVED;
     if ((res= check_duplicate_names(unit->types, 0)))
       goto exit;
 
@@ -307,13 +308,21 @@ bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *orig_table_list)
       */
       if (derived_result->flush())
         res= TRUE;
-
-      if (!lex->describe)
-        unit->cleanup();
     }
-    else
-      unit->cleanup();
     lex->current_select= save_current_select;
   }
   return res;
+}
+
+
+/**
+   Cleans up the SELECT_LEX_UNIT for the derived table (if any).
+*/
+
+bool mysql_derived_cleanup(THD *thd, LEX *lex, TABLE_LIST *derived)
+{
+  SELECT_LEX_UNIT *unit= derived->derived;
+  if (unit)
+    unit->cleanup();
+  return false;
 }

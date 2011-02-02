@@ -1,6 +1,9 @@
-SHOW PROCESSLIST;
+# ==== Purpose ====
+#
+# This is an auxiliary file that mysqltest executes when
+# sync_slave_with_master or sync_with_master fails. The purpose is to
+# print debug information.
 
-let $binlog_name= query_get_value("SHOW MASTER STATUS", File, 1);
-eval SHOW BINLOG EVENTS IN '$binlog_name';
-
-exit;
+--let $rpl_server_count= 0
+--let $rpl_only_current_connection= 1
+--source include/show_rpl_debug_info.inc

@@ -45,15 +45,22 @@ const char* info_rli_fields[]=
 
 const char *const Relay_log_info::state_delaying_string = "Waiting until MASTER_DELAY seconds after master executed event";
 
-Relay_log_info::Relay_log_info(bool is_slave_recovery,
-                               PSI_mutex_key *param_key_info_run_lock,
+Relay_log_info::Relay_log_info(bool is_slave_recovery
+#ifdef HAVE_PSI_INTERFACE
+                               ,PSI_mutex_key *param_key_info_run_lock,
                                PSI_mutex_key *param_key_info_data_lock,
                                PSI_mutex_key *param_key_info_data_cond,
                                PSI_mutex_key *param_key_info_start_cond,
-                               PSI_mutex_key *param_key_info_stop_cond)
-   :Rpl_info("SQL", param_key_info_run_lock, param_key_info_data_lock,
+                               PSI_mutex_key *param_key_info_stop_cond
+#endif
+                              )
+   :Rpl_info("SQL"
+#ifdef HAVE_PSI_INTERFACE
+             ,param_key_info_run_lock, param_key_info_data_lock,
              param_key_info_data_cond, param_key_info_start_cond,
-             param_key_info_stop_cond),
+             param_key_info_stop_cond
+#endif
+            ),
    replicate_same_server_id(::replicate_same_server_id),
    cur_log_fd(-1), relay_log(&sync_relaylog_period),
    is_relay_log_recovery(is_slave_recovery),
@@ -286,8 +293,9 @@ int Relay_log_info::init_relay_log_pos(const char* log,
         Because of we have data_lock and log_lock, we can safely read an
         event
       */
-      if (!(ev=Log_event::read_log_event(cur_log,0,
-                                         relay_log.description_event_for_exec)))
+      if (!(ev= Log_event::read_log_event(cur_log, 0,
+                                          relay_log.description_event_for_exec,
+                                          opt_slave_sql_verify_checksum)))
       {
         DBUG_PRINT("info",("could not read event, cur_log->error=%d",
                            cur_log->error));
@@ -991,6 +999,9 @@ void Relay_log_info::slave_close_thread_tables(THD *thd)
   */
   if (! thd->in_multi_stmt_transaction_mode())
     thd->mdl_context.release_transactional_locks();
+  else
+    thd->mdl_context.release_statement_locks();
+
   clear_tables_to_lock();
 }
 /**
@@ -1149,6 +1160,9 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         "use '--relay-log=%s' to avoid this problem.", ln);
       name_warning_sent= 1;
     }
+
+    relay_log.is_relay_log= TRUE;
+
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
@@ -1161,7 +1175,6 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       sql_print_error("Failed in open_log() called from Relay_log_info::init_info()");
       DBUG_RETURN(1);
     }
-    relay_log.is_relay_log= TRUE;
   }
 
   /*

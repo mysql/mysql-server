@@ -3,10 +3,34 @@ set global expire_logs_days = 3;
 show variables like 'log_bin%';
 Variable_name	Value
 log_bin	OFF
+log_bin_basename	
+log_bin_index	
 log_bin_trust_function_creators	ON
+show variables like 'relay_log%';
+Variable_name	Value
+relay_log	
+relay_log_basename	
+relay_log_index	
+relay_log_info_file	relay-log.info
+relay_log_info_repository	FILE
+relay_log_purge	ON
+relay_log_recovery	OFF
+relay_log_space_limit	0
 flush logs;
 show variables like 'log_bin%';
 Variable_name	Value
 log_bin	OFF
+log_bin_basename	
+log_bin_index	
 log_bin_trust_function_creators	ON
+show variables like 'relay_log%';
+Variable_name	Value
+relay_log	
+relay_log_basename	
+relay_log_index	
+relay_log_info_file	relay-log.info
+relay_log_info_repository	FILE
+relay_log_purge	ON
+relay_log_recovery	OFF
+relay_log_space_limit	0
 set global expire_logs_days = 0;

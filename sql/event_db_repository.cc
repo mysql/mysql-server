@@ -199,7 +199,7 @@ mysql_event_fill_row(THD *thd,
                      TABLE *table,
                      Event_parse_data *et,
                      sp_head *sp,
-                     ulong sql_mode,
+                     sql_mode_t sql_mode,
                      my_bool is_update)
 {
   CHARSET_INFO *scs= system_charset_info;
@@ -622,7 +622,13 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   int ret= 1;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   DBUG_ENTER("Event_db_repository::create_event");
 
@@ -700,8 +706,8 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   ret= 0;
 
 end:
-  if (table)
-    close_mysql_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
@@ -734,7 +740,13 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::update_event");
@@ -812,8 +824,8 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   ret= 0;
 
 end:
-  if (table)
-    close_mysql_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
@@ -839,6 +851,12 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
                                 bool drop_if_exists)
 {
   TABLE *table= NULL;
+  /*
+    Take a savepoint to release only the lock on mysql.event
+    table at the end but keep the global read lock and
+    possible other locks taken by the caller.
+  */
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::drop_event");
@@ -867,8 +885,8 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
   ret= 0;
 
 end:
-  if (table)
-    close_mysql_tables(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   DBUG_RETURN(test(ret));
 }
@@ -941,7 +959,7 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
   TABLE *table= NULL;
   READ_RECORD read_record_info;
   enum enum_events_table_field field= ET_FIELD_DB;
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("Event_db_repository::drop_schema_events");
   DBUG_PRINT("enter", ("field=%d schema=%s", field, schema.str));
 
@@ -997,7 +1015,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
                                       LEX_STRING name, Event_basic *etn)
 {
   bool ret;
-  ulong saved_mode= thd->variables.sql_mode;
+  sql_mode_t saved_mode= thd->variables.sql_mode;
   Open_tables_backup open_tables_backup;
   TABLE_LIST event_table;
 
@@ -1043,15 +1061,14 @@ Event_db_repository::
 update_timing_fields_for_event(THD *thd,
                                LEX_STRING event_db_name,
                                LEX_STRING event_name,
-                               bool update_last_executed,
                                my_time_t last_executed,
-                               bool update_status,
                                ulonglong status)
 {
   TABLE *table= NULL;
   Field **fields;
   int ret= 1;
   bool save_binlog_row_based;
+  MYSQL_TIME time;
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
@@ -1076,20 +1093,12 @@ update_timing_fields_for_event(THD *thd,
   /* Don't update create on row update. */
   table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
 
-  if (update_last_executed)
-  {
-    MYSQL_TIME time;
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&time, last_executed);
+  fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
+  fields[ET_FIELD_LAST_EXECUTED]->store_time(&time, MYSQL_TIMESTAMP_DATETIME);
 
-    fields[ET_FIELD_LAST_EXECUTED]->set_notnull();
-    fields[ET_FIELD_LAST_EXECUTED]->store_time(&time,
-                                               MYSQL_TIMESTAMP_DATETIME);
-  }
-  if (update_status)
-  {
-    fields[ET_FIELD_STATUS]->set_notnull();
-    fields[ET_FIELD_STATUS]->store(status, TRUE);
-  }
+  fields[ET_FIELD_STATUS]->set_notnull();
+  fields[ET_FIELD_STATUS]->store(status, TRUE);
 
   if ((ret= table->file->ha_update_row(table->record[1], table->record[0])))
   {

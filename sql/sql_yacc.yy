@@ -1072,6 +1072,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LOOP_SYM
 %token  LOW_PRIORITY
 %token  LT                            /* OPERATOR */
+%token  MASTER_BIND_SYM
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_DELAY_SYM
 %token  MASTER_HOST_SYM
@@ -1893,6 +1894,10 @@ master_def:
           MASTER_HOST_SYM EQ TEXT_STRING_sys
           {
             Lex->mi.host = $3.str;
+          }
+        | MASTER_BIND_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.bind_addr = $3.str;
           }
         | MASTER_USER_SYM EQ TEXT_STRING_sys
           {
@@ -5818,11 +5823,8 @@ old_or_new_charset_name_or_default:
 collation_name:
           ident_or_text
           {
-            if (!($$=get_charset_by_name($1.str,MYF(0))))
-            {
-              my_error(ER_UNKNOWN_COLLATION, MYF(0), $1.str);
+            if (!($$= mysqld_collation_get_by_name($1.str)))
               MYSQL_YYABORT;
-            }
           }
         ;
 
@@ -5866,19 +5868,13 @@ unicode:
           }
         | UNICODE_SYM BINARY
           {
-            if (!(Lex->charset=get_charset_by_name("ucs2_bin", MYF(0))))
-            {
-              my_error(ER_UNKNOWN_COLLATION, MYF(0), "ucs2_bin");
+            if (!(Lex->charset= mysqld_collation_get_by_name("ucs2_bin")))
               MYSQL_YYABORT;
-            }
           }
         | BINARY UNICODE_SYM
           {
-            if (!(Lex->charset=get_charset_by_name("ucs2_bin", MYF(0))))
-            {
+            if (!(Lex->charset= mysqld_collation_get_by_name("ucs2_bin")))
               my_error(ER_UNKNOWN_COLLATION, MYF(0), "ucs2_bin");
-              MYSQL_YYABORT;
-            }
           }
         ;
 
@@ -6595,7 +6591,6 @@ alter_commands:
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
-          opt_ignore
         ;
 
 remove_partitioning:
@@ -7483,7 +7478,6 @@ select_lock_type:
             LEX *lex=Lex;
             lex->current_select->set_lock_for_tables(TL_WRITE);
             lex->safe_to_cache_query=0;
-            lex->protect_against_global_read_lock= TRUE;
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
@@ -9531,7 +9525,7 @@ table_factor:
         ;
 
 select_derived_union:
-          select_derived opt_order_clause opt_limit_clause
+          select_derived opt_union_order_or_limit
         | select_derived_union
           UNION_SYM
           union_option
@@ -9547,7 +9541,7 @@ select_derived_union:
              */
             Lex->pop_context();
           }
-          opt_order_clause opt_limit_clause
+          opt_union_order_or_limit
         ;
 
 /* The equivalent of select_init2 for nested queries. */
@@ -13334,9 +13328,6 @@ table_lock:
                                             MDL_SHARED_NO_READ_WRITE :
                                             MDL_SHARED_READ)))
               MYSQL_YYABORT;
-            /* If table is to be write locked, protect from a impending GRL. */
-            if (lock_for_write)
-              Lex->protect_against_global_read_lock= TRUE;
           }
         ;
 
@@ -14018,6 +14009,11 @@ union_opt:
         | union_order_or_limit { $$= 1; }
         ;
 
+opt_union_order_or_limit:
+	  /* Empty */
+	| union_order_or_limit
+	;
+
 union_order_or_limit:
           {
             THD *thd= YYTHD;
@@ -14065,7 +14061,7 @@ query_specification:
         ;
 
 query_expression_body:
-          query_specification
+          query_specification opt_union_order_or_limit
         | query_expression_body
           UNION_SYM union_option 
           {
@@ -14073,6 +14069,7 @@ query_expression_body:
               MYSQL_YYABORT;
           }
           query_specification
+          opt_union_order_or_limit
           {
             Lex->pop_context();
             $$= $1;

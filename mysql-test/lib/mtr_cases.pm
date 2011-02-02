@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (C) 2005-2006 MySQL AB
-#
+# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -150,7 +150,7 @@ sub collect_test_cases ($$$$) {
       {
 	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
-	if ( $test->{name} =~ /.*\.$tname/ )
+	if ( $test->{name} =~ /^$sname.*\.$tname$/ )
 	{
 	  $found= 1;
 	  last;
@@ -229,8 +229,11 @@ sub collect_test_cases ($$$$) {
 sub split_testname {
   my ($test_name)= @_;
 
-  # Get rid of directory part and split name on .'s
-  my @parts= split(/\./, basename($test_name));
+  # If .test file name is used, get rid of directory part
+  $test_name= basename($test_name) if $test_name =~ /\.test$/;
+
+  # Now split name on .'s
+  my @parts= split(/\./, $test_name);
 
   if (@parts == 1){
     # Only testname given, ex: alias

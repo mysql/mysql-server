@@ -440,7 +440,26 @@ enum enum_table_category
     The server implementation perform writes.
     Performance tables are cached in the table cache.
   */
-  TABLE_CATEGORY_PERFORMANCE=6
+  TABLE_CATEGORY_PERFORMANCE=6,
+
+  /**
+    Replication Information Tables.
+    These tables are used to store replication information.
+    These tables do *not* honor:
+    - LOCK TABLE t FOR READ/WRITE
+    - FLUSH TABLES WITH READ LOCK
+    - SET GLOBAL READ_ONLY = ON
+    as there is no point in locking explicitly
+    a Replication Information table.
+    An example of replication tables are:
+    - mysql.slave_master_info
+    - mysql.slave_relay_log_info,
+    which *are* updated even when there is either
+    a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
+    User queries do not write directly to these tables.
+    Replication tables are cached in the table cache.
+  */
+  TABLE_CATEGORY_RPL_INFO=7
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
@@ -748,11 +767,6 @@ struct TABLE_SHARE
   {
     return ((table_category == TABLE_CATEGORY_USER)
             || (table_category == TABLE_CATEGORY_SYSTEM));
-  }
-
-  inline bool require_write_privileges()
-  {
-    return (table_category == TABLE_CATEGORY_LOG);
   }
 
   inline ulong get_table_def_version()
@@ -1391,7 +1405,8 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     mdl_request.init(MDL_key::TABLE, db, table_name,
                      (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                     MDL_SHARED_WRITE : MDL_SHARED_READ);
+                     MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     MDL_TRANSACTION);
   }
 
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -280,6 +280,26 @@ static void report_error(int where_to, uint error, ...)
   }
 }
 
+/**
+   Check if the provided path is valid in the sense that it does cause
+   a relative reference outside the directory.
+
+   @note Currently, this function only check if there are any
+   characters in FN_DIRSEP in the string, but it might change in the
+   future.
+
+   @code
+   check_valid_path("../foo.so") -> true
+   check_valid_path("foo.so") -> false
+   @endcode
+ */
+bool check_valid_path(const char *path, size_t len)
+{
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  return  prefix < len;
+}
+
+
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
 ****************************************************************************/
@@ -377,7 +397,7 @@ static st_plugin_dl *plugin_dl_insert_or_reuse(struct st_plugin_dl *plugin_dl)
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_dl_array, (uchar*)&plugin_dl))
+  if (insert_dynamic(&plugin_dl_array, &plugin_dl))
     DBUG_RETURN(0);
   tmp= *dynamic_element(&plugin_dl_array, plugin_dl_array.elements - 1,
                         struct st_plugin_dl **)=
@@ -408,13 +428,15 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
+  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
+                       dl->str, (int) dl->length));
   plugin_dir_len= strlen(opt_plugin_dir);
   /*
     Ensure that the dll doesn't have a path.
     This is done to ensure that only approved libraries from the
     plugin directory are used (to make this even remotely secure).
   */
-  if (my_strchr(files_charset_info, dl->str, dl->str + dl->length, FN_LIBCHAR) ||
+  if (check_valid_path(dl->str, dl->length) ||
       check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)
@@ -694,7 +716,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
                        (long) current_thd, pi->name.str, pi->ref_count));
 
     if (lex)
-      insert_dynamic(&lex->plugins, (uchar*)&plugin);
+      insert_dynamic(&lex->plugins, &plugin);
     DBUG_RETURN(plugin);
   }
   DBUG_RETURN(NULL);
@@ -741,7 +763,7 @@ static st_plugin_int *plugin_insert_or_reuse(struct st_plugin_int *plugin)
       DBUG_RETURN(tmp);
     }
   }
-  if (insert_dynamic(&plugin_array, (uchar*)&plugin))
+  if (insert_dynamic(&plugin_array, &plugin))
     DBUG_RETURN(0);
   tmp= *dynamic_element(&plugin_array, plugin_array.elements - 1,
                         struct st_plugin_int **)=
@@ -1017,6 +1039,14 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
   LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
   DBUG_ASSERT(list);
+
+  /*
+    In unit tests, LOCK_plugin may be uninitialized, so do not lock it.
+    Besides: there's no point in locking it, if there are no plugins to unlock.
+   */
+  if (count == 0)
+    DBUG_VOID_RETURN;
+
   mysql_mutex_lock(&LOCK_plugin);
   while (count--)
     intern_plugin_unlock(lex, *list++);
@@ -1367,7 +1397,7 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
   tmp->ref_count= 0;
   tmp->plugin_dl= 0;
 
-  if (insert_dynamic(&plugin_array, (uchar*)&tmp))
+  if (insert_dynamic(&plugin_array, &tmp))
     DBUG_RETURN(1);
 
   *ptr= *dynamic_element(&plugin_array, plugin_array.elements - 1,
@@ -3477,7 +3507,7 @@ void add_plugin_options(DYNAMIC_ARRAY *options, MEM_ROOT *mem_root)
     /* Only options with a non-NULL comment are displayed in help text */
     for (;opt->name; opt++)
       if (opt->comment)
-        insert_dynamic(options, (uchar*) opt);
+        insert_dynamic(options, opt);
   }
 }
 

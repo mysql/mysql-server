@@ -18,25 +18,15 @@ save_master_pos;
 connection slave;
 --real_sleep 3 # wait for I/O thread to have read updates
 stop slave;
-source include/wait_for_slave_to_stop.inc;
+--vertical_results
+#checking show slave status
+let $status_items= Master_Host,Master_User,Connect_Retry,Master_Log_File,Relay_Master_Log_File,Slave_IO_Running,Slave_SQL_Running,Replicate_Do_DB,Replicate_Ignore_DB,Replicate_Do_Table,Replicate_Ignore_Table,Replicate_Wild_Do_Table,Replicate_Wild_Ignore_Table,Last_Errno,Last_Error,Skip_Counter,Exec_Master_Log_Pos,Until_Condition,Until_Log_File,Until_Log_Pos,Master_SSL_Allowed,Master_SSL_CA_File,Master_SSL_CA_Path,Master_SSL_Cert,Master_SSL_Cipher,Master_SSL_Key,Master_SSL_Verify_Server_Cert,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Replicate_Ignore_Server_Ids,Master_Server_Id;
+source include/show_slave_status.inc;
 
-let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
-let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos = $exec_pos`)
-{
-  source include/show_rpl_debug_info.inc;
-  echo 'Read_Master_Log_Pos: $read_pos' == 'Exec_Master_Log_Pos: $exec_pos';
-  die Failed because Read_Master_Log_Pos is equal to Exec_Master_Log_Pos;
-} 
 change master to master_user='root';
-let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
-let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
-if (`SELECT $read_pos <> $exec_pos`)
-{
-  source include/show_rpl_debug_info.inc;
-  echo 'Read_Master_Log_Pos: $read_pos' <> 'Exec_Master_Log_Pos: $exec_pos';
-  die Failed because Read_Master_Log_Pos is not equal to Exec_Master_Log_Pos;
-}
+#checking show slave status
+let $status_items= Master_Host,Master_User,Connect_Retry,Master_Log_File,Relay_Master_Log_File,Slave_IO_Running,Slave_SQL_Running,Replicate_Do_DB,Replicate_Ignore_DB,Replicate_Do_Table,Replicate_Ignore_Table,Replicate_Wild_Do_Table,Replicate_Wild_Ignore_Table,Last_Errno,Last_Error,Skip_Counter,Exec_Master_Log_Pos,Until_Condition,Until_Log_File,Until_Log_Pos,Master_SSL_Allowed,Master_SSL_CA_File,Master_SSL_CA_Path,Master_SSL_Cert,Master_SSL_Cipher,Master_SSL_Key,Master_SSL_Verify_Server_Cert,Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Replicate_Ignore_Server_Ids,Master_Server_Id;
+source include/show_slave_status.inc;
 
 start slave;
 sync_with_master;

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE DATABASE mydb;
 USE mydb;
 CREATE TABLE T1 (a INT) ENGINE= MYISAM;
@@ -32,3 +28,4 @@ slave-bin.000001	#	Query	#	#	use `mydb`; INSERT INTO t2 VALUES (1)
 slave-bin.000001	#	Query	#	#	COMMIT
 DROP DATABASE mydb;
 Replicate_Do_Table: mydb.Ţ1,mydb.t2
+include/rpl_end.inc

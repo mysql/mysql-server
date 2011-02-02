@@ -350,27 +350,27 @@ mem_heap_get_top(
 	ulint		n)	/*!< in: size of the topmost element */
 {
 	mem_block_t*	block;
-	void*		buf;
+	byte*		buf;
 
 	ut_ad(mem_heap_check(heap));
 
 	block = UT_LIST_GET_LAST(heap->base);
 
-	buf = (byte*)block + mem_block_get_free(block) - MEM_SPACE_NEEDED(n);
+	buf = (byte*) block + mem_block_get_free(block) - MEM_SPACE_NEEDED(n);
 
 #ifdef UNIV_MEM_DEBUG
-	ut_ad(mem_block_get_start(block) <=(ulint)((byte*)buf - (byte*)block));
+	ut_ad(mem_block_get_start(block) <= (ulint) (buf - (byte*) block));
 
 	/* In the debug version, advance buf to point at the storage which
 	was given to the caller in the allocation*/
 
-	buf = (byte*)buf + MEM_FIELD_HEADER_SIZE;
+	buf += MEM_FIELD_HEADER_SIZE;
 
 	/* Check that the field lengths agree */
-	ut_ad(n == (ulint)mem_field_header_get_len(buf));
+	ut_ad(n == mem_field_header_get_len(buf));
 #endif
 
-	return(buf);
+	return((void*) buf);
 }
 
 /*****************************************************************//**

@@ -555,5 +555,47 @@ SELECT CASE a WHEN a THEN a END FROM t1 GROUP BY a WITH ROLLUP;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#58628: Incorrect result for 'WHERE NULL NOT IN (<subquery>)
+--echo #
+
+CREATE TABLE t1 (pk INT NOT NULL, i INT);
+INSERT INTO t1 VALUES (0,NULL), (1,NULL), (2,NULL), (3,NULL);
+
+CREATE TABLE subq (pk INT NOT NULL, i INT NOT NULL, PRIMARY KEY(i,pk));
+INSERT INTO subq VALUES (0,0), (1,1), (2,2), (3,3);
+
+## Baseline queries: t1.i contains only NULL and should effectively
+## be evaluated as 'WHERE NULL IN'
+## .. These return correct resultset !
+
+--sorted_result
+SELECT * FROM t1
+  WHERE t1.i NOT IN
+    (SELECT i FROM subq WHERE subq.pk = t1.pk);
+
+--sorted_result
+SELECT * FROM t1
+  WHERE t1.i IN
+    (SELECT i FROM subq WHERE subq.pk = t1.pk) IS UNKNOWN;
+
+## Replaced 't1.i' with some constant expression which 
+## also evaluates to NULL. Expected to return same result as above:
+
+--sorted_result
+SELECT * FROM t1
+  WHERE NULL NOT IN
+    (SELECT i FROM subq WHERE subq.pk = t1.pk);
+
+--sorted_result
+SELECT * FROM t1
+  WHERE NULL IN
+    (SELECT i FROM subq WHERE subq.pk = t1.pk) IS UNKNOWN;
+
+--sorted_result
+SELECT * FROM t1
+  WHERE 1+NULL NOT IN
+    (SELECT i FROM subq WHERE subq.pk = t1.pk);
+
+DROP TABLE t1,subq;
 
 --echo End of 5.1 tests

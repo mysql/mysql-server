@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -590,9 +590,6 @@ sync_array_deadlock_step(
 	ulint		depth)	/*!< in: recursion depth */
 {
 	sync_cell_t*	new;
-	ibool		ret;
-
-	depth++;
 
 	if (pass != 0) {
 		/* If pass != 0, then we do not know which threads are
@@ -604,7 +601,7 @@ sync_array_deadlock_step(
 
 	new = sync_array_find_thread(arr, thread);
 
-	if (new == start) {
+	if (UNIV_UNLIKELY(new == start)) {
 		/* Stop running of other threads */
 
 		ut_dbg_stop_threads = TRUE;
@@ -616,11 +613,7 @@ sync_array_deadlock_step(
 		return(TRUE);
 
 	} else if (new) {
-		ret = sync_array_detect_deadlock(arr, start, new, depth);
-
-		if (ret) {
-			return(TRUE);
-		}
+		return(sync_array_detect_deadlock(arr, start, new, depth + 1));
 	}
 	return(FALSE);
 }
@@ -721,7 +714,7 @@ print:
 					fprintf(stderr, "rw-lock %p ",
 						(void*) lock);
 					sync_array_cell_print(stderr, cell);
-					rw_lock_debug_print(debug);
+					rw_lock_debug_print(stderr, debug);
 					return(TRUE);
 				}
 			}
@@ -930,12 +923,25 @@ sync_array_print_long_waits(void)
 	ulint		fatal_timeout = srv_fatal_semaphore_wait_threshold;
 	ibool		fatal = FALSE;
 
+#ifdef UNIV_DEBUG_VALGRIND
+	/* Increase the timeouts if running under valgrind because it executes
+	extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
+	we are running under valgrind but we have no better way to tell.
+	See Bug#58432 innodb.innodb_bug56143 fails under valgrind
+	for an example */
+# define SYNC_ARRAY_TIMEOUT	2400
+	fatal_timeout *= 10;
+#else
+# define SYNC_ARRAY_TIMEOUT	240
+#endif
+
 	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
 		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time) > 240) {
+		    && difftime(time(NULL), cell->reservation_time)
+		    > SYNC_ARRAY_TIMEOUT) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
 			sync_array_cell_print(stderr, cell);
@@ -967,7 +973,7 @@ sync_array_print_long_waits(void)
 			(ulong)os_file_n_pending_pwrites);
 
 		srv_print_innodb_monitor = TRUE;
-		os_event_set(srv_lock_timeout_thread_event);
+		os_event_set(srv_timeout_event);
 
 		os_thread_sleep(30000000);
 
@@ -976,6 +982,8 @@ sync_array_print_long_waits(void)
 			"InnoDB: ###### Diagnostic info printed"
 			" to the standard error stream\n");
 	}
+
+#undef SYNC_ARRAY_TIMEOUT
 
 	return(fatal);
 }

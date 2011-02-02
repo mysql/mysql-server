@@ -50,6 +50,7 @@ public:
 };
 
 namespace {
+extern "C"
 void *thread_start_routine(void *arg)
 {
   Thread_start_arg *start_arg= (Thread_start_arg*) arg;

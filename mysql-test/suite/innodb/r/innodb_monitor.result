@@ -32,6 +32,15 @@ buffer_page_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disa
 buffer_page_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages read
 buffer_byte_read	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data read in bytes
 buffer_byte_written	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Amount of data written in bytes
+buffer_flush_adaptive_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of adaptive flush
+buffer_flush_adaptive_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of adaptive flushing
+buffer_flush_async_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of async flush
+buffer_flush_async_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of async flushing
+buffer_flush_sync_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of sync flush
+buffer_flush_sync_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of sync flushing
+buffer_flush_max_dirty_flushes	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Occurrences of max dirty page flush
+buffer_flush_max_dirty_pages	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Number of pages flushed as part of max dirty flushing
+buffer_flush_io_capacity_pct	Buffer	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server I/O capacity during flushing
 buf_page_read_index_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Leaf Pages read
 buf_page_read_index_non_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Index Non-leaf Pages read
 buf_page_read_index_ibuf_leaf	Buffer Page I/O	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of Insert Buffer Index Leaf Pages read
@@ -92,7 +101,6 @@ log_num_log_io	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disable
 log_waits	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log waits due to small log buffer
 log_write_request	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log write requests
 log_writes	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of log writes
-log_flush_io_capacity	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	value	Percent of Server I/O capacity during flushing
 log_flush_dirty_page_exceed	Recovery	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of flush calls when the max dirty page pct was hit
 compress_num_page_compressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages compressed
 compress_num_page_decompressed	Compression	0	NULL	NULL	NULL	0	NULL	NULL	NULL	NULL	NULL	NULL	disabled	counter	Number of pages decompressed
@@ -137,6 +145,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -197,7 +214,6 @@ log_num_log_io	disabled
 log_waits	disabled
 log_write_request	disabled
 log_writes	disabled
-log_flush_io_capacity	disabled
 log_flush_dirty_page_exceed	disabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
@@ -243,6 +259,15 @@ buffer_page_written	enabled
 buffer_page_read	enabled
 buffer_byte_read	enabled
 buffer_byte_written	enabled
+buffer_flush_adaptive_flushes	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_flushes	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_flushes	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_max_dirty_flushes	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_io_capacity_pct	enabled
 buf_page_read_index_leaf	enabled
 buf_page_read_index_non_leaf	enabled
 buf_page_read_index_ibuf_leaf	enabled
@@ -303,7 +328,6 @@ log_num_log_io	enabled
 log_waits	enabled
 log_write_request	enabled
 log_writes	enabled
-log_flush_io_capacity	enabled
 log_flush_dirty_page_exceed	enabled
 compress_num_page_compressed	enabled
 compress_num_page_decompressed	enabled
@@ -351,6 +375,15 @@ buffer_page_written	disabled
 buffer_page_read	disabled
 buffer_byte_read	disabled
 buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
 buf_page_read_index_leaf	disabled
 buf_page_read_index_non_leaf	disabled
 buf_page_read_index_ibuf_leaf	disabled
@@ -411,7 +444,6 @@ log_num_log_io	disabled
 log_waits	disabled
 log_write_request	disabled
 log_writes	disabled
-log_flush_io_capacity	disabled
 log_flush_dirty_page_exceed	disabled
 compress_num_page_compressed	disabled
 compress_num_page_decompressed	disabled
@@ -457,6 +489,15 @@ buffer_page_written	0	disabled
 buffer_page_read	0	disabled
 buffer_byte_read	0	disabled
 buffer_byte_written	0	disabled
+buffer_flush_adaptive_flushes	0	disabled
+buffer_flush_adaptive_pages	0	disabled
+buffer_flush_async_flushes	0	disabled
+buffer_flush_async_pages	0	disabled
+buffer_flush_sync_flushes	0	disabled
+buffer_flush_sync_pages	0	disabled
+buffer_flush_max_dirty_flushes	0	disabled
+buffer_flush_max_dirty_pages	0	disabled
+buffer_flush_io_capacity_pct	0	disabled
 buf_page_read_index_leaf	0	disabled
 buf_page_read_index_non_leaf	0	disabled
 buf_page_read_index_ibuf_leaf	0	disabled
@@ -517,7 +558,6 @@ log_num_log_io	0	disabled
 log_waits	0	disabled
 log_write_request	0	disabled
 log_writes	0	disabled
-log_flush_io_capacity	0	disabled
 log_flush_dirty_page_exceed	0	disabled
 compress_num_page_compressed	0	disabled
 compress_num_page_decompressed	0	disabled
@@ -528,6 +568,630 @@ dml_num_reads	0	disabled
 dml_num_inserts	0	disabled
 dml_num_deletes	0	disabled
 dml_updates	0	disabled
+set  global innodb_enable_monitor_counter = "%lock%";
+select name, status from information_schema.innodb_metrics
+where name like "%lock%";
+name	status
+lock_deadlock_count	enabled
+lock_timeout	enabled
+lock_lockrec_wait	enabled
+lock_lockrec_request	enabled
+lock_lockrec_created	enabled
+lock_lockrec_removed	enabled
+lock_num_lockrec	enabled
+lock_tablelock_created	enabled
+lock_tablelock_removed	enabled
+lock_num_tablelock	enabled
+lock_row_lock_current_wait	enabled
+lock_row_lock_wait_time	enabled
+lock_row_lock_wait	enabled
+set  global innodb_disable_monitor_counter = "%lock%";
+select name, status from information_schema.innodb_metrics
+where name like "%lock%";
+name	status
+lock_deadlock_count	disabled
+lock_timeout	disabled
+lock_lockrec_wait	disabled
+lock_lockrec_request	disabled
+lock_lockrec_created	disabled
+lock_lockrec_removed	disabled
+lock_num_lockrec	disabled
+lock_tablelock_created	disabled
+lock_tablelock_removed	disabled
+lock_num_tablelock	disabled
+lock_row_lock_current_wait	disabled
+lock_row_lock_wait_time	disabled
+lock_row_lock_wait	disabled
+set global innodb_enable_monitor_counter = "%lock*";
+ERROR 42000: Variable 'innodb_enable_monitor_counter' can't be set to the value of '%lock*'
+set global innodb_enable_monitor_counter="%%%%%%%%%%%%%%%%%%%%%%%%%%%";
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	enabled
+metadata_table_closed	enabled
+lock_deadlock_count	enabled
+lock_timeout	enabled
+lock_lockrec_wait	enabled
+lock_lockrec_request	enabled
+lock_lockrec_created	enabled
+lock_lockrec_removed	enabled
+lock_num_lockrec	enabled
+lock_tablelock_created	enabled
+lock_tablelock_removed	enabled
+lock_num_tablelock	enabled
+lock_row_lock_current_wait	enabled
+lock_row_lock_wait_time	enabled
+lock_row_lock_wait	enabled
+buffer_reads	enabled
+buffer_read_request	enabled
+buffer_write_request	enabled
+buffer_page_in_flush	enabled
+buffer_wait_free	enabled
+buffer_read_ahead	enabled
+buffer_read_ahead_evict	enabled
+buffer_pool_total_page	enabled
+buffer_pool_page_misc	enabled
+buffer_pool_page_data	enabled
+buffer_pool_page_dirty	enabled
+buffer_pool_page_free	enabled
+buffer_page_created	enabled
+buffer_page_written	enabled
+buffer_page_read	enabled
+buffer_byte_read	enabled
+buffer_byte_written	enabled
+buffer_flush_adaptive_flushes	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_flushes	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_flushes	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_max_dirty_flushes	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_io_capacity_pct	enabled
+buf_page_read_index_leaf	enabled
+buf_page_read_index_non_leaf	enabled
+buf_page_read_index_ibuf_leaf	enabled
+buf_page_read_index_ibuf_non_leaf	enabled
+buf_page_read_undo_log	enabled
+buf_page_read_index_inode	enabled
+buf_page_read_ibuf_free_list	enabled
+buf_page_read_ibuf_bitmap	enabled
+buf_page_read_system_page	enabled
+buf_page_read_trx_system	enabled
+buf_page_read_fsp_hdr	enabled
+buf_page_read_xdes	enabled
+buf_page_read_blob	enabled
+buf_page_read_zblob	enabled
+buf_page_read_zblob2	enabled
+buf_page_read_other	enabled
+buf_page_written_index_leaf	enabled
+buf_page_written_index_non_leaf	enabled
+buf_page_written_index_ibuf_leaf	enabled
+buf_page_written_index_ibuf_non_leaf	enabled
+buf_page_written_undo_log	enabled
+buf_page_written_index_inode	enabled
+buf_page_written_ibuf_free_list	enabled
+buf_page_written_ibuf_bitmap	enabled
+buf_page_written_system_page	enabled
+buf_page_written_trx_system	enabled
+buf_page_written_fsp_hdr	enabled
+buf_page_written_xdes	enabled
+buf_page_written_blob	enabled
+buf_page_written_zblob	enabled
+buf_page_written_zblob2	enabled
+buf_page_written_other	enabled
+os_num_reads	enabled
+os_num_writes	enabled
+os_num_fsync	enabled
+os_num_pending_reads	enabled
+os_num_pending_writes	enabled
+os_log_byte_written	enabled
+os_log_fsync	enabled
+os_log_pending_fsync	enabled
+os_log_pending_write	enabled
+trx_num_commit	enabled
+trx_num_abort	enabled
+trx_active_trx	enabled
+trx_num_row_purged	enabled
+trx_purge_delay	enabled
+trx_rseg_history_len	enabled
+trx_num_undo_slot_used	enabled
+trx_num_undo_slot_cached	enabled
+trx_rseg_cur_size	enabled
+log_num_checkpoint	enabled
+log_lsn_last_flush	enabled
+log_lsn_last_checkpoint	enabled
+log_current_lsn	enabled
+log_pending_log_write	enabled
+log_pending_checkpoint	enabled
+log_num_log_io	enabled
+log_waits	enabled
+log_write_request	enabled
+log_writes	enabled
+log_flush_dirty_page_exceed	enabled
+compress_num_page_compressed	enabled
+compress_num_page_decompressed	enabled
+index_num_split	enabled
+index_num_merge	enabled
+fil_system_num_open_file	enabled
+dml_num_reads	enabled
+dml_num_inserts	enabled
+dml_num_deletes	enabled
+dml_updates	enabled
+set global innodb_disable_monitor_counter="%%%%%";
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	disabled
+metadata_table_closed	disabled
+lock_deadlock_count	disabled
+lock_timeout	disabled
+lock_lockrec_wait	disabled
+lock_lockrec_request	disabled
+lock_lockrec_created	disabled
+lock_lockrec_removed	disabled
+lock_num_lockrec	disabled
+lock_tablelock_created	disabled
+lock_tablelock_removed	disabled
+lock_num_tablelock	disabled
+lock_row_lock_current_wait	disabled
+lock_row_lock_wait_time	disabled
+lock_row_lock_wait	disabled
+buffer_reads	disabled
+buffer_read_request	disabled
+buffer_write_request	disabled
+buffer_page_in_flush	disabled
+buffer_wait_free	disabled
+buffer_read_ahead	disabled
+buffer_read_ahead_evict	disabled
+buffer_pool_total_page	disabled
+buffer_pool_page_misc	disabled
+buffer_pool_page_data	disabled
+buffer_pool_page_dirty	disabled
+buffer_pool_page_free	disabled
+buffer_page_created	disabled
+buffer_page_written	disabled
+buffer_page_read	disabled
+buffer_byte_read	disabled
+buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
+os_num_reads	disabled
+os_num_writes	disabled
+os_num_fsync	disabled
+os_num_pending_reads	disabled
+os_num_pending_writes	disabled
+os_log_byte_written	disabled
+os_log_fsync	disabled
+os_log_pending_fsync	disabled
+os_log_pending_write	disabled
+trx_num_commit	disabled
+trx_num_abort	disabled
+trx_active_trx	disabled
+trx_num_row_purged	disabled
+trx_purge_delay	disabled
+trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
+log_num_checkpoint	disabled
+log_lsn_last_flush	disabled
+log_lsn_last_checkpoint	disabled
+log_current_lsn	disabled
+log_pending_log_write	disabled
+log_pending_checkpoint	disabled
+log_num_log_io	disabled
+log_waits	disabled
+log_write_request	disabled
+log_writes	disabled
+log_flush_dirty_page_exceed	disabled
+compress_num_page_compressed	disabled
+compress_num_page_decompressed	disabled
+index_num_split	disabled
+index_num_merge	disabled
+fil_system_num_open_file	disabled
+dml_num_reads	disabled
+dml_num_inserts	disabled
+dml_num_deletes	disabled
+dml_updates	disabled
+set global innodb_enable_monitor_counter="%";
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	enabled
+metadata_table_closed	enabled
+lock_deadlock_count	enabled
+lock_timeout	enabled
+lock_lockrec_wait	enabled
+lock_lockrec_request	enabled
+lock_lockrec_created	enabled
+lock_lockrec_removed	enabled
+lock_num_lockrec	enabled
+lock_tablelock_created	enabled
+lock_tablelock_removed	enabled
+lock_num_tablelock	enabled
+lock_row_lock_current_wait	enabled
+lock_row_lock_wait_time	enabled
+lock_row_lock_wait	enabled
+buffer_reads	enabled
+buffer_read_request	enabled
+buffer_write_request	enabled
+buffer_page_in_flush	enabled
+buffer_wait_free	enabled
+buffer_read_ahead	enabled
+buffer_read_ahead_evict	enabled
+buffer_pool_total_page	enabled
+buffer_pool_page_misc	enabled
+buffer_pool_page_data	enabled
+buffer_pool_page_dirty	enabled
+buffer_pool_page_free	enabled
+buffer_page_created	enabled
+buffer_page_written	enabled
+buffer_page_read	enabled
+buffer_byte_read	enabled
+buffer_byte_written	enabled
+buffer_flush_adaptive_flushes	enabled
+buffer_flush_adaptive_pages	enabled
+buffer_flush_async_flushes	enabled
+buffer_flush_async_pages	enabled
+buffer_flush_sync_flushes	enabled
+buffer_flush_sync_pages	enabled
+buffer_flush_max_dirty_flushes	enabled
+buffer_flush_max_dirty_pages	enabled
+buffer_flush_io_capacity_pct	enabled
+buf_page_read_index_leaf	enabled
+buf_page_read_index_non_leaf	enabled
+buf_page_read_index_ibuf_leaf	enabled
+buf_page_read_index_ibuf_non_leaf	enabled
+buf_page_read_undo_log	enabled
+buf_page_read_index_inode	enabled
+buf_page_read_ibuf_free_list	enabled
+buf_page_read_ibuf_bitmap	enabled
+buf_page_read_system_page	enabled
+buf_page_read_trx_system	enabled
+buf_page_read_fsp_hdr	enabled
+buf_page_read_xdes	enabled
+buf_page_read_blob	enabled
+buf_page_read_zblob	enabled
+buf_page_read_zblob2	enabled
+buf_page_read_other	enabled
+buf_page_written_index_leaf	enabled
+buf_page_written_index_non_leaf	enabled
+buf_page_written_index_ibuf_leaf	enabled
+buf_page_written_index_ibuf_non_leaf	enabled
+buf_page_written_undo_log	enabled
+buf_page_written_index_inode	enabled
+buf_page_written_ibuf_free_list	enabled
+buf_page_written_ibuf_bitmap	enabled
+buf_page_written_system_page	enabled
+buf_page_written_trx_system	enabled
+buf_page_written_fsp_hdr	enabled
+buf_page_written_xdes	enabled
+buf_page_written_blob	enabled
+buf_page_written_zblob	enabled
+buf_page_written_zblob2	enabled
+buf_page_written_other	enabled
+os_num_reads	enabled
+os_num_writes	enabled
+os_num_fsync	enabled
+os_num_pending_reads	enabled
+os_num_pending_writes	enabled
+os_log_byte_written	enabled
+os_log_fsync	enabled
+os_log_pending_fsync	enabled
+os_log_pending_write	enabled
+trx_num_commit	enabled
+trx_num_abort	enabled
+trx_active_trx	enabled
+trx_num_row_purged	enabled
+trx_purge_delay	enabled
+trx_rseg_history_len	enabled
+trx_num_undo_slot_used	enabled
+trx_num_undo_slot_cached	enabled
+trx_rseg_cur_size	enabled
+log_num_checkpoint	enabled
+log_lsn_last_flush	enabled
+log_lsn_last_checkpoint	enabled
+log_current_lsn	enabled
+log_pending_log_write	enabled
+log_pending_checkpoint	enabled
+log_num_log_io	enabled
+log_waits	enabled
+log_write_request	enabled
+log_writes	enabled
+log_flush_dirty_page_exceed	enabled
+compress_num_page_compressed	enabled
+compress_num_page_decompressed	enabled
+index_num_split	enabled
+index_num_merge	enabled
+fil_system_num_open_file	enabled
+dml_num_reads	enabled
+dml_num_inserts	enabled
+dml_num_deletes	enabled
+dml_updates	enabled
+set global innodb_disable_monitor_counter="%_%";
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	disabled
+metadata_table_closed	disabled
+lock_deadlock_count	disabled
+lock_timeout	disabled
+lock_lockrec_wait	disabled
+lock_lockrec_request	disabled
+lock_lockrec_created	disabled
+lock_lockrec_removed	disabled
+lock_num_lockrec	disabled
+lock_tablelock_created	disabled
+lock_tablelock_removed	disabled
+lock_num_tablelock	disabled
+lock_row_lock_current_wait	disabled
+lock_row_lock_wait_time	disabled
+lock_row_lock_wait	disabled
+buffer_reads	disabled
+buffer_read_request	disabled
+buffer_write_request	disabled
+buffer_page_in_flush	disabled
+buffer_wait_free	disabled
+buffer_read_ahead	disabled
+buffer_read_ahead_evict	disabled
+buffer_pool_total_page	disabled
+buffer_pool_page_misc	disabled
+buffer_pool_page_data	disabled
+buffer_pool_page_dirty	disabled
+buffer_pool_page_free	disabled
+buffer_page_created	disabled
+buffer_page_written	disabled
+buffer_page_read	disabled
+buffer_byte_read	disabled
+buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
+os_num_reads	disabled
+os_num_writes	disabled
+os_num_fsync	disabled
+os_num_pending_reads	disabled
+os_num_pending_writes	disabled
+os_log_byte_written	disabled
+os_log_fsync	disabled
+os_log_pending_fsync	disabled
+os_log_pending_write	disabled
+trx_num_commit	disabled
+trx_num_abort	disabled
+trx_active_trx	disabled
+trx_num_row_purged	disabled
+trx_purge_delay	disabled
+trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
+log_num_checkpoint	disabled
+log_lsn_last_flush	disabled
+log_lsn_last_checkpoint	disabled
+log_current_lsn	disabled
+log_pending_log_write	disabled
+log_pending_checkpoint	disabled
+log_num_log_io	disabled
+log_waits	disabled
+log_write_request	disabled
+log_writes	disabled
+log_flush_dirty_page_exceed	disabled
+compress_num_page_compressed	disabled
+compress_num_page_decompressed	disabled
+index_num_split	disabled
+index_num_merge	disabled
+fil_system_num_open_file	disabled
+dml_num_reads	disabled
+dml_num_inserts	disabled
+dml_num_deletes	disabled
+dml_updates	disabled
+set global innodb_enable_monitor_counter="log%%%%";
+select name, status from information_schema.innodb_metrics;
+name	status
+metadata_table_opened	disabled
+metadata_table_closed	disabled
+lock_deadlock_count	disabled
+lock_timeout	disabled
+lock_lockrec_wait	disabled
+lock_lockrec_request	disabled
+lock_lockrec_created	disabled
+lock_lockrec_removed	disabled
+lock_num_lockrec	disabled
+lock_tablelock_created	disabled
+lock_tablelock_removed	disabled
+lock_num_tablelock	disabled
+lock_row_lock_current_wait	disabled
+lock_row_lock_wait_time	disabled
+lock_row_lock_wait	disabled
+buffer_reads	disabled
+buffer_read_request	disabled
+buffer_write_request	disabled
+buffer_page_in_flush	disabled
+buffer_wait_free	disabled
+buffer_read_ahead	disabled
+buffer_read_ahead_evict	disabled
+buffer_pool_total_page	disabled
+buffer_pool_page_misc	disabled
+buffer_pool_page_data	disabled
+buffer_pool_page_dirty	disabled
+buffer_pool_page_free	disabled
+buffer_page_created	disabled
+buffer_page_written	disabled
+buffer_page_read	disabled
+buffer_byte_read	disabled
+buffer_byte_written	disabled
+buffer_flush_adaptive_flushes	disabled
+buffer_flush_adaptive_pages	disabled
+buffer_flush_async_flushes	disabled
+buffer_flush_async_pages	disabled
+buffer_flush_sync_flushes	disabled
+buffer_flush_sync_pages	disabled
+buffer_flush_max_dirty_flushes	disabled
+buffer_flush_max_dirty_pages	disabled
+buffer_flush_io_capacity_pct	disabled
+buf_page_read_index_leaf	disabled
+buf_page_read_index_non_leaf	disabled
+buf_page_read_index_ibuf_leaf	disabled
+buf_page_read_index_ibuf_non_leaf	disabled
+buf_page_read_undo_log	disabled
+buf_page_read_index_inode	disabled
+buf_page_read_ibuf_free_list	disabled
+buf_page_read_ibuf_bitmap	disabled
+buf_page_read_system_page	disabled
+buf_page_read_trx_system	disabled
+buf_page_read_fsp_hdr	disabled
+buf_page_read_xdes	disabled
+buf_page_read_blob	disabled
+buf_page_read_zblob	disabled
+buf_page_read_zblob2	disabled
+buf_page_read_other	disabled
+buf_page_written_index_leaf	disabled
+buf_page_written_index_non_leaf	disabled
+buf_page_written_index_ibuf_leaf	disabled
+buf_page_written_index_ibuf_non_leaf	disabled
+buf_page_written_undo_log	disabled
+buf_page_written_index_inode	disabled
+buf_page_written_ibuf_free_list	disabled
+buf_page_written_ibuf_bitmap	disabled
+buf_page_written_system_page	disabled
+buf_page_written_trx_system	disabled
+buf_page_written_fsp_hdr	disabled
+buf_page_written_xdes	disabled
+buf_page_written_blob	disabled
+buf_page_written_zblob	disabled
+buf_page_written_zblob2	disabled
+buf_page_written_other	disabled
+os_num_reads	disabled
+os_num_writes	disabled
+os_num_fsync	disabled
+os_num_pending_reads	disabled
+os_num_pending_writes	disabled
+os_log_byte_written	disabled
+os_log_fsync	disabled
+os_log_pending_fsync	disabled
+os_log_pending_write	disabled
+trx_num_commit	disabled
+trx_num_abort	disabled
+trx_active_trx	disabled
+trx_num_row_purged	disabled
+trx_purge_delay	disabled
+trx_rseg_history_len	disabled
+trx_num_undo_slot_used	disabled
+trx_num_undo_slot_cached	disabled
+trx_rseg_cur_size	disabled
+log_num_checkpoint	enabled
+log_lsn_last_flush	enabled
+log_lsn_last_checkpoint	enabled
+log_current_lsn	enabled
+log_pending_log_write	enabled
+log_pending_checkpoint	enabled
+log_num_log_io	enabled
+log_waits	enabled
+log_write_request	enabled
+log_writes	enabled
+log_flush_dirty_page_exceed	enabled
+compress_num_page_compressed	disabled
+compress_num_page_decompressed	disabled
+index_num_split	disabled
+index_num_merge	disabled
+fil_system_num_open_file	disabled
+dml_num_reads	disabled
+dml_num_inserts	disabled
+dml_num_deletes	disabled
+dml_updates	disabled
+set global innodb_enable_monitor_counter="os_%m_fs_nc";
+set global innodb_enable_monitor_counter="os%pending%";
+select name, status from information_schema.innodb_metrics
+where name like "os%";
+name	status
+os_num_reads	disabled
+os_num_writes	disabled
+os_num_fsync	enabled
+os_num_pending_reads	enabled
+os_num_pending_writes	enabled
+os_log_byte_written	disabled
+os_log_fsync	disabled
+os_log_pending_fsync	enabled
+os_log_pending_write	enabled
+set global innodb_enable_monitor_counter="";
+ERROR 42000: Variable 'innodb_enable_monitor_counter' can't be set to the value of ''
+set global innodb_enable_monitor_counter="_";
+ERROR 42000: Variable 'innodb_enable_monitor_counter' can't be set to the value of '_'
 set global innodb_enable_monitor_counter = metadata_table_opened;
 create table monitor_test(col int) engine = innodb;
 select * from monitor_test;

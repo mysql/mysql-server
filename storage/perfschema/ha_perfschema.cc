@@ -242,6 +242,7 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
   DBUG_ENTER("ha_perfschema::update_row");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_update_count);
   int result= m_table->update_row(table, old_data, new_data, table->field);
   DBUG_RETURN(result);
 }
@@ -251,6 +252,7 @@ int ha_perfschema::delete_row(const uchar *buf)
   DBUG_ENTER("ha_perfschema::delete_row");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_delete_count);
   int result= m_table->delete_row(table, buf, table->field);
   DBUG_RETURN(result);
 }
@@ -287,6 +289,8 @@ int ha_perfschema::rnd_next(uchar *buf)
   DBUG_ENTER("ha_perfschema::rnd_next");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+
   int result= m_table->rnd_next();
   if (result == 0)
   {
@@ -311,6 +315,7 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
   DBUG_ENTER("ha_perfschema::rnd_pos");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   int result= m_table->rnd_pos(pos);
   if (result == 0)
     result= m_table->read_row(table, buf, table->field);
@@ -339,7 +344,6 @@ int ha_perfschema::delete_all_rows(void)
     result= m_table_share->m_delete_all_rows();
   else
   {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
     result= HA_ERR_WRONG_COMMAND;
   }
   DBUG_RETURN(result);
@@ -370,7 +374,6 @@ int ha_perfschema::delete_table(const char *name)
 int ha_perfschema::rename_table(const char * from, const char * to)
 {
   DBUG_ENTER("ha_perfschema::rename_table ");
-  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 }
 
@@ -395,7 +398,37 @@ int ha_perfschema::create(const char *name, TABLE *table_arg,
     This is not a general purpose engine.
     Failure to CREATE TABLE is the expected result.
   */
-  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+}
+
+void ha_perfschema::print_error(int error, myf errflag)
+{
+  switch (error)
+  {
+    case HA_ERR_TABLE_NEEDS_UPGRADE:
+      /*
+        The error message for ER_TABLE_NEEDS_UPGRADE refers to REPAIR table,
+        which does not apply to performance schema tables.
+      */
+      my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
+               table_share->db.str, table_share->table_name.str);
+      break;
+    case HA_ERR_WRONG_COMMAND:
+      /*
+        The performance schema is not a general purpose storage engine,
+        some operations are not supported, by design.
+        We do not want to print "Command not supported",
+        which gives the impression that a command implementation is missing,
+        and that the failure should be considered a bug.
+        We print "Invalid performance_schema usage." instead,
+        to emphasise that the operation attempted is not meant to be legal,
+        and that the failure returned is indeed the expected result.
+      */
+      my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
+      break;
+    default:
+     handler::print_error(error, errflag);
+     break;
+  }
 }
 

@@ -47,8 +47,7 @@ SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 --echo ##########
 --echo ########## setup (PART I)
 --echo ##########
--- connection master
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 
 --let $dbname= b54866
@@ -242,3 +241,5 @@ DROP TABLE test.t2;
 --eval DROP USER '$dbuser'@'localhost'
 --eval DROP DATABASE $dbname
 --sync_slave_with_master
+
+--source include/rpl_end.inc

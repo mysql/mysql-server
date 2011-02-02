@@ -101,8 +101,10 @@ IF(NOT COMPILATION_COMMENT)
 ENDIF()
 
 IF(WIN32)
-  # Sign executables with authenticode certificate
-  SET(SIGNCODE 1 CACHE BOOL "")
+  IF(NOT CMAKE_USING_VC_FREE_TOOLS)
+    # Sign executables with authenticode certificate
+    SET(SIGNCODE 1 CACHE BOOL "")
+  ENDIF()
 ENDIF()
 
 IF(UNIX)
@@ -115,13 +117,26 @@ IF(UNIX)
 
   OPTION(WITH_PIC "" ON) # Why?
 
-  # Ensure aio is available on Linux (required by InnoDB)
   IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
-    CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
-    IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
-      MESSAGE(FATAL_ERROR "aio is required on Linux")
+    IF(NOT IGNORE_AIO_CHECK)
+      # Ensure aio is available on Linux (required by InnoDB)
+      CHECK_INCLUDE_FILES(libaio.h HAVE_LIBAIO_H)
+      CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
+      IF(NOT HAVE_LIBAIO_H OR NOT HAVE_LIBAIO)
+        MESSAGE(FATAL_ERROR "
+        aio is required on Linux, you need to install the required library:
+
+          Debian/Ubuntu:              apt-get install libaio-dev
+          RedHat/Fedora/Oracle Linux: yum install libaio-devel
+          SuSE:                       zypper install libaio-devel
+
+        If you really do not want it, pass -DIGNORE_AIO_CHECK to cmake.
+        ")
+      ENDIF()
     ENDIF()
+
+    # Enable fast mutexes on Linux
+    OPTION(WITH_FAST_MUTEXES "" ON)
   ENDIF()
 
 ENDIF()
@@ -219,22 +234,4 @@ IF(UNIX)
       ENDIF()
     ENDIF()
   ENDIF()
-
-  IF(CMAKE_C_FLAGS_DEBUG)
-    SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}"
-      CACHE STRING "Debug C compile flags")
-  ENDIF()
-  IF(CMAKE_CXX_FLAGS_DEBUG)
-    SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}"
-      CACHE STRING "Debug C++ compile flags")
-  ENDIF()
-  IF(CMAKE_C_FLAGS_RELWITHDEBINFO)
-    SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO}"
-      CACHE STRING "RelWithDebInfo C compile flags")
-  ENDIF()
-  IF(CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}"
-      CACHE STRING "RelWithDebInfo C++ compile flags")
-  ENDIF()
-
 ENDIF()

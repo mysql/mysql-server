@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,20 +129,6 @@ void Item_subselect::cleanup()
   reset();
   value_assigned= 0;
   DBUG_VOID_RETURN;
-}
-
-
-/*
-   We cannot use generic Item::safe_charset_converter() because
-   Subselect transformation does not happen in view_prepare_mode
-   and thus we can not evaluate val_...() for const items.
-*/
-
-Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
-{
-  Item_func_conv_charset *conv=
-    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
-  return conv->safe ? conv : NULL;
 }
 
 
@@ -302,6 +288,7 @@ bool Item_subselect::exec()
   if (thd->is_error() || thd->killed)
     return 1;
 
+  DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
@@ -449,7 +436,7 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return const_item_cache;
+  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1307,6 +1294,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
     select_lex->having= join->having= and_items(join->having, item);
     if (join->having == item)
       item->name= (char*)in_having_cond;
+    select_lex->having->top_level_item();
     select_lex->having_fix_field= 1;
     /*
       we do not check join->having->fixed, because Item_and (from and_items)
@@ -1876,7 +1864,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
   if (exec_method == EXEC_SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
 
-  if (thd_arg->lex->view_prepare_mode && left_expr && !left_expr->fixed)
+  if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      left_expr && !left_expr->fixed)
     result = left_expr->fix_fields(thd_arg, &left_expr);
 
   return result || Item_subselect::fix_fields(thd_arg, ref);
@@ -2055,7 +2044,8 @@ Item_allany_subselect::select_transformer(JOIN *join)
   exec_method= EXEC_EXISTS;
   if (upper_item)
     upper_item->show= 1;
-  DBUG_RETURN(select_in_like_transformer(join, func));
+  trans_res retval= select_in_like_transformer(join, func);
+  DBUG_RETURN(retval);
 }
 
 
@@ -2314,6 +2304,7 @@ int join_read_next_same_or_null(READ_RECORD *info);
 int subselect_single_select_engine::exec()
 {
   DBUG_ENTER("subselect_single_select_engine::exec");
+  int rc= 0;
   char const *save_where= thd->where;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= select_lex;
@@ -2324,16 +2315,19 @@ int subselect_single_select_engine::exec()
     unit->set_limit(unit->global_parameters);
     if (join->optimize())
     {
-      thd->where= save_where;
-      executed= 1;
-      thd->lex->current_select= save_select;
-      DBUG_RETURN(join->error ? join->error : 1);
+      executed= true;
+      rc= join->error ? join->error : 1;
+      goto exit;
     }
     if (save_join_if_explain())
-      DBUG_RETURN(1);                        /* purecov: inspected */
+    {
+      rc= 1;
+      goto exit;
+    }
     if (item->engine_changed)
     {
-      DBUG_RETURN(1);
+      rc= 1;
+      goto exit;
     }
   }
   if (select_lex->uncacheable &&
@@ -2342,9 +2336,8 @@ int subselect_single_select_engine::exec()
   {
     if (join->reinit())
     {
-      thd->where= save_where;
-      thd->lex->current_select= save_select;
-      DBUG_RETURN(1);
+      rc= 1;
+      goto exit;
     }
     item->reset();
     item->assigned((executed= 0));
@@ -2400,14 +2393,15 @@ int subselect_single_select_engine::exec()
       tab->read_first_record= tab->save_read_first_record; 
       tab->read_record.read_record= tab->save_read_record;
     }
-    executed= 1;
-    thd->where= save_where;
-    thd->lex->current_select= save_select;
-    DBUG_RETURN(join->error||thd->is_fatal_error);
+    executed= true;
+    
+    rc= join->error || thd->is_fatal_error;
   }
+
+exit:
   thd->where= save_where;
   thd->lex->current_select= save_select;
-  DBUG_RETURN(0);
+  DBUG_RETURN(rc);
 }
 
 int subselect_union_engine::exec()
@@ -2868,28 +2862,30 @@ subselect_single_select_engine::save_join_if_explain()
      3) Call does not come from select_describe()). If it does,
         JOIN::exec() will not call make_simple_join() and the JOIN we
         plan to save will not be replaced anyway.
-     4) A temp table is needed. This is what triggers JOIN::exec() to
-        make a replacement JOIN by calling make_simple_join(). 
-     5) The Item_subselect is cacheable
+     4) The Item_subselect is cacheable
   */
   if (thd->lex->describe &&                              // 1
       !select_lex->uncacheable &&                        // 2
-      !(join->select_options & SELECT_DESCRIBE) &&       // 3
-      join->need_tmp)                                    // 4
+      !(join->select_options & SELECT_DESCRIBE))         // 3
   {
     item->update_used_tables();
-    if (item->const_item())                              // 5
+    if (item->const_item())                              // 4
     {
       /*
-        Save this JOIN to join->tmp_join since the original layout will
-        be replaced when JOIN::exec() calls make_simple_join() due to
-        need_tmp==TRUE. The original layout is needed so we can describe
-        the query. No need to do this if uncacheable != 0 since in this
-        case the JOIN has already been saved during JOIN::optimize()
+        It's necessary to keep original JOIN table because
+        create_sort_index() function may overwrite original
+        JOIN_TAB::type and wrong optimization method can be
+        selected on re-execution.
       */
       select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
       select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-      if (join->init_save_join_tab())
+      /*
+        Force join->join_tmp creation, because this subquery will be replaced
+        by a simple select from the materialization temp table by optimize()
+        called by EXPLAIN and we need to preserve the initial query structure
+        so we can display it.
+      */
+      if (join->need_tmp && join->init_save_join_tab())
         return TRUE;
     }
   }

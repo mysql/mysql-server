@@ -7,4 +7,4 @@ start slave;
 drop table if exists t1, t2;
 create table t1 (a int);
 drop table t1, t2;
-ERROR 42S02: Unknown table 't2'
+ERROR 42S02: Unknown table 'test.t2'

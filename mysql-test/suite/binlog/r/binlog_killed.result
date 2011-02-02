@@ -7,6 +7,11 @@ get_lock("a", 20)
 1
 reset master;
 insert into t2 values (null, null), (null, get_lock("a", 10));
+kill query ID;
+select
+(@a:=load_file("MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog"))
+is not null;
+set @result= 2 - 1 - 1;
 select @result /* must be zero either way */;
 @result
 0
@@ -85,20 +90,21 @@ a	b
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 @b
 1
-must have the update query event more to FD
+must have the update query event on the 4th line
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	User var	#	#	@`b`=0
 master-bin.000001	#	Query	#	#	use `test`; update t4 set b=b + bug27563(b)
 master-bin.000001	#	Query	#	#	COMMIT
+*** a proof the query is binlogged with an error ***
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null;
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null
 1
-select 0 /* must return 0 to mean the killed query is in */;
+select 0 /* must return 0 to mean the killed update is in */;
 0
 0
 select RELEASE_LOCK("a");
@@ -123,7 +129,7 @@ count(*)
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 @b
 1
-must have the delete query event more to FD
+must have the delete query event on the 4th line
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
@@ -136,7 +142,7 @@ is not null;
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
 is not null
 1
-select 0 /* must return 0 to mean the killed query is in */;
+select 0 /* must return 0 to mean the killed delete is in */;
 0
 0
 select RELEASE_LOCK("a");

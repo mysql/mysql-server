@@ -15,3 +15,5 @@ connection master;
 
 connection slave;
 DROP DATABASE rewrite;
+
+--source include/rpl_end.inc

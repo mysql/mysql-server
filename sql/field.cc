@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1812,8 +1812,8 @@ bool Field::optimize_range(uint idx, uint part)
 Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
                         bool keep_type __attribute__((unused)))
 {
-  Field *tmp;
-  if (!(tmp= (Field*) memdup_root(root,(char*) this,size_of())))
+  Field *tmp= clone(root);
+  if (tmp == NULL)
     return 0;
 
   if (tmp->table->maybe_null)
@@ -1840,21 +1840,6 @@ Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table,
     tmp->ptr=      new_ptr;
     tmp->null_ptr= new_null_ptr;
     tmp->null_bit= new_null_bit;
-  }
-  return tmp;
-}
-
-
-/* This is used to generate a field in TABLE from TABLE_SHARE */
-
-Field *Field::clone(MEM_ROOT *root, TABLE *new_table)
-{
-  Field *tmp;
-  if ((tmp= (Field*) memdup_root(root,(char*) this,size_of())))
-  {
-    tmp->init(new_table);
-    tmp->move_field_offset((my_ptrdiff_t) (new_table->record[0] -
-                                           new_table->s->default_values));
   }
   return tmp;
 }
@@ -6346,10 +6331,13 @@ int Field_str::store(double nr)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];
   uint local_char_length= field_length / charset()->mbmaxlen;
-  size_t length;
-  my_bool error;
+  size_t length= 0;
+  my_bool error= (local_char_length == 0);
 
-  length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+  // my_gcvt() requires width > 0, and we may have a CHAR(0) column.
+  if (!error)
+    length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
+
   if (error)
   {
     if (table->in_use->abort_on_warning)
@@ -7810,7 +7798,12 @@ const uchar *Field_blob::unpack(uchar *to,
   bitmap_set_bit(table->write_set, field_index);
   store(reinterpret_cast<const char*>(from) + master_packlength,
         length, field_charset);
-  DBUG_DUMP("record", to, table->s->reclength);
+#ifndef DBUG_OFF  
+  uchar *vptr;
+  get_ptr(&vptr);
+  DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);
+  DBUG_DUMP("value", vptr, length /* the blob value length */);
+#endif
   DBUG_RETURN(from + master_packlength + length);
 }
 

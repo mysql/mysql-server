@@ -45,14 +45,12 @@ struct row_events_waits
   const char *m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
-  /** Timer state. */
-  enum timer_state m_timer_state;
   /** Column TIMER_START. */
   ulonglong m_timer_start;
-  /** True if TIMER_END is null. */
-  bool m_timer_end_null;
   /** Column TIMER_END. */
   ulonglong m_timer_end;
+  /** Column TIMER_WAIT. */
+  ulonglong m_timer_wait;
   /** Column OBJECT_TYPE. */
   const char *m_object_type;
   /** Length in bytes of @c m_object_type. */
@@ -65,6 +63,10 @@ struct row_events_waits
   char m_object_name[COL_OBJECT_NAME_EXTENDED_SIZE];
   /** Length in bytes of @c m_object_name. */
   uint m_object_name_length;
+  /** Column INDEX_NAME. */
+  char m_index_name[COL_INDEX_NAME_SIZE];
+  /** Length in bytes of @c m_index_name. */
+  uint m_index_name_length;
   /** Column OBJECT_INSTANCE_BEGIN. */
   intptr m_object_instance_addr;
   /** Column SOURCE. */
@@ -137,6 +139,8 @@ protected:
   {}
 
   void clear_object_columns();
+  int make_table_object_columns(volatile PFS_events_waits *wait);
+  int make_file_object_columns(volatile PFS_events_waits *wait);
 
   void make_row(bool thread_own_wait, PFS_thread *pfs_thread,
                 volatile PFS_events_waits *wait);

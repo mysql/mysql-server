@@ -3,17 +3,17 @@
 #
 # only global
 #
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 select @@global.shared_memory_base_name;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.shared_memory_base_name;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 show global variables like 'shared_memory_base_name';
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 show session variables like 'shared_memory_base_name';
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 select * from information_schema.global_variables where variable_name='shared_memory_base_name';
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 select * from information_schema.session_variables where variable_name='shared_memory_base_name';
 
 #

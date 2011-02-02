@@ -24,6 +24,28 @@ static char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                              "abcdefghijklmnopqrstuvwxyz"
                              "0123456789+/";
 
+/**
+ * Maximum length base64_needed_encoded_length()
+ * can handle without overflow.
+ */
+int
+base64_encode_max_arg_length()
+{
+#if (SIZEOF_INT == 8)
+  /*
+    6827690988321067803 ->   9223372036854775805
+    6827690988321067804 ->  -9223372036854775807
+  */
+  return 0x5EC0D4C77B03531BLL
+#else
+  /*
+    1589695686 ->  2147483646
+    1589695687 -> -2147483645
+  */
+  return 0x5EC0D4C6;
+#endif
+}
+
 
 int
 base64_needed_encoded_length(int length_of_data)
@@ -35,6 +57,21 @@ base64_needed_encoded_length(int length_of_data)
     nb_base64_chars +            /* base64 char incl padding */
     (nb_base64_chars - 1)/ 76 +  /* newlines */
     1;                           /* NUL termination of string */
+}
+
+
+/**
+ * Maximum length base64_needed_decoded_length()
+ * can handle without overflow.
+ */
+int
+base64_decode_max_arg_length()
+{
+#if (SIZEOF_INT == 8)
+  return 0x2AAAAAAAAAAAAAAALL;
+#else
+  return 0x2AAAAAAA;
+#endif
 }
 
 
@@ -100,130 +137,227 @@ base64_encode(const void *src, size_t src_len, char *dst)
 }
 
 
-static inline uint
-pos(unsigned char c)
+/*
+  Base64 decoder stream
+*/
+typedef struct my_base64_decoder_t
 {
-  return (uint) (strchr(base64_table, c) - base64_table);
-}
-
-
-#define SKIP_SPACE(src, i, size)                                \
-{                                                               \
-  while (i < size && my_isspace(&my_charset_latin1, * src))     \
-  {                                                             \
-    i++;                                                        \
-    src++;                                                      \
-  }                                                             \
-  if (i == size)                                                \
-  {                                                             \
-    break;                                                      \
-  }                                                             \
-}
+  const char *src; /* Pointer to the current input position        */
+  const char *end; /* Pointer to the end of input buffer           */
+  uint c;          /* Collect bits into this number                */
+  int error;       /* Error code                                   */
+  uchar state;     /* Character number in the current group of 4   */
+  uchar mark;      /* Number of padding marks in the current group */
+} MY_BASE64_DECODER;
 
 
 /*
-  Decode a base64 string
-
-  SYNOPSIS
-    base64_decode()
-    src      Pointer to base64-encoded string
-    len      Length of string at 'src'
-    dst      Pointer to location where decoded data will be stored
-    end_ptr  Pointer to variable that will refer to the character
-             after the end of the encoded data that were decoded. Can
-             be NULL.
-
-  DESCRIPTION
-
-    The base64-encoded data in the range ['src','*end_ptr') will be
-    decoded and stored starting at 'dst'.  The decoding will stop
-    after 'len' characters have been read from 'src', or when padding
-    occurs in the base64-encoded data. In either case: if 'end_ptr' is
-    non-null, '*end_ptr' will be set to point to the character after
-    the last read character, even in the presence of error.
-
-  NOTE
-    We require that 'dst' is pre-allocated to correct size.
-
-  SEE ALSO
-    base64_needed_decoded_length().
-
-  RETURN VALUE
-    Number of bytes written at 'dst' or -1 in case of failure
+  Helper table for decoder.
+  -2 means "space character"
+  -1 means "bad character"
+  Non-negative values mean valid base64 encoding character.
 */
-int
-base64_decode(const char *src_base, size_t len,
-              void *dst, const char **end_ptr)
+static int8
+from_base64_table[]=
 {
-  char b[3];
-  size_t i= 0;
-  char *dst_base= (char *)dst;
-  char const *src= src_base;
-  char *d= dst_base;
-  size_t j;
+/*00*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-2,-2,-2,-2,-2,-1,-1,
+/*10*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*20*/  -2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63, /*  !"#$%&'()*+,-./ */
+/*30*/  52,53,54,55,56,57,58,59,60,61,-1,-1,-1,-1,-1,-1, /* 0123456789:;<=>? */
+/*40*/  -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, /* @ABCDEFGHIJKLMNO */
+/*50*/  15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1, /* PQRSTUVWXYZ[\]^_ */
+/*60*/  -1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40, /* `abcdefghijklmno */
+/*70*/  41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1, /* pqrstuvwxyz{|}~  */
+/*80*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*90*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*A0*/  -2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*B0*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*C0*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*D0*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*E0*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+/*F0*/  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
+};
 
-  while (i < len)
+
+/**
+ * Skip leading spaces in a base64 encoded stream
+ * and stop on the first non-space character.
+ * decoder->src will point to the first non-space character,
+ * or to the end of the input string.
+ * In case when end-of-input met on unexpected position,
+ * decoder->error is also set to 1.
+ *
+ * @param  decoder  Pointer to MY_BASE64_DECODER
+ *
+ * @return
+ *   FALSE on success (there are some more non-space input characters)
+ *   TRUE  on error (end-of-input found)
+ */
+static inline my_bool
+my_base64_decoder_skip_spaces(MY_BASE64_DECODER *decoder)
+{
+  for ( ; decoder->src < decoder->end; decoder->src++)
   {
-    unsigned c= 0;
-    size_t mark= 0;
+    if (from_base64_table[(uchar) *decoder->src] != -2)
+      return FALSE;
+  }
+  if (decoder->state > 0)
+    decoder->error= 1; /* Unexpected end-of-input found */
+  return TRUE;
+}
 
-    SKIP_SPACE(src, i, len);
 
-    c += pos(*src++);
-    c <<= 6;
-    i++;
+/**
+ * Convert the next character in a base64 encoded stream
+ * to a number in the range [0..63]
+ * and mix it with the previously collected value in decoder->c.
+ *
+ * @param decode base64 decoding stream
+ *
+ * @return
+ *   FALSE on success
+ *   TRUE  on error (invalid base64 character found)
+ */
+static inline my_bool
+my_base64_add(MY_BASE64_DECODER *decoder)
+{
+  int res;
+  decoder->c <<= 6;
+  if ((res= from_base64_table[(uchar) *decoder->src++]) < 0)
+    return (decoder->error= TRUE);
+  decoder->c+= (uint) res;
+  return FALSE;
+}
 
-    SKIP_SPACE(src, i, len);
 
-    c += pos(*src++);
-    c <<= 6;
-    i++;
+/**
+ * Get the next character from a base64 encoded stream.
+ * Skip spaces, then scan the next base64 character or a pad character
+ * and collect bits into decoder->c.
+ *
+ * @param  decoder  Pointer to MY_BASE64_DECODER
+ * @return
+ *  FALSE on success (a valid base64 encoding character found)
+ *  TRUE  on error (unexpected character or unexpected end-of-input found)
+ */
+static inline my_bool
+my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
+{
+  if (my_base64_decoder_skip_spaces(decoder))
+    return TRUE; /* End-of-input */
 
-    SKIP_SPACE(src, i, len);
-
-    if (*src != '=')
-      c += pos(*src++);
-    else
+  if (!my_base64_add(decoder)) /* Valid base64 character found */
+  {
+    if (decoder->mark)
     {
-      src += 2;                /* There should be two bytes padding */
-      i= len;
-      mark= 2;
-      c <<= 6;
-      goto end;
+      /* If we have scanned '=' already, then only '=' is valid */
+      DBUG_ASSERT(decoder->state == 3);
+      decoder->error= 1;
+      decoder->src--;
+      return TRUE; /* expected '=', but encoding character found */
     }
-    c <<= 6;
-    i++;
-
-    SKIP_SPACE(src, i, len);
-
-    if (*src != '=')
-      c += pos(*src++);
-    else
-    {
-      src += 1;                 /* There should be one byte padding */
-      i= len;
-      mark= 1;
-      goto end;
-    }
-    i++;
-
-  end:
-    b[0]= (c >> 16) & 0xff;
-    b[1]= (c >>  8) & 0xff;
-    b[2]= (c >>  0) & 0xff;
-
-    for (j=0; j<3-mark; j++)
-      *d++= b[j];
+    decoder->state++;
+    return FALSE;
   }
 
-  if (end_ptr != NULL)
-    *end_ptr= src;
+  /* Process error */
+  switch (decoder->state)
+  {
+  case 0:
+  case 1:
+    decoder->src--;
+    return TRUE; /* base64 character expected */
+    break;
 
-  /*
-    The variable 'i' is set to 'len' when padding has been read, so it
-    does not actually reflect the number of bytes read from 'src'.
-   */
-  return i != len ? -1 : (int) (d - dst_base);
+  case 2:
+  case 3:
+    if (decoder->src[-1] == '=')
+    {
+      decoder->error= 0; /* Not an error - it's a pad character */
+      decoder->mark++;
+    }
+    else
+    {
+      decoder->src--;
+      return TRUE; /* base64 character or '=' expected */
+    }
+    break;
+
+  default:
+    DBUG_ASSERT(0);
+    return TRUE; /* Wrong state, should not happen */
+  }
+
+  decoder->state++;
+  return FALSE;
+}
+
+
+/**
+ * Decode a base64 string
+ * The base64-encoded data in the range ['src','*end_ptr') will be
+ * decoded and stored starting at 'dst'.  The decoding will stop
+ * after 'len' characters have been read from 'src', or when padding
+ * occurs in the base64-encoded data. In either case: if 'end_ptr' is
+ * non-null, '*end_ptr' will be set to point to the character after
+ * the last read character, even in the presence of error.
+ *
+ * Note: We require that 'dst' is pre-allocated to correct size.
+ *
+ * @param src     Pointer to base64-encoded string
+ * @param len     Length of string at 'src'
+ * @param dst     Pointer to location where decoded data will be stored
+ * @param end_ptr Pointer to variable that will refer to the character
+ *                after the end of the encoded data that were decoded.
+ *                Can be NULL.
+ * @flags         flags e.g. allow multiple chunks
+ * @return Number of bytes written at 'dst', or -1 in case of failure
+ */
+int
+base64_decode(const char *src_base, size_t len,
+              void *dst, const char **end_ptr, int flags)
+{
+  char *d= (char*) dst;
+  MY_BASE64_DECODER decoder;
+
+  decoder.src= src_base;
+  decoder.end= src_base + len;
+  decoder.error= 0;
+  decoder.mark= 0;
+
+  for ( ; ; )
+  {
+    decoder.c= 0;
+    decoder.state= 0;
+
+    if (my_base64_decoder_getch(&decoder) ||
+        my_base64_decoder_getch(&decoder) ||
+        my_base64_decoder_getch(&decoder) ||
+        my_base64_decoder_getch(&decoder))
+      break;
+
+    *d++= (decoder.c >> 16) & 0xff;
+    *d++= (decoder.c >>  8) & 0xff;
+    *d++= (decoder.c >>  0) & 0xff;
+
+    if (decoder.mark)
+    {
+      d-= decoder.mark;
+      if (!(flags & MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS))
+        break;
+      decoder.mark= 0;
+    }
+  }
+
+  /* Return error if there are more non-space characters */
+  decoder.state= 0;
+  if (!my_base64_decoder_skip_spaces(&decoder))
+    decoder.error= 1;
+
+  if (end_ptr != NULL)
+    *end_ptr= decoder.src;
+
+  return decoder.error ? -1 : (int) (d - (char*) dst);
 }
 
 

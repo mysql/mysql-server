@@ -3,19 +3,15 @@
 # Bug #33932  	assertion at handle_slave_sql if init_slave_thread() fails
 
 source include/have_debug.inc;
-source include/have_log_bin.inc;
-
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
-
-connection master;
-reset master;
+source include/master-slave.inc;
 
 connection slave;
-reset slave;
 
 # Add suppression for expected warnings in slaves error log
 call mtr.add_suppression("Failed during slave I/O thread initialization");
+
+--source include/stop_slave.inc
+reset slave;
 
 # Set debug flags on slave to force errors to occur
 SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
@@ -29,18 +25,13 @@ eval CHANGE MASTER TO MASTER_USER='root',
 
 start slave;
 
-connection master;
-save_master_pos;
-connection slave;
-
 #
 # slave is going to stop because of emulated failures
 # but there won't be any crashes nor asserts hit.
 #
-source include/wait_for_slave_to_stop.inc;
 
 # 1593 = ER_SLAVE_FATAL_ERROR 
---let $slave_sql_errno= 1593 
+--let $slave_sql_errno= 1593
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
@@ -49,3 +40,8 @@ source include/wait_for_slave_to_stop.inc;
 #
 SET GLOBAL debug="";
 
+# Clear Last_SQL_Error
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

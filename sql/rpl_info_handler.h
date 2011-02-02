@@ -18,6 +18,7 @@
 
 #include <my_global.h>
 #include <server_ids.h>
+#include "rpl_info_values.h"
 
 class Rpl_info_handler
 {
@@ -80,9 +81,9 @@ public:
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int reset_info()
+  int remove_info()
   {
-    return do_reset_info();
+    return do_remove_info();
   }
 
   /**
@@ -259,6 +260,13 @@ public:
   */
   bool is_transactional() { return do_is_transactional(); }
 
+  /*                                                                                                                                    
+    Pre-store information before writing it to the repository and if
+    necessary after reading it from the repository. The decision is
+    delegated to the sub-classes.
+  */
+  Rpl_info_values *field_values;
+
 protected:
   /* Number of fields to be stored in the repository. */
   int ninfo;
@@ -285,7 +293,7 @@ private:
   virtual int do_init_info()= 0;
   virtual int do_check_info()= 0;
   virtual int do_flush_info(const bool force)= 0;
-  virtual int do_reset_info()= 0;
+  virtual int do_remove_info()= 0;
   virtual void do_end_info()= 0;
   virtual int do_prepare_info_for_read()= 0;
   virtual int do_prepare_info_for_write()= 0;

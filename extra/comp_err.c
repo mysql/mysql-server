@@ -496,7 +496,7 @@ static int parse_input_file(const char *file_name, struct errors **top_error,
 		current_error->er_name, current_message.lang_short_name);
 	DBUG_RETURN(0);
       }
-      if (insert_dynamic(&current_error->msg, (uchar *) & current_message))
+      if (insert_dynamic(&current_error->msg, &current_message))
 	DBUG_RETURN(0);
       continue;
     }

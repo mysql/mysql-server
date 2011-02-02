@@ -382,7 +382,7 @@ void lex_start(THD *thd)
   lex->select_lex.group_list.empty();
   lex->describe= DESCRIBE_NONE;
   lex->subqueries= FALSE;
-  lex->view_prepare_mode= FALSE;
+  lex->context_analysis_only= 0;
   lex->derived_tables= 0;
   lex->safe_to_cache_query= 1;
   lex->leaf_tables_insert= 0;
@@ -416,7 +416,6 @@ void lex_start(THD *thd)
   lex->nest_level=0 ;
   lex->allow_sum_func= 0;
   lex->in_sum_func= NULL;
-  lex->protect_against_global_read_lock= FALSE;
   /*
     ok, there must be a better solution for this, long-term
     I tried "bzero" in the sql_yacc.yy code, but that for

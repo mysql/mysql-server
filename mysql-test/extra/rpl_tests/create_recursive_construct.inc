@@ -167,7 +167,9 @@
 --let $CRC_create=
 
 ######## func_retval ########
-if (`SELECT $CRC_ARG_type = 0 AND '$CRC_ARG_value' != ''`) {
+# if inside if in lieu of AND operand
+if ($CRC_ARG_type == 0) {
+ if ($CRC_ARG_value) {
   # It will be safe to call this function and discard the return
   # value, but it will be unsafe to use return value (e.g., in
   # INSERT...SELECT).
@@ -180,10 +182,11 @@ if (`SELECT $CRC_ARG_type = 0 AND '$CRC_ARG_value' != ''`) {
   --let $CRC_RET_drop= DROP FUNCTION $CRC_name
   --let $CRC_RET_is_toplevel= 0
   --let $CRC_RET_desc= function $CRC_name returning value from $CRC_ARG_desc
+ }
 }
 
 ######## func_sidef ########
-if (`SELECT $CRC_ARG_type = 1`) {
+if ($CRC_ARG_type == 1) {
   # It will be unsafe to call func even if you discard return value.
   --let $CRC_name= func_sidef_$CRC_ARG_level
   --let $CRC_create= CREATE FUNCTION $CRC_name() RETURNS VARCHAR(100) BEGIN INSERT INTO ta$CRC_ARG_level VALUES (47); $CRC_ARG_stmt_sidef; RETURN 0; END
@@ -197,7 +200,7 @@ if (`SELECT $CRC_ARG_type = 1`) {
 }
 
 ######## proc ########
-if (`SELECT $CRC_ARG_type = 2`) {
+if ($CRC_ARG_type == 2) {
   # It will be unsafe to call this procedure.
   --let $CRC_name= proc_$CRC_ARG_level
   --let $CRC_create= CREATE PROCEDURE $CRC_name() BEGIN $CRC_ARG_stmt_sidef; INSERT INTO ta$CRC_ARG_level VALUES (47); END
@@ -211,7 +214,7 @@ if (`SELECT $CRC_ARG_type = 2`) {
 }
 
 ######## trig ########
-if (`SELECT $CRC_ARG_type = 3`) {
+if ($CRC_ARG_type == 3) {
   # It will be unsafe to invoke this trigger.
   --let $CRC_name= trig_$CRC_ARG_level
   --let $CRC_create= CREATE TRIGGER $CRC_name BEFORE INSERT ON trigger_table_$CRC_ARG_level FOR EACH ROW BEGIN INSERT INTO ta$CRC_ARG_level VALUES (47); $CRC_ARG_stmt_sidef; END
@@ -225,7 +228,8 @@ if (`SELECT $CRC_ARG_type = 3`) {
 }
 
 ######## view_retval ########
-if (`SELECT $CRC_ARG_type = 4 AND '$CRC_ARG_sel_retval' != ''`) {
+if ($CRC_ARG_type == 4) {
+ if ($CRC_ARG_sel_retval) {
   # It will be safe to select from this view if you discard the result
   # set, but unsafe to use result set (e.g., in INSERT..SELECT).
   --let $CRC_name= view_retval_$CRC_ARG_level
@@ -237,10 +241,12 @@ if (`SELECT $CRC_ARG_type = 4 AND '$CRC_ARG_sel_retval' != ''`) {
   --let $CRC_RET_drop= DROP VIEW $CRC_name
   --let $CRC_RET_is_toplevel= 0
   --let $CRC_RET_desc= view $CRC_name returning value from $CRC_ARG_desc
+ }
 }
 
 ######## view_sidef ########
-if (`SELECT $CRC_ARG_type = 5 AND '$CRC_ARG_sel_sidef' != ''`) {
+if ($CRC_ARG_type == 5) {
+ if  ($CRC_ARG_sel_sidef) {
   # It will be unsafe to select from this view, even if you discard
   # the return value.
   --let $CRC_name= view_sidef_$CRC_ARG_level
@@ -252,10 +258,11 @@ if (`SELECT $CRC_ARG_type = 5 AND '$CRC_ARG_sel_sidef' != ''`) {
   --let $CRC_RET_drop= DROP VIEW $CRC_name
   --let $CRC_RET_is_toplevel= 0
   --let $CRC_RET_desc= view $CRC_name invoking $CRC_ARG_desc
+ }
 }
 
 ######## prep ########
-if (`SELECT $CRC_ARG_type = 6`) {
+if ($CRC_ARG_type == 6) {
   # It will be unsafe to execute this prepared statement
   --let $CRC_name= prep_$CRC_ARG_level
   --let $CRC_create= PREPARE $CRC_name FROM "$CRC_ARG_stmt_sidef"
@@ -269,7 +276,7 @@ if (`SELECT $CRC_ARG_type = 6`) {
 }
 
 ######## no recursive construct: just return the given statement ########
-if (`SELECT $CRC_ARG_type = 7`) {
+if ($CRC_ARG_type == 7) {
   # CRC_ARG_type=7 is a special case. We just set $CRC_RET_x =
   # $CRC_ARG_x.  This way, the $CRC_ARG_stmt gets executed directly
   # (below).  In binlog_unsafe.test, it is used to invoke the unsafe
@@ -295,7 +302,7 @@ if ($CRC_RET_stmt_sidef) {
   --echo * binlog_format = STATEMENT: expect $CRC_ARG_expected_number_of_warnings warnings.
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if (`SELECT '$n_warnings' != '$CRC_ARG_expected_number_of_warnings'`) {
+  if ($n_warnings != $CRC_ARG_expected_number_of_warnings) {
     --echo ******** Failure! Expected $CRC_ARG_expected_number_of_warnings warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
@@ -312,14 +319,14 @@ if ($CRC_RET_stmt_sidef) {
   RESET MASTER;
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if (`SELECT '$n_warnings' != '0'`) {
+  if ($n_warnings) {
     --echo ******** Failure! Expected 0 warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
     --die Wrong number of warnings.
   }
   --let $binlog_event= query_get_value(SHOW BINLOG EVENTS, Event_type, 2)
-  if (`SELECT '$binlog_event' != 'No such row'`) {
+  if ($binlog_event != No such row) {
     --enable_query_log
     --echo ******** Failure! Something was written to the binlog despite SQL_LOG_BIN=0 ********
     SHOW BINLOG EVENTS;
@@ -332,7 +339,7 @@ if ($CRC_RET_stmt_sidef) {
   RESET MASTER;
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  if (`SELECT '$n_warnings' != '0'`) {
+  if ($n_warnings) {
     --echo ******** Failure! Expected 0 warnings, got $n_warnings warnings. ********
     SHOW WARNINGS;
     SHOW BINLOG EVENTS;
@@ -376,7 +383,7 @@ if ($CRC_RET_sel_retval) {
   # fail.  When the bug is fixed, we should execute the following.
 
   #--let $n_warnings= `SHOW COUNT(*) WARNINGS`
-  #if (`SELECT '$n_warnings' != '0'`) {
+  #if ($n_warnings) {
   #  --enable_query_log
   #  --echo Failure! Expected 0 warnings, got $n_warnings warnings.
   #  SHOW WARNINGS;

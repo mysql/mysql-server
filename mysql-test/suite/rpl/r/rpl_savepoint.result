@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 #
 # Bug#50124 Rpl failure on DROP table with concurrent txn/non-txn
 #           DML flow and SAVEPOINT
@@ -30,3 +26,4 @@ COMMIT;
 FLUSH LOGS;
 # Connection master
 DROP TABLE nt;
+include/rpl_end.inc

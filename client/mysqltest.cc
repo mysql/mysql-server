@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 /*
   mysqltest
@@ -471,6 +471,8 @@ TYPELIB command_typelib= {array_elements(command_names),"",
 			  command_names, 0};
 
 DYNAMIC_STRING ds_res;
+/* Points to ds_warning in run_query, so it can be freed */
+DYNAMIC_STRING *ds_warn= 0;
 
 char builtin_echo[FN_REFLEN];
 
@@ -490,7 +492,8 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
               int val_len);
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
-void eval_expr(VAR* v, const char *p, const char** p_end);
+void eval_expr(VAR* v, const char *p, const char** p_end,
+               bool open_end=false, bool do_eval=true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -1171,8 +1174,8 @@ void handle_command_error(struct st_command *command, uint error)
     int i;
 
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error %d",
-          command->first_word_len, command->query, error);
+      die("command \"%.*s\" failed with error %d. my_errno=%d",
+      command->first_word_len, command->query, error, my_errno);
 
     i= match_expected_error(command, error, NULL);
 
@@ -1183,8 +1186,8 @@ void handle_command_error(struct st_command *command, uint error)
       DBUG_VOID_RETURN;
     }
     if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %d",
-          command->first_word_len, command->query, error);
+      die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
+      command->first_word_len, command->query, error, my_errno);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1277,6 +1280,8 @@ void free_used_memory()
     my_free(embedded_server_args[--embedded_server_arg_count]);
   delete_dynamic(&q_lines);
   dynstr_free(&ds_res);
+  if (ds_warn)
+    dynstr_free(ds_warn);
   free_all_replace();
   my_free(opt_pass);
   free_defaults(default_argv);
@@ -1320,6 +1325,17 @@ static void cleanup_and_exit(int exit_code)
   exit(exit_code);
 }
 
+void print_file_stack()
+{
+  for (struct st_test_file* err_file= cur_file;
+       err_file != file_stack;
+       err_file--)
+  {
+    fprintf(stderr, "included from %s at line %d:\n",
+            err_file->file_name, err_file->lineno);
+  }
+}
+
 void die(const char *fmt, ...)
 {
   static int dying= 0;
@@ -1339,8 +1355,12 @@ void die(const char *fmt, ...)
   /* Print the error message */
   fprintf(stderr, "mysqltest: ");
   if (cur_file && cur_file != file_stack)
-    fprintf(stderr, "In included file \"%s\": ",
+  {
+    fprintf(stderr, "In included file \"%s\": \n",
             cur_file->file_name);
+    print_file_stack();
+  }
+  
   if (start_lineno > 0)
     fprintf(stderr, "At line %u: ", start_lineno);
   if (fmt)
@@ -1370,20 +1390,14 @@ void die(const char *fmt, ...)
 void abort_not_supported_test(const char *fmt, ...)
 {
   va_list args;
-  struct st_test_file* err_file= cur_file;
   DBUG_ENTER("abort_not_supported_test");
 
   /* Print include filestack */
   fprintf(stderr, "The test '%s' is not supported by this installation\n",
           file_stack->file_name);
   fprintf(stderr, "Detected in file %s at line %d\n",
-          err_file->file_name, err_file->lineno);
-  while (err_file != file_stack)
-  {
-    err_file--;
-    fprintf(stderr, "included from %s at line %d\n",
-            err_file->file_name, err_file->lineno);
-  }
+          cur_file->file_name, cur_file->lineno);
+  print_file_stack();
 
   /* Print error message */
   va_start(args, fmt);
@@ -2048,9 +2062,11 @@ static void var_free(void *v)
 
 C_MODE_END
 
-void var_set_int(VAR *v, const char *str)
+void var_check_int(VAR *v)
 {
   char *endptr;
+  char *str= v->str_val;
+  
   /* Initially assume not a number */
   v->int_val= 0;
   v->is_int= false;
@@ -2073,9 +2089,11 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     name_len = strlen(name);
   if (!val_len && val)
     val_len = strlen(val) ;
+  if (!val)
+    val_len= 0;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var=v) && !(tmp_var = (VAR*)my_malloc(sizeof(*tmp_var)
-                                                  + name_len+1, MYF(MY_WME))))
+                                                  + name_len+2, MYF(MY_WME))))
     die("Out of memory");
 
   if (name != NULL)
@@ -2093,11 +2111,10 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     die("Out of memory");
 
   if (val)
-  {
     memcpy(tmp_var->str_val, val, val_len);
-    tmp_var->str_val[val_len]= 0;
-  }
-  var_set_int(tmp_var, val);
+  tmp_var->str_val[val_len]= 0;
+
+  var_check_int(tmp_var);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
@@ -2338,7 +2355,8 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       dynstr_append_mem(&result, "\t", 1);
     }
     end= result.str + result.length-1;
-    eval_expr(var, result.str, (const char**) &end);
+    /* Evaluation should not recurse via backtick */
+    eval_expr(var, result.str, (const char**) &end, false, false);
     dynstr_free(&result);
   }
   else
@@ -2517,7 +2535,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
         break;
       }
     }
-    eval_expr(var, value, 0);
+    eval_expr(var, value, 0, false, false);
   }
   dynstr_free(&ds_query);
   mysql_free_result(res);
@@ -2548,12 +2566,17 @@ void var_copy(VAR *dest, VAR *src)
 }
 
 
-void eval_expr(VAR *v, const char *p, const char **p_end)
+void eval_expr(VAR *v, const char *p, const char **p_end,
+               bool open_end, bool do_eval)
 {
 
   DBUG_ENTER("eval_expr");
   DBUG_PRINT("enter", ("p: '%s'", p));
 
+  /* Skip to treat as pure string if no evaluation */
+  if (! do_eval)
+    goto NO_EVAL;
+  
   if (*p == '$')
   {
     VAR *vp;
@@ -2566,7 +2589,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
 
     /* Make sure there was just a $variable and nothing else */
     const char* end= *p_end + 1;
-    if (end < expected_end)
+    if (end < expected_end && !open_end)
       die("Found junk '%.*s' after $variable in expression",
           (int)(expected_end - end - 1), end);
 
@@ -2596,6 +2619,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     }
   }
 
+ NO_EVAL:
   {
     int new_val_len = (p_end && *p_end) ?
       (int) (*p_end - p) : (int) strlen(p);
@@ -2613,7 +2637,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     v->str_val_len = new_val_len;
     memcpy(v->str_val, p, new_val_len);
     v->str_val[new_val_len] = 0;
-    var_set_int(v, p);
+    var_check_int(v);
   }
   DBUG_VOID_RETURN;
 }
@@ -4243,7 +4267,7 @@ int do_save_master_pos()
         const char latest_applied_binlog_epoch_str[]=
           "latest_applied_binlog_epoch=";
         if (count)
-          sleep(1);
+          my_sleep(100*1000); /* 100ms */
         if (mysql_query(mysql, query= "show engine ndb status"))
           die("failed in '%s': %d %s", query,
               mysql_errno(mysql), mysql_error(mysql));
@@ -4332,7 +4356,7 @@ int do_save_master_pos()
 	count++;
 	if (latest_handled_binlog_epoch >= start_epoch)
           do_continue= 0;
-        else if (count > 30)
+        else if (count > 300) /* 30s */
 	{
 	  break;
         }
@@ -5051,6 +5075,7 @@ void do_close_connection(struct st_command *command)
     dynstr_append_mem(ds, ";\n", 2);
   }
 
+  dynstr_free(&ds_connection);
   DBUG_VOID_RETURN;
 }
 
@@ -5487,6 +5512,7 @@ void do_connect(struct st_command *command)
   dynstr_free(&ds_port);
   dynstr_free(&ds_sock);
   dynstr_free(&ds_options);
+  dynstr_free(&ds_default_auth);
 #ifdef HAVE_SMEM
   dynstr_free(&ds_shm);
 #endif
@@ -5526,6 +5552,40 @@ int do_done(struct st_command *command)
   return 0;
 }
 
+/* Operands available in if or while conditions */
+
+enum block_op {
+  EQ_OP,
+  NE_OP,
+  GT_OP,
+  GE_OP,
+  LT_OP,
+  LE_OP,
+  ILLEG_OP
+};
+
+
+enum block_op find_operand(const char *start)
+{
+ char first= *start;
+ char next= *(start+1);
+ 
+ if (first == '=' && next == '=')
+   return EQ_OP;
+ if (first == '!' && next == '=')
+   return NE_OP;
+ if (first == '>' && next == '=')
+   return GE_OP;
+ if (first == '>')
+   return GT_OP;
+ if (first == '<' && next == '=')
+   return LE_OP;
+ if (first == '<')
+   return LT_OP;
+ 
+ return ILLEG_OP;
+}
+
 
 /*
   Process start of a "if" or "while" statement
@@ -5551,6 +5611,13 @@ int do_done(struct st_command *command)
   A '!' can be used before the <expr> to indicate it should
   be executed if it evaluates to zero.
 
+  <expr> can also be a simple comparison condition:
+
+  <variable> <op> <expr>
+
+  The left hand side must be a variable, the right hand side can be a
+  variable, number, string or `query`. Operands are ==, !=, <, <=, >, >=.
+  == and != can be used for strings, all can be used for numerical values.
 */
 
 void do_block(enum block_cmd cmd, struct st_command* command)
@@ -5586,11 +5653,16 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   if (!expr_start++)
     die("missing '(' in %s", cmd_name);
 
+  while (my_isspace(charset_info, *expr_start))
+    expr_start++;
+  
   /* Check for !<expr> */
   if (*expr_start == '!')
   {
     not_expr= TRUE;
-    expr_start++; /* Step past the '!' */
+    expr_start++; /* Step past the '!', then any whitespace */
+    while (*expr_start && my_isspace(charset_info, *expr_start))
+      expr_start++;
   }
   /* Find ending ')' */
   expr_end= strrchr(expr_start, ')');
@@ -5604,14 +5676,110 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
 
   var_init(&v,0,0,0,0);
-  eval_expr(&v, expr_start, &expr_end);
 
+  /* If expression starts with a variable, it may be a compare condition */
+
+  if (*expr_start == '$')
+  {
+    const char *curr_ptr= expr_end;
+    eval_expr(&v, expr_start, &curr_ptr, true);
+    while (my_isspace(charset_info, *++curr_ptr))
+    {}
+    /* If there was nothing past the variable, skip condition part */
+    if (curr_ptr == expr_end)
+      goto NO_COMPARE;
+
+    enum block_op operand= find_operand(curr_ptr);
+    if (operand == ILLEG_OP)
+      die("Found junk '%.*s' after $variable in condition",
+          (int)(expr_end - curr_ptr), curr_ptr);
+
+    /* We could silently allow this, but may be confusing */
+    if (not_expr)
+      die("Negation and comparison should not be combined, please rewrite");
+    
+    /* Skip the 1 or 2 chars of the operand, then white space */
+    if (operand == LT_OP || operand == GT_OP)
+    {
+      curr_ptr++;
+    }
+    else
+    {
+      curr_ptr+= 2;
+    }
+    while (my_isspace(charset_info, *curr_ptr))
+      curr_ptr++;
+    if (curr_ptr == expr_end)
+      die("Missing right operand in comparison");
+
+    /* Strip off trailing white space */
+    while (my_isspace(charset_info, expr_end[-1]))
+      expr_end--;
+    /* strip off ' or " around the string */
+    if (*curr_ptr == '\'' || *curr_ptr == '"')
+    {
+      if (expr_end[-1] != *curr_ptr)
+        die("Unterminated string value");
+      curr_ptr++;
+      expr_end--;
+    }
+    VAR v2;
+    var_init(&v2,0,0,0,0);
+    eval_expr(&v2, curr_ptr, &expr_end);
+
+    if ((operand!=EQ_OP && operand!=NE_OP) && ! (v.is_int && v2.is_int))
+      die ("Only == and != are supported for string values");
+
+    /* Now we overwrite the first variable with 0 or 1 (for false or true) */
+
+    switch (operand)
+    {
+    case EQ_OP:
+      if (v.is_int)
+        v.int_val= (v2.is_int && v2.int_val == v.int_val);
+      else
+        v.int_val= !strcmp (v.str_val, v2.str_val);
+      break;
+      
+    case NE_OP:
+      if (v.is_int)
+        v.int_val= ! (v2.is_int && v2.int_val == v.int_val);
+      else
+        v.int_val= (strcmp (v.str_val, v2.str_val) != 0);
+      break;
+
+    case LT_OP:
+      v.int_val= (v.int_val < v2.int_val);
+      break;
+    case LE_OP:
+      v.int_val= (v.int_val <= v2.int_val);
+      break;
+    case GT_OP:
+      v.int_val= (v.int_val > v2.int_val);
+      break;
+    case GE_OP:
+      v.int_val= (v.int_val >= v2.int_val);
+      break;
+    case ILLEG_OP:
+      die("Impossible operator, this cannot happen");
+    }
+
+    v.is_int= TRUE;
+    var_free(&v2);
+  } else
+  {
+    if (*expr_start != '`' && ! my_isdigit(charset_info, *expr_start))
+      die("Expression in if/while must beging with $, ` or a number");
+    eval_expr(&v, expr_start, &expr_end);
+  }
+
+ NO_COMPARE:
   /* Define inner block */
   cur_block++;
   cur_block->cmd= cmd;
-  if (v.int_val)
+  if (v.is_int)
   {
-    cur_block->ok= TRUE;
+    cur_block->ok= (v.int_val != 0);
   } else
   /* Any non-empty string which does not begin with 0 is also TRUE */
   {
@@ -6081,7 +6249,7 @@ int read_command(struct st_command** command_ptr)
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
-      insert_dynamic(&q_lines, (uchar*) &command))
+      insert_dynamic(&q_lines, &command))
     die("Out of memory");
   command->type= Q_UNKNOWN;
 
@@ -6580,7 +6748,7 @@ void init_win_path_patterns()
       continue;
     }
 
-    if (insert_dynamic(&patterns, (uchar*) &p))
+    if (insert_dynamic(&patterns, &p))
       die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
@@ -7395,8 +7563,12 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
 
       mysql_free_result(res);     /* Free normal result set with meta data */
 
-      /* Clear prepare warnings */
-      dynstr_set(&ds_prepare_warnings, NULL);
+      /*
+        Clear prepare warnings if there are execute warnings,
+        since they are probably duplicated.
+      */
+      if (ds_execute_warnings.length || mysql->warning_count)
+        dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
@@ -7537,6 +7709,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     die ("Cannot reap on a connection without pending send");
   
   init_dynamic_string(&ds_warnings, NULL, 0, 256);
+  ds_warn= &ds_warnings;
+  
   /*
     Evaluate query if this is an eval command
   */
@@ -7694,7 +7868,8 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 		     ds, &ds_warnings);
 
   dynstr_free(&ds_warnings);
-  if (command->type == Q_EVAL)
+  ds_warn= 0;
+  if (command->type == Q_EVAL || command->type == Q_SEND_EVAL)
     dynstr_free(&eval_query);
 
   if (display_result_sorted)
@@ -7828,6 +8003,16 @@ void init_re(void)
 
 int match_re(my_regex_t *re, char *str)
 {
+  while (my_isspace(charset_info, *str))
+    str++;
+  if (str[0] == '/' && str[1] == '*')
+  {
+    char *comm_end= strstr (str, "*/");
+    if (! comm_end)
+      die("Statement is unterminated comment");
+    str= comm_end + 2;
+  }
+  
   int err= my_regexec(re, str, (size_t)0, NULL, 0);
 
   if (err == 0)
@@ -7966,13 +8151,16 @@ static void dump_backtrace(void)
 {
   struct st_connection *conn= cur_con;
 
-  my_safe_print_str("read_command_buf", read_command_buf,
-                    sizeof(read_command_buf));
+  fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
+  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+
   if (conn)
   {
-    my_safe_print_str("conn->name", conn->name, conn->name_len);
+    fprintf(stderr, "conn->name (%p): ", conn->name);
+    my_safe_print_str(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
-    my_safe_print_str("conn->cur_query", conn->cur_query, conn->cur_query_len);
+    fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
+    my_safe_print_str(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);
@@ -8162,6 +8350,14 @@ int main(int argc, char **argv)
   var_set_int("$EXPLAIN_PROTOCOL", explain_protocol);
   var_set_int("$CURSOR_PROTOCOL", cursor_protocol);
 
+  var_set_int("$ENABLED_QUERY_LOG", 1);
+  var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+  var_set_int("$ENABLED_RESULT_LOG", 1);
+  var_set_int("$ENABLED_CONNECT_LOG", 0);
+  var_set_int("$ENABLED_WARNINGS", 1);
+  var_set_int("$ENABLED_INFO", 0);
+  var_set_int("$ENABLED_METADATA", 0);
+
   DBUG_PRINT("info",("result_file: '%s'",
                      result_file_name ? result_file_name : ""));
   verbose_msg("Results saved in '%s'.", 
@@ -8311,20 +8507,62 @@ int main(int argc, char **argv)
       case Q_DISCONNECT:
       case Q_DIRTY_CLOSE:
 	do_close_connection(command); break;
-      case Q_ENABLE_QUERY_LOG:   disable_query_log=0; break;
-      case Q_DISABLE_QUERY_LOG:  disable_query_log=1; break;
-      case Q_ENABLE_ABORT_ON_ERROR:  abort_on_error=1; break;
-      case Q_DISABLE_ABORT_ON_ERROR: abort_on_error=0; break;
-      case Q_ENABLE_RESULT_LOG:  disable_result_log=0; break;
-      case Q_DISABLE_RESULT_LOG: disable_result_log=1; break;
-      case Q_ENABLE_CONNECT_LOG:   disable_connect_log=0; break;
-      case Q_DISABLE_CONNECT_LOG:  disable_connect_log=1; break;
-      case Q_ENABLE_WARNINGS:    disable_warnings=0; break;
-      case Q_DISABLE_WARNINGS:   disable_warnings=1; break;
-      case Q_ENABLE_INFO:        disable_info=0; break;
-      case Q_DISABLE_INFO:       disable_info=1; break;
-      case Q_ENABLE_METADATA:    display_metadata=1; break;
-      case Q_DISABLE_METADATA:   display_metadata=0; break;
+      case Q_ENABLE_QUERY_LOG:
+        disable_query_log= 0;
+        var_set_int("$ENABLED_QUERY_LOG", 1);
+        break;
+      case Q_DISABLE_QUERY_LOG:
+        disable_query_log= 1;
+        var_set_int("$ENABLED_QUERY_LOG", 0);
+        break;
+      case Q_ENABLE_ABORT_ON_ERROR:
+        abort_on_error= 1;
+        var_set_int("$ENABLED_ABORT_ON_ERROR", 1);
+        break;
+      case Q_DISABLE_ABORT_ON_ERROR:
+        abort_on_error= 0;
+        var_set_int("$ENABLED_ABORT_ON_ERROR", 0);
+        break;
+      case Q_ENABLE_RESULT_LOG:
+        disable_result_log= 0;
+        var_set_int("$ENABLED_RESULT_LOG", 1);
+        break;
+      case Q_DISABLE_RESULT_LOG:
+        disable_result_log=1;
+        var_set_int("$ENABLED_RESULT_LOG", 0);
+        break;
+      case Q_ENABLE_CONNECT_LOG:
+        disable_connect_log=0;
+        var_set_int("$ENABLED_CONNECT_LOG", 1);
+        break;
+      case Q_DISABLE_CONNECT_LOG:
+        disable_connect_log=1;
+        var_set_int("$ENABLED_CONNECT_LOG", 0);
+        break;
+      case Q_ENABLE_WARNINGS:
+        disable_warnings= 0;
+        var_set_int("$ENABLED_WARNINGS", 1);
+        break;
+      case Q_DISABLE_WARNINGS:
+        disable_warnings= 1;
+        var_set_int("$ENABLED_WARNINGS", 0);
+        break;
+      case Q_ENABLE_INFO:
+        disable_info= 0;
+        var_set_int("$ENABLED_INFO", 1);
+        break;
+      case Q_DISABLE_INFO:
+        disable_info= 1;
+        var_set_int("$ENABLED_INFO", 0);
+        break;
+      case Q_ENABLE_METADATA:
+        display_metadata= 1;
+        var_set_int("$ENABLED_METADATA", 1);
+        break;
+      case Q_DISABLE_METADATA:
+        display_metadata= 0;
+        var_set_int("$ENABLED_METADATA", 0);
+        break;
       case Q_SOURCE: do_source(command); break;
       case Q_SLEEP: do_sleep(command, 0); break;
       case Q_REAL_SLEEP: do_sleep(command, 1); break;
@@ -9092,7 +9330,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
       reg.icase= 1;
 
     /* done parsing the statement, now place it in regex_arr */
-    if (insert_dynamic(&res->regex_arr,(uchar*) &reg))
+    if (insert_dynamic(&res->regex_arr, &reg))
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
@@ -10108,7 +10346,7 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
     *line_end= 0;
 
     /* Insert pointer to the line in array */
-    if (insert_dynamic(&lines, (uchar*) &start))
+    if (insert_dynamic(&lines, &start))
       die("Out of memory inserting lines to sort");
 
     start= line_end+1;

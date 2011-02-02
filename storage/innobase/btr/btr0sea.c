@@ -151,7 +151,7 @@ btr_search_check_free_space_in_heap(void)
 	be enough free space in the hash table. */
 
 	if (heap->free_block == NULL) {
-		buf_block_t*	block = buf_block_alloc(NULL, 0);
+		buf_block_t*	block = buf_block_alloc(NULL);
 
 		rw_lock_x_lock(&btr_search_latch);
 
@@ -1821,8 +1821,7 @@ btr_search_validate(void)
 				hash_block = buf_block_hash_get(
 					buf_pool,
 					buf_block_get_space(block),
-					buf_block_get_page_no(block),
-					NULL);
+					buf_block_get_page_no(block));
 			} else {
 				hash_block = NULL;
 			}

@@ -706,8 +706,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1102,7 +1101,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1126,7 +1125,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1134,7 +1133,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1304,8 +1303,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1330,7 +1328,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1338,7 +1336,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1732,7 +1730,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1912,8 +1910,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1938,7 +1935,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -3648,6 +3645,17 @@ FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 int_key
 9
 7
+EXPLAIN
+SELECT t0.int_key  
+FROM t0
+WHERE t0.varchar_nokey  IN (  
+SELECT t1_1 .varchar_key  
+FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where
+2	DEPENDENT SUBQUERY	t1_1	ref	varchar_key	varchar_key	4	func	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t1_2	index	NULL	int_key	5	NULL	2	Using index; Using join buffer (BNL, incremental buffers)
 SELECT t0.int_key  
 FROM t0, t2
 WHERE t0.varchar_nokey  IN (  
@@ -3657,6 +3665,18 @@ FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 int_key
 9
 7
+EXPLAIN
+SELECT t0.int_key  
+FROM t0, t2
+WHERE t0.varchar_nokey  IN (  
+SELECT t1_1 .varchar_key  
+FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key  
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where
+2	DEPENDENT SUBQUERY	t1_1	ref	varchar_key	varchar_key	4	func	1	Using where; Using index
+2	DEPENDENT SUBQUERY	t1_2	index	NULL	int_key	5	NULL	2	Using index; Using join buffer (BNL, incremental buffers)
 DROP TABLE t0, t1, t2;
 # End of bug#46550
 
@@ -5461,6 +5481,3 @@ DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 # End of the test for bug#52068.
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
-Variable_name	Value
-optimizer_join_cache_level	1

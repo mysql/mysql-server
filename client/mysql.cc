@@ -163,7 +163,7 @@ static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
-static char *opt_plugin_dir= 0, *opt_default_auth;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1460,8 +1460,8 @@ static struct my_option my_long_options[] =
    &opt_sigint_ignore,  &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
-   "Only update the default database. This is useful for skipping updates "
-   "to other database in the update log.",
+   "Ignore statements except those that occur while the default "
+   "database is the one named at the command line.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_POPEN
   {"pager", OPT_PAGER,
@@ -1568,7 +1568,7 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
    (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_auth", OPT_PLUGIN_DIR,
+  {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
    (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2695,6 +2695,10 @@ static int reconnect(void)
 static void get_current_db()
 {
   MYSQL_RES *res;
+
+  /* If one_database is set, current_db is not supposed to change. */
+  if (one_database)
+    return;
 
   my_free(current_db);
   current_db= NULL;

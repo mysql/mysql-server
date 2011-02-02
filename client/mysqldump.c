@@ -138,6 +138,7 @@ FILE *stderror_file=0;
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 /*
 Dynamic_string wrapper functions. In this file use these
@@ -506,6 +507,13 @@ static struct my_option my_long_options[] =
    &where, &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -902,7 +910,11 @@ static int get_options(int *argc, char ***argv)
       my_hash_insert(&ignore_table,
                      (uchar*) my_strdup("mysql.general_log", MYF(MY_WME))) ||
       my_hash_insert(&ignore_table,
-                     (uchar*) my_strdup("mysql.slow_log", MYF(MY_WME))))
+                     (uchar*) my_strdup("mysql.slow_log", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (uchar*) my_strdup("mysql.slave_master_info", MYF(MY_WME))) ||
+      my_hash_insert(&ignore_table,
+                     (uchar*) my_strdup("mysql.slave_relay_log_info", MYF(MY_WME))))
     return(EX_EOM);
 
   if ((ho_error= handle_options(argc, argv, my_long_options, get_one_option)))
@@ -1461,6 +1473,13 @@ static int connect_to_db(char *host, char *user,char *passwd)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql_connection, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
                                   NULL,opt_mysql_port,opt_mysql_unix_port,
                                   0)))
@@ -2231,6 +2250,15 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   const char *insert_option;
   char	     name_buff[NAME_LEN+3],table_buff[NAME_LEN*2+3];
   char       table_buff2[NAME_LEN*2+3], query_buff[QUERY_LENGTH];
+  const char *show_fields_stmt= "SELECT `COLUMN_NAME` AS `Field`, "
+                                "`COLUMN_TYPE` AS `Type`, "
+                                "`IS_NULLABLE` AS `Null`, "
+                                "`COLUMN_KEY` AS `Key`, "
+                                "`COLUMN_DEFAULT` AS `Default`, "
+                                "`EXTRA` AS `Extra`, "
+                                "`COLUMN_COMMENT` AS `Comment` "
+                                "FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE "
+                                "TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s'";
   FILE       *sql_file= md_result_file;
   int        len;
   MYSQL_RES  *result;
@@ -2498,8 +2526,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     verbose_msg("%s: Warning: Can't set SQL_QUOTE_SHOW_CREATE option (%s)\n",
                 my_progname, mysql_error(mysql));
 
-    my_snprintf(query_buff, sizeof(query_buff), "show fields from %s",
-                result_table);
+    my_snprintf(query_buff, sizeof(query_buff), show_fields_stmt, db, table);
+
     if (mysql_query_with_error_report(mysql, &result, query_buff))
       DBUG_RETURN(0);
 

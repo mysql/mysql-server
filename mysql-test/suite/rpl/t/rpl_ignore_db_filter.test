@@ -9,3 +9,5 @@
 -- source include/have_binlog_format_statement.inc
 
 -- source extra/rpl_tests/rpl_filters.test
+
+--source include/rpl_end.inc

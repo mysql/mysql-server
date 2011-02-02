@@ -1,0 +1,25 @@
+--source include/not_embedded.inc
+
+# suite/rpl/t/rpl_checksum.test contains similar testing of 
+# all checksum related system variables.
+
+set @save_binlog_checksum= @@global.binlog_checksum;
+set @@global.binlog_checksum = default;
+
+select @@global.binlog_checksum as 'must be NONE by default';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.binlog_checksum as 'no session var';
+
+
+# testing lack of side-effects in non-effective update of binlog_checksum:
+set @@global.binlog_checksum = CRC32;
+set @@global.binlog_checksum = CRC32; 
+
+set @@global.master_verify_checksum = 0;
+set @@global.master_verify_checksum = default;
+
+--error ER_WRONG_VALUE_FOR_VAR
+set @@global.binlog_checksum = ADLER32;
+
+# cleanup
+set @@global.binlog_checksum = @save_binlog_checksum;

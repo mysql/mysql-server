@@ -296,10 +296,16 @@ int mysql_update(THD *thd,
   if (lock_tables(thd, table_list, table_count, 0))
     DBUG_RETURN(1);
 
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-      (thd->fill_derived_tables() &&
-       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(1);
+
+  if (thd->fill_derived_tables() &&
+      mysql_handle_derived(thd->lex, &mysql_derived_filling))
+  {
+    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
+    DBUG_RETURN(1);
+  }
+  mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   thd_proc_info(thd, "init");
   table= table_list->table;
@@ -473,13 +479,15 @@ int mysql_update(THD *thd,
       uint         length= 0;
       SORT_FIELD  *sortorder;
       ha_rows examined_rows;
+      ha_rows found_rows;
 
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
       if (!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
           (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, limit, 1,
-                                               &examined_rows))
+                                               select, limit,
+                                               true,
+                                               &examined_rows, &found_rows))
           == HA_POS_ERROR)
       {
 	goto err;
@@ -1025,9 +1033,17 @@ int mysql_multi_update_prepare(THD *thd)
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
-  /* open tables and create derived ones, but do not lock and fill them */
+  /*
+    Open tables and create derived ones, but do not lock and fill them yet.
+
+    During prepare phase acquire only S metadata locks instead of SW locks to
+    keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
+    and global read lock.
+  */
   if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count, 0)) ||
+       open_tables(thd, &table_list, &table_count,
+                   (thd->stmt_arena->is_stmt_prepare() ?
+                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
   /*
@@ -1185,7 +1201,11 @@ int mysql_multi_update_prepare(THD *thd)
  
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
+  {
+    mysql_handle_derived(lex, &mysql_derived_cleanup);
     DBUG_RETURN(TRUE);
+  }
+  mysql_handle_derived(lex, &mysql_derived_cleanup);
 
   DBUG_RETURN (FALSE);
 }
@@ -2065,7 +2085,9 @@ bool multi_update::send_eof()
      Does updates for the last n - 1 tables, returns 0 if ok;
      error takes into account killed status gained in do_updates()
   */
-  int local_error = (table_count) ? do_updates() : 0;
+  int local_error= thd->is_error();
+  if (!local_error)
+    local_error = (table_count) ? do_updates() : 0;
   /*
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.

@@ -14,7 +14,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-use Test::Harness;
 use File::Find;
 use Getopt::Long;
 
@@ -38,9 +37,10 @@ unit - Run unit tests in directory
 
 my $big= $ENV{'MYTAP_CONFIG'} eq 'big';
 
+my $opt_verbose;
 my $result = GetOptions (
   "big!"        => \$big,
-  "verbose!"    => \$Test::Harness::verbose,
+  "verbose!"    => \$opt_verbose,
 );
 
 $ENV{'MYTAP_CONFIG'} = $big ? 'big' : '';
@@ -60,6 +60,19 @@ Run all unit tests in the current directory and all subdirectories.
 
 =cut
 
+BEGIN {
+    # Test::Harness have been extensively rewritten in newer perl
+    # versions and is now just a backward compatibility wrapper
+    # (with a bug causing the HARNESS_PERL_SWITCHES to be mangled)
+    # Prefer to use TAP::Harness directly if available
+    if (eval "use TAP::Harness; 1") {
+        eval 'sub NEW_HARNESS { 1 }';
+        warn "using TAP::Harness";
+    } else {
+        eval "use Test::Harness; 1" or  die "couldn't find Test::Harness!";
+        eval 'sub NEW_HARNESS { 0 }';
+    }
+}
 
 sub _find_test_files (@) {
     my @dirs = @_;
@@ -103,8 +116,19 @@ sub run_cmd (@) {
     if (@files > 0) {
         # Removing the first './' from the file names
         foreach (@files) { s!^\./!! }
-        $ENV{'HARNESS_PERL_SWITCHES'} .= ' -e "exec @ARGV"';
-        runtests @files;
+
+        if (NEW_HARNESS())
+        {
+          my %args = ( exec => [ ], verbosity => $opt_verbose );
+          my $harness = TAP::Harness->new( \%args );
+          $harness->runtests(@files);
+        }
+        else
+        {
+          $ENV{'HARNESS_VERBOSE'} =  $opt_verbose;
+          $ENV{'HARNESS_PERL_SWITCHES'} .= ' -e "exec @ARGV"';
+          runtests(@files);
+        }
     }
 }
 

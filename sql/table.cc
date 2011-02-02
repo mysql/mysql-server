@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,12 @@ LEX_STRING GENERAL_LOG_NAME= {C_STRING_WITH_LEN("general_log")};
 
 /* SLOW_LOG name */
 LEX_STRING SLOW_LOG_NAME= {C_STRING_WITH_LEN("slow_log")};
+
+/* RLI_INFO name */
+LEX_STRING RLI_INFO_NAME= {C_STRING_WITH_LEN("slave_relay_log_info")};
+
+/* MI_INFO name */
+LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 
 	/* Functions defined in this file */
 
@@ -260,6 +266,18 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                        SLOW_LOG_NAME.str,
                        name->str) == 0))
       return TABLE_CATEGORY_LOG;
+
+    if ((name->length == RLI_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      RLI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == MI_INFO_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                      MI_INFO_NAME.str,
+                      name->str) == 0))
+      return TABLE_CATEGORY_RPL_INFO;
   }
 
   return TABLE_CATEGORY_USER;
@@ -1858,8 +1876,13 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   /* Setup copy of fields from share, but use the right alias and record */
   for (i=0 ; i < share->fields; i++, field_ptr++)
   {
-    if (!((*field_ptr)= share->field[i]->clone(&outparam->mem_root, outparam)))
+    Field *new_field= share->field[i]->clone(&outparam->mem_root);
+    *field_ptr= new_field;
+    if (new_field == NULL)
       goto err;
+    new_field->init(outparam);
+    new_field->move_field_offset((my_ptrdiff_t) (outparam->record[0] -
+                                                 outparam->s->default_values));
   }
   (*field_ptr)= 0;                              // End marker
 
@@ -1962,8 +1985,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     {
       if (work_part_info_used)
         tmp= fix_partition_func(thd, outparam, is_create_table);
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     }
+    outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
     if (tmp)
     {
@@ -5332,7 +5355,8 @@ void init_mdl_requests(TABLE_LIST *table_list)
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+                                 MDL_SHARED_WRITE : MDL_SHARED_READ,
+                                 MDL_TRANSACTION);
 }
 
 

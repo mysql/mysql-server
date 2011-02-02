@@ -2,23 +2,18 @@
 # for running commits to finish (in the past it could not)
 # This will not be a meaningful test on non-debug servers so will be
 # skipped.
-# If running mysql-test-run --debug, the --debug added by
-# mysql-test-run to the mysqld command line will override the one of
-# -master.opt. But this test is designed to still pass then (though it
-# won't test anything interesting).
 
 # This also won't work with the embedded server test
 --source include/not_embedded.inc
 
 --source include/have_debug.inc
 
+# This test needs transactional engine as otherwise COMMIT
+# won't block FLUSH TABLES WITH GLOBAL READ LOCK.
+--source include/have_innodb.inc
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
-
-# Disable concurrent inserts to avoid test failures when reading the
-# connection id which was inserted into a table by another thread.
-SET @old_concurrent_insert= @@global.concurrent_insert;
-SET @@global.concurrent_insert= 0;
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
@@ -27,47 +22,64 @@ connection con1;
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
-CREATE TABLE t1 (kill_id INT);
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1 (kill_id INT) engine = InnoDB;
 INSERT INTO t1 VALUES(connection_id());
 
-# Thanks to the parameter we passed to --debug, this FLUSH will
-# block on a debug build running with our --debug=make_global... It
-# will block until killed. In other cases (non-debug build or other
-# --debug) it will succeed immediately
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Start transaction.
+BEGIN;
+INSERT INTO t1 VALUES(connection_id());
+--echo # Ensure that COMMIT will pause once it acquires protection
+--echo # against its global read lock.
+SET DEBUG_SYNC='ha_commit_trans_after_acquire_commit_lock SIGNAL acquired WAIT_FOR go';
 
+--echo # Sending:
+--send COMMIT
+
+--echo # Switching to 'con1'.
 connection con1;
+--echo # Wait till COMMIT acquires protection against global read
+--echo # lock and pauses.
+SET DEBUG_SYNC='now WAIT_FOR acquired';
+--echo # Sending:
 send FLUSH TABLES WITH READ LOCK;
 
-# kill con1
+--echo # Switching to 'con2'.
 connection con2;
-SELECT ((@id := kill_id) - kill_id) FROM t1;
+SELECT ((@id := kill_id) - kill_id) FROM t1 LIMIT 1;
 
-# Wait for the debug sync point, test won't run on non-debug
-# builds anyway.
+--echo # Wait till FLUSH TABLES WITH READ LOCK blocks due
+--echo # to active COMMIT
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for all running commits to finish"
+  where state = "Waiting for commit lock"
   and info = "flush tables with read lock";
 --source include/wait_condition.inc
 
+--echo # Kill connection 'con1'.
 KILL CONNECTION @id;
 
+--echo # Switching to 'con1'.
 connection con1;
-# On debug builds it will be error 1053 (killed); on non-debug, or
-# debug build running without our --debug=make_global..., will be
-# error 0 (no error). The only important thing to test is that on
-# debug builds with our --debug=make_global... we don't hang forever.
---error 0,1317,2013
+--echo # Try to reap FLUSH TABLES WITH READ LOCK, 
+--echo # it fail due to killed statement and connection.
+--error 1317,2013
 reap;
 
+--echo # Switching to 'con2'.
 connection con2;
-DROP TABLE t1;
+--echo # Resume COMMIT.
+SET DEBUG_SYNC='now SIGNAL go';
 
+--echo # Switching to 'default'.
 connection default;
+--echo # Reaping COMMIT.
+--reap
 disconnect con2;
-
-# Restore global concurrent_insert value
-SET @@global.concurrent_insert= @old_concurrent_insert;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

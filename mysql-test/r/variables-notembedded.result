@@ -44,6 +44,32 @@ ERROR HY000: Variable 'relay_log' is a read only variable
 SET @@global.relay_log= 'x';
 ERROR HY000: Variable 'relay_log' is a read only variable
 #
+SHOW VARIABLES like 'relay_log_basename';
+Variable_name	Value
+relay_log_basename	
+SELECT @@session.relay_log_basename;
+ERROR HY000: Variable 'relay_log_basename' is a GLOBAL variable
+SELECT @@global.relay_log_basename;
+@@global.relay_log_basename
+NULL
+SET @@session.relay_log_basename= 'x';
+ERROR HY000: Variable 'relay_log_basename' is a read only variable
+SET @@global.relay_log_basename= 'x';
+ERROR HY000: Variable 'relay_log_basename' is a read only variable
+#
+SHOW VARIABLES like 'log_bin_basename';
+Variable_name	Value
+log_bin_basename	
+SELECT @@session.log_bin_basename;
+ERROR HY000: Variable 'log_bin_basename' is a GLOBAL variable
+SELECT @@global.log_bin_basename;
+@@global.log_bin_basename
+NULL
+SET @@session.log_bin_basename= 'x';
+ERROR HY000: Variable 'log_bin_basename' is a read only variable
+SET @@global.log_bin_basename= 'x';
+ERROR HY000: Variable 'log_bin_basename' is a read only variable
+#
 SHOW VARIABLES like 'relay_log_index';
 Variable_name	Value
 relay_log_index	
@@ -56,6 +82,19 @@ SET @@session.relay_log_index= 'x';
 ERROR HY000: Variable 'relay_log_index' is a read only variable
 SET @@global.relay_log_index= 'x';
 ERROR HY000: Variable 'relay_log_index' is a read only variable
+#
+SHOW VARIABLES like 'log_bin_index';
+Variable_name	Value
+log_bin_index	
+SELECT @@session.log_bin_index;
+ERROR HY000: Variable 'log_bin_index' is a GLOBAL variable
+SELECT @@global.log_bin_index;
+@@global.log_bin_index
+NULL
+SET @@session.log_bin_index= 'x';
+ERROR HY000: Variable 'log_bin_index' is a read only variable
+SET @@global.log_bin_index= 'x';
+ERROR HY000: Variable 'log_bin_index' is a read only variable
 #
 SHOW VARIABLES like 'relay_log_info_file';
 Variable_name	Value

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
 UNIQUE(b));
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
@@ -11,14 +7,17 @@ SELECT * FROM t1;
 a	b
 1	10
 2	2
-Last_SQL_Error = Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10'
+include/wait_for_slave_sql_error.inc [errno=1105]
+Last_SQL_Error = 'Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10''
 SELECT * FROM t1;
 a	b
 stop slave;
+include/wait_for_slave_to_stop.inc
 reset slave;
 reset master;
 drop table t1;
 start slave;
+include/wait_for_slave_to_start.inc
 CREATE TABLE t1 (
 id bigint(20) unsigned NOT NULL auto_increment,
 field_1 int(10) unsigned NOT NULL,
@@ -56,12 +55,16 @@ id	field_1	field_2	field_3
 4	4	d	4d
 5	5	e	5e
 6	6	f	6f
-Last_SQL_Error = Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1 (field_1, field_2, field_3)
+include/wait_for_slave_sql_error.inc [errno=1105]
+Last_SQL_Error = 'Error 'master may suffer from http://bugs.mysql.com/bug.php?id=24432 so slave stops; check error log on slave for more info' on query. Default database: 'test'. Query: 'INSERT INTO t1 (field_1, field_2, field_3)
 SELECT t2.field_a, t2.field_b, t2.field_c
 FROM t2
 ON DUPLICATE KEY UPDATE
-t1.field_3 = t2.field_c'
+t1.field_3 = t2.field_c''
 SELECT * FROM t1;
 id	field_1	field_2	field_3
 drop table t1, t2;
 drop table t1, t2;
+include/stop_slave_io.inc
+RESET SLAVE;
+include/rpl_end.inc

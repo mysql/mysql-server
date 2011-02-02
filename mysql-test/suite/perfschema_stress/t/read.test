@@ -15,24 +15,24 @@
 
 --source include/not_embedded.inc
 
-SELECT * FROM performance_schema.SETUP_INSTRUMENTS
+SELECT * FROM performance_schema.setup_instruments
 WHERE ENABLED='NO' AND TIMED='NO';
 
-SELECT * FROM performance_schema.EVENTS_WAITS_CURRENT
+SELECT * FROM performance_schema.events_waits_current
 WHERE (TIMER_END - TIMER_START != TIMER_WAIT);
 
-SELECT * FROM performance_schema.EVENTS_WAITS_HISTORY
+SELECT * FROM performance_schema.events_waits_history
 WHERE SPINS != NULL;
 
-SELECT * FROM performance_schema.PROCESSLIST p,
-              performance_schema.EVENTS_WAITS_CURRENT e
+SELECT * FROM performance_schema.threads p,
+              performance_schema.events_waits_current e
 WHERE p.THREAD_ID = e.THREAD_ID
   AND TIMER_START = 0
 ORDER BY e.EVENT_ID;
 
-SELECT * FROM performance_schema.EVENTS_WAITS_CURRENT
+SELECT * FROM performance_schema.events_waits_current
 WHERE THREAD_ID IN (SELECT THREAD_ID
-                    FROM performance_schema.PROCESSLIST
+                    FROM performance_schema.threads
                     ORDER BY THREAD_ID)
   AND TIMER_END = 0
   AND TIMER_WAIT != NULL
@@ -43,7 +43,7 @@ SELECT SUM(COUNT_READ) AS sum_count_read,
        SUM(COUNT_WRITE) AS sum_count_write,
        SUM(SUM_NUMBER_OF_BYTES_READ) AS sum_num_bytes_read,
        SUM(SUM_NUMBER_OF_BYTES_WRITE) AS sum_num_bytes_write
-FROM performance_schema.FILE_SUMMARY_BY_INSTANCE
+FROM performance_schema.file_summary_by_instance
 WHERE FILE_NAME LIKE CONCAT('%', @@tmpdir, '%') ORDER BY NULL;
 --enable_result_log
 

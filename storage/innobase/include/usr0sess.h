@@ -51,7 +51,8 @@ sess_close(
 /*=======*/
 	sess_t*		sess);		/* in, own: session object */
 
-/* The session handle. All fields are protected by the kernel mutex */
+/* The session handle. This data structure is only used by purge and is
+not really necessary. We should get rid of it. */
 struct sess_struct{
 	ulint		state;		/*!< state of the session */
 	trx_t*		trx;		/*!< transaction object permanently

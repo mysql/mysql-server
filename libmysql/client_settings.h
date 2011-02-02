@@ -35,21 +35,6 @@ sig_handler my_pipe_sig_handler(int sig);
 void read_user_name(char *name);
 my_bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 
-/*
-  Let the user specify that we don't want SIGPIPE;  This doesn't however work
-  with threaded applications as we can have multiple read in progress.
-*/
-
-#if !defined(__WIN__) && defined(SIGPIPE) && !defined(THREAD)
-#define init_sigpipe_variables  sig_return old_signal_handler=(sig_return) 0;
-#define set_sigpipe(mysql)     if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) old_signal_handler=signal(SIGPIPE, my_pipe_sig_handler)
-#define reset_sigpipe(mysql) if ((mysql)->client_flag & CLIENT_IGNORE_SIGPIPE) signal(SIGPIPE,old_signal_handler);
-#else
-#define init_sigpipe_variables
-#define set_sigpipe(mysql)
-#define reset_sigpipe(mysql)
-#endif
-
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group);
 void mysql_detach_stmt_list(LIST **stmt_list, const char *func_name);

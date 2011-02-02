@@ -227,6 +227,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     uint         length= 0;
     SORT_FIELD  *sortorder;
     ha_rows examined_rows;
+    ha_rows found_rows;
     
     table->update_const_key_parts(conds);
     order= simple_remove_const(order, conds);
@@ -241,9 +242,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                                                    MYF(MY_FAE | MY_ZEROFILL));
     
       if (!(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-	  (table->sort.found_records = filesort(thd, table, sortorder, length,
-                                                select, HA_POS_ERROR, 1,
-                                                &examined_rows))
+	  (table->sort.found_records= filesort(thd, table, sortorder, length,
+                                               select, HA_POS_ERROR,
+                                               true,
+                                               &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
       {
         delete select;

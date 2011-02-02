@@ -4,3 +4,4 @@
 
 -- let $engine= InnoDB
 -- source extra/rpl_tests/rpl_set_null.test
+--source include/rpl_end.inc

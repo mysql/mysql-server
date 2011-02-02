@@ -33,9 +33,7 @@ typedef struct st_bitmap
      thread_safe flag in bitmap_init was set.  Otherwise, we optimize by not
      acquiring the mutex
    */
-#ifdef THREAD
   mysql_mutex_t *mutex;
-#endif
 } MY_BITMAP;
 
 #ifdef	__cplusplus

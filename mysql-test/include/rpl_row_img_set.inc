@@ -39,7 +39,7 @@ while (`SELECT HEX('$row_img_set') != HEX('')`)
   -- eval SET SESSION binlog_row_image= '$rimg'
   -- eval SET GLOBAL binlog_row_image= '$rimg'
 
-  if (`SELECT '$is_slave_restart' = 'Y'`)
+  if ($is_slave_restart == Y)
   {
     -- source include/stop_slave.inc
     -- source include/start_slave.inc

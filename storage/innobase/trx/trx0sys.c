@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -131,6 +131,10 @@ static const ulint	FILE_FORMAT_NAME_N
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
+/* Key to register the trx_sys->lock with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_sys_rw_lock_key;
+/* Key to register the trx_sys->read_view_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	read_view_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifndef UNIV_HOTBACKUP
@@ -625,6 +629,7 @@ leave_func:
 	ut_free(unaligned_read_buf);
 }
 
+#ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks that trx is in the trx list.
 @return	TRUE if is in */
@@ -632,26 +637,26 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	trx_t*	in_trx)	/*!< in: trx */
+	const trx_t*	in_trx)	/*!< in: transaction */
 {
-	trx_t*	trx;
+	const trx_t*	trx;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	ut_ad(trx_assert_started(in_trx));
 
-	while (trx != NULL) {
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL && trx != in_trx;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx == in_trx) {
-
-			return(TRUE);
-		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
+		ut_ad(trx->in_trx_list);
 	}
 
-	return(FALSE);
+	return(trx != NULL);
 }
+#endif /* UNIV_DEBUG */
 
 /*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
@@ -660,10 +665,13 @@ void
 trx_sys_flush_max_trx_id(void)
 /*==========================*/
 {
-	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
+	trx_sysf_t*	sys_header;
 
-	ut_ad(mutex_own(&kernel_mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -848,15 +856,13 @@ trx_sysf_rseg_find_free(
 /*====================*/
 	mtr_t*	mtr)	/*!< in: mtr */
 {
-	trx_sysf_t*	sys_header;
-	ulint		page_no;
 	ulint		i;
-
-	ut_ad(mutex_own(&(kernel_mutex)));
+	trx_sysf_t*	sys_header;
 
 	sys_header = trx_sysf_get(mtr);
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+		ulint	page_no;
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
@@ -893,7 +899,6 @@ trx_sysf_create(
 	to the latching order rules. */
 
 	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), mtr);
-	mutex_enter(&kernel_mutex);
 
 	/* Create the trx sys file block in a new allocated file segment */
 	block = fseg_create(TRX_SYS_SPACE, 0, TRX_SYS + TRX_SYS_FSEG_HEADER,
@@ -939,10 +944,9 @@ trx_sysf_create(
 	slot_no = trx_sysf_rseg_find_free(mtr);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
+
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
-
-	mutex_exit(&kernel_mutex);
 }
 
 /*****************************************************************//**
@@ -956,22 +960,13 @@ trx_sys_init_at_db_start(void)
 	trx_sysf_t*	sys_header;
 	ib_uint64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
-	trx_t*		trx;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
 
-	ut_ad(trx_sys == NULL);
-
-	mutex_enter(&kernel_mutex);
-
-	trx_sys = mem_alloc(sizeof(trx_sys_t));
-
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_list_and_array_init(sys_header, &mtr);
-
-	trx_sys->latest_rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+	trx_rseg_array_init(sys_header, &mtr);
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
@@ -986,22 +981,23 @@ trx_sys_init_at_db_start(void)
 				     TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
+
 	trx_dummy_sess = sess_open();
+
 	trx_lists_init_at_db_start();
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		const trx_t*	trx;
 
-		for (;;) {
+		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		     trx != NULL;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+			ut_ad(trx->is_recovered);
 
-			if (trx->conc_state != TRX_PREPARED) {
+			if (trx_state_eq(trx, TRX_STATE_ACTIVE)) {
 				rows_to_undo += trx->undo_no;
-			}
-
-			trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-			if (!trx) {
-				break;
 			}
 		}
 
@@ -1021,21 +1017,66 @@ trx_sys_init_at_db_start(void)
 			(ullint) trx_sys->max_trx_id);
 	}
 
+	rw_lock_s_unlock(&trx_sys->lock);
+
 	UT_LIST_INIT(trx_sys->view_list);
 
-	trx_purge_sys_create();
-
-	mutex_exit(&kernel_mutex);
-
 	mtr_commit(&mtr);
+}
+
+/*****************************************************************//**
+Compare two trx_rseg_t instances on last_trx_no. */
+static
+int
+trx_rseg_compare_last_trx_no(
+/*=========================*/
+	const void*	p1,		/*!< in: elem to compare */
+	const void*	p2)		/*!< in: elem to compare */
+{
+	ib_int64_t	cmp;
+
+	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
+	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
+
+	cmp = rseg_q1->trx_no - rseg_q2->trx_no;
+
+	if (cmp < 0) {
+		return(-1);
+	} else if (cmp > 0) {
+		return(1);
+	}
+
+	return(0);
+}
+
+/*****************************************************************//**
+Creates the trx_sys instance and initializes ib_bh, lock and
+read_view_mutex. */
+UNIV_INTERN
+void
+trx_sys_create(void)
+/*================*/
+{
+	ut_ad(trx_sys == NULL);
+
+	trx_sys = mem_zalloc(sizeof(*trx_sys));
+
+	trx_sys->ib_bh = ib_bh_create(
+		trx_rseg_compare_last_trx_no,
+	       	sizeof(rseg_queue_t), TRX_SYS_N_RSEGS * 128);
+
+	rw_lock_create(trx_sys_rw_lock_key, &trx_sys->lock, SYNC_TRX_SYS);
+
+	mutex_create(
+		read_view_mutex_key, &trx_sys->read_view_mutex, SYNC_READ_VIEW);
 }
 
 /*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
 UNIV_INTERN
 void
-trx_sys_create(void)
-/*================*/
+trx_sys_create_sys_pages(void)
+/*==========================*/
 {
 	mtr_t	mtr;
 
@@ -1044,8 +1085,6 @@ trx_sys_create(void)
 	trx_sysf_create(&mtr);
 
 	mtr_commit(&mtr);
-
-	trx_sys_init_at_db_start();
 }
 
 /*****************************************************************//**
@@ -1160,7 +1199,7 @@ trx_sys_file_format_max_check(
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: highest supported file format is %s.\n",
+		" InnoDB: highest supported file format is %s.\n",
 		trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX));
 
 	if (format_id > DICT_TF_FORMAT_MAX) {
@@ -1169,7 +1208,7 @@ trx_sys_file_format_max_check(
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %s: the system tablespace is in a file "
+			" InnoDB: %s: the system tablespace is in a file "
 			"format that this version doesn't support - %s\n",
 			((max_format_id <= DICT_TF_FORMAT_MAX)
 				? "Error" : "Warning"),
@@ -1582,13 +1621,15 @@ void
 trx_sys_close(void)
 /*===============*/
 {
-	trx_rseg_t*	rseg;
+	ulint		i;
 	read_view_t*	view;
 
 	ut_ad(trx_sys != NULL);
 
 	/* Check that all read views are closed except read view owned
 	by a purge. */
+
+	mutex_enter(&trx_sys->read_view_mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1598,12 +1639,12 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
+	mutex_exit(&trx_sys->read_view_mutex);
+
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
 
 	trx_purge_sys_close();
-
-	mutex_enter(&kernel_mutex);
 
 	/* Free the double write data structures. */
 	ut_a(trx_doublewrite != NULL);
@@ -1617,16 +1658,20 @@ trx_sys_close(void)
 	mem_free(trx_doublewrite);
 	trx_doublewrite = NULL;
 
+	rw_lock_x_lock(&trx_sys->lock);
+	mutex_free(&trx_sys->read_view_mutex);
+
 	/* There can't be any active transactions. */
-	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg;
 
-	while (rseg != NULL) {
-		trx_rseg_t*	prev_rseg = rseg;
+		rseg = trx_sys->rseg_array[i];
 
-		rseg = UT_LIST_GET_NEXT(rseg_list, prev_rseg);
-		UT_LIST_REMOVE(rseg_list, trx_sys->rseg_list, prev_rseg);
-
-		trx_rseg_mem_free(prev_rseg);
+		if (rseg != NULL) {
+			trx_rseg_mem_free(rseg);
+		} else {
+			break;
+		}
 	}
 
 	view = UT_LIST_GET_FIRST(trx_sys->view_list);
@@ -1642,13 +1687,65 @@ trx_sys_close(void)
 	}
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == 0);
-	ut_a(UT_LIST_GET_LEN(trx_sys->rseg_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
+
+	rw_lock_x_unlock(&trx_sys->lock);
+
+	rw_lock_free(&trx_sys->lock);
+
+	ib_bh_free(trx_sys->ib_bh);
 
 	mem_free(trx_sys);
 
 	trx_sys = NULL;
-	mutex_exit(&kernel_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
+
+/*********************************************************************
+Check if there are any active transactions.
+@return total number of active transactions or 0 if none */
+UNIV_INTERN
+ulint
+trx_sys_any_active_transactions(void)
+/*=================================*/
+{
+	ulint	total_trx = 0;
+
+	rw_lock_s_lock(&trx_sys->lock);
+
+	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
+	       	  + trx_n_mysql_transactions;
+
+	rw_lock_s_unlock(&trx_sys->lock);
+
+	return(total_trx);
+}
+
+#ifdef UNIV_DEBUG
+/*************************************************************//**
+Validate the trx_sys_t::trx_list. */
+UNIV_INTERN
+ibool
+trx_sys_validate_trx_list(void)
+/*===========================*/
+{
+	const trx_t*	trx;
+	const trx_t*	prev_trx = NULL;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL;
+	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
+
+		ut_ad(trx->in_trx_list);
+		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */

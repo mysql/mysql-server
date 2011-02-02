@@ -1191,7 +1191,8 @@ public:
   void global_save_default(THD *thd, set_var *var)
   {
     LEX_STRING pname;
-    pname.str= *(char**)option.def_value;
+    char **default_value= reinterpret_cast<char**>(option.def_value);
+    pname.str= *default_value;
     pname.length= strlen(pname.str);
 
     plugin_ref plugin;
@@ -1556,7 +1557,10 @@ public:
   void session_save_default(THD *thd, set_var *var)
   { var->save_result.ptr= global_var(void*); }
   void global_save_default(THD *thd, set_var *var)
-  { var->save_result.ptr= *(void**)option.def_value; }
+  {
+    void **default_value= reinterpret_cast<void**>(option.def_value);
+    var->save_result.ptr= *default_value;
+  }
   bool check_update_type(Item_result type)
   { return type != INT_RESULT && type != STRING_RESULT; }
   uchar *session_value_ptr(THD *thd, LEX_STRING *base)
@@ -1672,6 +1676,24 @@ public:
                   values, def_val, lock, binlog_status_arg, on_check_func)
   {}
   virtual bool session_update(THD *thd, set_var *var);
+};
+
+/**
+   A class for @@global.binlog_checksum that has
+   a specialized update method.
+*/
+class Sys_var_enum_binlog_checksum: public Sys_var_enum
+{
+public:
+  Sys_var_enum_binlog_checksum(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const char *values[], uint def_val, PolyLock *lock,
+          enum binlog_status_enum binlog_status_arg)
+    :Sys_var_enum(name_arg, comment, flag_args, off, size, getopt,
+                  values, def_val, lock, binlog_status_arg, NULL)
+  {}
+  virtual bool global_update(THD *thd, set_var *var);
 };
 
 /****************************************************************************

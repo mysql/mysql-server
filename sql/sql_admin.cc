@@ -1,4 +1,4 @@
-/* Copyright (c) 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
-                                 MDL_EXCLUSIVE);
+                                 MDL_EXCLUSIVE, MDL_TRANSACTION);
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout,
@@ -734,7 +734,7 @@ send_result_message:
       protocol->store(operator_name, system_charset_info);
       if (result_code) // either mysql_recreate_table or analyze failed
       {
-        DBUG_ASSERT(thd->is_error());
+        DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
           const char *err_msg= thd->stmt_da->message();

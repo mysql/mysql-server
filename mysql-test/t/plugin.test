@@ -5,15 +5,15 @@ CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 DROP TABLE t1;
 
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 --replace_regex /\.dll/.so/
 --error 1125
-eval INSTALL PLUGIN EXAMPLE SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN EXAMPLE SONAME '$EXAMPLE_PLUGIN';
 
 UNINSTALL PLUGIN example;
 
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 
@@ -41,7 +41,7 @@ UNINSTALL PLUGIN non_exist;
 --echo #            to impossible int val
 --echo #
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
@@ -56,7 +56,7 @@ UNINSTALL PLUGIN example;
 # Bug #32757 hang with sql_mode set when setting some global variables
 #
 --replace_regex /\.dll/.so/
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 select @@session.sql_mode into @old_sql_mode;
 

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t0 ( col1 INT NOT NULL, col2 INT ) ENGINE=InnoDB;
 INSERT INTO t0 (col1,col2) VALUES (4,7),(4,8);
 CREATE TABLE t1 (col3 DECIMAL(35,0) DEFAULT NULL, 
@@ -13,6 +9,7 @@ PRIMARY KEY (col1))
 ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
 SET SESSION BINLOG_ROW_IMAGE = minimal;
 REPLACE INTO t1 ( col1,col2) SELECT col1,col2 FROM t0;
-Comparing tables master:test.t0 and slave:test.t0
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t0, slave:t0]
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t0, t1;
+include/rpl_end.inc
