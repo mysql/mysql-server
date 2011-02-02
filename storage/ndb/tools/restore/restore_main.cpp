@@ -19,6 +19,7 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 #include <Vector.hpp>
+#include <Properties.hpp>
 #include <ndb_limits.h>
 #include <NdbTCP.h>
 #include <NdbMem.h>
@@ -62,6 +63,7 @@ Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 Vector<BaseString> g_include_tables, g_exclude_tables;
 Vector<BaseString> g_include_databases, g_exclude_databases;
+Properties g_rewrite_databases;
 NdbRecordPrintFormat g_ndbrecord_print_format;
 unsigned int opt_no_binlog;
 
@@ -75,6 +77,8 @@ public:
 
 Vector<class RestoreOption *> g_include_exclude;
 static void save_include_exclude(int optid, char * argument);
+
+static inline void parse_rewrite_database(char * argument);
 
 NDB_STD_OPTS_VARS;
 
@@ -121,6 +125,7 @@ enum ndb_restore_options {
   OPT_EXCLUDE_TABLES,
   OPT_INCLUDE_DATABASES,
   OPT_EXCLUDE_DATABASES,
+  OPT_REWRITE_DATABASE,
   OPT_EXCLUDE_MISSING_COLUMNS,
   OPT_DISABLE_INDEXES,
   OPT_REBUILD_INDEXES
@@ -136,6 +141,7 @@ static const char *opt_exclude_tables= NULL;
 static const char *opt_include_tables= NULL;
 static const char *opt_exclude_databases= NULL;
 static const char *opt_include_databases= NULL;
+static const char *opt_rewrite_database= NULL;
 
 static struct my_option my_long_options[] =
 {
@@ -263,6 +269,11 @@ static struct my_option my_long_options[] =
   { "exclude-databases", OPT_EXCLUDE_DATABASES,
     "Comma separated list of databases to not restore. Example: db1,db3",
     (uchar**) &opt_exclude_databases, (uchar**) &opt_exclude_databases, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "rewrite-database", OPT_REWRITE_DATABASE,
+    "A pair 'source,dest' of database names from/into which to restore. "
+    "Example: --rewrite-database=oldDb,newDb",
+    (uchar**) &opt_rewrite_database, (uchar**) &opt_rewrite_database, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "include-tables", OPT_INCLUDE_TABLES, "Comma separated list of tables to "
     "restore. Table name should include database name. Example: db1.t1,db3.t1", 
@@ -469,6 +480,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_INCLUDE_TABLES:
   case OPT_EXCLUDE_TABLES:
     save_include_exclude(optid, argument);
+    break;
+  case OPT_REWRITE_DATABASE:
+    parse_rewrite_database(argument);
     break;
   }
   return 0;
@@ -727,6 +741,20 @@ o verify nodegroup mapping
     info << endl;
   }
   
+  if (opt_rewrite_database)
+  {
+    info << "Rewriting databases:";
+    Properties::Iterator it(&g_rewrite_databases);
+    const char * src;
+    for (src = it.first(); src != NULL; src = it.next()) {
+      const char * dst = NULL;
+      bool r = g_rewrite_databases.get(src, &dst);
+      assert(r && (dst != NULL));
+      info << " (" << src << "->" << dst << ")";
+    }
+    info << endl;
+  }
+
   if (opt_include_tables)
   {
     processTableList(opt_include_tables, g_include_tables);
@@ -855,6 +883,27 @@ getTableName(const TableS* table)
     table_name= table->getTableName();
     
   return table_name;
+}
+
+static void parse_rewrite_database(char * argument)
+{
+  const BaseString arg(argument);
+  Vector<BaseString> args;
+  unsigned int n = arg.split(args, ",");
+  if ((n == 2)
+      && (args[0].length() > 0)
+      && (args[1].length() > 0)) {
+    const BaseString src = args[0];
+    const BaseString dst = args[1];
+    const bool replace = true;
+    bool r = g_rewrite_databases.put(src.c_str(), dst.c_str(), replace);
+    assert(r);
+    return; // ok
+  }
+
+  info << "argument `" << arg.c_str()
+       << "` is not a pair 'a,b' of non-empty names." << endl;
+  exit(NDBT_ProgramExit(NDBT_WRONGARGS));
 }
 
 static void save_include_exclude(int optid, char * argument)
