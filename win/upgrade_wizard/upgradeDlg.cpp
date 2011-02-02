@@ -263,8 +263,7 @@ BOOL CUpgradeDlg::OnInitDialog()
   jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
   SetInformationJobObject(m_JobObject, JobObjectExtendedLimitInformation,
                               &jeli, sizeof(jeli));
-  if(!AssignProcessToJobObject(m_JobObject, GetCurrentProcess()))
-    ErrorExit("AssignProcessToJobObject failed");
+  
 
   m_Progress.ShowWindow(SW_HIDE);
   m_Ok.EnableWindow(FALSE);
@@ -375,20 +374,47 @@ void CUpgradeDlg::UpgradeOneService(const string& servicename)
   si.hStdError= hPipeWrite;
   si.wShowWindow= SW_HIDE;
   si.dwFlags= STARTF_USESTDHANDLES |STARTF_USESHOWWINDOW;
-  if (!CreateProcess(NULL, (LPSTR)commandline.c_str(), NULL, NULL, TRUE,
-    0, NULL, NULL, &si, &pi))
+
+
+  /* 
+   We will try to assign child process to a job, to be able to 
+   terminate the process and all of its children. It might fail,
+   in case current process is already part of the job which does
+   not allows breakaways.
+  */
+  if (CreateProcess(NULL, (LPSTR)commandline.c_str(), NULL, NULL, TRUE,
+      CREATE_BREAKAWAY_FROM_JOB|CREATE_SUSPENDED, NULL, NULL, &si, &pi))
   {
-    string errmsg("Create Process ");
-    errmsg+= commandline;
-    errmsg+= " failed";
-    ErrorExit(errmsg.c_str());
+    if(!AssignProcessToJobObject(m_JobObject, pi.hProcess))
+    {
+      char errmsg[128];
+	  sprintf(errmsg, "AssignProcessToJobObject failed, error %d",
+        GetLastError());
+      ErrorExit(errmsg);
+    }
+	ResumeThread(pi.hThread);
   }
+  else
+  {
+	/* 
+	  Creating a process with CREATE_BREAKAWAY_FROM_JOB, reset this flag
+	  and retry.
+	*/
+    if (!CreateProcess(NULL, (LPSTR)commandline.c_str(), NULL, NULL, TRUE,
+      0, NULL, NULL, &si, &pi))
+	{
+      string errmsg("Create Process ");
+      errmsg+= commandline;
+      errmsg+= " failed";
+      ErrorExit(errmsg.c_str());
+	}
+  }
+
   hChildThread = pi.hThread;
   DWORD nbytes;
-  bool newline= false;
   int lines=0;
   CloseHandle(hPipeWrite);
-
+ 
   string output_line;
   while(ReadFile(hPipeRead, pipeReadBuf, 1, &nbytes, NULL))
   {
@@ -402,7 +428,7 @@ void CUpgradeDlg::UpgradeOneService(const string& servicename)
       /* 
         Updating progress dialog.There are currently 9 messages from 
         mysql_upgrade_service (actually it also writes Phase N/M but 
-        we do not parse
+        we do not parse the output right now).
       */
 #define EXPRECTED_MYSQL_UPGRADE_MESSAGES 9
 
@@ -576,8 +602,8 @@ void CUpgradeDlg::OnBnClickedCancel()
       return;
     }
   }
-  if(!TerminateJobObject(m_JobObject, 1))
-    exit(1);
+  TerminateJobObject(m_JobObject, 1);
+  exit(1);
 }
 
 /*
