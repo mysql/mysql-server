@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_EXECUTABLE(ndb_print_backup_file read.cpp)
+MYSQL_ADD_EXECUTABLE(ndb_print_backup_file
+  read.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_print_backup_file
     ndbtrace ndblogger ndbgeneral ndbportlib)

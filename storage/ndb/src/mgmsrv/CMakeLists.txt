@@ -48,14 +48,15 @@ IF(WIN32)
     ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin)
 ENDIF()
 
-ADD_EXECUTABLE(ndb_mgmd
-  MgmtSrvr.cpp main.cpp Services.cpp ConfigManager.cpp ${NDB_MGMD_EXTRA_SRC})
+MYSQL_ADD_EXECUTABLE(ndb_mgmd
+  MgmtSrvr.cpp main.cpp Services.cpp ConfigManager.cpp
+  ${NDB_MGMD_EXTRA_SRC}
+  DESTINATION ${INSTALL_SBINDIR}
+  COMPONENT ClusterManagementServer)
 TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient ndbmgmclient)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(ndb_mgmd ${READLINE_LIBRARY})
 ENDIF(UNIX)
-
-INSTALL(TARGETS ndb_mgmd DESTINATION libexec)
 
 ADD_EXECUTABLE(MgmConfig-t
                testConfig.cpp)

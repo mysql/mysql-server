@@ -72,6 +72,11 @@ public:
 
   bool get_error_message(int error, String *buf);
 
+  uint8 table_cache_type() {
+    // Don't put ndbinfo results in query cache
+    return HA_CACHE_TBL_NOCACHE;
+  }
+
 private:
   void unpack_record(uchar *dst_row);
 

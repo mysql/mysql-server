@@ -14,6 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-ADD_EXECUTABLE(ndb_print_sys_file printSysfile.cpp)
+MYSQL_ADD_EXECUTABLE(ndb_print_sys_file
+  printSysfile.cpp
+  COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndb_print_sys_file
     ndbtrace ndblogger ndbgeneral ndbportlib)

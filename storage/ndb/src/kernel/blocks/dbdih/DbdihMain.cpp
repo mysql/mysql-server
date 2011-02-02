@@ -5374,6 +5374,7 @@ void Dbdih::checkGcpOutstanding(Signal* signal, Uint32 failedNodeId){
     }
      
     GCPNoMoreTrans* req = (GCPNoMoreTrans*)signal->getDataPtrSend();
+    req->senderRef = reference();
     req->senderData = m_micro_gcp.m_master_ref;
     req->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
     req->gci_lo = Uint32(m_micro_gcp.m_old_gci);
@@ -5632,6 +5633,7 @@ void Dbdih::execMASTER_GCPREQ(Signal* signal)
 
     {
       GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
+      req2->senderRef = reference();
       req2->senderData = m_micro_gcp.m_master_ref;
       req2->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
       req2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);
@@ -9953,6 +9955,7 @@ void Dbdih::execGCP_COMMIT(Signal* signal)
   emptyverificbuffer(signal, true);
 
   GCPNoMoreTrans* req2 = (GCPNoMoreTrans*)signal->getDataPtrSend();
+  req2->senderRef = reference();
   req2->senderData = calcDihBlockRef(masterNodeId);
   req2->gci_hi = (Uint32)(m_micro_gcp.m_old_gci >> 32);
   req2->gci_lo = (Uint32)(m_micro_gcp.m_old_gci & 0xFFFFFFFF);

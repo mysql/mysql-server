@@ -18,8 +18,9 @@ INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/common/mgmcommon)
 ADD_LIBRARY(ndbmgmclient STATIC
             CommandInterpreter.cpp)
 
-ADD_EXECUTABLE(ndb_mgm
-               main.cpp)
+MYSQL_ADD_EXECUTABLE(ndb_mgm
+  main.cpp
+  COMPONENT ClusterManagementClient)
 
 TARGET_LINK_LIBRARIES(ndb_mgm
                ndbmgmclient
@@ -34,5 +35,3 @@ TARGET_LINK_LIBRARIES(ndb_mgm
 IF(UNIX)
   TARGET_LINK_LIBRARIES(ndb_mgm ${READLINE_LIBRARY})
 ENDIF(UNIX)
-
-INSTALL(TARGETS ndb_mgm DESTINATION bin)

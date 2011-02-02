@@ -1,0 +1,16 @@
+USE ndbinfo;
+set GLOBAL query_cache_type=on;
+set GLOBAL query_cache_size=1355776;
+reset query cache;
+flush status;
+select * from counters;
+select * from counters;
+select * from counters;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_inserts";
+Variable_name	Value
+Qcache_inserts	0
+SET GLOBAL query_cache_size=default;
+SET GLOBAL query_cache_type=default;

@@ -127,7 +127,11 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
   
+#ifdef NDB_MUTEX_STAT
+  result = pthread_cond_wait(&p_cond->cond, &p_mutex->mutex);
+#else
   result = pthread_cond_wait(&p_cond->cond, p_mutex);
+#endif
   
   return result;
 }
@@ -182,13 +186,14 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
 {
 #ifdef NDB_WIN
   struct timespec tmp = *abstime;
+  abstime = &tmp;
 #endif
 
   if (p_cond == NULL || p_mutex == NULL)
     return 1;
 
-#ifdef NDB_WIN
-  return pthread_cond_timedwait(&p_cond->cond, p_mutex, &tmp);
+#ifdef NDB_MUTEX_STAT
+  return pthread_cond_timedwait(&p_cond->cond, &p_mutex->mutex, abstime);
 #else
   return pthread_cond_timedwait(&p_cond->cond, p_mutex, abstime);
 #endif

@@ -199,6 +199,23 @@ INSERT INTO t1 VALUES
 
 SELECT COUNT(*) FROM t1;
 
+########################################
+# WL#5568: Check disk space usage.
+########################################
+
+SELECT table_name, 
+       SUM(table_rows),
+       SUM(data_length),
+       MAX(max_data_length),
+       SUM(data_free)
+FROM INFORMATION_SCHEMA.partitions
+WHERE table_name='t1'
+GROUP BY table_name;
+
+SELECT table_name, table_rows, data_length, max_data_length, data_free
+FROM information_schema.tables
+WHERE table_name='t1';
+
 ####################################
 # Test error cases with size numbers
 ####################################

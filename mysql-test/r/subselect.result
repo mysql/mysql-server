@@ -4785,4 +4785,30 @@ HAVING t2s.i = 999
 ) IS UNKNOWN;
 i
 DROP TABLE t1,t1s,t2s;
+#
+# Bug #56690  Wrong results with subquery with 
+# GROUP BY inside < ANY clause
+#
+CREATE TABLE t1 (
+pk INT NOT NULL PRIMARY KEY,
+number INT,
+KEY key_number (number)
+);
+INSERT INTO t1 VALUES (8,8);
+CREATE TABLE t2 (
+pk INT NOT NULL PRIMARY KEY,
+number INT,
+KEY key_number (number)
+);
+INSERT INTO t2 VALUES (1,2);
+INSERT INTO t2 VALUES (2,8);
+INSERT INTO t2 VALUES (3,NULL);
+INSERT INTO t2 VALUES (4,166);
+SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2 GROUP BY number);
+pk	number
+8	8
+SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2);
+pk	number
+8	8
+DROP TABLE t1,t2;
 End of 5.1 tests

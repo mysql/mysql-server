@@ -93,6 +93,7 @@ int injector::transaction::commit()
    DBUG_RETURN(error);
 }
 
+#ifndef MCP_BUG58082
 int injector::transaction::rollback()
 {
    DBUG_ENTER("injector::transaction::rollback()");
@@ -100,6 +101,7 @@ int injector::transaction::rollback()
    end_trans(m_thd, ROLLBACK);
    DBUG_RETURN(0);
 }
+#endif
 
 int injector::transaction::use_table(server_id_type sid, table tbl)
 {

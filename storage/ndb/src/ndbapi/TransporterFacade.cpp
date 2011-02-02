@@ -541,7 +541,7 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
-  theMutexPtr = NdbMutex_Create();
+  theMutexPtr = NdbMutex_CreateWithName("TTFM");
   sendPerformedLastInterval = 0;
 
   for (int i = 0; i < NO_API_FIXED_BLOCKS; i++)
