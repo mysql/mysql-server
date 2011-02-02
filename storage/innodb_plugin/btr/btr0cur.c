@@ -4169,6 +4169,7 @@ btr_check_blob_fil_page_type(
 	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
 		ulint	flags = fil_space_get_flags(space_id);
 
+#ifndef UNIV_DEBUG /* Improve debug test coverage */
 		if (UNIV_LIKELY
 		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
 			/* Old versions of InnoDB did not initialize
@@ -4177,6 +4178,7 @@ btr_check_blob_fil_page_type(
 			a BLOB page that is in Antelope format.*/
 			return;
 		}
+#endif /* !UNIV_DEBUG */
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
