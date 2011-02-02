@@ -1621,8 +1621,8 @@ RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
 RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key;
 pk
 2
-4
 2
+4
 4
 NULL
 NULL
