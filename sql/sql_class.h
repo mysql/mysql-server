@@ -3393,6 +3393,7 @@ public:
   {}
   void cleanup();
   bool send_data(List<Item> &items);
+private:
   bool cmp_real();
   bool cmp_int();
   bool cmp_decimal();
