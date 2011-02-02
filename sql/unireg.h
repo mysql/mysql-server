@@ -1,7 +1,7 @@
 #ifndef UNIREG_INCLUDED
 #define UNIREG_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,8 +55,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
                        ER_ERROR_FIRST])
 #define ER_THD_OR_DEFAULT(thd,X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
 
-
-#define ERRMAPP 1				/* Errormap f|r my_error */
 
 #define ME_INFO (ME_HOLDTANG+ME_OLDWIN+ME_NOREFRESH)
 #define ME_ERROR (ME_BELL+ME_OLDWIN+ME_NOREFRESH)
