@@ -78,7 +78,7 @@ DROP PROCEDURE bulkinsert;
 DROP TABLE t2;
 
 --echo Now check bulk insert using create .. as select.
-SHOW VARIABLES LIKE '%storage_engine%';
+SHOW VARIABLES LIKE 'storage_engine';
 SET storage_engine="ndb";
 
 CREATE TABLE t2 AS SELECT * FROM t1;

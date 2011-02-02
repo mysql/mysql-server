@@ -55,7 +55,8 @@ struct GCPCommit // Distr. DIH-DIH
 
 struct GCPNoMoreTrans // Local DIH/TC
 {
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
+  Uint32 senderRef;
   Uint32 senderData;
   Uint32 gci_hi;
   Uint32 gci_lo;

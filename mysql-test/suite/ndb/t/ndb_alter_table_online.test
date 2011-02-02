@@ -744,11 +744,27 @@ ALTER ONLINE TABLE t1 ADD b INT;
 --sleep 10
 
 --enable_warnings
---echo ********************
---echo * Cleanup Section
---echo ********************
 
 DROP TABLE t1, ndb_show_tables_results;
-# End of 5.1 Test Case
 
+#
+# test alter of table with many attributes
+#
+let $i=499;
+let $separator=;
+let $sql=create table t1 (;
+while ($i)
+{
+  let $sql=$sql$separator c$i int;
+  let $separator=,;
+  dec $i;
+}
+let $sql=$sql, primary key using hash(c1)) engine=ndb;
+eval $sql; # eval the sql and create the table
+
+insert into t1 (c1) values (1), (2), (3);
+alter offline table t1 modify c1 int auto_increment;
+alter online table t1 add column c500 bit(1) column_format DYNAMIC;
+delete from t1;
+drop table t1;
 

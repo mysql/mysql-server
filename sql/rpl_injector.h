@@ -212,6 +212,7 @@ public:
       */
       int commit();
 
+#ifndef MCP_BUG58082
       /*
         Rollback a transaction.
 
@@ -219,6 +220,7 @@ public:
         for example, releasing resource and unlocking files.
       */
       int rollback();
+#endif
 
       /*
         Get the position for the start of the transaction.

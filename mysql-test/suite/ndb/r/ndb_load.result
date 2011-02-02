@@ -124,7 +124,7 @@ COUNT(*)
 DROP PROCEDURE bulkinsert;
 DROP TABLE t2;
 Now check bulk insert using create .. as select.
-SHOW VARIABLES LIKE '%storage_engine%';
+SHOW VARIABLES LIKE 'storage_engine';
 Variable_name	Value
 storage_engine	MyISAM
 SET storage_engine="ndb";

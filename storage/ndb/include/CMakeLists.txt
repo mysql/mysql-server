@@ -26,29 +26,49 @@ CONFIGURE_FILE(ndb_types.h.in
                @ONLY)
 
 #
+# Read a value for variable from ndb_configure.m4
+#
+MACRO(NDB_GET_CONFIG_VALUE keyword var)
+ IF(NOT ${var})
+   # Read the line which contains the keyword
+   FILE (STRINGS ${NDB_SOURCE_DIR}/ndb_configure.m4 str
+         REGEX "^[ ]*${keyword}=")
+   IF(str)
+     # Remove the keyword=
+     STRING(REPLACE "${keyword}=" "" str ${str})
+     # Remove whitespace
+     STRING(REGEX REPLACE "[ ].*" "" str "${str}")
+     SET(${var} ${str})
+   ENDIF()
+ ENDIF()
+ENDMACRO()
+
+#
 # Read ndb_configure.m4 and extract the NDB_VERSION_XX=YY variables
 #
-FILE(READ "${CMAKE_SOURCE_DIR}/storage/ndb/ndb_configure.m4" CONFIGURE_IN)
 
-# NDB_VERSION_MAJOR
-STRING(REGEX REPLACE ".*NDB_VERSION_MAJOR=([0-9]+).*"
-        "\\1" PARSE_NDB_VERSION_MAJOR "${CONFIGURE_IN}")
-SET(NDB_VERSION_MAJOR "${PARSE_NDB_VERSION_MAJOR}" CACHE STRING "NDB Major Version" FORCE)
+NDB_GET_CONFIG_VALUE(NDB_VERSION_MAJOR major)
+SET(NDB_VERSION_MAJOR "${major}" CACHE INTERNAL "NDB Major Version" FORCE)
 
-# NDB_VERSION_MINOR
-STRING(REGEX REPLACE ".*NDB_VERSION_MINOR=([0-9]+).*"
-        "\\1" PARSE_NDB_VERSION_MINOR "${CONFIGURE_IN}")
-SET(NDB_VERSION_MINOR "${PARSE_NDB_VERSION_MINOR}" CACHE STRING "NDB Minor Version" FORCE)
+NDB_GET_CONFIG_VALUE(NDB_VERSION_MINOR minor)
+SET(NDB_VERSION_MINOR "${minor}" CACHE INTERNAL "NDB Minor Version" FORCE)
 
-# NDB_VERSION_BUILD
-STRING(REGEX REPLACE ".*NDB_VERSION_BUILD=([0-9]+).*"
-        "\\1" PARSE_NDB_VERSION_BUILD "${CONFIGURE_IN}")
-SET(NDB_VERSION_BUILD "${PARSE_NDB_VERSION_BUILD}" CACHE STRING "NDB Build Version" FORCE)
+NDB_GET_CONFIG_VALUE(NDB_VERSION_BUILD build)
+SET(NDB_VERSION_BUILD "${build}" CACHE INTERNAL "NDB Build Version" FORCE)
 
-# NDB_VERSION_STATUS               
-STRING(REGEX REPLACE ".*NDB_VERSION_STATUS=\"([^\"]+)\".*"
-        "\\1" PARSE_NDB_VERSION_STATUS "${CONFIGURE_IN}")
-SET(NDB_VERSION_STATUS "${NDB_VERSION_STATUS}" CACHE STRING "NDB Status Version" FORCE)
+NDB_GET_CONFIG_VALUE(NDB_VERSION_STATUS status)
+# Trim surrounding "'s from status
+STRING(REGEX REPLACE "\"" "" status "${status}")
+SET(NDB_VERSION_STATUS "${status}" CACHE INTERNAL "NDB Status Version" FORCE)
+
+IF(NOT DEFINED NDB_VERSION_MAJOR OR
+   NOT DEFINED NDB_VERSION_MINOR OR
+   NOT DEFINED NDB_VERSION_BUILD)
+  MESSAGE(STATUS "NDB_VERSION_MAJOR: ${NDB_VERSION_MAJOR}")
+  MESSAGE(STATUS "NDB_VERSION_MINOR: ${NDB_VERSION_MINOR}")
+  MESSAGE(STATUS "NDB_VERSION_BUILD: ${NDB_VERSION_BUILD}")
+  MESSAGE(FATAL_ERROR "Couldn't parse version numbers from ndb_configure.m4")
+ENDIF()
 
 # Create ndb_version.h
 CONFIGURE_FILE(ndb_version.h.in

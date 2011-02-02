@@ -167,6 +167,21 @@ INSERT INTO t1 VALUES
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 501
+SELECT table_name, 
+SUM(table_rows),
+SUM(data_length),
+MAX(max_data_length),
+SUM(data_free)
+FROM INFORMATION_SCHEMA.partitions
+WHERE table_name='t1'
+GROUP BY table_name;
+table_name	SUM(table_rows)	SUM(data_length)	MAX(max_data_length)	SUM(data_free)
+t1	501	65536	1048576	2078940
+SELECT table_name, table_rows, data_length, max_data_length, data_free
+FROM information_schema.tables
+WHERE table_name='t1';
+table_name	table_rows	data_length	max_data_length	data_free
+t1	501	65536	2097152	2078940
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10y

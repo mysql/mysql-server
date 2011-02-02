@@ -296,7 +296,6 @@ ClusterMgr::startup()
   Node & cm_node = theNodes[nodeId];
   trp_node & theNode = cm_node;
   assert(theNode.defined);
-  assert(theNode.is_connected() == false);
 
   lock();
   theFacade.doConnect(nodeId);

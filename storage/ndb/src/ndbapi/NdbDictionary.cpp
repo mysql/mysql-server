@@ -551,6 +551,7 @@ NdbDictionary::Table::addColumn(const Column & c){
   {
     return -1;
   }
+  col->m_column_no = m_impl.m_columns.size() - 1;
   return 0;
 }
 
@@ -993,6 +994,14 @@ NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
   default:
     return 0;
   }
+}
+
+void
+NdbDictionary::Table::assignObjId(const NdbDictionary::ObjectId& _objId)
+{
+  const NdbDictObjectImpl& objId = NdbDictObjectImpl::getImpl(_objId);
+  m_impl.m_id = objId.m_id;
+  m_impl.m_version = objId.m_version;
 }
 
 /*****************************************************************
@@ -2083,12 +2092,23 @@ NdbDictionary::Dictionary::~Dictionary(){
 int 
 NdbDictionary::Dictionary::createTable(const Table & t)
 {
+  return createTable(t, 0);
+}
+
+int
+NdbDictionary::Dictionary::createTable(const Table & t, ObjectId * objId)
+{
   int ret;
+  ObjectId tmp;
+  if (objId == 0)
+    objId = &tmp;
+
   if (likely(! is_ndb_blob_table(t.getName())))
   {
     DO_TRANS(
       ret,
-      m_impl.createTable(NdbTableImpl::getImpl(t))
+      m_impl.createTable(NdbTableImpl::getImpl(t),
+                         NdbDictObjectImpl::getImpl( *objId))
     );
   }
   else
