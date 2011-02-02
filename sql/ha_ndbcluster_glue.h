@@ -94,9 +94,6 @@ enum column_format_type {
 /* Global schema lock not available */
 #define NDB_NO_GLOBAL_SCHEMA_LOCK
 
-/* Missing functionality in injector -> no --ndb-log-empty-epochs */
-#define NDB_NO_LOG_EMPTY_EPOCHS
-
 /*
   The enum open_table_mode has been removed in 5.5.7 and 'open_table_from_share'
   now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN
