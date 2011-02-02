@@ -1121,6 +1121,7 @@ INSERT INTO t3 VALUES (0),(1),(2),    (4);
 CREATE TABLE t4 (i INT NOT NULL);
 INSERT INTO t4 VALUES (0),(1),(2),(3)   ;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( t2 LEFT JOIN
@@ -1133,6 +1134,7 @@ SELECT * FROM
  ON t2.i = t1.i
  ;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( t2 LEFT JOIN
@@ -1148,6 +1150,7 @@ SELECT * FROM
 
 # Most simplified testcase to reproduce the bug.
 # (Has to be at least a two level nested outer join)
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1163,6 +1166,7 @@ SELECT * FROM
 # We then add some equi-join inside the query above:
 # (There Used to be some problems here with first
 #  proposed patch for this bug)
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1175,6 +1179,7 @@ SELECT * FROM
  ON t2.i = t1.i
  WHERE t3.i IS NULL;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1187,6 +1192,7 @@ SELECT * FROM
  ON t2.i = t1.i
  WHERE t3.i IS NULL;
 
+--sorted_result
 SELECT * FROM
  t1 LEFT JOIN
  ( ( t2 LEFT JOIN
@@ -1218,11 +1224,13 @@ CREATE TABLE k (pk INT NOT NULL, col_int_key INT);
 INSERT INTO k VALUES (1,9),(2,2),(3,5),(4,2),(5,7),(6,0),(7,5);
 
 # Baseline query wo/ 'WHERE ... IS NULL' - was correct
+--sorted_result
 SELECT TABLE1.pk FROM k TABLE1
 RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
 RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key;
 
 # Adding 'WHERE ... IS NULL' -> incorrect result
+--sorted_result
 SELECT TABLE1.pk FROM k TABLE1
 RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
 RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key
