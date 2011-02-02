@@ -1952,7 +1952,7 @@ row_upd_clust_rec(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			big_rec, mtr);
+			mtr, TRUE, big_rec);
 		mtr_commit(mtr);
 	}
 
