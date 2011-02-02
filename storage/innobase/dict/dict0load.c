@@ -173,9 +173,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	server_mutex_exit();
+	os_increment_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -210,11 +210,10 @@ dict_print(void)
 	mem_heap_free(heap);
 
 	/* Restore the fatal semaphore wait timeout */
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	server_mutex_exit();
+	os_decrement_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 }
-
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.

@@ -199,6 +199,10 @@ dict_stats_update_transient(
 			for (i = dict_index_get_n_unique(index); i; ) {
 				index->stat_n_diff_key_vals[i--] = 1;
 			}
+
+			memset(index->stat_n_non_null_key_vals, 0,
+			       (1 + dict_index_get_n_unique(index))
+			       * sizeof(*index->stat_n_non_null_key_vals));
 		}
 
 		index = dict_table_get_next_index(index);
@@ -494,6 +498,7 @@ dict_stats_analyze_index_level(
 					       offsets_rec,
 					       offsets_prev_rec,
 					       index,
+					       FALSE,
 					       &matched_fields,
 					       &matched_bytes);
 
@@ -708,7 +713,7 @@ dict_stats_scan_page(
 		the first n_prefix fields */
 		cmp_rec_rec_with_match(rec, next_rec,
 				       offsets_rec, offsets_next_rec,
-				       index, &matched_fields,
+				       index, FALSE, &matched_fields,
 				       &matched_bytes);
 
 
