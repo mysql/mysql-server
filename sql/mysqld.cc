@@ -3080,12 +3080,6 @@ static int init_common_variables()
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3123,6 +3117,13 @@ static int init_common_variables()
     inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
+
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
