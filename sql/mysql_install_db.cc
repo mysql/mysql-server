@@ -16,7 +16,7 @@
 
 extern "C" const char mysql_bootstrap_sql[];
 
-char default_os_user[] = "NT AUTHORITY\\Network Service";
+char default_os_user[] = "NT AUTHORITY\\NetworkService";
 static int create_db_instance();
 static uint opt_verbose, opt_silent;
 static char datadir_buffer[FN_REFLEN];
@@ -387,13 +387,49 @@ static int set_directory_permissions(const char *dir, const char *os_user)
   ACL* pOldDACL;
   SECURITY_DESCRIPTOR* pSD = NULL; 
   EXPLICIT_ACCESS ea={0};
+  BOOL isWellKnownSID= FALSE;
+  WELL_KNOWN_SID_TYPE wellKnownSidType = WinNullSid;
+  PSID pSid = NULL;
+
   GetSecurityInfo(hDir, SE_FILE_OBJECT , DACL_SECURITY_INFORMATION,NULL, NULL,
     &pOldDACL, NULL, (void**)&pSD); 
-  PSID pSid = NULL; 
+
   if(os_user)
   {
-    ea.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
-    ea.Trustee.ptstrName = (LPSTR)os_user;
+    /* Check for 3 predefined service users 
+       They might have localized names in non-English Windows, thus they need
+       to be handled using well-known SIDs.
+    */
+    if(stricmp(os_user, "NT AUTHORITY\\NetworkService") == 0)
+    {
+      wellKnownSidType= WinNetworkServiceSid;
+    }
+    else if(stricmp(os_user, "NT AUTHORITY\\LocalService") == 0)
+    {
+      wellKnownSidType= WinLocalServiceSid;
+    }
+    else if(stricmp(os_user, "NT AUTHORITY\\LocalSystem") == 0)
+    {
+      wellKnownSidType= WinLocalSystemSid;
+    }
+
+    if(wellKnownSidType != WinNullSid)
+    {
+      DWORD size = SECURITY_MAX_SID_SIZE;
+	  pSid= (PSID)tokenInfoBuffer.buffer;
+      if (!CreateWellKnownSid(wellKnownSidType, NULL, pSid,
+        &size))
+      {
+        return 1;
+      }
+      ea.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+      ea.Trustee.ptstrName = (LPTSTR)pSid;
+    }
+    else
+    {
+      ea.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
+      ea.Trustee.ptstrName = (LPSTR)os_user;
+    }
   }
   else
   {
