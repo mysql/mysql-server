@@ -3472,3 +3472,35 @@ eval explain $query;
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 
 --echo # End of the test for bug#52068.
+
+--echo #
+--echo # Bug#57623: subquery within before insert trigger causes crash (sj=on)
+--echo #
+
+CREATE TABLE ot1(a INT);
+CREATE TABLE ot2(a INT);
+CREATE TABLE ot3(a INT);
+CREATE TABLE it1(a INT);
+
+INSERT INTO ot1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+INSERT INTO ot2 VALUES(0),(2),(4),(6);
+INSERT INTO ot3 VALUES(0),(3),(6);
+INSERT INTO it1 VALUES(0),(1),(2),(3),(4),(5),(6),(7);
+
+let $query=
+SELECT *
+FROM   ot1
+     LEFT JOIN
+       (ot2 JOIN ot3 on ot2.a=ot3.a)
+     ON ot1.a=ot2.a AND ot1.a IN (SELECT a from it1);
+
+eval explain $query;
+eval $query;
+eval prepare s from '$query';
+execute s;
+execute s;
+deallocate prepare s;
+
+DROP TABLE ot1, ot2, ot3, it1;
+
+--echo # End of the test for bug#57623.
