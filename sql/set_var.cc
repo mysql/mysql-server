@@ -2714,14 +2714,14 @@ int set_var_collation_client::update(THD *thd)
 
 bool sys_var_timestamp::check(THD *thd, set_var *var)
 {
-  time_t val;
+  longlong val;
   var->save_result.ulonglong_value= var->value->val_int();
-  val= (time_t) var->save_result.ulonglong_value;
-  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  val= (longlong) var->save_result.ulonglong_value;
+  if (val != 0 &&          // this is how you set the default value
+      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    my_message(ER_UNKNOWN_ERROR, 
-               "This version of MySQL doesn't support dates later than 2038",
-               MYF(0));
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
     return TRUE;
   }
   return FALSE;
