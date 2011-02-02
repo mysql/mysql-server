@@ -11,7 +11,7 @@
  */
 
 /* gzio.c -- IO on .gz files
- * Copyright (C) 1995-2005 Jean-loup Gailly.
+ * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  */
