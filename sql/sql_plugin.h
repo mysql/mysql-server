@@ -16,6 +16,8 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
+#include <my_global.h>
+
 /*
   the following #define adds server-only members to enum_mysql_show_type,
   that is defined in plugin.h
@@ -153,6 +155,7 @@ extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd);
 extern void plugin_thdvar_cleanup(THD *thd);
 extern SHOW_COMP_OPTION plugin_status(const char *name, int len, size_t type);
+extern bool check_valid_path(const char *path, size_t length);
 
 typedef my_bool (plugin_foreach_func)(THD *thd,
                                       plugin_ref plugin,

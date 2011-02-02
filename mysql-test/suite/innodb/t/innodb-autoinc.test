@@ -293,21 +293,8 @@ INSERT INTO t1 VALUES (18446744073709551603); #-- 2^64 - 13
 SELECT * FROM t1;
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=2, @@SESSION.AUTO_INCREMENT_OFFSET=10;
 SHOW VARIABLES LIKE "%auto_inc%";
-# This should fail because of overflow but it doesn't, it seems to be
-# a MySQL server bug. It wraps around to 0 for the last value.
-# See MySQL Bug# 39828
-#
-# Instead of wrapping around, it asserts when MySQL is compiled --with-debug
-# (see sql/handler.cc:handler::update_auto_increment()).  Don't test for
-# overflow until Bug #39828 is fixed.
-#
-# Since this asserts when compiled --with-debug, we can't properly test this
-# until Bug #39828 is fixed.  For now, this test is meaningless.
-#if Bug #39828 is fixed
-#INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
-#else
-INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
-#endif
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -325,20 +312,8 @@ INSERT INTO t1 VALUES (18446744073709551603); #-- 2^64 - 13
 SELECT * FROM t1;
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=5, @@SESSION.AUTO_INCREMENT_OFFSET=7;
 SHOW VARIABLES LIKE "%auto_inc%";
-# This should fail because of overflow but it doesn't. It fails with
-# a duplicate entry message because of a MySQL server bug, it wraps
-# around.  See MySQL Bug# 39828, once MySQL fix the bug we can replace
-# the ER_DUP_ENTRY, 1062 below with the appropriate error message
-#
-# Since this asserts when compiled --with-debug, we can't properly test this
-# until Bug #39828 is fixed.  For now, this test is meaningless.
-#if Bug #39828 is fixed
-# Still need to fix this error code, error should mention overflow
-#-- error ER_DUP_ENTRY,1062
-#INSERT INTO t1 VALUES (NULL),(NULL), (NULL);
-#else
-INSERT INTO t1 VALUES (NULL),(NULL);
-#endif
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL),(NULL), (NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -376,20 +351,8 @@ INSERT INTO t1 VALUES (18446744073709551610); #-- 2^64 - 2
 SELECT * FROM t1;
 SET @@SESSION.AUTO_INCREMENT_INCREMENT=1152921504606846976, @@SESSION.AUTO_INCREMENT_OFFSET=1152921504606846976;
 SHOW VARIABLES LIKE "%auto_inc%";
-# This should fail because of overflow but it doesn't. It wraps around
-# and the autoinc values look bogus too.
-# See MySQL Bug# 39828, once MySQL fix the bug we can enable the error
-# code expected test.
-# -- error ER_AUTOINC_READ_FAILED,1467
-#
-# Since this asserts when compiled --with-debug, we can't properly test this
-# until Bug #39828 is fixed.  For now, this test is meaningless.
-#if Bug #39828 is fixed
-#-- error ER_AUTOINC_READ_FAILED,1467
-#INSERT INTO t1 VALUES (NULL),(NULL);
-#else
-INSERT INTO t1 VALUES (NULL);
-#endif
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (NULL),(NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
 

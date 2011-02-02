@@ -227,8 +227,6 @@ bool Item::val_bool()
 */
 String *Item::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-
   if (!(collation.collation->state & MY_CS_NONASCII))
     return val_str(str);
   
@@ -1070,7 +1068,7 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   THD *thd= table->in_use;
   enum_check_fields tmp= thd->count_cuted_fields;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
-  ulonglong sql_mode= thd->variables.sql_mode;
+  sql_mode_t sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   res= save_in_field(field, no_conversions);
@@ -1836,16 +1834,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-    {
-      /*
-        We should disable const subselect item evaluation because
-        subselect transformation does not happen in view_prepare_mode
-        and thus val_...() methods can not be called for const items.
-      */
-      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
-                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
-      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
-    }
+      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 
     if (!conv)
     {
@@ -2665,11 +2654,7 @@ double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
   tmp= my_strntod(cs, (char*) cptr, end - cptr, &end, &error);
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
-    ErrConvString err(cptr, cs);
-    /*
-      We can use str_value.ptr() here as Item_string is gurantee to put an
-      end \0 here.
-    */
+    ErrConvString err(cptr, org_end - cptr, cs);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
@@ -3553,19 +3538,16 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-    param_type= MYSQL_TYPE_STRING;
 
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
-      param_type= MYSQL_TYPE_DOUBLE;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
-    param_type= MYSQL_TYPE_LONG;
     break;
 
   case DECIMAL_RESULT:
@@ -3577,8 +3559,6 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
-    param_type= MYSQL_TYPE_NEWDECIMAL;
-
     break;
   }
 
@@ -3610,6 +3590,7 @@ void
 Item_param::set_out_param_info(Send_field *info)
 {
   m_out_param_info= info;
+  param_type= m_out_param_info->type;
 }
 
 
@@ -3655,6 +3636,7 @@ void Item_param::make_field(Send_field *field)
   field->org_table_name= m_out_param_info->org_table_name;
   field->col_name= m_out_param_info->col_name;
   field->org_col_name= m_out_param_info->org_col_name;
+
   field->length= m_out_param_info->length;
   field->charsetnr= m_out_param_info->charsetnr;
   field->flags= m_out_param_info->flags;
@@ -5627,17 +5609,43 @@ static uint nr_of_decimals(const char *str, const char *end)
       break;
   }
   decimal_point= str;
-  for (; my_isdigit(system_charset_info, *str) ; str++)
+  for ( ; str < end && my_isdigit(system_charset_info, *str) ; str++)
     ;
-  if (*str == 'e' || *str == 'E')
+  if (str < end && (*str == 'e' || *str == 'E'))
     return NOT_FIXED_DEC;
+  /*
+    QQ:
+    The number of decimal digist in fact should be (str - decimal_point - 1).
+    But it seems the result of nr_of_decimals() is never used!
+
+    In case of 'e' and 'E' nr_of_decimals returns NOT_FIXED_DEC.
+    In case if there is no 'e' or 'E' parser code in sql_yacc.yy
+    never calls Item_float::Item_float() - it creates Item_decimal instead.
+
+    The only piece of code where we call Item_float::Item_float(str, len)
+    without having 'e' or 'E' is item_xmlfunc.cc, but this Item_float
+    never appears in metadata itself. Changing the code to return
+    (str - decimal_point - 1) does not make any changes in the test results.
+
+    This should be addressed somehow.
+    Looks like a reminder from before real DECIMAL times.
+  */
   return (uint) (str - decimal_point);
 }
 
 
 /**
-  This function is only called during parsing. We will signal an error if
-  value is not a true double value (overflow)
+  This function is only called during parsing:
+  - when parsing SQL query from sql_yacc.yy
+  - when parsing XPath query from item_xmlfunc.cc
+  We will signal an error if value is not a true double value (overflow):
+  eng: Illegal %s '%-.192s' value found during parsing
+  
+  Note: the string is NOT null terminated when called from item_xmlfunc.cc,
+  so this->name will contain some SQL query tail behind the "length" bytes.
+  This is Ok for now, as this Item is never seen in SHOW,
+  or EXPLAIN, or anywhere else in metadata.
+  Item->name should be fixed to use LEX_STRING eventually.
 */
 
 Item_float::Item_float(const char *str_arg, uint length)
@@ -5648,12 +5656,9 @@ Item_float::Item_float(const char *str_arg, uint length)
                     &error);
   if (error)
   {
-    /*
-      Note that we depend on that str_arg is null terminated, which is true
-      when we are in the parser
-    */
-    DBUG_ASSERT(str_arg[length] == 0);
-    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", (char*) str_arg);
+    char tmp[NAME_LEN + 1];
+    my_snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
+    my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "double", tmp);
   }
   presentation= name=(char*) str_arg;
   decimals=(uint8) nr_of_decimals(str_arg, str_arg+length);
@@ -5925,6 +5930,10 @@ bool Item::send(Protocol *protocol, String *buffer)
     String *res;
     if ((res=val_str(buffer)))
       result= protocol->store(res->ptr(),res->length(),res->charset());
+    else
+    {
+      DBUG_ASSERT(null_value);
+    }
     break;
   }
   case MYSQL_TYPE_TINY:
@@ -6966,9 +6975,11 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     goto error;
   }
-  if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
+
+  def_field= field_arg->field->clone();
+  if (def_field == NULL)
     goto error;
-  memcpy(def_field, field_arg->field, field_arg->field->size_of());
+
   def_field->move_field_offset((my_ptrdiff_t)
                                (def_field->table->s->default_values -
                                 def_field->table->record[0]));
@@ -7109,10 +7120,10 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
 
   if (field_arg->field->table->insert_values)
   {
-    Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
+    Field *def_field= field_arg->field->clone();
     if (!def_field)
       return TRUE;
-    memcpy(def_field, field_arg->field, field_arg->field->size_of());
+
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));
@@ -7491,8 +7502,7 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
     return new Item_cache_decimal();
   case STRING_RESULT:
     /* Not all functions that return DATE/TIME are actually DATE/TIME funcs. */
-    if ((item->field_type() == MYSQL_TYPE_DATE ||
-         item->field_type() == MYSQL_TYPE_DATETIME ||
+    if ((item->is_datetime() ||
          item->field_type() == MYSQL_TYPE_TIME) &&
         (const_cast<Item*>(item))->result_as_longlong())
       return new Item_cache_datetime(item->field_type());
@@ -7636,9 +7646,19 @@ void Item_cache_datetime::store(Item *item, longlong val_arg)
 }
 
 
+void Item_cache_datetime::store(Item *item)
+{
+  Item_cache::store(item);
+  str_value_cached= FALSE;
+}
+
 String *Item_cache_datetime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+
+  if ((value_cached || str_value_cached) && null_value)
+    return NULL;
+
   if (!str_value_cached)
   {
     /*
@@ -7652,6 +7672,8 @@ String *Item_cache_datetime::val_str(String *str)
     if (value_cached)
     {
       MYSQL_TIME ltime;
+      /* Return NULL in case of OOM/conversion error. */
+      null_value= TRUE;
       if (str_value.alloc(MAX_DATE_STRING_REP_LENGTH))
         return NULL;
       if (cached_field_type == MYSQL_TYPE_TIME)
@@ -7674,13 +7696,14 @@ String *Item_cache_datetime::val_str(String *str)
       {
         int was_cut;
         longlong res;
-        res= number_to_datetime(val_int(), &ltime, TIME_FUZZY_DATE, &was_cut);
+        res= number_to_datetime(int_value, &ltime, TIME_FUZZY_DATE, &was_cut);
         if (res == -1)
           return NULL;
       }
       str_value.length(my_TIME_to_str(&ltime,
                                       const_cast<char*>(str_value.ptr())));
       str_value_cached= TRUE;
+      null_value= FALSE;
     }
     else if (!cache_value())
       return NULL;
@@ -7701,7 +7724,7 @@ my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 double Item_cache_datetime::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value_int())
+  if ((!value_cached && !cache_value_int()) || null_value)
     return 0.0;
   return (double) int_value;
 }
@@ -7709,7 +7732,7 @@ double Item_cache_datetime::val_real()
 longlong Item_cache_datetime::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!value_cached && !cache_value_int())
+  if ((!value_cached && !cache_value_int()) || null_value)
     return 0;
   return int_value;
 }

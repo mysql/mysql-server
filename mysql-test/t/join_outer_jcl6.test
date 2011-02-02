@@ -7,7 +7,9 @@ let $requires_join_cache_level = 6;
 set optimizer_join_cache_level=6;
 show variables like 'optimizer_join_cache_level';
 
+set optimizer_switch='mrr_cost_based=off';
+
 --source t/join_outer.test
 
 set optimizer_join_cache_level=default;
-show variables like 'optimizer_join_cache_level';
+set optimizer_switch=default;

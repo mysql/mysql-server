@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Initialize ====
 **** On Master ****
 CREATE TABLE t1 (a INT);
@@ -100,8 +96,4 @@ DROP TABLE t1, logtbl;
 DROP PROCEDURE just_log;
 DROP PROCEDURE calc_and_log;
 DROP FUNCTION log_rows;
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/rpl_end.inc

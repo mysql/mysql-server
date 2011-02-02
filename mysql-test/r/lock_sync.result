@@ -738,3 +738,38 @@ SET DEBUG_SYNC= 'now SIGNAL release_thrlock';
 # Connection default
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
+#
+# Bug#57130 crash in Item_field::print during SHOW CREATE TABLE or VIEW
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP FUNCTION IF EXISTS f1;
+CREATE TABLE t1(a INT);
+CREATE FUNCTION f1() RETURNS INTEGER RETURN 1;
+CREATE VIEW v1 AS SELECT * FROM t1 WHERE f1() = 1;
+DROP FUNCTION f1;
+# Connection con1
+SET DEBUG_SYNC= 'open_tables_after_open_and_process_table SIGNAL opened WAIT_FOR dropped EXECUTE 2';
+# Sending:
+SHOW CREATE VIEW v1;
+# Connection con2
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET DEBUG_SYNC= 'now SIGNAL dropped';
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+# Sending:
+FLUSH TABLES;
+# Connection default
+# Waiting for FLUSH TABLES to be blocked.
+SET DEBUG_SYNC= 'now SIGNAL dropped';
+# Connection con1
+# Reaping: SHOW CREATE VIEW v1
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1` where (`f1`() = 1)	latin1	latin1_swedish_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+# Connection con2
+# Reaping: FLUSH TABLES
+# Connection default
+SET DEBUG_SYNC= 'RESET';
+DROP VIEW v1;
+DROP TABLE t1;

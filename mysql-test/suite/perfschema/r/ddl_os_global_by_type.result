@@ -1,0 +1,10 @@
+alter table performance_schema.objects_summary_global_by_type
+add column foo integer;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+truncate table performance_schema.objects_summary_global_by_type;
+ALTER TABLE performance_schema.objects_summary_global_by_type
+ADD INDEX test_index(OBJECT_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index
+ON performance_schema.objects_summary_global_by_type(OBJECT_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

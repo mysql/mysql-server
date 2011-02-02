@@ -84,6 +84,7 @@ PFS_engine_table* table_file_summary_by_event_name::create(void)
 
 int table_file_summary_by_event_name::delete_all_rows(void)
 {
+  reset_file_instance_io();
   reset_file_class_io();
   return 0;
 }
@@ -140,7 +141,22 @@ void table_file_summary_by_event_name::make_row(PFS_file_class *klass)
 {
   m_row.m_name= &klass->m_name[0];
   m_row.m_name_length= klass->m_name_length;
-  m_row.m_file_stat= klass->m_file_stat;
+  m_row.m_file_io_stat= klass->m_file_stat.m_io_stat;
+
+  /* For all file instances ... */
+  PFS_file *pfs= file_array;
+  PFS_file *pfs_last= file_array + file_max;
+  for ( ; pfs < pfs_last; pfs++)
+  {
+    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+    {
+      /*
+        If the instance belongs to this class,
+        aggregate the instance statistics.
+      */
+      m_row.m_file_io_stat.aggregate(& pfs->m_file_stat.m_io_stat);
+    }
+  }
 }
 
 int table_file_summary_by_event_name::read_row_values(TABLE *table,
@@ -165,16 +181,16 @@ int table_file_summary_by_event_name::read_row_values(TABLE *table,
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
         break;
       case 1: /* COUNT_READ */
-        set_field_ulonglong(f, m_row.m_file_stat.m_count_read);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_count_read);
         break;
       case 2: /* COUNT_WRITE */
-        set_field_ulonglong(f, m_row.m_file_stat.m_count_write);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_count_write);
         break;
       case 3: /* READ_BYTES */
-        set_field_ulonglong(f, m_row.m_file_stat.m_read_bytes);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_read_bytes);
         break;
       case 4: /* WRITE_BYTES */
-        set_field_ulonglong(f, m_row.m_file_stat.m_write_bytes);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_write_bytes);
         break;
       default:
         DBUG_ASSERT(false);
@@ -320,7 +336,7 @@ void table_file_summary_by_instance::make_row(PFS_file *pfs)
   m_row.m_filename_length= pfs->m_filename_length;
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
-  m_row.m_file_stat= pfs->m_file_stat;
+  m_row.m_file_io_stat= pfs->m_file_stat.m_io_stat;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
@@ -352,16 +368,16 @@ int table_file_summary_by_instance::read_row_values(TABLE *table,
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
         break;
       case 2: /* COUNT_READ */
-        set_field_ulonglong(f, m_row.m_file_stat.m_count_read);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_count_read);
         break;
       case 3: /* COUNT_WRITE */
-        set_field_ulonglong(f, m_row.m_file_stat.m_count_write);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_count_write);
         break;
       case 4: /* READ_BYTES */
-        set_field_ulonglong(f, m_row.m_file_stat.m_read_bytes);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_read_bytes);
         break;
       case 5: /* WRITE_BYTES */
-        set_field_ulonglong(f, m_row.m_file_stat.m_write_bytes);
+        set_field_ulonglong(f, m_row.m_file_io_stat.m_write_bytes);
         break;
       default:
         DBUG_ASSERT(false);

@@ -69,6 +69,9 @@
 #ifndef PFS_MAX_SETUP_ACTOR
   #define PFS_MAX_SETUP_ACTOR 100
 #endif
+#ifndef PFS_MAX_SETUP_OBJECT
+  #define PFS_MAX_SETUP_OBJECT 100
+#endif
 
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
@@ -98,6 +101,8 @@ struct PFS_global_param
   ulong m_events_waits_history_sizing;
   ulong m_events_waits_history_long_sizing;
   ulong m_setup_actor_sizing;
+  /** Maximum number of setup object records. */
+  ulong m_setup_object_sizing;
 };
 
 extern PFS_global_param pfs_param;

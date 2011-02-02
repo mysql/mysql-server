@@ -1722,3 +1722,11 @@ INSERT INTO t1 VALUES (2);
 SELECT * FROM t1 ORDER BY a;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#58205 - Valgrind failure in fn_format when called from
+--echo #             archive_discover
+--echo #
+CREATE TABLE `a/../`(a INT) ENGINE=ARCHIVE;
+remove_file $MYSQLD_DATADIR/test/a@002f@002e@002e@002f.frm;
+DROP TABLE `a/../`;

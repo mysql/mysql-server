@@ -109,14 +109,24 @@ Database: information_schema
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
-| INNODB_CMP_RESET                      |
-| INNODB_TRX                            |
-| INNODB_CMPMEM_RESET                   |
-| INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
+| INNODB_TRX                            |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_LOCK_WAITS                     |
+| INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_BUFFER_POOL_STATS              |
+| INNODB_CMP_RESET                      |
+| INNODB_SYS_FOREIGN                    |
 | INNODB_METRICS                        |
+| INNODB_SYS_INDEXES                    |
 | INNODB_LOCKS                          |
+| INNODB_SYS_FIELDS                     |
+| INNODB_SYS_TABLES                     |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -152,14 +162,24 @@ Database: INFORMATION_SCHEMA
 | TRIGGERS                              |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
-| INNODB_CMP_RESET                      |
-| INNODB_TRX                            |
-| INNODB_CMPMEM_RESET                   |
-| INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM                         |
+| INNODB_TRX                            |
+| INNODB_BUFFER_PAGE                    |
+| INNODB_LOCK_WAITS                     |
+| INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_CMPMEM_RESET                   |
+| INNODB_SYS_FOREIGN_COLS               |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_BUFFER_POOL_STATS              |
+| INNODB_CMP_RESET                      |
+| INNODB_SYS_FOREIGN                    |
 | INNODB_METRICS                        |
+| INNODB_SYS_INDEXES                    |
 | INNODB_LOCKS                          |
+| INNODB_SYS_FIELDS                     |
+| INNODB_SYS_TABLES                     |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

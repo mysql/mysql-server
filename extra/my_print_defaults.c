@@ -193,7 +193,7 @@ int main(int argc, char **argv)
   }
 
   for (argument= arguments+1 ; *argument ; argument++)
-    if (*argument != args_separator)           /* skip arguments separator */
+    if (!my_getopt_is_args_separator(*argument))           /* skip arguments separator */
       puts(*argument);
   my_free(load_default_groups);
   free_defaults(arguments);

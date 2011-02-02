@@ -58,6 +58,26 @@ SET @@session.relay_log= 'x';
 SET @@global.relay_log= 'x';
 #
 --echo #
+SHOW VARIABLES like 'relay_log_basename';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.relay_log_basename;
+SELECT @@global.relay_log_basename;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.relay_log_basename= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.relay_log_basename= 'x';
+#
+--echo #
+SHOW VARIABLES like 'log_bin_basename';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_bin_basename;
+SELECT @@global.log_bin_basename;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.log_bin_basename= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.log_bin_basename= 'x';
+#
+--echo #
 SHOW VARIABLES like 'relay_log_index';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.relay_log_index;
@@ -66,6 +86,16 @@ SELECT @@global.relay_log_index;
 SET @@session.relay_log_index= 'x';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@global.relay_log_index= 'x';
+#
+--echo #
+SHOW VARIABLES like 'log_bin_index';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_bin_index;
+SELECT @@global.log_bin_index;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.log_bin_index= 'x';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.log_bin_index= 'x';
 #
 --echo #
 SHOW VARIABLES like 'relay_log_info_file';

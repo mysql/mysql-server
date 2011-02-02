@@ -1,16 +1,17 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 start transaction;
 insert into t1(b) values (1);
 insert into t1(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 commit;
+include/wait_for_slave_sql_error.inc [errno=29, 13]
 drop table t1;
+include/sync_slave_io_with_master.inc
+include/stop_slave_io.inc
+RESET SLAVE;
 drop table t1;
 call mtr.add_suppression("Slave: Can't get stat of .*");
 call mtr.add_suppression("Slave: File.* not found.*");
+include/rpl_end.inc

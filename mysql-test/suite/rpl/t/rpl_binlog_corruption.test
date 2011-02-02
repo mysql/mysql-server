@@ -15,10 +15,12 @@
 # BUG#31793: log event corruption causes crash
 # BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event
 
-source include/have_log_bin.inc;
+--source include/master-slave.inc
+
 # BUG#40482 only manifested itself in debug-compiled binaries.
 source include/have_debug.inc;
 
+--connection slave
 call mtr.add_suppression('Found invalid event in binary log');
 
 
@@ -29,6 +31,9 @@ call mtr.add_suppression('Found invalid event in binary log');
 # incident number.
 
 --echo ==== Initialize ====
+--source include/stop_slave.inc
+RESET SLAVE;
+
 let $fake_relay_log= $MYSQL_TEST_DIR/std_data/bug40482-bin.000001;
 source include/setup_fake_relay_log.inc;
 
@@ -42,3 +47,5 @@ let $error= `SELECT SUBSTRING("$error" FROM 17)`;
 
 --echo ==== Clean up ====
 source include/cleanup_fake_relay_log.inc;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

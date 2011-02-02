@@ -31,6 +31,11 @@ let $error= `SELECT SUBSTRING("$error" FROM 17)`;
 --echo Error: "$error" (expected different error codes on master and slave)
 --echo Errno: "$errno" (expected 0)
 drop table t1;
+--source include/stop_slave.inc
+# Clear error messages.
+RESET SLAVE;
 
 # End of 4.1 tests
 
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

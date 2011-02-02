@@ -27,9 +27,6 @@
                              CLIENT_SECURE_CONNECTION | CLIENT_TRANSACTIONS | \
 			     CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION)
 
-#define init_sigpipe_variables
-#define set_sigpipe(mysql)
-#define reset_sigpipe(mysql)
 #define read_user_name(A) {}
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_

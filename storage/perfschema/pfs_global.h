@@ -79,5 +79,21 @@ inline uint randomized_index(const void *ptr, uint max_size)
 
 void pfs_print_error(const char *format, ...);
 
+/**
+  Given an array defined as T ARRAY[MAX],
+  check that an UNSAFE pointer actually points to an element
+  within the array.
+*/
+#define SANITIZE_ARRAY_BODY(T, ARRAY, MAX, UNSAFE)          \
+  intptr offset;                                            \
+  if ((&ARRAY[0] <= UNSAFE) &&                              \
+      (UNSAFE < &ARRAY[MAX]))                               \
+  {                                                         \
+    offset= ((intptr) UNSAFE - (intptr) ARRAY) % sizeof(T); \
+    if (offset == 0)                                        \
+      return UNSAFE;                                        \
+  }                                                         \
+  return NULL
+
 #endif
 

@@ -1,20 +1,14 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 # Test if support 'flush error logs' statement.
 flush error logs;
 # Make sure binary logs was not be flushed
 # after execute 'flush error logs' statement.
 # Make sure relay logs was not be flushed 
 # after execute 'flush error logs' statement.
-# Make sure the 'slave-relay-bin.000004' file does not
-# exist before execute 'flush relay logs' statement.
 # Test if support 'flush relay logs' statement.
 flush relay logs;
-# Check the 'slave-relay-bin.000004' file is created
+# Check the 'slave-relay-bin.000003' file is created
 # after executed 'flush relay logs' statement.
 # Make sure binary logs was not be flushed
 # after execute 'flush relay logs' statement.
@@ -36,20 +30,21 @@ flush engine logs;
 flush binary logs;
 # Check the 'master-bin.000002' file is created
 # after executed 'flush binary logs' statement.
-# Make sure the 'slave-relay-bin.000007' file does not exist
+# Make sure the 'slave-relay-bin.000006' file does not exist
 # exist before execute 'flush error logs, relay logs' statement.
 # Test if support to combine all kinds of logs into one statement.
 flush error logs, relay logs;
 # Make sure binary logs was not be flushed
 # after execute 'flush error logs, relay logs' statement.
-# Check the 'slave-relay-bin.000007' file is created after
+# Check the 'slave-relay-bin.000006' file is created after
 # execute 'flush error logs, relay logs' statement.
-# Make sure the 'slave-relay-bin.000008' and 'slave-relay-bin.000009' 
-# files do not exist before execute 'flush error logs, relay logs' 
+# Make sure the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
+# files do not exist before execute 'flush error logs, relay logs'
 # statement.
 # Test if 'flush logs' statement works fine and flush all the logs.
 flush logs;
 # Check 'master-bin.000003' is created
 # after execute 'flush logs' statement.
-# Check the 'slave-relay-bin.000008' and 'slave-relay-bin.000009' 
+# Check the 'slave-relay-bin.000007' and 'slave-relay-bin.000008'
 # files are created after execute 'flush logs' statement.
+include/rpl_end.inc

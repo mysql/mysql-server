@@ -13,3 +13,4 @@ let $engine_type=Innodb;
 --source extra/rpl_tests/rpl_mixing_engines.test
 
 --diff_files suite/rpl/r/rpl_non_direct_row_mixing_engines.result suite/rpl/r/rpl_row_mixing_engines.result
+--source include/rpl_end.inc

@@ -1,4 +1,1 @@
-# Should maybe be enabled, but ndb is not part of the ordinary build. 
-# Bernt M. Johnsen 2010-05-10
-ndb_charset    : Bug#20447 Problem with prefix keys with contractions and expansions
 

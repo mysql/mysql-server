@@ -150,3 +150,21 @@ Warnings:
 Error	1701	Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 # Restore mysql.proc.
 drop table mysql.proc;
+#
+# Bug#58414 mysql_upgrade fails on dump upgrade between 5.1.53 -> 5.5.8
+#
+DROP TABLE IF EXISTS proc_backup;
+DROP DATABASE IF EXISTS db1;
+# Backup the proc table
+RENAME TABLE mysql.proc TO proc_backup;
+CREATE TABLE mysql.proc LIKE proc_backup;
+CREATE DATABASE db1;
+CREATE PROCEDURE db1.p1() SET @foo = 10;
+# Modify a field of the table.
+ALTER TABLE mysql.proc MODIFY comment CHAR (32);
+DROP DATABASE db1;
+Warnings:
+Error	1702	Cannot load from mysql.proc. The table is probably corrupted
+# Restore mysql.proc
+DROP TABLE mysql.proc;
+RENAME TABLE proc_backup TO mysql.proc;

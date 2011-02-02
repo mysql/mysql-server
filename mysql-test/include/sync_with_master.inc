@@ -18,9 +18,9 @@
 # descriptions.
 
 --let $slave_param= Relay_Master_Log_File
---let $slave_param_value= $_saved_master_file
+--let $slave_param_value= $_master_file
 --source include/wait_for_slave_param.inc
 
 --let $slave_param= Exec_Master_Log_Pos
---let $slave_param_value= $_saved_master_pos
+--let $slave_param_value= $_master_pos
 --source include/wait_for_slave_param.inc

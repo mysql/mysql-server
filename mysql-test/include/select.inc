@@ -4137,10 +4137,80 @@ SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
 
 
+
+--echo #
+--echo # Bug #58422: Incorrect result when OUTER JOIN'ing 
+--echo # with an empty table
+--echo #
+
+CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t1(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
+
+EXPLAIN
+SELECT *
+  FROM 
+    t1
+  LEFT OUTER JOIN
+    (t2 INNER JOIN t_empty ON TRUE)
+  ON t1.pk=t2.pk
+  WHERE t2.pk <> 2;
+
+SELECT *
+  FROM 
+    t1
+  LEFT OUTER JOIN
+    (t2 INNER JOIN t_empty ON TRUE)
+  ON t1.pk=t2.pk
+  WHERE t2.pk <> 2;
+
+
+EXPLAIN
+SELECT *
+  FROM 
+    t1
+  LEFT OUTER JOIN
+    (t2 CROSS JOIN t_empty)
+  ON t1.pk=t2.pk
+  WHERE t2.pk <> 2;
+
+SELECT *
+  FROM 
+    t1
+  LEFT OUTER JOIN
+    (t2 CROSS JOIN t_empty)
+  ON t1.pk=t2.pk
+  WHERE t2.pk <> 2;
+
+
+EXPLAIN
+SELECT *
+  FROM 
+    t1
+  LEFT OUTER JOIN
+    (t2 INNER JOIN t_empty ON t_empty.i=t2.i)
+  ON t1.pk=t2.pk
+  WHERE t2.pk <> 2;
+
+SELECT *
+  FROM 
+    t1
+  LEFT OUTER JOIN
+    (t2 INNER JOIN t_empty ON t_empty.i=t2.i)
+  ON t1.pk=t2.pk
+  WHERE t2.pk <> 2;
+
+
+
+DROP TABLE t1,t2,t_empty;
+
+
 --echo End of 5.1 tests
 
 --echo #
---echo # Bug#45277: Lost HAVING clause led to a wrong result.
+--echo # Bug#45227: Lost HAVING clause led to a wrong result.
 --echo #
 CREATE TABLE `CC` (
   `int_nokey` int(11) NOT NULL,
@@ -4162,7 +4232,7 @@ SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
   HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
 
 DROP TABLE CC;
---echo # End of test#45277
+--echo # End of test#45227
 
 --echo #
 --echo # Bug#54515: Crash in opt_range.cc::get_best_group_min_max on 

@@ -1591,7 +1591,7 @@ explain
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Y	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
-1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	Z	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (BNL, incremental buffers)
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 substr(Z.a,-1)	a
 3	123
@@ -1989,6 +1989,37 @@ CONVERT(a, CHAR)	CONVERT(b, CHAR)
 70000	1092
 DROP TABLE t1;
 End of 5.0 tests
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'));
+LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'))
+122587
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'));
+LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'))
+122587
+SELECT HEX(RPAD(0x20, 2, _utf8 0xD18F));
+HEX(RPAD(0x20, 2, _utf8 0xD18F))
+20D1
+SELECT HEX(RPAD(0x20, 4, _utf8 0xD18F));
+HEX(RPAD(0x20, 4, _utf8 0xD18F))
+20D18FD1
+SELECT HEX(LPAD(0x20, 2, _utf8 0xD18F));
+HEX(LPAD(0x20, 2, _utf8 0xD18F))
+D120
+SELECT HEX(LPAD(0x20, 4, _utf8 0xD18F));
+HEX(LPAD(0x20, 4, _utf8 0xD18F))
+D18FD120
+SELECT HEX(RPAD(_utf8 0xD18F, 3, 0x20));
+HEX(RPAD(_utf8 0xD18F, 3, 0x20))
+D18F20
+SELECT HEX(LPAD(_utf8 0xD18F, 3, 0x20));
+HEX(LPAD(_utf8 0xD18F, 3, 0x20))
+20D18F
+SELECT HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20));
+HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20))
+D120
+SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
+HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20))
+D120D18E
+End of 5.1 tests
 Start of 5.4 tests
 SET NAMES utf8mb3;
 SHOW VARIABLES LIKE 'character_set_results%';
@@ -4939,6 +4970,48 @@ DROP TABLE t1;
 # End of Bug#54916
 #
 #
+# WL#5510 Functions to_base64 and from_base64
+#
+CREATE TABLE t1 AS SELECT TO_BASE64('test') AS to_base64;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `to_base64` varchar(16) CHARACTER SET utf8 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT to_base64, LENGTH(to_base64), HEX(to_base64) FROM t1;
+to_base64	LENGTH(to_base64)	HEX(to_base64)
+dGVzdA==	8	6447567A64413D3D
+CREATE TABLE t2 AS SELECT FROM_BASE64(to_base64) AS from_base64 FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `from_base64` varbinary(36) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT CAST(from_base64 AS CHAR), LENGTH(from_base64), HEX(from_base64) FROM t2;
+CAST(from_base64 AS CHAR)	LENGTH(from_base64)	HEX(from_base64)
+test	4	74657374
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_general_ci
+CREATE TABLE t1 (
+id INT(11) DEFAULT NULL,
+date_column DATE DEFAULT NULL,
+KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using index condition
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using index condition
+DROP TABLE t1;
+#
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
@@ -4958,6 +5031,17 @@ maketime(`a`,`a`,`a`)
 00:00:00
 DROP TABLE t1;
 SET sql_mode=default;
+#
+# Bug#57687 crash when reporting duplicate group_key error and utf8
+# Make sure to modify this when Bug#58081 is fixed.
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
+SELECT COUNT(*) FROM t1, t1 t2 
+GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
+ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
+DROP TABLE t1;
 #
 # End of 5.5 tests
 #

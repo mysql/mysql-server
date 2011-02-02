@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -403,10 +403,10 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if (!(*item)->with_subselect && (*item)->const_item())
+  if ((*item)->const_item())
   {
     TABLE *table= field->table;
-    ulonglong orig_sql_mode= thd->variables.sql_mode;
+    sql_mode_t orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
     my_bitmap_map *old_maps[2];
     ulonglong UNINIT_VAR(orig_field_val); /* original field value if valid */
@@ -499,7 +499,7 @@ void Item_bool_func2::fix_length_and_dec()
   }
 
   thd= current_thd;
-  if (!thd->is_context_analysis_only())
+  if (!thd->lex->is_ps_or_view_context_analysis())
   {
     if (args[0]->real_item()->type() == FIELD_ITEM)
     {
@@ -803,7 +803,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
       confuse storage engines since in context analysis mode tables 
       aren't locked.
     */
-    if (!thd->is_context_analysis_only() &&
+    if (!thd->lex->is_ps_or_view_context_analysis() &&
         cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
         (str_arg->type() != Item::FUNC_ITEM ||
         ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
@@ -918,7 +918,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
         cache_converted_constant can't be used here because it can't
         correctly convert a DATETIME value from string to int representation.
       */
-      Item_cache_int *cache= new Item_cache_int();
+      Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
       if (!(*a)->is_datetime())
@@ -1036,7 +1036,7 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd_arg->is_context_analysis_only() &&
+  if (!thd->lex->is_ps_or_view_context_analysis() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -2172,7 +2172,6 @@ void Item_func_interval::fix_length_and_dec()
             if (dec != &range->dec)
             {
               range->dec= *dec;
-              range->dec.fix_buffer_pointer();
             }
           }
           else
@@ -4840,12 +4839,13 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   
-  if (escape_item->const_item() && !thd->lex->view_prepare_mode)
+  if (escape_item->const_item())
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&cmp.value1);
     if (escape_str)
     {
+      const char *escape_str_ptr= escape_str->ptr();
       if (escape_used_in_parsing && (
              (((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
                 escape_str->numchars() != 1) ||
@@ -4860,9 +4860,9 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
         CHARSET_INFO *cs= escape_str->charset();
         my_wc_t wc;
         int rc= cs->cset->mb_wc(cs, &wc,
-                                (const uchar*) escape_str->ptr(),
-                                (const uchar*) escape_str->ptr() +
-                                               escape_str->length());
+                                (const uchar*) escape_str_ptr,
+                                (const uchar*) escape_str_ptr +
+                                escape_str->length());
         escape= (int) (rc > 0 ? wc : '\\');
       }
       else
@@ -4879,13 +4879,13 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
         {
           char ch;
           uint errors;
-          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str->ptr(),
+          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
                                           escape_str->length(),
                                           escape_str->charset(), &errors);
           escape= cnvlen ? ch : '\\';
         }
         else
-          escape= *(escape_str->ptr());
+          escape= escape_str_ptr ? *escape_str_ptr : '\\';
       }
     }
     else
@@ -5768,15 +5768,15 @@ longlong Item_equal::val_int()
     return 0;
   List_iterator_fast<Item_field> it(fields);
   Item *item= const_item ? const_item : it++;
+  eval_item->store_value(item);
   if ((null_value= item->null_value))
     return 0;
-  eval_item->store_value(item);
   while ((item_field= it++))
   {
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table)
     {
-      if ((null_value= item_field->null_value) || eval_item->cmp(item_field))
+      if (eval_item->cmp(item_field) || (null_value= item_field->null_value))
         return 0;
     }
   }

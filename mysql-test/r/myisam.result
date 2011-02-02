@@ -346,11 +346,11 @@ t1	1	c_2	2	a	A	5	NULL	NULL		BTREE
 explain select * from t1,t2 where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, incremental buffers)
 explain select * from t1,t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, incremental buffers)
 explain select * from t1 force index(a),t2 force index(a) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	2	
@@ -362,13 +362,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1,t2 force index(c) where t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
-1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, regular buffers)
+1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where; Using join buffer (BNL, incremental buffers)
 explain select * from t1 where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	5	Using where
 explain select * from t1 force index (a) where a=0 or a=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	4	NULL	4	Using where
+1	SIMPLE	t1	range	a	a	4	NULL	4	Using index condition
 explain select * from t1 where c=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	c,c_2	c	5	const	1	
@@ -1234,7 +1234,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1410,7 +1410,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2436,7 +2436,7 @@ insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using where
+1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using index condition
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 a	a	b	filler
 0	0	1	filler

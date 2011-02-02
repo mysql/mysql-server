@@ -368,8 +368,8 @@ struct trx_undo_struct{
 					TRX_UNDO_UPDATE */
 	ulint		state;		/*!< state of the corresponding undo log
 					segment */
-	ibool		del_marks;	/*!< relevant only in an update undo log:
-					this is TRUE if the transaction may
+	ibool		del_marks;	/*!< relevant only in an update undo
+					log: this is TRUE if the transaction may
 					have delete marked records, because of
 					a delete of a row or an update of an
 					indexed field; purge is then
@@ -391,8 +391,8 @@ struct trx_undo_struct{
 					in bytes, or 0 for uncompressed */
 	ulint		hdr_page_no;	/*!< page number of the header page in
 					the undo log */
-	ulint		hdr_offset;	/*!< header offset of the undo log on the
-					page */
+	ulint		hdr_offset;	/*!< header offset of the undo log on
+				       	the page */
 	ulint		last_page_no;	/*!< page number of the last page in the
 					undo log; this may differ from
 					top_page_no during a rollback */
@@ -538,8 +538,8 @@ quite a large overhead. */
 #define	TRX_UNDO_XA_XID		(TRX_UNDO_XA_BQUAL_LEN + 4)
 /*--------------------------------------------------------------*/
 #define TRX_UNDO_LOG_XA_HDR_SIZE (TRX_UNDO_XA_XID + XIDDATASIZE)
-				/*!< Total size of the undo log header
-				with the XA XID */
+					/*!< Total size of the undo log header
+					with the XA XID */
 /* @} */
 
 #ifndef UNIV_NONINL

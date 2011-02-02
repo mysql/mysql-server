@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave I/O: Got a packet bigger than 'max_allowed_packet' bytes, Error_code: 1153");
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
 drop database if exists DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
@@ -33,22 +29,15 @@ include/stop_slave.inc
 include/start_slave.inc
 CREATE TABLE `t1` (`f1` LONGTEXT) ENGINE=MyISAM;
 INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2048');
-Slave_IO_Running = No (expect No)
-SELECT "Got a packet bigger than 'max_allowed_packet' bytes" AS Last_IO_Error;
-Last_IO_Error
-Got a packet bigger than 'max_allowed_packet' bytes
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/wait_for_slave_io_error.inc [errno=1153]
+Last_IO_Error = 'Got a packet bigger than 'max_allowed_packet' bytes'
+include/stop_slave_sql.inc
+include/rpl_reset.inc
+DROP TABLE t1;
 CREATE TABLE t1 (f1 int PRIMARY KEY, f2 LONGTEXT, f3 LONGTEXT) ENGINE=MyISAM;
 INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), REPEAT('b', @@global.max_allowed_packet));
-Slave_IO_Running = No (expect No)
-SELECT "Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'" AS Last_IO_Error;
-Last_IO_Error
-Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'
+include/wait_for_slave_io_error.inc [errno=1236]
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master''
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -58,6 +47,7 @@ SET @max_allowed_packet_1= @@session.max_allowed_packet;
 SHOW BINLOG EVENTS;
 SET @max_allowed_packet_2= @@session.max_allowed_packet;
 START SLAVE;
+include/wait_for_slave_to_start.inc
 DROP TABLE t1;
 select @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -74,12 +64,11 @@ select @@global.net_buffer_length;
 CREATE TABLE t1 (a TEXT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (REPEAT('a', 2048));
 # 1153 = ER_NET_PACKET_TOO_LARGE
-Last_IO_Error = Got a packet bigger than 'max_allowed_packet' bytes
+include/wait_for_slave_io_error.inc [errno=1153]
+Last_IO_Error = 'Got a packet bigger than 'max_allowed_packet' bytes'
 # Record Read_Master_Log_Pos for the Table_map_log_event
 SET @@global.max_allowed_packet=1048576;
-SET @b55790_output.1= LOAD_FILE('MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog.1');
 WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
-SET @b55790_output.1= LOAD_FILE('MYSQLTEST_VARDIR/tmp/b55790-mysqlbinlog.1');
 WARNING: The range of printed events ends with a row event or a table map event that does not have the STMT_END_F flag set. This might be because the last statement was not fully written to the log, or because you are using a --stop-position or --stop-datetime that refers to an event in the middle of a statement. The event(s) from the partial statement have not been written to output.
 ==== clean up ====
 DROP TABLE t1;
@@ -87,3 +76,6 @@ SET @@global.max_allowed_packet= 1024;
 SET @@global.net_buffer_length= 1024;
 SET @@global.max_allowed_packet= 1024;
 DROP TABLE t1;
+include/stop_slave_sql.inc
+RESET SLAVE;
+include/rpl_end.inc

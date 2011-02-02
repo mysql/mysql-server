@@ -45,7 +45,7 @@ private:
   int do_check_info();
   void do_end_info();
   int do_flush_info(const bool force);
-  int do_reset_info();
+  int do_remove_info();
 
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();

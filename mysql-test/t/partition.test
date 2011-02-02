@@ -15,6 +15,24 @@ drop table if exists t1, t2;
 --enable_warnings
 
 --echo #
+--echo # Bug#57778: failed primary key add to partitioned innodb table
+--echo #            inconsistent and crashes
+--echo #
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL)
+PARTITION BY KEY (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (0,1), (0,2);
+--error ER_DUP_ENTRY
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+UPDATE t1 SET a = 1, b = 1 WHERE a = 0 AND b = 2;
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+SELECT * FROM t1;
+ALTER TABLE t1 DROP PRIMARY KEY;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#57113: ha_partition::extra(ha_extra_function):
 --echo #            Assertion `m_extra_cache' failed
 CREATE TABLE t1
@@ -1879,15 +1897,16 @@ while ($cnt)
 drop table t1;
 
 #
-# BUG#32272: partition crash 1: enum column
+# BUG#32772: partition crash 1: enum column
 #
+# Note that month(int_col) is disallowed after bug#54483.
 create table t1 (
   c0 int,
   c1 bigint,
   c2 set('sweet'),
   key (c2,c1,c0), 
   key(c0)
-) engine=myisam partition by hash (month(c0)) partitions 5;
+) engine=myisam partition by hash (c0) partitions 5;
 
 --disable_warnings
 insert ignore into t1 set c0 = -6502262, c1 = 3992917, c2 = 35019;

@@ -18,6 +18,10 @@
 #include <errno.h>
 #include "mysys_err.h"
 
+#if defined(__FreeBSD__)
+extern int getosreldate(void);
+#endif
+
 static void make_ftype(char * to,int flag);
 
 /*
@@ -89,7 +93,135 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 } /* my_fopen */
 
 
-	/* Close a stream */
+#if defined(_WIN32)
+
+static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
+{
+  int handle_fd, fd= _fileno(stream);
+  HANDLE osfh;
+
+  DBUG_ASSERT(path && stream);
+
+  /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */
+  if (fd < 0)
+  {
+    if (!freopen(path, mode, stream))
+      return NULL;
+
+    fd= _fileno(stream);
+  }
+
+  if ((osfh= CreateFile(path, GENERIC_READ | GENERIC_WRITE,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE |
+                        FILE_SHARE_DELETE, NULL,
+                        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                        NULL)) == INVALID_HANDLE_VALUE)
+    return NULL;
+
+  if ((handle_fd= _open_osfhandle((intptr_t)osfh,
+                                  _O_APPEND | _O_TEXT)) == -1)
+  {
+    CloseHandle(osfh);
+    return NULL;
+  }
+
+  if (_dup2(handle_fd, fd) < 0)
+  {
+    CloseHandle(osfh);
+    return NULL;
+  }
+
+  _close(handle_fd);
+
+  return stream;
+}
+
+#elif defined(__FreeBSD__)
+
+/* No close operation hook. */
+
+static int no_close(void *cookie __attribute__((unused)))
+{
+  return 0;
+}
+
+/*
+  A hack around a race condition in the implementation of freopen.
+
+  The race condition steams from the fact that the current fd of
+  the stream is closed before its number is used to duplicate the
+  new file descriptor. This defeats the desired atomicity of the
+  close and duplicate of dup2().
+
+  See PR number 79887 for reference:
+  http://www.freebsd.org/cgi/query-pr.cgi?pr=79887
+*/
+
+static FILE *my_freebsd_freopen(const char *path, const char *mode, FILE *stream)
+{
+  int old_fd;
+  FILE *result;
+
+  flockfile(stream);
+
+  old_fd= fileno(stream);
+
+  /* Use a no operation close hook to avoid having the fd closed. */
+  stream->_close= no_close;
+
+  /* Relies on the implicit dup2 to close old_fd. */
+  result= freopen(path, mode, stream);
+
+  /* If successful, the _close hook was replaced. */
+
+  if (result == NULL)
+    close(old_fd);
+  else
+    funlockfile(result);
+
+  return result;
+}
+
+#endif
+
+
+/**
+  Change the file associated with a file stream.
+
+  @param path   Path to file.
+  @param mode   Mode of the stream.
+  @param stream File stream.
+
+  @note
+    This function is used to redirect stdout and stderr to a file and
+    subsequently to close and reopen that file for log rotation.
+
+  @retval A FILE pointer on success. Otherwise, NULL.
+*/
+
+FILE *my_freopen(const char *path, const char *mode, FILE *stream)
+{
+  FILE *result;
+
+#if defined(_WIN32)
+  result= my_win_freopen(path, mode, stream);
+#elif defined(__FreeBSD__)
+  /*
+    XXX: Once the fix is ported to the stable releases, this should
+         be dependent upon the specific FreeBSD versions. Check at:
+         http://www.freebsd.org/cgi/query-pr.cgi?pr=79887
+  */
+  if (getosreldate() > 900027)
+    result= freopen(path, mode, stream);
+  else
+    result= my_freebsd_freopen(path, mode, stream);
+#else
+  result= freopen(path, mode, stream);
+#endif
+
+  return result;
+}
+
 
 /* Close a stream */
 int my_fclose(FILE *fd, myf MyFlags)

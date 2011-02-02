@@ -74,3 +74,12 @@ drop table t1;
 let $slave_io_errno= 1236;
 let $show_slave_io_error= 1;
 source include/wait_for_slave_io_error.inc;
+
+--echo ==== clean up ====
+
+# clear errno
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

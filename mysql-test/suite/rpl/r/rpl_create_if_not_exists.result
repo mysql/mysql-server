@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE IF NOT EXISTS mysqltest;
 USE mysqltest;
@@ -69,12 +65,7 @@ DROP TABLE t3;
 # After the worklog, it will insert nothing and the statement will not be
 # binlogged if the table already exists.
 # After the worklog, some bugs will disappear automotically.
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 
 # Case 1: BUG#47132
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*");
@@ -126,3 +117,4 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 DROP VIEW v1;
 DROP TABLE t1, t2;
+include/rpl_end.inc

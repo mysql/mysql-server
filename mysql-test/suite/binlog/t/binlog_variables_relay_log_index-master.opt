@@ -1,0 +1,2 @@
+--relay-log=other-relay
+--relay-log-index=$MYSQLTEST_VARDIR/tmp/something-relay.index

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -238,6 +238,26 @@ dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
 
+/**********************************************************************//**
+Sets the foreign_table_name_lookup pointer based on the value of
+srv_lower_case_table_names. */
+UNIV_INTERN
+void
+dict_mem_foreign_table_name_lookup_set(
+/*===================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
+/**********************************************************************//**
+Sets the reference_table_name_lookup pointer based on the value of
+srv_lower_case_table_names. */
+UNIV_INTERN
+void
+dict_mem_referenced_table_name_lookup_set(
+/*======================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
 /** Data structure for a column in a table */
 struct dict_col_struct{
 	/*----------------------*/
@@ -361,6 +381,12 @@ struct dict_index_struct{
 				to calculate each of stat_n_diff_key_vals[],
 				e.g. stat_n_sample_sizes[3] pages were sampled
 				to get the number stat_n_diff_key_vals[3]. */
+	ib_uint64_t*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
@@ -398,10 +424,14 @@ struct dict_foreign_struct{
 	unsigned	type:6;		/*!< 0 or DICT_FOREIGN_ON_DELETE_CASCADE
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/*!< foreign table name */
+	char*		foreign_table_name_lookup;
+				/*!< foreign table name used for dict lookup */
 	dict_table_t*	foreign_table;	/*!< table where the foreign key is */
 	const char**	foreign_col_names;/*!< names of the columns in the
 					foreign key */
 	char*		referenced_table_name;/*!< referenced table name */
+	char*		referenced_table_name_lookup;
+				/*!< referenced table name for dict lookup*/
 	dict_table_t*	referenced_table;/*!< table where the referenced key
 					is */
 	const char**	referenced_col_names;/*!< names of the referenced
@@ -560,8 +590,8 @@ struct dict_table_struct{
 				whether a transaction has locked the AUTOINC
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
-				avoid acquiring the kernel mutex and scanning
-				the vector in trx_t.
+				avoid acquiring the lock_sys_t::mutex and
+			       	scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -585,21 +615,22 @@ struct dict_table_struct{
 				/*!< This counter is used to track the number
 				of granted and pending autoinc locks on this
 				table. This value is set after acquiring the
-				kernel mutex but we peek the contents to
+				lock_sys_t::mutex but we peek the contents to
 				determine whether other transactions have
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the
 				lock but there can be multiple waiters. */
 	const trx_t*	autoinc_trx;
 				/*!< The transaction that currently holds the
-				the AUTOINC lock on this table. */
+				the AUTOINC lock on this table.
+				Protected by lock_sys->mutex. */
 				/* @} */
 	/*----------------------*/
 	ulint		n_rec_locks;
 				/*!< Count of the number of record locks on
 				this table. We use this to determine whether
 				we can evict the table from the dictionary
-				cache. It is protected by the lock mutex. */
+				cache. It is protected by lock_sys->mutex. */
 	ulint		n_ref_count;
 				/*!< count of how many handles are opened
 				to this table; dropping of the table is
@@ -607,7 +638,8 @@ struct dict_table_struct{
 				MySQL does NOT itself check the number of
 				open handles at drop */
 	UT_LIST_BASE_NODE_T(lock_t)
-			locks; /*!< list of locks on the table */
+			locks; /*!< list of locks on the table; protected
+			       by lock_sys->mutex */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

@@ -46,14 +46,21 @@ insert into no_index_tab set a = 'foo', b = 1;
 # Verification
 # Note that mi_create.c contains mysql_file_tell() calls in debug only,
 # so the result are filtered to remove 'tell'.
+# Note that even after setting other instruments to enabled='NO'
+# and truncating the events_waits_history_long table,
+# some events -- that were already started but not completed --
+# for other instruments could still be added in the history.
+# To protect against that, an extra where clause
+# "and event_name like "wait/io/file/myisam/%"
+# is added to the select to filter out the result.
 
 select event_name,
   left(source, locate(":", source)) as short_source,
   operation, number_of_bytes,
   substring(object_name, locate("no_index_tab", object_name)) as short_name
   from performance_schema.events_waits_history_long
-  where event_name like 'wait/io/file/%'
-  and operation not like "tell"
+  where operation not like "tell"
+  and event_name like "wait/io/file/myisam/%"
   order by thread_id, event_id;
 
 # In case of failures, this will tell if file io are lost.

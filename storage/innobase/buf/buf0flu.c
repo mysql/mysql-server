@@ -30,6 +30,7 @@ Created 11/11/1995 Heikki Tuuri
 #endif
 
 #include "buf0buf.h"
+#include "srv0start.h"
 #include "srv0srv.h"
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
@@ -78,6 +79,17 @@ static buf_flush_stat_t	buf_flush_stat_sum;
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
 
+/** Flag indicating if the page_cleaner is in active state. This flag
+is set to TRUE by the page_cleaner thread when it is spawned and is set
+back to FALSE at shutdown by the page_cleaner as well. Therefore no
+need to protect it by a mutex. It is only ever read by the thread
+doing the shutdown */
+UNIV_INTERN ibool buf_page_cleaner_is_active = FALSE;
+
+#ifdef UNIV_PFS_THREAD
+UNIV_INTERN mysql_pfs_key_t buf_page_cleaner_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
 /* @} */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -89,6 +101,34 @@ ibool
 buf_flush_validate_low(
 /*===================*/
 	buf_pool_t*	buf_pool);	/*!< in: Buffer pool instance */
+
+/******************************************************************//**
+Validates the flush list some of the time.
+@return	TRUE if ok or the check was skipped */
+static
+ibool
+buf_flush_validate_skip(
+/*====================*/
+	buf_pool_t*	buf_pool)	/*!< in: Buffer pool instance */
+{
+/** Try buf_flush_validate_low() every this many times */
+# define BUF_FLUSH_VALIDATE_SKIP	23
+
+	/** The buf_flush_validate_low() call skip counter.
+	Use a signed type because of the race condition below. */
+	static int buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly buf_flush_validate_low()
+	check in debug builds. */
+	if (--buf_flush_validate_count > 0) {
+		return(TRUE);
+	}
+
+	buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+	return(buf_flush_validate_low(buf_pool));
+}
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /******************************************************************//**
@@ -296,7 +336,7 @@ buf_flush_insert_into_flush_list(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(buf_flush_validate_low(buf_pool));
+	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_flush_list_mutex_exit(buf_pool);
@@ -520,7 +560,7 @@ buf_flush_remove(
 	bpage->oldest_modification = 0;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(buf_flush_validate_low(buf_pool));
+	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_flush_list_mutex_exit(buf_pool);
@@ -1404,7 +1444,7 @@ buf_flush_try_neighbors(
 		buf_pool_mutex_enter(buf_pool);
 
 		/* We only want to flush pages from this buffer pool. */
-		bpage = buf_page_hash_get(buf_pool, space, i, NULL);
+		bpage = buf_page_hash_get(buf_pool, space, i);
 
 		if (!bpage) {
 
@@ -2102,13 +2142,13 @@ in the number of dirty pages (for example, an in-memory workload)
 it can cause IO bursts of flushing. This function implements heuristics
 to avoid this burstiness.
 @return	number of dirty pages to be flushed / second */
-UNIV_INTERN
+static
 ulint
 buf_flush_get_desired_flush_rate(void)
 /*==================================*/
 {
-	ulint		i;
 	lint		rate;
+	ulint		i;
 	ulint		redo_avg;
 	ulint		n_dirty = 0;
 	ulint		n_flush_req;
@@ -2161,7 +2201,262 @@ buf_flush_get_desired_flush_rate(void)
 	number of pages that we are historically flushing from the
 	LRU list */
 	rate = n_flush_req - lru_flush_avg;
-	return(rate > 0 ? (ulint) rate : 0);
+	if (rate <= 0) {
+		return(0);
+	} else {
+		return(ut_min(rate, PCT_IO(100)));
+	}
+}
+
+/*********************************************************************//**
+Flush a batch of dirty pages from the flush list
+@return number of pages flushed, 0 if no page is flushed or if another
+flush_list type batch is running */
+static
+ulint
+page_cleaner_do_flush_batch(
+/*========================*/
+	ulint		n_to_flush,	/*!< in: number of pages that
+					we should attempt to flush. If
+					an lsn_limit is provided then
+					this value will have no affect */
+	ib_uint64_t	lsn_limit)	/*!< in: LSN up to which flushing
+					must happen */
+{
+	ulint n_flushed;
+
+	ut_ad(n_to_flush == ULINT_MAX || lsn_limit == IB_ULONGLONG_MAX);
+
+	n_flushed = buf_flush_list(n_to_flush, lsn_limit);
+	if (n_flushed == ULINT_UNDEFINED) {
+		n_flushed = 0;
+	}
+
+	/* Record the IO capacity percentage used for the flush.
+	Note that this can be more than 100% in case where we
+	are being asked to flush to a certain lsn_limit */
+	MONITOR_SET(MONITOR_FLUSH_IO_CAPACITY_PCT,
+		    n_flushed * 100 / srv_io_capacity)
+
+	return(n_flushed);
+}
+
+/*********************************************************************//**
+This function is called approximately once every second by the
+page_cleaner thread. Based on various factors it decides if there is a
+need to do flushing. If flushing is needed it is performed and the
+number of pages flushed is returned.
+@return number of pages flushed */
+static
+ulint
+page_cleaner_flush_pages_if_needed(void)
+/*====================================*/
+{
+	ulint		n_pages_flushed = 0;
+	ib_uint64_t	lsn_limit = log_async_flush_lsn();
+
+	/* Currently we decide whether or not to flush and how much to
+	flush based on three factors.
+
+	1) If the amount of LSN for which pages are not flushed to disk
+	yet is greater than log_sys->max_modified_age_async. This is
+	the most urgent type of flush and we attempt to cleanup enough
+	of the tail of the flush_list to avoid flushing inside user
+	threads.
+
+	2) If modified page ratio is greater than the one specified by
+	the user. In that case we flush full 100% IO_CAPACITY of the
+	server. Note that 1 and 2 are not mutually exclusive. We can
+	end up executing both steps.
+
+	3) If adaptive_flushing is set by the user and neither of 1
+	or 2 has occurred above then we flush a batch based on our
+	heuristics. */
+
+	if (lsn_limit != IB_ULONGLONG_MAX) {
+
+		/* async flushing is requested */
+		n_pages_flushed = page_cleaner_do_flush_batch(ULINT_MAX,
+							      lsn_limit);
+
+		MONITOR_INC(MONITOR_NUM_ASYNC_FLUSHES);
+		MONITOR_SET(MONITOR_FLUSH_ASYNC_PAGES, n_pages_flushed);
+	}
+
+	if (UNIV_UNLIKELY(n_pages_flushed < PCT_IO(100)
+			  && buf_get_modified_ratio_pct()
+			     > srv_max_buf_pool_modified_pct)) {
+
+		/* Try to keep the number of modified pages in the
+		buffer pool under the limit wished by the user */
+
+		n_pages_flushed += page_cleaner_do_flush_batch(PCT_IO(100),
+							 IB_ULONGLONG_MAX);
+		MONITOR_INC(MONITOR_NUM_MAX_DIRTY_FLUSHES);
+		MONITOR_SET(MONITOR_FLUSH_MAX_DIRTY_PAGES, n_pages_flushed);
+	}
+
+	if (srv_adaptive_flushing && n_pages_flushed == 0) {
+
+		/* Try to keep the rate of flushing of dirty
+		pages such that redo log generation does not
+		produce bursts of IO at checkpoint time. */
+		ulint n_flush = buf_flush_get_desired_flush_rate();
+
+		ut_ad(n_flush <= PCT_IO(100));
+		if (n_flush) {
+			n_pages_flushed = page_cleaner_do_flush_batch(
+							n_flush,
+							IB_ULONGLONG_MAX);
+
+			MONITOR_INC(MONITOR_NUM_ADAPTIVE_FLUSHES);
+			MONITOR_SET(MONITOR_FLUSH_ADAPTIVE_PAGES,
+				    n_pages_flushed);
+		}
+	}
+
+	return(n_pages_flushed);
+}
+
+/*********************************************************************//**
+Puts the page_cleaner thread to sleep if it has finished work in less
+than a second */
+static
+void
+page_cleaner_sleep_if_needed(
+/*=========================*/
+	ulint	next_loop_time)	/*!< in: time when next loop iteration
+				should start */
+{
+	ulint	cur_time = ut_time_ms();
+
+	if (next_loop_time > cur_time) {
+		/* Get sleep interval in micro seconds. We use
+		ut_min() to avoid long sleep in case of
+		wrap around. */
+		os_thread_sleep(ut_min(1000000,
+				(next_loop_time - cur_time)
+				 * 1000));
+	}
+}
+
+/******************************************************************//**
+page_cleaner thread tasked with flushing dirty pages from the buffer
+pools. As of now we'll have only one instance of this thread.
+@return a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+buf_flush_page_cleaner_thread(
+/*==========================*/
+	void*	arg __attribute__((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	ulint	next_loop_time = ut_time_ms() + 1000;
+	ulint	n_flushed = 0;
+	ulint	last_activity = srv_get_activity_count();
+	ulint	i;
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(buf_page_cleaner_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "InnoDB: page_cleaner thread running, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+	buf_page_cleaner_is_active = TRUE;
+
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
+		/* The page_cleaner skips sleep if the server is
+		idle and there is work to do. */
+		if (srv_check_activity(last_activity)
+		    || n_flushed == 0) {
+			page_cleaner_sleep_if_needed(next_loop_time);
+		}
+
+		next_loop_time = ut_time_ms() + 1000;
+
+		if (srv_check_activity(last_activity)) {
+			last_activity = srv_get_activity_count();
+			n_flushed = page_cleaner_flush_pages_if_needed();
+		} else {
+			n_flushed = page_cleaner_do_flush_batch(
+							PCT_IO(100),
+							IB_ULONGLONG_MAX);
+		}
+	}
+
+	ut_ad(srv_shutdown_state > 0);
+	if (srv_fast_shutdown == 2) {
+		/* In very fast shutdown we simulate a crash of
+		buffer pool. We are not required to do any flushing */
+		goto thread_exit;
+	}
+
+	/* In case of normal and slow shutdown the page_cleaner thread
+	must wait for all other activity in the server to die down.
+	Note that we can start flushing the buffer pool as soon as the
+	server enters shutdown phase but we must stay alive long enough
+	to ensure that any work done by the master or purge threads is
+	also flushed.
+	During shutdown we pass through two stages. In the first stage,
+	when SRV_SHUTDOWN_CLEANUP is set other threads like the master
+	and the purge threads may be working as well. We start flushing
+	the buffer pool but can't be sure that no new pages are being
+	dirtied until we enter SRV_SHUTDOWN_FLUSH_PHASE phase. */
+
+	do {
+		n_flushed = page_cleaner_do_flush_batch(PCT_IO(100),
+							IB_ULONGLONG_MAX);
+
+		/* We sleep only if there are no pages to flush */
+		if (n_flushed == 0) {
+			os_thread_sleep(100000);
+		}
+	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
+
+	/* At this point all threads including the master and the purge
+	thread must have been suspended. */
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
+
+	/* We can now make a final sweep on flushing the buffer pool
+	and exit after we have cleaned the whole buffer pool. 
+	It is important that we wait for any running batch that has
+	been triggered by us to finish. Otherwise we can end up
+	considering end of that batch as a finish of our final
+	sweep and we'll come out of the loop leaving behind dirty pages
+	in the flush_list */
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+	do {
+
+		n_flushed = buf_flush_list(PCT_IO(100),
+						 IB_ULONGLONG_MAX);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+	} while (n_flushed > 0);
+
+	/* Some sanity checks */
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
+	for (i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t* buf_pool = buf_pool_from_array(i);
+		ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == 0);
+	}
+
+	/* We have lived our life. Time to die. */
+
+thread_exit:
+	buf_page_cleaner_is_active = FALSE;
+
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG

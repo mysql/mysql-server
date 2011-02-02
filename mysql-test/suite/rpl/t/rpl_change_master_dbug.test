@@ -33,5 +33,9 @@ if (!`SELECT "$error" LIKE "%retries: 3"`)
   -- die
 }
 
--- source include/master-slave-reset.inc
--- source include/master-slave-end.inc
+# Clear Slave_IO_Error
+RESET SLAVE;
+CHANGE MASTER TO master_host = '127.0.0.1';
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

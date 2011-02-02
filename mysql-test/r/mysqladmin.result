@@ -3,3 +3,11 @@ mysqladmin: unknown variable 'database=db1'
 Warning: mysqladmin: unknown variable 'loose-database=db2'
 mysqld is alive
 mysqld is alive
+#
+# Bug#58221 : mysqladmin --sleep=x --count=x keeps looping
+#
+# Executing mysqladmin with --sleep=1 and --count=2.
+# Done.
+# Displaying the output :
+mysqld is alive
+mysqld is alive

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (n int auto_increment primary key);
 set insert_id = 2000;
 insert into t1 values (NULL),(NULL),(NULL);
@@ -17,6 +13,7 @@ Server_id	Host	Port	Master_id	Slave_UUID
 2	127.0.0.1	SLAVE_PORT	1	SLAVE_UUID
 drop table t1;
 stop slave;
+include/wait_for_slave_to_stop.inc
 create table t2(id int auto_increment primary key, created datetime);
 set timestamp=12345;
 insert into t2 set created=now();
@@ -27,6 +24,7 @@ create table t3 like t2;
 create temporary table t4 like t2;
 create table t5 select * from t4;
 start slave;
+include/wait_for_slave_to_start.inc
 select * from t2;
 id	created
 1	1970-01-01 06:25:45
@@ -44,3 +42,4 @@ t5	CREATE TABLE `t5` (
   `created` datetime DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t2,t3,t5;
+include/rpl_end.inc

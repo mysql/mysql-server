@@ -1,1 +1,0 @@
---innodb --default-storage-engine=innodb --ndbcluster=0

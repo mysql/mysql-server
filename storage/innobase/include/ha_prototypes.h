@@ -174,6 +174,17 @@ innobase_strcasecmp(
 	const char*	b);	/*!< in: second string to compare */
 
 /******************************************************************//**
+Compares NUL-terminated UTF-8 strings case insensitively. The
+second string contains wildcards.
+@return 0 if a match is found, 1 if not */
+UNIV_INTERN
+int
+innobase_wildcasecmp(
+/*=================*/
+	const char*	a,	/*!< in: string to compare */
+	const char*	b);	/*!< in: wildcard string to compare */
+
+/******************************************************************//**
 Returns true if the thread is executing a SELECT statement.
 @return	true if thd is executing SELECT */
 

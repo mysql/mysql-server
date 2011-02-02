@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 
 *** Heartbeat over SSL ***
 include/stop_slave.inc
@@ -23,5 +19,10 @@ Master_SSL_Allowed: Yes
 Heartbeat event has received
 
 *** Clean up ***
-
-End of 6.0 test
+include/stop_slave.inc
+CHANGE MASTER TO 
+MASTER_SSL=0,
+MASTER_SSL_CA='',
+MASTER_SSL_CERT='',
+MASTER_SSL_KEY='';
+include/rpl_end.inc

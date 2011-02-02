@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create database if not exists mysqltest1;
 DROP TABLE IF EXISTS mysqltest1.t1;
 CREATE TABLE mysqltest1.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT,
@@ -27,3 +23,4 @@ INSERT INTO mysqltest1.t1 SET n = NULL, a = now();
 DROP TABLE IF EXISTS mysqltest1.t1;
 DROP FUNCTION mysqltest1.f1;
 DROP DATABASE mysqltest1;
+include/rpl_end.inc

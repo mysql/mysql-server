@@ -66,7 +66,6 @@ int mi_delete_all_rows(MI_INFO *info)
   if (share->file_map)
     mi_dynmap_file(info, (my_off_t) 0);
 #endif
-  allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
 
 err:
@@ -74,7 +73,6 @@ err:
     int save_errno=my_errno;
     (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-    allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);
   }
 } /* mi_delete */

@@ -38,10 +38,10 @@ namespace {
 
 const int counter_start_value= 42;
 
-class Notification_thread : public Thread
+class NotificationThread : public Thread
 {
 public:
-  Notification_thread(Notification *start_notification,
+  NotificationThread(Notification *start_notification,
                       Notification *end_notfication,
                       int *counter)
     : m_start_notification(start_notification),
@@ -70,15 +70,15 @@ private:
   Notification *m_end_notification;
   int          *m_counter;
 
-  Notification_thread(const Notification_thread&); // Not copyable.
-  void operator=(const Notification_thread&);      // Not assignable.
+  NotificationThread(const NotificationThread&); // Not copyable.
+  void operator=(const NotificationThread&);      // Not assignable.
 };
 
 
 /*
   A basic, single-threaded test of Notification.
  */
-TEST(Notification, notify)
+TEST(Notification, Notify)
 {
   Notification notification;
   EXPECT_FALSE(notification.has_been_notified());
@@ -90,12 +90,12 @@ TEST(Notification, notify)
   Starts a thread, and verifies that the notification/synchronization
   mechanism works.
  */
-TEST(Notification_thread, start_and_wait)
+TEST(NotificationThread, StartAndWait)
 {
   Notification start_notification;
   Notification end_notfication;
   int counter= counter_start_value;
-  Notification_thread
+  NotificationThread
     notification_thread(&start_notification, &end_notfication, &counter);
   notification_thread.start();
 

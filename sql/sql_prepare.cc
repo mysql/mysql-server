@@ -1185,7 +1185,7 @@ static bool insert_params_from_vars_with_log(Prepared_statement *stmt,
   uint32 length= 0;
   THD *thd= stmt->thd;
 
-  DBUG_ENTER("insert_params_from_vars");
+  DBUG_ENTER("insert_params_from_vars_with_log");
 
   if (query->copy(stmt->query(), stmt->query_length(), default_charset_info))
     DBUG_RETURN(1);
@@ -1781,7 +1781,7 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   if (open_normal_and_derived_tables(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto err;
 
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|=  CONTEXT_ANALYSIS_ONLY_VIEW;
   res= select_like_stmt_test(stmt, 0, 0);
 
 err:
@@ -2292,19 +2292,6 @@ end:
   return query_str;
 }
 
-
-/** Init PS/SP specific parse tree members.  */
-
-static void init_stmt_after_parse(LEX *lex)
-{
-  SELECT_LEX *sl= lex->all_selects_list;
-  /*
-    Switch off a temporary flag that prevents evaluation of
-    subqueries in statement prepare.
-  */
-  for (; sl; sl= sl->next_select_in_list())
-   sl->uncacheable&= ~UNCACHEABLE_PREPARE;
-}
 
 /**
   SQLCOM_PREPARE implementation.
@@ -2899,8 +2886,15 @@ bool Select_fetch_protocol_binary::send_result_set_metadata(List<Item> &list, ui
 
 bool Select_fetch_protocol_binary::send_eof()
 {
+  /*
+    Don't send EOF if we're in error condition (which implies we've already
+    sent or are sending an error)
+  */
+  if (thd->is_error())
+    return true;
+
   ::my_eof(thd);
-  return FALSE;
+  return false;
 }
 
 
@@ -3173,7 +3167,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   bool error;
   Statement stmt_backup;
   Query_arena *old_stmt_arena;
-  MDL_ticket *mdl_savepoint= NULL;
   DBUG_ENTER("Prepared_statement::prepare");
   /*
     If this is an SQLCOM_PREPARE, we also increase Com_prepare_sql.
@@ -3218,6 +3211,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   parser_state.m_lip.multi_statements= FALSE;
 
   lex_start(thd);
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_PREPARE;
 
   error= parse_sql(thd, & parser_state, NULL) ||
     thd->is_error() ||
@@ -3245,7 +3239,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     Marker used to release metadata locks acquired while the prepared
     statement is being checked.
   */
-  mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   /* 
    The only case where we should have items in the thd->free_list is
@@ -3278,7 +3272,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   if (error == 0)
   {
     setup_set_params();
-    init_stmt_after_parse(lex);
+    lex->context_analysis_only&= ~CONTEXT_ANALYSIS_ONLY_PREPARE;
     state= Query_arena::PREPARED;
     flags&= ~ (uint) IS_IN_USE;
 
@@ -3736,7 +3730,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     to point at it even after we restore from backup. This is ok, as
     expanded query was allocated in thd->mem_root.
   */
-  stmt_backup.set_query_inner(thd->query(), thd->query_length());
+  stmt_backup.set_query_inner(thd->query_string);
 
   /*
     At first execution of prepared statement we may perform logical
@@ -3766,7 +3760,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       MYSQL_QUERY_EXEC_START(thd->query(),
                              thd->thread_id,
                              (char *) (thd->db ? thd->db : ""),
-                             thd->security_ctx->priv_user,
+                             &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
       error= mysql_execute_command(thd);

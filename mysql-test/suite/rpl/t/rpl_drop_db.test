@@ -58,4 +58,5 @@ drop table t1;
 drop database mysqltest1;
 
 sync_slave_with_master;
-source include/stop_slave.inc;
+
+--source include/rpl_end.inc

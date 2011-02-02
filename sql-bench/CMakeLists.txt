@@ -26,13 +26,13 @@ ELSE()
 ENDIF()
 
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Data/ATIS
-  DESTINATION  ${prefix}sql-bench/Data)
+  DESTINATION  ${prefix}sql-bench/Data COMPONENT SqlBench)
 
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Data/Wisconsin
-  DESTINATION  ${prefix}sql-bench/Data)
+  DESTINATION  ${prefix}sql-bench/Data COMPONENT SqlBench)
 
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/limits
-  DESTINATION  ${prefix}sql-bench)
+  DESTINATION  ${prefix}sql-bench COMPONENT SqlBench)
 
 FILE(GLOB all_files ${CMAKE_CURRENT_SOURCE_DIR}/*)
 
@@ -54,10 +54,10 @@ FOREACH(file ${all_files})
   CONFIGURE_FILE(${file} ${target} COPYONLY)
   IF (ext MATCHES ".bat")
     IF(WIN32) 
-      INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench)
+      INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
     ENDIF()
   ELSE()
-    INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench)
+    INSTALL(FILES ${target} DESTINATION ${prefix}sql-bench COMPONENT SqlBench)
   ENDIF()
   ENDIF()
 ENDFOREACH()

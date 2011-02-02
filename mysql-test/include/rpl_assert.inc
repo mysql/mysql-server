@@ -48,9 +48,9 @@ if ($rpl_debug)
 }
 
 # Sanity-check input
-if (`SELECT "$assert_text" = ""`)
+if (!$assert_text)
 {
-  --die ERROR IN TEST: the mysqltest variable rpl_test must be set
+  --die ERROR IN TEST: the mysqltest variable assert_text must be set
 }
 
 # Evaluate square brackets in cond.

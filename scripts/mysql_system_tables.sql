@@ -100,6 +100,10 @@ CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_b
 
 CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
 
+CREATE TABLE IF NOT EXISTS slave_relay_log_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL, Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Relay_log_pos BIGINT UNSIGNED NOT NULL, Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Master_log_pos BIGINT UNSIGNED NOT NULL, Sql_delay INTEGER NOT NULL, PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Relay Log Information';
+
+CREATE TABLE IF NOT EXISTS slave_master_info (Master_id INTEGER UNSIGNED NOT NULL, Number_of_lines INTEGER UNSIGNED NOT NULL, Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, Master_log_pos BIGINT UNSIGNED NOT NULL, Host TEXT CHARACTER SET utf8 COLLATE utf8_bin, User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin, User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin, Port INTEGER UNSIGNED NOT NULL, Connect_retry INTEGER UNSIGNED NOT NULL, Enabled_ssl BOOLEAN NOT NULL, Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ssl_verify_servert_cert BOOLEAN NOT NULL, Heartbeat FLOAT NOT NULL, Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin, Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin, Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin, Retry_count BIGINT UNSIGNED NOT NULL, PRIMARY KEY(Master_id)) ENGINE=MYISAM DEFAULT CHARSET=utf8 COMMENT 'Master Information';
+
 --
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,
@@ -194,10 +198,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "SPINS INTEGER unsigned,"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(512),"
+  "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "OPERATION VARCHAR(16) not null,"
+  "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT unsigned,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -222,10 +227,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "SPINS INTEGER unsigned,"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(512),"
+  "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "OPERATION VARCHAR(16) not null,"
+  "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT unsigned,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -250,10 +256,11 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "SPINS INTEGER unsigned,"
   "OBJECT_SCHEMA VARCHAR(64),"
   "OBJECT_NAME VARCHAR(512),"
+  "INDEX_NAME VARCHAR(64),"
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "OPERATION VARCHAR(16) not null,"
+  "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT unsigned,"
   "FLAGS INTEGER unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -385,6 +392,26 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE OBJECTS_SUMMARY_GLOBAL_BY_TYPE
+--
+
+SET @cmd="CREATE TABLE performance_schema.objects_summary_global_by_type("
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE PERFORMANCE_TIMERS
 --
 
@@ -461,12 +488,214 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE SETUP_OBJECTS
+--
+
+SET @cmd="CREATE TABLE performance_schema.setup_objects("
+  "OBJECT_TYPE ENUM ('TABLE') not null default 'TABLE',"
+  "OBJECT_SCHEMA VARCHAR(64) default '%',"
+  "OBJECT_NAME VARCHAR(64) not null default '%',"
+  "TIMED ENUM ('YES', 'NO') not null default 'YES'"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE SETUP_TIMERS
 --
 
 SET @cmd="CREATE TABLE performance_schema.setup_timers("
   "NAME VARCHAR(64) not null,"
   "TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE TABLE_IO_WAITS_SUMMARY_BY_INDEX_USAGE
+--
+
+SET @cmd="CREATE TABLE performance_schema.table_io_waits_summary_by_index_usage("
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "INDEX_NAME VARCHAR(64),"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "COUNT_FETCH BIGINT unsigned not null,"
+  "SUM_TIMER_FETCH BIGINT unsigned not null,"
+  "MIN_TIMER_FETCH BIGINT unsigned not null,"
+  "AVG_TIMER_FETCH BIGINT unsigned not null,"
+  "MAX_TIMER_FETCH BIGINT unsigned not null,"
+  "COUNT_INSERT BIGINT unsigned not null,"
+  "SUM_TIMER_INSERT BIGINT unsigned not null,"
+  "MIN_TIMER_INSERT BIGINT unsigned not null,"
+  "AVG_TIMER_INSERT BIGINT unsigned not null,"
+  "MAX_TIMER_INSERT BIGINT unsigned not null,"
+  "COUNT_UPDATE BIGINT unsigned not null,"
+  "SUM_TIMER_UPDATE BIGINT unsigned not null,"
+  "MIN_TIMER_UPDATE BIGINT unsigned not null,"
+  "AVG_TIMER_UPDATE BIGINT unsigned not null,"
+  "MAX_TIMER_UPDATE BIGINT unsigned not null,"
+  "COUNT_DELETE BIGINT unsigned not null,"
+  "SUM_TIMER_DELETE BIGINT unsigned not null,"
+  "MIN_TIMER_DELETE BIGINT unsigned not null,"
+  "AVG_TIMER_DELETE BIGINT unsigned not null,"
+  "MAX_TIMER_DELETE BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE TABLE_IO_WAITS_SUMMARY_BY_TABLE
+--
+
+SET @cmd="CREATE TABLE performance_schema.table_io_waits_summary_by_table("
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "COUNT_FETCH BIGINT unsigned not null,"
+  "SUM_TIMER_FETCH BIGINT unsigned not null,"
+  "MIN_TIMER_FETCH BIGINT unsigned not null,"
+  "AVG_TIMER_FETCH BIGINT unsigned not null,"
+  "MAX_TIMER_FETCH BIGINT unsigned not null,"
+  "COUNT_INSERT BIGINT unsigned not null,"
+  "SUM_TIMER_INSERT BIGINT unsigned not null,"
+  "MIN_TIMER_INSERT BIGINT unsigned not null,"
+  "AVG_TIMER_INSERT BIGINT unsigned not null,"
+  "MAX_TIMER_INSERT BIGINT unsigned not null,"
+  "COUNT_UPDATE BIGINT unsigned not null,"
+  "SUM_TIMER_UPDATE BIGINT unsigned not null,"
+  "MIN_TIMER_UPDATE BIGINT unsigned not null,"
+  "AVG_TIMER_UPDATE BIGINT unsigned not null,"
+  "MAX_TIMER_UPDATE BIGINT unsigned not null,"
+  "COUNT_DELETE BIGINT unsigned not null,"
+  "SUM_TIMER_DELETE BIGINT unsigned not null,"
+  "MIN_TIMER_DELETE BIGINT unsigned not null,"
+  "AVG_TIMER_DELETE BIGINT unsigned not null,"
+  "MAX_TIMER_DELETE BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE TABLE_LOCK_WAITS_SUMMARY_BY_TABLE
+--
+
+SET @cmd="CREATE TABLE performance_schema.table_lock_waits_summary_by_table("
+  "OBJECT_TYPE VARCHAR(64),"
+  "OBJECT_SCHEMA VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64),"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ BIGINT unsigned not null,"
+  "SUM_TIMER_READ BIGINT unsigned not null,"
+  "MIN_TIMER_READ BIGINT unsigned not null,"
+  "AVG_TIMER_READ BIGINT unsigned not null,"
+  "MAX_TIMER_READ BIGINT unsigned not null,"
+  "COUNT_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_NORMAL BIGINT unsigned not null,"
+  "SUM_TIMER_READ_NORMAL BIGINT unsigned not null,"
+  "MIN_TIMER_READ_NORMAL BIGINT unsigned not null,"
+  "AVG_TIMER_READ_NORMAL BIGINT unsigned not null,"
+  "MAX_TIMER_READ_NORMAL BIGINT unsigned not null,"
+  "COUNT_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WITH_SHARED_LOCKS BIGINT unsigned not null,"
+  "COUNT_READ_HIGH_PRIORITY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_HIGH_PRIORITY BIGINT unsigned not null,"
+  "COUNT_READ_NO_INSERT BIGINT unsigned not null,"
+  "SUM_TIMER_READ_NO_INSERT BIGINT unsigned not null,"
+  "MIN_TIMER_READ_NO_INSERT BIGINT unsigned not null,"
+  "AVG_TIMER_READ_NO_INSERT BIGINT unsigned not null,"
+  "MAX_TIMER_READ_NO_INSERT BIGINT unsigned not null,"
+  "COUNT_READ_EXTERNAL BIGINT unsigned not null,"
+  "SUM_TIMER_READ_EXTERNAL BIGINT unsigned not null,"
+  "MIN_TIMER_READ_EXTERNAL BIGINT unsigned not null,"
+  "AVG_TIMER_READ_EXTERNAL BIGINT unsigned not null,"
+  "MAX_TIMER_READ_EXTERNAL BIGINT unsigned not null,"
+  "COUNT_WRITE_ALLOW_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE_ALLOW_WRITE BIGINT unsigned not null,"
+  "COUNT_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE_CONCURRENT_INSERT BIGINT unsigned not null,"
+  "COUNT_WRITE_DELAYED BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE_DELAYED BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE_DELAYED BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE_DELAYED BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE_DELAYED BIGINT unsigned not null,"
+  "COUNT_WRITE_LOW_PRIORITY BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE_LOW_PRIORITY BIGINT unsigned not null,"
+  "COUNT_WRITE_NORMAL BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE_NORMAL BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE_NORMAL BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE_NORMAL BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE_NORMAL BIGINT unsigned not null,"
+  "COUNT_WRITE_EXTERNAL BIGINT unsigned not null,"
+  "SUM_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
+  "MIN_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
+  "AVG_TIMER_WRITE_EXTERNAL BIGINT unsigned not null,"
+  "MAX_TIMER_WRITE_EXTERNAL BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');

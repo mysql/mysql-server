@@ -44,12 +44,11 @@ int main (int argc, char *argv[])
   if (argc == 1)
     return 0;
 
-#if defined(HAVE_PTHREAD_INIT) && defined(THREAD)
+#if defined(HAVE_PTHREAD_INIT)
   pthread_init();                       /* Must be called before DBUG_ENTER */
 #endif
-#ifdef THREAD
   my_thread_global_init();
-#endif
+
   dup2(1, 2);
   for (i = 1; i < argc; i++)
   {

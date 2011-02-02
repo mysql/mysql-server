@@ -46,8 +46,12 @@ enum dict_stats_upd_option {
 				using an imprecise quick algo
 				without saving the results
 				persistently */
-	DICT_STATS_FETCH	/* fetch the statistics from the
+	DICT_STATS_FETCH,	/* fetch the statistics from the
 				persistent storage */
+	DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY /* only fetch the stats
+				from the persistent storage if the in-memory
+				structures have not been initialized yet,
+				otherwise do nothing */
 };
 
 typedef enum dict_stats_upd_option	dict_stats_upd_option_t;

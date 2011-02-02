@@ -192,4 +192,5 @@ HAVING BYTES > 0
 ORDER BY p.processlist_user, h.operation;
 --enable_result_log
 
+# Clean-up.
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';

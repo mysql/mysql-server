@@ -1,5 +1,38 @@
 drop table if exists t1, t2;
 #
+# Bug#57778: failed primary key add to partitioned innodb table
+#            inconsistent and crashes
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL)
+PARTITION BY KEY (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (0,1), (0,2);
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+ERROR 23000: Duplicate entry '0' for key 'PRIMARY'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 2 */
+SELECT * FROM t1;
+a	b
+0	1
+0	2
+UPDATE t1 SET a = 1, b = 1 WHERE a = 0 AND b = 2;
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+SELECT * FROM t1;
+a	b
+1	1
+0	1
+ALTER TABLE t1 DROP PRIMARY KEY;
+SELECT * FROM t1;
+a	b
+1	1
+0	1
+DROP TABLE t1;
+#
 # Bug#57113: ha_partition::extra(ha_extra_function):
 #            Assertion `m_extra_cache' failed
 CREATE TABLE t1
@@ -1867,7 +1900,7 @@ c1 bigint,
 c2 set('sweet'),
 key (c2,c1,c0), 
 key(c0)
-) engine=myisam partition by hash (month(c0)) partitions 5;
+) engine=myisam partition by hash (c0) partitions 5;
 insert ignore into t1 set c0 = -6502262, c1 = 3992917, c2 = 35019;
 insert ignore into t1 set c0 = 241221, c1 = -6862346, c2 = 56644;
 select c1 from t1 group by (select c0 from t1 limit 1);

@@ -22,6 +22,7 @@
 #include "pfs_defaults.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
 
 static PSI_thread_key key;
 static PSI_thread_info info= { &key, "setup", PSI_FLAG_GLOBAL };
@@ -43,6 +44,23 @@ void install_default_setup(PSI_bootstrap *boot)
   String percent("%", 1, &my_charset_utf8_bin);
   /* Enable all users on all hosts by default */
   insert_setup_actor(&percent, &percent, &percent);
+
+#if 0
+  /* Disable system tables by default */
+  String mysql_db("mysql", 5, &my_charset_utf8_bin);
+  insert_setup_object(OBJECT_TYPE_TABLE, &mysql_db, &percent, false, false);
+#endif
+  /* Disable performance/information schema tables. */
+  String PS_db("performance_schema", 18, &my_charset_utf8_bin);
+  String IS_db("information_schema", 18, &my_charset_utf8_bin);
+  insert_setup_object(OBJECT_TYPE_TABLE, &PS_db, &percent, false, false);
+  insert_setup_object(OBJECT_TYPE_TABLE, &IS_db, &percent, false, false);
+  /* Enable every other tables */
+  insert_setup_object(OBJECT_TYPE_TABLE, &percent, &percent, true, true);
+#if 0
+  /* Disable every temporary tables */
+  insert_setup_object(OBJECT_TYPE_TEMPORARY_TABLE, &percent, &percent, false, false);
+#endif
 
   psi->delete_current_thread();
 }

@@ -24,7 +24,7 @@ start slave;
 let $slave_io_errno= 1236;
 let $show_slave_io_error= 1;
 source include/wait_for_slave_io_error.inc;
-source include/stop_slave.inc;
+source include/stop_slave_sql.inc;
 
 connection master;
 source include/show_master_status.inc;
@@ -44,3 +44,4 @@ drop table t1;
 sync_slave_with_master;
 
 --echo End of 5.0 tests
+--source include/rpl_end.inc

@@ -24,8 +24,7 @@
 #include "sql_table.h"                         // build_table_filename
 #include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "sql_trigger.h"
-#include "lock.h"       // wait_if_global_read_lock
-                        // start_waiting_global_read_lock
+#include "lock.h"       // MYSQL_OPEN_SKIP_TEMPORARY
 #include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
@@ -62,9 +61,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   }
 
   mysql_ha_rm_tables(thd, table_list);
-
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-    DBUG_RETURN(1);
 
   if (logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
       logger.is_log_table_enabled(QUERY_LOG_SLOW))
@@ -189,7 +185,6 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     query_cache_invalidate3(thd, table_list, 0);
 
 err:
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
   DBUG_RETURN(error || binlog_error);
 }
 

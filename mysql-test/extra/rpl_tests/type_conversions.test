@@ -876,7 +876,5 @@ let $can_convert = $if_is_lossy;
 source extra/rpl_tests/check_type.inc;
 
 
-disable_warnings;
-source include/reset_master_and_slave.inc;
-enable_warnings;
+--source include/rpl_reset.inc
 enable_query_log;

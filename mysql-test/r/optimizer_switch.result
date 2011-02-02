@@ -3,47 +3,47 @@ BUG#37120 optimizer_switch allowable values not according to specification
 
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=off,semijoin=on,loosescan=on,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=off,loosescan=on,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=on,loosescan=off,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='materialization=off,semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=off,semijoin=off,loosescan=off,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='semijoin=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=on,semijoin=off,loosescan=off,firstmatch=on
 set optimizer_switch='default';
 set optimizer_switch='materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=off,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,materialization=off,semijoin=on,loosescan=off,firstmatch=on
 set optimizer_switch='default';
 create table t1 (a1 char(8), a2 char(8));
 create table t2 (b1 char(8), b2 char(8));
@@ -260,7 +260,7 @@ WHERE tb.d >= SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -301,7 +301,7 @@ GROUP BY f
 HAVING ta.a=tc.f));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -340,7 +340,7 @@ WHERE ta.a=tc.f
 ORDER BY tc.f));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	6	Using where
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -379,7 +379,7 @@ WHERE tb.d >= SOME(SELECT e FROM t3 as tc
 WHERE tb.d=tc.e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -421,7 +421,7 @@ WHERE t.b=tc.e)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	7	Using where
 2	DEPENDENT SUBQUERY	tb	ALL	NULL	NULL	NULL	NULL	6	Using where; Start temporary
-2	DEPENDENT SUBQUERY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+2	DEPENDENT SUBQUERY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 4	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT * FROM t1 AS t
 WHERE t.a NOT IN (SELECT a FROM t1 AS ta
@@ -458,7 +458,7 @@ WHERE EXISTS (SELECT * FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -494,7 +494,7 @@ WHERE tb.d = (SELECT MIN(e) FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
@@ -532,7 +532,7 @@ WHERE tb.d=tc.e) < SOME(SELECT e FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	tb	ALL	NULL	NULL	NULL	NULL	6	Start temporary
-1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	ta	ALL	NULL	NULL	NULL	NULL	7	Using where; End temporary; Using join buffer (BNL, incremental buffers)
 4	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 3	DEPENDENT SUBQUERY	tc	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT * FROM t1 AS ta

@@ -33,118 +33,6 @@
   @{
 */
 
-/**
-  A row of table
-  PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
-*/
-struct row_events_waits_summary_by_thread_by_event_name
-{
-  /** Column THREAD_ID. */
-  ulong m_thread_internal_id;
-  /** Column EVENT_NAME. */
-  const char *m_name;
-  /** Length in bytes of @c m_name. */
-  uint m_name_length;
-  /** Column COUNT_STAR. */
-  ulonglong m_count;
-  /** Column SUM_TIMER_WAIT. */
-  ulonglong m_sum;
-  /** Column MIN_TIMER_WAIT. */
-  ulonglong m_min;
-  /** Column AVG_TIMER_WAIT. */
-  ulonglong m_avg;
-  /** Column MAX_TIMER_WAIT. */
-  ulonglong m_max;
-};
-
-/**
-  Position of a cursor on
-  PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
-*/
-struct pos_events_waits_summary_by_thread_by_event_name
-: public PFS_triple_index, public PFS_instrument_view_constants
-{
-  pos_events_waits_summary_by_thread_by_event_name()
-    : PFS_triple_index(0, FIRST_VIEW, 1)
-  {}
-
-  inline void reset(void)
-  {
-    m_index_1= 0;
-    m_index_2= FIRST_VIEW;
-    m_index_3= 1;
-  }
-
-  inline bool has_more_thread(void)
-  { return (m_index_1 < thread_max); }
-
-  inline bool has_more_view(void)
-  { return (m_index_2 <= LAST_VIEW); }
-
-  inline void next_thread(void)
-  {
-    m_index_1++;
-    m_index_2= FIRST_VIEW;
-    m_index_3= 1;
-  }
-
-  inline void next_view(void)
-  {
-    m_index_2++;
-    m_index_3= 1;
-  }
-};
-
-/** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME. */
-class table_events_waits_summary_by_thread_by_event_name
-  : public PFS_engine_table
-{
-public:
-  /** Table share */
-  static PFS_engine_table_share m_share;
-  static PFS_engine_table* create();
-  static int delete_all_rows();
-
-  virtual int rnd_next();
-  virtual int rnd_pos(const void *pos);
-  virtual void reset_position(void);
-
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
-                              bool read_all);
-
-  table_events_waits_summary_by_thread_by_event_name();
-
-public:
-  ~table_events_waits_summary_by_thread_by_event_name()
-  {}
-
-protected:
-  void make_instr_row(PFS_thread *thread, PFS_instr_class *klass,
-                      PFS_single_stat_chain *stat);
-  void make_mutex_row(PFS_thread *thread, PFS_mutex_class *klass);
-  void make_rwlock_row(PFS_thread *thread, PFS_rwlock_class *klass);
-  void make_cond_row(PFS_thread *thread, PFS_cond_class *klass);
-  void make_file_row(PFS_thread *thread, PFS_file_class *klass);
-
-private:
-  /** Table share lock. */
-  static THR_LOCK m_table_lock;
-  /** Fields definition. */
-  static TABLE_FIELD_DEF m_field_def;
-
-  /** Current row. */
-  row_events_waits_summary_by_thread_by_event_name m_row;
-  /** True if the current row exists. */
-  bool m_row_exists;
-  /** Current position. */
-  pos_events_waits_summary_by_thread_by_event_name m_pos;
-  /** Next position. */
-  pos_events_waits_summary_by_thread_by_event_name m_next_pos;
-};
-
 /** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
 struct row_events_waits_summary_by_instance
 {
@@ -154,16 +42,8 @@ struct row_events_waits_summary_by_instance
   uint m_name_length;
   /** Column OBJECT_INSTANCE_BEGIN. */
   intptr m_object_instance_addr;
-  /** Column COUNT_STAR. */
-  ulonglong m_count;
-  /** Column SUM_TIMER_WAIT. */
-  ulonglong m_sum;
-  /** Column MIN_TIMER_WAIT. */
-  ulonglong m_min;
-  /** Column AVG_TIMER_WAIT. */
-  ulonglong m_avg;
-  /** Column MAX_TIMER_WAIT. */
-  ulonglong m_max;
+  /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */
+  PFS_stat_row m_stat;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */

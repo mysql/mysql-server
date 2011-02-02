@@ -1,1 +1,0 @@
---replicate-ignore-db=test --replicate-ignore-table=replica.t1

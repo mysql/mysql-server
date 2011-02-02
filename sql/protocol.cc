@@ -505,11 +505,11 @@ void Protocol::end_statement()
                       thd->stmt_da->get_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
-    error= send_eof(thd->stmt_da->server_status(),
+    error= send_eof(thd->server_status,
                     thd->stmt_da->statement_warn_count());
     break;
   case Diagnostics_area::DA_OK:
-    error= send_ok(thd->stmt_da->server_status(),
+    error= send_ok(thd->server_status,
                    thd->stmt_da->statement_warn_count(),
                    thd->stmt_da->affected_rows(),
                    thd->stmt_da->last_insert_id(),
@@ -983,8 +983,8 @@ bool Protocol_text::store(const char *from, size_t length,
 {
   CHARSET_INFO *tocs= this->thd->variables.character_set_results;
 #ifndef DBUG_OFF
-  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %s", field_pos,
-                      field_count, (length == 0? "" : from)));
+  DBUG_PRINT("info", ("Protocol_text::store field %u (%u): %.*s", field_pos,
+                      field_count, (int) length, (length == 0 ? "" : from)));
   DBUG_ASSERT(field_pos < field_count);
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_DECIMAL ||

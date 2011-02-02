@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1(c1 INT);
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -19,7 +15,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; /* 99999 --- */INSERT /*!INTO*/ /*!10000 t1 */ VALUES(10) /* 99999 ,(11)*/
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # Case 2:
 # -----------------------------------------------------------------
@@ -30,7 +26,7 @@ EXECUTE stmt;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT);
 EXECUTE stmt;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 SET @value=62;
 PREPARE stmt FROM 'INSERT INTO /*!99999 blabla */ t1 VALUES(?) /*!99999 ,(63)*/';
@@ -56,7 +52,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO /* 99999 blabla */ t1 VALUES(62) /* 99999 ,(63)*/
 master-bin.000001	#	Query	#	#	COMMIT
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1,slave:t1]
 
 # Case 3:
 # -----------------------------------------------------------------
@@ -74,3 +70,4 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` EVENT e1 ON SCHEDULE EVERY 10 DAY DO SELECT 'abc'
 DROP TABLE t1;
 DROP EVENT e1;
+include/rpl_end.inc

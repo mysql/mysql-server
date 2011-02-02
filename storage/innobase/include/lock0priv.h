@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -62,7 +62,7 @@ struct lock_rec_struct {
 					lock struct */
 };
 
-/** Lock struct */
+/** Lock struct; protected by lock_sys->mutex */
 struct lock_struct {
 	trx_t*		trx;		/*!< transaction owning the
 					lock */
@@ -100,6 +100,27 @@ lock_rec_get_prev(
 /*==============*/
 	const lock_t*	in_lock,/*!< in: record lock */
 	ulint		heap_no);/*!< in: heap number of the record */
+
+/*********************************************************************//**
+Cancels a waiting lock request and releases possible other transactions
+waiting behind it. */
+UNIV_INTERN
+void
+lock_cancel_waiting_and_release(
+/*============================*/
+	lock_t*	lock);	/*!< in/out: waiting lock request */
+
+/*********************************************************************//**
+Checks if some transaction has an implicit x-lock on a record in a clustered
+index.
+@return	transaction id of the transaction which has the x-lock, or 0 */
+UNIV_INLINE
+trx_id_t
+lock_clust_rec_some_has_impl(
+/*=========================*/
+	const rec_t*	rec,		/*!< in: user record */
+	dict_index_t*	index,		/*!< in: clustered index */
+	const ulint*	offsets);	/*!< in: rec_get_offsets(rec, index) */
 
 #ifndef UNIV_NONINL
 #include "lock0priv.ic"

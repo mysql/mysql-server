@@ -22,4 +22,5 @@ INSERT IGNORE INTO table1_myisam VALUES ('1', '-2146992385');
 enable_warnings;
 UPDATE `table1_myisam` SET `bit_key` = 0 WHERE `bit_key` = 1;
 DROP TABLE table1_myisam;
-sync_slave_with_master;
+
+--source include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -971,13 +971,11 @@ longlong Item_func_signed::val_int_from_str(int *error)
   value= cs->cset->strtoll10(cs, start, &end, error);
   if (*error > 0 || end != start+ length)
   {
-    char err_buff[128];
-    String err_tmp(err_buff,(uint32) sizeof(err_buff), system_charset_info);
-    err_tmp.copy(start, length, system_charset_info);
+    ErrConvString err(res);
     push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
-                        err_tmp.c_ptr());
+                        err.ptr());
   }
   return value;
 }
@@ -1563,9 +1561,14 @@ void Item_func_div::fix_length_and_dec()
   {
     decimals=max(args[0]->decimals,args[1]->decimals)+prec_increment;
     set_if_smaller(decimals, NOT_FIXED_DEC);
-    max_length=args[0]->max_length - args[0]->decimals + decimals;
     uint tmp=float_length(decimals);
-    set_if_smaller(max_length,tmp);
+    if (decimals == NOT_FIXED_DEC)
+      max_length= tmp;
+    else
+    {
+      max_length=args[0]->max_length - args[0]->decimals + decimals;
+      set_if_smaller(max_length,tmp);
+    }
     break;
   }
   case INT_RESULT:
@@ -1596,24 +1599,27 @@ longlong Item_func_int_div::val_int()
   if (args[0]->result_type() != INT_RESULT ||
       args[1]->result_type() != INT_RESULT)
   {
-    my_decimal value0, value1, tmp;
-    my_decimal *val0, *val1;
-    longlong res;
-    int err;
-
-    val0= args[0]->val_decimal(&value0);
-    val1= args[1]->val_decimal(&value1);
-    if ((null_value= (args[0]->null_value || args[1]->null_value)))
+    my_decimal tmp;
+    my_decimal *val0p= args[0]->val_decimal(&tmp);
+    if ((null_value= args[0]->null_value))
       return 0;
+    my_decimal val0= *val0p;
 
+    my_decimal *val1p= args[1]->val_decimal(&tmp);
+    if ((null_value= args[1]->null_value))
+      return 0;
+    my_decimal val1= *val1p;
+
+    int err;
     if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, &tmp,
-                             val0, val1, 0)) > 3)
+                             &val0, &val1, 0)) > 3)
     {
       if (err == E_DEC_DIV_ZERO)
         signal_divide_by_null();
       return 0;
     }
 
+    longlong res;
     if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
         E_DEC_OVERFLOW)
       raise_integer_overflow();
@@ -4351,7 +4357,7 @@ update_hash(user_var_entry *entry, bool set_null, void *ptr, uint length,
       length--;					// Fix length change above
       entry->value[length]= 0;			// Store end \0
     }
-    memcpy(entry->value,ptr,length);
+    memmove(entry->value, ptr, length);
     if (type == DECIMAL_RESULT)
       ((my_decimal*)entry->value)->fix_buffer_pointer();
     entry->length= length;
@@ -5058,7 +5064,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   }
   /* Mark that this variable has been used by this query */
   var_entry->used_query_id= thd->query_id;
-  if (insert_dynamic(&thd->user_var_events, (uchar*) &user_var_event))
+  if (insert_dynamic(&thd->user_var_events, &user_var_event))
     goto err;
 
   *out_entry= var_entry;
@@ -5754,7 +5760,17 @@ void Item_func_match::init_search(bool no_order)
 
   /* Check if init_search() has been called before */
   if (ft_handler)
+  {
+    /*
+      We should reset ft_handler as it is cleaned up
+      on destruction of FT_SELECT object
+      (necessary in case of re-execution of subquery).
+      TODO: FT_SELECT should not clean up ft_handler.
+    */
+    if (join_key)
+      table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
+  }
 
   if (key == NO_SUCH_KEY)
   {
@@ -6502,7 +6518,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
   if (res)
     DBUG_RETURN(res);
 
-  if (thd->lex->view_prepare_mode)
+  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
   {
     /*
       Here we check privileges of the stored routine only during view
