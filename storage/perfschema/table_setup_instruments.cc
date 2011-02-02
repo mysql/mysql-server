@@ -85,7 +85,7 @@ void table_setup_instruments::reset_position(void)
 
 int table_setup_instruments::rnd_next(void)
 {
-  PFS_instr_class *instr_class;
+  PFS_instr_class *instr_class= NULL;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
@@ -104,7 +104,6 @@ int table_setup_instruments::rnd_next(void)
       break;
     case pos_setup_instruments::VIEW_THREAD:
       /* Not used yet  */
-      instr_class= NULL;
       break;
     case pos_setup_instruments::VIEW_FILE:
       instr_class= find_file_class(m_pos.m_index_2);
@@ -126,7 +125,7 @@ int table_setup_instruments::rnd_next(void)
 
 int table_setup_instruments::rnd_pos(const void *pos)
 {
-  PFS_instr_class *instr_class;
+  PFS_instr_class *instr_class= NULL;
 
   set_position(pos);
 
@@ -143,7 +142,6 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_THREAD:
     /* Not used yet */
-    instr_class= NULL;
     break;
   case pos_setup_instruments::VIEW_FILE:
     instr_class= find_file_class(m_pos.m_index_2);

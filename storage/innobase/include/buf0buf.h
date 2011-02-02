@@ -281,9 +281,9 @@ UNIV_INTERN
 buf_block_t*
 buf_block_alloc(
 /*============*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	ulint		zip_size);	/*!< in: compressed page size in bytes,
-					or 0 if uncompressed tablespace */
+	buf_pool_t*	buf_pool);	/*!< in: buffer pool instance,
+					or NULL for round-robin selection
+					of the buffer pool */
 /********************************************************************//**
 Frees a buffer block which does not contain a file page. */
 UNIV_INLINE

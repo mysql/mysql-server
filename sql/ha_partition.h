@@ -166,7 +166,7 @@ private:
   enum_monotonicity_info m_part_func_monotonicity_info;
 public:
   handler *clone(MEM_ROOT *mem_root);
-  virtual void set_part_info(partition_info *part_info)
+  virtual void set_part_info(partition_info *part_info, bool early)
   {
      m_part_info= part_info;
      m_is_sub_partitioned= part_info->is_sub_partitioned();
@@ -598,6 +598,9 @@ public:
   */
   virtual uint8 table_cache_type();
   virtual ha_rows records();
+
+  /* Calculate hash value for PARTITION BY KEY tables. */
+  uint32 calculate_key_hash_value(Field **field_array);
 
   /*
     -------------------------------------------------------------------------

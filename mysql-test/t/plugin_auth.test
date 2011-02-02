@@ -411,4 +411,26 @@ FLUSH PRIVILEGES;
 --echo # Executing 'mysql_upgrade'
 --exec $MYSQL_UPGRADE -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT --skip-verbose --force --upgrade-system-tables
 
+--echo #
+--echo # Bug #59657: Move the client authentication_pam plugin into the 
+--echo #  server repository
+--echo #
+
+CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
+  AS 'cleartext_test';
+
+--echo ## test plugin auth
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(cleartext_fail_con,localhost,uplain,cleartext_test2);
+--enable_query_log
+
+connect(cleartext_con,localhost,uplain,cleartext_test);
+connection cleartext_con;
+select USER(),CURRENT_USER();
+
+connection default;
+disconnect cleartext_con;
+DROP USER uplain@localhost;
+
 --echo End of 5.5 tests

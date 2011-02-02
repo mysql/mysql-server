@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,60 +49,31 @@ Created 2/6/1997 Heikki Tuuri
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record.
-@return 0 if committed, else the active transaction id */
-UNIV_INTERN
+@return 0 if committed, else the active transaction id;
+NOTE that this function can return false positives but never false
+negatives. The caller must confirm all positive results by calling
+trx_is_active() while holding lock_sys->mutex. */
+UNIV_INLINE
 trx_id_t
-row_vers_impl_x_locked(
-/*===================*/
-	const rec_t*	rec,	/*!< in: record in a secondary index */
-	dict_index_t*	index,	/*!< in: the secondary index */
-	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
+row_vers_impl_x_locked_low(
+/*=======================*/
+	const rec_t*	clust_rec,	/*!< in: clustered index record */
+	dict_index_t*	clust_index,	/*!< in: the clustered index */
+	const rec_t*	rec,		/*!< in: secondary index record */
+	dict_index_t*	index,		/*!< in: the secondary index */
+	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	dict_index_t*	clust_index;
-	rec_t*		clust_rec;
-	ulint*		clust_offsets;
-	rec_t*		version;
 	trx_id_t	trx_id;
-	trx_id_t	active_trx_id = 0;
-	mem_heap_t*	heap;
-	dtuple_t*	row;
-	trx_t*		trx;
-	ulint		rec_del;
-	mtr_t		mtr;
-	ulint		comp;
 	ibool		corrupt;
+	ulint		comp;
+	ulint		rec_del;
+	const rec_t*	version;
 	rec_t*		prev_version = NULL;
+	ulint*		clust_offsets;
+	mem_heap_t*	heap;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-
-	mtr_start(&mtr);
-
-	/* Search for the clustered index record The latch on the clustered
-       	index locks the top of the stack of versions. We also reserve
-       	purge_latch to lock the bottom of the version stack. */
-
-	clust_rec = row_get_clust_rec(
-		BTR_SEARCH_LEAF, rec, index, &clust_index, &mtr);
-
-	if (!clust_rec) {
-		/* In a rare case it is possible that no clust rec is found
-		for a secondary index record: if in row0umod.c
-		row_undo_mod_remove_clust_low() we have already removed the
-		clust rec, while purge is still cleaning and removing
-		secondary index records associated with earlier versions of
-		the clustered index record. In that case there cannot be
-		any implicit lock on the secondary index record, because
-		an active transaction which has modified the secondary index
-		record has also modified the clustered index record. And in
-		a rollback we always undo the modifications to secondary index
-		records before the clustered index record. */
-
-		mtr_commit(&mtr);
-
-		return(active_trx_id);
-	}
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	heap = mem_heap_create(1024);
 
@@ -110,30 +81,18 @@ row_vers_impl_x_locked(
 		clust_rec, clust_index, NULL, ULINT_UNDEFINED, &heap);
 
 	trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
+	corrupt = FALSE;
 
-	mtr_s_lock(&purge_sys->latch, &mtr);
-
-	rw_lock_s_lock(&trx_sys->lock);
-
-	trx = trx_is_active_low(trx_id, &corrupt);
-
-	rw_lock_s_unlock(&trx_sys->lock);
-
-	if (trx == NULL) {
-
+	if (!trx_is_active(trx_id, &corrupt)) {
 		/* The transaction that modified or inserted clust_rec is no
-		longer active or corrupt: no implicit lock on rec */
-
+		longer active, or it is corrupt: no implicit lock on rec */
 		if (corrupt) {
-			ibool	is_ok;
-
-		   	is_ok = lock_check_trx_id_sanity(
-				trx_id, clust_rec, clust_index, clust_offsets);
-
-			ut_a(!is_ok == corrupt);
+			lock_report_trx_id_insanity(
+				trx_id, clust_rec, clust_index, clust_offsets,
+				trx_sys_get_max_trx_id());
 		}
-
-		goto exit_func;
+		mem_heap_free(heap);
+		return(0);
 	}
 
 	comp = page_rec_is_comp(rec);
@@ -141,35 +100,38 @@ row_vers_impl_x_locked(
 	ut_ad(!!comp == dict_table_is_comp(index->table));
 	ut_ad(!comp == !page_rec_is_comp(clust_rec));
 
-	/* We look up if some earlier version, which was modified by the trx_id
-	transaction, of the clustered index record would require rec to be in
-	a different state (delete marked or unmarked, or have different field
-	values, or not existing). If there is such a version, then rec was
-	modified by the trx_id transaction, and it has an implicit x-lock on
-	rec. Note that if clust_rec itself would require rec to be in a
-	different state, then the trx_id transaction has not yet had time to
-	modify rec, and does not necessarily have an implicit x-lock on rec. */
-
 	rec_del = rec_get_deleted_flag(rec, comp);
 
-	for (version = clust_rec; version != NULL; version = prev_version) {
+	/* We look up if some earlier version, which was modified by
+	the trx_id transaction, of the clustered index record would
+	require rec to be in a different state (delete marked or
+	unmarked, or have different field values, or not existing). If
+	there is such a version, then rec was modified by the trx_id
+	transaction, and it has an implicit x-lock on rec. Note that
+	if clust_rec itself would require rec to be in a different
+	state, then the trx_id transaction has not yet had time to
+	modify rec, and does not necessarily have an implicit x-lock
+	on rec. */
 
+	mtr_s_lock(&purge_sys->latch, mtr);
+
+	for (version = clust_rec;; version = prev_version) {
 		ulint		err;
 		row_ext_t*	ext;
+		const dtuple_t*	row;
 		dtuple_t*	entry;
 		ulint		vers_del;
 		trx_id_t	prev_trx_id;
 		mem_heap_t*	old_heap = heap;
 
-		/* We have to check if the trx_id transaction is still active.
-	       	We keep the semaphore in mtr on the clust_rec page, so that no
-	       	other transaction can update it and get an implicit x-lock on
-	       	rec. */
+		/* We keep the semaphore in mtr on the clust_rec page, so
+		that no other transaction can update it and get an
+		implicit x-lock on rec until mtr_commit(mtr). */
 
 		heap = mem_heap_create(1024);
 
 		err = trx_undo_prev_version_build(
-			clust_rec, &mtr, version, clust_index, clust_offsets,
+			clust_rec, mtr, version, clust_index, clust_offsets,
 			heap, &prev_version);
 
  		/* Free version and clust_offsets. */
@@ -178,35 +140,31 @@ row_vers_impl_x_locked(
 
 		if (prev_version == NULL) {
 
-			/* If the transaction is still active, clust_rec must
-		       	be a fresh insert, because no previous version was
-		       	found. */
+			/* clust_rec must be a fresh insert, because
+			no previous version was found. */
 
 			ut_a(err == DB_SUCCESS);
-
-			/* The caller should check the tranasction status. */
-			active_trx_id = trx_id;
-
 			break;
 		}
 
 		clust_offsets = rec_get_offsets(
 			prev_version, clust_index, NULL, ULINT_UNDEFINED,
-		       	&heap);
+			&heap);
 
 		vers_del = rec_get_deleted_flag(prev_version, comp);
 
 		prev_trx_id = row_get_rec_trx_id(
 			prev_version, clust_index, clust_offsets);
 
-		/* If the trx_id and prev_trx_id are different and if
-		the prev_version is marked deleted then the
-		prev_trx_id must have already committed for the trx_id
-		to be able to modify the row. Therefore, prev_trx_id
-		cannot hold any implicit lock. */
+		/* If trx_id differs from prev_trx_id and if the
+		prev_version is marked deleted then the prev_trx_id
+		must have already committed for the trx_id to be able
+		to modify the row. Therefore, prev_trx_id cannot hold
+		any implicit lock. */
 
 		if (vers_del && trx_id != prev_trx_id) {
 
+			trx_id = 0;
 			break;
 		}
 
@@ -226,26 +184,34 @@ row_vers_impl_x_locked(
 
 		ut_a(entry != NULL);
 
-		/* If we get here, we know that the trx_id transaction is
-		still active and it has modified prev_version. Let us check
-		if prev_version would require rec to be in a different
-		state. */
+		/* If we get here, we know that the trx_id transaction
+		modified prev_version. Let us check if prev_version
+		would require rec to be in a different state. */
 
 		/* The previous version of clust_rec must be
-		accessible, because the transaction is still active
-		and clust_rec was not a fresh insert. */
+		accessible, because clust_rec was not a fresh insert
+		and we are holding purge_sys->latch. There is no
+		guarantee that the transaction is still active. */
 
-		ut_a(err == DB_SUCCESS);
+		ut_ad(err == DB_SUCCESS);
 
 		/* We check if entry and rec are identified in the alphabetical
 		ordering */
 
-		if (trx_is_active(trx_id) == NULL) {
-
-			/* Transaction no longer active: no implicit x-lock */
-
+		if (!trx_is_active(trx_id, &corrupt)) {
+			/* Transaction no longer active: no implicit
+			x-lock. This situation should only be possible
+			because we are not holding lock_sys->mutex. */
+			ut_ad(!lock_mutex_own());
+			if (corrupt) {
+				lock_report_trx_id_insanity(
+					trx_id,
+					prev_version, clust_index,
+					clust_offsets,
+					trx_sys_get_max_trx_id());
+			}
+			trx_id = 0;
 			break;
-
 		} else if (0 == cmp_dtuple_rec(entry, rec, offsets)) {
 			/* The delete marks of rec and prev_version should be
 			equal for rec to be in the state required by
@@ -253,7 +219,6 @@ row_vers_impl_x_locked(
 
 			if (rec_del != vers_del) {
 
-				active_trx_id = trx_id;
 				break;
 			}
 
@@ -274,24 +239,80 @@ row_vers_impl_x_locked(
 			/* The delete mark should be set in rec for it to be
 			in the state required by prev_version */
 
-			active_trx_id = trx_id;
 			break;
 		}
-		
-		if (trx_id != prev_trx_id) {
-			/* The versions modified by the trx_id transaction end
-			to prev_version: no implicit x-lock */
 
+		if (trx_id != prev_trx_id) {
+			/* prev_version was the first version modified by
+			the trx_id transaction: no implicit x-lock */
+
+			trx_id = 0;
 			break;
 		}
 	}
 
-exit_func:
+	mem_heap_free(heap);
+	return(trx_id);
+}
+
+/*****************************************************************//**
+Finds out if an active transaction has inserted or modified a secondary
+index record.
+@return 0 if committed, else the active transaction id;
+NOTE that this function can return false positives but never false
+negatives. The caller must confirm all positive results by calling
+trx_is_active() while holding lock_sys->mutex. */
+UNIV_INTERN
+trx_id_t
+row_vers_impl_x_locked(
+/*===================*/
+	const rec_t*	rec,	/*!< in: record in a secondary index */
+	dict_index_t*	index,	/*!< in: the secondary index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
+{
+	dict_index_t*	clust_index;
+	const rec_t*	clust_rec;
+	trx_id_t	trx_id;
+	mtr_t		mtr;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!lock_mutex_own());
+
+	mtr_start(&mtr);
+
+	/* Search for the clustered index record. The latch on the
+	page of clust_rec locks the top of the stack of versions. The
+	bottom of the version stack will be locked by
+	purge_sys->latch. */
+
+	clust_rec = row_get_clust_rec(
+		BTR_SEARCH_LEAF, rec, index, &clust_index, &mtr);
+
+	if (UNIV_UNLIKELY(!clust_rec)) {
+		/* In a rare case it is possible that no clust rec is found
+		for a secondary index record: if in row0umod.c
+		row_undo_mod_remove_clust_low() we have already removed the
+		clust rec, while purge is still cleaning and removing
+		secondary index records associated with earlier versions of
+		the clustered index record. In that case there cannot be
+		any implicit lock on the secondary index record, because
+		an active transaction which has modified the secondary index
+		record has also modified the clustered index record. And in
+		a rollback we always undo the modifications to secondary index
+		records before the clustered index record. */
+
+		trx_id = 0;
+	} else {
+		trx_id = row_vers_impl_x_locked_low(
+			clust_rec, clust_index, rec, index, offsets, &mtr);
+	}
 
 	mtr_commit(&mtr);
-	mem_heap_free(heap);
 
-	return(active_trx_id);
+	return(trx_id);
 }
 
 /*****************************************************************//**
@@ -649,7 +670,7 @@ row_vers_build_for_semi_consistent_read(
 	version = rec;
 
 	for (;;) {
-		trx_t*		version_trx;
+		const trx_t*	version_trx;
 		mem_heap_t*	heap2;
 		rec_t*		prev_version;
 		trx_id_t	version_trx_id;
@@ -659,12 +680,19 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
+		rw_lock_s_lock(&trx_sys->lock);
 		version_trx = trx_get_on_id(version_trx_id);
+		/* version_trx->state cannot change from or to
+		NOT_STARTED while we are holding the trx_sys->lock.
+		It may change from ACTIVE to PREPARED or COMMITTED. */
+		if (version_trx
+		    && trx_state_eq(version_trx,
+				    TRX_STATE_COMMITTED_IN_MEMORY)) {
+			version_trx = NULL;
+		}
+		rw_lock_s_unlock(&trx_sys->lock);
 
-		if (!version_trx
-		    || version_trx->state == TRX_STATE_NOT_STARTED
-		    || version_trx->state
-		    == TRX_STATE_COMMITTED_IN_MEMORY) {
+		if (!version_trx) {
 
 			/* We found a version that belongs to a
 			committed transaction: return it. */

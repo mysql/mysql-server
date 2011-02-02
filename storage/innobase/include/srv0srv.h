@@ -174,6 +174,11 @@ capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
 #define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
 
+/* The "innodb_stats_method" setting, decides how InnoDB is going
+to treat NULL value when collecting statistics. It is not defined
+as enum type because the configure option takes unsigned integer type. */
+extern ulong	srv_innodb_stats_method;
+
 #ifdef UNIV_LOG_ARCHIVE
 extern ibool		srv_log_archive_on;
 extern ibool		srv_archive_recovery;
@@ -261,7 +266,10 @@ extern	ibool	srv_print_latch_waits;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 
-extern mutex_t	server_mutex;	/* mutex protecting the server state change */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
+extern mutex_t	server_mutex;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #define SRV_MAX_N_IO_THREADS	130
 
@@ -421,6 +429,19 @@ enum {
 	SRV_FORCE_NO_LOG_REDO = 6	/*!< do not do the log roll-forward
 					in connection with recovery */
 };
+
+/* Alternatives for srv_innodb_stats_method, which could be changed by
+setting innodb_stats_method */
+enum srv_stats_method_name_enum {
+	SRV_STATS_NULLS_EQUAL,		/* All NULL values are treated as
+					equal. This is the default setting
+					for innodb_stats_method */
+	SRV_STATS_NULLS_UNEQUAL,	/* All NULL values are treated as
+					NOT equal. */
+	SRV_STATS_NULLS_IGNORED		/* NULL values are ignored */
+};
+
+typedef enum srv_stats_method_name_enum		srv_stats_method_name_t;
 
 #ifndef UNIV_HOTBACKUP
 /** Types of threads existing in the system. */
@@ -790,7 +811,14 @@ struct srv_slot_struct{
 	ibool		suspended;		/*!< TRUE if the thread is waiting for the
 						event of this slot */
 	ib_time_t	suspend_time;		/*!< time when the thread was
-						suspended */
+						suspended. Initialized by
+						lock_wait_table_reserve_slot()
+						for lock wait */
+	ulong		wait_timeout;		/*!< wait time that if exceeded
+						the thread will be timed out.
+						Initialized by
+						lock_wait_table_reserve_slot()
+						for lock wait */
 	os_event_t	event;			/*!< event used in suspending the
 						thread when it has nothing to
 						do */
@@ -811,16 +839,4 @@ struct srv_slot_struct{
 # define srv_file_per_table			1
 #endif /* !UNIV_HOTBACKUP */
 
-/** Test if server_mutex is owned. */
-#define server_mutex_own() mutex_own(&server_mutex)
-
-/** Acquire the server_mutex. */
-#define server_mutex_enter() do {		\
-	mutex_enter(&server_mutex);		\
-} while (0)
-
-/** Release the server_mutex. */
-#define server_mutex_exit() do {		\
-	mutex_exit(&server_mutex);		\
-} while (0)
 #endif
