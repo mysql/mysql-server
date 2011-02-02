@@ -20,6 +20,7 @@
 #include "consumer_restore.hpp"
 #include <my_sys.h>
 #include <NdbSleep.h>
+#include <Properties.hpp>
 
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
@@ -40,6 +41,8 @@ extern const char * g_connect_string;
 extern BaseString g_options;
 extern unsigned int opt_no_binlog;
 extern bool ga_skip_broken_objects;
+
+extern Properties g_rewrite_databases;
 
 bool BackupRestore::m_preserve_trailing_spaces = false;
 
@@ -261,6 +264,40 @@ match_blob(const char * name){
   return -1;
 }
 
+/**
+ * Extracts the database, schema, and table name from an internal table name;
+ * prints an error message and returns false in case of a format violation.
+ */
+static
+bool
+dissect_table_name(const char * qualified_table_name,
+                   BaseString & db_name,
+                   BaseString & schema_name,
+                   BaseString & table_name) {
+  Vector<BaseString> split;
+  BaseString tmp(qualified_table_name);
+  if (tmp.split(split, "/") != 3) {
+    err << "Invalid table name format `" << qualified_table_name
+        << "`" << endl;
+    return false;
+  }
+  db_name = split[0];
+  schema_name = split[1];
+  table_name = split[2];
+  return true;
+}
+
+/**
+ * Assigns the new name for a database, if and only if to be rewritten.
+ */
+static
+void
+check_rewrite_database(BaseString & db_name) {
+  const char * new_db_name;
+  if (g_rewrite_databases.get(db_name.c_str(), &new_db_name))
+    db_name.assign(new_db_name);
+}
+
 const NdbDictionary::Table*
 BackupRestore::get_table(const NdbDictionary::Table* tab){
   if(m_cache.m_old_table == tab)
@@ -342,28 +379,30 @@ BackupRestore::rebuild_indexes(const TableS& table)
   if (m_index_per_table.size() <= id)
     return true;
 
-  BaseString tmp(tablename);
-  Vector<BaseString> split;
-  if (tmp.split(split, "/") != 3)
-  {
-    err << "Invalid table name format " << tablename << endl;
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(tablename, db_name, schema_name, table_name)) {
     return false;
   }
-  m_ndb->setDatabaseName(split[0].c_str());
-  m_ndb->setSchemaName(split[1].c_str());
+  check_rewrite_database(db_name);
+
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
 
   Vector<NdbDictionary::Index*> & indexes = m_index_per_table[id];
   for(size_t i = 0; i<indexes.size(); i++)
   {
-    NdbDictionary::Index * idx = indexes[i];
-    info << "Rebuilding index " << idx->getName() << " on table "
-        << tab->getName() << " ..." << flush;
-    if (dict->createIndex(* idx, 1) != 0)
+    const NdbDictionary::Index * const idx = indexes[i];
+    const char * const idx_name = idx->getName();
+    const char * const tab_name = idx->getTable();
+    info << "Rebuilding index `" << idx_name << "` on table `"
+      << tab_name << "` ..." << flush;
+    if ((dict->getIndex(idx_name, tab_name) == NULL)
+        && (dict->createIndex(* idx, 1) != 0))
     {
       info << "FAIL!" << endl;
-      err << "Rebuilding index " << idx->getName() << " on table "
-        << tab->getName() <<" failed: ";
+      err << "Rebuilding index `" << idx_name << "` on table `"
+        << tab_name <<"` failed: ";
       err << dict->getNdbError() << endl;
 
       return false;
@@ -1151,19 +1190,19 @@ BackupRestore::table_compatible_check(const TableS & tableS)
     return true;
   }
 
-  BaseString tmp(tablename);
-  Vector<BaseString> split;
-  if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format " << tablename << endl;
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(tablename, db_name, schema_name, table_name)) {
     return false;
   }
-  m_ndb->setDatabaseName(split[0].c_str());
-  m_ndb->setSchemaName(split[1].c_str());
+  check_rewrite_database(db_name);
+
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
-  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
+  const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
   if(tab == 0){
-    err << "Unable to find table: " << split[2].c_str() << endl;
+    err << "Unable to find table: " << table_name << endl;
     return false;
   }
 
@@ -1360,18 +1399,18 @@ BackupRestore::createSystable(const TableS & tables){
     return true;
   }
 
-  BaseString tmp(tablename);
-  Vector<BaseString> split;
-  if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format " << tablename << endl;
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(tablename, db_name, schema_name, table_name)) {
     return false;
   }
+  // do not rewrite database for system tables:
+  // check_rewrite_database(db_name);
 
-  m_ndb->setDatabaseName(split[0].c_str());
-  m_ndb->setSchemaName(split[1].c_str());
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
-  if( dict->getTable(split[2].c_str()) != NULL ){
+  if( dict->getTable(table_name.c_str()) != NULL ){
     return true;
   }
   return table(tables);
@@ -1396,22 +1435,21 @@ BackupRestore::table(const TableS & table){
     return true;
   }
   
-  BaseString tmp(name);
-  Vector<BaseString> split;
-  if(tmp.split(split, "/") != 3){
-    err << "Invalid table name format `" << name << "`" << endl;
+  BaseString db_name, schema_name, table_name;
+  if (!dissect_table_name(name, db_name, schema_name, table_name)) {
     return false;
   }
+  check_rewrite_database(db_name);
 
-  m_ndb->setDatabaseName(split[0].c_str());
-  m_ndb->setSchemaName(split[1].c_str());
+  m_ndb->setDatabaseName(db_name.c_str());
+  m_ndb->setSchemaName(schema_name.c_str());
   
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
   if(m_restore_meta)
   {
     NdbDictionary::Table copy(*table.m_dictTable);
 
-    copy.setName(split[2].c_str());
+    copy.setName(table_name.c_str());
     Uint32 id;
     if (copy.getTablespace(&id))
     {
@@ -1520,9 +1558,9 @@ BackupRestore::table(const TableS & table){
          << table.getTableName() << "`" << endl;
   }  
   
-  const NdbDictionary::Table* tab = dict->getTable(split[2].c_str());
+  const NdbDictionary::Table* tab = dict->getTable(table_name.c_str());
   if(tab == 0){
-    err << "Unable to find table: `" << split[2].c_str() << "`" << endl;
+    err << "Unable to find table: `" << table_name << "`" << endl;
     return false;
   }
   if(m_restore_meta)
@@ -1531,9 +1569,9 @@ BackupRestore::table(const TableS & table){
     {
       // a MySQL Server table is restored, thus an event should be created
       BaseString event_name("REPL$");
-      event_name.append(split[0].c_str());
+      event_name.append(db_name.c_str());
       event_name.append("/");
-      event_name.append(split[2].c_str());
+      event_name.append(table_name.c_str());
 
       NdbDictionary::Event my_event(event_name.c_str());
       my_event.setTable(*tab);
@@ -1564,7 +1602,7 @@ BackupRestore::table(const TableS & table){
 	}
 	err << "Create table event for " << table.getTableName() << " failed: "
 	    << dict->getNdbError() << endl;
-	dict->dropTable(split[2].c_str());
+	dict->dropTable(table_name.c_str());
 	return false;
       }
       info.setLevel(254);
@@ -1589,23 +1627,19 @@ BackupRestore::endOfTables(){
   for(size_t i = 0; i<m_indexes.size(); i++){
     NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
 
-    Vector<BaseString> split;
-    {
-      BaseString tmp(indtab.m_primaryTable.c_str());
-      if (tmp.split(split, "/") != 3)
-      {
-        err << "Invalid table name format `" << indtab.m_primaryTable.c_str()
-            << "`" << endl;
-        return false;
-      }
+    BaseString db_name, schema_name, table_name;
+    if (!dissect_table_name(indtab.m_primaryTable.c_str(),
+                            db_name, schema_name, table_name)) {
+      return false;
     }
-    
-    m_ndb->setDatabaseName(split[0].c_str());
-    m_ndb->setSchemaName(split[1].c_str());
-    
-    const NdbDictionary::Table * prim = dict->getTable(split[2].c_str());
+    check_rewrite_database(db_name);
+
+    m_ndb->setDatabaseName(db_name.c_str());
+    m_ndb->setSchemaName(schema_name.c_str());
+
+    const NdbDictionary::Table * prim = dict->getTable(table_name.c_str());
     if(prim == 0){
-      err << "Unable to find base table `" << split[2].c_str() 
+      err << "Unable to find base table `" << table_name
 	  << "` for index `"
 	  << indtab.getName() << "`" << endl;
       if (ga_skip_broken_objects)
@@ -1628,7 +1662,7 @@ BackupRestore::endOfTables(){
     if(NdbDictInterface::create_index_obj_from_table(&idx, &indtab, &base))
     {
       err << "Failed to create index `" << split_idx[3]
-	  << "` on " << split[2].c_str() << endl;
+	  << "` on " << table_name << endl;
 	return false;
     }
     idx->setName(split_idx[3].c_str());
@@ -1638,13 +1672,13 @@ BackupRestore::endOfTables(){
       {
         delete idx;
         err << "Failed to create index `" << split_idx[3].c_str()
-            << "` on `" << split[2].c_str() << "`" << endl
+            << "` on `" << table_name << "`" << endl
             << dict->getNdbError() << endl;
 
         return false;
       }
       info << "Successfully created index `" << split_idx[3].c_str()
-          << "` on `" << split[2].c_str() << "`" << endl;
+          << "` on `" << table_name << "`" << endl;
     }
     else if (m_disable_indexes)
     {
@@ -1652,7 +1686,7 @@ BackupRestore::endOfTables(){
       if (res == 0)
       {
         info << "Dropped index `" << split_idx[3].c_str()
-            << "` on `" << split[2].c_str() << "`" << endl;
+            << "` on `" << table_name << "`" << endl;
       }
     }
     Uint32 id = prim->getObjectId();
