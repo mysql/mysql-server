@@ -182,9 +182,8 @@ command. Not tested on Windows. */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */
-#define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
-						(field file_page_was_freed
-						in buf_page_t) */
+#define UNIV_DEBUG_FILE_ACCESSES		/* Enable freed block access
+						debugging without UNIV_DEBUG */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
