@@ -480,7 +480,7 @@ buf_reset_check_index_page_at_flush(
 /*================================*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -505,7 +505,7 @@ buf_page_reset_file_page_was_freed(
 /*===============================*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);	/*!< in: page number */
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 /********************************************************************//**
 Reads the freed_page_clock of a buffer block.
 @return	freed_page_clock */
@@ -1403,11 +1403,11 @@ struct buf_page_struct{
 					0 if the block was never accessed
 					in the buffer pool */
 	/* @} */
-# ifdef UNIV_DEBUG_FILE_ACCESSES
+# if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when fsp
 					frees a page in buffer pool */
-# endif /* UNIV_DEBUG_FILE_ACCESSES */
+# endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
 
