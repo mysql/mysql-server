@@ -856,5 +856,8 @@ SET TIMESTAMP=-1; SELECT UTC_TIMESTAMP();
 SET TIMESTAMP=1; SELECT UTC_TIMESTAMP();
 --enable_result_log
 
+#reset back the timestamp value
+SET TIMESTAMP=0;
+
 
 --echo End of 5.0 tests
