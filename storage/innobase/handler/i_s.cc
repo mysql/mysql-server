@@ -3283,19 +3283,6 @@ i_s_innodb_buffer_page_get_info(
 		page_type = fil_page_get_type(frame);
 
 		i_s_innodb_set_page_type(page_info, page_type, frame);
-
-	} else if (page_info->page_state == BUF_BLOCK_MEMORY) {
-		const byte*	frame;
-		const buf_block_t*block;
-		ulint		page_type;
-
-		block = reinterpret_cast<const buf_block_t*>(bpage);
-
-		frame = block->frame;
-
-		page_type = fil_page_get_type(frame);
-
-		i_s_innodb_set_page_type(page_info, page_type, frame);
 	} else {
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	}
