@@ -101,6 +101,11 @@ class BlobImpl implements Blob {
         handleError(returnCode, ndbBlob);
     }
 
+    public void close() {
+        int returnCode = ndbBlob.close(true);
+        handleError(returnCode, ndbBlob);
+    }
+
     protected static void handleError(int returnCode, NdbBlob ndbBlob) {
         if (returnCode == 0) {
             return;
