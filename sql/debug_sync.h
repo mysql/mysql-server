@@ -39,7 +39,7 @@ class THD;
              } while (0)
 
 /* Command line option --debug-sync-timeout. See mysqld.cc. */
-extern uint opt_debug_sync_timeout;
+extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 
 /* Default WAIT_FOR timeout if command line option is given without argument. */
 #define DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT 300
