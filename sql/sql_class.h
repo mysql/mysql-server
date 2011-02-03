@@ -468,8 +468,6 @@ typedef struct system_status_var
   ulong select_range_count;
   ulong select_range_check_count;
   ulong select_scan_count;
-  ulong rows_read;
-  ulong rows_sent;
   ulong long_query_count;
   ulong filesort_merge_passes;
   ulong filesort_range_count;
@@ -483,6 +481,9 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+  ulong empty_queries;
+  ulong access_denied_errors;
+  ulong lost_connections;
   /*
     Number of statements sent from the client
   */
@@ -493,11 +494,10 @@ typedef struct system_status_var
     Below 'last_system_status_var' are all variables that cannot be handled
     automatically by add_to_status()/add_diff_to_status().
   */
-  ulong empty_queries;
-  ulong access_denied_errors;                   /* Can only be 0 or 1 */
-  ulong lost_connections;
   ulonglong bytes_received;
   ulonglong bytes_sent;
+  ulonglong rows_read;
+  ulonglong rows_sent;
   ulonglong binlog_bytes_written;
   double last_query_cost;
   double cpu_time, busy_time;
