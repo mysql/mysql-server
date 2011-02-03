@@ -763,6 +763,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             if (logger.isDetailEnabled()) {
                 logger.detail("ResultSet get blob value for field " + fmd.name + " for column " + fmd.columnName + " returned length " + length + formatBytes(16, data));
             }
+            blob.close();
             handler.setBytes(fmd.fieldNumber, data);
         }
 
@@ -869,6 +870,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
             if (logger.isDetailEnabled()) {
                 logger.detail("ResultSet get text value for field " + fmd.name + " for column " + fmd.columnName + " returned length " + length + formatBytes(16, data));
             }
+            blob.close();
             handler.setString(fmd.fieldNumber, fmd.storeColumn.decode(data));
         }
 

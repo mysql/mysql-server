@@ -33,4 +33,6 @@ public interface Blob {
 
     public void setNull();
 
+    public void close();
+
 }
