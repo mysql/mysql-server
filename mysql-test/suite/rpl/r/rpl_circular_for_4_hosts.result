@@ -121,11 +121,11 @@ Master D	12	D
 * Remove wrong event from C and restore B->C->D *
 include/stop_slave.inc
 DELETE FROM t1 WHERE a = 6;
-START SLAVE;
+include/start_slave.inc
 RESET MASTER;
 RESET SLAVE;
 include/rpl_change_topology.inc [new topology=1->2->3->4->1]
-START SLAVE;
+include/start_slave.inc
 include/rpl_sync.inc
 
 * Check data inserted before restoring schema A->B->C->D->A *
