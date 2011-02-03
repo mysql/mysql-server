@@ -1880,6 +1880,9 @@ bool fix_partition_func(THD *thd, TABLE *table,
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
   set_up_range_analysis_info(part_info);
+#ifndef MCP_BUG56438
+  table->file->set_part_info(part_info, FALSE);
+#endif
   result= FALSE;
 end:
   thd->mark_used_columns= save_mark_used_columns;
@@ -2717,6 +2720,14 @@ static inline int part_val_int(Item *item_expr, longlong *result)
   hash value and some parameters calculated from the number of partitions.
 */
 
+#ifndef MCP_BUG56438
+/*
+  Obsoleted by handler::calculate_key_hash_value
+  Handlers can now implement their own calculate_key_hash_value function
+  or use the method defined in ha_partition.cc
+*/
+#else
+
 /*
   Calculate hash value for KEY partitioning using an array of fields.
 
@@ -2744,7 +2755,7 @@ static uint32 calculate_key_value(Field **field_array)
   } while (*(++field_array));
   return (uint32) nr1;
 }
-
+#endif
 
 /*
   A simple support function to calculate part_id given local part and
@@ -2846,12 +2857,21 @@ static int get_part_id_linear_hash(partition_info *part_info,
 */
 
 inline
+#ifndef MCP_BUG56438
+static uint32 get_part_id_key(handler *file,
+                              Field **field_array,
+#else
 static uint32 get_part_id_key(Field **field_array,
+#endif
                               uint num_parts,
                               longlong *func_value)
 {
   DBUG_ENTER("get_part_id_key");
+#ifndef MCP_BUG56438
+  *func_value= file->calculate_key_hash_value(field_array);
+#else
   *func_value= calculate_key_value(field_array);
+#endif
   DBUG_RETURN((uint32) (*func_value % num_parts));
 }
 
@@ -2878,7 +2898,11 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 {
   DBUG_ENTER("get_part_id_linear_key");
 
+#ifndef MCP_BUG56438
+  *func_value= part_info->table->file->calculate_key_hash_value(field_array);
+#else
   *func_value= calculate_key_value(field_array);
+#endif
   DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            num_parts));
@@ -3566,7 +3590,12 @@ int get_partition_id_key_nosub(partition_info *part_info,
                                 uint32 *part_id,
                                 longlong *func_value)
 {
+#ifndef MCP_BUG56438
+  *part_id= get_part_id_key(part_info->table->file,
+                            part_info->part_field_array,
+#else
   *part_id= get_part_id_key(part_info->part_field_array,
+#endif
                             part_info->num_parts, func_value);
   return 0;
 }
@@ -3656,7 +3685,12 @@ int get_partition_id_key_sub(partition_info *part_info,
                              uint32 *part_id)
 {
   longlong func_value;
+#ifndef MCP_BUG56438
+  *part_id= get_part_id_key(part_info->table->file,
+                            part_info->subpart_field_array,
+#else
   *part_id= get_part_id_key(part_info->subpart_field_array,
+#endif
                             part_info->num_subparts, &func_value);
   return FALSE;
 }
@@ -4272,7 +4306,12 @@ bool mysql_unpack_partition(THD *thd,
     *work_part_info_used= true;
   }
   table->part_info= part_info;
+#ifndef MCP_BUG56438
+  part_info->table= table;
+  table->file->set_part_info(part_info, TRUE);
+#else
   table->file->set_part_info(part_info);
+#endif
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
