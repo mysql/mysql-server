@@ -9,8 +9,13 @@ ENDIF()
 # We need MFC
 FIND_PACKAGE(MFC)
 IF(NOT MFC_FOUND)
+  IF(BUILD_RELEASE)
+    MESSAGE(FATAL_ERROR
+    "Can't find MFC. It is necessary for producing official package"
+  )
+  ENDIF()
   RETURN()
-ENDIF()  
+ENDIF()
 
 # MFC should be statically linked
 SET(CMAKE_MFC_FLAG 1)

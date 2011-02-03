@@ -40,6 +40,11 @@ IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)
     SET(_WIX_DIR_CHECKED 1 CACHE INTERNAL "")
     MESSAGE(STATUS "Cannot find wix 3, installer project will not be generated")
+    IF(BUILD_RELEASE)
+      MESSAGE(FATAL_ERROR
+        "Can't find Wix. It is necessary for producing official package"
+      )
+    ENDIF()
   ENDIF()
   RETURN()
 ENDIF()
