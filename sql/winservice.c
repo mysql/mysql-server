@@ -105,7 +105,7 @@ int get_mysql_service_properties(const wchar_t *bin_path,
     goto end;
   }
 
-  wcstombs(props->mysqld_exe, args[0], MAX_PATH);
+  wcstombs(props->mysqld_exe, mysqld_path, MAX_PATH);
   wcstombs(props->inifile, args[1]+16, MAX_PATH);
   normalize_path(props->inifile, MAX_PATH);
 
