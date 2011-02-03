@@ -28,7 +28,8 @@
     <Property Id="DEFAULTUSER" Secure="yes"/>
     <!-- Whether to data on uninstall (default yes, after asking user consent) -->
     <Property Id="CLEANUPDATA" Secure="yes" Value="1"/>
-
+    <!-- Force per machine installation -->
+    <Property Id="ALLUSERS" Secure="yes" Value="1"/>
 
     <!-- 
       User interface dialogs 
@@ -637,6 +638,10 @@
       'Previous version of MariaDB was found, that used incompatible installer.&#xD;&#xA;Please remove &quot;[NSISINSTALLKEY]&quot; before you proceed with this installation.'
       >
       NOT NSISINSTALLKEY OR Installed
+    </Condition>
+    <Condition Message=
+       'Setting the ALLUSERS property is not allowed because [ProductName] is a per-machine application. Setup will now exit.'>
+      <![CDATA[ALLUSERS = "1"]]>
     </Condition>
   </Fragment>
 </Wix>
