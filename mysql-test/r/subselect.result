@@ -423,7 +423,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where 1
+Note	1003	select 1 AS `1` from `test`.`t1` where (1 = (select 1 union select 1))
 drop table t1;
 CREATE TABLE `t1` (
 `numeropost` mediumint(8) unsigned NOT NULL auto_increment,
@@ -909,7 +909,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ref_or_null	a	a	5	func	2	100.00	Using index
 2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,<expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
+Note	1003	select `test`.`t1`.`a` AS `a`,<expr_cache><`test`.`t1`.`a`>(<in_optimizer>(`test`.`t1`.`a`,<exists>(select `test`.`t2`.`a` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
@@ -1180,9 +1180,9 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where 0)) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where (<cache>(0) = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 0 IN (SELECT 1 FROM t1 a);
 0 IN (SELECT 1 FROM t1 a)
@@ -1190,9 +1190,9 @@ SELECT 0 IN (SELECT 1 FROM t1 a);
 EXPLAIN EXTENDED SELECT 0 IN (SELECT 1 FROM t1 a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where 0)) AS `0 IN (SELECT 1 FROM t1 a)`
+Note	1003	select <in_optimizer>(0,<exists>(select 1 from `test`.`t1` `a` where (<cache>(0) = 1))) AS `0 IN (SELECT 1 FROM t1 a)`
 drop table t1;
 CREATE TABLE `t1` (
 `i` int(11) NOT NULL default '0',
@@ -1535,34 +1535,34 @@ select * from t3 where NULL >= any (select b from t2);
 a
 explain extended select * from t3 where NULL >= any (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((NULL >= (select min(NULL) from `test`.`t2`)))
 select * from t3 where NULL >= any (select b from t2 group by 1);
 a
 explain extended select * from t3 where NULL >= any (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((NULL >= <min>(select NULL from `test`.`t2` group by 1)))
 select * from t3 where NULL >= some (select b from t2);
 a
 explain extended select * from t3 where NULL >= some (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((NULL >= (select min(NULL) from `test`.`t2`)))
 select * from t3 where NULL >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where NULL >= some (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where 0
+Note	1003	select `test`.`t3`.`a` AS `a` from `test`.`t3` where <nop>((NULL >= <min>(select NULL from `test`.`t2` group by 1)))
 insert into t2 values (2,2), (2,1), (3,3), (3,1);
 select * from t3 where a > all (select max(b) from t2 group by a);
 a
@@ -1624,7 +1624,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	UNION	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select 'e' AS `s1` from `test`.`t1` where 1
+Note	1003	select 'e' AS `s1` from `test`.`t1` where <nop>(('f' > <min>(select 'e' from `test`.`t1` union select 'e' from `test`.`t1`)))
 drop table t1;
 CREATE TABLE t1 (number char(11) NOT NULL default '') ENGINE=MyISAM CHARSET=latin1;
 INSERT INTO t1 VALUES ('69294728265'),('18621828126'),('89356874041'),('95895001874');
@@ -2831,10 +2831,9 @@ Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<expr_cac
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
-1	PRIMARY	subselect2	eq_ref	unique_key	unique_key	10	func	1	1.00	
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`flag` = 'N'))
+Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`two` = `test`.`t1`.`two`) and (`test`.`t2`.`one` = `test`.`t1`.`one`) and (`test`.`t2`.`flag` = 'N'))
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	
@@ -3110,10 +3109,10 @@ SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 a
-2
-4
 1
+2
 3
+4
 SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
@@ -3122,8 +3121,8 @@ SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 a
-2
 1
+2
 3
 4
 SELECT a FROM t1
@@ -3420,7 +3419,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 ALTER TABLE t1 ADD INDEX(a);
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 a	b
@@ -3431,7 +3430,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t1	index	NULL	a	8	NULL	1	
 DROP TABLE t1;
 create table t1( f1 int,f2 int);
 insert into t1 values (1,1),(2,2);
@@ -4320,16 +4319,16 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where <expr_cache><1>(<in_optimizer>(1,1 in ( <materialize> (select 1 from `test`.`t1` group by `test`.`t1`.`a` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`))))))
+Note	1003	select 1 AS `1` from `test`.`t1` where <expr_cache><1>(<in_optimizer>(1,<exists>(select 1 from `test`.`t1` group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1)))))
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select 1 AS `1` from `test`.`t1` where <expr_cache><1>(<in_optimizer>(1,1 in ( <materialize> (select 1 from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized subselect`.`1`))))))
+Note	1003	select 1 AS `1` from `test`.`t1` where <expr_cache><1>(<in_optimizer>(1,<exists>(select 1 from `test`.`t1` where (`test`.`t1`.`a` > 3) group by `test`.`t1`.`a` having (<cache>(1) = <ref_null_helper>(1)))))
 DROP TABLE t1;
 #
 # Bug#45061: Incorrectly market field caused wrong result.

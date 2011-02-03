@@ -18,7 +18,6 @@ drop procedure if exists set_all_columns_nullable;
 create table t1 (a1 char(8), a2 char(8), a3 char(8), a4 int);
 insert into t1 values ('1 - 00', '2 - 00', '3 - 00', 0);
 insert into t1 values ('1 - 01', '2 - 01', '3 - 01', 1);
-insert into t1 values ('1 - 02', '2 - 02', '3 - 02', 2);
 
 create table t2 (b1 char(8), b2 char(8), b3 char(8), b4 int);
 insert into t2 values ('1 - 01', '2 - 01', '3 - 01', 1);
@@ -150,6 +149,8 @@ call set_all_columns_not_null();
 -- source include/subselect_mat_cost.inc
 call set_all_columns_nullable();
 
+
+insert into t1 values ('1 - 02', '2 - 02', '3 - 02', 2);
 
 -- echo /******************************************************************************
 -- echo 2. Materialization is OFF, in-to-exists is ON, materialization is cheaper.

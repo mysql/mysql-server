@@ -3691,7 +3691,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     double outer_lookup_keys;
     /* Cost and row count of the unmodified subquery. */
     double inner_read_time_1, inner_record_count_1;
-    /* Cost and row count of the subquery with injected IN-EXISTS predicates. */
+    /* Cost of the subquery with injected IN-EXISTS predicates. */
     double inner_read_time_2;
     /* The cost to compute IN via materialization. */
     double materialize_strategy_cost;
@@ -3756,7 +3756,7 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       if (reopt_result == REOPT_ERROR)
         return TRUE;
 
-      /* inner_read_time_2 above is a dummy, get the correct total join cost. */
+      /* Get the cost of the modified IN-EXISTS plan. */
       inner_read_time_2= inner_join->best_read;
 
     }
