@@ -13,6 +13,12 @@
 #include <accctrl.h>
 #include <aclapi.h>
 
+#define USAGETEXT \
+"mysql_install_db.exe  Ver 1.42 for Windows\n" \
+"This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n" \
+"and you are welcome to modify and redistribute it under the GPL v2 license\n" \
+"Usage: mysql_install_db.exe [OPTIONS]\n" \
+"OPTIONS:"
 
 extern "C" const char mysql_bootstrap_sql[];
 
@@ -69,6 +75,7 @@ get_one_option(int optid,
   DBUG_ENTER("get_one_option");
   switch (optid) {
   case '?':
+    printf("%s\n", USAGETEXT);
     my_print_help(my_long_options);
     exit(0);
     break;

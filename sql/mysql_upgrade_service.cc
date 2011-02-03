@@ -35,6 +35,13 @@
 /* We're using version APIs */
 #pragma comment(lib, "version")
 
+#define USAGETEXT \
+"mysql_upgrade_service.exe  Ver 1.42 for Windows\n" \
+"This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n" \
+"and you are welcome to modify and redistribute it under the GPL v2 license\n" \
+"Usage: mysql_upgrade_service.exe [OPTIONS]\n" \
+"OPTIONS:"
+
 static char mysqld_path[MAX_PATH];
 static char mysqladmin_path[MAX_PATH];
 static char mysqlupgrade_path[MAX_PATH];
@@ -73,6 +80,7 @@ get_one_option(int optid,
   DBUG_ENTER("get_one_option");
   switch (optid) {
   case '?':
+    printf("%s\n", USAGETEXT);
     my_print_help(my_long_options);
     exit(0);
     break;
@@ -410,7 +418,13 @@ int main(int argc, char **argv)
   char bindir[FN_REFLEN];
   char *p;
 
-  /*
+  /* Parse options */
+  if ((error= handle_options(&argc, &argv, my_long_options, get_one_option)))
+    die("");
+  if(!opt_service)
+    die("service parameter is mandatory");
+ 
+ /*
     Get full path to mysqld, we need it when changing service configuration.
     Assume installation layout, i.e mysqld.exe, mysqladmin.exe, mysqlupgrade.exe
     and mysql_upgrade_service.exe are in the same directory.
@@ -432,13 +446,6 @@ int main(int argc, char **argv)
       die("File %s does not exist", paths[i]);
   }
 
-
-  /* Parse options */
-  if ((error= handle_options(&argc, &argv, my_long_options, get_one_option)))
-    die("");
-  if(!opt_service)
-    die("service parameter is mandatory");
- 
   /*
     Messages written on stdout should not be buffered,  GUI upgrade program 
     read them from pipe and uses as progress indicator.
@@ -450,6 +457,7 @@ int main(int argc, char **argv)
 
   log("Phase 2/8: Stopping service");
   stop_mysqld_service();
+
 
   /* 
     Start mysqld.exe as non-service skipping privileges (so we do not 
