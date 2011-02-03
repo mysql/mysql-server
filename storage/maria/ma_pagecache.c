@@ -565,7 +565,7 @@ static long pagecache_thread_id;
 #define KEYCACHE_THREAD_TRACE_END(l)    KEYCACHE_DBUG_PRINT(l,(""))
 #endif /* THREAD */
 #else
-#defien KEYCACHE_PRINT(l,m)
+#define KEYCACHE_PRINT(l,m)
 #define KEYCACHE_THREAD_TRACE_BEGIN(l)
 #define KEYCACHE_THREAD_TRACE_END(l)
 #define KEYCACHE_THREAD_TRACE(l)
