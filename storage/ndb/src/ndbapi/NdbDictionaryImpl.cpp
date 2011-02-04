@@ -2250,6 +2250,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       continue;
     }    
     
+    m_impl->incClientStat(Ndb::WaitMetaRequestCount,1);
     m_error.code= 0;
     int ret_val= poll_guard.wait_n_unlock(timeout, node, wst, true);
     // End of Protected area  
@@ -5625,6 +5626,7 @@ NdbDictInterface::listObjects(NdbApiSignal* signal,
     if (m_impl->sendSignal(signal, aNodeId) != 0) {
       continue;
     }
+    m_impl->incClientStat(Ndb::WaitMetaRequestCount, 1);
     m_error.code= 0;
     int ret_val= poll_guard.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
                                           aNodeId, WAIT_LIST_TABLES_CONF,
@@ -5772,6 +5774,7 @@ NdbDictInterface::forceGCPWait(int type)
 
       m_error.code= 0;
       
+      m_impl->incClientStat(Ndb::WaitMetaRequestCount, 1);
       int ret_val= pg.wait_n_unlock(DICT_WAITFOR_TIMEOUT,
                                     aNodeId, WAIT_LIST_TABLES_CONF);
       // end protected

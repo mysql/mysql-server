@@ -182,12 +182,16 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
   int ret_val;
   m_clnt->do_forceSend(forceSend ? 1 : 0);
 
-  NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
-  NDB_TICKS max_time = curr_time + (NDB_TICKS)wait_time;
+  NDB_TICKS curr_time = NdbTick_CurrentNanosecond();
+  /* Use nanosecond wait_time for max_time calculation */
+  NDB_TICKS max_time = curr_time + ((NDB_TICKS)wait_time * 1000000);
   const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
   do
   {
     wait_for_input(maxsleep);
+    NDB_TICKS start_time_nanos = curr_time;
+    curr_time = NdbTick_CurrentNanosecond();
+    m_clnt->recordWaitTimeNanos(curr_time - start_time_nanos);
     Uint32 state= m_waiter->get_state();
     if (state == NO_WAIT)
     {
@@ -205,8 +209,7 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
 #endif
       continue;
     }
-    wait_time= int(max_time - NdbTick_CurrentMillisecond());
-    if (wait_time <= 0)
+    if (curr_time >= max_time)
     {
 #ifdef VM_TRACE
       ndbout << "Time-out state is " << m_waiter->get_state() << endl;

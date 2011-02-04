@@ -2024,6 +2024,8 @@ get_schema_type_name(uint type)
   return "<unknown>";
 }
 
+extern void update_slave_api_stats(Ndb*);
+
 int ndbcluster_log_schema_op(THD *thd,
                              const char *query, int query_length,
                              const char *db, const char *table_name,
@@ -2050,6 +2052,9 @@ int ndbcluster_log_schema_op(THD *thd,
               query, db, table_name, thd_ndb->options));
   if (!ndb_schema_share || thd_ndb->options & TNO_NO_LOG_SCHEMA_OP)
   {
+    if (thd->slave_thread)
+      update_slave_api_stats(thd_ndb->ndb);
+
     DBUG_RETURN(0);
   }
 
@@ -2459,6 +2464,9 @@ end:
                           log_type,
                           query);
   }
+
+  if (thd->slave_thread)
+    update_slave_api_stats(ndb);
 
   DBUG_RETURN(0);
 }
@@ -5929,6 +5937,26 @@ remove_event_operations(Ndb* ndb)
   DBUG_VOID_RETURN;
 }
 
+extern long long g_event_data_count;
+extern long long g_event_nondata_count;
+extern long long g_event_bytes_count;
+
+void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
+{
+  /* Update globals to sum of totals from each listening
+   * Ndb object
+   */
+  g_event_data_count = 
+    schemaNdb->getClientStat(Ndb::DataEventsRecvdCount) + 
+    dataNdb->getClientStat(Ndb::DataEventsRecvdCount);
+  g_event_nondata_count = 
+    schemaNdb->getClientStat(Ndb::NonDataEventsRecvdCount) + 
+    dataNdb->getClientStat(Ndb::NonDataEventsRecvdCount);
+  g_event_bytes_count = 
+    schemaNdb->getClientStat(Ndb::EventBytesRecvdCount) + 
+    dataNdb->getClientStat(Ndb::EventBytesRecvdCount);
+}
+
 enum Binlog_thread_state
 {
   BCCC_running= 0,
@@ -6363,6 +6391,7 @@ restart_cluster_failure:
                           pOp->getNdbError().message);
         pOp= s_ndb->nextEvent();
       }
+      updateInjectorStats(s_ndb, i_ndb);
     }
 
     if (!ndb_binlog_running)
@@ -6392,6 +6421,7 @@ restart_cluster_failure:
           do_ndbcluster_binlog_close_connection= BCCC_restart;
         }
       }
+      updateInjectorStats(s_ndb, i_ndb);
     }
     else if (res > 0 ||
              (ndb_log_empty_epochs() &&
@@ -6671,6 +6701,8 @@ restart_cluster_failure:
           pOp= i_ndb->nextEvent();
         } while (pOp && pOp->getGCI() == gci);
 
+         updateInjectorStats(s_ndb, i_ndb);
+        
         /*
           note! pOp is not referring to an event in the next epoch
           or is == 0
