@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -176,6 +176,25 @@ static char*	internal_innobase_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
+/** Possible values for system variable "innodb_stats_method". The values
+are defined the same as its corresponding MyISAM system variable
+"myisam_stats_method"(see "myisam_stats_method_names"), for better usability */
+static const char* innodb_stats_method_names[] = {
+	"nulls_equal",
+	"nulls_unequal",
+	"nulls_ignored",
+	NullS
+};
+
+/** Used to define an enumerate type of the system variable innodb_stats_method.
+This is the same as "myisam_stats_method_typelib" */
+static TYPELIB innodb_stats_method_typelib = {
+	array_elements(innodb_stats_method_names) - 1,
+	"innodb_stats_method_typelib",
+	innodb_stats_method_names,
+	NULL
+};
+
 /* The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
 srv_active_wake_master_thread after each fetch or search, we only do
@@ -240,7 +259,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&ibuf_mutex_key, "ibuf_mutex", 0},
 	{&ibuf_pessimistic_insert_mutex_key,
 		 "ibuf_pessimistic_insert_mutex", 0},
+#  ifndef HAVE_ATOMIC_BUILTINS
 	{&server_mutex_key, "server_mutex", 0},
+#  endif /* !HAVE_ATOMIC_BUILTINS */
 	{&log_sys_mutex_key, "log_sys_mutex", 0},
 #  ifdef UNIV_MEM_DEBUG
 	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
@@ -1933,9 +1954,9 @@ read view to it if there is no read view yet.
 Why a deadlock of threads is not possible: the query cache calls this function
 at the start of a SELECT processing. Then the calling thread cannot be
 holding any InnoDB semaphores. The calling thread is holding the
-query cache mutex, and this function will reserve the InnoDB trx_sys_t::mutex.
+query cache mutex, and this function will reserve the InnoDB trx_sys->lock.
 Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
-the InnoDB trx_sys_t::mutex.
+the InnoDB trx_sys->lock.
 @return TRUE if permitted, FALSE if not; note that the value FALSE
 does not mean we should invalidate the query cache: invalidation is
 called explicitly */
@@ -1968,14 +1989,11 @@ innobase_query_caching_of_table_permitted(
 		return((my_bool)FALSE);
 	}
 
-	if (trx->has_search_latch) {
+	if (UNIV_UNLIKELY(trx->has_search_latch)) {
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
-
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 1024);
-		rw_lock_s_unlock(&trx_sys->lock);
 	}
 
 	innobase_release_stat_resources(trx);
@@ -2053,7 +2071,7 @@ innobase_invalidate_query_cache(
 					also the null chars count */
 {
 	/* Note that the sync0sync.h rank of the query cache mutex is just
-	above the InnoDB trx_sys_t::mutex. The caller of this function must
+	above the InnoDB trx_sys_t->lock. The caller of this function must
 	not have latches of a lower rank. */
 
 	/* Argument TRUE below means we are using transactions */
@@ -2738,11 +2756,7 @@ innobase_end(
 
 	if (innodb_inited) {
 
-		server_mutex_enter();
-
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
-
-		server_mutex_exit();
 
 		innodb_inited = 0;
 		hash_table_free(innobase_open_tables);
@@ -2836,7 +2850,7 @@ innobase_start_trx_and_assign_read_view(
 	trx = check_trx_exists(thd);
 
 	/* This is just to play safe: release a possible FIFO ticket and
-	search latch. Since we can potentially reserve the trx_sys_t::mutex,
+	search latch. Since we can potentially reserve the trx_sys->lock,
 	we have to release the search system latch first to obey the latching
 	order. */
 
@@ -2881,7 +2895,7 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
-	/* Since we will reserve the trx_sys_t::mutex, we have to release
+	/* Since we will reserve the trx_sys->lock, we have to release
 	the search system latch first to obey the latching order. */
 
 	if (trx->has_search_latch) {
@@ -3020,7 +3034,7 @@ innobase_rollback(
 	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys_t::mutex, we have to release the search system
+	reserve the trx_sys->lock, we have to release the search system
 	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -3060,7 +3074,7 @@ innobase_rollback_trx(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys_t::mutex, we have to release the search system
+	reserve the trx_sys->lock, we have to release the search system
 	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -3101,7 +3115,7 @@ innobase_rollback_to_savepoint(
 	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys_t::mutex, we have to release the search system
+	reserve the trx_sys->lock, we have to release the search system
 	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -3172,7 +3186,7 @@ innobase_savepoint(
 	trx = check_trx_exists(thd);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys_t::mutex, we have to release the search system
+	reserve the trx_sys->lock, we have to release the search system
 	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -8152,6 +8166,64 @@ innobase_get_mysql_key_number_for_index(
 }
 
 /*********************************************************************//**
+Calculate Record Per Key value. Need to exclude the NULL value if
+innodb_stats_method is set to "nulls_ignored"
+@return estimated record per key value */
+static
+ha_rows
+innodb_rec_per_key(
+/*===============*/
+	dict_index_t*	index,		/*!< in: dict_index_t structure */
+	ulint		i,		/*!< in: the column we are
+					calculating rec per key */
+	ha_rows		records)	/*!< in: estimated total records */
+{
+	ha_rows		rec_per_key;
+
+	ut_ad(i < dict_index_get_n_unique(index));
+
+	/* Note the stat_n_diff_key_vals[] stores the diff value with
+	n-prefix indexing, so it is always stat_n_diff_key_vals[i + 1] */
+	if (index->stat_n_diff_key_vals[i + 1] == 0) {
+
+		rec_per_key = records;
+	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
+		ib_uint64_t	num_null;
+
+		/* In theory, index->stat_n_non_null_key_vals[i]
+		should always be less than the number of records.
+		Since this is statistics value, the value could
+		have slight discrepancy. But we will make sure
+		the number of null values is not a negative number. */
+		if (records < index->stat_n_non_null_key_vals[i]) {
+			num_null = 0;
+		} else {
+			num_null = records - index->stat_n_non_null_key_vals[i];
+		}
+
+		/* If the number of NULL values is the same as or
+		large than that of the distinct values, we could
+		consider that the table consists mostly of NULL value. 
+		Set rec_per_key to 1. */
+		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
+			rec_per_key = 1;
+		} else {
+			/* Need to exclude rows with NULL values from
+			rec_per_key calculation */
+			rec_per_key = (ha_rows)(
+				(records - num_null)
+				/ (index->stat_n_diff_key_vals[i + 1]
+				   - num_null));
+		}
+	} else {
+		rec_per_key = (ha_rows)
+			 (records / index->stat_n_diff_key_vals[i + 1]);
+	}
+
+	return(rec_per_key);
+}
+
+/*********************************************************************//**
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object.
 @return HA_ERR_* error code or 0 */
@@ -8390,13 +8462,8 @@ ha_innobase::info_low(
 					break;
 				}
 
-				if (index->stat_n_diff_key_vals[j + 1] == 0) {
-
-					rec_per_key = stats.records;
-				} else {
-					rec_per_key = (ha_rows)(stats.records /
-					 index->stat_n_diff_key_vals[j + 1]);
-				}
+				rec_per_key = innodb_rec_per_key(
+					index, j, stats.records);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -8565,9 +8632,9 @@ ha_innobase::check(
 	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	server_mutex_exit();
+	os_increment_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -8661,9 +8728,9 @@ ha_innobase::check(
 	}
 
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	server_mutex_exit();
+	os_decrement_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
@@ -9373,7 +9440,7 @@ ha_innobase::external_lock(
 	prebuilt->mysql_has_locked = FALSE;
 
 	/* Release a possible FIFO ticket and search latch. Since we
-	may reserve the trx_sys_t::mutex, we have to release the search
+	may reserve the trx_sys->lock, we have to release the search
 	system latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -10568,7 +10635,7 @@ innobase_xa_prepare(
 	thd_get_xid(thd, (MYSQL_XID*) &trx->xid);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
-	reserve the trx_sys_t::mutex, we have to release the search system
+	reserve the trx_sys->lock, we have to release the search system
 	latch first to obey the latching order. */
 
 	innobase_release_stat_resources(trx);
@@ -12203,6 +12270,13 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "all");
 
+static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
+   PLUGIN_VAR_RQCMDARG,
+  "Specifies how InnoDB index statistics collection code should "
+  "treat NULLs. Possible values are NULLS_EQUAL (default), "
+  "NULLS_UNEQUAL and NULLS_IGNORED",
+   NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -12290,6 +12364,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_transient_sample_pages),
   MYSQL_SYSVAR(stats_persistent_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
+  MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(strict_mode),

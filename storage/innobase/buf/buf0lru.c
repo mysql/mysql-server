@@ -617,7 +617,7 @@ buf_LRU_free_from_unzip_LRU_list(
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
-		freed = buf_LRU_free_block(&block->page, FALSE, NULL);
+		freed = buf_LRU_free_block(&block->page, FALSE);
 		switch (freed) {
 		case BUF_LRU_FREED:
 			return(TRUE);
@@ -675,7 +675,7 @@ buf_LRU_free_from_common_LRU_list(
 		ut_ad(bpage->in_LRU_list);
 
 		accessed = buf_page_is_accessed(bpage);
-		freed = buf_LRU_free_block(bpage, TRUE, NULL);
+		freed = buf_LRU_free_block(bpage, TRUE);
 		switch (freed) {
 		case BUF_LRU_FREED:
 			/* Keep track of pages that are evicted without
@@ -865,9 +865,7 @@ UNIV_INTERN
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
-	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	ulint		zip_size)	/*!< in: compressed page size in bytes,
-					or 0 if uncompressed tablespace */
+	buf_pool_t*	buf_pool)	/*!< in/out: buffer pool instance */
 {
 	buf_block_t*	block		= NULL;
 	ibool		freed;
@@ -943,31 +941,11 @@ loop:
 
 	/* If there is a block in the free list, take it */
 	block = buf_LRU_get_free_only(buf_pool);
+	buf_pool_mutex_exit(buf_pool);
+
 	if (block) {
-
 		ut_ad(buf_pool_from_block(block) == buf_pool);
-
-#ifdef UNIV_DEBUG
-		block->page.zip.m_start =
-#endif /* UNIV_DEBUG */
-			block->page.zip.m_end =
-			block->page.zip.m_nonempty =
-			block->page.zip.n_blobs = 0;
-
-		if (UNIV_UNLIKELY(zip_size)) {
-			ibool	lru;
-			page_zip_set_size(&block->page.zip, zip_size);
-
-			block->page.zip.data = buf_buddy_alloc(
-				buf_pool, zip_size, &lru);
-
-			UNIV_MEM_DESC(block->page.zip.data, zip_size, block);
-		} else {
-			page_zip_set_size(&block->page.zip, 0);
-			block->page.zip.data = NULL;
-		}
-
-		buf_pool_mutex_exit(buf_pool);
+		memset(&block->page.zip, 0, sizeof block->page.zip);
 
 		if (started_monitor) {
 			srv_print_innodb_monitor = mon_value_was;
@@ -978,8 +956,6 @@ loop:
 
 	/* If no block was in the free list, search from the end of the LRU
 	list and try to free a block there */
-
-	buf_pool_mutex_exit(buf_pool);
 
 	freed = buf_LRU_search_and_free_block(buf_pool, n_iterations);
 
@@ -1462,12 +1438,8 @@ enum buf_lru_free_block_status
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	ibool		zip,	/*!< in: TRUE if should remove also the
+	ibool		zip)	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
-	ibool*		buf_pool_mutex_released)
-				/*!< in: pointer to a variable that will
-				be assigned TRUE if buf_pool_mutex
-				was temporarily released, or NULL */
 {
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1702,10 +1674,6 @@ func_exit:
 
 		rw_lock_x_unlock(hash_lock);
 		mutex_exit(block_mutex);
-	}
-
-	if (buf_pool_mutex_released) {
-		*buf_pool_mutex_released = TRUE;
 	}
 
 	buf_pool_mutex_exit(buf_pool);

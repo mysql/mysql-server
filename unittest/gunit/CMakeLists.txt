@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems,Inc
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ IF(NOT GTEST_FOUND)
         FIND_PROGRAM(WGET_EXECUTABLE wget)
         MARK_AS_ADVANCED(WGET_EXECUTABLE)
         IF(WGET_EXECUTABLE)
-          EXECUTE_PROCESS(COMMAND  ${WGET_EXECUTABLE} -T 30 ${GTEST_DOWNLOAD_URL}
+          EXECUTE_PROCESS(COMMAND ${WGET_EXECUTABLE} -T 30 ${GTEST_DOWNLOAD_URL}
             WORKING_DIRECTORY ${DOWNLOAD_ROOT} RESULT_VARIABLE ERR)
           IF(ERR EQUAL 0)
             SET(DOWNLOAD_SUCCEEDED 1)
@@ -218,8 +218,27 @@ SET(TESTS
   thread_utils
   )
 
+# Add tests (link them with gunit library and the server libraries) 
+SET(SERVER_TESTS
+  item
+)
+
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)
+  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+    SET_TARGET_PROPERTIES(${test}-t  PROPERTIES LINK_FLAGS "-library=stlport4")
+  ENDIF()
+  ADD_TEST(${test} ${test}-t)
+ENDFOREACH()
+
+FOREACH(test ${SERVER_TESTS})
+  IF(WIN32)
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc ../../sql/nt_servc.cc)
+  ELSE()
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+  ENDIF()
+  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)
   IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
     SET_TARGET_PROPERTIES(${test}-t  PROPERTIES LINK_FLAGS "-library=stlport4")
