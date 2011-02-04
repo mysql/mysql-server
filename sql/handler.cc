@@ -3002,8 +3002,10 @@ err:
 uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
+#ifndef MCP_BUG59948
   if (!table || !table->file)
     DBUG_RETURN((uint) -1);
+#endif
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
