@@ -316,6 +316,16 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   /* Update cached Min Db node version */
   theCachedMinDbNodeVersion = theImpl->m_transporter_facade->getMinDbNodeVersion();
 
+  if (likely(NdbImpl::recordGSN(tSignalNumber)))
+  {
+    Uint32 secs = aSignal->m_noOfSections;
+    theImpl->incClientStat(BytesRecvdCount,
+                           ((aSignal->getLength() << 2) +
+                            ((secs > 2)? ptr[2].sz << 2: 0) + 
+                            ((secs > 1)? ptr[1].sz << 2: 0) +
+                            ((secs > 0)? ptr[0].sz << 2: 0)));
+  }
+  
   /*
     In order to support 64 bit processes in the application we need to use
     id's rather than a direct pointer to the object used. It is also a good
@@ -371,6 +381,12 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 				   tLen - TransIdAI::HeaderLength);
       }
 
+      {
+        tCon->theNdb->theImpl->incClientStat(Ndb::ReadRowCount, 1);
+        if (refToNode(aSignal->theSendersBlockRef) == tCon->theDBnode)
+          tCon->theNdb->theImpl->incClientStat(Ndb::TransLocalReadRowCount, 1);
+      }
+      
       if(com == 0)
 	return;
       
@@ -1232,6 +1248,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   NDB_TICKS maxTime = currTime + (NDB_TICKS)waitTime;
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   const int maxsleep = aMilliSecondsToWait > 10 ? 10 : aMilliSecondsToWait;
+  theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
     poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
@@ -1350,6 +1367,7 @@ Ndb::sendRecSignal(Uint16 node_id,
     in all places where the object is out of context due to a return,
     break, continue or simply end of statement block
   */
+  theImpl->incClientStat(WaitMetaRequestCount, 1);
   PollGuard poll_guard(* theImpl);
   read_conn_seq= theImpl->getNodeSequence(node_id);
   if (ret_conn_seq)
