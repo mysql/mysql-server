@@ -574,6 +574,7 @@ MY_CHECK_TYPE_SIZE(uint32 UINT32)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
 MY_CHECK_TYPE_SIZE(int64 INT64)
 MY_CHECK_TYPE_SIZE(uint64 UINT64)
+MY_CHECK_TYPE_SIZE(time_t TIME_T)
 SET (CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
 MY_CHECK_TYPE_SIZE(bool  BOOL)
 SET(CMAKE_EXTRA_INCLUDE_FILES)
@@ -592,6 +593,16 @@ ENDIF()
 #
 # Code tests
 #
+
+# check whether time_t is unsigned
+CHECK_C_SOURCE_COMPILES("
+int main()
+{
+  int array[(((time_t)-1) > 0) ? 1 : -1];
+  return 0;
+}"
+TIME_T_UNSIGNED)
+
 
 CHECK_C_SOURCE_COMPILES("
 #ifdef _WIN32

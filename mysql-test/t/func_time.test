@@ -802,6 +802,26 @@ select LAST_DAY('2007-12-06 08:59:19.05') - INTERVAL 1 SECOND;
 select date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond);
 select date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond);
 
+
+--echo #
+--echo # Bug #52315 part 2 : utc_date() crashes when system time > year 2037
+--echo #
+
+--disable_result_log
+SET TIMESTAMP=-147490000; SELECT UTC_TIMESTAMP();
+--error ER_WRONG_VALUE_FOR_VAR
+SET TIMESTAMP=2147483648; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483646; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483647; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=0; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=-1; SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=1; SELECT UTC_TIMESTAMP();
+--enable_result_log
+
+#reset back the timestamp value
+SET TIMESTAMP=0;
+
+
 --echo End of 5.0 tests
 
 #
