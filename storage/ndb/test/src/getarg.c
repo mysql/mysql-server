@@ -1,6 +1,6 @@
 /* -*- c-basic-offset: 4; -*- */
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (C) 2003-2005 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *

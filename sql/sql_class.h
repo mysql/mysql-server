@@ -3165,6 +3165,9 @@ public:
   {}
   void cleanup();
   bool send_data(List<Item> &items);
+#ifndef MCP_BUG56690
+private:
+#endif
   bool cmp_real();
   bool cmp_int();
   bool cmp_decimal();

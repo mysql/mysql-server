@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -555,6 +554,24 @@ ndbd_fail_rep_source_node(Uint32 x)
     }
     return x >= NDBD_FAIL_REP_SOURCE_NODE_71;
   }
+}
+
+
+#define NDBD_SYNC_REQ_SUPPORT_70 NDB_MAKE_VERSION(7,0,20)
+#define NDBD_SYNC_REQ_SUPPORT_71 NDB_MAKE_VERSION(7,1,9)
+
+static
+inline
+int
+ndbd_sync_req_support(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_SYNC_REQ_SUPPORT_70;
+
+  return x >= NDBD_SYNC_REQ_SUPPORT_71;
 }
 
 #endif
