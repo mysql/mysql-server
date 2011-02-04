@@ -64,6 +64,7 @@ START SLAVE;
 INSERT INTO t VALUES (7);
 # Read information about master binlog
 # Sync slave(7) thread
+FLUSH LOGS;
 # Analyse master slow_query_log
 1
 1
@@ -72,6 +73,7 @@ INSERT INTO t VALUES (7);
 1
 1
 1
+FLUSH LOGS;
 # Analyse slave slow_query_log
 0
 0

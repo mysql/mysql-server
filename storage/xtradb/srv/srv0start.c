@@ -1439,7 +1439,24 @@ innobase_start_or_create_for_mysql(void)
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);
 
+	/* Print time to initialize the buffer pool */
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: Initializing buffer pool, size =");
+
+	if (srv_buf_pool_size >= 1024 * 1024 * 1024) {
+		fprintf(stderr,
+			" %.1fG\n",
+			((double) srv_buf_pool_size) / (1024 * 1024 * 1024));
+	} else {
+		fprintf(stderr,
+			" %.1fM\n",
+			((double) srv_buf_pool_size) / (1024 * 1024));
+	}
+
 	ret = buf_pool_init();
+
+	ut_print_timestamp(stderr);
 
 	if (ret == NULL) {
 		fprintf(stderr,
@@ -1448,6 +1465,9 @@ innobase_start_or_create_for_mysql(void)
 
 		return(DB_ERROR);
 	}
+
+	fprintf(stderr,
+		"  InnoDB: Completed initialization of buffer pool\n");
 
 #ifdef UNIV_DEBUG
 	/* We have observed deadlocks with a 5MB buffer pool but
@@ -1639,14 +1659,6 @@ innobase_start_or_create_for_mysql(void)
 
 	trx_sys_file_format_init();
 
-	if (create_new_doublewrite_file) {
-		mtr_start(&mtr);
-		fsp_header_init(TRX_DOUBLEWRITE_SPACE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9, &mtr);
-		mtr_commit(&mtr);
-
-		trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
-	}
-
 	if (create_new_db) {
 		mtr_start(&mtr);
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
@@ -1654,6 +1666,15 @@ innobase_start_or_create_for_mysql(void)
 		mtr_commit(&mtr);
 
 		trx_sys_create();
+
+		if (create_new_doublewrite_file) {
+			mtr_start(&mtr);
+			fsp_header_init(TRX_DOUBLEWRITE_SPACE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9, &mtr);
+			mtr_commit(&mtr);
+
+			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
+		}
+
 		dict_create();
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1691,6 +1712,13 @@ innobase_start_or_create_for_mysql(void)
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
 	} else {
+		char*	save_srv_doublewrite_file = NULL;
+
+		if (create_new_doublewrite_file) {
+			/* doublewrite_file cannot be used for recovery yet. */
+			save_srv_doublewrite_file = srv_doublewrite_file;
+			srv_doublewrite_file = NULL;
+		}
 
 		/* Check if we support the max format that is stamped
 		on the system tablespace. 
@@ -1716,6 +1744,8 @@ innobase_start_or_create_for_mysql(void)
 		Note that this is not as heavy weight as it seems. At
 		this point there will be only ONE page in the buf_LRU
 		and there must be no page in the buf_flush list. */
+		/* buffer_pool_shm should not be reused when recovery was needed. */
+		if (!srv_buffer_pool_shm_is_reused)
 		buf_pool_invalidate();
 
 		/* We always try to do a recovery, even if the database had
@@ -1777,6 +1807,17 @@ innobase_start_or_create_for_mysql(void)
 		we have finished the recovery process so that the
 		image of TRX_SYS_PAGE_NO is not stale. */
 		trx_sys_file_format_tag_init();
+
+		if (create_new_doublewrite_file) {
+			/* restore the value */
+			srv_doublewrite_file = save_srv_doublewrite_file;
+
+			mtr_start(&mtr);
+			fsp_header_init(TRX_DOUBLEWRITE_SPACE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 9, &mtr);
+			mtr_commit(&mtr);
+
+			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
+		}
 	}
 
 	if (!create_new_db && sum_of_new_sizes > 0) {
