@@ -83,6 +83,25 @@ create table binarytypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists varbinarytypes;
+create table varbinarytypes (
+ id int not null primary key,
+
+ binary1 varbinary(1),
+ binary2 varbinary(2),
+ binary4 varbinary(4),
+ binary8 varbinary(8),
+ binary16 varbinary(16),
+ binary32 varbinary(32),
+ binary64 varbinary(64),
+ binary128 varbinary(128),
+ binary256 varbinary(256),
+ binary512 varbinary(512),
+ binary1024 varbinary(1024),
+ binary2048 varbinary(2048)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 drop table if exists charsetlatin1;
 create table charsetlatin1 (
  id int not null primary key,
