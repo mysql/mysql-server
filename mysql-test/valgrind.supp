@@ -744,3 +744,37 @@
    Memcheck:Addr1
    fun:buf_buddy_relocate
 }
+
+{
+   Bug 59874 Valgrind warning in InnoDB compression code
+   Memcheck:Cond
+   obj:*/libz.so*
+   obj:*/libz.so*
+   fun:deflate
+   fun:btr_store_big_rec_extern_fields_func
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_index_entry_step
+   fun:row_ins
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+{
+   In page0zip.c we have already checked that the memory is initialized before calling deflate()
+   Memcheck:Cond
+   obj:*/libz.so*
+   obj:*/libz.so*
+   fun:deflate
+   fun:page_zip_compress
+   fun:page_cur_insert_rec_zip_reorg
+   fun:page_cur_insert_rec_zip
+   fun:page_cur_tuple_insert
+   fun:btr_cur_optimistic_insert
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_index_entry_step
+   fun:row_ins
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
