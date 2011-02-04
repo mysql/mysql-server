@@ -92,7 +92,7 @@ static inline void __hide_warnings_unused_ref_vars(void) {
   (void)NDBFS_REF;   (void)CMVMI_REF;   (void)TRIX_REF;
   (void)DBUTIL_REF;  (void)SUMA_REF;    (void)DBTUX_REF;
   (void)TSMAN_REF;   (void)LGMAN_REF;   (void)PGMAN_REF;
-  (void)RESTORE_REF; (void)DBINFO_REF;
+  (void)RESTORE_REF; (void)DBINFO_REF;  (void)DBSPJ_REF;
 }
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;

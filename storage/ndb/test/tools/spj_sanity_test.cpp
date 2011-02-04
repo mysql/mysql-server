@@ -373,6 +373,10 @@ namespace SPJSanityTest{
 
     ~Query(){
       m_builder->destroy();
+      if (m_queryDef != NULL)
+      {
+        m_queryDef->destroy();
+      }
     }
 
     /** Build query definition.*/

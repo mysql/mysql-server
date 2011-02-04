@@ -174,7 +174,6 @@ public:
   { return m_keys; }
  
 protected:
-  virtual ~NdbQueryLookupOperationDefImpl() {}
 
   explicit NdbQueryLookupOperationDefImpl (
                            const NdbTableImpl& table,
@@ -207,7 +206,6 @@ public:
   virtual int serializeOperation(Uint32Buffer& serializedDef);
 
 private:
-  virtual ~NdbQueryPKLookupOperationDefImpl() {}
 
   explicit NdbQueryPKLookupOperationDefImpl (
                            const NdbTableImpl& table,
@@ -236,7 +234,7 @@ public:
   virtual int serializeOperation(Uint32Buffer& serializedDef);
 
 private:
-  virtual ~NdbQueryIndexOperationDefImpl() {}
+
   explicit NdbQueryIndexOperationDefImpl (
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
@@ -272,7 +270,7 @@ public:
   { return NdbQueryOperationDef::TableScan; }
 
 private:
-  virtual ~NdbQueryTableScanOperationDefImpl() {}
+
   explicit NdbQueryTableScanOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
@@ -358,8 +356,6 @@ NdbConstOperand::~NdbConstOperand()
 NdbParamOperand::~NdbParamOperand()
 {}
 NdbLinkedOperand::~NdbLinkedOperand()
-{}
-NdbQueryOperandImpl::~NdbQueryOperandImpl()
 {}
 
 /**
@@ -504,11 +500,21 @@ NdbQueryTableScanOperationDef::~NdbQueryTableScanOperationDef()
 {}
 NdbQueryIndexScanOperationDef::~NdbQueryIndexScanOperationDef()
 {}
-NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
-{}
-NdbQueryScanOperationDefImpl::~NdbQueryScanOperationDefImpl()
-{}
 
+NdbQueryOperationDefImpl::~NdbQueryOperationDefImpl()
+{
+  if (m_parent != NULL)
+  {
+    m_parent->removeChild(this);
+  }
+  // Delete children recursively also.
+  for (Uint32 i = 0; i<m_children.size(); i++)
+  {
+    assert(m_children[i]->m_parent == this);
+    m_children[i]->m_parent = NULL;
+    delete m_children[i];
+  }
+}
 
 /**
  * Get'ers for QueryOperation...DefImpl object.
@@ -1062,13 +1068,12 @@ NdbQueryBuilderImpl::NdbQueryBuilderImpl(Ndb& ndb)
 
 NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 {
-  Uint32 i;
-
   // Delete all operand and operator in Vector's
-  for (i=0; i<m_operations.size(); ++i)
-  { delete m_operations[i];
+  if (m_operations.size() > 0)
+  {
+    delete m_operations[0];
   }
-  for (i=0; i<m_operands.size(); ++i)
+  for (Uint32 i=0; i<m_operands.size(); ++i)
   { delete m_operands[i];
   }
 }
@@ -1216,8 +1221,9 @@ NdbQueryDefImpl(const Vector<NdbQueryOperationDefImpl*>& operations,
 NdbQueryDefImpl::~NdbQueryDefImpl()
 {
   // Release all NdbQueryOperations
-  for (Uint32 i=0; i<m_operations.size(); ++i)
-  { delete m_operations[i];
+  if (m_operations.size() > 0)
+  {
+    delete m_operations[0];
   }
   for (Uint32 i=0; i<m_operands.size(); ++i)
   { delete m_operands[i];
@@ -1842,7 +1848,7 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
   }
 }
 
-  
+
 int
 NdbQueryOperationDefImpl::addChild(NdbQueryOperationDefImpl* childOp)
 {

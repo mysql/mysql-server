@@ -406,7 +406,7 @@ public:
     return 0;
   }
 
-  virtual ~NdbQueryOperationDefImpl() = 0;
+  virtual ~NdbQueryOperationDefImpl();
 
 protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
@@ -497,7 +497,6 @@ class NdbQueryScanOperationDefImpl :
   public NdbQueryOperationDefImpl
 {
 public:
-  virtual ~NdbQueryScanOperationDefImpl()=0;
   explicit NdbQueryScanOperationDefImpl (
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
@@ -553,7 +552,7 @@ protected:
   virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const;
 
 private:
-  virtual ~NdbQueryIndexScanOperationDefImpl() {};
+
   explicit NdbQueryIndexScanOperationDefImpl (
                            const NdbIndexImpl& index,
                            const NdbTableImpl& table,
@@ -703,7 +702,7 @@ protected:
   friend NdbQueryBuilderImpl::~NdbQueryBuilderImpl();
   friend NdbQueryDefImpl::~NdbQueryDefImpl();
 
-  virtual ~NdbQueryOperandImpl()=0;
+  virtual ~NdbQueryOperandImpl(){};
 
   NdbQueryOperandImpl(Kind kind)
     : m_column(0),
@@ -743,8 +742,6 @@ public:
                           NdbQueryOperationDefImpl& operation);
 
 private:
-  virtual ~NdbLinkedOperandImpl() {}
-
   NdbLinkedOperandImpl (NdbQueryOperationDefImpl& parent, 
                         Uint32 columnIx)
    : NdbQueryOperandImpl(Linked),
@@ -777,7 +774,6 @@ public:
                           NdbQueryOperationDefImpl& operation);
 
 private:
-  virtual ~NdbParamOperandImpl() {}
   NdbParamOperandImpl (const char* name, Uint32 paramIx)
    : NdbQueryOperandImpl(Param),
      m_interface(*this), 
@@ -807,7 +803,6 @@ public:
                           NdbQueryOperationDefImpl& operation);
 
 protected:
-  virtual ~NdbConstOperandImpl() {}
   NdbConstOperandImpl ()
     : NdbQueryOperandImpl(Const),
       m_converted(),
