@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23964,6 +23963,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
   Uint32 requestInfo = 0;
   DictSignal::setRequestType(requestInfo, SchemaTransImplReq::RT_PARSE);
   DictSignal::addRequestFlags(requestInfo, op_ptr.p->m_requestInfo);
+  DictSignal::addRequestExtra(requestInfo, op_ptr.p->m_requestInfo);
 
   trans_ptr.p->m_ref_nodes.clear();
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
