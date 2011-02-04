@@ -6699,7 +6699,6 @@ restart_cluster_failure:
                 (! (opt_ndb_log_apply_status &&
                     trans_slave_row_count) ))
             {
-#ifndef NDB_NO_LOG_EMPTY_EPOCHS
               /* nothing to commit, rollback instead */
               if (int r= trans.rollback())
               {
@@ -6709,9 +6708,6 @@ restart_cluster_failure:
                 /* TODO: Further handling? */
               }
               break;
-#else
-              abort(); // Should not come here, log-empty-epochs is always on
-#endif
             }
           }
       commit_to_binlog:
