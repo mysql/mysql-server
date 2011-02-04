@@ -16,6 +16,7 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
+noinst_HEADERS=		strings_def.h
 pkglib_LIBRARIES =	libmystrings.a
 noinst_LTLIBRARIES =	libmystrings.la
 
