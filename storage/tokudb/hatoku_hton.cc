@@ -1248,14 +1248,16 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("upgrade nonleaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_leaf);
       STATPRINT("upgrade leaf", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.optimized_for_upgrade);
+      STATPRINT("optimized for upgrade", buf);
 
       snprintf(buf, bufsiz, "%" PRIu64, engstat.original_ver);
       STATPRINT("original version", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.ver_at_startup);
       STATPRINT("version at startup", buf);
-      snprintf(buf, bufsiz, "%" PRIu64, engstat.last_lsn_v12);
-      STATPRINT("last LSN of version 12", buf);      
-      STATPRINT("time of upgrade to version 13", engstat.upgrade_v13_time);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.last_lsn_v13);
+      STATPRINT("last LSN of version 13", buf);      
+      STATPRINT("time of upgrade to version 14", engstat.upgrade_v14_time);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
