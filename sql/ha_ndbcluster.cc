@@ -254,8 +254,6 @@ static MYSQL_THDVAR_UINT(
 */
 static const int max_transactions= 4;
 
-static uint ndbcluster_partition_flags();
-static int ndbcluster_init(void *);
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
@@ -300,16 +298,29 @@ static handler *ndbcluster_create_handler(handlerton *hton,
   return new (mem_root) ha_ndbcluster(hton, table);
 }
 
-static uint ndbcluster_partition_flags()
+static uint
+ndbcluster_partition_flags()
 {
   return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
 #ifndef NDB_WITHOUT_ONLINE_ALTER
-static uint ndbcluster_alter_partition_flags()
+static uint
+ndbcluster_alter_partition_flags()
 {
   return HA_PARTITION_FUNCTION_SUPPORTED;
+}
+#else
+static uint
+ndbcluster_alter_table_flags(uint flags)
+{
+  if (flags & ALTER_DROP_PARTITION)
+    return 0;
+  else
+    return (HA_ONLINE_ADD_INDEX | HA_ONLINE_DROP_INDEX |
+            HA_ONLINE_ADD_UNIQUE_INDEX | HA_ONLINE_DROP_UNIQUE_INDEX |
+            HA_PARTITION_FUNCTION_SUPPORTED);
 }
 #endif
 
@@ -10423,9 +10434,10 @@ static int ndbcluster_init(void *p)
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
 #ifndef NDB_WITHOUT_ONLINE_ALTER
     h->alter_partition_flags=
-      ndbcluster_alter_partition_flags;             /* Alter table flags */
+      ndbcluster_alter_partition_flags;             /* Alter partition flags */
 #else
-    /* Should install alter_table_flags */
+    h->alter_table_flags=
+      ndbcluster_alter_table_flags;                 /* Alter table flags */
 #endif
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
@@ -14965,23 +14977,15 @@ static MYSQL_SYSVAR_BOOL(
   1                                  /* default */
 );
 
-#ifndef NDB_NO_LOG_EMPTY_EPOCHS
-#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG
-#define LOG_EMPTY_EPOCHS_DEFAULT 0
-#else
-#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY
-#define LOG_EMPTY_EPOCHS_DEFAULT 1
-#endif
-
 static my_bool opt_ndb_log_empty_epochs;
 static MYSQL_SYSVAR_BOOL(
   log_empty_epochs,                  /* name */
   opt_ndb_log_empty_epochs,          /* var */
-  LOG_EMPTY_EPOCHS_OPTS,
+  PLUGIN_VAR_OPCMDARG,
   "",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  LOG_EMPTY_EPOCHS_DEFAULT           /* default */
+  0                                  /* default */
 );
 
 bool ndb_log_empty_epochs(void)
