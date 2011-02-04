@@ -1550,7 +1550,7 @@ err_len:
 				"InnoDB: in InnoDB data dictionary"
 				" has unknown type %lx.\n",
 				(ulong) flags);
-			return(NULL);
+			return("incorrect flags in SYS_TABLES");
 		}
 	} else {
 		flags = 0;
