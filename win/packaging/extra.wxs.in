@@ -637,7 +637,7 @@
       Message=
       'Previous version of MariaDB was found, that used incompatible installer.&#xD;&#xA;Please remove &quot;[NSISINSTALLKEY]&quot; before you proceed with this installation.'
       >
-      NOT NSISINSTALLKEY OR Installed
+      <![CDATA[ NOT(NSISINSTALLKEY << "MariaDB @MAJOR_VERSION@.@MINOR_VERSION@.") OR Installed]]>
     </Condition>
     <Condition Message=
        'Setting the ALLUSERS property is not allowed because [ProductName] is a per-machine application. Setup will now exit.'>
