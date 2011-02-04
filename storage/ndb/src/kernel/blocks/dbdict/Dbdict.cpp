@@ -23963,6 +23963,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
   Uint32 requestInfo = 0;
   DictSignal::setRequestType(requestInfo, SchemaTransImplReq::RT_PARSE);
   DictSignal::addRequestFlags(requestInfo, op_ptr.p->m_requestInfo);
+  DictSignal::addRequestExtra(requestInfo, op_ptr.p->m_requestInfo);
 
   trans_ptr.p->m_ref_nodes.clear();
   trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
