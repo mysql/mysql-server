@@ -272,11 +272,6 @@ static int create_myini()
     fprintf(myini,"port=%d\n", opt_port);
   }
 
-#ifdef _WIN64
-  /* PBXT does not work in 64 bit windows, sorry. */
-  fprintf(myini, "loose-skip-pbxt\n");
-#endif
-
   /* Write out client settings. */
   fprintf(myini, "[client]\n");
   if(opt_socket && opt_socket[0])

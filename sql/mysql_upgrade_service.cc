@@ -394,17 +394,12 @@ static void change_service_config()
 
     WritePrivateProfileString("mysqld", "datadir",buf, props.inifile);
   }
-
   /*
     Remove basedir from defaults file, otherwise the service wont come up in 
     the new  version, and will complain about mismatched message file.
   */
   WritePrivateProfileString("mysqld", "basedir",NULL, props.inifile);
 
-#ifdef _WIN64
-  /* Currently, pbxt is non-functional on x64 */
-  WritePrivateProfileString("mysqld", "loose-skip-pbxt","1", props.inifile);
-#endif
   /* 
     Replace default-character-set  with character-set-server, to avoid 
     "default-character-set is deprecated and will be replaced ..."
