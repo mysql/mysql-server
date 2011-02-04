@@ -141,7 +141,7 @@ btr_search_check_free_space_in_heap(void)
 	be enough free space in the hash table. */
 
 	if (heap->free_block == NULL) {
-		buf_block_t*	block = buf_block_alloc(0);
+		buf_block_t*	block = buf_block_alloc();
 
 		rw_lock_x_lock(&btr_search_latch);
 

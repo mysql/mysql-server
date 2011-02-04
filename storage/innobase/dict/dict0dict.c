@@ -1358,6 +1358,12 @@ dict_index_add_to_cache(
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
 			* sizeof(ib_longlong));
+
+		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_non_null_key_vals));
+
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
@@ -3817,6 +3823,10 @@ dict_update_statistics_low(
 			for (i = dict_index_get_n_unique(index); i; ) {
 				index->stat_n_diff_key_vals[i--] = 1;
 			}
+
+			memset(index->stat_n_non_null_key_vals, 0,
+			       (1 + dict_index_get_n_unique(index))
+                               * sizeof(*index->stat_n_non_null_key_vals));
 		}
 
 		index = dict_table_get_next_index(index);
