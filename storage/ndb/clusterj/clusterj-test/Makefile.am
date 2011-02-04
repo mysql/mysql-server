@@ -106,6 +106,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/TimestampAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TransactionStateTest.java \
   $(clusterj_test_src)/testsuite/clusterj/UpdateTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/VarbinaryTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/domaintypehandler/CrazyDomainTypeHandlerFactoryImpl.java \
   $(clusterj_test_src)/testsuite/clusterj/model/AllPrimitives.java \
   $(clusterj_test_src)/testsuite/clusterj/model/BadEmployeeNoPrimaryKeyAnnotationOnClass.java \
