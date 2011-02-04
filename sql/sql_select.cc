@@ -9220,7 +9220,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
       @code
       SELECT A.f2 FROM t1 LEFT JOIN t2 A ON A.f2 = f1
       WHERE A.f3=(SELECT MIN(f3) FROM  t2 C WHERE A.f4 = C.f4) OR A.f3 IS NULL;
-      @endocde
+      @endcode
       Here condition A.f3 IS NOT NULL is going to be added to the WHERE
       condition of the embedding query.
       Another example:
