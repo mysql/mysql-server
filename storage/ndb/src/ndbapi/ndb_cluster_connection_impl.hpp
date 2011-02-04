@@ -126,6 +126,10 @@ private:
   
   // keep initial transId's increasing...
   Uint32 m_max_trans_id;
+
+  // Base offset for stats, from Ndb objects that are no 
+  // longer with us
+  Uint64 globalApiStatsBaseline[ Ndb::NumClientStatistics ];
 };
 
 #endif

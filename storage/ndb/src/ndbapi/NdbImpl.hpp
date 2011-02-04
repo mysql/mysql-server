@@ -123,9 +123,47 @@ public:
     return m_ndb_cluster_connection.m_config;
   }
 
-
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
 
+  Uint64 clientStats[ Ndb::NumClientStatistics ];
+  
+  inline void incClientStat(const Ndb::ClientStatistics stat, const Uint64 inc) {
+    assert(stat < Ndb::NumClientStatistics);
+    if (likely(stat < Ndb::NumClientStatistics))
+      clientStats[ stat ] += inc;
+  };
+
+  inline void decClientStat(const Ndb::ClientStatistics stat, const Uint64 dec) {
+    assert(stat < Ndb::NumClientStatistics);
+    if (likely(stat < Ndb::NumClientStatistics))
+      clientStats[ stat ] -= dec;
+  };
+  
+  inline void setClientStat(const Ndb::ClientStatistics stat, const Uint64 val) {
+    assert(stat < Ndb::NumClientStatistics);
+    if (likely(stat < Ndb::NumClientStatistics))
+      clientStats[ stat ] = val;
+  };
+
+  /* We don't record the sent/received bytes of some GSNs as they are 
+   * generated constantly and are not targetted to specific
+   * Ndb instances.
+   * See also TransporterFacade::TRACE_GSN
+   */
+  static bool recordGSN(Uint32 gsn)
+  {
+    switch(gsn)
+    {
+    case GSN_API_REGREQ:
+    case GSN_API_REGCONF:
+    case GSN_SUB_GCP_COMPLETE_REP:
+    case GSN_SUB_GCP_COMPLETE_ACK:
+      return false;
+    default:
+      return true;
+    }
+  }
+  
   /**
    * NOTE free lists must be _after_ theNdbObjectIdMap take
    *   assure that destructors are run in correct order
@@ -151,6 +189,7 @@ public:
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
+  virtual void recordWaitTimeNanos(Uint64 nanos);
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
   bool   get_node_stopping(NodeId nodeId) const;
@@ -451,11 +490,22 @@ NdbImpl::getNodeNdbVersion(NodeId n) const
 }
 
 inline
+void
+NdbImpl::recordWaitTimeNanos(Uint64 nanos)
+{
+  incClientStat( Ndb::WaitNanosCount, nanos );
+}
+
+inline
 int
 NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId)
 {
   if (getIsNodeSendable(nodeId))
   {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount, signal->getLength() << 2);
+    }
     return raw_sendSignal(signal, nodeId);
   }
   return -1;
@@ -468,6 +518,14 @@ NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
 {
   if (getIsNodeSendable(nodeId))
   {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount,
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2: 0) + 
+                     ((secs > 1)? ptr[1].sz << 2: 0) +
+                     ((secs > 0)? ptr[0].sz << 2: 0)));
+    }
     return raw_sendSignal(signal, nodeId, ptr, secs);
   }
   return -1;
@@ -479,7 +537,15 @@ NdbImpl::sendSignal(NdbApiSignal * signal, Uint32 nodeId,
                     const GenericSectionPtr ptr[3], Uint32 secs)
 {
   if (getIsNodeSendable(nodeId))
-  {
+  {  
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    { 
+      incClientStat(Ndb::BytesSentCount, 
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2 : 0) + 
+                     ((secs > 1)? ptr[1].sz << 2: 0) +
+                     ((secs > 0)? ptr[0].sz << 2: 0)));
+    }
     return raw_sendSignal(signal, nodeId, ptr, secs);
   }
   return -1;
@@ -492,6 +558,14 @@ NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
 {
   if (getIsNodeSendable(nodeId))
   {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount, 
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2 : 0) + 
+                     ((secs > 1)? ptr[1].sz << 2: 0) +
+                     ((secs > 0)? ptr[0].sz << 2: 0)));
+    }
     return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
   }
   return -1;
@@ -504,6 +578,14 @@ NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
 {
   if (getIsNodeSendable(nodeId))
   {
+    if (likely(recordGSN(signal->theVerId_signalNumber)))
+    {
+      incClientStat(Ndb::BytesSentCount,
+                    ((signal->getLength() << 2) +
+                     ((secs > 2)? ptr[2].sz << 2 : 0) + 
+                     ((secs > 1)? ptr[1].sz << 2 : 0) +
+                     ((secs > 0)? ptr[0].sz << 2 : 0)));
+    }
     return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
   }
   return -1;
