@@ -46,10 +46,10 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	13
+#define INNODB_VERSION_BUGFIX	14
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 11.6
+#define PERCONA_INNODB_VERSION 12.5
 #endif
 
 
@@ -370,6 +370,9 @@ typedef unsigned long long int	ullint;
 
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
+
+/* THe 'undefined' value for ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

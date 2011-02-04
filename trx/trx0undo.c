@@ -1408,7 +1408,7 @@ trx_undo_lists_init(
 				page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
 							 + i * TRX_RSEG_SLOT_SIZE,
 							 MLOG_4BYTES, &mtr);
-				if (page_no != FIL_NULL) {
+				if (page_no != 0 && page_no != FIL_NULL) {
 					srv_extra_undoslots = TRUE;
 					fprintf(stderr,
 "InnoDB: Error: innodb_extra_undoslots option is disabled, but it was enabled before.\n"
@@ -1861,21 +1861,11 @@ trx_undo_set_state_at_finish(
 
 	if (undo->size == 1
 	    && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
-	       < TRX_UNDO_PAGE_REUSE_LIMIT) {
+	       < TRX_UNDO_PAGE_REUSE_LIMIT
+	    && UT_LIST_GET_LEN(rseg->update_undo_list) < 500
+	    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
 
-		/* This is a heuristic to avoid the problem of all UNDO
-		slots ending up in one of the UNDO lists. Previously if
-		the server crashed with all the slots in one of the lists,
-		transactions that required the slots of a different type
-		would fail for lack of slots. */
-
-		if (UT_LIST_GET_LEN(rseg->update_undo_list) < 500
-		    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
-
-			state = TRX_UNDO_CACHED;
-		} else {
-			state = TRX_UNDO_TO_FREE;
-		}
+		state = TRX_UNDO_CACHED;
 
 	} else if (undo->type == TRX_UNDO_INSERT) {
 

@@ -737,6 +737,15 @@ fil_page_get_type(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
 
+/*******************************************************************//**
+Returns TRUE if a single-table tablespace is being deleted.
+@return TRUE if being deleted */
+UNIV_INTERN
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+	ulint		id);	/*!< in: space id */
+
 /*************************************************************************
 Return local hash table informations. */
 

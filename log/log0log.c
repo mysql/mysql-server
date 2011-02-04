@@ -1184,6 +1184,9 @@ log_group_file_header_flush(
 	/* Wipe over possible label of ibbackup --restore */
 	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
 
+	mach_write_to_4(buf + LOG_FILE_OS_FILE_LOG_BLOCK_SIZE,
+			srv_log_block_size);
+
 	dest_offset = nth_file * group->file_size;
 
 #ifdef UNIV_DEBUG
@@ -1777,9 +1780,7 @@ log_group_checkpoint(
 	ulint		i;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
-#if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
-# error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
-#endif
+	ut_a(LOG_CHECKPOINT_SIZE <= OS_FILE_LOG_BLOCK_SIZE);
 
 	buf = group->checkpoint_buf;
 
@@ -3102,6 +3103,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 	algorithm only works if the server is idle at shutdown */
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
+	os_event_set(srv_shutdown_event);
 loop:
 	os_thread_sleep(100000);
 

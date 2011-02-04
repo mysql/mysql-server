@@ -75,12 +75,14 @@ Variable_name	Value
 use_global_long_query_time	ON
 set global long_query_time=1;
 set global use_global_long_query_time=0;
+FLUSH LOGS;
 # Analyse master slow_query_log
 0
 0
 0
 0
 0
+FLUSH LOGS;
 # Analyse slave slow_query_log
 0
 0

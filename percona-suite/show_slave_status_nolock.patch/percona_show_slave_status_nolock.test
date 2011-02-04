@@ -1,0 +1,47 @@
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+
+connection master;
+  --disable_warnings
+  DROP TABLE IF EXISTS t;
+  --enable_warnings
+  CREATE TABLE t(id INT);
+  sync_slave_with_master;
+
+connection master;
+  send INSERT INTO t SELECT SLEEP(10);
+
+connection slave;
+  sleep 15;
+  send STOP SLAVE;
+
+connection master;
+  reap;
+
+  --disable_query_log
+  select "master",count(*) from t;
+  --enable_query_log
+
+connection slave1;
+  --disable_query_log
+  select "slave",count(*) from t;
+  --enable_query_log
+
+  --disable_result_log
+  SHOW SLAVE STATUS NOLOCK;
+  --enable_result_log
+
+connection slave;
+  reap;
+
+  --source include/wait_for_slave_to_stop.inc
+  START SLAVE;
+  --source include/wait_for_slave_to_start.inc
+
+  --disable_query_log
+  select "slave",count(*) from t;
+  --enable_query_log
+
+connection master;
+  DROP TABLE t;
+sync_slave_with_master;

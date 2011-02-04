@@ -81,7 +81,7 @@ trx_sys_sys_space(
 {
 	if (srv_doublewrite_file) {
 		/* several spaces are reserved */
-		return((ibool)(space <= TRX_SYS_SPACE_MAX));
+		return((ibool)(space == TRX_SYS_SPACE || space == TRX_DOUBLEWRITE_SPACE));
 	} else {
 		return((ibool)(space == TRX_SYS_SPACE));
 	}

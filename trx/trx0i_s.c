@@ -157,10 +157,6 @@ struct trx_i_s_cache_struct {
 	ullint		last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
-	mutex_t		last_read_mutex;/*!< mutex protecting the
-					last_read member - it is updated
-					inside a shared lock of the
-					rw_lock member */
 	i_s_table_cache_t innodb_trx;	/*!< innodb_trx table */
 	i_s_table_cache_t innodb_locks;	/*!< innodb_locks table */
 	i_s_table_cache_t innodb_lock_waits;/*!< innodb_lock_waits table */
@@ -408,6 +404,42 @@ table_cache_create_empty_row(
 	return(row);
 }
 
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Validates a row in the locks cache.
+@return	TRUE if valid */
+static
+ibool
+i_s_locks_row_validate(
+/*===================*/
+	const i_s_locks_row_t*	row)	/*!< in: row to validate */
+{
+	ut_ad(row->lock_trx_id != 0);
+	ut_ad(row->lock_mode != NULL);
+	ut_ad(row->lock_type != NULL);
+	ut_ad(row->lock_table != NULL);
+	ut_ad(row->lock_table_id != 0);
+
+	if (row->lock_space == ULINT_UNDEFINED) {
+		/* table lock */
+		ut_ad(!strcmp("TABLE", row->lock_type));
+		ut_ad(row->lock_index == NULL);
+		ut_ad(row->lock_data == NULL);
+		ut_ad(row->lock_page == ULINT_UNDEFINED);
+		ut_ad(row->lock_rec == ULINT_UNDEFINED);
+	} else {
+		/* record lock */
+		ut_ad(!strcmp("RECORD", row->lock_type));
+		ut_ad(row->lock_index != NULL);
+		ut_ad(row->lock_data != NULL);
+		ut_ad(row->lock_page != ULINT_UNDEFINED);
+		ut_ad(row->lock_rec != ULINT_UNDEFINED);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Fills i_s_trx_row_t object.
 If memory can not be allocated then FALSE is returned.
@@ -435,18 +467,15 @@ fill_trx_row(
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
+	row->requested_lock_row = requested_lock_row;
+	ut_ad(requested_lock_row == NULL
+	      || i_s_locks_row_validate(requested_lock_row));
 
 	if (trx->wait_lock != NULL) {
-
 		ut_a(requested_lock_row != NULL);
-
-		row->requested_lock_row = requested_lock_row;
 		row->trx_wait_started = (ib_time_t) trx->wait_started;
 	} else {
-
 		ut_a(requested_lock_row == NULL);
-
-		row->requested_lock_row = NULL;
 		row->trx_wait_started = 0;
 	}
 
@@ -729,6 +758,7 @@ fill_locks_row(
 	row->lock_table_id = lock_get_table_id(lock);
 
 	row->hash_chain.value = row;
+	ut_ad(i_s_locks_row_validate(row));
 
 	return(TRUE);
 }
@@ -749,6 +779,9 @@ fill_lock_waits_row(
 						relevant blocking lock
 						row in innodb_locks */
 {
+	ut_ad(i_s_locks_row_validate(requested_lock_row));
+	ut_ad(i_s_locks_row_validate(blocking_lock_row));
+
 	row->requested_lock_row = requested_lock_row;
 	row->blocking_lock_row = blocking_lock_row;
 
@@ -820,6 +853,7 @@ locks_row_eq_lock(
 					or ULINT_UNDEFINED if the lock
 					is a table lock */
 {
+	ut_ad(i_s_locks_row_validate(row));
 #ifdef TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T
 	return(0);
 #else
@@ -877,7 +911,7 @@ search_innodb_locks(
 		/* auxiliary variable */
 		hash_chain,
 		/* assertion on every traversed item */
-		,
+		ut_ad(i_s_locks_row_validate(hash_chain->value)),
 		/* this determines if we have found the lock */
 		locks_row_eq_lock(hash_chain->value, lock, heap_no));
 
@@ -917,6 +951,7 @@ add_lock_to_cache(
 	dst_row = search_innodb_locks(cache, lock, heap_no);
 	if (dst_row != NULL) {
 
+		ut_ad(i_s_locks_row_validate(dst_row));
 		return(dst_row);
 	}
 #endif
@@ -954,6 +989,7 @@ add_lock_to_cache(
 	} /* for()-loop */
 #endif
 
+	ut_ad(i_s_locks_row_validate(dst_row));
 	return(dst_row);
 }
 
@@ -1101,13 +1137,6 @@ can_cache_be_updated(
 {
 	ullint	now;
 
-	/* Here we read cache->last_read without acquiring its mutex
-	because last_read is only updated when a shared rw lock on the
-	whole cache is being held (see trx_i_s_cache_end_read()) and
-	we are currently holding an exclusive rw lock on the cache.
-	So it is not possible for last_read to be updated while we are
-	reading it. */
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
 #endif
@@ -1205,6 +1234,12 @@ trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
+	ullint	now;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+#endif
+
 	if (!can_cache_be_updated(cache)) {
 
 		return(1);
@@ -1216,6 +1251,10 @@ trx_i_s_possibly_fetch_data_into_cache(
 	fetch_data_into_cache(cache);
 
 	mutex_exit(&kernel_mutex);
+
+	/* update cache last read time */
+	now = ut_time_us(NULL);
+	cache->last_read = now;
 
 	return(0);
 }
@@ -1247,15 +1286,11 @@ trx_i_s_cache_init(
 	release kernel_mutex
 	release trx_i_s_cache_t::rw_lock
 	acquire trx_i_s_cache_t::rw_lock, S
-	acquire trx_i_s_cache_t::last_read_mutex
-	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
 	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
-
-	mutex_create(&cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
@@ -1307,17 +1342,9 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
-
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED));
 #endif
-
-	/* update cache last read time */
-	now = ut_time_us(NULL);
-	mutex_enter(&cache->last_read_mutex);
-	cache->last_read = now;
-	mutex_exit(&cache->last_read_mutex);
 
 	rw_lock_s_unlock(&cache->rw_lock);
 }
