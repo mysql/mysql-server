@@ -2233,7 +2233,11 @@ public:
   /* Debug Sync facility. See debug_sync.cc. */
   struct st_debug_sync_control *debug_sync_control;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-  THD();
+
+  // We don't want to load/unload plugins for unit tests.
+  bool m_enable_plugins;
+
+  THD(bool enable_plugins= true);
   ~THD();
 
   void init(void);
@@ -2390,7 +2394,7 @@ public:
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
-    return (start_time < (time_t) MY_TIME_T_MAX); 
+    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
@@ -3389,6 +3393,7 @@ public:
   {}
   void cleanup();
   bool send_data(List<Item> &items);
+private:
   bool cmp_real();
   bool cmp_int();
   bool cmp_decimal();

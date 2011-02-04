@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -130,7 +130,8 @@ void
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates the trx_sys instance and initializes its mutex only. */
+Creates the trx_sys instance and initializes ib_bh, lock and
+read_view_mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void);
@@ -164,7 +165,7 @@ UNIV_INLINE
 void
 trx_sys_set_nth_rseg(
 /*=================*/
-	trx_sys_t*	sys,	/*!< in: trx system */
+	trx_sys_t*	sys,	/*!< in/out: trx system */
 	ulint		n,	/*!< in: index of slot */
 	trx_rseg_t*	rseg);	/*!< in: pointer to rseg object, NULL if slot
 				not in use */
@@ -228,6 +229,14 @@ UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
+/*****************************************************************//**
+Determines the maximum transaction id.
+@return maximum currently allocated trx id; will be stale after the
+next call to trx_sys_get_new_trx_id() */
+UNIV_INLINE
+trx_id_t
+trx_sys_get_max_trx_id(void);
+/*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
@@ -252,22 +261,17 @@ trx_read_trx_id(
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
 /****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
-@return	the trx handle or NULL if not found */
-UNIV_INLINE
-trx_t*
-trx_get_on_id_low(
-/*==============*/
-	trx_id_t	trx_id);/*!< in: trx id to search for */
-/****************************************************************//**
-Looks for the trx handle with the given id in trx_list.
-@return	the trx handle or NULL if not found */
+The caller must be holding trx_sys->lock.
+@return	the trx handle or NULL if not found;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_get_on_id(
 /*==========*/
 	trx_id_t	trx_id);/*!< in: trx id to search for */
 /****************************************************************//**
-Returns the minumum trx id in trx list. This is the smallest id for which
+Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->lock.state
 to find out if the minimum trx id transaction itself is active, or already
 committed.). The caller must be holding the trx_sys_t::lock in shared mode.
@@ -277,7 +281,7 @@ trx_id_t
 trx_list_get_min_trx_id_low(void);
 /*=============================*/
 /****************************************************************//**
-Returns the minumum trx id in trx list. This is the smallest id for which
+Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state to
 find out if the minimum trx id transaction itself is active, or already
 committed.)
@@ -288,22 +292,32 @@ trx_list_get_min_trx_id(void);
 /*=========================*/
 /****************************************************************//**
 Checks if a transaction with the given id is active. Caller must hold
-the trx_sys_t::lock in shared mode.
-@return	transaction instance if active or NULL */
+trx_sys->lock in shared mode. If the caller is not holding
+lock_sys->mutex, the transaction may already have been committed.
+@return	transaction instance if active, or NULL;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_is_active_low(
 /*==============*/
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
-	ibool*		corrupt);	/*!< out: TRUE if corrupt */
+	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
+					that will be set if corrupt */
 /****************************************************************//**
-Checks if a transaction with the given id is active.
-@return	transaction instance if active */
+Checks if a transaction with the given id is active. If the caller is
+not holding lock_sys->mutex, the transaction may already have been
+committed.
+@return	transaction instance if active, or NULL;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_is_active(
 /*==========*/
-	trx_id_t	trx_id);/*!< in: trx id of the transaction */
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
+					that will be set if corrupt */
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks that trx is in the trx list.
@@ -312,7 +326,7 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	trx_t*	in_trx);/*!< in: trx */
+	const trx_t*	in_trx);/*!< in: transaction */
 #endif /* UNIV_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
@@ -658,10 +672,9 @@ struct trx_doublewrite_struct{
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 
-	rw_lock_t	lock;		/*!< read-write lock protecting all
-				       	the fields in this structure except
-				       	rseg_list. That is protected by the
-				       	purge_sys mutex */
+	rw_lock_t	lock;		/*!< read-write lock protecting most
+					fields in this structure except when
+					noted otherwise */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
@@ -677,7 +690,11 @@ struct trx_sys_struct{
 					segments to transactions */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
-					segments; NULL if slot not in use */
+					segments; NULL if slot not in use;
+					created and destroyed in
+					single-threaded mode; not protected
+					by any mutex, because it is read-only
+					during multi-threaded operation */
 	ulint		rseg_history_len;/*!< Length of the TRX_RSEG_HISTORY
 					list (update undo logs for committed
 					transactions), protected by

@@ -4160,22 +4160,38 @@ skip_conversion:
     (*subq)->fixed= 1;
 
     Item *substitute= (*subq)->substitution;
-    bool do_fix_fields= !(*subq)->substitution->fixed;
-    Item **tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
-                   &conds : &((*subq)->embedding_join_nest->on_expr);
+    const bool do_fix_fields= !(*subq)->substitution->fixed;
+    const bool subquery_in_join_clause=
+      ((*subq)->embedding_join_nest != (TABLE_LIST*)1);
+
+    Item **tree= subquery_in_join_clause ?
+                   &((*subq)->embedding_join_nest->on_expr) :
+                   &conds;
     if (replace_subcondition(this, tree, *subq, substitute, do_fix_fields))
       DBUG_RETURN(TRUE);
     (*subq)->substitution= NULL;
      
     if (!thd->stmt_arena->is_conventional())
     {
-      tree= ((*subq)->embedding_join_nest == (TABLE_LIST*)1)?
-                     &select_lex->prep_where :
-                     &((*subq)->embedding_join_nest->prep_on_expr);
+      if (subquery_in_join_clause)
+      {
+        tree= &((*subq)->embedding_join_nest->prep_on_expr);
+        /*
+          Some precaution is needed when dealing with PS/SP:
+          fix_prepare_info_in_table_list() sets prep_on_expr, but only for
+          tables, not for join nest objects. This is instead populated in
+          simplify_joins(), which is called after this function. Hence, we need
+          to check that *tree is non-NULL before calling replace_subcondition.
+        */
+        DBUG_ASSERT((*subq)->embedding_join_nest->nested_join ?
+                    *tree == NULL :
+                    *tree != NULL);
+      }
+      else
+        tree= &select_lex->prep_where;
 
-      if (replace_subcondition(this, tree, *subq, substitute, 
-                                     FALSE))
-        DBUG_RETURN(TRUE);
+      if (*tree && replace_subcondition(this, tree, *subq, substitute, false))
+        DBUG_RETURN(true);
     }
   }
 
@@ -5576,26 +5592,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func is NEVER true when num_values > 1
        */
       if (!eq_func)
-      {
-        /* 
-          Additional optimization: if we're processing
-          "t.key BETWEEN c1 AND c1" then proceed as if we were processing
-          "t.key = c1".
-          TODO: This is a very limited fix. A more generic fix is possible. 
-          There are 2 options:
-          A) Make equality propagation code be able to handle BETWEEN
-             (including cases like t1.key BETWEEN t2.key AND t3.key)
-          B) Make range optimizer to infer additional "t.key = c" equalities
-             and use them in equality propagation process (see details in
-             OptimizerKBAndTodo)
-        */
-        if ((cond->functype() != Item_func::BETWEEN) ||
-            ((Item_func_between*) cond)->negated ||
-            !value[0]->eq(value[1], field->binary()))
-          return;
-        eq_func= TRUE;
-      }
-
+        return;
       if (field->result_type() == STRING_RESULT)
       {
         if ((*value)->result_type() != STRING_RESULT)
@@ -5807,9 +5804,65 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
   case Item_func::OPTIMIZE_KEY:
   {
     Item **values;
-    // BETWEEN, IN, NE
-    if (is_local_field (cond_func->key_item()) &&
-	!(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
+    /*
+      Build list of possible keys for 'a BETWEEN low AND high'.
+      It is handled similar to the equivalent condition 
+      'a >= low AND a <= high':
+    */
+    if (cond_func->functype() == Item_func::BETWEEN)
+    {
+      Item_field *field_item;
+      bool equal_func= FALSE;
+      uint num_values= 2;
+      values= cond_func->arguments();
+
+      bool binary_cmp= (values[0]->real_item()->type() == Item::FIELD_ITEM)
+            ? ((Item_field*)values[0]->real_item())->field->binary()
+            : TRUE;
+
+      /*
+        Additional optimization: If 'low = high':
+        Handle as if the condition was "t.key = low".
+      */
+      if (!((Item_func_between*)cond_func)->negated &&
+          values[1]->eq(values[2], binary_cmp))
+      {
+        equal_func= TRUE;
+        num_values= 1;
+      }
+
+      /*
+        Append keys for 'field <cmp> value[]' if the
+        condition is of the form::
+        '<field> BETWEEN value[1] AND value[2]'
+      */
+      if (is_local_field (values[0]))
+      {
+        field_item= (Item_field *) (values[0]->real_item());
+        add_key_equal_fields(key_fields, *and_level, cond_func,
+                             field_item, equal_func, &values[1],
+                             num_values, usable_tables, sargables);
+      }
+      /*
+        Append keys for 'value[0] <cmp> field' if the
+        condition is of the form:
+        'value[0] BETWEEN field1 AND field2'
+      */
+      for (uint i= 1; i <= num_values; i++)
+      {
+        if (is_local_field (values[i]))
+        {
+          field_item= (Item_field *) (values[i]->real_item());
+          add_key_equal_fields(key_fields, *and_level, cond_func,
+                               field_item, equal_func, values,
+                               1, usable_tables, sargables);
+        }
+      }
+    } // if ( ... Item_func::BETWEEN)
+
+    // IN, NE
+    else if (is_local_field (cond_func->key_item()) &&
+            !(cond_func->used_tables() & OUTER_REF_TABLE_BIT))
     {
       values= cond_func->arguments()+1;
       if (cond_func->functype() == Item_func::NE_FUNC &&
@@ -5822,21 +5875,6 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
                            0, values, 
                            cond_func->argument_count()-1,
                            usable_tables, sargables);
-    }
-    if (cond_func->functype() == Item_func::BETWEEN)
-    {
-      values= cond_func->arguments();
-      for (uint i= 1 ; i < cond_func->argument_count() ; i++)
-      {
-        Item_field *field_item;
-        if (is_local_field (cond_func->arguments()[i]))
-        {
-          field_item= (Item_field *) (cond_func->arguments()[i]->real_item());
-          add_key_equal_fields(key_fields, *and_level, cond_func,
-                               field_item, 0, values, 1, usable_tables, 
-                               sargables);
-        }
-      }  
     }
     break;
   }
@@ -17125,6 +17163,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       last_tab->read_record.copy_field_end= sjm->copy_field +
                                             sjm->table_cols.elements;
       last_tab->read_record.read_record= rr_sequential_and_unpack;
+
+      // Clear possible outer join information from earlier use of this join tab
+      last_tab->last_inner= NULL;
     }
   }
   else
@@ -17620,26 +17661,41 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
-        if (tab->table->reginfo.not_exists_optimize)
-        {
-          /*
-            When not_exists_optimizer is set and a matching row is found, the
-            outer row should be excluded from the result set: no need to
-            explore this record and other records of 'tab', so we return "no
-            records". But as we set 'found' above, evaluate_join_record() at
-            the upper level will not yield a NULL-complemented record.
-          */
-          DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
-        }
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
           will be re-evaluated again. It could be fixed, but, probably,
           it's not worth doing now.
         */
+        /*
+          not_exists_optimize has been created from a
+          select_cond containing 'is_null'. This 'is_null'
+          predicate is still present on any 'tab' with
+          'not_exists_optimize'. Furthermore, the usual rules
+          for condition guards also applies for
+          'not_exists_optimize' -> When 'is_null==false' we
+          know all cond. guards are open and we can apply
+          the 'not_exists_optimize'.
+        */
+        DBUG_ASSERT(!(tab->table->reginfo.not_exists_optimize &&
+                     !tab->select_cond));
+
         if (tab->select_cond && !tab->select_cond->val_int())
         {
           /* The condition attached to table tab is false */
+
+          if (tab->table->reginfo.not_exists_optimize)
+          {
+            /*
+              When not_exists_optimizer is set and a matching row is found, the
+              outer row should be excluded from the result set: no need to
+              explore this record and other records of 'tab', so we return "no
+              records". But as we set 'found' above, evaluate_join_record() at
+              the upper level will not yield a NULL-complemented record.
+            */
+            DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
+          }
+
           if (tab == join_tab)
             found= 0;
           else

@@ -356,8 +356,24 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   if (error)
-    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT),
-               MYF(ME_ERROR+ME_WAITTANG));
+  {
+    DBUG_ASSERT(thd->is_error());
+    my_printf_error(ER_FILSORT_ABORT,
+                    "%s: %s",
+                    MYF(ME_ERROR + ME_WAITTANG),
+                    ER_THD(thd, ER_FILSORT_ABORT),
+                    thd->stmt_da->message());
+                    
+    if (global_system_variables.log_warnings > 1)
+    {
+      sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
+                        ER_THD(thd, ER_FILSORT_ABORT),
+                        thd->security_ctx->host_or_ip,
+                        &thd->security_ctx->priv_user[0],
+                        (ulong) thd->thread_id,
+                        thd->query());
+    }
+  }
   else
     statistic_add(thd->status_var.filesort_rows,
                   (ulong) num_rows, &LOCK_status);
@@ -407,6 +423,9 @@ static void make_char_array(FILESORT_INFO *info, uint num_records, uint length)
   DBUG_ENTER("make_char_array");
 
   DBUG_PRINT("info", ("num_records %u length %u", num_records, length));
+
+  DBUG_EXECUTE_IF("make_char_array_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
 
   if (!info->sort_keys)
     info->sort_keys= 

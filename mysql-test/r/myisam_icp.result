@@ -597,6 +597,23 @@ select 1 from t1 where b <= 1 and a <> '';
 1
 drop table t1;
 #
+# Bug#59259 "Incorrect rows returned for a correlated subquery
+#            when ICP is on"
+#
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (11,0);
+INSERT INTO t1 VALUES (12,5);
+INSERT INTO t1 VALUES (15,0);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER NOT NULL) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (11,1);
+INSERT INTO t2 VALUES (12,2);
+INSERT INTO t2 VALUES (15,4);
+SELECT * FROM t1
+WHERE pk IN (SELECT it.pk FROM t2 JOIN t2 AS it ON it.i=it.i WHERE t1.i);
+pk	i
+12	5
+DROP TABLE t1, t2;
+#
 # Bug #58816 "Extra temporary duplicate rows in result set when 
 #             switching ICP off"
 #

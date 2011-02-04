@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3041,10 +3041,7 @@ row_sel_get_clust_rec_for_mysql(
 			      "InnoDB: clust index record ", stderr);
 			rec_print(stderr, clust_rec, clust_index);
 			putc('\n', stderr);
-			rw_lock_s_lock(&trx_sys->lock);
 			trx_print(stderr, trx, 600);
-			rw_lock_s_unlock(&trx_sys->lock);
-
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
@@ -3598,9 +3595,7 @@ row_search_for_mysql(
 		      "InnoDB: but it has not locked"
 		      " any tables in ::external_lock()!\n",
 		      stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		rw_lock_s_unlock(&trx_sys->lock);
 		fputc('\n', stderr);
 	}
 #endif
@@ -3797,6 +3792,18 @@ row_search_for_mysql(
 				mtr_commit(&mtr). */
 				ut_ad(!rec_get_deleted_flag(rec, comp));
 
+				if (prebuilt->idx_cond) {
+					switch (row_search_idx_cond_check(
+							buf, prebuilt,
+							rec, offsets)) {
+					case ICP_NO_MATCH:
+					case ICP_OUT_OF_RANGE:
+						goto shortcut_mismatch;
+					case ICP_MATCH:
+						goto shortcut_match;
+					}
+				}
+
 				if (!row_sel_store_mysql_rec(
 					    buf, prebuilt,
 					    rec, FALSE, index, offsets)) {
@@ -3815,6 +3822,7 @@ row_search_for_mysql(
 					break;
 				}
 
+			shortcut_match:
 				mtr_commit(&mtr);
 
 				/* ut_print_name(stderr, index->name);
@@ -3826,6 +3834,7 @@ row_search_for_mysql(
 				goto release_search_latch_if_needed;
 
 			case SEL_EXHAUSTED:
+			shortcut_mismatch:
 				mtr_commit(&mtr);
 
 				/* ut_print_name(stderr, index->name);
@@ -3866,11 +3875,14 @@ release_search_latch_if_needed:
 		trx->has_search_latch = FALSE;
 	}
 
+	/* The state of a running trx can only be changed by the
+	thread that is currently serving the transaction. Because we
+	are that thread, we can read trx->state without holding any
+	mutex. */
 	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-	/* FIXME: These are now protected by the lock mutex, we can't
-	just add assertions will-nilly.  */
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED || trx->state == TRX_STATE_ACTIVE);
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED
+	      || trx->state == TRX_STATE_ACTIVE);
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
