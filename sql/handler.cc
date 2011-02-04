@@ -705,7 +705,7 @@ void ha_close_connection(THD* thd)
   end. Such nested transaction was internally referred to as
   a "statement transaction" and gave birth to the term.
 
-  <Historical note ends>
+  (Historical note ends)
 
   Since then a statement transaction is started for each statement
   that accesses transactional tables or uses the binary log.  If
