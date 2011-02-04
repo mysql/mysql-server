@@ -992,7 +992,7 @@ my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     with unsigned time_t tmp+= shift*86400L might result in a number,
     larger then TIMESTAMP_MAX_VALUE, so another check will work.
   */
-  if ((tmp < TIMESTAMP_MIN_VALUE) || (tmp > TIMESTAMP_MAX_VALUE))
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(tmp))
     tmp= 0;
 
   return (my_time_t) tmp;

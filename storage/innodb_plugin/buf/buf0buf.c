@@ -1283,7 +1283,7 @@ shrink_again:
 
 				buf_LRU_make_block_old(&block->page);
 				dirty++;
-			} else if (buf_LRU_free_block(&block->page, TRUE, NULL)
+			} else if (buf_LRU_free_block(&block->page, TRUE)
 				   != BUF_LRU_FREED) {
 				nonfree++;
 			}
@@ -1729,8 +1729,7 @@ err_exit:
 		mutex_enter(block_mutex);
 
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE, NULL)
-		    == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(bpage, FALSE) == BUF_LRU_FREED) {
 
 			mutex_exit(block_mutex);
 			goto lookup;
@@ -2165,7 +2164,7 @@ wait_until_unfixed:
 		buf_pool_mutex_exit();
 		mutex_exit(&buf_pool_zip_mutex);
 
-		block = buf_LRU_get_free_block(0);
+		block = buf_LRU_get_free_block();
 		ut_a(block);
 
 		buf_pool_mutex_enter();
@@ -2291,8 +2290,7 @@ wait_until_unfixed:
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer as much as possible. */
 
-		if (buf_LRU_free_block(&block->page, TRUE, NULL)
-		    == BUF_LRU_FREED) {
+		if (buf_LRU_free_block(&block->page, TRUE) == BUF_LRU_FREED) {
 			buf_pool_mutex_exit();
 			mutex_exit(&block->mutex);
 			fprintf(stderr,
@@ -2829,7 +2827,7 @@ buf_page_init_for_read(
 	    && UNIV_LIKELY(!recv_recovery_is_on())) {
 		block = NULL;
 	} else {
-		block = buf_LRU_get_free_block(0);
+		block = buf_LRU_get_free_block();
 		ut_ad(block);
 	}
 
@@ -3001,7 +2999,7 @@ buf_page_create(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(space || !zip_size);
 
-	free_block = buf_LRU_get_free_block(0);
+	free_block = buf_LRU_get_free_block();
 
 	buf_pool_mutex_enter();
 

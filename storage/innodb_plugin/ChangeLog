@@ -1,3 +1,54 @@
+2011-01-27	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Bug#59465 btr_estimate_number_of_different_key_vals use
+	incorrect offset for external_size
+
+2011-01-27	The InnoDB Team
+
+	* include/trx0trx.h, trx/trx0trx.c:
+	Bug#59440 Race condition in XA ROLLBACK and XA COMMIT
+	after server restart
+
+2011-01-25	The InnoDB Team
+
+	* row/row0upd.c:
+	Bug#59585 Fix 58912 introduces compiler warning
+	due to potentially uninitialized variable
+
+2011-01-25	The InnoDB Team
+
+	* mtr/mtr0log.c:
+	Bug#59486 Incorrect usage of UNIV_UNLIKELY() in mlog_parse_string()
+
+2011-01-25	The InnoDB Team
+
+	* row/row0vers.c:
+	Fix Bug#59464 Race condition in row_vers_build_for_semi_consistent_read
+
+2011-01-25	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0sea.c,
+	buf/buf0buddy.c, buf/buf0buf.c, buf/buf0lru.c,
+	include/buf0buf.h, include/buf0buf.ic, include/buf0lru.h,
+	mem/mem0mem.c, page/page0zip.c:
+	Fix Bug#59707 Unused compression-related parameters
+	in buffer pool functions
+
+2011-01-18	The InnoDB Team
+
+	* include/sync0rw.h, sync/sync0arr.c, sync/sync0rw.c:
+	Fix Bug#59579 rw_lock_debug_print outputs to stderr, not to
+	SHOW ENGINE INNODB STATUS
+
+2011-01-14	The InnoDB Team
+	* btr/btr0cur.c, dict/dict0dict.c, handler/ha_innodb.cc,
+	include/btr0cur.h, include/dict0mem.h, include/rem0cmp.h,
+	include/rem0cmp.ic, include/srv0srv.h, rem/rem0cmp.c,
+	srv/srv0srv.c, innodb_bug30423.test:
+	Fix Bug#30423 InnoDBs treatment of NULL in index stats causes
+	bad "rows examined" estimates
+
 2011-01-06	The InnoDB Team
 	* handler/i_s.cc, include/trx0i_s.h, trx/trx0i_s.c:
 	Fix Bug#55397 cannot select from innodb_trx when trx_query contains

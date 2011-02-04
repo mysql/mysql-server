@@ -3034,6 +3034,19 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
 
+#ifndef EMBEDDED_LIBRARY
+static
+int
+check_enough_stack_size()
+{
+  uchar stack_top;
+
+  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+                             &stack_top);
+}
+#endif
+
+
 /**
   Initialize one of the global date/time format variables.
 
@@ -3236,12 +3249,6 @@ static int init_common_variables(const char *conf_file_name, int argc,
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3279,6 +3286,13 @@ static int init_common_variables(const char *conf_file_name, int argc,
     inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
+
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
@@ -3414,7 +3428,11 @@ static int init_common_variables(const char *conf_file_name, int argc,
 #endif
   mysys_uses_curses=0;
 #ifdef USE_REGEX
-  my_regex_init(&my_charset_latin1);
+#ifndef EMBEDDED_LIBRARY
+  my_regex_init(&my_charset_latin1, check_enough_stack_size);
+#else
+  my_regex_init(&my_charset_latin1, NULL);
+#endif
 #endif
   /*
     Process a comma-separated character set list and choose
