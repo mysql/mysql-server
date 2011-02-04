@@ -28,6 +28,7 @@ typedef struct {
 
 
 /* === regcomp.c === */
+typedef int (*my_regex_stack_check_t)();
 extern int my_regcomp(my_regex_t *, const char *, int, CHARSET_INFO *charset);
 #define	REG_BASIC	0000
 #define	REG_EXTENDED	0001
@@ -76,7 +77,8 @@ extern void my_regfree(my_regex_t *);
 
 /* === reginit.c === */
 
-extern void my_regex_init(CHARSET_INFO *cs);	/* Should be called for multithread progs */
+/* Should be called for multithread progs */
+extern void my_regex_init(CHARSET_INFO *cs,  my_regex_stack_check_t func);
 extern void my_regex_end(void);	/* If one wants a clean end */
 
 #ifdef __cplusplus

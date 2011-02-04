@@ -1092,4 +1092,128 @@ FROM BB table1 RIGHT JOIN BB table2
 
 DROP TABLE BB;
 
+
+--echo #
+--echo # Bug#58490: Incorrect result in multi level OUTER JOIN
+--echo # in combination with IS NULL
+--echo #
+
+CREATE TABLE t1 (i INT NOT NULL);
+INSERT INTO t1 VALUES (0),    (2),(3),(4);
+CREATE TABLE t2 (i INT NOT NULL);
+INSERT INTO t2 VALUES (0),(1),    (3),(4);
+CREATE TABLE t3 (i INT NOT NULL);
+INSERT INTO t3 VALUES (0),(1),(2),    (4);
+CREATE TABLE t4 (i INT NOT NULL);
+INSERT INTO t4 VALUES (0),(1),(2),(3)   ;
+
+SELECT * FROM
+ t1 LEFT JOIN
+ ( t2 LEFT JOIN
+   ( t3 LEFT JOIN
+     t4
+     ON t4.i = t3.i
+   )
+   ON t3.i = t2.i
+ )
+ ON t2.i = t1.i
+ ;
+
+SELECT * FROM
+ t1 LEFT JOIN
+ ( t2 LEFT JOIN
+   ( t3 LEFT JOIN
+     t4
+     ON t4.i = t3.i
+   )
+   ON t3.i = t2.i
+ )
+ ON t2.i = t1.i
+ WHERE t4.i IS NULL;
+
+
+# Most simplified testcase to reproduce the bug.
+# (Has to be at least a two level nested outer join)
+SELECT * FROM
+ t1 LEFT JOIN
+ ( ( t2 LEFT JOIN
+     t3
+     ON t3.i = t2.i
+   )
+ )
+ ON t2.i = t1.i
+ WHERE t3.i IS NULL;
+
+
+# Extended testing:
+# We then add some equi-join inside the query above:
+# (There Used to be some problems here with first
+#  proposed patch for this bug)
+SELECT * FROM
+ t1 LEFT JOIN
+ ( ( t2 LEFT JOIN
+     t3
+     ON t3.i = t2.i
+   )
+   JOIN t4
+   ON t4.i=t2.i
+ )
+ ON t2.i = t1.i
+ WHERE t3.i IS NULL;
+
+SELECT * FROM
+ t1 LEFT JOIN
+ ( ( t2 LEFT JOIN
+     t3
+     ON t3.i = t2.i
+   )
+   JOIN (t4 AS t4a JOIN t4 AS t4b ON t4a.i=t4b.i)
+   ON t4a.i=t2.i
+ )
+ ON t2.i = t1.i
+ WHERE t3.i IS NULL;
+
+SELECT * FROM
+ t1 LEFT JOIN
+ ( ( t2 LEFT JOIN
+     t3
+     ON t3.i = t2.i
+   )
+   JOIN (t4 AS t4a, t4 AS t4b)
+   ON t4a.i=t2.i
+ )
+ ON t2.i = t1.i
+ WHERE t3.i IS NULL;
+
+
+DROP TABLE t1,t2,t3,t4;
+
+## Bug#49322 & bug#58490 are duplicates. However, we include testcases
+## for both.
+--echo #
+--echo # Bug#49322(Duplicate): Server is adding extra NULL row
+--echo # on processing a WHERE clause
+--echo #
+
+CREATE TABLE h (pk INT NOT NULL, col_int_key INT);
+INSERT INTO h VALUES (1,NULL),(4,2),(5,2),(3,4),(2,8);
+
+CREATE TABLE m (pk INT NOT NULL, col_int_key INT);
+INSERT INTO m VALUES (1,2),(2,7),(3,5),(4,7),(5,5),(6,NULL),(7,NULL),(8,9);
+CREATE TABLE k (pk INT NOT NULL, col_int_key INT);
+INSERT INTO k VALUES (1,9),(2,2),(3,5),(4,2),(5,7),(6,0),(7,5);
+
+# Baseline query wo/ 'WHERE ... IS NULL' - was correct
+SELECT TABLE1.pk FROM k TABLE1
+RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
+RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key;
+
+# Adding 'WHERE ... IS NULL' -> incorrect result
+SELECT TABLE1.pk FROM k TABLE1
+RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
+RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key
+WHERE TABLE1.pk IS NULL;
+
+DROP TABLE h,m,k;
+
 --echo End of 5.1 tests

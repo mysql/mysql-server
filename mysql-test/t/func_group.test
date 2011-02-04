@@ -1120,6 +1120,17 @@ SELECT RELEASE_LOCK('aaaaaaaaaaaaaaaaa');
 --echo #
 --echo End of 5.1 tests
 
+###
+--echo #
+--echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
+--echo #           file .\item_sum.cc, line 587
+--echo #
+
+CREATE TABLE t1(a int, KEY(a));
+INSERT INTO t1 VALUES (1), (2);
+SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#55648: Server crash on MIN/MAX on maximum time value
 --echo #
