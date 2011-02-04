@@ -19,7 +19,7 @@
 DB_ENV *env;
 enum {MAX_NAME=128};
 int NUM_DBS=1;
-int NUM_ROWS=50000;
+int NUM_ROWS=100000;
 int SRC_VERSION = 4;
 
 #define MAXDEPTH 64
@@ -27,7 +27,7 @@ int SRC_VERSION = 4;
 
 char *env_dir = ENVDIR; // the default env_dir.
 char *db_v5_dir = "dir.preload-db-nested.c.tdb";
-char *db_v4_dir        = OLDDATADIR "env_preload.4.1.1.nested.cleanshutdown";
+char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.nested.cleanshutdown";
 
 
 static void

@@ -31,13 +31,15 @@ static void test_shutdown(void);
 
 static char *env_dir = ENVDIR; // the default env_dir.
 
-static char * dir_v4_clean = "env_simple.4.1.1.cleanshutdown";
-static char * dir_v4_dirty = "env_simple.4.1.1.dirtyshutdown";
-static char * dir_v4_dirty_multilogfile = OLDDATADIR "env_preload.4.1.1.multilog.dirtyshutdown";
+static char * dir_v41_clean = "env_simple.4.1.1.cleanshutdown";
+static char * dir_v42_clean = "env_simple.4.2.0.cleanshutdown";
+static char * dir_v42_dirty = "env_simple.4.2.0.dirtyshutdown";
+static char * dir_v41_dirty_multilogfile = OLDDATADIR "env_preload.4.1.1.multilog.dirtyshutdown";
+static char * dir_v42_dirty_multilogfile = OLDDATADIR "env_preload.4.2.0.multilog.dirtyshutdown";
 
 
 static void
-setup (u_int32_t flags, BOOL clean, char * src_db_dir) {
+setup (u_int32_t flags, BOOL clean, BOOL too_old, char * src_db_dir) {
     int r;
     int len = 256;
     char syscmd[len];
@@ -61,8 +63,12 @@ setup (u_int32_t flags, BOOL clean, char * src_db_dir) {
     r=env->open(env, ENVDIR, flags, mode); 
     if (clean)
 	CKERR(r);
-    else
-	CKERR2(r, TOKUDB_UPGRADE_FAILURE);
+    else {
+	if (too_old)
+	    CKERR2(r, TOKUDB_DICTIONARY_TOO_OLD);
+	else
+	    CKERR2(r, TOKUDB_UPGRADE_FAILURE);
+    }
 }
 
 
@@ -81,18 +87,29 @@ test_env_startup(void) {
     
     flags = FLAGS_LOG;
 
-    setup(flags, TRUE, dir_v4_clean);
+    setup(flags, TRUE, FALSE, dir_v42_clean);
     print_engine_status(env);
     test_shutdown();
 
-    setup(flags, FALSE, dir_v4_dirty);
+    setup(flags, FALSE, TRUE, dir_v41_clean);
+    print_engine_status(env);
+    test_shutdown();
+
+    setup(flags, FALSE, FALSE, dir_v42_dirty);
     if (verbose) {
 	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
     }
     print_engine_status(env);
     test_shutdown();
 
-    setup(flags, FALSE, dir_v4_dirty_multilogfile);
+    setup(flags, FALSE, TRUE, dir_v41_dirty_multilogfile);
+    if (verbose) {
+	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
+    }
+    print_engine_status(env);
+    test_shutdown();
+
+    setup(flags, FALSE, FALSE, dir_v42_dirty_multilogfile);
     if (verbose) {
 	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
     }

@@ -52,6 +52,7 @@ struct rollback_log_node {
     int                layout_version;
     int                layout_version_original;
     int                layout_version_read_from_disk;
+    uint32_t           build_id;      // build_id (svn rev number) of software that wrote this node to disk
     int                dirty;
     TXNID              txnid;         // Which transaction made this?
     uint64_t           sequence;      // Which rollback log in the sequence is this?

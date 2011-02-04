@@ -572,10 +572,11 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ \n");
     printf("  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ \n");
     printf("  u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ \n");
+    printf("  u_int64_t        optimized_for_upgrade;   /* how many optimized_for_upgrade messages were broadcast */ \n");
     printf("  u_int64_t        original_ver;            /* original environment version  */ \n");
     printf("  u_int64_t        ver_at_startup;          /* environment version at startup */ \n");
-    printf("  u_int64_t        last_lsn_v12;            /* last lsn of version 12 environment */ \n");
-    printf("  char             upgrade_v13_time[26];    /* timestamp of when upgrade to version 13 environment was done */ \n");
+    printf("  u_int64_t        last_lsn_v13;            /* last lsn of version 13 environment */ \n");
+    printf("  char             upgrade_v14_time[26];    /* timestamp of when upgrade to version 14 environment was done */ \n");
     printf("  u_int64_t        env_panic;               /* non-zero if environment is panicked */ \n");
     printf("  u_int64_t        logger_panic;            /* non-zero if logger is panicked */ \n");
     printf("  u_int64_t        logger_panic_errno;      /* non-zero if environment is panicked */ \n");

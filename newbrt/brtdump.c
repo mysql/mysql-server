@@ -6,6 +6,27 @@
 
 #include "includes.h"
 
+static void
+format_time(const uint64_t time_int, char *buf) {
+    time_t timer = (time_t) time_int;
+    ctime_r(&timer, buf);
+    size_t len = strlen(buf);
+    assert(len < 26);
+    char end;
+
+    assert(len>=1);
+    end = buf[len-1];
+    while (end == '\n' || end == '\r') {
+        buf[len-1] = '\0';
+        len--;
+        assert(len>=1);
+        end = buf[len-1];
+    }
+}
+
+
+
+
 static int dump_data = 1;
 
 static CACHETABLE ct;
@@ -76,6 +97,7 @@ static void
 dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     struct brt_header *h;
     int r;
+    char timestr[26];
     r = toku_deserialize_brtheader_from (f, MAX_LSN, &h);
     assert(r==0);
     h->cf = cf;
@@ -83,6 +105,13 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     printf(" layout_version=%d\n", h->layout_version);
     printf(" layout_version_original=%d\n", h->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", h->layout_version_read_from_disk);
+    printf(" build_id=%d\n", h->build_id);
+    printf(" build_id_original=%d\n", h->build_id_original);
+    format_time(h->time_of_creation, timestr);
+    printf(" time_of_creation=         %ld    %s\n", h->time_of_creation, timestr);
+    format_time(h->time_of_last_modification, timestr);
+    printf(" time_of_last_modification=%ld    %s\n", h->time_of_last_modification, timestr);
+
     printf(" dirty=%d\n", h->dirty);
     printf(" nodesize=%u\n", h->nodesize);
     printf(" unnamed_root=%" PRId64 "\n", h->root.b);
@@ -119,6 +148,7 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" layout_version=%d\n", n->layout_version);
     printf(" layout_version_original=%d\n", n->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
+    printf(" build_id=%d\n", n->build_id);
     printf(" rand4fp     =%08x\n", n->rand4fingerprint);
     printf(" localfp     =%08x\n", n->local_fingerprint);
     if (n->height>0) {
