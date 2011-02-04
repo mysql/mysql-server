@@ -371,6 +371,30 @@ static void change_service_config()
       my_major, my_minor);
   }
 
+  if(props.inifile[0] == 0)
+  {
+    /*
+      Weird case, no --defaults-file in service definition, need to create one.
+    */
+    char buf[MAX_PATH];
+    int i;
+
+    sprintf_s(props.inifile, MAX_PATH, "%s\\my.ini", props.datadir);
+
+    /*
+      Write datadir to my.ini, after converting  backslashes to 
+      unix style slashes.
+    */
+    strcpy_s(buf, MAX_PATH, props.datadir);
+    for(i=0; buf[i]; i++)
+    {
+      if (buf[i] == '\\')
+        buf[i]= '/';
+    }
+
+    WritePrivateProfileString("mysqld", "datadir",buf, props.inifile);
+  }
+
   /*
     Remove basedir from defaults file, otherwise the service wont come up in 
     the new  version, and will complain about mismatched message file.

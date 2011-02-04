@@ -76,6 +76,7 @@ int get_mysql_service_properties(const wchar_t *bin_path,
   wchar_t *file_part;
   wchar_t **args= NULL;
   int retval= 1;
+  BOOL have_inifile;
 
   props->datadir[0]= 0;
   props->inifile[0]= 0;
@@ -85,11 +86,28 @@ int get_mysql_service_properties(const wchar_t *bin_path,
   props->version_patch= 0;
 
   args= CommandLineToArgvW(bin_path, &numargs);
-
-  if(numargs != 3)
+  if(numargs == 2)
+  {
+    /*
+      There are rare cases where service config does not have 
+      --defaults-filein the binary parth . There services were registered with 
+      plain mysqld --install, the data directory is next to "bin" in this case.
+      Service name (second parameter) must be MySQL.
+    */
+    if(wcscmp(args[1], L"MySQL") != 0)
+      goto end;
+    have_inifile= FALSE;
+  }
+  else if(numargs == 3)
+  {
+    have_inifile= TRUE;
+  }
+  else
+  {
     goto end;
+  }
 
-  if(wcsncmp(args[1], L"--defaults-file=", 16) != 0)
+  if(have_inifile && wcsncmp(args[1], L"--defaults-file=", 16) != 0)
     goto end;
 
   GetFullPathNameW(args[0], MAX_PATH, mysqld_path, &file_part);
@@ -106,21 +124,66 @@ int get_mysql_service_properties(const wchar_t *bin_path,
   }
 
   wcstombs(props->mysqld_exe, mysqld_path, MAX_PATH);
-  wcstombs(props->inifile, args[1]+16, MAX_PATH);
-  normalize_path(props->inifile, MAX_PATH);
-
-  if (GetFileAttributes(props->inifile) == INVALID_FILE_ATTRIBUTES)
-    goto end;
-
   /* If mysqld.exe exists, try to get its version from executable */
   if (GetFileAttributes(props->mysqld_exe) != INVALID_FILE_ATTRIBUTES)
   {
-    get_file_version(props->mysqld_exe, &props->version_major, 
+     get_file_version(props->mysqld_exe, &props->version_major, 
       &props->version_minor, &props->version_patch);
   }
+  if (have_inifile)
+  {
+    /* Easy case, we have --defaults-file in service definition. */
+    wcstombs(props->inifile, args[1]+16, MAX_PATH);
+    normalize_path(props->inifile, MAX_PATH);
+    if (GetFileAttributes(props->inifile) == INVALID_FILE_ATTRIBUTES)
+      goto end;
+    GetPrivateProfileString("mysqld", "datadir", NULL, props->datadir, MAX_PATH, 
+      props->inifile);
+  }
+  else
+  {
+    /*
+      Hard, although a rare case, we're guessing datadir and defaults-file.
+      On Windows, defaults-file is traditionally install-root\my.ini 
+      and datadir is install-root\data
+    */
+    char install_root[MAX_PATH];
+    int i;
+    char *p;
 
-  GetPrivateProfileString("mysqld", "datadir", NULL, props->datadir, MAX_PATH, 
-    props->inifile);
+    /*
+      Get the  install root(parent of bin directory where mysqld.exe)
+      is located.
+    */
+    strcpy_s(install_root, MAX_PATH, props->mysqld_exe);
+    for (i=0; i< 2; i++)
+    {
+      p= strrchr(install_root, '\\');
+      if(!p)
+        goto end;
+      *p= 0;
+    }
+
+    /* Look for my.ini in the install root */
+    sprintf_s(props->inifile, MAX_PATH, "%s\\my.ini", install_root);
+    if (GetFileAttributes(props->inifile) != INVALID_FILE_ATTRIBUTES)
+    {
+      /* Ini file found, get datadir from there */
+      GetPrivateProfileString("mysqld", "datadir", NULL, props->datadir,
+        MAX_PATH, props->inifile);
+    }
+    else
+    {
+      /* Ini file was not found */
+      props->inifile[0]= 0;
+    }
+
+    /* Try datadir in install directory.*/
+    if (props->datadir[0] == 0)
+    {
+      sprintf_s(props->datadir, MAX_PATH, "%s\\data", install_root);
+    }
+  }
 
   if (props->datadir[0])
   {
