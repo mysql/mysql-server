@@ -583,7 +583,7 @@ public:
   /* Get the minimum possible size of the cache join buffer */
   virtual ulong get_min_join_buffer_size();
   /* Get the maximum possible size of the cache join buffer */ 
-  virtual ulong get_max_join_buffer_size();
+  virtual ulong get_max_join_buffer_size(bool optimize_buff_size);
 
   /* Shrink the size if the cache join buffer in a given ratio */
   bool shrink_join_buffer_in_ratio(ulonglong n, ulonglong d);

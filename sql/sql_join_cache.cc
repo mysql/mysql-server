@@ -747,6 +747,7 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
     avg_aux_buffer_incr= add_sz/min_records;
     min_sz+= add_sz;
     min_sz+= pack_length_with_blob_ptrs;
+    set_if_bigger(min_sz, 1);
     min_buff_size= min_sz;
   }
   return min_buff_size;
@@ -759,16 +760,20 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   SYNOPSIS
     get_max_join_buffer_size()
 
+    optimize_buff_size  FALSE <-> do not take more memory than needed for
+                        the estimated number of records in the partial join 
+
   DESCRIPTION
     At the first its invocation for the cache the function calculates the
-    maximum possible size of join buffer for the cache. This value does not
-    exceed the estimate of the number of records 'max_records' in the partial
-    join that joins tables from the first one through join_tab. This value
-    is also capped off by the value of join_tab->join_buffer_size_limit, if it
-    has been set a to non-zero value, and by the value of the system parameter 
-    join_buffer_size - otherwise. After the calculation of the interesting size
-    the function saves the value in the field 'max_buff_size' in order to use
-    it directly at the next  invocations of the function.
+    maximum possible size of join buffer for the cache. If the parameter
+    optimize_buff_size true then this value does not exceed the size of the
+    space needed for the estimated number of records 'max_records' in the
+    partial join that joins tables from the first one through join_tab. This
+    value is also capped off by the value of join_tab->join_buffer_size_limit,
+    if it has been set a to non-zero value, and by the value of the system
+    parameter join_buffer_size - otherwise. After the calculation of the
+    interesting size the function saves the value in the field 'max_buff_size'
+    in order to use it directly at the next  invocations of the function.
 
   NOTES
     Currently the value of join_tab->join_buffer_size_limit is initialized
@@ -778,7 +783,7 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
     The maximum possible size of the join buffer of this cache 
 */
 
-ulong JOIN_CACHE::get_max_join_buffer_size()
+ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
 {
   if (!max_buff_size)
   {
@@ -795,12 +800,17 @@ ulong JOIN_CACHE::get_max_join_buffer_size()
     ulong limit_sz= join->thd->variables.join_buff_size;
     if (join_tab->join_buffer_size_limit)
       set_if_smaller(limit_sz, join_tab->join_buffer_size_limit);
-    if (limit_sz / max_records > space_per_record)
-      max_sz= space_per_record * max_records;
-    else
+    if (!optimize_buff_size)
       max_sz= limit_sz;
-    max_sz+= pack_length_with_blob_ptrs;
-    set_if_smaller(max_sz, limit_sz);
+    else
+    {    
+      if (limit_sz / max_records > space_per_record)
+        max_sz= space_per_record * max_records;
+      else
+        max_sz= limit_sz;
+      max_sz+= pack_length_with_blob_ptrs;
+      set_if_smaller(max_sz, limit_sz);
+    }
     set_if_bigger(max_sz, min_sz);
     max_buff_size= max_sz;
   }
@@ -843,6 +853,8 @@ int JOIN_CACHE::alloc_buffer()
   ulonglong curr_min_buff_space_sz= 0;
   ulonglong join_buff_space_limit=
     join->thd->variables.join_buff_space_limit;
+  bool optimize_buff_size= 
+         optimizer_flag(join->thd, OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE);
   double partial_join_cardinality=  (join_tab-1)->get_partial_join_cardinality();
   buff= NULL;
   min_buff_size= 0;
@@ -852,7 +864,7 @@ int JOIN_CACHE::alloc_buffer()
                  (ulonglong) partial_join_cardinality : join_buff_space_limit;
   set_if_bigger(max_records, 10);
   min_buff_size= get_min_join_buffer_size();
-  buff_size= get_max_join_buffer_size();
+  buff_size= get_max_join_buffer_size(optimize_buff_size);
   for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
   {
     cache= tab->cache;
@@ -865,8 +877,9 @@ int JOIN_CACHE::alloc_buffer()
 
   if (curr_min_buff_space_sz > join_buff_space_limit ||
       (curr_buff_space_sz > join_buff_space_limit &&
-       join->shrink_join_buffers(join_tab, curr_buff_space_sz,
-                                 join_buff_space_limit)))
+       (!optimize_buff_size || 
+        join->shrink_join_buffers(join_tab, curr_buff_space_sz,
+                                  join_buff_space_limit))))
     goto fail;
                                
   for (ulong buff_size_decr= (buff_size-min_buff_size)/4 + 1; ; )
