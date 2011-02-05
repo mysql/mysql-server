@@ -154,6 +154,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/TimeAsUtilDateTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsSqlTimestampTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsUtilDateTypes.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/VarbinaryTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java
 
 EXTRA_DIST = \
