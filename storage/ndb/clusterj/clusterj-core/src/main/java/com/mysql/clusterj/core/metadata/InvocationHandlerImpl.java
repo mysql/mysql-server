@@ -450,6 +450,7 @@ public class InvocationHandlerImpl<T> implements InvocationHandler,
     }
 
     public void set(int columnNumber, Object value) {
+        modifiedFields.set(columnNumber);
         properties[columnNumber] = value;
     }
 

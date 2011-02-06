@@ -113,9 +113,8 @@ public class KeyValueHandlerImpl implements ValueHandler {
     }
 
     public byte[] getBytes(int fieldNumber) {
-        throw new ClusterJFatalInternalException(
-                local.message("ERR_Operation_Not_Supported",
-                "getBytes", "KeyValueHandlerImpl"));
+        if (logger.isDetailEnabled()) logger.detail("KeyValueHandler.getBytes(" + fieldNumber + ") returns: " + values[fieldNumber]);
+        return (byte[]) values[fieldNumber];
     }
 
     public short getShort(int fieldNumber) {

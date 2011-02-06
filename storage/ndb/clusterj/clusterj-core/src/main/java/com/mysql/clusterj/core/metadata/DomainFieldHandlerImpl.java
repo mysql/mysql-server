@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -162,8 +162,12 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                 objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
             } else if (type.equals(String.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerKeyString;
+            } else if (type.equals(byte[].class)) {
+                objectOperationHandlerDelegate = objectOperationHandlerKeyBytes;
             } else {
-                error(local.message("ERR_Primary_Field_Type", name));
+                objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
+                error(
+                        local.message("ERR_Primary_Field_Type", domainTypeHandler.getName(), name, printableName(type)));
             }
         } else if (lobAnnotation != null) {
             // large object support for byte[]
@@ -174,7 +178,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
             } else {
                 objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
                 error(
-                    local.message("ERR_Unsupported_Field_Type", type.getName(), name));
+                    local.message("ERR_Unsupported_Field_Type", printableName(type), name));
             }
         } else if (!isPersistent()) {
             // NotPersistent field
@@ -332,8 +336,14 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
                     this.type = Long.class;
                     break;
+                case Binary:
+                case Varbinary:
+                case Longvarbinary:
+                    this.objectOperationHandlerDelegate = objectOperationHandlerKeyBytes;
+                    this.type = byte[].class;
+                    break;
                 default:
-                    error(local.message("ERR_Primary_Field_Type", name));
+                    error(local.message("ERR_Primary_Column_Type", domainTypeHandler.getName(), name, this.storeColumnType));
                 }
         } else {
             switch (this.storeColumnType) {
@@ -446,6 +456,9 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
                     this.objectOperationHandlerDelegate = objectOperationHandlerObjectShortYear;
                     this.type = Short.class;
                     break;
+                default:
+                    error(local.message("ERR_Unsupported_Field_Type", this.storeColumnType));
+                    objectOperationHandlerDelegate = objectOperationHandlerUnsupportedType;
             }
         }
         nullValueDelegate = nullValueNONE;
