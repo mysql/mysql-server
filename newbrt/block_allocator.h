@@ -62,13 +62,24 @@ void
 block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset);
 // Effect: Allocate a block of the specified size at a particular offset.
 //  Aborts if anything goes wrong.
+//  The performance of this function may be as bad as Theta(N), where N is the number of blocks currently in use.
+// Usage note: To allocate several blocks (e.g., when opening a BRT),  use block_allocator_alloc_blocks_at().
 // Requires: The resulting block may not overlap any other allocated block.
 //  And the offset must be a multiple of the block alignment.
 // Parameters:
 //  ba (IN/OUT): The block allocator.  (Modifies ba.)
 //  size (IN):   The size of the block.
 //  offset (IN): The location of the block.
-//
+
+
+struct block_allocator_blockpair {
+    u_int64_t offset;
+    u_int64_t size;
+};
+void
+block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct block_allocator_blockpair *pairs);
+// Effect: Take pairs in any order, and add them all, as if we did block_allocator_alloc_block() on each pair.
+//  This should run in time O(N + M log M) where N is the number of blocks in ba, and M is the number of new blocks.
 
 void
 block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offset);
