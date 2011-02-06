@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -98,6 +98,19 @@ class PartitionKeyImpl implements PartitionKey {
                 copy.put(buffer);
                 copy.flip();
                 KeyPart keyPart = new KeyPart(copy, copy.limit());
+                keyParts.add(keyPart);
+            }
+        });
+    }
+
+    /** Add a byte array key to the partition key.
+     * The partition key will actually be constructed when needed, at enlist time.
+     */
+    public void addBytesKey(final Column storeColumn, final byte[] key) {
+        keyPartBuilders.add(new KeyPartBuilder() {
+            public void addKeyPart(BufferManager bufferManager) {
+                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
             }
         });

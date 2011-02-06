@@ -41,6 +41,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/AutoCommitTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BigIntegerTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BinaryTypesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/BinaryPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BitTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BlobTest.java \
   $(clusterj_test_src)/testsuite/clusterj/CharsetTest.java \
@@ -55,6 +56,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/DeleteInsertTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DeleteQueryAllPrimitivesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DomainTypeHandlerFactoryTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/DynamicBinaryPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DynamicObjectTest.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKeyTest.java \
@@ -62,6 +64,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/LoadTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongIntStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongLongStringPKTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/LongvarbinaryPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultiplePKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultithreadedFindTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultithreadedTest.java \
@@ -106,6 +109,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/TimestampAsUtilDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/TransactionStateTest.java \
   $(clusterj_test_src)/testsuite/clusterj/UpdateTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/VarbinaryPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/VarbinaryTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/domaintypehandler/CrazyDomainTypeHandlerFactoryImpl.java \
   $(clusterj_test_src)/testsuite/clusterj/model/AllPrimitives.java \
@@ -119,6 +123,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/BadIndexMissingColumn.java \
   $(clusterj_test_src)/testsuite/clusterj/model/BigIntegerTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/BinaryTypes.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/BinaryPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/BitTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/BlobTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/ByteArrayTypes.java \
@@ -136,6 +141,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/DecimalTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/Dn2id.java \
   $(clusterj_test_src)/testsuite/clusterj/model/DoubleTypes.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/DynamicPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/Employee.java \
   $(clusterj_test_src)/testsuite/clusterj/model/Employee2.java \
   $(clusterj_test_src)/testsuite/clusterj/model/FloatTypes.java \
@@ -144,6 +150,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/IndexesRUs.java \
   $(clusterj_test_src)/testsuite/clusterj/model/LongIntStringPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/LongLongStringPK.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/LongvarbinaryPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/NotPersistentTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/NullValues.java \
   $(clusterj_test_src)/testsuite/clusterj/model/Order.java \
@@ -154,6 +161,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/TimeAsUtilDateTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsSqlTimestampTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsUtilDateTypes.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/VarbinaryPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/VarbinaryTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java
 

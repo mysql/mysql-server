@@ -141,11 +141,16 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
      */
     protected ObjectOperationHandler objectOperationHandlerDelegate;
 
+    /** Provide a reason for a field not being able to be persistent. The reason
+     * is added to the existing list of reasons.
+     * @param message the reason
+     */
     protected void error(String message) {
         if (errorMessages == null) {
-            errorMessages = new StringBuffer();
+            errorMessages = new StringBuffer(local.message("ERR_Field_Not_Valid", domainTypeHandler.getName(), name));
         }
         errorMessages.append(message);
+        errorMessages.append('\n');
     }
 
     public void filterCompareValue(Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
@@ -183,7 +188,15 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     }
 
     public String getTypeName() {
-        return (type==null)?"unknown":type.getName();
+        return (type==null)?"unknown":printableName(type);
+    }
+
+    protected String printableName(Class<?> cls) {
+        if (cls.isArray()) {
+            return printableName(cls.getComponentType()) + "[] ";
+        } else {
+            return cls.getName();
+        }
     }
 
     public String getName() {
@@ -393,8 +406,9 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     }
 
     public void validateIndexType(String indexName, boolean hash) {
-        if (!(objectOperationHandlerDelegate.isValidIndexType(this, hash))) {
-            throw new ClusterJUserException(local.message("ERR_Invalid_Index_For_Type", domainTypeHandler.getName(), name, columnName, indexName));
+        if (objectOperationHandlerDelegate == null || !(objectOperationHandlerDelegate.isValidIndexType(this, hash))) {
+            error (local.message("ERR_Invalid_Index_For_Type", 
+                    domainTypeHandler.getName(), name, columnName, indexName, hash?"hash":"btree"));
         }
     }
 
@@ -680,6 +694,70 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
                 PartitionKey partitionKey, ValueHandler keyValueHandler) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Operation_Not_Supported","partitionKeySetPart", "non-key fields"));
+        }
+
+    };
+
+    protected static ObjectOperationHandler objectOperationHandlerKeyBytes = new ObjectOperationHandler() {
+
+        public boolean isPrimitive() {
+            return false;
+        }
+
+        public void objectInitializeJavaDefaultValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler) {
+        }
+
+        public void operationGetValue(AbstractDomainFieldHandlerImpl fmd, Operation op) {
+            op.getValue(fmd.storeColumn);
+        }
+
+        public Object getDefaultValueFor(AbstractDomainFieldHandlerImpl fmd, String columnDefaultValue) {
+            if (columnDefaultValue == null) {
+                return emptyByteArray;
+            } else {
+                throw new UnsupportedOperationException(local.message("ERR_Convert_String_To_Value", columnDefaultValue, "byte[]"));
+            }
+        }
+
+        public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
+            op.equalBytes(fmd.storeColumn, (byte[]) value);
+        }
+
+        public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, ValueHandler handler, Operation op) {
+            byte[] value = handler.getBytes(fmd.fieldNumber);
+            op.equalBytes(fmd.storeColumn, value);
+        }
+
+        public String handler() {
+            return "setKeyBytes";
+        }
+
+        public void objectSetValue(AbstractDomainFieldHandlerImpl fmd, ResultData rs, ValueHandler handler) {
+            handler.setBytes(fmd.fieldNumber, rs.getBytes(fmd.storeColumn));
+        }
+
+        public void operationSetBounds(AbstractDomainFieldHandlerImpl fmd, Object value, IndexScanOperation.BoundType type, IndexScanOperation op) {
+            op.setBoundBytes(fmd.storeColumn, type, (byte[]) value);
+        }
+
+        public void filterCompareValue(AbstractDomainFieldHandlerImpl fmd, Object value, ScanFilter.BinaryCondition condition, ScanFilter filter) {
+            filter.cmpBytes(condition, fmd.storeColumn, (byte[]) value);
+        }
+
+        public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
+            if (logger.isDetailEnabled()) {
+                logger.detail("setBytes.setEqual " + fmd.columnName + " to value " + value);
+            }
+            op.equalBytes(fmd.storeColumn, (byte[]) value);
+        }
+
+        public boolean isValidIndexType(AbstractDomainFieldHandlerImpl fmd, boolean hashNotOrdered) {
+            return true;
+        }
+
+        public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd,
+                PartitionKey partitionKey, ValueHandler keyValueHandler) {
+            partitionKey.addBytesKey(fmd.storeColumn, keyValueHandler.getBytes(fmd.fieldNumber));
         }
 
     };
@@ -2399,7 +2477,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public Object getDefaultValueFor(AbstractDomainFieldHandlerImpl fmd, String columnDefaultValue) {
-            throw new ClusterJUserException(local.message("ERR_Unsupported_Field_Type", fmd.getTypeName(), fmd.getName()));
+            return null;
         }
 
         public void operationSetValue(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
@@ -2431,7 +2509,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public boolean isValidIndexType(AbstractDomainFieldHandlerImpl fmd, boolean hashNotOrdered) {
-            throw new ClusterJUserException(local.message("ERR_Unsupported_Field_Type", fmd.getTypeName(), fmd.getName()));
+            return false;
         }
 
         public void partitionKeySetPart(AbstractDomainFieldHandlerImpl fmd, PartitionKey partitionKey, ValueHandler keyValueHandler) {
