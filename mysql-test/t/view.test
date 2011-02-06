@@ -3928,3 +3928,27 @@ DROP TABLE t1;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
+
+--echo #
+--echo # Bug#702403: crash with multiple equalities and a view
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (10);
+
+CREATE TABLE t2 (pk int PRIMARY KEY, b int, INDEX idx (b));
+INSERT INTO t2 VALUES (1,2), (3,4);
+CREATE TABLE t3 (pk int PRIMARY KEY, b int, INDEX idx (b));
+INSERT INTO t3 VALUES (1,2), (3,4);
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN 
+SELECT * FROM v1, t2, t3 
+  WHERE t3.pk = v1.a AND t2.b = 1 AND t2.b = t3.pk AND v1.a BETWEEN 2 AND 5;
+
+SELECT * FROM v1, t2, t3 
+  WHERE t3.pk = v1.a AND t2.b = 1 AND t2.b = t3.pk AND v1.a BETWEEN 2 AND 5;
+
+DROP VIEW v1;
+DROP TABLE t1, t2, t3;
