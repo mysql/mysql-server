@@ -9589,7 +9589,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
       List_iterator_fast<Item_equal> it(cond_equal.current_level);
       while ((item_equal= it++))
       {
-        item_equal->fix_length_and_dec();
+        item_equal->fix_fields(thd, NULL);
         item_equal->update_used_tables();
         set_if_bigger(thd->lex->current_select->max_equal_elems,
                       item_equal->members());  

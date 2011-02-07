@@ -5523,7 +5523,6 @@ Item_equal::Item_equal(Item_field *f1, Item_field *f2)
   const_item_cache= 0;
   fields.push_back(f1);
   fields.push_back(f2);
-  f1->item_equal= f2->item_equal= this;
 }
 
 Item_equal::Item_equal(Item *c, Item_field *f)
@@ -5601,7 +5600,6 @@ void Item_equal::add(Item *c)
 void Item_equal::add(Item_field *f)
 {
   fields.push_back(f);
-  f->item_equal= this;
 }
 
 uint Item_equal::members()
@@ -5714,7 +5712,7 @@ void Item_equal::update_const()
 bool Item_equal::fix_fields(THD *thd, Item **ref)
 {
   List_iterator_fast<Item_field> li(fields);
-  Item *item;
+  Item_field *item;
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 0;
   while ((item= li++))
@@ -5725,6 +5723,7 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
     not_null_tables_cache|= tmp_table_map;
     if (item->maybe_null)
       maybe_null=1;
+    item->item_equal= this;
   }
   fix_length_and_dec();
   fixed= 1;
