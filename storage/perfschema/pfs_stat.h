@@ -101,7 +101,7 @@ struct PFS_multi_stat
     m_waits.reset();
     m_bytes.reset();
   }
-}
+};
 
 /** Statistics for COND usage. */
 struct PFS_cond_stat

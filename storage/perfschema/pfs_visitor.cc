@@ -175,6 +175,38 @@ void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
   }
 }
 
+void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
+                                                   PFS_instance_visitor *visitor)
+{
+  DBUG_ASSERT(visitor != NULL);
+
+  visitor->visit_socket_class(klass);
+
+  if (klass->is_singleton())
+  {
+    PFS_socket *pfs= sanitize_socket(klass->m_singleton);
+    if (likely(pfs != NULL))
+    {
+      if (likely(pfs->m_lock.is_populated()))
+      {
+        visitor->visit_socket(pfs);
+      }
+    }
+  }
+  else
+  {
+    PFS_socket *pfs= socket_array;
+    PFS_socket *pfs_last= pfs + socket_max;
+    for ( ; pfs < pfs_last; pfs++)
+    {
+      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
+      {
+        visitor->visit_socket(pfs);
+      }
+    }
+  }
+}
+
 void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
 {
   DBUG_ASSERT(visitor != NULL);
@@ -294,6 +326,12 @@ void PFS_instance_wait_visitor::visit_file_class(PFS_file_class *pfs)
   m_stat.aggregate(& global_instr_class_waits_array[index]);
 }
 
+void PFS_instance_wait_visitor::visit_socket_class(PFS_socket_class *pfs) 
+{
+  uint index= pfs->m_event_name_index;
+  m_stat.aggregate(& global_instr_class_waits_array[index]);
+}
+
 void PFS_instance_wait_visitor::visit_mutex(PFS_mutex *pfs) 
 {
   m_stat.aggregate(& pfs->m_wait_stat);
@@ -310,6 +348,11 @@ void PFS_instance_wait_visitor::visit_cond(PFS_cond *pfs)
 }
 
 void PFS_instance_wait_visitor::visit_file(PFS_file *pfs) 
+{
+  m_stat.aggregate(& pfs->m_wait_stat);
+}
+
+void PFS_instance_wait_visitor::visit_socket(PFS_socket *pfs) 
 {
   m_stat.aggregate(& pfs->m_wait_stat);
 }

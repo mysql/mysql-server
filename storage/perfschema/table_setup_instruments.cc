@@ -112,6 +112,9 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_TABLE:
       instr_class= find_table_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_SOCKET:
+      instr_class= find_table_class(m_pos.m_index_2);
+      break;
     }
     if (instr_class)
     {
@@ -149,6 +152,9 @@ int table_setup_instruments::rnd_pos(const void *pos)
     instr_class= find_file_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_TABLE:
+    instr_class= find_table_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_SOCKET:
     instr_class= find_table_class(m_pos.m_index_2);
     break;
   }
