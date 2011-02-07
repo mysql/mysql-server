@@ -192,6 +192,7 @@ lock_wait_table_reserve_slot(
 	lock_wait_table_print();
 
 	ut_error;
+	return(NULL);
 }
 
 /***************************************************************//**

@@ -244,6 +244,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	}
 
 	ut_error;
+	return(DB_CORRUPTION);
 }
 
 /*******************************************************************//**
