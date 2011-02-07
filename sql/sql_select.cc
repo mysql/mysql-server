@@ -13619,12 +13619,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 {
   int ref_key;
   uint ref_key_parts;
-  int order_direction;
+  int order_direction= 0;
   uint used_key_parts;
   TABLE *table=tab->table;
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
   QUICK_SELECT_I *save_quick= 0;
+  int best_key= -1;
+
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -13728,13 +13730,14 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           new_ref_key_map.clear_all();  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
+          select->quick= 0;
           if (select->test_quick_select(tab->join->thd, new_ref_key_map, 0,
                                         (tab->join->select_options &
                                          OPTION_FOUND_ROWS) ?
                                         HA_POS_ERROR :
                                         tab->join->unit->select_limit_cnt,0) <=
               0)
-            DBUG_RETURN(0);
+            goto use_filesort;
 	}
         ref_key= new_ref_key;
       }
@@ -13749,7 +13752,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
     int best_key_direction= 0;
-    int best_key= -1;
     JOIN *join= tab->join;
     ha_rows table_records= table->file->stats.records;
 
@@ -13769,72 +13771,21 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
          tab->join->tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
-      DBUG_RETURN(0);
+      goto use_filesort;
 
     if (best_key >= 0)
     {
-      bool quick_created= FALSE;
       if (table->quick_keys.is_set(best_key) && best_key != ref_key)
       {
         key_map map;
         map.clear_all();       // Force the creation of quick select
         map.set_bit(best_key); // only best_key.
-        quick_created=         
-          select->test_quick_select(join->thd, map, 0,
-                                    join->select_options & OPTION_FOUND_ROWS ?
-                                    HA_POS_ERROR :
-                                    join->unit->select_limit_cnt,
-                                    0) > 0;
-      }
-      if (!no_changes)
-      {
-        /* 
-           If ref_key used index tree reading only ('Using index' in EXPLAIN),
-           and best_key doesn't, then revert the decision.
-        */
-        if (!table->covering_keys.is_set(best_key))
-          table->set_keyread(FALSE);
-        if (!quick_created)
-	{
-          tab->index= best_key;
-          tab->read_first_record= best_key_direction > 0 ?
-                                  join_read_first:join_read_last;
-          tab->type=JT_NEXT;           // Read with index_first(), index_next()
-          if (select && select->quick)
-          {
-            delete select->quick;
-            select->quick= 0;
-          }
-          if (table->covering_keys.is_set(best_key))
-            table->set_keyread(TRUE);
-          table->file->ha_index_or_rnd_end();
-          if (join->select_options & SELECT_DESCRIBE)
-          {
-            tab->ref.key= -1;
-            tab->ref.key_parts= 0;
-            if (select_limit < table_records) 
-              tab->limit= select_limit;
-          }
-        }
-        else if (tab->type != JT_ALL)
-        {
-          /*
-            We're about to use a quick access to the table.
-            We need to change the access method so as the quick access
-            method is actually used.
-          */
-          DBUG_ASSERT(tab->select->quick);
-          tab->type=JT_ALL;
-          tab->use_quick=1;
-          tab->ref.key= -1;
-          tab->ref.key_parts=0;		// Don't use ref key.
-          tab->read_first_record= join_init_read_record;
-          if (tab->is_using_loose_index_scan())
-            join->tmp_table_param.precomputed_group_by= TRUE;
-          /*
-            TODO: update the number of records in join->best_positions[tablenr]
-          */
-        }
+        select->quick= 0;
+        select->test_quick_select(join->thd, map, 0,
+                                  join->select_options & OPTION_FOUND_ROWS ?
+                                  HA_POS_ERROR :
+                                  join->unit->select_limit_cnt,
+                                  0);
       }
       order_direction= best_key_direction;
       /*
@@ -13847,10 +13798,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         saved_best_key_parts :  best_key_parts;
     }
     else
-      DBUG_RETURN(0); 
+      goto use_filesort;
   } 
 
 check_reverse_order:                  
+  DBUG_ASSERT(order_direction != 0);
+
   if (order_direction == -1)		// If ORDER BY ... DESC
   {
     if (select && select->quick)
@@ -13859,9 +13812,10 @@ check_reverse_order:
 	Don't reverse the sort order, if it's already done.
         (In some cases test_if_order_by_key() can be called multiple times
       */
-      if (!select->quick->reverse_sorted())
+      if (select->quick->reverse_sorted())
+        goto skipped_filesort;
+      else
       {
-        QUICK_SELECT_I *tmp;
         int quick_type= select->quick->get_type();
         if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
@@ -13869,37 +13823,128 @@ check_reverse_order:
             quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)
         {
           tab->limit= 0;
-          select->quick= save_quick;
-          DBUG_RETURN(0);                   // Use filesort
+          goto use_filesort;               // Use filesort
         }
-            
-        /* ORDER BY range_key DESC */
-	tmp= select->quick->make_reverse(used_key_parts);
-	if (!tmp)
-	{
-          select->quick= save_quick;
-          tab->limit= 0;
-	  DBUG_RETURN(0);		// Reverse sort not supported
-	}
-	select->set_quick(tmp);
       }
     }
-    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
-             tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
-    {
-      /*
-	SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
-
-	Use a traversal function that starts by reading the last row
-	with key part (A) and then traverse the index backwards.
-      */
-      tab->read_first_record= join_read_last_key;
-      tab->read_record.read_record= join_read_prev_same;
-    }
   }
-  else if (select && select->quick)
-    select->quick->sorted= 1;
+
+  /*
+    Update query plan with access pattern for doing 
+    ordered access according to what we have decided
+    above.
+  */
+  if (!no_changes) // We are allowed to update QEP
+  {
+    if (best_key >= 0)
+    {
+      bool quick_created= 
+        (select && select->quick && select->quick!=save_quick);
+
+      /* 
+         If ref_key used index tree reading only ('Using index' in EXPLAIN),
+         and best_key doesn't, then revert the decision.
+      */
+      if (!table->covering_keys.is_set(best_key))
+        table->set_keyread(FALSE);
+      if (!quick_created)
+      {
+        if (select)                  // Throw any existing quick select
+          select->quick= 0;          // Cleanup either reset to save_quick,
+                                     // or 'delete save_quick'
+        tab->index= best_key;
+        tab->read_first_record= order_direction > 0 ?
+                                join_read_first:join_read_last;
+        tab->type=JT_NEXT;           // Read with index_first(), index_next()
+
+        if (table->covering_keys.is_set(best_key))
+          table->set_keyread(TRUE);
+        table->file->ha_index_or_rnd_end();
+        if (tab->join->select_options & SELECT_DESCRIBE)
+        {
+          tab->ref.key= -1;
+          tab->ref.key_parts= 0;
+          if (select_limit < table->file->stats.records) 
+            tab->limit= select_limit;
+        }
+      }
+      else if (tab->type != JT_ALL)
+      {
+        /*
+          We're about to use a quick access to the table.
+          We need to change the access method so as the quick access
+          method is actually used.
+        */
+        DBUG_ASSERT(tab->select->quick);
+        tab->type=JT_ALL;
+        tab->use_quick=1;
+        tab->ref.key= -1;
+        tab->ref.key_parts=0;		// Don't use ref key.
+        tab->read_first_record= join_init_read_record;
+        if (tab->is_using_loose_index_scan())
+          tab->join->tmp_table_param.precomputed_group_by= TRUE;
+        /*
+          TODO: update the number of records in join->best_positions[tablenr]
+        */
+      }
+    } // best_key >= 0
+
+    if (order_direction == -1)		// If ORDER BY ... DESC
+    {
+      if (select && select->quick)
+      {
+        /* ORDER BY range_key DESC */
+        QUICK_SELECT_I *tmp= select->quick->make_reverse(used_key_parts);
+        if (!tmp)
+        {
+          tab->limit= 0;
+          goto use_filesort;           // Reverse sort failed -> filesort
+        }
+        if (select->quick == save_quick)
+          save_quick= 0;                // make_reverse() consumed it
+        select->set_quick(tmp);
+      }
+      else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
+               tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
+      {
+        /*
+          SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
+
+          Use a traversal function that starts by reading the last row
+          with key part (A) and then traverse the index backwards.
+        */
+        tab->read_first_record= join_read_last_key;
+        tab->read_record.read_record= join_read_prev_same;
+      }
+    }
+    else if (select && select->quick)
+      select->quick->sorted= 1;
+
+  } // QEP has been modified
+
+  /*
+    Cleanup:
+    We may have both a 'select->quick' and 'save_quick' (original)
+    at this point. Delete the one that we wan't use.
+  */
+
+skipped_filesort:
+  // Keep current (ordered) select->quick 
+  if (select && save_quick != select->quick)
+  {
+    delete save_quick;
+    save_quick= NULL;
+  }
   DBUG_RETURN(1);
+
+use_filesort:
+  // Restore original save_quick
+  if (select && select->quick != save_quick)
+  {
+    delete select->quick;
+    select->quick= save_quick;
+  }
+  DBUG_RETURN(0);
 }
 
 
