@@ -89,6 +89,49 @@
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
       </Dialog>
 
+      <!-- Dialog new or upgrade instance -->
+
+      <Property Id="CreateOrUpgradeChoice" Value="Create"/>
+      
+      <Dialog Id="NewOrUpgradeInstanceDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+        <Control Id="Text" Type="Text" X="40" Y="65" Width="270" Height="30">
+          <Text>Setup found existing database instances that can be upgraded to [ProductName].You can create a new instance and/or upgrade existing one.
+          </Text>
+        </Control>
+
+        <Control Id="CreateOrUpgradeButton" 
+                 Type="RadioButtonGroup" X="40" Y="100" Width="300" Height="70" 
+                 Property="CreateOrUpgradeChoice" Text="Specify what to do">
+          <RadioButtonGroup Property="CreateOrUpgradeChoice">
+            <RadioButton Value="Create" X="0" Y="0" Width="300" Height="25"
+                  Text="{\Font1}Create new database instance."/>
+            <RadioButton Value="Upgrade" X="0" Y="30" Width="300" Height="25"
+                  Text="{\Font1}Do not create a new database. Optionally upgrade existing instances." />
+          </RadioButtonGroup>
+        </Control>
+
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Text="&amp;Next">
+          <Publish Event="Remove" Value="DBInstance">CreateOrUpgradeChoice = "Upgrade" </Publish>
+          <Publish Event="AddLocal" Value="DBInstance">CreateOrUpgradeChoice = "Create"</Publish>
+          <Publish Event="NewDialog" Value="CustomizeDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>Create or upgrade database instance</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}[ProductName] setup</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+      </Dialog>
+      
       <!-- Error popup dialog -->
       <Dialog Id="WarningDlg" Width="320" Height="85" Title="[ProductName] Setup" NoMinimize="yes">
         <Control Id="Ok" Type="PushButton" X="132" Y="57" Width="56" Height="17"
@@ -250,12 +293,18 @@
       <Publish Dialog="WelcomeDlg"  Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="999">
         OLDERVERSIONBEINGUPGRADED
       </Publish>
+      <Publish Dialog="LicenseAgreementDlg"  Control="Next" Event="NewDialog" Value="NewOrUpgradeInstanceDlg" Order="999">
+        NOT Installed AND UpgradableServiceFound
+      </Publish>
 
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServicePortDlg" Order="3" ><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3"> <![CDATA[OLDERVERSIONBEINGUPGRADED <>""]]></Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="1" ><![CDATA[(&DBInstance=2) AND (!DBInstance=3)]]></Publish>
 
 
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="NewOrUpgradeInstanceDlg" Order="999">
+        NOT Installed AND UpgradableServiceFound
+      </Publish>
       <Publish Dialog="CustomizeDlg" Control="Next" Event="DoAction" Value="CheckDataDirectoryEmpty" Order="1"><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
       <Publish Dialog="CustomizeDlg" Property="DATADIRNOTEMPTY" Control="Next"  Order="1"><![CDATA[NOT(&DBInstance=3 AND NOT !DBInstance=3)]]></Publish>
       <Publish  Dialog="CustomizeDlg" Control="Next"  Property="WarningText" Order="2"
@@ -573,7 +622,7 @@
       DllEntry="CheckServiceUpgrades"
       Execute="immediate" />
     <InstallUISequence>
-      <Custom Action="CheckServiceUpgrades" Before="ExecuteAction">
+      <Custom Action="CheckServiceUpgrades" After="CostFinalize">
         $C.bin.upgrade_wizard.exe = 3 AND NOT Installed
       </Custom>
     </InstallUISequence>

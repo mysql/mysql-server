@@ -677,6 +677,11 @@ extern "C" UINT __stdcall CheckServiceUpgrades(MSIHANDLE hInstall)
     MsiSetPropertyW(hInstall, L"WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT", L"");
     MsiSetPropertyW(hInstall, L"WIXUI_EXITDIALOGOPTIONALCHECKBOX",L"");
   }
+  else
+  {
+    MsiSetPropertyW(hInstall, L"UpgradableServiceFound", L"1");
+    MsiSetPropertyW(hInstall, L"WIXUI_EXITDIALOGOPTIONALCHECKBOX",L"1");
+  }
 LExit:
   if(scm)
     CloseServiceHandle(scm);
