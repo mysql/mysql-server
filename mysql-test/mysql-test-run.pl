@@ -192,6 +192,7 @@ my $opt_explain_protocol;
 our $opt_debug;
 my $debug_d= "d";
 my $opt_debug_common;
+our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 
@@ -981,6 +982,7 @@ sub command_line_setup {
              # Debugging
              'debug'                    => \$opt_debug,
              'debug-common'             => \$opt_debug_common,
+             'debug-server'             => \$opt_debug_server,
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
@@ -1136,6 +1138,9 @@ sub command_line_setup {
                                     "$basedir/share/charsets");
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin/auth");
+
+  # --debug[-common] implies we run debug server
+  $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
 
   if (using_extern())
   {
@@ -1789,7 +1794,7 @@ sub find_mysqld {
   my @mysqld_names= ("mysqld", "mysqld-max-nt", "mysqld-max",
 		     "mysqld-nt");
 
-  if ( $opt_debug ){
+  if ( $opt_debug_server ){
     # Put mysqld-debug first in the list of binaries to look for
     mtr_verbose("Adding mysqld-debug first in list of binaries to look for");
     unshift(@mysqld_names, "mysqld-debug");
@@ -2018,7 +2023,7 @@ sub read_plugin_defs($)
     or mtr_error("Can't read plugin defintions file $defs_file");
 
   # Need to check if we will be running mysqld-debug
-  if ($opt_debug) {
+  if ($opt_debug_server) {
     $running_debug= 1 if find_mysqld($basedir) =~ /-debug$/;
   }
 
@@ -2518,9 +2523,9 @@ sub check_debug_support ($) {
     #mtr_report(" - binaries are not debug compiled");
     $debug_compiled_binaries= 0;
 
-    if ( $opt_debug )
+    if ( $opt_debug_server )
     {
-      mtr_error("Can't use --debug, binaries does not support it");
+      mtr_error("Can't use --debug[-server], binary does not support it");
     }
     return;
   }
@@ -5791,6 +5796,8 @@ Options for debugging the product
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
                         "query,info,error,enter,exit"
+  debug-server          Use debug version of server, but without turning on
+                        tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
   manual-debug          Let user manually start mysqld in debugger, before
