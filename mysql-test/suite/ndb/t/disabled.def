@@ -32,3 +32,9 @@ ndb_dd_dump		 : SEAGULL tablespace
 ndb_dd_sql_features	 : SEAGULL tablespace
 ndb_dd_disk2memory	 : SEAGULL tablespace
 ndb_dd_alter		 : SEAGULL tablespace
+
+ndb_index_ordered	 : SEAGULL alter in second connection deadlocks
+
+ndb_index_unique	 : SEAGULL different error with copying alter
+ndb_alter_table3	 : SEAGULL different error with copying alter
+
