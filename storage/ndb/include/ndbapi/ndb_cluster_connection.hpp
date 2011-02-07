@@ -167,6 +167,19 @@ public:
   void set_auto_reconnect(int value);
   int get_auto_reconnect() const;
 
+  /**
+   * Collect client statistics for all Ndb objects in this connection
+   * Note that this locks the ndb objects while collecting data.
+   *
+   * See Ndb::ClientStatistics for suggested array size and offset
+   * meanings
+   * 
+   * @param statsArr   Pointer to array of Uint64 values for stats
+   * @param szz        Size of array
+   * @return Number of stats array values written
+   */
+  Uint32 collect_client_stats(Uint64* statsArr, Uint32 sz);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int get_no_ready();
   const char *get_connectstring(char *buf, int buf_sz) const;

@@ -409,11 +409,27 @@ struct st_ndb_status {
   long pruned_scan_count;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
+  long long api_client_stats[Ndb::NumClientStatistics];
 };
 
 static struct st_ndb_status g_ndb_status;
 static long g_ndb_status_conflict_fn_max= 0;
 static long g_ndb_status_conflict_fn_old= 0;
+
+long long g_event_data_count = 0;
+long long g_event_nondata_count = 0;
+long long g_event_bytes_count = 0;
+
+static long long g_slave_api_client_stats[Ndb::NumClientStatistics];
+
+static long long g_server_api_client_stats[Ndb::NumClientStatistics];
+
+void
+update_slave_api_stats(Ndb* ndb)
+{
+  for (Uint32 i=0; i < Ndb::NumClientStatistics; i++)
+    g_slave_api_client_stats[i] = ndb->getClientStat(i);
+}
 
 static int update_status_variables(Thd_ndb *thd_ndb,
                                    st_ndb_status *ns,
@@ -446,9 +462,71 @@ static int update_status_variables(Thd_ndb *thd_ndb,
       ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
       ns->transaction_hint_count[i]= thd_ndb->m_transaction_hint_count[i];
     }
+    for (int i=0; i < Ndb::NumClientStatistics; i++)
+    {
+      ns->api_client_stats[i] = thd_ndb->ndb->getClientStat(i);
+    }
   }
   return 0;
 }
+
+/* Helper macro for definitions of NdbApi status variables */
+
+#define NDBAPI_COUNTERS(NAME_SUFFIX, ARRAY_LOCATION)                    \
+  {"api_wait_exec_complete_count" NAME_SUFFIX,                          \
+   (char*) ARRAY_LOCATION[ Ndb::WaitExecCompleteCount ],                \
+   SHOW_LONGLONG},                                                      \
+  {"api_wait_scan_result_count" NAME_SUFFIX,                            \
+   (char*) ARRAY_LOCATION[ Ndb::WaitScanResultCount ],                  \
+   SHOW_LONGLONG},                                                      \
+  {"api_wait_meta_request_count" NAME_SUFFIX,                           \
+   (char*) ARRAY_LOCATION[ Ndb::WaitMetaRequestCount ],                 \
+   SHOW_LONGLONG},                                                      \
+  {"api_wait_nanos" NAME_SUFFIX,                                        \
+   (char*) ARRAY_LOCATION[ Ndb::WaitNanosCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_bytes_sent" NAME_SUFFIX,                                        \
+   (char*) ARRAY_LOCATION[ Ndb::BytesSentCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_bytes_received" NAME_SUFFIX,                                    \
+   (char*) ARRAY_LOCATION[ Ndb::BytesRecvdCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_start_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::TransStartCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_commit_count" NAME_SUFFIX,                                \
+   (char*) ARRAY_LOCATION[ Ndb::TransCommitCount ],                     \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_abort_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::TransAbortCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_close_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::TransCloseCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_pk_op_count" NAME_SUFFIX,                                       \
+   (char*) ARRAY_LOCATION[ Ndb::PkOpCount ],                            \
+   SHOW_LONGLONG},                                                      \
+  {"api_uk_op_count" NAME_SUFFIX,                                       \
+   (char*) ARRAY_LOCATION[ Ndb::UkOpCount ],                            \
+   SHOW_LONGLONG},                                                      \
+  {"api_table_scan_count" NAME_SUFFIX,                                  \
+   (char*) ARRAY_LOCATION[ Ndb::TableScanCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_range_scan_count" NAME_SUFFIX,                                  \
+   (char*) ARRAY_LOCATION[ Ndb::RangeScanCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_pruned_scan_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::PrunedScanCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_scan_batch_count" NAME_SUFFIX,                                  \
+   (char*) ARRAY_LOCATION[ Ndb::ScanBatchCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_read_row_count" NAME_SUFFIX,                                    \
+   (char*) ARRAY_LOCATION[ Ndb::ReadRowCount ],                         \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_local_read_row_count" NAME_SUFFIX,                        \
+   (char*) ARRAY_LOCATION[ Ndb::TransLocalReadRowCount ],               \
+   SHOW_LONGLONG}
 
 SHOW_VAR ndb_status_variables_dynamic[]= {
   {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG},
@@ -462,6 +540,7 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
   {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG},
   {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG},
+  NDBAPI_COUNTERS("_session", &g_ndb_status.api_client_stats),
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -475,6 +554,50 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
+
+SHOW_VAR ndb_status_injector_variables[]= {
+  {"api_event_data_count_injector",     (char*) &g_event_data_count, SHOW_LONGLONG},
+  {"api_event_nondata_count_injector",  (char*) &g_event_nondata_count, SHOW_LONGLONG},
+  {"api_event_bytes_count_injector",    (char*) &g_event_bytes_count, SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+SHOW_VAR ndb_status_slave_variables[]= {
+  NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+  {NullS, NullS, SHOW_LONG}
+};
+
+SHOW_VAR ndb_status_server_client_stat_variables[]= {
+  NDBAPI_COUNTERS("", &g_server_api_client_stats),
+  {"api_event_data_count",     
+   (char*) &g_server_api_client_stats[ Ndb::DataEventsRecvdCount ], 
+   SHOW_LONGLONG},
+  {"api_event_nondata_count",  
+   (char*) &g_server_api_client_stats[ Ndb::NonDataEventsRecvdCount ], 
+   SHOW_LONGLONG},
+  {"api_event_bytes_count",    
+   (char*) &g_server_api_client_stats[ Ndb::EventBytesRecvdCount ], 
+   SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
+{
+  /* This function is called when SHOW STATUS / INFO_SCHEMA wants
+   * to see one of our status vars
+   * We use this opportunity to :
+   *  1) Update the globals with current values
+   *  2) Return an array of var definitions, pointing to
+   *     the updated globals
+   */
+  ndb_get_connection_stats((Uint64*) &g_server_api_client_stats[0]);
+
+  var->type= SHOW_ARRAY;
+  var->value= (char*) ndb_status_server_client_stat_variables;
+
+  return 0;
+}
+
 
 /*
   Error handling functions
@@ -6939,6 +7062,8 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (!thd_ndb->m_conflict_fn_usage_count || !thd_ndb->m_unsent_bytes ||
         !(res= execute_no_commit(thd_ndb, trans, TRUE)))
       res= execute_commit(thd_ndb, trans, 1, TRUE);
+
+    update_slave_api_stats(thd_ndb->ndb);
   }
   else
   {
@@ -7102,6 +7227,9 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
     free_share(&share);
   }
   thd_ndb->changed_tables.empty();
+
+  if (thd->slave_thread)
+    update_slave_api_stats(thd_ndb->ndb);
 
   DBUG_RETURN(res);
 }
@@ -10509,6 +10637,8 @@ static int ndbcluster_init(void *p)
 #ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
 #endif
+
+  memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
@@ -14784,6 +14914,9 @@ SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
   {"Ndb",          (char*) &ndb_status_variables_fixed,    SHOW_ARRAY},
   {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
+  {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
+  {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},
+  {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 

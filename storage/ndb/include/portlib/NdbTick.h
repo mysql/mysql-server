@@ -55,6 +55,12 @@ NDB_TICKS NdbTick_getMicrosPassed(struct MicroSecondTimer start,
                             struct MicroSecondTimer stop);
 int NdbTick_getMicroTimer(struct MicroSecondTimer* time_now);
 
+
+/**
+ * Returns the current nanosecond
+ */
+NDB_TICKS NdbTick_CurrentNanosecond(void);
+
 #ifdef	__cplusplus
 }
 #endif

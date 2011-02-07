@@ -701,6 +701,8 @@ Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
     else
       nodeId= 0;
     
+    theImpl->incClientStat(TransStartCount, 1);
+
     NdbTransaction *trans= startTransactionLocal(0, nodeId);
     DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
                        (long) trans,
@@ -764,6 +766,11 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       }
     }
 
+    /* TODO : Should call method above rather than duplicate call to
+     * startTransactionLocal
+     */
+    theImpl->incClientStat( TransStartCount, 1 );
+
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);
       DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
@@ -809,6 +816,7 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
       // We could not get a connection to the desired node
       // release the connection and return NULL
       closeTransaction(pCon);
+      theImpl->decClientStat( TransStartCount, 1 ); /* Correct stats */
       theError.code = 4006;
       DBUG_RETURN(NULL);
     }
@@ -950,6 +958,8 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   
   aConnection->release();
   
+  theImpl->incClientStat(TransCloseCount, 1);
+
   if(aConnection->theError.code == 4008){
     /**
      * Something timed-out, returning the NdbTransaction leads
@@ -2189,4 +2199,46 @@ Uint32
 Ndb::getMinDbNodeVersion() const
 {
   return theCachedMinDbNodeVersion;
+}
+
+const char* ClientStatNames [] =
+{ "WaitExecCompleteCount",
+  "WaitScanResultCount",
+  "WaitMetaRequestCount",
+  "WaitNanosCount",
+  "BytesSentCount",
+  "BytesRecvdCount",
+  "TransStartCount",
+  "TransCommitCount",
+  "TransAbortCount",
+  "TransCloseCount",
+  "PkOpCount",
+  "UkOpCount",
+  "TableScanCount",
+  "RangeScanCount",
+  "PrunedScanCount",
+  "ScanBatchCount",
+  "ReadRowCount",
+  "TransLocalReadRowCount",
+  "DataEventsRecvdCount",
+  "NonDataEventsRecvdCount",
+  "EventBytesRecvdCount"
+};
+
+Uint64
+Ndb::getClientStat(Uint32 id) const
+{
+  if (likely(id < NumClientStatistics))
+    return theImpl->clientStats[id];
+
+  return 0;
+}
+
+const char*
+Ndb::getClientStatName(Uint32 id) const
+{
+  if (likely(id < NumClientStatistics))
+    return ClientStatNames[id];
+
+  return NULL;
 }
