@@ -3630,7 +3630,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   }
 
   /** Aggregate the number of bytes for the operation */
-  if (byte_count > -1)
+  if ((int)byte_count > -1)
     io_stat->aggregate_timed(byte_count);
 }
 
