@@ -771,7 +771,8 @@ Dbtup::initTab(Tablerec* const regTabPtr)
 
   regTabPtr->tabDescriptor = RNIL;
   regTabPtr->readKeyArray = RNIL;
-  regTabPtr->dynTabDescriptor = RNIL;
+  regTabPtr->dynTabDescriptor[MM] = RNIL;
+  regTabPtr->dynTabDescriptor[DD] = RNIL;
   regTabPtr->dynFixSizeMask[MM] = NULL;
   regTabPtr->dynVarSizeMask[MM] = NULL;
   regTabPtr->dynFixSizeMask[DD] = NULL;

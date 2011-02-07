@@ -111,11 +111,13 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   regTabPtr.p->m_attributes[DD].m_no_of_dyn_var= 0;
 
   // Reserve space for bitmap length
-  regTabPtr.p->m_dyn_null_bits= DYN_BM_LEN_BITS;
+  regTabPtr.p->m_dyn_null_bits[MM]= DYN_BM_LEN_BITS;
+  regTabPtr.p->m_dyn_null_bits[DD]= DYN_BM_LEN_BITS;
   regTabPtr.p->noOfKeyAttr= req->noOfKeyAttr;
   regTabPtr.p->noOfCharsets= req->noOfCharsets;
   regTabPtr.p->m_no_of_attributes= req->noOfAttributes;
-  regTabPtr.p->dynTabDescriptor= RNIL;
+  regTabPtr.p->dynTabDescriptor[MM]= RNIL;
+  regTabPtr.p->dynTabDescriptor[DD]= RNIL;
 
   {
     Uint32 offset[10];
@@ -233,7 +235,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
      * xxx internally as 'null'.
      */
 
-    Uint32 null_pos= regTabPtr.p->m_dyn_null_bits;
+    Uint32 null_pos= regTabPtr.p->m_dyn_null_bits[ind];
 
     if (AttributeDescriptor::getArrayType(attrDescriptor)==NDB_ARRAYTYPE_FIXED)
     {
@@ -252,7 +254,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
          * ensure that the full size bitmap is stored when non-NULL.
          */
         null_pos+= bits;
-        regTabPtr.p->m_dyn_null_bits+= bits+1;
+        regTabPtr.p->m_dyn_null_bits[ind]+= bits+1;
       }
       else
       {
@@ -267,7 +269,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 
         regTabPtr.p->m_attributes[ind].m_no_of_dyn_fix++;
         Uint32 null_bits= (bytes+3) >> 2;
-        regTabPtr.p->m_dyn_null_bits+= null_bits;
+        regTabPtr.p->m_dyn_null_bits[ind]+= null_bits;
       }
     }
     else
@@ -276,7 +278,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   treat_as_varsize:
       jam();
       regTabPtr.p->m_attributes[ind].m_no_of_dyn_var++;
-      regTabPtr.p->m_dyn_null_bits++;
+      regTabPtr.p->m_dyn_null_bits[ind]++;
     }
     AttributeOffset::setNullFlagPos(attrDes2, null_pos);
 
@@ -326,17 +328,23 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
 #undef BTW
 
   {
-    /* Allocate  dynamic descriptor. */
-    Uint32 offset[3];
-    Uint32 allocSize= getDynTabDescrOffsets((regTabPtr.p->m_dyn_null_bits+31)>>5,
-                                            offset);
-    Uint32 dynTableDescriptorRef= allocTabDescr(allocSize);
-    if (dynTableDescriptorRef == RNIL)
+    /* Allocate  dynamic descriptors. */
+    for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
     {
-      jam();
-      goto error;
+
+      Uint32 offset[3];
+      Uint32 allocSize= getDynTabDescrOffsets(
+                          (regTabPtr.p->m_dyn_null_bits[i]+31)>>5,
+                          offset);
+      Uint32 dynTableDescriptorRef= allocTabDescr(allocSize);
+      if (dynTableDescriptorRef == RNIL)
+      {
+        jam();
+        goto error;
+      }
+      setupDynDescriptorReferences(dynTableDescriptorRef,
+                                   regTabPtr.p, offset, i);
     }
-    setupDynDescriptorReferences(dynTableDescriptorRef, regTabPtr.p, offset);
   }
 
   /* Compute table aggregate metadata. */
@@ -1049,7 +1057,7 @@ Dbtup::handleAlterTablePrepare(Signal *signal,
       in ALTER_TAB_REQ[commit];
     */
     Uint32 charsetIndex= regTabPtr->noOfCharsets;
-    Uint32 dyn_nullbits= regTabPtr->m_dyn_null_bits;
+    Uint32 dyn_nullbits= regTabPtr->m_dyn_null_bits[MM];
     if (dyn_nullbits == 0)
     {
       jam();
@@ -1182,7 +1190,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
     regTabPtr->m_attributes[MM].m_no_of_dyn_fix= regAlterTabOpPtr.p->noOfDynFix;
     regTabPtr->m_attributes[MM].m_no_of_dyn_var= regAlterTabOpPtr.p->noOfDynVar;
     regTabPtr->m_attributes[MM].m_no_of_dynamic= regAlterTabOpPtr.p->noOfDynamic;
-    regTabPtr->m_dyn_null_bits= regAlterTabOpPtr.p->noOfDynNullBits;
+    regTabPtr->m_dyn_null_bits[MM]= regAlterTabOpPtr.p->noOfDynNullBits;
 
     /* Install the new (larger) table descriptors. */
     setUpDescriptorReferences(regAlterTabOpPtr.p->tableDescriptor,
@@ -1342,13 +1350,17 @@ Dbtup::handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
 void
 Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 {
-  if (regTabPtr->m_dyn_null_bits == DYN_BM_LEN_BITS)
+  Uint32 dyn_null_words[2];
+
+  for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
-    regTabPtr->m_dyn_null_bits = 0;
+    if (regTabPtr->m_dyn_null_bits[i] == DYN_BM_LEN_BITS)
+    {
+      regTabPtr->m_dyn_null_bits[i] = 0;
+    }
+    dyn_null_words[i] = (regTabPtr->m_dyn_null_bits[i]+31)>>5;
+    regTabPtr->m_offsets[i].m_dyn_null_words = dyn_null_words[i];
   }
-  
-  Uint32 dyn_null_words= (regTabPtr->m_dyn_null_bits+31)>>5;
-  regTabPtr->m_offsets[MM].m_dyn_null_words= dyn_null_words;
 
   /* Compute the size of the static headers. */
   Uint32 pos[2] = { 0, 0 };
@@ -1403,7 +1415,6 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     We also compute the dynamic bitmasks here.
   */
   Uint32 *tabDesc= (Uint32*)(tableDescriptor+regTabPtr->tabDescriptor);
-  Uint32 *dynDesc= (Uint32*)(tableDescriptor+regTabPtr->dynTabDescriptor);
   Uint32 fix_size[2]= {0, 0};
   Uint32 var_size[2]= {0, 0};
   Uint32 dyn_size[2]= {0, 0};
@@ -1413,8 +1424,11 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   Uint32 dynamic_count= 0;
   regTabPtr->blobAttributeMask.clear();
   regTabPtr->notNullAttributeMask.clear();
-  bzero(regTabPtr->dynVarSizeMask[MM], dyn_null_words<<2);
-  bzero(regTabPtr->dynFixSizeMask[MM], dyn_null_words<<2);
+  for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
+  {
+    bzero(regTabPtr->dynVarSizeMask[i], dyn_null_words[i]<<2);
+    bzero(regTabPtr->dynFixSizeMask[i], dyn_null_words[i]<<2);
+  }
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)
   {
@@ -1474,10 +1488,10 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
 
           off= dynfix_count++ + regTabPtr->m_attributes[ind].m_no_of_dyn_var;
           while(size_in_words-- > 0)
-	  {
-	    BitmaskImpl::set(dyn_null_words, 
-			     regTabPtr->dynFixSizeMask[ind], null_pos++);
-	  }
+          {
+            BitmaskImpl::set(dyn_null_words[ind],
+                             regTabPtr->dynFixSizeMask[ind], null_pos++);
+          }
         }
         else
           off= 0;                               // Bit type
@@ -1487,7 +1501,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
       treat_as_varsize:
         jam();
         off= dynvar_count++;
-	BitmaskImpl::set(dyn_null_words, regTabPtr->dynVarSizeMask[ind], null_pos);
+        BitmaskImpl::set(dyn_null_words[ind], regTabPtr->dynVarSizeMask[ind], null_pos);
       }
     }
     AttributeOffset::setOffset(attrDes2, off);
@@ -1646,12 +1660,13 @@ void Dbtup::setUpDescriptorReferences(Uint32 descriptorReference,
 
 void Dbtup::setupDynDescriptorReferences(Uint32 dynDescr,
                                          Tablerec* const regTabPtr,
-                                         const Uint32* offset)
+                                         const Uint32* offset,
+                                         Uint32 ind)
 {
-  regTabPtr->dynTabDescriptor= dynDescr;
+  regTabPtr->dynTabDescriptor[ind]= dynDescr;
   Uint32* desc= &tableDescriptor[dynDescr].tabDescr;
-  regTabPtr->dynVarSizeMask[MM] = desc+offset[0];
-  regTabPtr->dynFixSizeMask[MM] = desc+offset[1];
+  regTabPtr->dynVarSizeMask[ind] = desc+offset[0];
+  regTabPtr->dynFixSizeMask[ind] = desc+offset[1];
 }
 
 Uint32
@@ -1832,14 +1847,19 @@ void Dbtup::releaseTabDescr(Tablerec* const regTabPtr)
     releaseTabDescr(descriptor);
   }
 
-  descriptor= regTabPtr->dynTabDescriptor;
-  if(descriptor != RNIL)
+  /* Release dynamic descriptor, etc for mm and disk data. */
+
+  for (Uint16 i = 0; i < NO_DYNAMICS; ++i)
   {
     jam();
-    regTabPtr->dynTabDescriptor= RNIL;
-    regTabPtr->dynVarSizeMask[MM]= NULL;
-    regTabPtr->dynFixSizeMask[MM]= NULL;
-    releaseTabDescr(descriptor);
+    descriptor= regTabPtr->dynTabDescriptor[i];
+    if(descriptor != RNIL)
+    {
+      regTabPtr->dynTabDescriptor[i]= RNIL;
+      regTabPtr->dynVarSizeMask[i]= NULL;
+      regTabPtr->dynFixSizeMask[i]= NULL;
+      releaseTabDescr(descriptor);
+    }
   }
 }
 
