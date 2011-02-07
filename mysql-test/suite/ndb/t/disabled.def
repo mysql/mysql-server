@@ -42,3 +42,5 @@ ndb_read_multi_range      : SEAGULL "total length of the partitioning fields is 
 
 ndb_multi		 : SEAGULL schema distribution 
 
+ndb_sql_allow_batching   : SEAGULL WL3733 xxx_allow_batching
+
