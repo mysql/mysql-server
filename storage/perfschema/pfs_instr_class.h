@@ -284,6 +284,8 @@ struct PFS_file_class : public PFS_instr_class
   PFS_file *m_singleton;
 };
 
+struct  PFS_socket;
+
 /** Instrumentation metadata for a socket. */
 struct PFS_socket_class : public PFS_instr_class
 {
@@ -291,6 +293,8 @@ struct PFS_socket_class : public PFS_instr_class
   PFS_socket_stat m_socket_stat;
   /** Self index in @c socket_class_array. */
   uint m_index;
+  /** Singleton instance. */
+  PFS_socket *m_singleton;
 };
 
 void init_event_name_sizing(const PFS_global_param *param);

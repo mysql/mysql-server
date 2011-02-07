@@ -3537,7 +3537,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
   Implementation of the socket instrumentation interface.
   @sa PSI_v1::end_socket_wait.
 */
-static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count) // TBD: Use this or PFS_events_waits?
+static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 {
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -3553,32 +3553,32 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count) // TBD: 
   switch (state->m_operation)
   {
   case PSI_SOCKET_CONNECT:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_connect;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_connect;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_connect.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_connect.m_bytes;
     break;
   case PSI_SOCKET_RECV:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_recv;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_recv;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_recv.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_recv.m_bytes;
     break;
   case PSI_SOCKET_SEND:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_send;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_send;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_send.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_send.m_bytes;
     break;
   case PSI_SOCKET_RECVFROM:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_recvfrom;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom.m_bytes;
     break;
   case PSI_SOCKET_SENDTO:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_sendto;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_sendto;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_sendto.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_sendto.m_bytes;
     break;
   case PSI_SOCKET_RECVMSG:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_recvmsg;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg.m_bytes;
     break;
   case PSI_SOCKET_SENDMSG:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_sendmsg;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg.m_bytes;
     break;
 
   /** These operations are grouped as 'miscellaneous' */
@@ -3589,12 +3589,13 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count) // TBD: 
   case PSI_SOCKET_OPT:
   case PSI_SOCKET_STAT:
   case PSI_SOCKET_SHUTDOWN:
-    time_stat= &socket->m_socket_stat.m_time_stat.m_misc;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+    time_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_bytes;
     break;
   default:
     DBUG_ASSERT(false);
-    stat= NULL;
+    io_stat= NULL;
+    time_stat= NULL;
     break;
   }
 
@@ -3629,8 +3630,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count) // TBD: 
   }
 
   /** Aggregate the number of bytes for the operation */
-  if (count > -1)
-    io_stat->aggregate_timed(count); // TBD: Misleading name
+  if (byte_count > -1)
+    io_stat->aggregate_timed(byte_count);
 }
 
 static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)

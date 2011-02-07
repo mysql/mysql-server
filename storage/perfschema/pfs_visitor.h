@@ -34,6 +34,7 @@ struct PFS_mutex_class;
 struct PFS_rwlock_class;
 struct PFS_cond_class;
 struct PFS_file_class;
+struct PFS_socket_class;
 struct PFS_table_share;
 struct PFS_mutex;
 struct PFS_rwlock;
@@ -42,6 +43,7 @@ struct PFS_file;
 struct PFS_table;
 struct PFS_stage_class;
 struct PFS_statement_class;
+struct PFS_socket;
 
 /**
   Interface class to visit groups of connections.
@@ -99,6 +101,8 @@ public:
   virtual void visit_cond_class(PFS_cond_class *pfs) {}
   /** Visit a file class. */
   virtual void visit_file_class(PFS_file_class *pfs) {}
+  /** Visit a socket class. */
+  virtual void visit_socket_class(PFS_socket_class *pfs) {}
   /** Visit a mutex instance. */
   virtual void visit_mutex(PFS_mutex *pfs) {}
   /** Visit a rwlock instance. */
@@ -107,6 +111,8 @@ public:
   virtual void visit_cond(PFS_cond *pfs) {}
   /** Visit a file instance. */
   virtual void visit_file(PFS_file *pfs) {}
+  /** Visit a socket instance. */
+  virtual void visit_socket(PFS_socket *pfs) {}
 };
 
 /**
@@ -144,6 +150,13 @@ public:
   */
   static void visit_file_instances(PFS_file_class *klass,
                                    PFS_instance_visitor *visitor);
+  /**
+    Visit a socket class and related instances.
+    @param klass the klass to visit.
+    @param visitor the visitor to call
+  */
+  static void visit_socket_instances(PFS_socket_class *klass,
+                                     PFS_instance_visitor *visitor);
 };
 
 /**
@@ -217,10 +230,12 @@ public:
   virtual void visit_rwlock_class(PFS_rwlock_class *pfs);
   virtual void visit_cond_class(PFS_cond_class *pfs);
   virtual void visit_file_class(PFS_file_class *pfs);
+  virtual void visit_socket_class(PFS_socket_class *pfs);
   virtual void visit_mutex(PFS_mutex *pfs);
   virtual void visit_rwlock(PFS_rwlock *pfs);
   virtual void visit_cond(PFS_cond *pfs);
   virtual void visit_file(PFS_file *pfs);
+  virtual void visit_socket(PFS_socket *pfs);
 
   /** Wait statistic collected. */
   PFS_single_stat m_stat;

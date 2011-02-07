@@ -1206,6 +1206,8 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
           pfs->m_wait_stat.reset();
           pfs->m_socket_stat.reset();
           pfs->m_lock.dirty_to_allocated();
+          if (klass->is_singleton())
+            klass->m_singleton= pfs;
           return pfs;
         }
       }
@@ -1237,12 +1239,15 @@ void destroy_socket(PFS_socket *pfs)
 
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
   uint index= klass->m_event_name_index;
-  global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
+  global_instr_class_waits_array[index].aggregate(&pfs->m_wait_stat);
   pfs->m_wait_stat.reset();
 
   /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
   pfs->m_socket_stat.m_io_stat.reset();
+
+  if (klass->is_singleton())
+    klass->m_singleton= NULL;
 
   pfs->m_lock.allocated_to_free();
 }
