@@ -40,3 +40,5 @@ ndb_alter_table3	 : SEAGULL different error with copying alter
 
 ndb_read_mult_range      : SEAGULL "total length of the partitioning fields is too large"
 
+ndb_multi		 : SEAGULL schema distribution 
+
