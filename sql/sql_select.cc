@@ -11602,6 +11602,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
+#ifndef MCP_BUG58490
+#else
+        if (tab->table->reginfo.not_exists_optimize)
+          return NESTED_LOOP_NO_MORE_ROWS;
+#endif
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found
