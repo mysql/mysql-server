@@ -53,7 +53,8 @@ protected:
   virtual void SetUp()
   {
     m_thd= new THD(false);
-    m_thd->thread_stack= (char*) &m_thd;
+    THD *stack_thd= m_thd;
+    m_thd->thread_stack= (char*) &stack_thd;
     m_thd->store_globals();
   }
 
