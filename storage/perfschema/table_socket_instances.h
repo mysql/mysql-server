@@ -38,6 +38,8 @@ struct row_socket_instances
   uint m_event_name_length;
   /** Column OBJECT_INSTANCE_BEGIN */
   const void *m_identity;
+  /** Column THREAD_ID */
+  uint m_thread_id;
   /** Column SOCKET_ID */
   uint m_fd;
   /** Column IP. */
@@ -46,10 +48,6 @@ struct row_socket_instances
   uint m_ip_length;
   /** Column PORT */
   uint m_port;
-  /** Column BYTES_READ */
-  ulonglong m_bytes_read;           // TBD
-  /** Column BYTES_WRITE */
-  ulonglong m_bytes_write;
 };
 
 /** Table PERFORMANCE_SCHEMA.SOCKET_INSTANCES. */

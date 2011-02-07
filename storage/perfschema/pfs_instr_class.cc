@@ -450,7 +450,8 @@ int init_socket_class(uint socket_class_sizing)
 
   if (socket_class_max > 0)
   {
-    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, PFS_socket_class, MYF(MY_ZEROFILL));
+    socket_class_array= PFS_MALLOC_ARRAY(socket_class_max, PFS_socket_class,
+                                         MYF(MY_ZEROFILL));
     if (unlikely(socket_class_array == NULL))
       return 1;
   }
@@ -821,18 +822,8 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
   uint32 index;
   PFS_socket_class *entry;
 
-// TBD  REGISTER_CLASS_BODY_PART(index, socket_class_array, socket_class_max, name, name_length)
-
-  for (index= 0; index < socket_class_max; index++)
-  {
-    entry= &socket_class_array[index];
-    if ((entry->m_name_length == name_length) &&
-        (strncmp(entry->m_name, name, name_length) == 0))
-    {
-      DBUG_ASSERT(entry->m_flags == flags);
-      return (index + 1);
-    }
-  }
+  REGISTER_CLASS_BODY_PART(index, socket_class_array, socket_class_max,
+                           name, name_length)
 
   index= PFS_atomic::add_u32(&socket_class_dirty_count, 1);
 
@@ -842,7 +833,6 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     init_instr_class(entry, name, name_length, flags);
     entry->m_index= index;
     entry->m_event_name_index= file_class_start + index;
-    entry->m_singleton= NULL;
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
   }
@@ -858,10 +848,7 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
 */
 PFS_socket_class *find_socket_class(PFS_socket_key key)
 {
-//  FIND_CLASS_BODY(key, socket_class_allocated_count, socket_class_array);
-  if ((key == 0) || (key > socket_class_allocated_count))
-    return NULL;
-  return &socket_class_array[key - 1];
+  FIND_CLASS_BODY(key, socket_class_allocated_count, socket_class_array);
 }
 
 PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)

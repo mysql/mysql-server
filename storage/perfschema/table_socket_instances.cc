@@ -41,28 +41,23 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("THREAD_ID") },
+    { C_STRING_WITH_LEN("int(10)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("SOCKET_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("int(10)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("IP") },
-    { C_STRING_WITH_LEN("varchar(128)") },
+    { C_STRING_WITH_LEN("varchar(64)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("PORT") },
-    { C_STRING_WITH_LEN("int(11)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
+    { C_STRING_WITH_LEN("int(10)") },
     { NULL, 0}
   }
 };
@@ -70,7 +65,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_socket_instances::m_field_def=
-{ 7, field_types };
+{ 6, field_types };
 
 PFS_engine_table_share
 table_socket_instances::m_share=
@@ -156,12 +151,11 @@ void table_socket_instances::make_row(PFS_socket *pfs)
   m_row.m_event_name=         safe_class->m_name;
   m_row.m_event_name_length=  safe_class->m_name_length;
   m_row.m_identity=           pfs->m_identity;
+  m_row.m_thread_id=          pfs->m_thread_id;
   m_row.m_fd=                 pfs->m_fd;
   m_row.m_ip=                 pfs->m_ip;
   m_row.m_ip_length=          pfs->m_ip_length;
   m_row.m_port=               pfs->m_port;
-  m_row.m_bytes_read=         pfs->m_socket_stat.m_io_stat.m_read_bytes; //TBD
-  m_row.m_bytes_write=        pfs->m_socket_stat.m_io_stat.m_write_bytes;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
@@ -192,20 +186,17 @@ int table_socket_instances::read_row_values(TABLE *table,
       case 1: /* OBJECT_INSTANCE_BEGIN */
         set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
-      case 2: /* SOCKET_ID */
+      case 2: /* THREAD_ID */
+        set_field_ulong(f, m_row.m_thread_id);
+        break;
+      case 3: /* SOCKET_ID */
         set_field_ulong(f, m_row.m_fd);
         break;
-      case 3: /* IP */
+      case 4: /* IP */
         set_field_varchar_utf8(f, m_row.m_ip, m_row.m_ip_length);
         break;
-      case 4: /* PORT */
+      case 5: /* PORT */
         set_field_ulong(f, m_row.m_port);
-        break;
-      case 5: /* BYTES_READ */
-        set_field_ulonglong(f, m_row.m_bytes_read);
-        break;
-      case 6: /* BYTES_WRITE */
-        set_field_ulonglong(f, m_row.m_bytes_write);
         break;
       default:
         DBUG_ASSERT(false);

@@ -82,6 +82,27 @@ struct PFS_single_stat
   }
 };
 
+/** Single statistic. */
+struct PFS_multi_stat
+{
+  /** Timer statistics */
+  PFS_single_stat m_waits;
+  /** Byte count statistics */
+  PFS_single_stat m_bytes;
+
+  inline void aggregate(const PFS_multi_stat *stat)
+  {
+    m_waits.aggregate(&stat->m_waits);
+    m_bytes.aggregate(&stat->m_bytes);
+  }
+
+  inline void reset(void)
+  {
+    m_waits.reset();
+    m_bytes.reset();
+  }
+}
+
 /** Statistics for COND usage. */
 struct PFS_cond_stat
 {
@@ -306,45 +327,84 @@ struct PFS_table_stat
   }
 };
 
-/** Statistics for SOCKET IO usage. */
+/** Statistics for SOCKET IO. Used for both waits and byte counts. */
 struct PFS_socket_io_stat
 {
-  /** Count of READ operations. */
-  ulonglong m_count_read;
-  /** Count of WRITE operations. */
-  ulonglong m_count_write;
-  /** Number of bytes read. */
-  ulonglong m_read_bytes;
-  /** Number of bytes written. */
-  ulonglong m_write_bytes;
+  /** READ statistics */
+  PFS_multi_stat m_read;
+  /** WRITE statistics */
+  PFS_multi_stat m_write;
+  /** RECV statistics */
+  PFS_multi_stat m_recv;
+  /** SEND statistics */
+  PFS_multi_stat m_send;
+  /** RECVFROM statistics */
+  PFS_multi_stat m_recvfrom;
+  /** SENDTO statistics */
+  PFS_multi_stat m_sendto;
+  /** RECVMSG statistics */
+  PFS_multi_stat m_recvmsg;
+  /** SENDMSG statistics */
+  PFS_multi_stat m_sendmsg;
+  /** CONNECT statistics */
+  PFS_multi_stat m_connect;
+  /** Miscelleanous statistics */
+  PFS_multi_stat m_misc;
 
-  /** Reset socket statistics. */
   inline void reset(void)
   {
-    m_count_read= 0;
-    m_count_write= 0;
-    m_read_bytes= 0;
-    m_write_bytes= 0;
+    m_read.reset();
+    m_write.reset();
+    m_recv.reset();
+    m_send.reset();
+    m_recvfrom.reset();
+    m_sendto.reset();
+    m_recvmsg.reset();
+    m_sendmsg.reset();
+    m_connect.reset();
+    m_misc.reset();
   }
 
   inline void aggregate(const PFS_socket_io_stat *stat)
   {
-    m_count_read+= stat->m_count_read;
-    m_count_write+= stat->m_count_write;
-    m_read_bytes+= stat->m_read_bytes;
-    m_write_bytes+= stat->m_write_bytes;
+    m_recv.aggregate(&stat->m_recv);
+    m_send.aggregate(&stat->m_send);
+    m_recvfrom.aggregate(&stat->m_recvfrom);
+    m_sendto.aggregate(&stat->m_sendto);
+    m_recvmsg.aggregate(&stat->m_recvmsg);
+    m_sendmsg.aggregate(&stat->m_sendmsg);
+    m_connect.aggregate(&stat->m_connect);
+    m_misc.aggregate(&stat->m_misc);
   }
 
-  inline void aggregate_read(ulonglong bytes)
+  inline void sum_waits(PFS_single_stat *result)
   {
-    m_count_read++;
-    m_read_bytes+= bytes;
+    result->aggregate(&m_recv.m_waits);
+    result->aggregate(&m_send.m_waits);
+    result->aggregate(&m_recvfrom.m_waits);
+    result->aggregate(&m_sendto.m_waits);
+    result->aggregate(&m_recvmsg.m_waits);
+    result->aggregate(&m_sendmsg.m_waits);
+    result->aggregate(&m_connect.m_waits);
+    result->aggregate(&m_misc.m_waits);
   }
 
-  inline void aggregate_write(ulonglong bytes)
+  inline void sum_bytes(PFS_single_stat *result)
   {
-    m_count_write++;
-    m_write_bytes+= bytes;
+    result->aggregate(&m_recv.m_bytes);
+    result->aggregate(&m_send.m_bytes);
+    result->aggregate(&m_recvfrom.m_bytes);
+    result->aggregate(&m_sendto.m_bytes);
+    result->aggregate(&m_recvmsg.m_bytes);
+    result->aggregate(&m_sendmsg.m_bytes);
+    result->aggregate(&m_connect.m_bytes);
+    result->aggregate(&m_misc.m_bytes);
+  }
+
+  inline void sum(PFS_multi_stat *result)
+  {
+    sum_waits(&result->m_waits);
+    sum_bytes(&result->m_bytes);
   }
 };
 
@@ -353,10 +413,17 @@ struct PFS_socket_stat
 {
   /** Number of current open sockets. //TBD Not relevant */
   ulong m_open_count;
-  /** Socket IO statistics. */
+  
+  /** Socket timing and byte count statistics per operation */
   PFS_socket_io_stat m_io_stat;
-};
 
+  /** Reset socket statistics. */
+  inline void reset(void)
+  {
+    m_open_count= 0;
+    m_io_stat.reset();
+  }
+};
 
 /** @} */
 #endif
