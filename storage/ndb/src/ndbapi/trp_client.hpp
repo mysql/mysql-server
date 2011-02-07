@@ -58,6 +58,9 @@ public:
 
   const trp_node & getNodeInfo(Uint32 i) const;
 
+  virtual void recordWaitTimeNanos(Uint64 nanos)
+    {};
+
   void lock();
   void unlock();
 

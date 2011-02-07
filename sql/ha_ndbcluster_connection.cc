@@ -293,4 +293,18 @@ int ndb_has_node_id(uint id)
   return 0;
 }
 
+void ndb_get_connection_stats(Uint64* statsArr)
+{
+  Uint64 connectionStats[ Ndb::NumClientStatistics ];
+  memset(statsArr, 0, sizeof(connectionStats));
+  
+  for (uint i=0; i < g_pool_alloc; i++)
+  {
+    g_pool[i]->collect_client_stats(connectionStats, Ndb::NumClientStatistics);
+    
+    for (Uint32 s=0; s < Ndb::NumClientStatistics; s++)
+      statsArr[s]+= connectionStats[s];
+  }
+}
+
 #endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */

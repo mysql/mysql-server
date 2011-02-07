@@ -385,6 +385,9 @@ Ndb_cluster_connection_impl(const char * connect_string,
   m_connect_thread= 0;
   m_connect_callback= 0;
 
+  /* Clear global stats baseline */
+  memset(globalApiStatsBaseline, 0, sizeof(globalApiStatsBaseline));
+
 #ifdef VM_TRACE
   if (ndb_print_state_mutex == NULL)
     ndb_print_state_mutex= NdbMutex_Create();
@@ -542,6 +545,15 @@ Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
   if (transId > m_max_trans_id)
   {
     m_max_trans_id = transId;
+  }
+
+  /* This Ndb is leaving for a better place,
+   * record its contribution to global warming
+   * for posterity
+   */
+  for (Uint32 i=0; i<Ndb::NumClientStatistics; i++)
+  {
+    globalApiStatsBaseline[i] += p->theImpl->clientStats[i];
   }
 
   unlock_ndb_objects();  
@@ -914,6 +926,38 @@ void
 Ndb_cluster_connection::set_auto_reconnect(int value)
 {
   m_impl.m_transporter_facade->set_auto_reconnect(value);
+}
+
+Uint32 
+Ndb_cluster_connection::collect_client_stats(Uint64* statsArr, Uint32 sz)
+{
+  /* We have a global stats baseline which contains all
+   * the stats for Ndb objects which have been and gone.
+   * Start with that, then add in stats for Ndb objects
+   * currently in use.
+   * Note that despite the lock, this is not thread safe
+   * as we are reading data that other threads may be
+   * concurrently writing.  The lock just guards against
+   * concurrent changes to the set of active Ndbs while
+   * we are iterating it.
+   */
+  const Uint32 relevant = MIN((Uint32)Ndb::NumClientStatistics, sz);
+  const Ndb* ndb = NULL;
+  lock_ndb_objects();
+  {
+    memcpy(statsArr, &m_impl.globalApiStatsBaseline[0], sizeof(Uint64)*relevant);
+  
+    while((ndb = get_next_ndb_object(ndb)) != NULL)
+    {
+      for (Uint32 i=0; i<relevant; i++)
+      {
+        statsArr[i] += ndb->theImpl->clientStats[i];
+      }
+    }
+  }
+  unlock_ndb_objects();
+
+  return relevant;
 }
 
 template class Vector<Ndb_cluster_connection_impl::Node>;
