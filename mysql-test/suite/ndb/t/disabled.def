@@ -23,3 +23,5 @@ add_node03    : disabled waiting for safe_process compatible spawn
 
 ndb_bulk_delete		 : SEAGULL rbwr
 ndb_update_no_read	 : SEAGULL rbwr
+
+ndb_condition_pushdown	 : SEAGULL
