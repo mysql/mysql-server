@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -206,6 +206,7 @@ que_thr_end_lock_wait(
 	ibool		was_active;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(trx_mutex_own(trx));
 
 	thr = trx->lock.wait_thr;
 
@@ -214,8 +215,6 @@ que_thr_end_lock_wait(
 	ut_ad(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 	/* In MySQL this is the only possible state here */
 	ut_a(thr->state == QUE_THR_LOCK_WAIT);
-
-	ut_ad(thr->state == QUE_THR_LOCK_WAIT);
 
 	was_active = thr->is_active;
 
@@ -704,7 +703,6 @@ que_thr_stop(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	que_t*		graph;
-	ibool		ret	= TRUE;
 	trx_t*		trx = thr_get_trx(thr);;
 
 	graph = thr->graph;
@@ -732,10 +730,10 @@ que_thr_stop(
 	} else {
 		ut_ad(graph->state == QUE_FORK_ACTIVE);
 
-		ret = FALSE;
+		return(FALSE);
 	}
 
-	return(ret);
+	return(TRUE);
 }
 
 /**********************************************************************//**

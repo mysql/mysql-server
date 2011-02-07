@@ -743,7 +743,7 @@ trx_rollback_or_clean_recovered(
 			ut_ad(trx->in_trx_list);
 
 			/* If this function does a cleanup or rollback
-			then it will release the trx sys mutex, therefore
+			then it will release the trx_sys->lock, therefore
 			we need to reacquire it before retrying the loop. */
 
 			if (trx_rollback_resurrected(trx, all)) {
