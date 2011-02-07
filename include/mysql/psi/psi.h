@@ -276,18 +276,26 @@ enum PSI_socket_operation
   PSI_SOCKET_BIND= 2,
   /** Socket close, as in @c shutdown(). */
   PSI_SOCKET_CLOSE= 3,
-  /** Generic socket send, such as @c send(), @c sendto(), @c sendmsg(). */
+  /** Socket send, @c send(). */
   PSI_SOCKET_SEND= 4,
-  /** Generic socket receive, such as @c recv(), @c recvfrom), @c recvmsg(). */
+  /** Socket receive, @c recv(). */
   PSI_SOCKET_RECV= 5,
-  /** Generic socket seek, such as @c fseek() or @c seek(). */
-  PSI_SOCKET_SEEK= 6,
+  /** Socket send, @c sendto(). */
+  PSI_SOCKET_SENDTO= 6,
+  /** Socket receive, @c recvfrom). */
+  PSI_SOCKET_RECVFROM= 7,
+  /** Socket send, @c sendmsg(). */
+  PSI_SOCKET_SENDMSG= 8,
+  /** Socket receive, @c recvmsg(). */
+  PSI_SOCKET_RECVMSG= 9,
+  /** Socket seek, such as @c fseek() or @c seek(). */
+  PSI_SOCKET_SEEK= 10,
   /** Socket options, as in @c getsockopt() and @c setsockopt(). */
-  PSI_SOCKET_OPT= 7,
+  PSI_SOCKET_OPT= 11,
   /** Socket status, as in @c sockatmark() and @c isfdtype(). */
-  PSI_SOCKET_STAT= 8,
+  PSI_SOCKET_STAT= 12,
   /** Socket shutdown, as in @c shutdown(). */
-  PSI_SOCKET_SHUTDOWN= 9
+  PSI_SOCKET_SHUTDOWN= 13
 };
 
 /**
@@ -1078,6 +1086,7 @@ typedef struct PSI_file_locker* (*get_thread_file_stream_locker_v1_t)
 typedef struct PSI_file_locker* (*get_thread_file_descriptor_locker_v1_t)
   (struct PSI_file_locker_state_v1 *state,
    File file, enum PSI_file_operation op);
+
 /**
   Get a socket instrumentation locker.
   @param state data storage for the locker

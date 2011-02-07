@@ -198,6 +198,8 @@ struct PFS_socket : public PFS_instr
 {
   /** Socket identity, typically int */
   const void *m_identity;
+  /** Thread identifier */
+  uint m_thread_id;
   /** Socket file descriptor */
   uint m_fd;
   /** Socket ip address, IPV4 or IPV6 */
@@ -350,6 +352,7 @@ PFS_cond *sanitize_cond(PFS_cond *unsafe);
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
 const char *sanitize_file_name(const char *unsafe);
 PFS_file *sanitize_file(PFS_file *unsafe);
+PFS_socket *sanitize_socket(PFS_socket *unsafe);
 
 int init_instruments(const PFS_global_param *param);
 void cleanup_instruments();
@@ -415,6 +418,7 @@ extern PFS_socket *socket_array;
 void reset_events_waits_by_instance();
 void reset_per_thread_wait_stat();
 void reset_file_instance_io();
+void reset_socket_instance_io();
 
 void reset_global_wait_stat(void);
 

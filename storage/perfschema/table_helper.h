@@ -127,7 +127,7 @@ struct PFS_stat_row
   /** Column MAX_TIMER_WAIT. */
   ulonglong m_max;
 
-  /** Build a row from a memory buffer. */
+  /** Build a row with timer fields from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_single_stat *stat)
   {
     m_count= stat->m_count;
@@ -138,6 +138,27 @@ struct PFS_stat_row
       m_min= normalizer->wait_to_pico(stat->m_min);
       m_max= normalizer->wait_to_pico(stat->m_max);
       m_avg= normalizer->wait_to_pico(stat->m_sum / m_count);
+    }
+    else
+    {
+      m_sum= 0;
+      m_min= 0;
+      m_avg= 0;
+      m_max= 0;
+    }
+  }
+
+  /** Build a row with count values from a memory buffer. */
+  inline void set(const PFS_single_stat *stat)
+  {
+    m_count= stat->m_count;
+
+    if (m_count)
+    {
+      m_sum= stat->m_sum;
+      m_min= stat->m_min;
+      m_max= stat->m_max;
+      m_avg= (stat->m_sum / m_count);
     }
     else
     {
@@ -270,6 +291,110 @@ struct PFS_table_lock_stat_row
     m_all_read.set(normalizer, & all_read);
     m_all_write.set(normalizer, & all_write);
     m_all.set(normalizer, & all);
+  }
+};
+
+/** Row fragment for socket io statistics columns. */
+struct PFS_socket_io_stat_row
+{
+  PFS_stat_row m_all;
+  PFS_stat_row m_all_read;
+  PFS_stat_row m_all_write;
+  PFS_stat_row m_recv;
+  PFS_stat_row m_send;
+  PFS_stat_row m_recvfrom;
+  PFS_stat_row m_sendto;
+  PFS_stat_row m_recvmsg;
+  PFS_stat_row m_sendmsg;
+  PFS_stat_row m_connect;
+  PFS_stat_row m_misc;
+
+  /** Build a row of timer fields from a memory buffer. */
+  inline void set_waits(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
+  {
+    PFS_single_stat all_read;
+    PFS_single_stat all_write;
+    PFS_single_stat all;
+
+    /* Combine receive operations */
+    m_recv.set(normalizer, &stat->m_recv.m_waits);
+    m_recvfrom.set(normalizer, &stat->m_recvfrom.m_waits);
+    m_recvmsg.set(normalizer, &stat->m_recvmsg.m_waits);
+
+    all_read.aggregate(&stat->m_recv.m_waits);
+    all_read.aggregate(&stat->m_recvfrom.m_waits);
+    all_read.aggregate(&stat->m_recvmsg.m_waits);
+
+    /* Combine send operations */
+    m_send.set(normalizer, &stat->m_send.m_waits);
+    m_sendto.set(normalizer, &stat->m_sendto.m_waits);
+    m_sendmsg.set(normalizer, &stat->m_sendmsg.m_waits);
+
+    all_write.aggregate(&stat->m_send.m_waits);
+    all_write.aggregate(&stat->m_sendto.m_waits);
+    all_write.aggregate(&stat->m_sendmsg.m_waits);
+
+    /* Set row values for miscellaneous socket operations */
+    m_connect.set(normalizer, &stat->m_connect.m_waits);
+    m_misc.set(normalizer, &stat->m_misc.m_waits);
+    
+    /* Combine timer stats for all operations */
+    all.aggregate(&all_read);
+    all.aggregate(&all_write);
+    all.aggregate(&stat->m_misc.m_waits);
+    all.aggregate(&stat->m_connect.m_waits);
+
+    m_all_read.set(normalizer, &all_read);
+    m_all_write.set(normalizer, &all_write);
+    m_all.set(normalizer, &all);
+  }
+
+  /** Build a row of byte count fields from a memory buffer. */
+  inline void set_bytes(const PFS_socket_io_stat *stat)
+  {
+    PFS_single_stat all_read;
+    PFS_single_stat all_write;
+    PFS_single_stat all;
+    PFS_single_stat misc;
+
+    /* Combine receive operations */
+    m_recv.set(&stat->m_recv.m_bytes);
+    m_recvfrom.set(&stat->m_recvfrom.m_bytes);
+    m_recvmsg.set(&stat->m_recvmsg.m_bytes);
+
+    all_read.aggregate(&stat->m_recv.m_bytes);
+    all_read.aggregate(&stat->m_recvfrom.m_bytes);
+    all_read.aggregate(&stat->m_recvmsg.m_bytes);
+
+    /* Combine send operations */
+    m_send.set(&stat->m_send.m_bytes);
+    m_sendto.set(&stat->m_sendto.m_bytes);
+    m_sendmsg.set(&stat->m_sendmsg.m_bytes);
+
+    all_write.aggregate(&stat->m_send.m_bytes);
+    all_write.aggregate(&stat->m_sendto.m_bytes);
+    all_write.aggregate(&stat->m_sendmsg.m_bytes);
+
+    /* Miscellaneous socket operations */
+    m_connect.set(&stat->m_connect.m_bytes);
+    m_misc.set(&stat->m_misc.m_bytes);
+    
+    /* Combine byte counts for all operations */
+    all.aggregate(&all_read);
+    all.aggregate(&all_write);
+    all.aggregate(&stat->m_connect.m_bytes);
+    all.aggregate(&stat->m_misc.m_bytes);
+
+    m_all_read.set(&all_read);
+    m_all_write.set(&all_write);
+    m_all.set(&all);
+  }
+
+  /** Build a row of timer and byte count fields from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
+  {
+    set_waits(normalizer, stat);
+    set_bytes(stat);
   }
 };
 

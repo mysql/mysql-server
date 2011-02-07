@@ -762,6 +762,11 @@ PFS_file *sanitize_file(PFS_file *unsafe)
   SANITIZE_ARRAY_BODY(PFS_file, file_array, file_max, unsafe);
 }
 
+PFS_socket *sanitize_socket(PFS_socket *unsafe)
+{
+  SANITIZE_ARRAY_BODY(PFS_socket, socket_array, socket_max, unsafe);
+}
+
 /**
   Destroy instrumentation for a thread instance.
   @param pfs                          the thread to destroy
@@ -1199,7 +1204,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
           pfs->m_identity= identity;
           pfs->m_class= klass;
           pfs->m_wait_stat.reset();
-          // TBD socket_io_stat
+          pfs->m_socket_stat.reset();
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }
@@ -1218,7 +1223,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
 void release_socket(PFS_socket *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
-  //pfs->m_socket_stat.m_open_count--;
+  pfs->m_socket_stat.m_open_count--;
 }
 
 /**
@@ -1228,7 +1233,17 @@ void release_socket(PFS_socket *pfs)
 void destroy_socket(PFS_socket *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
-  // TBD aggregate
+  PFS_socket_class *klass= pfs->m_class;
+
+  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
+  uint index= klass->m_event_name_index;
+  global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
+  pfs->m_wait_stat.reset();
+
+  /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE */
+  klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
+  pfs->m_socket_stat.m_io_stat.reset();
+
   pfs->m_lock.allocated_to_free();
 }
 
@@ -1295,6 +1310,16 @@ void reset_file_instance_io(void)
 
   for ( ; pfs < pfs_last; pfs++)
     pfs->m_file_stat.m_io_stat.reset();
+}
+
+/** Reset the io statistics per socket instance. */
+void reset_socket_instance_io(void)
+{
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= socket_array + socket_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_socket_stat.m_io_stat.reset();
 }
 
 void reset_global_wait_stat()

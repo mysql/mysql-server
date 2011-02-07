@@ -998,6 +998,10 @@ static enum_operation_type socket_operation_map[]=
   OPERATION_TYPE_SOCKETCLOSE,
   OPERATION_TYPE_SOCKETSEND,
   OPERATION_TYPE_SOCKETRECV,
+  OPERATION_TYPE_SOCKETSENDTO,
+  OPERATION_TYPE_SOCKETRECVFROM,
+  OPERATION_TYPE_SOCKETSENDMSG,
+  OPERATION_TYPE_SOCKETRECVMSG,
   OPERATION_TYPE_SOCKETSEEK,
   OPERATION_TYPE_SOCKETOPT,
   OPERATION_TYPE_SOCKETSTAT,
@@ -1297,21 +1301,7 @@ static void close_table_v1(PSI_table *table)
 static PSI_socket*
 init_socket_v1(PSI_socket_key key, const void *identity)
 {
-//  INIT_BODY_V1(socket, key, identity);
-  PFS_socket_class *klass;
-  PFS_socket *pfs;
-  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
-  if (unlikely(pfs_thread == NULL))
-    return NULL;
-  if (!pfs_thread->m_enabled)
-    return NULL;
-  klass= find_socket_class(key);
-  if (unlikely(klass == NULL))
-    return NULL;
-  if (!klass->m_enabled)
-    return NULL;
-  pfs= create_socket(klass, identity);
-  return reinterpret_cast<PSI_socket *> (pfs);
+  INIT_BODY_V1(socket, key, identity);
 }
 
 static void destroy_socket_v1(PSI_socket* socket)
@@ -1817,10 +1807,13 @@ get_thread_rwlock_locker_v1(PSI_rwlock_locker_state *state,
   if (flag_thread_instrumentation)
   {
     PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
     if (unlikely(pfs_thread == NULL))
       return NULL;
+
     if (! pfs_thread->m_enabled)
       return NULL;
+
     state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
     flags= STATE_FLAG_THREAD;
 
@@ -2534,28 +2527,21 @@ static PSI_socket_locker*
 get_thread_socket_locker_v1(PSI_socket_locker_state *state,
                                PSI_socket *socket, PSI_socket_operation op)
 {
-  PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
-
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(socket_operation_map));
   DBUG_ASSERT(state != NULL);
+  PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*> (socket);
   DBUG_ASSERT(pfs_socket != NULL);
   DBUG_ASSERT(pfs_socket->m_class != NULL);
 
   if (!flag_global_instrumentation)
     return NULL;
-  if (!pfs_socket->m_class->m_enabled)
-    return NULL;
+
   PFS_socket_class *klass= pfs_socket->m_class;
   if (!klass->m_enabled)
     return NULL;
 
   register uint flags;
-
-  if (klass->m_timed)
-    state->m_flags= STATE_FLAG_TIMED;
-  else
-    state->m_flags= 0;
 
   if (flag_thread_instrumentation)
   {
@@ -2592,8 +2578,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_socket;
-//    wait->m_object_name= pfs_socket->m_ip;
-//    wait->m_object_name_length= pfs_socket->m_ip_length;
+   // wait->m_object_name= pfs_socket->m_ip;   // TBD: Where is object_name defined?
+   // wait->m_object_name_length= pfs_socket->m_ip_length;
       wait->m_event_id= pfs_thread->m_event_id++;
       wait->m_operation= socket_operation_map[static_cast<int>(op)];
       wait->m_wait_class= WAIT_CLASS_SOCKET;
@@ -2604,13 +2590,16 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   else
   {
     if (klass->m_timed)
+    {
       flags= STATE_FLAG_TIMED;
+      state->m_thread= NULL;
+    }
     else
     {
       /*
         Complete shortcut.
       */
-      PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *> (socket);
+      PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *>(socket);
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
       pfs_socket->m_wait_stat.aggregate_counted();
       return NULL;
@@ -3518,14 +3507,13 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count);
 */
 static void start_socket_wait_v1(PSI_socket_locker *locker,
                                  size_t count,
-                                 const char *src_file,
-                                 uint src_line)
+                                 const char *src_file, uint src_line)
 {
-  ulonglong timer_start= 0;
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
   register uint flags= state->m_flags;
+  ulonglong timer_start= 0;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -3541,7 +3529,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
     wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
-    wait->m_number_of_bytes= count;
+    wait->m_number_of_bytes= count; // TBD: Get this from end_socket_wait()
   }
 }
 
@@ -3549,7 +3537,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
   Implementation of the socket instrumentation interface.
   @sa PSI_v1::end_socket_wait.
 */
-static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count)
+static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count) // TBD: Use this or PFS_events_waits?
 {
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -3558,7 +3546,57 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count)
 
   PFS_socket *socket= reinterpret_cast<PFS_socket *> (state->m_socket);
   DBUG_ASSERT(socket != NULL);
-  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+  PFS_single_stat *time_stat;
+  PFS_single_stat *io_stat;
+
+  switch (state->m_operation)
+  {
+  case PSI_SOCKET_CONNECT:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_connect;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_connect;
+    break;
+  case PSI_SOCKET_RECV:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_recv;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_recv;
+    break;
+  case PSI_SOCKET_SEND:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_send;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_send;
+    break;
+  case PSI_SOCKET_RECVFROM:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_recvfrom;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom;
+    break;
+  case PSI_SOCKET_SENDTO:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_sendto;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_sendto;
+    break;
+  case PSI_SOCKET_RECVMSG:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_recvmsg;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg;
+    break;
+  case PSI_SOCKET_SENDMSG:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_sendmsg;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg;
+    break;
+
+  /** These operations are grouped as 'miscellaneous' */
+  case PSI_SOCKET_CREATE:
+  case PSI_SOCKET_BIND:
+  case PSI_SOCKET_CLOSE:
+  case PSI_SOCKET_SEEK:
+  case PSI_SOCKET_OPT:
+  case PSI_SOCKET_STAT:
+  case PSI_SOCKET_SHUTDOWN:
+    time_stat= &socket->m_socket_stat.m_time_stat.m_misc;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_misc;
+    break;
+  default:
+    DBUG_ASSERT(false);
+    stat= NULL;
+    break;
+  }
 
   register uint flags= state->m_flags;
 
@@ -3566,76 +3604,33 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    socket->m_wait_stat.aggregate_timed(wait_time);
+    time_stat->aggregate_timed(wait_time);
   }
   else
   {
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    socket->m_wait_stat.aggregate_counted();
+    time_stat->aggregate_counted();
   }
 
-  if (flags & STATE_FLAG_THREAD)
+  if (flags & STATE_FLAG_WAIT)
   {
+    DBUG_ASSERT(flags & STATE_FLAG_THREAD);
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
     DBUG_ASSERT(thread != NULL);
 
-    PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_wait_stats;
-    uint index= socket->m_class->m_event_name_index;
+    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+    DBUG_ASSERT(wait != NULL);
 
-    if (flags & STATE_FLAG_TIMED)
-    {
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
-    }
-    else
-    {
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
-      event_name_array[index].aggregate_counted();
-    }
-
-    if (state->m_flags & STATE_FLAG_WAIT)
-    {
-      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
-      DBUG_ASSERT(wait != NULL);
-
-      wait->m_timer_end= timer_end;
-      wait->m_number_of_bytes= count;
-      if (flag_events_waits_history)
-        insert_events_waits_history(thread, wait);
-      if (flag_events_waits_history_long)
-        insert_events_waits_history_long(wait);
-      thread->m_events_waits_count--;
-    }
+    wait->m_timer_end= timer_end;
+    if (flag_events_waits_history)
+      insert_events_waits_history(thread, wait);
+    if (flag_events_waits_history_long)
+      insert_events_waits_history_long(wait);
+    thread->m_events_waits_count--;
   }
 
-  switch(state->m_operation)
-  {
-  case PSI_SOCKET_CREATE:
-//  socket->m_socket_stat.m_open_count++;
-//  klass->m_socket_stat.m_open_count++;
-    break;
-  case PSI_SOCKET_SEND:
-    socket->m_socket_stat.m_io_stat.aggregate_write(count);
-    break;
-  case PSI_SOCKET_RECV:
-    socket->m_socket_stat.m_io_stat.aggregate_read(count);
-    break;
-  case PSI_SOCKET_CLOSE:
-    /** close() frees the file descriptor, shutdown() does not */
-    release_socket(socket);
-    destroy_socket(socket);
-    break;
-  case PSI_SOCKET_CONNECT:
-  case PSI_SOCKET_BIND:
-  case PSI_SOCKET_STAT:
-  case PSI_SOCKET_OPT:
-  case PSI_SOCKET_SEEK:
-  case PSI_SOCKET_SHUTDOWN:
-    break;
-  default:
-    break;
-  }
+  /** Aggregate the number of bytes for the operation */
+  if (count > -1)
+    io_stat->aggregate_timed(count); // TBD: Misleading name
 }
 
 static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)
@@ -3646,6 +3641,10 @@ static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)
 }
 
 #ifdef __WIN__
+/**
+  inet_ntop() and inet_pton() do not exist in Windows. They are defined here
+  for convenience.
+*/
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt)
 {
   if (af == AF_INET)
