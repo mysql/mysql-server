@@ -778,3 +778,16 @@
    fun:row_ins_step
    fun:row_insert_for_mysql
 }
+
+{
+   Bug 59875 Valgrind warning in buf0buddy.c
+   Memcheck:Addr1
+   fun:mach_read_from_4
+   fun:buf_buddy_relocate
+   fun:buf_buddy_free_low
+   fun:buf_buddy_free
+   fun:buf_LRU_block_remove_hashed_page
+   fun:buf_LRU_invalidate_tablespace
+   fun:fil_delete_tablespace
+   fun:row_drop_table_for_mysql
+}
