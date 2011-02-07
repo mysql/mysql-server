@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5982,18 +5982,15 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
 }
 
 
-/*
+/**
   Handle an in-memory privilege structure.
 
-  SYNOPSIS
-    handle_grant_struct()
-    struct_no                   The number of the structure to handle (0..3).
-    drop                        If user_from is to be dropped.
-    user_from                   The the user to be searched/dropped/renamed.
-    user_to                     The new name for the user if to be renamed,
-                                NULL otherwise.
+  @param struct_no  The number of the structure to handle (0..5).
+  @param drop       If user_from is to be dropped.
+  @param user_from  The the user to be searched/dropped/renamed.
+  @param user_to    The new name for the user if to be renamed, NULL otherwise.
 
-  DESCRIPTION
+  @note
     Scan through all elements in an in-memory grant structure and apply
     the requested operation.
     Delete from grant structure if drop is true.
@@ -6003,12 +6000,13 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     0 acl_users
     1 acl_dbs
     2 column_priv_hash
-    3 procs_priv_hash
+    3 proc_priv_hash
+    4 func_priv_hash
+    5 acl_proxy_users
 
-  RETURN
-    > 0         At least one element matched.
-    0           OK, but no element matched.
-    -1		Wrong arguments to function
+  @retval > 0  At least one element matched.
+  @retval 0    OK, but no element matched.
+  @retval -1   Wrong arguments to function.
 */
 
 static int handle_grant_struct(uint struct_no, bool drop,
@@ -6023,6 +6021,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
   ACL_DB *acl_db= NULL;
   ACL_PROXY_USER *acl_proxy_user= NULL;
   GRANT_NAME *grant_name= NULL;
+  HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
@@ -6042,9 +6041,15 @@ static int handle_grant_struct(uint struct_no, bool drop,
     break;
   case 2:
     elements= column_priv_hash.records;
+    grant_name_hash= &column_priv_hash;
     break;
   case 3:
     elements= proc_priv_hash.records;
+    grant_name_hash= &proc_priv_hash;
+    break;
+  case 4:
+    elements= func_priv_hash.records;
+    grant_name_hash= &func_priv_hash;
     break;
   case 5:
     elements= acl_proxy_users.elements;
@@ -6077,21 +6082,19 @@ static int handle_grant_struct(uint struct_no, bool drop,
       break;
 
     case 2:
-      grant_name= (GRANT_NAME*) my_hash_element(&column_priv_hash, idx);
+    case 3:
+    case 4:
+      grant_name= (GRANT_NAME*) my_hash_element(grant_name_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
 
-    case 3:
-      grant_name= (GRANT_NAME*) my_hash_element(&proc_priv_hash, idx);
-      user= grant_name->user;
-      host= grant_name->host.hostname;
-      break;
     case 5:
       acl_proxy_user= dynamic_element(&acl_proxy_users, idx, ACL_PROXY_USER*);
       user= acl_proxy_user->get_user();
       host= acl_proxy_user->get_host();
       break;
+
     default:
       MY_ASSERT_UNREACHABLE();
     }
@@ -6121,11 +6124,9 @@ static int handle_grant_struct(uint struct_no, bool drop,
         break;
 
       case 2:
-        my_hash_delete(&column_priv_hash, (uchar*) grant_name);
-	break;
-
       case 3:
-        my_hash_delete(&proc_priv_hash, (uchar*) grant_name);
+      case 4:
+        my_hash_delete(grant_name_hash, (uchar*) grant_name);
 	break;
 
       case 5:
@@ -6134,6 +6135,19 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
       }
       elements--;
+      /*
+        - If we are iterating through an array then we just have moved all
+          elements after the current element one position closer to its head.
+          This means that we have to take another look at the element at
+          current position as it is a new element from the array's tail.
+        - If we are iterating through a hash the current element was replaced
+          with one of elements from the tail. So we also have to take a look
+          at the new element in current position.
+          Note that in our HASH implementation hash_delete() won't move any
+          elements with position after current one to position before the
+          current (i.e. from the tail to the head), so it is safe to continue
+          iteration without re-starting.
+      */
       idx--;
     }
     else if ( user_to )
@@ -6151,22 +6165,41 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
       case 2:
       case 3:
-        /* 
-          Update the grant structure with the new user name and
-          host name
-        */
-        grant_name->set_user_details(user_to->host.str, grant_name->db,
-                                     user_to->user.str, grant_name->tname,
-                                     TRUE);
+      case 4:
+        {
+          /*
+            Save old hash key and its length to be able properly update
+            element position in hash.
+          */
+          char *old_key= grant_name->hash_key;
+          size_t old_key_length= grant_name->key_length;
 
-        /*
-          Since username is part of the hash key, when the user name
-          is renamed, the hash key is changed. Update the hash to
-          ensure that the position matches the new hash key value
-        */
-        my_hash_update(&column_priv_hash, (uchar*) grant_name,
-                       (uchar*) grant_name->hash_key, grant_name->key_length);
-	break;
+          /*
+            Update the grant structure with the new user name and host name.
+          */
+          grant_name->set_user_details(user_to->host.str, grant_name->db,
+                                       user_to->user.str, grant_name->tname,
+                                       TRUE);
+
+          /*
+            Since username is part of the hash key, when the user name
+            is renamed, the hash key is changed. Update the hash to
+            ensure that the position matches the new hash key value
+          */
+          my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
+                         old_key_length);
+          /*
+            hash_update() operation could have moved element from the tail
+            of the hash to the current position. So we need to take a look
+            at the element in current position once again.
+            Thanks to the fact that hash_update() for our HASH implementation
+            won't move any elements from the tail of the hash to the positions
+            before the current one (a.k.a. head) it is safe to continue
+            iteration without restarting.
+          */
+          idx--;
+          break;
+        }
 
       case 5:
         acl_proxy_user->set_user (&mem, user_to->user.str);
@@ -6258,7 +6291,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
   }
 
-  /* Handle procedures table. */
+  /* Handle stored routines table. */
   if ((found= handle_grant_table(tables, 4, drop, user_from, user_to)) < 0)
   {
     /* Handle of table failed, don't touch in-memory array. */
@@ -6268,6 +6301,15 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   {
     /* Handle procs array. */
     if (((handle_grant_struct(3, drop, user_from, user_to) && ! result) ||
+         found) && ! result)
+    {
+      result= 1; /* At least one record/element found. */
+      /* If search is requested, we do not need to search further. */
+      if (! drop && ! user_to)
+        goto end;
+    }
+    /* Handle funcs array. */
+    if (((handle_grant_struct(4, drop, user_from, user_to) && ! result) ||
          found) && ! result)
     {
       result= 1; /* At least one record/element found. */
