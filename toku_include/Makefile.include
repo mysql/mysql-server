@@ -86,6 +86,11 @@ ifeq ($(SYSTEM),sunos)
 CPPFLAGS += -DTOKU_ALLOW_DEPRECATED
 endif
 
+ifeq ($(TOKUDB_REVISION),)
+TOKUDB_REVISION = 0
+endif
+CPPFLAGS += -DTOKUDB_REVISION=$(TOKUDB_REVISION)
+
 #CFLAG default options
 # Add -Wconversion #DISABLED for now.
 

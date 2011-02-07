@@ -11,7 +11,7 @@
 #if defined(TOKUDB_REVISION)
 #define BUILD_ID TOKUDB_REVISION
 #else
-#define BUILD_ID 1000
+#error
 #endif
 
 #include "brt_layout_version.h"
