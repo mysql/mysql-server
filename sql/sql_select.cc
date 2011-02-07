@@ -10815,6 +10815,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
           null_bit= 1;
         }
       }
+#ifndef MCP_WL5151
       if (cur_field->type() == MYSQL_TYPE_BIT &&
           cur_field->key_type() == HA_KEYTYPE_BIT)
       {
@@ -10827,6 +10828,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
           null_bit-= 8;
         }
       }
+#endif
       cur_field->reset();
 
       field_pos+= cur_field->pack_length();
