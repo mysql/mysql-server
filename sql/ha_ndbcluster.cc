@@ -7234,6 +7234,269 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_RETURN(res);
 }
 
+/**
+ * Support for create table/column modifiers
+ *   by exploiting the comment field
+ */
+struct NDB_Modifier
+{
+  enum { M_BOOL } m_type;
+  const char * m_name;
+  size_t m_name_len;
+  bool m_found;
+  union {
+    bool m_val_bool;
+#ifdef TODO__
+    int m_val_int;
+    struct {
+      const char * str;
+      size_t len;
+    } m_val_str;
+#endif
+  };
+};
+
+static const
+struct NDB_Modifier ndb_table_modifiers[] =
+{
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, 0 },
+  { NDB_Modifier::M_BOOL, 0, 0, 0, 0 }
+};
+
+/**
+ * NDB_Modifiers
+ *
+ * This class implements a simple parser for getting modifiers out
+ *   of a string (e.g a comment field)
+ */
+class NDB_Modifiers
+{
+public:
+  NDB_Modifiers(const NDB_Modifier modifiers[]);
+  ~NDB_Modifiers();
+
+  /**
+   * parse string-with length (not necessarily NULL terminated)
+   */
+  int parse(THD* thd, const char * prefix, const char * str, size_t strlen);
+
+  /**
+   * Get modifier...returns NULL if unknown
+   */
+  const NDB_Modifier * get(const char * name) const;
+private:
+  uint m_len;
+  struct NDB_Modifier * m_modifiers;
+
+  int parse_modifier(THD *thd, const char * prefix,
+                     struct NDB_Modifier* m, const char * str);
+};
+
+static
+bool
+end_of_token(const char * str)
+{
+  return str[0] == 0 || str[0] == ' ' || str[0] == ',';
+}
+
+NDB_Modifiers::NDB_Modifiers(const NDB_Modifier modifiers[])
+{
+  for (m_len = 0; modifiers[m_len].m_name != 0; m_len++)
+  {}
+  m_modifiers = new NDB_Modifier[m_len];
+  memcpy(m_modifiers, modifiers, m_len * sizeof(NDB_Modifier));
+}
+
+NDB_Modifiers::~NDB_Modifiers()
+{
+  delete [] m_modifiers;
+}
+
+int
+NDB_Modifiers::parse_modifier(THD *thd,
+                              const char * prefix,
+                              struct NDB_Modifier* m,
+                              const char * str)
+{
+  if (m->m_found)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "%s : modifier %s specified twice",
+                        prefix, m->m_name);
+  }
+
+  switch(m->m_type){
+  case NDB_Modifier::M_BOOL:
+    if (end_of_token(str))
+    {
+      m->m_val_bool = true;
+      goto found;
+    }
+    if (str[0] != '=')
+      break;
+
+    str++;
+    if (str[0] == '1' && end_of_token(str+1))
+    {
+      m->m_val_bool = true;
+      goto found;
+    }
+
+    if (str[0] == '0' && end_of_token(str+1))
+    {
+      m->m_val_bool = false;
+      goto found;
+    }
+  }
+
+  {
+    const char * end = strpbrk(str, " ,");
+    if (end)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : invalid value '%.*s' for %s",
+                          prefix, (int)(end - str), str, m->m_name);
+    }
+    else
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : invalid value '%s' for %s",
+                          prefix, str, m->m_name);
+    }
+  }
+  return -1;
+found:
+  m->m_found = true;
+  return 0;
+}
+
+int
+NDB_Modifiers::parse(THD *thd,
+                     const char * prefix,
+                     const char * _source,
+                     size_t _source_len)
+{
+  if (_source == 0 || _source_len == 0)
+    return 0;
+
+  const char * source = 0;
+
+  /**
+   * Check if _source is NULL-terminated
+   */
+  for (size_t i = 0; i<_source_len; i++)
+  {
+    if (_source[i] == 0)
+    {
+      source = _source;
+      break;
+    }
+  }
+
+  if (source == 0)
+  {
+    /**
+     * Make NULL terminated string so that strXXX-functions are safe
+     */
+    char * tmp = new char[_source_len+1];
+    if (tmp == 0)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : unable to parse due to out of memory",
+                          prefix);
+      return -1;
+    }
+    memcpy(tmp, _source, _source_len);
+    tmp[_source_len] = 0;
+    source = tmp;
+  }
+
+  const char * pos = source;
+  if ((pos = strstr(pos, prefix)) == 0)
+  {
+    if (source != _source)
+      delete [] source;
+    return 0;
+  }
+
+  pos += strlen(prefix);
+
+  while (pos && pos[0] != 0 && pos[0] != ' ')
+  {
+    const char * end = strpbrk(pos, " ,"); // end of current modifier
+
+    for (uint i = 0; i < m_len; i++)
+    {
+      size_t l = m_modifiers[i].m_name_len;
+      if (strncmp(pos, m_modifiers[i].m_name, l) == 0)
+      {
+        /**
+         * Found modifier...
+         */
+
+        if (! (end_of_token(pos + l) || pos[l] == '='))
+          goto unknown;
+
+        pos += l;
+        int res = parse_modifier(thd, prefix, m_modifiers+i, pos);
+
+        if (res == -1)
+        {
+          /**
+           * We continue parsing even if modifier had error
+           */
+        }
+
+        goto next;
+      }
+    }
+
+    {
+  unknown:
+      if (end)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_ILLEGAL_HA_CREATE_OPTION,
+                            "%s : unknown modifier: %.*s",
+                            prefix, (int)(end - pos), pos);
+      }
+      else
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_ILLEGAL_HA_CREATE_OPTION,
+                            "%s : unknown modifier: %s",
+                            prefix, pos);
+      }
+    }
+
+next:
+    pos = end;
+    if (pos && pos[0] == ',')
+      pos++;
+  }
+
+  if (source != _source)
+    delete [] source;
+
+  return 0;
+}
+
+const NDB_Modifier *
+NDB_Modifiers::get(const char * name) const
+{
+  for (uint i = 0; i < m_len; i++)
+  {
+    if (strcmp(name, m_modifiers[i].m_name) == 0)
+    {
+      return m_modifiers + i;
+    }
+  }
+  return 0;
+}
 
 /**
   Define NDB column based on Field.
@@ -7982,6 +8245,11 @@ int ha_ndbcluster::create(const char *name,
     ndbtab_g.reinit();
   }
 
+  NDB_Modifiers table_modifiers(ndb_table_modifiers);
+  table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                        create_info->comment.length);
+  const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
+
   if ((dict->beginSchemaTrans() == -1))
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
@@ -8007,6 +8275,11 @@ int ha_ndbcluster::create(const char *name,
     else if (THDVAR(thd, table_no_logging))
     {
       tab.setLogging(FALSE);
+    }
+
+    if (mod_nologging->m_found)
+    {
+      tab.setLogging(!mod_nologging->m_val_bool);
     }
   }
   tab.setSingleUserMode(single_user_mode);
@@ -13661,6 +13934,16 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      else if (alter_flags->is_set(HA_ADD_PARTITION))
      {
        new_tab.setFragmentCount(part_info->no_parts);
+     }
+
+     NDB_Modifiers table_modifiers(ndb_table_modifiers);
+     table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                           create_info->comment.length);
+     const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
+
+     if (mod_nologging->m_found)
+     {
+       new_tab.setLogging(!mod_nologging->m_val_bool);
      }
      
      if (dict->supportedAlterTable(*old_tab, new_tab))
