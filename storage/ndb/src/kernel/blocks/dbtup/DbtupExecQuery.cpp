@@ -1246,6 +1246,146 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
   return (Uint32 *)dst_ptr;
 }
 
+static
+Uint32*
+shrink_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
+                Uint32 *dst_ptr,
+                const Dbtup::Tablerec* tabPtrP,
+                const Uint32 * tabDesc,
+                const Uint16* order,
+                Uint32 dynvar,
+                Uint32 dynfix,
+                Uint32 ind)
+{
+  /**
+   * Now build the dynamic part, if any.
+   * First look for any trailing all-NULL words of the bitmap; we do
+   * not need to store those.
+   */
+  assert((UintPtr(dst->m_dyn_data_ptr)&3) == 0);
+  char *dyn_src_ptr= dst->m_dyn_data_ptr;
+  Uint32 bm_len = tabPtrP->m_offsets[ind].m_dyn_null_words; // In words
+
+  /* If no dynamic variables, store nothing. */
+  assert(bm_len);
+  {
+    /**
+     * clear bm-len bits, so they won't incorrect indicate
+     *   a non-zero map
+     */
+    * ((Uint32 *)dyn_src_ptr) &= ~Uint32(Dbtup::DYN_BM_LEN_MASK);
+
+    Uint32 *bm_ptr= (Uint32 *)dyn_src_ptr + bm_len - 1;
+    while(*bm_ptr == 0)
+    {
+      bm_ptr--;
+      bm_len--;
+      if(bm_len == 0)
+        break;
+    }
+  }
+
+  if (bm_len)
+  {
+    /**
+     * Copy the bitmap, counting the number of variable sized
+     * attributes that are not NULL on the way.
+     */
+    Uint32 *dyn_dst_ptr= dst_ptr;
+    Uint32 dyn_var_count= 0;
+    const Uint32 *src_bm_ptr= (Uint32 *)(dyn_src_ptr);
+    Uint32 *dst_bm_ptr= (Uint32 *)dyn_dst_ptr;
+
+    /* ToDo: Put all of the dynattr code inside if(bm_len>0) { ... },
+     * split to separate function. */
+    Uint16 dyn_dst_data_offset= 0;
+    const Uint32 *dyn_bm_var_mask_ptr= tabPtrP->dynVarSizeMask[ind];
+    for(Uint16 i= 0; i< bm_len; i++)
+    {
+      Uint32 v= src_bm_ptr[i];
+      dyn_var_count+= BitmaskImpl::count_bits(v & *dyn_bm_var_mask_ptr++);
+      dst_bm_ptr[i]= v;
+    }
+
+    Uint32 tmp = *dyn_dst_ptr;
+    assert(bm_len <= Dbtup::DYN_BM_LEN_MASK);
+    * dyn_dst_ptr = (tmp & ~(Uint32)Dbtup::DYN_BM_LEN_MASK) | bm_len;
+    dyn_dst_ptr+= bm_len;
+    dyn_dst_data_offset= 2*dyn_var_count + 2;
+
+    Uint16 *dyn_src_off_array= dst->m_dyn_offset_arr_ptr;
+    Uint16 *dyn_src_lenoff_array=
+      dyn_src_off_array + dst->m_dyn_len_offset;
+    Uint16* dyn_dst_off_array = (Uint16*)dyn_dst_ptr;
+
+    /**
+     * Copy over the variable sized not-NULL attributes.
+     * Data offsets are counted from the start of the offset array, and
+     * we store one additional offset to be able to easily compute the
+     * data length as the difference between offsets.
+     */
+    Uint16 off_idx= 0;
+    for(Uint32 i= 0; i<dynvar; i++)
+    {
+      /**
+       * Note that we must use the destination (shrunken) bitmap here,
+       * as the source (expanded) bitmap may have been already clobbered
+       * (by offset data).
+       */
+      Uint32 attrDesc2 = tabDesc[order[dynfix+i]+1];
+      Uint32 pos = AttributeOffset::getNullFlagPos(attrDesc2);
+      if (bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, dst_bm_ptr, pos))
+      {
+        dyn_dst_off_array[off_idx++]= dyn_dst_data_offset;
+        Uint32 dyn_src_off= dyn_src_off_array[i];
+        Uint32 dyn_len= dyn_src_lenoff_array[i] - dyn_src_off;
+        memmove(((char *)dyn_dst_ptr) + dyn_dst_data_offset,
+                dyn_src_ptr + dyn_src_off,
+                dyn_len);
+        dyn_dst_data_offset+= dyn_len;
+      }
+    }
+    /* If all dynamic attributes are NULL, we store nothing. */
+    dyn_dst_off_array[off_idx]= dyn_dst_data_offset;
+    assert(dyn_dst_off_array + off_idx == (Uint16*)dyn_dst_ptr+dyn_var_count);
+
+    char *dynvar_end_ptr= ((char *)dyn_dst_ptr) + dyn_dst_data_offset;
+    char *dyn_dst_data_ptr= (char *)(ALIGN_WORD(dynvar_end_ptr));
+
+    /**
+     * Zero out any padding bytes. Might not be strictly necessary,
+     * but seems cleaner than leaving random stuff in there.
+     */
+    bzero(dynvar_end_ptr, dyn_dst_data_ptr-dynvar_end_ptr);
+
+    /* *
+     * Copy over the fixed-sized not-NULL attributes.
+     * Note that attributes are copied in reverse order; this is to avoid
+     * overwriting not-yet-copied data, as the data is also stored in
+     * reverse order.
+     */
+    for(Uint32 i= dynfix; i > 0; )
+    {
+      i--;
+      Uint16 j= order[i];
+      Uint32 attrDesc2 = tabDesc[j+1];
+      Uint32 pos = AttributeOffset::getNullFlagPos(attrDesc2);
+      if(bm_len > (pos >>5 ) && BitmaskImpl::get(bm_len, dst_bm_ptr, pos))
+      {
+        Uint32 fixsize=
+          4*AttributeDescriptor::getSizeInWords(tabDesc[j]);
+        memmove(dyn_dst_data_ptr,
+                dyn_src_ptr + dyn_src_off_array[dynvar+i],
+                fixsize);
+        dyn_dst_data_ptr += fixsize;
+      }
+    }
+    dst_ptr = (Uint32*)dyn_dst_data_ptr;
+    assert((UintPtr(dst_ptr) & 3) == 0);
+  }
+  return (Uint32 *)dst_ptr;
+}
+
 /* ---------------------------------------------------------------- */
 /* ----------------------------- INSERT --------------------------- */
 /* ---------------------------------------------------------------- */
@@ -3338,6 +3478,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
   
   Uint32 *dst_ptr= ptr->get_end_of_fix_part_ptr(tabPtrP);
   Uint16* src_off_ptr= req_struct->var_pos_array;
+  order += mm_fix;
 
   sizes[MM] = 1;
   sizes[DD] = 0;
@@ -3364,140 +3505,15 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
       }
       *dst_off_ptr= off;
       dst_ptr = ALIGN_WORD(dst_data_ptr);
+      order += mm_vars; // Point to first dynfix entry
     }
     
     if (mm_dyns)
     {
-      /**
-       * Now build the dynamic part, if any.
-       * First look for any trailing all-NULL words of the bitmap; we do
-       * not need to store those.
-       */
-      ndbassert((UintPtr(dst->m_dyn_data_ptr)&3) == 0);
-      char *dyn_src_ptr= dst->m_dyn_data_ptr;
-      Uint32 bm_len = tabPtrP->m_offsets[MM].m_dyn_null_words; // In words
-
-      /* If no dynamic variables, store nothing. */
-      ndbassert(bm_len);
-      {
-        /**
-         * clear bm-len bits, so they won't incorrect indicate
-         *   a non-zero map
-         */
-        * ((Uint32 *)dyn_src_ptr) &= ~Uint32(DYN_BM_LEN_MASK);
-
-        Uint32 *bm_ptr= (Uint32 *)dyn_src_ptr + bm_len - 1;
-        while(*bm_ptr == 0)
-        {
-          bm_ptr--;
-          bm_len--;
-          if(bm_len == 0)
-            break;
-        }
-      }
-      
-      if (bm_len)
-      {
-        /**
-         * Copy the bitmap, counting the number of variable sized
-         * attributes that are not NULL on the way.
-         */
-        Uint32 *dyn_dst_ptr= dst_ptr;
-        Uint32 dyn_var_count= 0;
-        const Uint32 *src_bm_ptr= (Uint32 *)(dyn_src_ptr);
-        Uint32 *dst_bm_ptr= (Uint32 *)dyn_dst_ptr;
-        
-        /* ToDo: Put all of the dynattr code inside if(bm_len>0) { ... }, 
-         * split to separate function. */
-        Uint16 dyn_dst_data_offset= 0;
-        const Uint32 *dyn_bm_var_mask_ptr= tabPtrP->dynVarSizeMask[MM];
-        for(Uint16 i= 0; i< bm_len; i++)
-        {
-          Uint32 v= src_bm_ptr[i];
-          dyn_var_count+= BitmaskImpl::count_bits(v & *dyn_bm_var_mask_ptr++);
-          dst_bm_ptr[i]= v;
-        }
-        
-        Uint32 tmp = *dyn_dst_ptr;
-        ndbassert(bm_len <= DYN_BM_LEN_MASK);
-        * dyn_dst_ptr = (tmp & ~(Uint32)DYN_BM_LEN_MASK) | bm_len;
-        dyn_dst_ptr+= bm_len;
-        dyn_dst_data_offset= 2*dyn_var_count + 2;
-        
-        Uint16 *dyn_src_off_array= dst->m_dyn_offset_arr_ptr;
-        Uint16 *dyn_src_lenoff_array=
-          dyn_src_off_array + dst->m_dyn_len_offset;
-        Uint16* dyn_dst_off_array = (Uint16*)dyn_dst_ptr;
-        
-        /**
-         * Copy over the variable sized not-NULL attributes.
-         * Data offsets are counted from the start of the offset array, and
-         * we store one additional offset to be able to easily compute the
-         * data length as the difference between offsets.
-         */
-        Uint16 off_idx= 0;
-        order+= mm_fix+mm_vars;     // Point to first dynfix entry
-        for(Uint32 i= 0; i<mm_dynvar; i++)
-        {
-          /**
-           * Note that we must use the destination (shrunken) bitmap here, 
-           * as the source (expanded) bitmap may have been already clobbered 
-           * (by offset data).
-           */
-          Uint32 attrDesc2 = tabDesc[order[mm_dynfix+i]+1];
-          Uint32 pos = AttributeOffset::getNullFlagPos(attrDesc2);
-          if (bm_len > (pos >> 5) && BitmaskImpl::get(bm_len, dst_bm_ptr, pos))
-          {
-            dyn_dst_off_array[off_idx++]= dyn_dst_data_offset;
-            Uint32 dyn_src_off= dyn_src_off_array[i];
-            Uint32 dyn_len= dyn_src_lenoff_array[i] - dyn_src_off;
-            memmove(((char *)dyn_dst_ptr) + dyn_dst_data_offset,
-                    dyn_src_ptr + dyn_src_off,
-                    dyn_len);
-            dyn_dst_data_offset+= dyn_len;
-          }
-        }
-        /* If all dynamic attributes are NULL, we store nothing. */
-        dyn_dst_off_array[off_idx]= dyn_dst_data_offset;
-        ndbassert(dyn_dst_off_array + off_idx == (Uint16*)dyn_dst_ptr+dyn_var_count);
-        
-        char *dynvar_end_ptr= ((char *)dyn_dst_ptr) + dyn_dst_data_offset;
-        char *dyn_dst_data_ptr= (char *)(ALIGN_WORD(dynvar_end_ptr));
-        
-        /**
-         * Zero out any padding bytes. Might not be strictly necessary, 
-         * but seems cleaner than leaving random stuff in there.
-         */
-        bzero(dynvar_end_ptr, dyn_dst_data_ptr-dynvar_end_ptr);
-        
-        /* *
-         * Copy over the fixed-sized not-NULL attributes.
-         * Note that attributes are copied in reverse order; this is to avoid
-         * overwriting not-yet-copied data, as the data is also stored in 
-         * reverse order.
-         */
-        for(Uint32 i= mm_dynfix; i > 0; )
-        {
-          i--;
-          Uint16 j= order[i];
-          Uint32 attrDesc2 = tabDesc[j+1];
-          Uint32 pos = AttributeOffset::getNullFlagPos(attrDesc2);
-          if(bm_len > (pos >>5 ) && BitmaskImpl::get(bm_len, dst_bm_ptr, pos))
-          {
-            Uint32 fixsize=
-              4*AttributeDescriptor::getSizeInWords(tabDesc[j]);
-            memmove(dyn_dst_data_ptr,
-                    dyn_src_ptr + dyn_src_off_array[mm_dynvar+i],
-                    fixsize);
-            dyn_dst_data_ptr += fixsize;
-          }
-        }
-        dst_ptr = (Uint32*)dyn_dst_data_ptr;
-        ndbassert((UintPtr(dst_ptr) & 3) == 0);
-        
-        ndbassert(dyn_dst_data_ptr <= ((char*)ptr) + 8192);
-        ndbassert((UintPtr(dyn_dst_data_ptr) & 3) == 0);
-      }
+      dst_ptr = shrink_dyn_part(dst, dst_ptr, tabPtrP, tabDesc,
+                                order, mm_dynvar, mm_dynfix, MM);
+      ndbassert((char*)dst_ptr <= ((char*)ptr) + 8192);
+      order += mm_dynfix + mm_dynvar;
     }
     
     Uint32 varpart_len= Uint32(dst_ptr - varstart);
