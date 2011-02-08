@@ -501,7 +501,7 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode)
+  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -2226,13 +2226,8 @@ JOIN::destroy()
 
   cleanup(1);
  /* Cleanup items referencing temporary table columns */
-  if (!tmp_all_fields3.is_empty())
-  {
-    List_iterator_fast<Item> it(tmp_all_fields3);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-  }
+  cleanup_item_list(tmp_all_fields1);
+  cleanup_item_list(tmp_all_fields3);
   if (exec_tmp_table1)
     free_tmp_table(thd, exec_tmp_table1);
   if (exec_tmp_table2)
@@ -2242,6 +2237,19 @@ JOIN::destroy()
   delete procedure;
   DBUG_RETURN(error);
 }
+
+
+void JOIN::cleanup_item_list(List<Item> &items) const
+{
+  if (!items.is_empty())
+  {
+    List_iterator_fast<Item> it(items);
+    Item *item;
+    while ((item= it++))
+      item->cleanup();
+  }
+}
+
 
 /*
   An entry point to single-unit select (a select without UNION).
@@ -6861,7 +6869,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
-      if (order->item[0]->with_subselect)
+      if (order->item[0]->with_subselect &&
+          !(join->select_lex->options & SELECT_DESCRIBE))
         order->item[0]->val_str(&order->item[0]->str_value);
       DBUG_PRINT("info",("removing: %s", order->item[0]->full_name()));
       continue;					// skip const item
