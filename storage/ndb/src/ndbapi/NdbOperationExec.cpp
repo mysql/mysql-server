@@ -451,7 +451,6 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   
   tcKeyReq->apiConnectPtr      = aTC_ConnectPtr;
   tcKeyReq->apiOperationPtr    = ptr2int();
-
   // Check if too much attrinfo have been defined
   if (tTotalCurrAI_Len > TcKeyReq::MaxTotalAttrInfo){
     setErrorCodeAbort(4257);
@@ -1426,6 +1425,7 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
 
   theStatus= WaitResponse;
   theReceiver.prepareSend();
+
   return 0;
 }
 
