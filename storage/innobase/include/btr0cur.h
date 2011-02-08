@@ -500,8 +500,8 @@ file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
-btr_store_big_rec_extern_fields(
-/*============================*/
+btr_store_big_rec_extern_fields_func(
+/*=================================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
 					MUST be X-latched */
 	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
@@ -510,10 +510,42 @@ btr_store_big_rec_extern_fields(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	big_rec_t*	big_rec_vec,	/*!< in: vector containing fields
+#ifdef UNIV_DEBUG
+	mtr_t*		local_mtr,	/*!< in: mtr containing the
+					latch to rec and to the tree */
+#endif /* UNIV_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ibool		update_in_place,/*! in: TRUE if the record is updated
+					in place (not delete+insert) */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
 					to be stored externally */
-	mtr_t*		local_mtr);	/*!< in: mtr containing the latch to
-					rec and to the tree */
+	__attribute__((nonnull));
+
+/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
+them in rec.  The extern flags in rec will have to be set beforehand.
+The fields are stored on pages allocated from leaf node
+file segment of the index tree.
+@param index	in: clustered index; MUST be X-latched by mtr
+@param b	in/out: block containing rec; MUST be X-latched by mtr
+@param rec	in/out: clustered index record
+@param offsets	in: rec_get_offsets(rec, index);
+		the "external storage" flags in offsets will not be adjusted
+@param mtr	in: mini-transaction that holds x-latch on index and b
+@param upd	in: TRUE if the record is updated in place (not delete+insert)
+@param big	in: vector containing fields to be stored externally
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+#ifdef UNIV_DEBUG
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,mtr,upd,big)
+#elif defined UNIV_BLOB_LIGHT_DEBUG
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,upd,big)
+#else
+# define btr_store_big_rec_extern_fields(index,b,rec,offsets,mtr,upd,big) \
+	btr_store_big_rec_extern_fields_func(index,b,rec,offsets,big)
+#endif
+
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
 management if the field in data is owned the externally stored field,
