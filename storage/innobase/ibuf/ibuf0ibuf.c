@@ -2276,9 +2276,9 @@ ibuf_remove_free_page(void)
 	fseg_free_page(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
 		       IBUF_SPACE_ID, page_no, &mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_reset_file_page_was_freed(IBUF_SPACE_ID, page_no);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 	ibuf_enter();
 
@@ -2322,9 +2322,9 @@ ibuf_remove_free_page(void)
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, FALSE, &mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_set_file_page_was_freed(IBUF_SPACE_ID, page_no);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 	mtr_commit(&mtr);
 
 	ibuf_exit();
