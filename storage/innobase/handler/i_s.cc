@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3270,19 +3270,6 @@ i_s_innodb_buffer_page_get_info(
 			ut_ad(page_info->zip_ssize);
 			frame = bpage->zip.data;
 		}
-
-		page_type = fil_page_get_type(frame);
-
-		i_s_innodb_set_page_type(page_info, page_type, frame);
-
-	} else if (page_info->page_state == BUF_BLOCK_MEMORY) {
-		const byte*	frame;
-		const buf_block_t*block;
-		ulint		page_type;
-
-		block = reinterpret_cast<const buf_block_t*>(bpage);
-
-		frame = block->frame;
 
 		page_type = fil_page_get_type(frame);
 
