@@ -42,12 +42,12 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("int(10)") },
+    { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SOCKET_ID") },
-    { C_STRING_WITH_LEN("int(10)") },
+    { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
   },
   {
@@ -57,7 +57,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("PORT") },
-    { C_STRING_WITH_LEN("int(10)") },
+    { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
   }
 };
