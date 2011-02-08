@@ -4220,13 +4220,14 @@ Item_func::optimize_type Item_func_like::select_optimize() const
   if (args[1]->const_item())
   {
     String* res2= args[1]->val_str((String *)&tmp_value2);
+    const char *ptr2;
 
-    if (!res2)
+    if (!res2 || !(ptr2= res2->ptr()))
       return OPTIMIZE_NONE;
 
-    if (*res2->ptr() != wild_many)
+    if (*ptr2 != wild_many)
     {
-      if (args[0]->result_type() != STRING_RESULT || *res2->ptr() != wild_one)
+      if (args[0]->result_type() != STRING_RESULT || *ptr2 != wild_one)
 	return OPTIMIZE_OP;
     }
   }
@@ -4247,7 +4248,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   
-  if (escape_item->const_item())
+  if (escape_item->const_item() && !thd->lex->view_prepare_mode)
   {
     /* If we are on execution stage */
     String *escape_str= escape_item->val_str(&tmp_value1);
