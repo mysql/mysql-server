@@ -76,17 +76,33 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
 	  (requestInfo & ScanTabConf::EndOfData) == ScanTabConf::EndOfData,
 	  (requestInfo & (~ScanTabConf::EndOfData)));
   size_t op_count= requestInfo & (~ScanTabConf::EndOfData);
-  if(op_count)
+  if (op_count)
   {
     fprintf(output, " Operation(s) [api tc rows len]:\n");
-    ScanTabConf::OpData * op = (ScanTabConf::OpData*)
-      (theData + ScanTabConf::SignalLength);
-    for(size_t i = 0; i<op_count; i++)
+    if (len == ScanTabConf::SignalLength + 4 * op_count)
     {
-      fprintf(output, " [0x%x 0x%x %d %d]",
-              op->apiPtrI, op->tcPtrI,
-              op->rows, op->len);
-      op++;
+      ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+        (theData + ScanTabConf::SignalLength);
+      for(size_t i = 0; i<op_count; i++)
+      {
+        fprintf(output, " [0x%x 0x%x %d %d]",
+                op->apiPtrI, op->tcPtrI,
+                op->rows, op->len);
+        op++;
+      }
+    }
+    else
+    {
+      assert(len == ScanTabConf::SignalLength + 3 * op_count);
+      for(size_t i = 0; i<op_count; i++)
+      {
+        ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+          (theData + ScanTabConf::SignalLength + 3 * i);
+        fprintf(output, " [0x%x 0x%x %d %d]",
+                op->apiPtrI, op->tcPtrI,
+                ScanTabConf::getRows(op->rows),
+                ScanTabConf::getLength(op->rows));
+      }
     }
     fprintf(output, "\n");
   }

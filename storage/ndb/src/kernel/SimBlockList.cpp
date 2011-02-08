@@ -157,14 +157,13 @@ SimBlockList::load(EmulatorData& data){
   if (globalData.isNdbMt) {
     add_main_thr_map();
     if (globalData.isNdbMtLqh) {
-      Uint32 i;
-      for (i = 0; i < NO_OF_BLOCKS; i++)
+      for (int i = 0; i < noOfBlocks; i++)
         theList[i]->loadWorkers();
     }
   }
 
   // Check that all blocks could be created
-  for (int i = 0; i < NO_OF_BLOCKS; i++)
+  for (int i = 0; i < noOfBlocks; i++)
   {
     if (!theList[i])
     {

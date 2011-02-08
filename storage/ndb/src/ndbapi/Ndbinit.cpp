@@ -208,6 +208,9 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
   const char* f= getenv("NDB_FORCE_SHORT_REQUESTS");
   if (f != 0 && *f != 0 && *f != '0' && *f != 'n' && *f != 'N')
     forceShortRequests = true;
+
+  for (i = 0; i < Ndb::NumClientStatistics; i++)
+    clientStats[i] = 0;
 }
 
 NdbImpl::~NdbImpl()

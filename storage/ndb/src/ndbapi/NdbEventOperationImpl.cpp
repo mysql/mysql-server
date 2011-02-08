@@ -830,6 +830,7 @@ NdbEventOperationImpl::receive_event()
   {
     DBUG_ENTER("NdbEventOperationImpl::receive_event");
     DBUG_PRINT("info",("sdata->operation %u  this: %p", operation, this));
+    m_ndb->theImpl->incClientStat(Ndb::NonDataEventsRecvdCount, 1);
     if (operation == NdbDictionary::Event::_TE_ALTER)
     {
       // Parse the new table definition and
@@ -911,7 +912,8 @@ NdbEventOperationImpl::receive_event()
   DBUG_ENTER_EVENT("NdbEventOperationImpl::receive_event");
   DBUG_PRINT_EVENT("info",("sdata->operation %u  this: %p", operation, this));
   // now move the data into the RecAttrs
-    
+  m_ndb->theImpl->incClientStat(Ndb::DataEventsRecvdCount, 1);
+
   int is_insert= operation == NdbDictionary::Event::_TE_INSERT;
 
   Uint32 *aAttrPtr = m_data_item->ptr[0].p;
@@ -1368,6 +1370,8 @@ NdbEventBuffer::nextEvent()
 
     // add it to used list
     m_used_data.append_used_data(data, full_count, full_sz);
+
+    m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, full_sz);
 
 #ifdef VM_TRACE
     op->m_data_done_count++;

@@ -474,7 +474,7 @@ TcKeyReq::setViaSPJFlag(UintR & requestInfo, Uint32 flag){
 }
 
 inline
-void 
+void
 TcKeyReq::setScanIndFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setScanIndFlag");
   requestInfo &= ~(1 << SCAN_SHIFT);

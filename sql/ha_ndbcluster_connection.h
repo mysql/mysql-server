@@ -26,6 +26,7 @@ Ndb_cluster_connection *ndb_get_cluster_connection();
 ulonglong ndb_get_latest_trans_gci();
 void ndb_set_latest_trans_gci(ulonglong val);
 int ndb_has_node_id(uint id);
+void ndb_get_connection_stats(Uint64* statsArr);
 
 /* perform random sleep in the range milli_sleep to 2*milli_sleep */
 inline void do_retry_sleep(unsigned milli_sleep)

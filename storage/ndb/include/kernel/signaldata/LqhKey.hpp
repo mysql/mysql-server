@@ -29,7 +29,7 @@ class LqhKeyReq {
   /**
    * Sender(s)
    */
-  friend class Dbspj;      
+  friend class Dbspj;
   friend class Dbtc;      
   friend class Restore;
   

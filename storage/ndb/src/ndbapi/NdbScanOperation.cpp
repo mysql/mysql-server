@@ -1896,11 +1896,14 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
         /* New receivers with completed batches available. */
         memcpy(m_api_receivers+last, m_conf_receivers, cnt * sizeof(char*));
         last+= cnt;
+        theImpl->incClientStat(Ndb::ScanBatchCount, cnt);
         m_conf_receivers_count= 0;
       }
       else if (retVal == 2 && sent > 0)
       {
         /* No completed... */
+        theImpl->incClientStat(Ndb::WaitScanResultCount, 1);
+        
         int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
         if (ret_code == 0 && seq == theImpl->getNodeSequence(nodeId)) {
           continue;
@@ -2102,6 +2105,7 @@ void NdbScanOperation::close(bool forceSend, bool releaseOp)
   
   tCon->theScanningOp = 0;
   tNdb->closeTransaction(tCon);
+  tNdb->theImpl->decClientStat(Ndb::TransCloseCount, 1); /* Correct stats */
   tNdb->theRemainingStartTransactions--;
   DBUG_VOID_RETURN;
 }
@@ -2413,6 +2417,14 @@ NdbScanOperation::doSendScan(int aProcessorId)
   }
 
   NdbImpl* impl = theNdb->theImpl;
+  {
+    const Ndb::ClientStatistics counterIndex = (numSections == 3)? 
+      Ndb::RangeScanCount : 
+      Ndb::TableScanCount;
+    impl->incClientStat(counterIndex, 1);
+    if (getPruned())
+      impl->incClientStat(Ndb::PrunedScanCount, 1);
+  }
   Uint32 tcNodeVersion = impl->getNodeNdbVersion(aProcessorId);
   bool forceShort = impl->forceShortRequests;
   bool sendLong = ( tcNodeVersion >= NDBD_LONG_SCANTABREQ) &&
@@ -3640,6 +3652,7 @@ NdbIndexScanOperation::next_result_ordered_ndbrecord(const char * & out_row,
     for (int i= 0; i < count; i++)
       ordered_insert_receiver(current--, m_conf_receivers[i]);
     m_current_api_receiver= current;
+    theNdb->theImpl->incClientStat(Ndb::ScanBatchCount, count);
   }
   else
   {
@@ -3735,8 +3748,9 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
   if (seq == impl->getNodeSequence(nodeId) &&
       !send_next_scan_ordered(m_current_api_receiver))
   {
+    impl->incClientStat(Ndb::WaitScanResultCount, 1);
     while (m_sent_receivers_count > 0 && !theError.code)
-    {
+    {      
       int ret_code= poll_guard.wait_scan(3*timeout, nodeId, forceSend);
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
@@ -3834,8 +3848,9 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   /**
    * Wait for outstanding
    */
+  impl->incClientStat(Ndb::WaitScanResultCount, 1);
   while(theError.code == 0 && m_sent_receivers_count)
-  {
+  {    
     int return_code= poll_guard->wait_scan(3*timeout, nodeId, forceSend);
     switch(return_code){
     case 0:
@@ -3902,6 +3917,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
   /**
    * wait for close scan conf
    */
+  impl->incClientStat(Ndb::WaitScanResultCount, 1);
   while(m_sent_receivers_count+m_api_receivers_count+m_conf_receivers_count)
   {
     int return_code= poll_guard->wait_scan(3*timeout, nodeId, forceSend);
