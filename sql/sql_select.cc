@@ -10831,7 +10831,9 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   share->blob_field= blob_field;
   share->fields= field_count;
   share->blob_ptr_size= portable_sizeof_char_ptr;
+#ifndef MCP_WL5151
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
+#endif
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   /* Create all fields and calculate the total length of record */
@@ -10896,6 +10898,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
           null_bit= 1;
         }
       }
+#ifndef MCP_WL5151
       if (cur_field->type() == MYSQL_TYPE_BIT &&
           cur_field->key_type() == HA_KEYTYPE_BIT)
       {
@@ -10908,6 +10911,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
           null_bit-= 8;
         }
       }
+#endif
       cur_field->reset();
 
       field_pos+= cur_field->pack_length();
@@ -11703,6 +11707,11 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       first_unmatched->found= 1;
       for (JOIN_TAB *tab= first_unmatched; tab <= join_tab; tab++)
       {
+#ifndef MCP_BUG58490
+#else
+        if (tab->table->reginfo.not_exists_optimize)
+          return NESTED_LOOP_NO_MORE_ROWS;
+#endif
         /* Check all predicates that has just been activated. */
         /*
           Actually all predicates non-guarded by first_unmatched->found

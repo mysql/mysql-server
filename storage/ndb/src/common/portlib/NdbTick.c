@@ -24,7 +24,8 @@
 #define MICROSEC_PER_SEC 1000000
 #define MILLISEC_PER_SEC 1000
 #define MICROSEC_PER_MILLISEC 1000
-#define MILLISEC_PER_NANOSEC 1000000
+#define NANOSEC_PER_MILLISEC  1000000
+#define NANOSEC_PER_MICROSEC  1000
 
 #ifdef HAVE_CLOCK_GETTIME
 
@@ -64,7 +65,7 @@ NDB_TICKS NdbTick_CurrentMillisecond(void)
 
   return 
     ((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)MILLISEC_PER_SEC) +
-    ((NDB_TICKS)tick_time.tv_nsec) / ((NDB_TICKS)MILLISEC_PER_NANOSEC);
+    ((NDB_TICKS)tick_time.tv_nsec) / ((NDB_TICKS)NANOSEC_PER_MILLISEC);
 }
 
 int 
@@ -74,6 +75,16 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros){
   * secs   = t.tv_sec;
   * micros = t.tv_nsec / 1000;
   return res;
+}
+
+NDB_TICKS NdbTick_CurrentNanosecond(void)
+{
+  struct timespec tick_time;
+  clock_gettime(NdbTick_clk_id, &tick_time);
+
+  return
+    (((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)NANOSEC_PER_SEC)) +
+    ((NDB_TICKS)tick_time.tv_nsec);
 }
 #else
 void NdbTick_Init(int need_monotonic)
@@ -128,6 +139,23 @@ NdbTick_CurrentMicrosecond(NDB_TICKS * secs, Uint32 * micros)
       * micros = tick_time.tv_usec;
     }
   return res;
+#endif
+}
+
+NDB_TICKS NdbTick_CurrentNanosecond(void)
+{
+#ifdef _WIN32
+  NDB_TICKS secs;
+  Uint32 micros;
+  NdbTick_CurrentMicrosecond(&secs, &micros);
+  return secs*NANOSEC_PER_SEC + micros*NANOSEC_PER_MICROSEC;
+#else
+  struct timeval tick_time;
+  gettimeofday(&tick_time, 0);
+
+  return 
+    (((NDB_TICKS)tick_time.tv_sec)  * ((NDB_TICKS)NANOSEC_PER_SEC)) +
+    (((NDB_TICKS)tick_time.tv_usec) * ((NDB_TICKS)NANOSEC_PER_MICROSEC));
 #endif
 }
 

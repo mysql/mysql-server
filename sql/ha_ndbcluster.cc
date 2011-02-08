@@ -266,8 +266,6 @@ static MYSQL_THDVAR_BOOL(
 */
 static const int max_transactions= 4;
 
-static uint ndbcluster_partition_flags();
-static int ndbcluster_init(void *);
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
                                    stat_print_fn *,
@@ -311,16 +309,29 @@ static handler *ndbcluster_create_handler(handlerton *hton,
   return new (mem_root) ha_ndbcluster(hton, table);
 }
 
-static uint ndbcluster_partition_flags()
+static uint
+ndbcluster_partition_flags()
 {
   return (HA_CAN_PARTITION | HA_CAN_UPDATE_PARTITION_KEY |
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
 #ifndef NDB_WITHOUT_ONLINE_ALTER
-static uint ndbcluster_alter_partition_flags()
+static uint
+ndbcluster_alter_partition_flags()
 {
   return HA_PARTITION_FUNCTION_SUPPORTED;
+}
+#else
+static uint
+ndbcluster_alter_table_flags(uint flags)
+{
+  if (flags & ALTER_DROP_PARTITION)
+    return 0;
+  else
+    return (HA_ONLINE_ADD_INDEX | HA_ONLINE_DROP_INDEX |
+            HA_ONLINE_ADD_UNIQUE_INDEX | HA_ONLINE_DROP_UNIQUE_INDEX |
+            HA_PARTITION_FUNCTION_SUPPORTED);
 }
 #endif
 
@@ -415,6 +426,7 @@ struct st_ndb_status {
   long pushed_reads;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
+  long long api_client_stats[Ndb::NumClientStatistics];
 };
 
 bool ndbcluster_join_pushdown_enabled(THD* thd)
@@ -1161,6 +1173,21 @@ static struct st_ndb_status g_ndb_status;
 static long g_ndb_status_conflict_fn_max= 0;
 static long g_ndb_status_conflict_fn_old= 0;
 
+long long g_event_data_count = 0;
+long long g_event_nondata_count = 0;
+long long g_event_bytes_count = 0;
+
+static long long g_slave_api_client_stats[Ndb::NumClientStatistics];
+
+static long long g_server_api_client_stats[Ndb::NumClientStatistics];
+
+void
+update_slave_api_stats(Ndb* ndb)
+{
+  for (Uint32 i=0; i < Ndb::NumClientStatistics; i++)
+    g_slave_api_client_stats[i] = ndb->getClientStat(i);
+}
+
 static int update_status_variables(Thd_ndb *thd_ndb,
                                    st_ndb_status *ns,
                                    Ndb_cluster_connection *c)
@@ -1197,9 +1224,71 @@ static int update_status_variables(Thd_ndb *thd_ndb,
       ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
       ns->transaction_hint_count[i]= thd_ndb->m_transaction_hint_count[i];
     }
+    for (int i=0; i < Ndb::NumClientStatistics; i++)
+    {
+      ns->api_client_stats[i] = thd_ndb->ndb->getClientStat(i);
+    }
   }
   return 0;
 }
+
+/* Helper macro for definitions of NdbApi status variables */
+
+#define NDBAPI_COUNTERS(NAME_SUFFIX, ARRAY_LOCATION)                    \
+  {"api_wait_exec_complete_count" NAME_SUFFIX,                          \
+   (char*) ARRAY_LOCATION[ Ndb::WaitExecCompleteCount ],                \
+   SHOW_LONGLONG},                                                      \
+  {"api_wait_scan_result_count" NAME_SUFFIX,                            \
+   (char*) ARRAY_LOCATION[ Ndb::WaitScanResultCount ],                  \
+   SHOW_LONGLONG},                                                      \
+  {"api_wait_meta_request_count" NAME_SUFFIX,                           \
+   (char*) ARRAY_LOCATION[ Ndb::WaitMetaRequestCount ],                 \
+   SHOW_LONGLONG},                                                      \
+  {"api_wait_nanos" NAME_SUFFIX,                                        \
+   (char*) ARRAY_LOCATION[ Ndb::WaitNanosCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_bytes_sent" NAME_SUFFIX,                                        \
+   (char*) ARRAY_LOCATION[ Ndb::BytesSentCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_bytes_received" NAME_SUFFIX,                                    \
+   (char*) ARRAY_LOCATION[ Ndb::BytesRecvdCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_start_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::TransStartCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_commit_count" NAME_SUFFIX,                                \
+   (char*) ARRAY_LOCATION[ Ndb::TransCommitCount ],                     \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_abort_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::TransAbortCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_close_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::TransCloseCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_pk_op_count" NAME_SUFFIX,                                       \
+   (char*) ARRAY_LOCATION[ Ndb::PkOpCount ],                            \
+   SHOW_LONGLONG},                                                      \
+  {"api_uk_op_count" NAME_SUFFIX,                                       \
+   (char*) ARRAY_LOCATION[ Ndb::UkOpCount ],                            \
+   SHOW_LONGLONG},                                                      \
+  {"api_table_scan_count" NAME_SUFFIX,                                  \
+   (char*) ARRAY_LOCATION[ Ndb::TableScanCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_range_scan_count" NAME_SUFFIX,                                  \
+   (char*) ARRAY_LOCATION[ Ndb::RangeScanCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_pruned_scan_count" NAME_SUFFIX,                                 \
+   (char*) ARRAY_LOCATION[ Ndb::PrunedScanCount ],                      \
+   SHOW_LONGLONG},                                                      \
+  {"api_scan_batch_count" NAME_SUFFIX,                                  \
+   (char*) ARRAY_LOCATION[ Ndb::ScanBatchCount ],                       \
+   SHOW_LONGLONG},                                                      \
+  {"api_read_row_count" NAME_SUFFIX,                                    \
+   (char*) ARRAY_LOCATION[ Ndb::ReadRowCount ],                         \
+   SHOW_LONGLONG},                                                      \
+  {"api_trans_local_read_row_count" NAME_SUFFIX,                        \
+   (char*) ARRAY_LOCATION[ Ndb::TransLocalReadRowCount ],               \
+   SHOW_LONGLONG}
 
 SHOW_VAR ndb_status_variables_dynamic[]= {
   {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG},
@@ -1213,6 +1302,7 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
   {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG},
   {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG},
+  NDBAPI_COUNTERS("_session", &g_ndb_status.api_client_stats),
   {"sorted_scan_count",  (char*) &g_ndb_status.sorted_scan_count,     SHOW_LONG},
   {"pushed_queries_defined", (char*) &g_ndb_status.pushed_queries_defined, 
    SHOW_LONG},
@@ -1234,6 +1324,50 @@ SHOW_VAR ndb_status_conflict_variables[]= {
   {"fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
+
+SHOW_VAR ndb_status_injector_variables[]= {
+  {"api_event_data_count_injector",     (char*) &g_event_data_count, SHOW_LONGLONG},
+  {"api_event_nondata_count_injector",  (char*) &g_event_nondata_count, SHOW_LONGLONG},
+  {"api_event_bytes_count_injector",    (char*) &g_event_bytes_count, SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+SHOW_VAR ndb_status_slave_variables[]= {
+  NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+  {NullS, NullS, SHOW_LONG}
+};
+
+SHOW_VAR ndb_status_server_client_stat_variables[]= {
+  NDBAPI_COUNTERS("", &g_server_api_client_stats),
+  {"api_event_data_count",     
+   (char*) &g_server_api_client_stats[ Ndb::DataEventsRecvdCount ], 
+   SHOW_LONGLONG},
+  {"api_event_nondata_count",  
+   (char*) &g_server_api_client_stats[ Ndb::NonDataEventsRecvdCount ], 
+   SHOW_LONGLONG},
+  {"api_event_bytes_count",    
+   (char*) &g_server_api_client_stats[ Ndb::EventBytesRecvdCount ], 
+   SHOW_LONGLONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+static int show_ndb_server_api_stats(THD *thd, SHOW_VAR *var, char *buff)
+{
+  /* This function is called when SHOW STATUS / INFO_SCHEMA wants
+   * to see one of our status vars
+   * We use this opportunity to :
+   *  1) Update the globals with current values
+   *  2) Return an array of var definitions, pointing to
+   *     the updated globals
+   */
+  ndb_get_connection_stats((Uint64*) &g_server_api_client_stats[0]);
+
+  var->type= SHOW_ARRAY;
+  var->value= (char*) ndb_status_server_client_stat_variables;
+
+  return 0;
+}
+
 
 /*
   Error handling functions
@@ -8166,6 +8300,8 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (!thd_ndb->m_conflict_fn_usage_count || !thd_ndb->m_unsent_bytes ||
         !(res= execute_no_commit(thd_ndb, trans, TRUE)))
       res= execute_commit(thd_ndb, trans, 1, TRUE);
+
+    update_slave_api_stats(thd_ndb->ndb);
   }
   else
   {
@@ -8332,9 +8468,275 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   }
   thd_ndb->changed_tables.empty();
 
+  if (thd->slave_thread)
+    update_slave_api_stats(thd_ndb->ndb);
+
   DBUG_RETURN(res);
 }
 
+/**
+ * Support for create table/column modifiers
+ *   by exploiting the comment field
+ */
+struct NDB_Modifier
+{
+  enum { M_BOOL } m_type;
+  const char * m_name;
+  size_t m_name_len;
+  bool m_found;
+  union {
+    bool m_val_bool;
+#ifdef TODO__
+    int m_val_int;
+    struct {
+      const char * str;
+      size_t len;
+    } m_val_str;
+#endif
+  };
+};
+
+static const
+struct NDB_Modifier ndb_table_modifiers[] =
+{
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, {0} },
+  { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
+};
+
+/**
+ * NDB_Modifiers
+ *
+ * This class implements a simple parser for getting modifiers out
+ *   of a string (e.g a comment field)
+ */
+class NDB_Modifiers
+{
+public:
+  NDB_Modifiers(const NDB_Modifier modifiers[]);
+  ~NDB_Modifiers();
+
+  /**
+   * parse string-with length (not necessarily NULL terminated)
+   */
+  int parse(THD* thd, const char * prefix, const char * str, size_t strlen);
+
+  /**
+   * Get modifier...returns NULL if unknown
+   */
+  const NDB_Modifier * get(const char * name) const;
+private:
+  uint m_len;
+  struct NDB_Modifier * m_modifiers;
+
+  int parse_modifier(THD *thd, const char * prefix,
+                     struct NDB_Modifier* m, const char * str);
+};
+
+static
+bool
+end_of_token(const char * str)
+{
+  return str[0] == 0 || str[0] == ' ' || str[0] == ',';
+}
+
+NDB_Modifiers::NDB_Modifiers(const NDB_Modifier modifiers[])
+{
+  for (m_len = 0; modifiers[m_len].m_name != 0; m_len++)
+  {}
+  m_modifiers = new NDB_Modifier[m_len];
+  memcpy(m_modifiers, modifiers, m_len * sizeof(NDB_Modifier));
+}
+
+NDB_Modifiers::~NDB_Modifiers()
+{
+  delete [] m_modifiers;
+}
+
+int
+NDB_Modifiers::parse_modifier(THD *thd,
+                              const char * prefix,
+                              struct NDB_Modifier* m,
+                              const char * str)
+{
+  if (m->m_found)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        "%s : modifier %s specified twice",
+                        prefix, m->m_name);
+  }
+
+  switch(m->m_type){
+  case NDB_Modifier::M_BOOL:
+    if (end_of_token(str))
+    {
+      m->m_val_bool = true;
+      goto found;
+    }
+    if (str[0] != '=')
+      break;
+
+    str++;
+    if (str[0] == '1' && end_of_token(str+1))
+    {
+      m->m_val_bool = true;
+      goto found;
+    }
+
+    if (str[0] == '0' && end_of_token(str+1))
+    {
+      m->m_val_bool = false;
+      goto found;
+    }
+  }
+
+  {
+    const char * end = strpbrk(str, " ,");
+    if (end)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : invalid value '%.*s' for %s",
+                          prefix, (int)(end - str), str, m->m_name);
+    }
+    else
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : invalid value '%s' for %s",
+                          prefix, str, m->m_name);
+    }
+  }
+  return -1;
+found:
+  m->m_found = true;
+  return 0;
+}
+
+int
+NDB_Modifiers::parse(THD *thd,
+                     const char * prefix,
+                     const char * _source,
+                     size_t _source_len)
+{
+  if (_source == 0 || _source_len == 0)
+    return 0;
+
+  const char * source = 0;
+
+  /**
+   * Check if _source is NULL-terminated
+   */
+  for (size_t i = 0; i<_source_len; i++)
+  {
+    if (_source[i] == 0)
+    {
+      source = _source;
+      break;
+    }
+  }
+
+  if (source == 0)
+  {
+    /**
+     * Make NULL terminated string so that strXXX-functions are safe
+     */
+    char * tmp = new char[_source_len+1];
+    if (tmp == 0)
+    {
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : unable to parse due to out of memory",
+                          prefix);
+      return -1;
+    }
+    memcpy(tmp, _source, _source_len);
+    tmp[_source_len] = 0;
+    source = tmp;
+  }
+
+  const char * pos = source;
+  if ((pos = strstr(pos, prefix)) == 0)
+  {
+    if (source != _source)
+      delete [] source;
+    return 0;
+  }
+
+  pos += strlen(prefix);
+
+  while (pos && pos[0] != 0 && pos[0] != ' ')
+  {
+    const char * end = strpbrk(pos, " ,"); // end of current modifier
+
+    for (uint i = 0; i < m_len; i++)
+    {
+      size_t l = m_modifiers[i].m_name_len;
+      if (strncmp(pos, m_modifiers[i].m_name, l) == 0)
+      {
+        /**
+         * Found modifier...
+         */
+
+        if (! (end_of_token(pos + l) || pos[l] == '='))
+          goto unknown;
+
+        pos += l;
+        int res = parse_modifier(thd, prefix, m_modifiers+i, pos);
+
+        if (res == -1)
+        {
+          /**
+           * We continue parsing even if modifier had error
+           */
+        }
+
+        goto next;
+      }
+    }
+
+    {
+  unknown:
+      if (end)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_ILLEGAL_HA_CREATE_OPTION,
+                            "%s : unknown modifier: %.*s",
+                            prefix, (int)(end - pos), pos);
+      }
+      else
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                            ER_ILLEGAL_HA_CREATE_OPTION,
+                            "%s : unknown modifier: %s",
+                            prefix, pos);
+      }
+    }
+
+next:
+    pos = end;
+    if (pos && pos[0] == ',')
+      pos++;
+  }
+
+  if (source != _source)
+    delete [] source;
+
+  return 0;
+}
+
+const NDB_Modifier *
+NDB_Modifiers::get(const char * name) const
+{
+  for (uint i = 0; i < m_len; i++)
+  {
+    if (strcmp(name, m_modifiers[i].m_name) == 0)
+    {
+      return m_modifiers + i;
+    }
+  }
+  return 0;
+}
 
 /**
   Define NDB column based on Field.
@@ -9083,6 +9485,11 @@ int ha_ndbcluster::create(const char *name,
     ndbtab_g.reinit();
   }
 
+  NDB_Modifiers table_modifiers(ndb_table_modifiers);
+  table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                        create_info->comment.length);
+  const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
+
   if ((dict->beginSchemaTrans() == -1))
   {
     DBUG_PRINT("info", ("Failed to start schema transaction"));
@@ -9108,6 +9515,11 @@ int ha_ndbcluster::create(const char *name,
     else if (THDVAR(thd, table_no_logging))
     {
       tab.setLogging(FALSE);
+    }
+
+    if (mod_nologging->m_found)
+    {
+      tab.setLogging(!mod_nologging->m_val_bool);
     }
   }
   tab.setSingleUserMode(single_user_mode);
@@ -11675,9 +12087,10 @@ static int ndbcluster_init(void *p)
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
 #ifndef NDB_WITHOUT_ONLINE_ALTER
     h->alter_partition_flags=
-      ndbcluster_alter_partition_flags;             /* Alter table flags */
+      ndbcluster_alter_partition_flags;             /* Alter partition flags */
 #else
-    /* Should install alter_table_flags */
+    h->alter_table_flags=
+      ndbcluster_alter_table_flags;                 /* Alter table flags */
 #endif
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
@@ -11753,6 +12166,8 @@ static int ndbcluster_init(void *p)
 #ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
 #endif
+
+  memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
   ndbcluster_inited= 1;
   DBUG_RETURN(FALSE);
@@ -14895,6 +15310,16 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
      {
        new_tab.setFragmentCount(part_info->no_parts);
      }
+
+     NDB_Modifiers table_modifiers(ndb_table_modifiers);
+     table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                           create_info->comment.length);
+     const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
+
+     if (mod_nologging->m_found)
+     {
+       new_tab.setLogging(!mod_nologging->m_val_bool);
+     }
      
      if (dict->supportedAlterTable(*old_tab, new_tab))
      {
@@ -16147,6 +16572,9 @@ SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
   {"Ndb",          (char*) &ndb_status_variables_fixed,    SHOW_ARRAY},
   {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
+  {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
+  {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},
+  {"Ndb",          (char*) &show_ndb_server_api_stats,     SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -16331,23 +16759,15 @@ static MYSQL_SYSVAR_BOOL(
   1                                  /* default */
 );
 
-#ifndef NDB_NO_LOG_EMPTY_EPOCHS
-#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG
-#define LOG_EMPTY_EPOCHS_DEFAULT 0
-#else
-#define LOG_EMPTY_EPOCHS_OPTS PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY
-#define LOG_EMPTY_EPOCHS_DEFAULT 1
-#endif
-
 static my_bool opt_ndb_log_empty_epochs;
 static MYSQL_SYSVAR_BOOL(
   log_empty_epochs,                  /* name */
   opt_ndb_log_empty_epochs,          /* var */
-  LOG_EMPTY_EPOCHS_OPTS,
+  PLUGIN_VAR_OPCMDARG,
   "",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  LOG_EMPTY_EPOCHS_DEFAULT           /* default */
+  0                                  /* default */
 );
 
 bool ndb_log_empty_epochs(void)

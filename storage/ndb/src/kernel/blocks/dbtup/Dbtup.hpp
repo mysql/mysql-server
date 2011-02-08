@@ -943,6 +943,13 @@ ArrayPool<TupTriggerData> c_triggerPool;
   STATIC_CONST( DD = 1 );
   STATIC_CONST( DYN_BM_LEN_BITS = 8 );
   STATIC_CONST( DYN_BM_LEN_MASK = ((1 << DYN_BM_LEN_BITS) - 1));
+
+  /* Array length in the data structures like
+     dynTabDescriptor, dynVarSizeMask, dynFixSizeMask, etc.
+     1 for dynamic main memory data,
+     2 for dynamic main memory and dynamic disk data.
+  */
+  STATIC_CONST( NO_DYNAMICS = 2 );
   
   struct Tablerec {
     Tablerec(ArrayPool<TupTriggerData> & triggerPool) : 
@@ -965,7 +972,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
       _after_ seeing all columns, hence must be separate from the readKeyArray
       et al descriptor, which is allocated before seeing columns.
     */
-    Uint32 dynTabDescriptor;
+    Uint32 dynTabDescriptor[2];
 
     /* Mask of variable-sized dynamic attributes. */
     Uint32* dynVarSizeMask[2];
@@ -1020,7 +1027,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
     Uint16 m_no_of_disk_attributes;
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
-    Uint16 m_dyn_null_bits;
+    Uint16 m_dyn_null_bits[2];
 
     bool need_expand() const { 
       return m_no_of_attributes > m_attributes[MM].m_no_of_fixsize;
@@ -2828,7 +2835,8 @@ private:
                                  const Uint32* offset);
   void setupDynDescriptorReferences(Uint32 dynDescr,
                                     Tablerec* const regTabPtr,
-                                    const Uint32* offset);
+                                    const Uint32* offset,
+                                    Uint32 ind=0);
   void setUpKeyArray(Tablerec* regTabPtr);
   bool addfragtotab(Tablerec* regTabPtr, Uint32 fragId, Uint32 fragIndex);
   void deleteFragTab(Tablerec* regTabPtr, Uint32 fragId);

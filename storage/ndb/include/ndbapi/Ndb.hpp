@@ -1756,6 +1756,52 @@ public:
 
   /* Get minimum known DB node version */
   Uint32 getMinDbNodeVersion() const;
+
+  /* Some client behaviour counters to assist
+   * optimisation
+   */
+  enum ClientStatistics
+  {
+    /* Latency avoidance : */
+    /* Number of times user thread blocked waiting for data node response */
+    WaitExecCompleteCount    = 0,  /* Waiting for PK/UK/Scan requests to complete */
+    WaitScanResultCount      = 1,  /* Waiting for next scan batch(es) to arrive */
+    WaitMetaRequestCount     = 2,  /* Waiting for some meta data operation to complete */
+
+    /* Measured latency */
+    WaitNanosCount           = 3,  /* Nanoseconds spent waiting for kernel response */
+
+    /* Data transfer */
+    BytesSentCount           = 4,  /* Bytes sent to kernel by this object */
+    BytesRecvdCount          = 5,  /* Bytes received from kernel by this object */
+
+    /* Work performed */
+    TransStartCount          = 6,  /* Transactions started */
+    TransCommitCount         = 7,  /* Transactions committed */
+    TransAbortCount          = 8,  /* Transactions aborted */
+    TransCloseCount          = 9,  /* Transactions closed */
+
+    PkOpCount                = 10, /* Primary key operation count */
+    UkOpCount                = 11, /* Unique key operation count */
+    TableScanCount           = 12, /* Table scans */
+    RangeScanCount           = 13, /* Range scans */
+
+    /* Efficiency */
+    PrunedScanCount          = 14, /* Count of scans scanning 1 fragment */
+    ScanBatchCount           = 15, /* Count of scan batches received */
+    ReadRowCount             = 16, /* Rows returned to API, from PK/UK/Scan */
+    TransLocalReadRowCount   = 17, /* Rows returned to API from trans node */
+
+    /* Event Api */
+    DataEventsRecvdCount     = 18, /* Number of table data change events received */
+    NonDataEventsRecvdCount  = 19, /* Number of non-data events received */
+    EventBytesRecvdCount     = 20, /* Number of bytes of event data received */
+    
+    NumClientStatistics      = 21   /* End marker */
+  };
+  
+  Uint64 getClientStat(Uint32 id) const;
+  const char* getClientStatName(Uint32 id) const;
 #endif
 
 private:

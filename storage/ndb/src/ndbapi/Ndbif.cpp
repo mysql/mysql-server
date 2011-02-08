@@ -387,6 +387,12 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 				     tLen - TransIdAI::HeaderLength);
 	}
 
+        {
+          tCon->theNdb->theImpl->incClientStat(Ndb::ReadRowCount, 1);
+          if (refToNode(aSignal->theSendersBlockRef) == tCon->theDBnode)
+            tCon->theNdb->theImpl->incClientStat(Ndb::TransLocalReadRowCount,1);
+        }
+
 	if(com == 0)
 	  return;
 

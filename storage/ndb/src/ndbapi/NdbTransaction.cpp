@@ -669,6 +669,19 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
 #endif
+  {
+    switch (aTypeOfExec)
+    {
+    case NdbTransaction::Commit:
+      theNdb->theImpl->incClientStat(Ndb::TransCommitCount, 1);
+      break;
+    case NdbTransaction::Rollback:
+      theNdb->theImpl->incClientStat(Ndb::TransAbortCount, 1);
+      break;
+    default:
+      break;
+    }
+  }
   /**
    * for timeout (4012) we want sendROLLBACK to behave differently.
    * Else, normal behaviour of reset errcode
@@ -855,9 +868,17 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
 
   // Prepare sending of all pending (non-scan) NdbOperations's
   NdbOperation* tOp = theFirstOpInList;
+  Uint32 pkOpCount = 0;
+  Uint32 ukOpCount = 0;
   while (tOp) {
     int tReturnCode;
     NdbOperation* tNextOp = tOp->next();
+
+    /* Count operation */
+    if (tOp->theTCREQ->theVerId_signalNumber == GSN_TCINDXREQ)
+      ukOpCount++;
+    else
+      pkOpCount++;
 
     if (tOp->Status() == NdbOperation::UseNdbRecord)
       tReturnCode = tOp->prepareSendNdbRecord(abortOption);
@@ -876,6 +897,9 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
      ************************************************************************/
     tOp = tNextOp;
   } 
+
+  theNdb->theImpl->incClientStat(Ndb::PkOpCount, pkOpCount);
+  theNdb->theImpl->incClientStat(Ndb::UkOpCount, ukOpCount);
 
   NdbOperation* tLastOpInList = theLastOpInList;
   NdbOperation* tFirstOpInList = theFirstOpInList;

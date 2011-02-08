@@ -344,9 +344,9 @@ Dbtup::verifytabdes()
       }
       {
         Uint32 offset[3];
-        Uint32 MaskSize = (ptr.p->m_dyn_null_bits + 31) >> 5;
+        Uint32 MaskSize = (ptr.p->m_dyn_null_bits[MM] + 31) >> 5;
         const Uint32 alloc = getDynTabDescrOffsets(MaskSize, offset);
-        const Uint32 desc = ptr.p->dynTabDescriptor;
+        const Uint32 desc = ptr.p->dynTabDescriptor[MM];
         Uint32 size = alloc;
         if (size % ZTD_FREE_SIZE != 0)
           size += ZTD_FREE_SIZE - size % ZTD_FREE_SIZE;
