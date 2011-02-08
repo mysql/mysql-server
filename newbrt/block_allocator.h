@@ -80,6 +80,7 @@ void
 block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct block_allocator_blockpair *pairs);
 // Effect: Take pairs in any order, and add them all, as if we did block_allocator_alloc_block() on each pair.
 //  This should run in time O(N + M log M) where N is the number of blocks in ba, and M is the number of new blocks.
+// Modifies: pairs (sorts them).
 
 void
 block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offset);
@@ -136,6 +137,11 @@ block_allocator_get_unused_statistics(BLOCK_ALLOCATOR ba, TOKU_DB_FRAGMENTATION 
 //Requires: report->file_size_bytes is filled in
 //Requires: report->data_bytes is filled in
 //Requires: report->checkpoint_bytes_additional is filled in
+
+void
+block_allocator_merge_blockpairs_into (u_int64_t d,       struct block_allocator_blockpair dst[/*d*/],
+				       u_int64_t s, const struct block_allocator_blockpair src[/*s*/]);
+// This is exposed so it can be tested.
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
