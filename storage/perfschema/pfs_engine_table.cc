@@ -39,6 +39,7 @@
 #include "table_tiws_by_table.h"
 #include "table_tlws_by_table.h"
 #include "table_socket_instances.h"
+#include "table_socket_summary_by_instance.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -81,6 +82,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_tiws_by_table::m_share,
   &table_tlws_by_table::m_share,
   &table_socket_instances::m_share,
+  &table_socket_summary_by_instance::m_share,
   NULL
 };
 

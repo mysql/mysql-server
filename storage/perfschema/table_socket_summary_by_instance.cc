@@ -37,7 +37,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("OBJECT_INSTANCE_BEGIN") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -47,457 +47,457 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("COUNT_STAR") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_WAIT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Read */
   {
     { C_STRING_WITH_LEN("COUNT_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Write */
   {
     { C_STRING_WITH_LEN("COUNT_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Recv */
   {
     { C_STRING_WITH_LEN("COUNT_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Send */
   {
     { C_STRING_WITH_LEN("COUNT_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Recvfrom */
   {
     { C_STRING_WITH_LEN("COUNT_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Sendto */
   {
     { C_STRING_WITH_LEN("COUNT_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Recvmsg */
   {
     { C_STRING_WITH_LEN("COUNT_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Sendmsg */
   {
     { C_STRING_WITH_LEN("COUNT_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Connect */
   {
     { C_STRING_WITH_LEN("COUNT_CONNECT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_CONNECT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_CONNECT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_CONNECT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_CONNECT") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
 
   /** Misc */
   {
     { C_STRING_WITH_LEN("COUNT_MISC") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("SUM_TIMER_MISC") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MIN_TIMER_MISC") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("AVG_TIMER_MISC") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
     { C_STRING_WITH_LEN("MAX_TIMER_MISC") },
-    { C_STRING_WITH_LEN("bigint") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   }
 };
