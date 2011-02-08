@@ -29,6 +29,7 @@ class LqhKeyReq {
   /**
    * Sender(s)
    */
+  friend class Dbspj;
   friend class Dbtc;      
   friend class Restore;
   
@@ -153,6 +154,18 @@ private:
 
   static UintR getQueueOnRedoProblemFlag(const UintR & requestInfo);
   static void setQueueOnRedoProblemFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Do normal protocol (LQHKEYCONF/REF) even if doing dirty read
+   */
+  static UintR getNormalProtocolFlag(const UintR & requestInfo);
+  static void setNormalProtocolFlag(UintR & requestInfo, UintR val);
+
+  /**
+   * Include corr factor
+   */
+  static UintR getCorrFactorFlag(const UintR & requestInfo);
+  static void setCorrFactorFlag(UintR & requestInfo, UintR val);
 };
 
 /**
@@ -180,6 +193,8 @@ private:
  * g = gci flag               - 1  Bit (12)
  * n = NR copy                - 1  Bit (13)
  * q = Queue on redo problem  - 1  Bit (14)
+ * A = CorrFactor flag        - 1  Bit (24)
+ * P = Do normal protocol even if dirty-read - 1 Bit (25)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -190,7 +205,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *             llgnqpdisooorr   cumxz
+ *             llgnqpdisooorrAP cumxz
  *
  */
 
@@ -218,6 +233,8 @@ private:
 #define RI_GCI_SHIFT         (12)
 #define RI_NR_COPY_SHIFT     (13)
 #define RI_QUEUE_REDO_SHIFT  (14)
+#define RI_CORR_FACTOR_VALUE (24)
+#define RI_NORMAL_DIRTY      (25)
 
 /**
  * Scan Info
@@ -582,6 +599,32 @@ LqhKeyReq::getNrCopyFlag(const UintR & requestInfo){
 }
 
 inline
+void
+LqhKeyReq::setNormalProtocolFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setNrCopyFlag");
+  requestInfo |= (val << RI_NORMAL_DIRTY);
+}
+
+inline
+UintR
+LqhKeyReq::getNormalProtocolFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NORMAL_DIRTY) & 1;
+}
+
+inline
+void
+LqhKeyReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setCorrFactorFlag");
+  requestInfo |= (val << RI_CORR_FACTOR_VALUE);
+}
+
+inline
+UintR
+LqhKeyReq::getCorrFactorFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_CORR_FACTOR_VALUE) & 1;
+}
+
+inline
 Uint32
 table_version_major_lqhkeyreq(Uint32 x)
 {
@@ -609,6 +652,7 @@ class LqhKeyConf {
    */
   friend class Dbtc;
   friend class Restore;
+  friend class Dbspj;
 
   /**
    * Sender(s)
@@ -652,6 +696,7 @@ class LqhKeyRef {
    * Reciver(s)
    */
   friend class Dbtc;      
+  friend class Dbspj;
   friend class Restore;
 
   /**

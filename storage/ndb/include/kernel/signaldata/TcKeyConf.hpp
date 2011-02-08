@@ -37,6 +37,7 @@ class TcKeyConf {
    * Sender(s)
    */
   friend class Dbtc;
+  friend class Dbspj;
 
   /**
    * For printing
@@ -60,7 +61,7 @@ private:
   // Unconditional part. First 5 words
   //-------------------------------------------------------------
 
-  Uint32 apiConnectPtr;
+  Uint32 apiConnectPtr; // if RNIL, transaction is found from op
   Uint32 gci_hi;   // gci_lo is stored after operations...
   Uint32 confInfo;
   Uint32 transId1;
