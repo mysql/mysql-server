@@ -164,8 +164,12 @@ int get_mysql_service_properties(const wchar_t *bin_path,
       *p= 0;
     }
 
-    /* Look for my.ini in the install root */
+    /* Look for my.ini, my.cnf in the install root */
     sprintf_s(props->inifile, MAX_PATH, "%s\\my.ini", install_root);
+    if (GetFileAttributes(props->inifile) == INVALID_FILE_ATTRIBUTES)
+    {
+      sprintf_s(props->inifile, MAX_PATH, "%s\\my.cnf", install_root);
+    }
     if (GetFileAttributes(props->inifile) != INVALID_FILE_ATTRIBUTES)
     {
       /* Ini file found, get datadir from there */
@@ -174,7 +178,7 @@ int get_mysql_service_properties(const wchar_t *bin_path,
     }
     else
     {
-      /* Ini file was not found */
+      /* No ini file */
       props->inifile[0]= 0;
     }
 
