@@ -703,6 +703,32 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       DBUG_PRINT("info", ("  Force artificial grandparent dependency through scan-child %s",
                          scan_descendant->get_table()->alias));
 
+      /**
+       * Outer joining scan-scan is not supported, due to the following problem:
+       * Consider the query:
+       *
+       * select * from t1 left join t2 
+       *   where t1.attr=t2.ordered_index and predicate(t1.row, t2. row);
+       *
+       * Where 'predicate' cannot be pushed to the ndb. The ndb api may then
+       * return:
+       * +---------+---------+
+       * | t1.row1 | t2.row1 | 
+       * | t1.row2 | t2.row1 | 
+       * | t1.row1 | t2.row2 |
+       * +---------+---------+
+       * Now assume that all rows but [t1.row1, t2.row1] satisfies 'predicate'.
+       * mysqld would be confused since the rows are not grouped on t1 values.
+       * It would therefor generate a NULL row such that it returns:
+       * +---------+---------+
+       * | t1.row1 | NULL    | -> Error! 
+       * | t1.row2 | t2.row1 | 
+       * | t1.row1 | t2.row2 |
+       * +---------+---------+
+       * 
+       * (Outer joining with scan may be indirect through lookup operations 
+       * inbetween)
+       */
       if (scan_descendant && 
          table->get_join_type(scan_descendant) == AQP::JT_OUTER_JOIN)
       {
@@ -745,9 +771,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
         ancestor_no= m_tables[ancestor_no].m_parent;
       } // while
 
-      // Outer joining scan-scan is not supported due to possible parent-NULL-row duplicates
-      // being created in the NdbResultStream when incomplete child batches are received.
-      // (Outer joining with scan may be indirect through lookup operations inbetween)
+      // Outer joining scan-scan is not supported, see comments above.
       if (scan_ancestor && 
          table->get_join_type(scan_ancestor) == AQP::JT_OUTER_JOIN)
       {

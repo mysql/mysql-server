@@ -886,6 +886,21 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4 and t2.b=4
 group by t2.c order by t2.c;
 
+create table tx like t1;
+
+insert into tx 
+  select x1.a+x2.a*16, x1.b+x2.b*16, x1.c+x2.c*16, x1.d+x2.d*16 
+    from t1 as x1 cross join t1 as x2;
+
+# Test of outer join with scan child.
+# This query should not be pushed. Doing so would produce lots of extra
+# [<x1 row>.NULL] rows, since the x1.d=x2.d predicate cannot be pushed.
+explain select count(*) from tx as x1 
+  left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
+select count(*) from tx as x1 
+  left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
+
+drop table tx;
 drop table t1;
 
 
