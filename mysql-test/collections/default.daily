@@ -12,4 +12,4 @@ perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experime
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp                   --vardir=var-jp                  --suite=jp
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist                 --vardir=var-nist                --suite=nist
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist+ps              --vardir=var-ps_nist             --suite=nist                                        --ps-protocol
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --vardir=var-rpl_binlog_checksum --suite=rpl,binlog --mysqld=--binlog-checksum=CRC32
+perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=rpl_binlog_checksum  --vardir=var-rpl_binlog_checksum --suite=rpl,binlog --mysqld=--binlog-checksum=CRC32
