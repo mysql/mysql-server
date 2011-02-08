@@ -801,6 +801,8 @@ ErrorBundle ErrorCodes[] = {
     "Query with multiple scans may not be sorted." },
   { QRY_SEQUENTIAL_SCAN_SORTED, DMEC, AE, 
     "Parallelism cannot be restricted for sorted scans." },
+  { QRY_BATCH_SIZE_TOO_SMALL, DMEC, AE, 
+    "Batch size for sub scan cannot be smaller than number of fragments." },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

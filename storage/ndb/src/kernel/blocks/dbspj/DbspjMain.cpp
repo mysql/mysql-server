@@ -4889,9 +4889,7 @@ Dbspj::scanIndex_send(Signal* signal,
 
     bs_rows /= cnt;
     bs_bytes /= cnt;
-
-    if (bs_rows == 0)
-      bs_rows = 1;
+    ndbassert(bs_rows > 0);
   }
 
   /**
@@ -5226,7 +5224,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
   }
 
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
-  const Uint32 bs_rows = MAX(1, org->batch_size_rows/cnt);
+  const Uint32 bs_rows = org->batch_size_rows/cnt;
+  ndbassert(bs_rows > 0);
   ScanFragNextReq* req = 
     reinterpret_cast<ScanFragNextReq*>(signal->getDataPtrSend());
   req->requestInfo = 0;

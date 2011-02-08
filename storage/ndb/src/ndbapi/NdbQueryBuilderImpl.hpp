@@ -45,6 +45,7 @@
 #define QRY_CHAR_PARAMETER_TRUNCATED 4823
 #define QRY_MULTIPLE_SCAN_BRANCHES 4824
 #define QRY_MULTIPLE_SCAN_SORTED 4825
+#define QRY_BATCH_SIZE_TOO_SMALL 4826
 
 #ifdef __cplusplus
 #include <Vector.hpp>
