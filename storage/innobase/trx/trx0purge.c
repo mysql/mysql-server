@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -160,16 +160,12 @@ trx_purge_sys_create(
 
 	ut_a(purge_sys->trx->sess == purge_sys->sess);
 
-	trx_mutex_enter(purge_sys->trx);
-
 	/* A purge transaction is not a real transaction, we use a transaction
 	here only because the query threads code requires it. It is otherwise
 	quite unnecessary. We should get rid of it eventually. */
 	purge_sys->trx->id = 0;
 	purge_sys->trx->start_time = ut_time();
 	purge_sys->trx->state = TRX_STATE_ACTIVE;
-
-	trx_mutex_exit(purge_sys->trx);
 
 	purge_sys->query = trx_purge_graph_build(
 		purge_sys->trx, n_purge_threads);
@@ -187,8 +183,9 @@ trx_purge_sys_close(void)
 	que_graph_free(purge_sys->query);
 
 	ut_a(purge_sys->trx->id == 0);
+	ut_a(purge_sys->sess->trx == purge_sys->trx);
 
-	purge_sys->sess->trx->state = TRX_STATE_NOT_STARTED;
+	purge_sys->trx->state = TRX_STATE_NOT_STARTED;
 
 	sess_close(purge_sys->sess);
 
