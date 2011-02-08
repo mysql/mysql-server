@@ -3832,9 +3832,9 @@ int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues
 
 Uint32
 NdbQueryOperationImpl
-::calculateBatchedRows(NdbQueryOperationImpl* closestScan)
+::calculateBatchedRows(const NdbQueryOperationImpl* closestScan)
 {
-  NdbQueryOperationImpl* myClosestScan;
+  const NdbQueryOperationImpl* myClosestScan;
   if (m_operationDef.isScanOperation())
   {
     myClosestScan = this;
@@ -3849,7 +3849,16 @@ NdbQueryOperationImpl
   {
 
 #ifdef TEST_SCANREQ
-    m_maxBatchRows = 4;  // To force usage of SCAN_NEXTREQ even for small scans resultsets
+    // To force usage of SCAN_NEXTREQ even for small scans resultsets
+    if (this == &getRoot())
+    {
+      m_maxBatchRows = 1;
+    }
+    else
+    {
+      m_maxBatchRows =
+        myClosestScan->getQueryOperationDef().getTable().getFragmentCount();
+    }
 #endif
 
     const Ndb& ndb = *getQuery().getNdbTransaction().getNdb();
@@ -3875,6 +3884,8 @@ NdbQueryOperationImpl
                                       m_ndbRecord,
                                       m_firstRecAttr,
                                       0, // Key size.
+                                      getRoot().m_parallelism > 0 ?
+                                      getRoot().m_parallelism :
                                       m_queryImpl.getRootFragCount(),
                                       maxBatchRows,
                                       batchByteSize,
@@ -3893,6 +3904,14 @@ NdbQueryOperationImpl
   
   if (m_operationDef.isScanOperation())
   {
+    if (myClosestScan != &getRoot())
+    {
+      /** Each SPJ block instance will scan each fragment, so the batch size
+       * cannot be smaller than the number of fragments.*/
+      maxBatchRows = 
+        MAX(maxBatchRows, myClosestScan->getQueryOperationDef().
+            getTable().getFragmentCount());
+    }
     // Use this value for current op and all lookup descendants.
     m_maxBatchRows = maxBatchRows;
     // Return max(Unit32) to avoid interfering with batch size calculation 
@@ -4762,7 +4781,14 @@ int NdbQueryOperationImpl::setBatchSize(Uint32 batchSize){
     getQuery().setErrorCode(QRY_WRONG_OPERATION_TYPE);
     return -1;
   }
-
+  if (this != &getRoot() && 
+      batchSize < getQueryOperationDef().getTable().getFragmentCount())
+  {
+    /** Each SPJ block instance will scan each fragment, so the batch size
+     * cannot be smaller than the number of fragments.*/
+    getQuery().setErrorCode(QRY_BATCH_SIZE_TOO_SMALL);
+    return -1;
+  }
   m_maxBatchRows = batchSize;
   return 0;
 }
