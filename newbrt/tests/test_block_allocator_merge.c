@@ -104,7 +104,7 @@ static void
 test_big_merge (void) {
     u_int64_t G = 1024LL * 1024LL * 1024LL;
     if (toku_os_get_phys_memory_size() < 40 * G) {
-	fprintf(stderr, "Skipping big merge because there is only %4.1fG physical memory\n", toku_os_get_phys_memory_size()/(1024.0*1024.0*1024.0));
+	fprintf(stderr, "Skipping big merge because there is only %4.1fGiB physical memory\n", toku_os_get_phys_memory_size()/(1024.0*1024.0*1024.0));
     } else {
 	u_int64_t twoG = 2*G;
 
