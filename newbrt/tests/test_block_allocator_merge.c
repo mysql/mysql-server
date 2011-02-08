@@ -100,6 +100,21 @@ test_merge_n_m (u_int64_t n, u_int64_t m, int mode)
     toku_free(ma);
 }
 
+static void
+test_big_merge (void) {
+    u_int64_t twoG = 1024LL * 1024LL * 1024LL * 2;
+    u_int64_t an = twoG;
+    u_int64_t bn = 1;
+    struct block_allocator_blockpair *MALLOC_N(an+bn, a);
+    struct block_allocator_blockpair *MALLOC_N(bn,    b);
+    for (u_int64_t i=0; i<an; i++) a[i].offset=i+1;
+    b[0].offset = 0;
+    block_allocator_merge_blockpairs_into(an, a, bn, b);
+    for (u_int64_t i=0; i<an+bn; i++) assert(a[i].offset=i);
+    toku_free(a);
+    toku_free(b);
+}
+
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     test_merge_n_m(4, 4, 0);
     test_merge_n_m(16, 16, 0);
@@ -112,5 +127,6 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test_merge_n_m(too_big, too_big);
     test_merge_n_m(1, too_big, 0);
 #endif
+    test_big_merge();
     return 0;
 }
