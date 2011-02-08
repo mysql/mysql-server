@@ -3560,6 +3560,8 @@ add_ndb_binlog_index_err:
   Functions for start, stop, wait for ndbcluster binlog thread
 *********************************************************************/
 
+pthread_handler_t ndb_binlog_thread_func(void *arg);
+
 int ndbcluster_binlog_start()
 {
   DBUG_ENTER("ndbcluster_binlog_start");
@@ -5967,7 +5969,8 @@ enum Binlog_thread_state
 extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
 extern ulong opt_ndb_report_thresh_binlog_mem_usage;
 
-pthread_handler_t ndb_binlog_thread_func(void *arg)
+pthread_handler_t
+ndb_binlog_thread_func(void *arg)
 {
   THD *thd; /* needs to be first for thread_stack */
   Ndb *i_ndb= 0;
