@@ -1,3 +1,10 @@
+2011-01-31	The InnoDB Team
+
+	* btr/btr0cur.c, include/row0upd.h,
+	row/row0purge.c, row/row0umod.c, row/row0upd.c:
+	Bug#59230 assert 0 row_upd_changes_ord_field_binary()
+	in post-crash rollback or purge
+
 2011-01-27	The InnoDB Team
 
 	* btr/btr0cur.c:
