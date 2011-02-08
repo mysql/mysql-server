@@ -724,7 +724,7 @@ private:
 
   int serializeProject(Uint32Buffer& attrInfo);
 
-  Uint32 calculateBatchedRows(NdbQueryOperationImpl* closestScan);
+  Uint32 calculateBatchedRows(const NdbQueryOperationImpl* closestScan);
   void setBatchedRows(Uint32 batchedRows);
 
   /** Construct and prepare receiver streams for result processing. */
