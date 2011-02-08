@@ -7259,8 +7259,8 @@ struct NDB_Modifier
 static const
 struct NDB_Modifier ndb_table_modifiers[] =
 {
-  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, 0 },
-  { NDB_Modifier::M_BOOL, 0, 0, 0, 0 }
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, {0} },
+  { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
 /**
