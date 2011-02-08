@@ -250,9 +250,6 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
 
-/*
-  table mysql.ndb_apply_status
-*/
 int ndbcluster_setup_binlog_table_shares(THD *thd);
 extern NDB_SHARE *ndb_apply_status_share;
 extern NDB_SHARE *ndb_schema_share;
