@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -150,59 +150,49 @@ lock_wait_table_reserve_slot(
 
 	slot = lock_sys->waiting_threads;
 
-	for (i = 0; i < OS_THREAD_MAX_N; ++i, ++slot) {
+	for (i = OS_THREAD_MAX_N; i--; ++slot) {
 		if (!slot->in_use) {
-			break;
+			slot->in_use = TRUE;
+			slot->thr = thr;
+			slot->thr->slot = slot;
+			slot->id = os_thread_get_curr_id();
+			slot->handle = os_thread_get_curr();
+
+			if (slot->event == NULL) {
+				slot->event = os_event_create(NULL);
+				ut_a(slot->event);
+			}
+
+			os_event_reset(slot->event);
+			slot->suspended = TRUE;
+			slot->suspend_time = ut_time();
+			slot->wait_timeout = wait_timeout;
+
+			if (slot == lock_sys->last_slot) {
+				++lock_sys->last_slot;
+			}
+
+			ut_ad(lock_sys->last_slot
+			      <= lock_sys->waiting_threads + OS_THREAD_MAX_N);
+
+			return(slot);
 		}
 	}
 
-	/* Check if we have run out of slots. */
-	if (slot == lock_sys->waiting_threads+ OS_THREAD_MAX_N) {
+	ut_print_timestamp(stderr);
 
-		ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: There appear to be %lu user"
+		" threads currently waiting\n"
+		"InnoDB: inside InnoDB, which is the"
+		" upper limit. Cannot continue operation.\n"
+		"InnoDB: As a last thing, we print"
+		" a list of waiting threads.\n", (ulong) OS_THREAD_MAX_N);
 
-		fprintf(stderr,
-			"  InnoDB: There appear to be %lu user"
-			" threads currently waiting\n"
-			"InnoDB: inside InnoDB, which is the"
-			" upper limit. Cannot continue operation.\n"
-			"InnoDB: We intentionally generate"
-			" a seg fault to print a stack trace\n"
-			"InnoDB: on Linux. But first we print"
-			" a list of waiting threads.\n", (ulong) i);
+	lock_wait_table_print();
 
-		lock_wait_table_print();
-
-		ut_error;
-	} else {
-
-		ut_a(slot->in_use == FALSE);
-
-		slot->in_use = TRUE;
-		slot->thr = thr;
-		slot->thr->slot = slot;
-		slot->id = os_thread_get_curr_id();
-		slot->handle = os_thread_get_curr();
-
-		if (slot->event == NULL) {
-			slot->event = os_event_create(NULL);
-			ut_a(slot->event);
-		}
-
-		os_event_reset(slot->event);
-		slot->suspended = TRUE;
-		slot->suspend_time = ut_time();
-		slot->wait_timeout = wait_timeout;
-	}
-
-	if (slot == lock_sys->last_slot) {
-		++lock_sys->last_slot;
-	}
-
-	ut_ad(lock_sys->last_slot
-	      <= lock_sys->waiting_threads+ OS_THREAD_MAX_N);
-
-	return(slot);
+	ut_error;
+	return(NULL);
 }
 
 /***************************************************************//**
@@ -245,7 +235,7 @@ lock_wait_suspend_thread(
 
 	if (thr->state == QUE_THR_RUNNING) {
 
-		ut_ad(thr->is_active == TRUE);
+		ut_ad(thr->is_active);
 
 		/* The lock has already been released or this transaction
 		was chosen as a deadlock victim: no need to suspend */
@@ -256,13 +246,12 @@ lock_wait_suspend_thread(
 			trx->lock.was_chosen_as_deadlock_victim = FALSE;
 		}
 
-		trx_mutex_exit(trx);
-
 		lock_wait_mutex_exit();
+		trx_mutex_exit(trx);
 		return;
 	}
 
-	ut_ad(thr->is_active == FALSE);
+	ut_ad(!thr->is_active);
 
 	slot = lock_wait_table_reserve_slot(thr, lock_wait_timeout);
 
@@ -283,8 +272,8 @@ lock_wait_suspend_thread(
 
 	os_event_set(srv_timeout_event);
 
-	trx_mutex_exit(trx);
 	lock_wait_mutex_exit();
+	trx_mutex_exit(trx);
 
 	if (trx->declared_to_be_inside_innodb) {
 
@@ -395,7 +384,7 @@ lock_wait_release_thread_if_suspended(
 
 	/* We own both the lock mutex and the trx_t::mutex but not the
 	lock wait mutex. This is OK because other threads will see the state
-	of this mutex as being in use and no other thread can change the state
+	of this slot as being in use and no other thread can change the state
 	of the slot to free unless that thread also owns the lock mutex. */
 
 	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
