@@ -1073,4 +1073,19 @@ explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 
+--echo #  is returned
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=innodb;
+INSERT INTO t1 VALUES (0);
+SET SQL_MODE='STRICT_ALL_TABLES';
+--error ER_TRUNCATED_WRONG_VALUE
+CREATE TABLE t2 
+  SELECT LEAST((SELECT '' FROM t1),NOW()) FROM `t1`;
+DROP TABLE t1;  
+SET SQL_MODE=DEFAULT;
+
+
 --echo End of 5.0 tests
