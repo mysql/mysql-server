@@ -2526,6 +2526,36 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     outBuffer[1] = req_struct->operPtrP->m_copy_tuple_location.m_page_no;
     outBuffer[2] = req_struct->operPtrP->m_copy_tuple_location.m_page_idx;
     break;
+  case AttributeHeader::FLUSH_AI:
+  {
+    jam();
+    Uint32 resultRef = inBuffer[inPos];
+    Uint32 resultData = inBuffer[inPos + 1];
+    Uint32 routeRef = inBuffer[inPos + 2];
+    flush_read_buffer(req_struct, outBuf, resultRef, resultData, routeRef);
+    return 3;
+  }
+  case AttributeHeader::CORR_FACTOR32:
+  {
+    jam();
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    sz = 1;
+    outBuffer[1] = signal->theData[0];
+    break;
+  }
+  case AttributeHeader::CORR_FACTOR64:
+  {
+    jam();
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    sz = 2;
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
+    break;
+  }
   case AttributeHeader::FRAGMENT_EXTENT_SPACE:
   {
     Uint64 res[2];
@@ -2698,6 +2728,56 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
 error:  
   ndbrequire(false);
   return 0;
+}
+
+#include <signaldata/TransIdAI.hpp>
+
+void
+Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
+			 const Uint32 * outBuf,
+			 Uint32 resultRef,
+                         Uint32 resultData,
+                         Uint32 routeRef)
+{
+  Uint32 sig1= req_struct->trans_id1;
+  Uint32 sig2= req_struct->trans_id2;
+  Uint32 len = (req_struct->out_buf_index >> 2) - 1;
+  Signal * signal = req_struct->signal;
+
+  bool connectedToNode= getNodeInfo(refToNode(resultRef)).m_connected;
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p= (Uint32*)outBuf; // Should really remove this
+  ptr[0].sz= len;
+
+  TransIdAI * transIdAI=  (TransIdAI *)signal->getDataPtrSend();
+  transIdAI->connectPtr= resultData;
+  transIdAI->transId[0]= sig1;
+  transIdAI->transId[1]= sig2;
+
+  if (likely(connectedToNode))
+  {
+    sendSignal(resultRef, GSN_TRANSID_AI, signal, 3, JBB, ptr, 1);
+  }
+  else
+  {
+    jam();
+    if (outBuf == signal->theData + 3)
+    {
+      jam();
+      /**
+       * TUP guesses that it can EXECUTE_DIRECT if own-node,
+       *  it then puts outBuf == signal->theData+3
+       */
+      memmove(signal->theData+25, signal->theData+3, 4*len);
+      ptr[0].p = signal->theData+25;
+    }
+    transIdAI->attrData[0] = resultRef;
+    sendSignal(routeRef, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
+  }
+
+  req_struct->out_buf_index = 0; // Reset buffer
+  req_struct->out_buf_bits = 0;
 }
 
 Uint32
