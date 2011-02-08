@@ -1939,15 +1939,13 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+	switch (err) {
+	case DB_SUCCESS:
+		break;
+	case DB_OUT_OF_FILE_SPACE:
 		trx->error_state = DB_SUCCESS;
 		trx_general_rollback_for_mysql(trx, NULL);
-		/* TO DO: free table?  The code below will dereference
-		table->name, though. */
-	}
 
-	switch (err) {
-	case DB_OUT_OF_FILE_SPACE:
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: cannot create table ",
 		      stderr);
@@ -1962,9 +1960,13 @@ err_exit:
 		break;
 
 	case DB_DUPLICATE_KEY:
+	default:
 		/* We may also get err == DB_ERROR if the .ibd file for the
 		table already exists */
 
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, NULL);
+		dict_mem_table_free(table);
 		break;
 	}
 
