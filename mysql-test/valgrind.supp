@@ -877,8 +877,4 @@
    fun:buf_buddy_free_low
    fun:buf_buddy_free
    fun:buf_LRU_block_remove_hashed_page
-   fun:buf_LRU_invalidate_tablespace_buf_pool_instance
-   fun:buf_LRU_invalidate_tablespace
-   fun:fil_delete_tablespace
-   fun:row_drop_table_for_mysql
 }
