@@ -102,17 +102,23 @@ test_merge_n_m (u_int64_t n, u_int64_t m, int mode)
 
 static void
 test_big_merge (void) {
-    u_int64_t twoG = 1024LL * 1024LL * 1024LL * 2;
-    u_int64_t an = twoG;
-    u_int64_t bn = 1;
-    struct block_allocator_blockpair *MALLOC_N(an+bn, a);
-    struct block_allocator_blockpair *MALLOC_N(bn,    b);
-    for (u_int64_t i=0; i<an; i++) a[i].offset=i+1;
-    b[0].offset = 0;
-    block_allocator_merge_blockpairs_into(an, a, bn, b);
-    for (u_int64_t i=0; i<an+bn; i++) assert(a[i].offset=i);
-    toku_free(a);
-    toku_free(b);
+    u_int64_t G = 1024LL * 1024LL * 1024LL;
+    if (toku_os_get_phys_memory_size() < 40 * G) {
+	fprintf(stderr, "Skipping big merge because there is only %4.1fG physical memory\n", toku_os_get_phys_memory_size()/(1024.0*1024.0*1024.0));
+    } else {
+	u_int64_t twoG = 2*G;
+
+	u_int64_t an = twoG;
+	u_int64_t bn = 1;
+	struct block_allocator_blockpair *MALLOC_N(an+bn, a);
+	struct block_allocator_blockpair *MALLOC_N(bn,    b);
+	for (u_int64_t i=0; i<an; i++) a[i].offset=i+1;
+	b[0].offset = 0;
+	block_allocator_merge_blockpairs_into(an, a, bn, b);
+	for (u_int64_t i=0; i<an+bn; i++) assert(a[i].offset=i);
+	toku_free(a);
+	toku_free(b);
+    }
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
