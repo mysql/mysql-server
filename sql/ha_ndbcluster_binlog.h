@@ -249,7 +249,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
-pthread_handler_t ndb_binlog_thread_func(void *arg);
 
 /*
   table mysql.ndb_apply_status
