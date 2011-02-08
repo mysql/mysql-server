@@ -179,7 +179,7 @@ fn_expand(const char *filename, char *result_buf)
   if (my_getwd(dir, sizeof(dir), MYF(0)))
     DBUG_RETURN(3);
   DBUG_PRINT("debug", ("dir: %s", dir));
-  if (fn_format(result_buf, filename, dir, NULL, flags) == NULL)
+  if (fn_format(result_buf, filename, dir, "", flags) == NULL)
     DBUG_RETURN(2);
   DBUG_PRINT("return", ("result: %s", result_buf));
   DBUG_RETURN(0);
