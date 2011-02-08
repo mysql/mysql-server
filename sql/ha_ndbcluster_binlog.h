@@ -249,16 +249,11 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
 int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
-pthread_handler_t ndb_binlog_thread_func(void *arg);
 
-/*
-  table mysql.ndb_apply_status
-*/
 int ndbcluster_setup_binlog_table_shares(THD *thd);
 extern NDB_SHARE *ndb_apply_status_share;
 extern NDB_SHARE *ndb_schema_share;
 
-extern THD *injector_thd;
 extern my_bool ndb_binlog_running;
 extern my_bool ndb_binlog_tables_inited;
 extern my_bool ndb_binlog_is_ready;
