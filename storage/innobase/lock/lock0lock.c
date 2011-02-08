@@ -2261,14 +2261,13 @@ lock_grant(
 {
 	ut_ad(lock_mutex_own());
 
-	trx_mutex_enter(lock->trx);
-
 	lock_reset_lock_and_trx_wait(lock);
+	trx_mutex_enter(lock->trx);
 
 	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 		dict_table_t*	table = lock->un_member.tab_lock.table;
 
-		if (table->autoinc_trx == lock->trx) {
+		if (UNIV_UNLIKELY(table->autoinc_trx == lock->trx)) {
 			fprintf(stderr,
 				"InnoDB: Error: trx already had"
 				" an AUTO-INC lock!\n");
@@ -2319,8 +2318,6 @@ lock_rec_cancel(
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	trx_mutex_enter(lock->trx);
-
 	/* Reset the bit (there can be only one set bit) in the lock bitmap */
 	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
 
@@ -2329,6 +2326,8 @@ lock_rec_cancel(
 	lock_reset_lock_and_trx_wait(lock);
 
 	/* The following function releases the trx from lock wait */
+
+	trx_mutex_enter(lock->trx);
 
 	thr = que_thr_end_lock_wait(lock->trx);
 
@@ -3488,7 +3487,6 @@ lock_deadlock_occurs(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx_t*		mark_trx;
-	ulint		ret;
 	ulint		cost	= 0;
 
 	ut_ad(trx);
@@ -3520,15 +3518,22 @@ retry:
 
 	trx_mutex_enter(trx);
 
-	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
-
-	switch (ret) {
+	switch (lock_deadlock_recursive(trx, trx, lock, &cost, 0)) {
 	case LOCK_VICTIM_IS_OTHER:
 		/* We chose some other trx as a victim: retry if there still
 		is a deadlock */
 		goto retry;
 
 	case LOCK_VICTIM_EXCEED_MAX_DEPTH:
+		/* Release the mutex to obey the latching order.
+		This is safe, because lock_deadlock_occurs() is invoked
+		when a lock wait is enqueued for the currently running
+		transaction. Because trx is a running transaction
+		(it is not currently suspended because of a lock wait),
+		its state can only be changed by this thread, which is
+		currently associated with the transaction. */
+		trx_mutex_exit(trx);
+
 		/* If the lock search exceeds the max step
 		or the max depth, the current trx will be
 		the victim. Print its information. */
@@ -3540,32 +3545,31 @@ retry:
 			" FOLLOWING TRANSACTION \n\n"
 			"*** TRANSACTION:\n");
 
-		/* To obey the latching order */
-		trx_mutex_exit(trx);
-
 		lock_deadlock_trx_print(trx, 3000);
-
-		trx_mutex_enter(trx);
 
 		lock_deadlock_fputs(
 			"*** WAITING FOR THIS LOCK TO BE GRANTED:\n");
 
 		lock_deadlock_lock_print(lock);
 
+		trx_mutex_enter(trx);
 		break;
 
 	case LOCK_VICTIM_IS_START:
 		lock_deadlock_fputs("*** WE ROLL BACK TRANSACTION (2)\n");
 		break;
 
-	default:
-		/* No deadlock detected*/
+	case LOCK_VICTIM_NONE:
+		/* No deadlock detected */
+		ut_ad(trx_mutex_own(trx));
+		ut_ad(lock_mutex_own());
 		return(FALSE);
 	}
 
 	lock_deadlock_found = TRUE;
 
 	ut_ad(trx_mutex_own(trx));
+	ut_ad(lock_mutex_own());
 
 	return(TRUE);
 }
@@ -3658,7 +3662,6 @@ lock_deadlock_recursive(
 
 			if (lock_trx == start) {
 
-				/* To obey the latching order */
 				trx_mutex_exit(start);
 
 				/* We came back to the recursion starting
@@ -4843,9 +4846,8 @@ loop:
 
 	if (trx == NULL) {
 
-		rw_lock_s_unlock(&trx_sys->lock);
-
 		lock_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		ut_ad(lock_validate());
 
@@ -4930,9 +4932,8 @@ loop:
 				goto print_rec;
 			}
 
-			rw_lock_s_unlock(&trx_sys->lock);
-
 			lock_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			mtr_start(&mtr);
 
@@ -4969,8 +4970,6 @@ print_rec:
 
 		nth_trx++;
 		nth_lock = 0;
-
-		goto loop;
 	}
 
 	goto loop;
@@ -5329,9 +5328,9 @@ lock_validate(void)
 		}
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
-
 	lock_mutex_exit();
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(TRUE);
 }
@@ -5379,8 +5378,9 @@ lock_rec_insert_check_and_lock(
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
 	lock_mutex_enter();
-
-	trx_mutex_enter(trx);
+	/* Because this code is invoked for a running transaction by
+	the thread that is serving the transaction, it is not necessary
+	to hold trx->mutex here. */
 
 	/* When inserting a record into an index, the table must be at
 	least IX-locked or we must be building an index, in which case
@@ -5393,8 +5393,6 @@ lock_rec_insert_check_and_lock(
 
 	if (UNIV_LIKELY(lock == NULL)) {
 		/* We optimize CPU time usage in the simplest case */
-
-		trx_mutex_exit(trx);
 
 		lock_mutex_exit();
 
@@ -5427,15 +5425,15 @@ lock_rec_insert_check_and_lock(
 		    block, next_rec_heap_no, trx)) {
 
 		/* Note that we may get DB_SUCCESS also here! */
+		trx_mutex_enter(trx);
 		err = lock_rec_enqueue_waiting(LOCK_X | LOCK_GAP
 					       | LOCK_INSERT_INTENTION,
 					       block, next_rec_heap_no,
 					       index, thr);
+		trx_mutex_exit(trx);
 	} else {
 		err = DB_SUCCESS;
 	}
-
-	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
 
@@ -6294,9 +6292,8 @@ lock_trx_handle_wait(
 		err = DB_SUCCESS;
 	}
 
-	trx_mutex_exit(trx);
-
 	lock_mutex_exit();
+	trx_mutex_exit(trx);
 
 	return(err);
 }

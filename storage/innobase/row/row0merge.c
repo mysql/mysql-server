@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2160,7 +2160,7 @@ row_merge_drop_temp_indexes(void)
 }
 
 /*********************************************************************//**
-Creates temperary merge files, and if UNIV_PFS_IO defined, register
+Creates temporary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
 @return File descriptor */
 UNIV_INLINE
