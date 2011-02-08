@@ -257,7 +257,6 @@ int ndbcluster_setup_binlog_table_shares(THD *thd);
 extern NDB_SHARE *ndb_apply_status_share;
 extern NDB_SHARE *ndb_schema_share;
 
-extern THD *injector_thd;
 extern my_bool ndb_binlog_running;
 extern my_bool ndb_binlog_tables_inited;
 extern my_bool ndb_binlog_is_ready;
