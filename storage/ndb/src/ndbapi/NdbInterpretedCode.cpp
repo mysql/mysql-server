@@ -963,7 +963,7 @@ NdbInterpretedCode::getWordsUsed() const
 }
 
 
-int 
+int
 NdbInterpretedCode::copy(const NdbInterpretedCode& src)
 {
   m_table_impl = src.m_table_impl;
@@ -991,7 +991,7 @@ NdbInterpretedCode::copy(const NdbInterpretedCode& src)
       return 4000; // Alllocation failed.
     }
     memcpy(m_internal_buffer,
-           src.m_internal_buffer, 
+           src.m_internal_buffer,
            m_buffer_length*sizeof(Uint32));
   }
 
