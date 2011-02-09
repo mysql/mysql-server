@@ -204,6 +204,7 @@ static uchar *get_field_name(Field **buff, size_t *length,
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
   A function to return the partition name from a partition element
 */
@@ -213,6 +214,7 @@ uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
   *length= part->length;
   return part->partition_name;
 }
+#endif
 
 
 /*

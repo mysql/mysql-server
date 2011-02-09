@@ -4672,6 +4672,11 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
+  TODO: Move all this to prune_partitions() when implementing WL#4443.
+  Needs all items and conds fixed (as in first part in JOIN::optimize,
+  mysql_prepare_delete). Ensure that prune_partitions() is called for all
+  statements supported by WL#5217.
+
   TODO: When adding support for FK in partitioned tables, update this function
   so the referenced table get correct locking.
 */
@@ -4692,11 +4697,6 @@ static bool prune_partition_locks(TABLE_LIST *tables)
         */
         if (table->table->part_info->set_partition_bitmaps(table))
           DBUG_RETURN(TRUE);
-        /*
-          TODO: Add prune_partitions() here as WL#4443.
-          Needs all items and conds fixed (as in first part in JOIN::optimize,
-          mysql_prepare_delete).
-        */
       }
       else if (table->partition_names && table->partition_names->elements)
       {
@@ -4973,6 +4973,7 @@ restart:
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* TODO: move this to prune_partitions() when implementing WL#4443. */
   /* Prune partitions to avoid unneccesary locks */
   if (prune_partition_locks(*start))
   {
