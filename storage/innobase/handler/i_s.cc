@@ -4638,7 +4638,12 @@ i_s_dict_fill_sys_indexes(
 
 	OK(fields[SYS_INDEX_NUM_FIELDS]->store(index->n_fields));
 
-	OK(fields[SYS_INDEX_PAGE_NO]->store(index->page));
+	/* FIL_NULL is ULINT32_UNDEFINED */
+	if (index->page == FIL_NULL) {
+		OK(fields[SYS_INDEX_PAGE_NO]->store(-1));
+	} else {
+		OK(fields[SYS_INDEX_PAGE_NO]->store(index->page));
+	}
 
 	OK(fields[SYS_INDEX_SPACE]->store(index->space));
 
