@@ -1228,6 +1228,8 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
   if (opt_ndb_extra_logging)
     sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_APPLY_TABLE);
 
+  Ndb_local_connection mysqld(thd);
+
   /*
     Check if apply status table exists in MySQL "dictionary"
     if so, remove it since there is none in Ndb
@@ -1247,9 +1249,9 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
       if (opt_ndb_extra_logging)
         sql_print_information("NDB: Flushing " NDB_REP_DB "." NDB_APPLY_TABLE);
 
-      end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_APPLY_TABLE);
-      const int no_print_error[1]= {0};
-      run_query(thd, buf, end, no_print_error, TRUE, TRUE);
+      /* Flush mysql.ndb_apply_status table, ignore all errors */
+      (void)mysqld.flush_table(STRING_WITH_LEN("mysql"),
+                               STRING_WITH_LEN("ndb_apply_status"));
     }
   }
 
@@ -1301,6 +1303,8 @@ static int ndbcluster_create_schema_table(THD *thd)
   if (opt_ndb_extra_logging)
     sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_SCHEMA_TABLE);
 
+  Ndb_local_connection mysqld(thd);
+
   /*
     Check if schema table exists in MySQL "dictionary"
     if so, remove it since there is none in Ndb
@@ -1320,9 +1324,9 @@ static int ndbcluster_create_schema_table(THD *thd)
       if (opt_ndb_extra_logging)
         sql_print_information("NDB: Flushing " NDB_REP_DB "." NDB_SCHEMA_TABLE);
 
-      end= strmov(buf, "FLUSH TABLE " NDB_REP_DB "." NDB_SCHEMA_TABLE);
-      const int no_print_error[1]= {0};
-      run_query(thd, buf, end, no_print_error, TRUE, TRUE);
+      /* Flush mysql.ndb_schema table, ignore all errors */
+      (void)mysqld.flush_table(STRING_WITH_LEN("mysql"),
+                               STRING_WITH_LEN("ndb_schema"));
     }
   }
 
