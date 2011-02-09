@@ -53,8 +53,6 @@ bool ndb_log_empty_epochs(void);
   defines for cluster replication table names
 */
 #include "ha_ndbcluster_tables.h"
-#define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
-#define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
 
 /*
   Timeout for syncing schema events between
@@ -1165,79 +1163,94 @@ void ndbcluster_binlog_init_handlerton()
 }
 
 
-
-
-
 /*
-  check the availability af the ndb_apply_status share
-  - return share, but do not increase refcount
-  - return 0 if there is no share
+  Convert db and table name into a key to use for searching
+  the ndbcluster_open_tables hash
 */
-static NDB_SHARE *ndbcluster_check_ndb_apply_status_share()
+static size_t
+ndb_open_tables__create_key(char* key_buf, size_t key_buf_length,
+                            const char* db, size_t db_length,
+                            const char* table, size_t table_length)
 {
-  pthread_mutex_lock(&ndbcluster_mutex);
+  size_t key_length =  my_snprintf(key_buf, key_buf_length,
+                                   "./%*s/%*s", db_length, db,
+                                   table_length, table) - 1;
+  assert(key_length > 0);
+  assert(key_length < key_buf_length);
 
-  void *share= my_hash_search(&ndbcluster_open_tables,
-                              (const uchar*) NDB_APPLY_TABLE_FILE,
-                              sizeof(NDB_APPLY_TABLE_FILE) - 1);
-  DBUG_PRINT("info",("ndbcluster_check_ndb_apply_status_share %s 0x%lx",
-                     NDB_APPLY_TABLE_FILE, (long) share));
-  pthread_mutex_unlock(&ndbcluster_mutex);
-  return (NDB_SHARE*) share;
+  return key_length;
 }
 
-/*
-  check the availability af the schema share
-  - return share, but do not increase refcount
-  - return 0 if there is no share
-*/
-static NDB_SHARE *ndbcluster_check_ndb_schema_share()
-{
-  pthread_mutex_lock(&ndbcluster_mutex);
 
-  void *share= my_hash_search(&ndbcluster_open_tables,
-                              (const uchar*) NDB_SCHEMA_TABLE_FILE,
-                              sizeof(NDB_SCHEMA_TABLE_FILE) - 1);
-  DBUG_PRINT("info",("ndbcluster_check_ndb_schema_share %s 0x%lx",
-                     NDB_SCHEMA_TABLE_FILE, (long) share));
+/*
+  Check if table with given name is open, ie. is
+  in ndbcluster_open_tables hash
+*/
+static bool
+ndb_open_tables__is_table_open(const char* db, size_t db_length,
+                               const char* table, size_t table_length)
+{
+  char key[FN_REFLEN + 1];
+  size_t key_length = ndb_open_tables__create_key(key, sizeof(key),
+                                                  db, db_length,
+                                                  table, table_length);
+  DBUG_ENTER("ndb_open_tables__is_table_open");
+  DBUG_PRINT("enter", ("db: '%s', table: '%s', key: '%s'",
+                       db, table, key));
+
+  pthread_mutex_lock(&ndbcluster_mutex);
+  bool result = my_hash_search(&ndbcluster_open_tables,
+                               (const uchar*)key,
+                               key_length) != NULL;
   pthread_mutex_unlock(&ndbcluster_mutex);
-  return (NDB_SHARE*) share;
+
+  DBUG_PRINT("exit", ("result: %d", result));
+  DBUG_RETURN(result);
 }
 
-/*
-  Create the ndb_apply_status table
-*/
-static int ndbcluster_create_ndb_apply_status_table(THD *thd)
+
+static bool
+ndbcluster_check_ndb_schema_share()
 {
-  DBUG_ENTER("ndbcluster_create_ndb_apply_status_table");
+  return ndb_open_tables__is_table_open(STRING_WITH_LEN("mysql"),
+                                        STRING_WITH_LEN("ndb_schema"));
+}
 
-  /*
-    Check if we already have the apply status table.
-    If so it should have been discovered at startup
-    and thus have a share
-  */
 
-  if (ndbcluster_check_ndb_apply_status_share())
-    DBUG_RETURN(0);
+static bool
+ndbcluster_check_ndb_apply_status_share()
+{
+  return ndb_open_tables__is_table_open(STRING_WITH_LEN("mysql"),
+                                        STRING_WITH_LEN("ndb_apply_status"));
+}
+
+
+static bool
+create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
+                         const char* table, size_t table_length,
+                         const char* create_definitions,
+                         const char* create_options)
+{
+  if (ndb_open_tables__is_table_open(db, db_length, table, table_length))
+    return false;
 
   if (g_ndb_cluster_connection->get_no_ready() <= 0)
-    DBUG_RETURN(0);
-
-  char buf[1024 + 1], *end;
+    return false;
 
   if (opt_ndb_extra_logging)
-    sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_APPLY_TABLE);
+    sql_print_information("NDB: Creating %s.%s", db, table);
 
   Ndb_local_connection mysqld(thd);
 
   /*
-    Check if apply status table exists in MySQL "dictionary"
+    Check if table exists in MySQL "dictionary"(i.e on disk)
     if so, remove it since there is none in Ndb
   */
   {
-    build_table_filename(buf, sizeof(buf) - 1,
-                         NDB_REP_DB, NDB_APPLY_TABLE, reg_ext, 0);
-    if (my_delete(buf, MYF(0)) == 0)
+    char path[FN_REFLEN + 1];
+    build_table_filename(path, sizeof(path) - 1,
+                         db, table, reg_ext, 0);
+    if (my_delete(path, MYF(0)) == 0)
     {
       /*
         The .frm file existed and was deleted from disk.
@@ -1247,115 +1260,74 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
         table definition cache.
       */
       if (opt_ndb_extra_logging)
-        sql_print_information("NDB: Flushing " NDB_REP_DB "." NDB_APPLY_TABLE);
+        sql_print_information("NDB: Flushing %s.%s", db, table);
 
       /* Flush mysql.ndb_apply_status table, ignore all errors */
-      (void)mysqld.flush_table(STRING_WITH_LEN("mysql"),
-                               STRING_WITH_LEN("ndb_apply_status"));
+      (void)mysqld.flush_table(db, db_length,
+                               table, table_length);
     }
   }
 
-  /*
-    Note, updating this table schema must be reflected in ndb_restore
-  */
-  end= strmov(buf, "CREATE TABLE IF NOT EXISTS "
-                   NDB_REP_DB "." NDB_APPLY_TABLE
-                   " ( server_id INT UNSIGNED NOT NULL,"
-                   " epoch BIGINT UNSIGNED NOT NULL, "
-                   " log_name VARCHAR(255) BINARY NOT NULL, "
-                   " start_pos BIGINT UNSIGNED NOT NULL, "
-                   " end_pos BIGINT UNSIGNED NOT NULL, "
-                   " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB CHARACTER SET latin1");
-
-  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
-                                701,
-                                702,
-                                721, // Table already exist
-                                4009,
-                                0}; // do not print error 701 etc
-  run_query(thd, buf, end, no_print_error, TRUE, TRUE);
-
-  DBUG_RETURN(0);
+  const bool create_if_not_exists = true;
+  const bool res = mysqld.create_sys_table(db, db_length,
+                                           table, table_length,
+                                           create_if_not_exists,
+                                           create_definitions,
+                                           create_options);
+  return res;
 }
 
 
-/*
-  Create the schema table
-*/
-static int ndbcluster_create_schema_table(THD *thd)
+static bool
+ndb_apply_table__create(THD *thd)
 {
-  DBUG_ENTER("ndbcluster_create_schema_table");
+  DBUG_ENTER("ndb_apply_table__create");
 
-  /*
-    Check if we already have the schema table.
-    If so it should have been discovered at startup
-    and thus have a share
-  */
-
-  if (ndbcluster_check_ndb_schema_share())
-    DBUG_RETURN(0);
-
-  if (g_ndb_cluster_connection->get_no_ready() <= 0)
-    DBUG_RETURN(0);
-
-  char buf[1024 + 1], *end;
-
-  if (opt_ndb_extra_logging)
-    sql_print_information("NDB: Creating " NDB_REP_DB "." NDB_SCHEMA_TABLE);
-
-  Ndb_local_connection mysqld(thd);
-
-  /*
-    Check if schema table exists in MySQL "dictionary"
-    if so, remove it since there is none in Ndb
-  */
-  {
-    build_table_filename(buf, sizeof(buf) - 1,
-                         NDB_REP_DB, NDB_SCHEMA_TABLE, reg_ext, 0);
-    if (my_delete(buf, MYF(0)) == 0)
-    {
-      /*
-        The .frm file existed and was deleted from disk.
-        It's possible that someone has tried to use it and thus
-        it might have been inserted in the table definition cache.
-        It must be flushed to avoid that it exist only in the
-        table definition cache.
-      */
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB: Flushing " NDB_REP_DB "." NDB_SCHEMA_TABLE);
-
-      /* Flush mysql.ndb_schema table, ignore all errors */
-      (void)mysqld.flush_table(STRING_WITH_LEN("mysql"),
-                               STRING_WITH_LEN("ndb_schema"));
-    }
-  }
-
-  /*
-    Update the defines below to reflect the table schema
-  */
-  end= strmov(buf, "CREATE TABLE IF NOT EXISTS "
-                   NDB_REP_DB "." NDB_SCHEMA_TABLE
-                   " ( db VARBINARY(63) NOT NULL,"
-                   " name VARBINARY(63) NOT NULL,"
-                   " slock BINARY(32) NOT NULL,"
-                   " query BLOB NOT NULL,"
-                   " node_id INT UNSIGNED NOT NULL,"
-                   " epoch BIGINT UNSIGNED NOT NULL,"
-                   " id INT UNSIGNED NOT NULL,"
-                   " version INT UNSIGNED NOT NULL,"
-                   " type INT UNSIGNED NOT NULL,"
-                   " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB CHARACTER SET latin1");
-
-  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
-                                701,
-                                702,
-                                721, // Table already exist
-                                4009,
-                                0}; // do not print error 701 etc
-  run_query(thd, buf, end, no_print_error, TRUE, TRUE);
-
-  DBUG_RETURN(0);
+  /* NOTE! Updating this table schema must be reflected in ndb_restore */
+  const bool res =
+    create_cluster_sys_table(thd,
+                             STRING_WITH_LEN("mysql"),
+                             STRING_WITH_LEN("ndb_apply_status"),
+                             // table_defintion
+                             "server_id INT UNSIGNED NOT NULL,"
+                             "epoch BIGINT UNSIGNED NOT NULL, "
+                             "log_name VARCHAR(255) BINARY NOT NULL, "
+                             "start_pos BIGINT UNSIGNED NOT NULL, "
+                             "end_pos BIGINT UNSIGNED NOT NULL, "
+                             "PRIMARY KEY USING HASH (server_id)",
+                             // table_options
+                             "ENGINE=NDB CHARACTER SET latin1");
+  DBUG_RETURN(res);
 }
+
+
+static bool
+ndb_schema_table__create(THD *thd)
+{
+  DBUG_ENTER("ndb_schema_table__create");
+
+  /* NOTE! Updating this table schema must be reflected in ndb_restore */
+  const bool res =
+    create_cluster_sys_table(thd,
+                             STRING_WITH_LEN("mysql"),
+                             STRING_WITH_LEN("ndb_schema"),
+                             // table_defintion
+                             "db VARBINARY(63) NOT NULL,"
+                             "name VARBINARY(63) NOT NULL,"
+                             "slock BINARY(32) NOT NULL,"
+                             "query BLOB NOT NULL,"
+                             "node_id INT UNSIGNED NOT NULL,"
+                             "epoch BIGINT UNSIGNED NOT NULL,"
+                             "id INT UNSIGNED NOT NULL,"
+                             "version INT UNSIGNED NOT NULL,"
+                             "type INT UNSIGNED NOT NULL,"
+                             "PRIMARY KEY USING HASH (db,name)",
+                             // table_options
+                             "ENGINE=NDB CHARACTER SET latin1");
+  DBUG_RETURN(res);
+}
+
+
 
 class Thd_ndb_options_guard
 {
@@ -1583,7 +1555,7 @@ ndb_binlog_setup(THD *thd)
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE);
     if (!ndb_schema_share)
     {
-      ndbcluster_create_schema_table(thd);
+      ndb_schema_table__create(thd);
       // always make sure we create the 'schema' first
       if (!ndb_schema_share)
         return false;
@@ -1595,7 +1567,7 @@ ndb_binlog_setup(THD *thd)
     ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE);
     if (!ndb_apply_status_share)
     {
-      ndbcluster_create_ndb_apply_status_table(thd);
+      ndb_apply_table__create(thd);
       if (!ndb_apply_status_share)
         return false;
     }
