@@ -12110,7 +12110,7 @@ C_MODE_END
 
 Item *ha_innobase::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
 {
-  if ((keyno_arg != primary_key) && (prebuilt->select_lock_type == LOCK_NONE))
+  if (keyno_arg != primary_key && prebuilt->select_lock_type != LOCK_X)
   {
     pushed_idx_cond_keyno= keyno_arg;
     pushed_idx_cond= idx_cond_arg;
