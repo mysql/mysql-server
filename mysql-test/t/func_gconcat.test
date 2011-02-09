@@ -734,4 +734,15 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#58396 group_concat and explain extended are still crashy
+--echo #
+
+CREATE TABLE t1(a INT);
+--error ER_UNKNOWN_ERROR
+EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
+SHOW WARNINGS;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
