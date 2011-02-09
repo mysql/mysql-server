@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -361,7 +361,9 @@ public:
   {
     maybe_null=1;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    max_length = args[0]->max_length - 9;
+    max_length= args[0]->max_length;
+    if (max_length >= 9U)
+      max_length-= 9U;
   }
   const char *func_name() const { return "des_decrypt"; }
 };

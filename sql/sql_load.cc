@@ -363,58 +363,59 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__)
-      MY_STAT stat_info;
-      if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
-	DBUG_RETURN(TRUE);
+    }
 
-      // if we are not in slave thread, the file must be:
-      if (!thd->slave_thread &&
-	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
-      {
-	my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	DBUG_RETURN(TRUE);
-      }
-      if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-	is_fifo = 1;
-#endif
-
-      if (thd->slave_thread)
-      {
+    if (thd->slave_thread)
+    {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-        if (strncmp(active_mi->rli.slave_patternload_file, name, 
-            active_mi->rli.slave_patternload_file_size))
-        {
-          /*
-            LOAD DATA INFILE in the slave SQL Thread can only read from 
-            --slave-load-tmpdir". This should never happen. Please, report a bug.
-           */
-
-          sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
-                          "Please, report a bug.");
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
-          DBUG_RETURN(TRUE);
-        }
-#else
-        /*
-          This is impossible and should never happen.
-        */
-        DBUG_ASSERT(FALSE); 
-#endif
-      }
-      else if (!is_secure_file_path(name))
+      if (strncmp(active_mi->rli.slave_patternload_file, name, 
+          active_mi->rli.slave_patternload_file_size))
       {
-        /* Read only allowed from within dir specified by secure_file_priv */
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        /*
+          LOAD DATA INFILE in the slave SQL Thread can only read from 
+          --slave-load-tmpdir". This should never happen. Please, report a bug.
+        */
+
+        sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
+                        "Please, report a bug.");
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         DBUG_RETURN(TRUE);
       }
-
+#else
+      /*
+        This is impossible and should never happen.
+      */
+      DBUG_ASSERT(FALSE); 
+#endif
     }
+    else if (!is_secure_file_path(name))
+    {
+      /* Read only allowed from within dir specified by secure_file_priv */
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+      DBUG_RETURN(TRUE);
+    }
+
+#if !defined(__WIN__) && ! defined(__NETWARE__)
+    MY_STAT stat_info;
+    if (!my_stat(name,&stat_info,MYF(MY_WME)))
+	    DBUG_RETURN(TRUE);
+
+    // if we are not in slave thread, the file must be:
+    if (!thd->slave_thread &&
+	      !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+	        (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
+	        ((stat_info.st_mode & S_IFREG) == S_IFREG ||
+	         (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
+    {
+	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+	    DBUG_RETURN(TRUE);
+    }
+    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
+            is_fifo = 1;
+#endif
     if ((file= mysql_file_open(key_file_load,
                                name, O_RDONLY, MYF(MY_WME))) < 0)
+
       DBUG_RETURN(TRUE);
   }
 
