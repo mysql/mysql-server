@@ -2116,7 +2116,8 @@ from other transactions.
         Uint32 done;
         if(tReceiver->getType()==NdbReceiver::NDB_QUERY_OPERATION){ 
           /* This signal is part of a linked operation.*/
-          done = tReceiver->m_query_operation_impl->getQuery().execTCKEYCONF();
+          done = ((NdbQueryOperationImpl*)(tReceiver->m_owner))
+            ->getQuery().execTCKEYCONF();
         }else{
           done = tReceiver->execTCOPCONF(tAttrInfoLen);
         }

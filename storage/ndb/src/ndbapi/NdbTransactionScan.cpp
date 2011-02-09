@@ -131,7 +131,7 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
         // Check if this is a linked operation.
         if (tOp->getType()==NdbReceiver::NDB_QUERY_OPERATION)
         {
-          NdbQueryOperationImpl* queryOp = tOp->m_query_operation_impl;
+          NdbQueryOperationImpl* queryOp = (NdbQueryOperationImpl*)tOp->m_owner;
           assert (&queryOp->getQuery() == m_scanningQuery);
 
           if (queryOp->execSCAN_TABCONF(tcPtrI, opCount, totalLen, tOp))
