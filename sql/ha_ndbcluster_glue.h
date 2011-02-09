@@ -37,7 +37,6 @@
 #include "sql_acl.h"        // wild_case_compare
 #include "transaction.h"
 #include "sql_test.h"       // print_where
-#include "sql_parse.h"      // mysql_parse
 #include "key.h"            // key_restore
 #else
 #include "mysql_priv.h"
