@@ -1301,6 +1301,24 @@ SELECT '2008-02-18' + INTERVAL 1 FRAC_SECOND;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND' at line 1
 SELECT '2008-02-18' - INTERVAL 1 FRAC_SECOND;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FRAC_SECOND' at line 1
+#
+# Bug #52315 part 2 : utc_date() crashes when system time > year 2037
+#
+SET TIMESTAMP=-147490000;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483648;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483646;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483647;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=0;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=-1;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=1;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=0;
 End of 5.0 tests
 select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
 date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND)
