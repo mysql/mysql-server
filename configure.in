@@ -1956,6 +1956,15 @@ dnl
 
 MYSQL_CHECK_TIME_T
 
+dnl
+dnl check size of time_t
+dnl
+
+AC_CHECK_SIZEOF(time_t, 8)
+if test "$ac_cv_sizeof_time_t" -eq 0
+then
+  AC_MSG_ERROR("MySQL needs a time_t type.")
+fi
 
 # do we need #pragma interface/#pragma implementation ?
 # yes if it's gcc 2.x, and not icc pretending to be gcc, and not cygwin
