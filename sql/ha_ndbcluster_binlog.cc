@@ -269,120 +269,24 @@ print_warning_list(const char* prefix, List<MYSQL_ERROR>& list)
   }
 }
 
-/*
-  Run a query through mysql_parse
 
-  Used to:
-  - purging the ndb_binlog_index
-  - creating the ndb_apply_status table
-*/
 static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error, my_bool disable_binlog,
                       my_bool reset_error)
 {
-  ulong save_thd_query_length= thd->query_length();
-  char *save_thd_query= thd->query();
-  ulong save_thread_id= thd->variables.pseudo_thread_id;
-  struct system_status_var save_thd_status_var= thd->status_var;
-  THD_TRANS save_thd_transaction_all= thd->transaction.all;
-  THD_TRANS save_thd_transaction_stmt= thd->transaction.stmt;
-  NET save_thd_net= thd->net;
+  /* Function always called with disabe_binlog turned on */
+  assert(disable_binlog);
+  /* Function always called with reset_error turned on */
+  assert(reset_error);
 
-  bzero((char*) &thd->net, sizeof(NET));
-  thd->set_query(buf, (uint) (end - buf));
-  thd->variables.pseudo_thread_id= thread_id;
-  thd->transaction.stmt.modified_non_trans_table= FALSE;
-  if (disable_binlog)
-    tmp_disable_binlog(thd);
+  Ndb_local_connection mysqld(thd);
 
-  DBUG_PRINT("query", ("%s", thd->query()));
-
-  DBUG_ASSERT(!thd->in_sub_stmt);
-
-#if MYSQL_VERSION_ID >= 50501
-
-  DBUG_ASSERT(!thd->locked_tables_mode);
-
-  {
-    Parser_state parser_state;
-    if (!parser_state.init(thd, thd->query(), thd->query_length()))
-      mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
-  }
-
-  if (no_print_error && thd->is_slave_error)
-  {
-    int i;
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
-    for (i= 0; no_print_error[i]; i++)
-      if ((thd_ndb->m_error_code == no_print_error[i]) ||
-          (thd->stmt_da->sql_errno() == (unsigned) no_print_error[i]))
-        break;
-    if (!no_print_error[i])
-      sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
-                      buf,
-                      thd->stmt_da->message(),
-                      thd->stmt_da->sql_errno(),
-                      thd_ndb->m_error_code,
-                      (int) thd->is_error(), thd->is_slave_error);
-  }
   /*
-    XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
-    can not be called from within a statement, and
-    run_query() can be called from anywhere, including from within
-    a sub-statement.
-    This particular reset is a temporary hack to avoid an assert
-    for double assignment of the diagnostics area when run_query()
-    is called from ndbcluster_reset_logs(), which is called from
-    mysql_flush().
+    Run the query, suppress some errors from being printed
+    to log and ignore any error returned
   */
-  thd->stmt_da->reset_diagnostics_area();
-#else
-
-  DBUG_ASSERT(!thd->prelocked_mode);
-
-  const char* found_semicolon= NULL;
-  mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
-
-  if (no_print_error && thd->main_da.is_error())
-  {
-    int i;
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
-    for (i= 0; no_print_error[i]; i++)
-      if ((thd_ndb->m_error_code == no_print_error[i]) ||
-          (thd->main_da.sql_errno() == (unsigned) no_print_error[i]))
-        break;
-    if (!no_print_error[i])
-      sql_print_error("NDB: %s: error %s %d(ndb: %d) %d %d",
-                      buf,
-                      thd->main_da.message(),
-                      thd->main_da.sql_errno(),
-                      thd_ndb->m_error_code,
-                      (int) thd->is_error(), thd->is_slave_error);
-  }
-  close_thread_tables(thd);
-  /*
-    XXX: this code is broken. mysql_parse()/mysql_reset_thd_for_next_command()
-    can not be called from within a statement, and
-    run_query() can be called from anywhere, including from within
-    a sub-statement.
-    This particular reset is a temporary hack to avoid an assert
-    for double assignment of the diagnostics area when run_query()
-    is called from ndbcluster_reset_logs(), which is called from
-    mysql_flush().
-  */
-  if (!thd->main_da.is_error() || reset_error)
-  {
-    thd->main_da.reset_diagnostics_area();
-  }
-#endif
-
-  reenable_binlog(thd);
-  thd->set_query(save_thd_query, save_thd_query_length);
-  thd->variables.pseudo_thread_id= save_thread_id;
-  thd->status_var= save_thd_status_var;
-  thd->transaction.all= save_thd_transaction_all;
-  thd->transaction.stmt= save_thd_transaction_stmt;
-  thd->net= save_thd_net;
+  (void)mysqld.raw_run_query(buf, (end - buf),
+                             no_print_error);
 }
 
 static void

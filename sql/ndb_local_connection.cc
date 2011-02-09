@@ -396,3 +396,18 @@ Ndb_local_connection::create_sys_table(const char* db, size_t db_length,
                                 ignore_mysql_errors,
                                 &suppressor));
 }
+
+
+bool
+Ndb_local_connection::raw_run_query(const char* query, size_t query_length,
+                                    const int* suppress_errors)
+{
+  DBUG_ENTER("Ndb_local_connection::raw_run_query");
+
+  LEX_STRING sql_text = { (char*)query, query_length };
+
+  DBUG_RETURN(execute_query_iso(sql_text,
+                                (const uint*)suppress_errors,
+                                NULL));
+}
+
