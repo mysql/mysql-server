@@ -20,7 +20,6 @@
 #define NdbReceiver_H
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL  // Not part of public interface
 
-#include <ndb_global.h>
 #include <ndb_types.h>
 
 
@@ -28,7 +27,6 @@ class Ndb;
 class NdbImpl;
 class NdbTransaction;
 class NdbRecord;
-class TransporterFacade;
 class NdbQueryOperationImpl;
 
 class NdbReceiver
@@ -60,7 +58,7 @@ public:
                           NDB_QUERY_OPERATION = 4
   };
   
-  NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl=NULL);
+  NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl=0);
   int init(ReceiverType type, bool useRec, void* owner);
   void release();
   ~NdbReceiver();
@@ -310,7 +308,9 @@ inline
 const char *
 NdbReceiver::get_row()
 {
-  assert (m_current_row < m_result_rows);
+#ifdef assert
+  assert(m_current_row < m_result_rows);
+#endif
   return m_record.m_row_buffer + (m_current_row++ * m_record.m_row_offset);
 }
 
