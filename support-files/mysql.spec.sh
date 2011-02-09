@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -523,10 +523,27 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 ##############################################################################
 
 %pre -n MySQL-server%{product_suffix}
+# This is the code running at the beginning of a RPM upgrade action,
+# before replacing the old files with the new ones.
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+  PID_FILE_PATT=`%{_bindir}/my_print_defaults server mysqld | grep '^--pid-file=' | sed -n 's/--pid-file=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+if [ -z "$PID_FILE_PATT" ]
+then
+  PID_FILE_PATT="$mysql_datadir/*.pid"
+fi
+
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -601,7 +618,7 @@ fi
 
 # We assume that if there is exactly one ".pid" file,
 # it contains the valid PID of a running MySQL server.
-NR_PID_FILES=`ls $mysql_datadir/*.pid 2>/dev/null | wc -l`
+NR_PID_FILES=`ls $PID_FILE_PATT 2>/dev/null | wc -l`
 case $NR_PID_FILES in
 	0 ) SERVER_TO_START=''  ;;  # No "*.pid" file == no running server
 	1 ) SERVER_TO_START='true' ;;
@@ -623,8 +640,8 @@ if [ -f $STATUS_FILE ]; then
 	echo "before repeating the MySQL upgrade."
 	exit 1
 elif [ -n "$SEVERAL_PID_FILES" ] ; then
-	echo "Your MySQL directory '$mysql_datadir' has more than one PID file:"
-	ls -ld $mysql_datadir/*.pid
+	echo "You have more than one PID file:"
+	ls -ld $PID_FILE_PATT
 	echo "Please check which one (if any) corresponds to a running server"
 	echo "and delete all others before repeating the MySQL upgrade."
 	exit 1
@@ -649,17 +666,17 @@ if [ -d $mysql_datadir ] ; then
 	if [ -n "$SERVER_TO_START" ] ; then
 		# There is only one PID file, race possibility ignored
 		echo "PID file:"                           >> $STATUS_FILE
-		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE
-		cat     $mysql_datadir/*.pid               >> $STATUS_FILE
+		ls -l   $PID_FILE_PATT                     >> $STATUS_FILE
+		cat     $PID_FILE_PATT                     >> $STATUS_FILE
 		echo                                       >> $STATUS_FILE
 		echo "Server process:"                     >> $STATUS_FILE
-		ps -fp `cat $mysql_datadir/*.pid`          >> $STATUS_FILE
+		ps -fp `cat $PID_FILE_PATT`                >> $STATUS_FILE
 		echo                                       >> $STATUS_FILE
 		echo "SERVER_TO_START=$SERVER_TO_START"    >> $STATUS_FILE
 	else
 		# Take a note we checked it ...
 		echo "PID file:"                           >> $STATUS_FILE
-		ls -l   $mysql_datadir/*.pid               >> $STATUS_FILE 2>&1
+		ls -l   $PID_FILE_PATT                     >> $STATUS_FILE 2>&1
 	fi
 fi
 
@@ -674,10 +691,22 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
 fi
 
 %post -n MySQL-server%{product_suffix}
+# This is the code running at the end of a RPM install or upgrade action,
+# after the (new) files have been written.
 
 # ATTENTION: Parts of this are duplicated in the "triggerpostun" !
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER
 
@@ -855,7 +884,17 @@ fi
 #   http://docs.fedoraproject.org/en-US/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch10s02.html
 # For all details of this code, see the "pre" and "post" sections.
 
-mysql_datadir=%{mysqldatadir}
+# There are users who deviate from the default file system layout.
+# Check local settings to support them.
+if [ -x %{_bindir}/my_print_defaults ]
+then
+  mysql_datadir=`%{_bindir}/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p'`
+fi
+if [ -z "$mysql_datadir" ]
+then
+  mysql_datadir=%{mysqldatadir}
+fi
+
 NEW_VERSION=%{mysql_version}-%{release}
 STATUS_FILE=$mysql_datadir/RPM_UPGRADE_MARKER-LAST  # Note the difference!
 STATUS_HISTORY=$mysql_datadir/RPM_UPGRADE_HISTORY
@@ -1085,6 +1124,14 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+
+* Thu Feb 09 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Fix bug#56581: If an installation deviates from the default file locations
+  ("datadir" and "pid-file"), the mechanism to detect a running server (on upgrade)
+  should still work, and use these locations.
+  The problem was that the fix for bug#27072 did not check for local settings.
+
 * Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - EXCEPTIONS-CLIENT has been deleted, remove it from here too
