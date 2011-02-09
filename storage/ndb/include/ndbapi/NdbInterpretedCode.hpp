@@ -534,9 +534,16 @@ public:
    */
   Uint32 getWordsUsed() const;
 
+  /**
+   * Makes a deep copy of 'src'
+   * @return possible error code.
+   */
+  int copy(const NdbInterpretedCode& src);
+
 private:
   friend class NdbOperation;
   friend class NdbScanOperation;
+  friend class NdbQueryOperationImpl;
 
   static const Uint32 MaxReg= 8;
   static const Uint32 MaxLabels= 65535;

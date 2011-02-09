@@ -27,6 +27,7 @@ class TcKeyRef {
    * Receiver(s)
    */
   friend class NdbOperation;
+  friend class NdbQueryOperationImpl;
   friend class Ndbcntr;
   friend class DbUtil;
 
@@ -39,7 +40,8 @@ class TcKeyRef {
    * Sender(s)
    */
   friend class Dblqh;
-  
+  friend class Dbspj;
+
   friend bool printTCKEYREF(FILE *, const Uint32 *, Uint32, Uint16);
   
 public:

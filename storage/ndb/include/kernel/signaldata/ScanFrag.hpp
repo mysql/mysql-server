@@ -33,6 +33,7 @@ class ScanFragReq {
    * Reciver(s)
    */
   friend class Dblqh;
+  friend class Dbspj;
 public:
   STATIC_CONST( SignalLength = 12 );
 
@@ -40,6 +41,7 @@ public:
   STATIC_CONST( KeyInfoSectionNum = 1 );
   
   friend bool printSCAN_FRAGREQ(FILE *, const Uint32*, Uint32, Uint16);
+  friend bool printSCAN_FRAGCONF(FILE *, const Uint32*, Uint32, Uint16);
   
 public:
   enum ReorgFlag
@@ -58,9 +60,13 @@ public:
   Uint32 schemaVersion;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 clientOpPtr;
+  union {
+    Uint32 clientOpPtr;
+    Uint32 resultData;
+  };
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
+  Uint32 variableData[1];
   
   static Uint32 getLockMode(const Uint32 & requestInfo);
   static Uint32 getHoldLockFlag(const Uint32 & requestInfo);
@@ -88,6 +94,9 @@ public:
 
   static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getReorgFlag(const Uint32 & requestInfo);
+
+  static void setCorrFactorFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getCorrFactorFlag(const Uint32 & requestInfo);
 };
 
 /*
@@ -256,11 +265,12 @@ public:
  * t = tup scan              - 1  Bit 11 (implies x=z=0)
  * p = Scan prio             - 4  Bits (12-15) -> max 15
  * r = Reorg flag            - 2  Bits (1-2)
+ * C = corr value flag       - 1  Bit  (16)
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
  *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
- *  rrcdlxhkrztpppp                   Long variant (6.4.0 +)
+ *  rrcdlxhkrztppppA                  Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -282,6 +292,8 @@ public:
 
 #define SF_REORG_SHIFT      (1)
 #define SF_REORG_MASK       (3)
+
+#define SF_CORR_FACTOR_SHIFT  (16)
 
 inline 
 Uint32
@@ -457,6 +469,19 @@ void
 ScanFragReq::setReorgFlag(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, SF_REORG_MASK, "ScanFragReq::setLcpScanFlag");
   requestInfo |= (val << SF_REORG_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getCorrFactorFlag(const Uint32 & requestInfo){
+  return (requestInfo >> SF_CORR_FACTOR_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setCorrFactorFlag");
+  requestInfo |= (val << SF_CORR_FACTOR_SHIFT);
 }
 
 #endif
