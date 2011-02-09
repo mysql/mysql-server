@@ -271,13 +271,12 @@ print_warning_list(const char* prefix, List<MYSQL_ERROR>& list)
 
 
 static void run_query(THD *thd, char *buf, char *end,
-                      const int *no_print_error, my_bool disable_binlog,
-                      my_bool reset_error)
+                      const int *no_print_error)
 {
-  /* Function always called with disabe_binlog turned on */
-  assert(disable_binlog);
-  /* Function always called with reset_error turned on */
-  assert(reset_error);
+  /*
+    NOTE! Don't use this function for new implementation, backward
+    compat. only
+  */
 
   Ndb_local_connection mysqld(thd);
 
@@ -1192,7 +1191,7 @@ ndb_apply_table__create(THD *thd)
     create_cluster_sys_table(thd,
                              STRING_WITH_LEN("mysql"),
                              STRING_WITH_LEN("ndb_apply_status"),
-                             // table_defintion
+                             // table_definition
                              "server_id INT UNSIGNED NOT NULL,"
                              "epoch BIGINT UNSIGNED NOT NULL, "
                              "log_name VARCHAR(255) BINARY NOT NULL, "
@@ -1215,7 +1214,7 @@ ndb_schema_table__create(THD *thd)
     create_cluster_sys_table(thd,
                              STRING_WITH_LEN("mysql"),
                              STRING_WITH_LEN("ndb_schema"),
-                             // table_defintion
+                             // table_definition
                              "db VARBINARY(63) NOT NULL,"
                              "name VARBINARY(63) NOT NULL,"
                              "slock BINARY(32) NOT NULL,"
@@ -1373,9 +1372,7 @@ static int ndbcluster_find_all_databases(THD *thd)
             sql_print_information("NDB: Discovered missing database '%s'", db);
             const int no_print_error[1]= {0};
             run_query(thd, query, query + query_length,
-                      no_print_error,    /* print error */
-                      TRUE,   /* don't binlog the query */
-                      TRUE);  /* reset error */
+                      no_print_error);
           }
         }
         else if (strncasecmp("ALTER", query, 5) == 0)
@@ -1388,13 +1385,9 @@ static int ndbcluster_find_all_databases(THD *thd)
             const int no_print_error[1]= {0};
             name_len= my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
             run_query(thd, name, name + name_len,
-                      no_print_error,    /* print error */
-                      TRUE,   /* don't binlog the query */
-                      TRUE);  /* reset error */
+                      no_print_error);
             run_query(thd, query, query + query_length,
-                      no_print_error,    /* print error */
-                      TRUE,   /* don't binlog the query */
-                      TRUE);  /* reset error */
+                      no_print_error);
           }
         }
         else if (strncasecmp("DROP", query, 4) == 0)
@@ -2637,9 +2630,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
               {ER_BAD_TABLE_ERROR, 0}; /* ignore missing table */
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
-                      no_print_error, //   /* don't print error */
-                      TRUE,   /* don't binlog the query */
-                      TRUE);  /* reset error */
+                      no_print_error);
             /* binlog dropping table after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -2715,9 +2706,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
             const int no_print_error[1]= {0};
             run_query(thd, schema->query,
                       schema->query + schema->query_length,
-                      no_print_error,    /* print error */
-                      TRUE,   /* don't binlog the query */
-                      TRUE);  /* reset error */
+                      no_print_error);
             /* binlog dropping database after any table operations */
             post_epoch_log_list->push_back(schema, mem_root);
             /* acknowledge this query _after_ epoch completion */
@@ -2744,9 +2733,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
           const int no_print_error[1]= {0};
           run_query(thd, schema->query,
                     schema->query + schema->query_length,
-                    no_print_error,    /* print error */
-                    TRUE,   /* don't binlog the query */
-                    TRUE);  /* reset error */
+                    no_print_error);
           log_query= 1;
           break;
         }
