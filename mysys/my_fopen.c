@@ -103,17 +103,17 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
 
 #if defined(_WIN32)
 
-static FILE *my_win_freopen(const char *path, FILE *stream)
+static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
 {
   int handle_fd, fd= _fileno(stream);
   HANDLE osfh;
 
-  DBUG_ASSERT(filename && stream);
+  DBUG_ASSERT(path && stream);
 
   /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */
   if (fd < 0)
   {
-    if (!freopen(filename, mode, stream))
+    if (!freopen(path, mode, stream))
       return NULL;
 
     fd= _fileno(stream);
