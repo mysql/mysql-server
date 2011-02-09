@@ -1493,6 +1493,23 @@ LIMIT 2;
 DROP TABLE t1, t2;
 
 
+--echo #
+--echo # Bug #59110: Memory leak of QUICK_SELECT_I allocated memory 
+--echo #  and
+--echo # Bug #59308: Incorrect result for 
+--echo               SELECT DISTINCT <col>... ORDER BY <col> DESC 
+--echo
+--echo # Use Valgrind to detect #59110!
+--echo #
+
+CREATE TABLE t1 (a INT,KEY (a));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+EXPLAIN SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
+SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 
