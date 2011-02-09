@@ -88,6 +88,7 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
       return 0;
     }
 
+    int retVal = -1;
     for(Uint32 i = 0; i<len; i += 3){
       Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
@@ -95,19 +96,25 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
       Uint32 info = * ops++;
       opCount  = ScanTabConf::getRows(info);
       totalLen = ScanTabConf::getLength(info);
-      
+
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
       if (tOp && tOp->checkMagicNumber())
       {
-	if (tcPtrI == RNIL && opCount == 0)
-	  theScanningOp->receiver_completed(tOp);
-	else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
-	  theScanningOp->receiver_delivered(tOp);
+        if (tcPtrI == RNIL && opCount == 0)
+        {
+          theScanningOp->receiver_completed(tOp);
+          retVal = 0;
+        }
+        else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
+        {
+          theScanningOp->receiver_delivered(tOp);
+          retVal = 0;
+        }
       }
     }
-    return 0;
+    return retVal;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();
