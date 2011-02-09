@@ -201,7 +201,7 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       /**
        * Send long signal to DBUTIL.
        */
-      if (block == DBUTIL && !old_dest) {
+      if ((block == DBUTIL || block == DBSPJ) && !old_dest) {
 	jam();
 	LinearSectionPtr ptr[3];
 	ptr[0].p= &signal->theData[25];

@@ -182,7 +182,7 @@ ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
   return NdbDictionary::printFormattedValue(out,
                                             f,
                                             r.getColumn(),
-                                            r.aRef());
+                                            r.isNULL()==0 ? r.aRef() : 0);
 }
 
 NdbOut& operator<<(NdbOut& out, const NdbRecAttr &r)

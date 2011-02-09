@@ -38,6 +38,8 @@ class ScanTabReq {
   friend class NdbTransaction;
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
+  friend class NdbQueryImpl;
+  friend class NdbScanFilterImpl;
 
   /**
    * For printing
@@ -103,6 +105,9 @@ private:
   static Uint16 getScanBatch(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
   static UintR getNoDiskFlag(const UintR & requestInfo);
+  static Uint32 getViaSPJFlag(const Uint32 & requestInfo);
+  static Uint32 getPassAllConfsFlag(const Uint32 & requestInfo);
+  static Uint32 get4WordConf(const Uint32&);
 
   /**
    * Set:ers for requestInfo
@@ -119,6 +124,9 @@ private:
   static void setScanBatch(Uint32& requestInfo, Uint32 sz);
   static void setDistributionKeyFlag(Uint32& requestInfo, Uint32 flag);
   static void setNoDiskFlag(UintR & requestInfo, UintR val);
+  static void setViaSPJFlag(Uint32 & requestInfo, Uint32 val);
+  static void setPassAllConfsFlag(Uint32 & requestInfo, Uint32 val);
+  static void set4WordConf(Uint32 & requestInfo, Uint32 val);
 };
 
 /**
@@ -139,10 +147,13 @@ private:
  b = Scan batch            - 10 Bit 16-25 (max 1023)
  d = Distribution key flag - 1  Bit 26
  n = No disk flag          - 1  Bit 9
+ j = Via SPJ flag          - 1  Bit 27
+ a = Pass all confs flag   - 1  Bit 28
+ f = 4 word conf           - 1  Bit 29
 
            1111111111222222222233
  01234567890123456789012345678901
- pppppppplnhcktzxbbbbbbbbbbd
+ pppppppplnhcktzxbbbbbbbbbbdjaf
 */
 
 #define PARALLEL_SHIFT     (0)
@@ -177,6 +188,10 @@ private:
 
 #define SCAN_NODISK_SHIFT (9)
 #define SCAN_NODISK_MASK (1)
+
+#define SCAN_SPJ_SHIFT (27)
+#define SCAN_PASS_CONF_SHIFT (28)
+#define SCAN_4WORD_CONF_SHIFT (29)
 
 inline
 Uint8
@@ -338,6 +353,45 @@ ScanTabReq::setNoDiskFlag(UintR & requestInfo, Uint32 flag){
                ((flag & SCAN_NODISK_MASK) << SCAN_NODISK_SHIFT);
 }
 
+inline
+UintR
+ScanTabReq::getViaSPJFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_SPJ_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setViaSPJFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setViaSPJFlag");
+  requestInfo |= (flag << SCAN_SPJ_SHIFT);
+}
+
+inline
+UintR
+ScanTabReq::getPassAllConfsFlag(const UintR & requestInfo){
+  return (requestInfo >> SCAN_PASS_CONF_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::setPassAllConfsFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
+  requestInfo |= (flag << SCAN_PASS_CONF_SHIFT);
+}
+
+inline
+UintR
+ScanTabReq::get4WordConf(const UintR & requestInfo){
+  return (requestInfo >> SCAN_4WORD_CONF_SHIFT) & 1;
+}
+
+inline
+void
+ScanTabReq::set4WordConf(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setPassAllConfs");
+  requestInfo |= (flag << SCAN_4WORD_CONF_SHIFT);
+}
+
 /**
  * 
  * SENDER:  Dbtc
@@ -386,13 +440,12 @@ private:
       If RNIL, this means that this particular fragment is done scanning.
     */
     Uint32 tcPtrI;
-    /*
-      info encodes the number of rows and the length of the data sent in
-      TRANSID_AI signals.
-    */
-    Uint32 info;
+
+    Uint32 rows;
+    Uint32 len;
   };
 
+  /** for 3 word conf */
   static Uint32 getLength(Uint32 opDataInfo) { return opDataInfo >> 10; };
   static Uint32 getRows(Uint32 opDataInfo) { return opDataInfo & 1023;}
 };
@@ -400,12 +453,12 @@ private:
 /**
  * request info
  *
- o = received operations        - 7  Bits -> Max 255 (Bit 0-7)
- s = status of scan             - 2  Bits -> Max ??? (Bit 8-?) 
+ o = received operations        - 8  Bits -> Max 255 (Bit 0-7)
+ e = end of data                - 1  bit (31)
 
            1111111111222222222233
  01234567890123456789012345678901
- ooooooooss
+ oooooooo                       e
 */
 
 #define OPERATIONS_SHIFT     (0)
@@ -487,6 +540,7 @@ class ScanNextReq {
    * Sender(s)
    */
   friend class NdbOperation; 
+  friend class NdbQueryImpl;
 
   /**
    * For printing

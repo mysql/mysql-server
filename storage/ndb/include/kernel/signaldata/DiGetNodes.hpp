@@ -29,6 +29,8 @@ struct DiGetNodesConf {
    * Receiver(s)
    */
   friend class Dbtc;
+  friend class Dbspj;
+
   /**
    * Sender(s)
    */
@@ -50,6 +52,7 @@ class DiGetNodesReq {
    * Sender(s)
    */
   friend class Dbtc;
+  friend class Dbspj;
   /**
    * Receiver(s)
    */
