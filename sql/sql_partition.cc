@@ -1014,12 +1014,13 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   }
 
   /*
-    We don't allow creating partitions with timezone-dependent expressions as
-    a (sub)partitioning function, but we want to allow such expressions when
-    opening existing tables for easier maintenance. This exception should be
-    deprecated at some point in future so that we always throw an error.
+    We don't allow creating partitions with expressions with non matching
+    arguments as a (sub)partitioning function,
+    but we want to allow such expressions when opening existing tables for
+    easier maintenance. This exception should be deprecated at some point
+    in future so that we always throw an error.
   */
-  if (func_expr->walk(&Item::is_arguments_valid_processor,
+  if (func_expr->walk(&Item::check_valid_arguments_processor,
                       0, NULL))
   {
     if (is_create_table_ind)
