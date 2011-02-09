@@ -115,120 +115,54 @@ void table_ews_by_thread_by_event_name::reset_position(void)
 int table_ews_by_thread_by_event_name::rnd_next(void)
 {
   PFS_thread *thread;
-  PFS_mutex_class *mutex_class;
-  PFS_rwlock_class *rwlock_class;
-  PFS_cond_class *cond_class;
-  PFS_file_class *file_class;
-  PFS_instr_class *table_class;
+  PFS_instr_class *instr_class;
 
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_view();
-       m_pos.next_view())
+       m_pos.has_more_thread();
+       m_pos.next_thread())
   {
-    switch (m_pos.m_index_1)
+    thread= &thread_array[m_pos.m_index_1];
+
+    /*
+      Important note: the thread scan is the outer loop (index 1),
+      to minimize the number of calls to atomic operations.
+    */
+    if (thread->m_lock.is_populated())
     {
-    case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
-      do
+      for ( ;
+           m_pos.has_more_view();
+           m_pos.next_view())
       {
-        mutex_class= find_mutex_class(m_pos.m_index_2);
-        if (mutex_class)
+        switch (m_pos.m_index_2)
         {
-          for ( ; m_pos.has_more_thread(); m_pos.next_thread())
-          {
-            thread= &thread_array[m_pos.m_index_3];
-            if (thread->m_lock.is_populated())
-            {
-              make_row(thread, mutex_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
-            }
-          }
-          m_pos.next_instrument();
+        case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
+          instr_class= find_mutex_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
+          instr_class= find_rwlock_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_COND:
+          instr_class= find_cond_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_FILE:
+          instr_class= find_file_class(m_pos.m_index_3);
+          break;
+        case pos_ews_by_thread_by_event_name::VIEW_TABLE:
+          instr_class= find_table_class(m_pos.m_index_3);
+          break;
+        default:
+          DBUG_ASSERT(false);
+          instr_class= NULL;
+          break;
         }
-      } while (mutex_class != NULL);
-      break;
-    case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
-      do
-      {
-        rwlock_class= find_rwlock_class(m_pos.m_index_2);
-        if (rwlock_class)
+
+        if (instr_class != NULL)
         {
-          for ( ; m_pos.has_more_thread(); m_pos.next_thread())
-          {
-            thread= &thread_array[m_pos.m_index_3];
-            if (thread->m_lock.is_populated())
-            {
-              make_row(thread, rwlock_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
-            }
-          }
-          m_pos.next_instrument();
+          make_row(thread, instr_class);
+          m_next_pos.set_after(&m_pos);
+          return 0;
         }
-      } while (rwlock_class != NULL);
-      break;
-    case pos_ews_by_thread_by_event_name::VIEW_COND:
-      do
-      {
-        cond_class= find_cond_class(m_pos.m_index_2);
-        if (cond_class)
-        {
-          for ( ; m_pos.has_more_thread(); m_pos.next_thread())
-          {
-            thread= &thread_array[m_pos.m_index_3];
-            if (thread->m_lock.is_populated())
-            {
-              make_row(thread, cond_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
-            }
-          }
-          m_pos.next_instrument();
-        }
-      } while (cond_class != NULL);
-      break;
-    case pos_ews_by_thread_by_event_name::VIEW_FILE:
-      do
-      {
-        file_class= find_file_class(m_pos.m_index_2);
-        if (file_class)
-        {
-          for ( ; m_pos.has_more_thread(); m_pos.next_thread())
-          {
-            thread= &thread_array[m_pos.m_index_3];
-            if (thread->m_lock.is_populated())
-            {
-              make_row(thread, file_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
-            }
-          }
-          m_pos.next_instrument();
-        }
-      } while (file_class != NULL);
-      break;
-    case pos_ews_by_thread_by_event_name::VIEW_TABLE:
-      do
-      {
-        table_class= find_table_class(m_pos.m_index_2);
-        if (table_class)
-        {
-          for ( ; m_pos.has_more_thread(); m_pos.next_thread())
-          {
-            thread= &thread_array[m_pos.m_index_3];
-            if (thread->m_lock.is_populated())
-            {
-              make_row(thread, table_class);
-              m_next_pos.set_after(&m_pos);
-              return 0;
-            }
-          }
-          m_pos.next_instrument();
-        }
-      } while (table_class != NULL);
-      break;
-    default:
-      break;
+      }
     }
   }
 
@@ -239,63 +173,42 @@ int
 table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
 {
   PFS_thread *thread;
-  PFS_mutex_class *mutex_class;
-  PFS_rwlock_class *rwlock_class;
-  PFS_cond_class *cond_class;
-  PFS_file_class *file_class;
-  PFS_instr_class *table_class;
+  PFS_instr_class *instr_class;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_3 < thread_max);
+  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
-  thread= &thread_array[m_pos.m_index_3];
+  thread= &thread_array[m_pos.m_index_1];
   if (! thread->m_lock.is_populated())
     return HA_ERR_RECORD_DELETED;
 
-  switch (m_pos.m_index_1)
+  switch (m_pos.m_index_2)
   {
   case pos_ews_by_thread_by_event_name::VIEW_MUTEX:
-    mutex_class= find_mutex_class(m_pos.m_index_2);
-    if (mutex_class)
-    {
-      make_row(thread, mutex_class);
-      return 0;
-    }
+    instr_class= find_mutex_class(m_pos.m_index_3);
     break;
   case pos_ews_by_thread_by_event_name::VIEW_RWLOCK:
-    rwlock_class= find_rwlock_class(m_pos.m_index_2);
-    if (rwlock_class)
-    {
-      make_row(thread, rwlock_class);
-      return 0;
-    }
+    instr_class= find_rwlock_class(m_pos.m_index_3);
     break;
   case pos_ews_by_thread_by_event_name::VIEW_COND:
-    cond_class= find_cond_class(m_pos.m_index_2);
-    if (cond_class)
-    {
-      make_row(thread, cond_class);
-      return 0;
-    }
+    instr_class= find_cond_class(m_pos.m_index_3);
     break;
   case pos_ews_by_thread_by_event_name::VIEW_FILE:
-    file_class= find_file_class(m_pos.m_index_2);
-    if (file_class)
-    {
-      make_row(thread, file_class);
-      return 0;
-    }
+    instr_class= find_file_class(m_pos.m_index_3);
     break;
   case pos_ews_by_thread_by_event_name::VIEW_TABLE:
-    table_class= find_table_class(m_pos.m_index_2);
-    if (table_class)
-    {
-      make_row(thread, table_class);
-      return 0;
-    }
+    instr_class= find_table_class(m_pos.m_index_3);
     break;
+  default:
+    DBUG_ASSERT(false);
+    instr_class= NULL;
   }
 
+  if (instr_class)
+  {
+    make_row(thread, instr_class);
+    return 0;
+  }
   return HA_ERR_RECORD_DELETED;
 }
 

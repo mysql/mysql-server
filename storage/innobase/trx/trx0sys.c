@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -637,17 +637,21 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	trx_t*	in_trx)	/*!< in: trx */
+	const trx_t*	in_trx)	/*!< in: transaction */
 {
-	trx_t*	trx;
+	const trx_t*	trx;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(trx_assert_started(in_trx));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		/* No op */
+		ut_ad(trx->in_trx_list);
 	}
 
 	return(trx != NULL);
@@ -664,7 +668,10 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -959,7 +966,7 @@ trx_sys_init_at_db_start(void)
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_list_and_array_init(sys_header, &mtr);
+	trx_rseg_array_init(sys_header, &mtr);
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
@@ -979,21 +986,18 @@ trx_sys_init_at_db_start(void)
 
 	trx_lists_init_at_db_start();
 
+	rw_lock_s_lock(&trx_sys->lock);
+
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-		trx_t*	trx;
+		const trx_t*	trx;
 
-		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		     trx != NULL;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+			ut_ad(trx->is_recovered);
 
-		for (;;) {
-
-			if (trx->state != TRX_STATE_PREPARED) {
+			if (trx_state_eq(trx, TRX_STATE_ACTIVE)) {
 				rows_to_undo += trx->undo_no;
-			}
-
-			trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-			if (!trx) {
-				break;
 			}
 		}
 
@@ -1012,6 +1016,8 @@ trx_sys_init_at_db_start(void)
 		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
 			(ullint) trx_sys->max_trx_id);
 	}
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	UT_LIST_INIT(trx_sys->view_list);
 
@@ -1044,7 +1050,8 @@ trx_rseg_compare_last_trx_no(
 }
 
 /*****************************************************************//**
-Creates the trx_sys instance and initializes its mutex only. */
+Creates the trx_sys instance and initializes ib_bh, lock and
+read_view_mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void)
@@ -1622,7 +1629,7 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->read_view_mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1632,7 +1639,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->read_view_mutex);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1726,13 +1733,16 @@ trx_sys_validate_trx_list(void)
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX)
-	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
+		ut_ad(trx->in_trx_list);
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
 

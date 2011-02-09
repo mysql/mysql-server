@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1377,10 +1377,10 @@ do { doubleget_union _tmp; \
 #endif
 
 /* Length of decimal number represented by INT32. */
-#define MY_INT32_NUM_DECIMAL_DIGITS 11
+#define MY_INT32_NUM_DECIMAL_DIGITS 11U
 
 /* Length of decimal number represented by INT64. */
-#define MY_INT64_NUM_DECIMAL_DIGITS 21
+#define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
 /* Define some useful general macros (should be done after all headers). */
 #if !defined(max)

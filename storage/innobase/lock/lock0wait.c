@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,12 +59,13 @@ lock_wait_table_print(void)
 
 		fprintf(stderr,
 			"Slot %lu: thread id %lu, type %lu,"
-			" in use %lu, susp %lu, time %lu\n",
+			" in use %lu, susp %lu, timeout %lu, time %lu\n",
 			(ulong) i,
 			(ulong) os_thread_pf(slot->id),
 			(ulong) slot->type,
 			(ulong) slot->in_use,
 			(ulong) slot->suspended,
+			slot->wait_timeout,
 			(ulong) difftime(ut_time(), slot->suspend_time));
 	}
 }
@@ -137,8 +138,9 @@ static
 srv_slot_t*
 lock_wait_table_reserve_slot(
 /*=========================*/
-	que_thr_t*	thr)		/*!< in: query thread associated
+	que_thr_t*	thr,		/*!< in: query thread associated
 					with the user OS thread */
+	ulong		wait_timeout)	/*!< in: lock wait timeout value */
 {
 	ulint		i;
 	srv_slot_t*	slot;
@@ -148,58 +150,49 @@ lock_wait_table_reserve_slot(
 
 	slot = lock_sys->waiting_threads;
 
-	for (i = 0; i < OS_THREAD_MAX_N; ++i, ++slot) {
+	for (i = OS_THREAD_MAX_N; i--; ++slot) {
 		if (!slot->in_use) {
-			break;
+			slot->in_use = TRUE;
+			slot->thr = thr;
+			slot->thr->slot = slot;
+			slot->id = os_thread_get_curr_id();
+			slot->handle = os_thread_get_curr();
+
+			if (slot->event == NULL) {
+				slot->event = os_event_create(NULL);
+				ut_a(slot->event);
+			}
+
+			os_event_reset(slot->event);
+			slot->suspended = TRUE;
+			slot->suspend_time = ut_time();
+			slot->wait_timeout = wait_timeout;
+
+			if (slot == lock_sys->last_slot) {
+				++lock_sys->last_slot;
+			}
+
+			ut_ad(lock_sys->last_slot
+			      <= lock_sys->waiting_threads + OS_THREAD_MAX_N);
+
+			return(slot);
 		}
 	}
 
-	/* Check if we have run out of slots. */
-	if (slot == lock_sys->waiting_threads+ OS_THREAD_MAX_N) {
+	ut_print_timestamp(stderr);
 
-		ut_print_timestamp(stderr);
+	fprintf(stderr,
+		"  InnoDB: There appear to be %lu user"
+		" threads currently waiting\n"
+		"InnoDB: inside InnoDB, which is the"
+		" upper limit. Cannot continue operation.\n"
+		"InnoDB: As a last thing, we print"
+		" a list of waiting threads.\n", (ulong) OS_THREAD_MAX_N);
 
-		fprintf(stderr,
-			"  InnoDB: There appear to be %lu user"
-			" threads currently waiting\n"
-			"InnoDB: inside InnoDB, which is the"
-			" upper limit. Cannot continue operation.\n"
-			"InnoDB: We intentionally generate"
-			" a seg fault to print a stack trace\n"
-			"InnoDB: on Linux. But first we print"
-			" a list of waiting threads.\n", (ulong) i);
+	lock_wait_table_print();
 
-		lock_wait_table_print();
-
-		ut_error;
-	} else {
-
-		ut_a(slot->in_use == FALSE);
-
-		slot->in_use = TRUE;
-		slot->thr = thr;
-		slot->thr->slot = slot;
-		slot->id = os_thread_get_curr_id();
-		slot->handle = os_thread_get_curr();
-
-		if (slot->event == NULL) {
-			slot->event = os_event_create(NULL);
-			ut_a(slot->event);
-		}
-
-		os_event_reset(slot->event);
-		slot->suspended = TRUE;
-		slot->suspend_time = ut_time();
-	}
-
-	if (slot == lock_sys->last_slot) {
-		++lock_sys->last_slot;
-	}
-
-	ut_ad(lock_sys->last_slot
-	      <= lock_sys->waiting_threads+ OS_THREAD_MAX_N);
-
-	return(slot);
+	ut_error;
+	return(NULL);
 }
 
 /***************************************************************//**
@@ -228,6 +221,12 @@ lock_wait_suspend_thread(
 
 	trx = thr_get_trx(thr);
 
+	/* InnoDB system transactions (such as the purge, and
+	incomplete transactions that are being rolled back after crash
+	recovery) will use the global value of
+	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
+	lock_wait_timeout = trx_lock_wait_timeout_get(trx);
+
 	lock_wait_mutex_enter();
 
 	trx_mutex_enter(trx);
@@ -236,7 +235,7 @@ lock_wait_suspend_thread(
 
 	if (thr->state == QUE_THR_RUNNING) {
 
-		ut_ad(thr->is_active == TRUE);
+		ut_ad(thr->is_active);
 
 		/* The lock has already been released or this transaction
 		was chosen as a deadlock victim: no need to suspend */
@@ -247,15 +246,14 @@ lock_wait_suspend_thread(
 			trx->lock.was_chosen_as_deadlock_victim = FALSE;
 		}
 
-		trx_mutex_exit(trx);
-
 		lock_wait_mutex_exit();
+		trx_mutex_exit(trx);
 		return;
 	}
 
-	ut_ad(thr->is_active == FALSE);
+	ut_ad(!thr->is_active);
 
-	slot = lock_wait_table_reserve_slot(thr);
+	slot = lock_wait_table_reserve_slot(thr, lock_wait_timeout);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		srv_n_lock_wait_count++;
@@ -274,8 +272,8 @@ lock_wait_suspend_thread(
 
 	os_event_set(srv_timeout_event);
 
-	trx_mutex_exit(trx);
 	lock_wait_mutex_exit();
+	trx_mutex_exit(trx);
 
 	if (trx->declared_to_be_inside_innodb) {
 
@@ -359,12 +357,6 @@ lock_wait_suspend_thread(
 		}
 	}
 
-	/* InnoDB system transactions (such as the purge, and
-	incomplete transactions that are being rolled back after crash
-	recovery) will use the global value of
-	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
-	lock_wait_timeout = trx_lock_wait_timeout_get(trx);
-
 	if (lock_wait_timeout < 100000000
 	    && wait_time > (double) lock_wait_timeout) {
 
@@ -392,7 +384,7 @@ lock_wait_release_thread_if_suspended(
 
 	/* We own both the lock mutex and the trx_t::mutex but not the
 	lock wait mutex. This is OK because other threads will see the state
-	of this mutex as being in use and no other thread can change the state
+	of this slot as being in use and no other thread can change the state
 	of the slot to free unless that thread also owns the lock mutex. */
 
 	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
@@ -418,28 +410,25 @@ void
 lock_wait_check_and_cancel(
 /*=======================*/
 	const srv_slot_t*	slot)	/*!< in: slot reserved by a user
-				       	thread when the wait started */
+					thread when the wait started */
 {
 	trx_t*		trx;
 	double		wait_time;
-	ulong		lock_wait_timeout;
 	ib_time_t	suspend_time = slot->suspend_time;
 
 	ut_ad(lock_wait_mutex_own());
+
+	ut_ad(slot->in_use);
+
+	ut_ad(slot->suspended);
 
 	wait_time = ut_difftime(ut_time(), suspend_time);
 
 	trx = thr_get_trx(slot->thr);
 
-	lock_mutex_enter();
-
-	trx_mutex_enter(trx);
-
-	lock_wait_timeout = trx_lock_wait_timeout_get(trx);
-
 	if (trx_is_interrupted(trx)
-	    || (lock_wait_timeout < 100000000
-		&& (wait_time > (double) lock_wait_timeout
+	    || (slot->wait_timeout < 100000000
+		&& (wait_time > (double) slot->wait_timeout
 		   || wait_time < 0))) {
 
 		/* Timeout exceeded or a wrap-around in system
@@ -449,17 +438,22 @@ lock_wait_check_and_cancel(
 		possible that the lock has already been
 		granted: in that case do nothing */
 
+		lock_mutex_enter();
+
+		trx_mutex_enter(trx);
+
 		if (trx->lock.wait_lock) {
 
 			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
 			lock_cancel_waiting_and_release(trx->lock.wait_lock);
 		}
+
+		lock_mutex_exit();
+
+		trx_mutex_exit(trx);
 	}
 
-	trx_mutex_exit(trx);
-	
-	lock_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -478,41 +472,19 @@ lock_wait_timeout_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
 #endif
+	srv_lock_timeout_active = TRUE;
 
 	do {
 		srv_slot_t*	slot;
-
-		server_mutex_enter();
-
-		srv_lock_timeout_active = FALSE;
-
-		server_mutex_exit();
 
 		/* When someone is waiting for a lock, we wake up every second
 		and check if a timeout has passed for a lock wait */
 
 		os_event_wait_time_low(srv_timeout_event, 1000000, sig_count);
 
-		/* Note: In logs_empty_and_mark_files_at_shutdown() we
-		check the srv_lock_timeout_active flag to determine whether
-		this thread has exited or not. There is a small window here
-		where the flag can be FALSE before we set it to TRUE below.
-		This is OK because:
-
-		  1. We will exit after executing the code
-		  2. logs_empty_and_mark_files_at_shutdown() has additional
-		     checks that will block the shutdown from proceeding
-		     to the next state. */
-
 		if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 			break;
 		}
-
-		server_mutex_enter();
-
-		srv_lock_timeout_active = TRUE;
-
-		server_mutex_exit();
 
 		lock_wait_mutex_enter();
 
@@ -539,11 +511,7 @@ lock_wait_timeout_thread(
 
 	} while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
-	server_mutex_enter();
-
 	srv_lock_timeout_active = FALSE;
-
-	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -552,4 +520,3 @@ lock_wait_timeout_thread(
 
 	OS_THREAD_DUMMY_RETURN;
 }
-
