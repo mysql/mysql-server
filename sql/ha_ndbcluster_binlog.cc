@@ -74,8 +74,29 @@ static int ndb_binlog_thread_running= 0;
   FALSE if not
 */
 my_bool ndb_binlog_running= FALSE;
-my_bool ndb_binlog_tables_inited= FALSE;
-my_bool ndb_binlog_is_ready= FALSE;
+static my_bool ndb_binlog_tables_inited= FALSE;
+static my_bool ndb_binlog_is_ready= FALSE;
+
+bool
+ndb_binlog_is_read_only(void)
+{
+  if(!ndb_binlog_tables_inited)
+  {
+    /* the ndb_* system tables not setup yet */
+    return true;
+  }
+
+  if (ndb_binlog_running && !ndb_binlog_is_ready)
+  {
+    /*
+      The binlog thread is supposed to write to binlog
+      but not ready (still initializing or has lost connection)
+    */
+    return true;
+  }
+  return false;
+}
+
 /*
   Global reference to the ndb injector thread THD oject
 
@@ -1553,11 +1574,15 @@ static int ndbcluster_find_all_databases(THD *thd)
   }
 }
 
-int ndbcluster_setup_binlog_table_shares(THD *thd)
+bool
+ndb_binlog_setup(THD *thd)
 {
+  if (ndb_binlog_tables_inited)
+    return true; // Already setup -> OK
+
   Ndbcluster_global_schema_lock_guard global_schema_lock_guard(thd);
   if (global_schema_lock_guard.lock())
-    return 1;
+    return false;
   if (!ndb_schema_share &&
       ndbcluster_check_ndb_schema_share() == 0)
   {
@@ -1567,7 +1592,7 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
       ndbcluster_create_schema_table(thd);
       // always make sure we create the 'schema' first
       if (!ndb_schema_share)
-        return 1;
+        return false;
     }
   }
   if (!ndb_apply_status_share &&
@@ -1578,13 +1603,13 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
     {
       ndbcluster_create_ndb_apply_status_table(thd);
       if (!ndb_apply_status_share)
-        return 1;
+        return false;
     }
   }
 
   if (ndbcluster_find_all_databases(thd))
   {
-    return 1;
+    return false;
   }
 
   if (!ndbcluster_find_all_files(thd))
@@ -1605,8 +1630,10 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
     }
     /* Signal injector thread that all is setup */
     pthread_cond_signal(&injector_cond);
+
+    return true; // Setup completed -> OK
   }
-  return 0;
+  return false;
 }
 
 /*

@@ -249,13 +249,27 @@ int ndb_create_table_from_engine(THD *thd, const char *db,
                                  const char *table_name);
 int ndbcluster_binlog_start();
 
-int ndbcluster_setup_binlog_table_shares(THD *thd);
+
+/*
+  Setup function for the ndb binlog component. The function should be
+  called on startup until it succeeds(to allow initial setup) and with
+  regular intervals afterwards to reconnect after a lost cluster
+  connection
+*/
+bool ndb_binlog_setup(THD *thd);
+
+/*
+  Will return true when the ndb binlog component is properly setup
+  and ready to receive events from the cluster. As long as function
+  returns false, all tables in this MySQL Server are opened in read only
+  mode to avoid writes before the binlog is ready to record them.
+ */
+bool ndb_binlog_is_read_only(void);
+
 extern NDB_SHARE *ndb_apply_status_share;
 extern NDB_SHARE *ndb_schema_share;
 
 extern my_bool ndb_binlog_running;
-extern my_bool ndb_binlog_tables_inited;
-extern my_bool ndb_binlog_is_ready;
 
 bool
 ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
