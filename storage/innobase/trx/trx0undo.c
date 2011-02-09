@@ -1752,21 +1752,11 @@ trx_undo_set_state_at_finish(
 
 	if (undo->size == 1
 	    && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
-	       < TRX_UNDO_PAGE_REUSE_LIMIT) {
+	       < TRX_UNDO_PAGE_REUSE_LIMIT
+	    && UT_LIST_GET_LEN(rseg->update_undo_list) < 500
+	    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
 
-		/* This is a heuristic to avoid the problem of all UNDO
-		slots ending up in one of the UNDO lists. Previously if
-		the server crashed with all the slots in one of the lists,
-		transactions that required the slots of a different type
-		would fail for lack of slots. */
-
-		if (UT_LIST_GET_LEN(rseg->update_undo_list) < 500
-		    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
-
-			state = TRX_UNDO_CACHED;
-		} else {
-			state = TRX_UNDO_TO_FREE;
-		}
+		state = TRX_UNDO_CACHED;
 
 	} else if (undo->type == TRX_UNDO_INSERT) {
 
