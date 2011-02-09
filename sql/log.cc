@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "tztime.h"             // my_tz_OFFSET0, struct Time_zone
 #include "sql_acl.h"            // SUPER_ACL
 #include "sql_audit.h"
+#include "mysql/service_my_plugin_log.h"
 
 #include <my_dir.h>
 #include <stdarg.h>
@@ -1879,7 +1880,6 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 }
 
 
-
 int error_log_print(enum loglevel level, const char *format,
                     va_list args)
 {
@@ -2196,6 +2196,35 @@ void sql_print_information(const char *format, ...)
   va_end(args);
 
   DBUG_VOID_RETURN;
+}
+
+
+extern "C"
+int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
+                          const char *format, ...)
+{
+  char format2[MYSQL_ERRMSG_SIZE];
+  int ret;
+  loglevel lvl;
+  struct st_plugin_int *plugin = (st_plugin_int *) plugin_ptr;
+  va_list args;
+
+  DBUG_ASSERT(lvl >= ERROR_LEVEL || lvl <= INFORMATION_LEVEL);
+
+  switch (level)
+  {
+  case MY_ERROR_LEVEL:       lvl= ERROR_LEVEL; break;
+  case MY_WARNING_LEVEL:     lvl= WARNING_LEVEL; break;
+  case MY_INFORMATION_LEVEL: lvl= INFORMATION_LEVEL; break;
+  default:                   return 1;
+  }
+
+  va_start(args, format);
+  snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'", 
+           (int) plugin->name.length, plugin->name.str, format);
+  ret= error_log_print(lvl, format2, args);
+  va_end(args);
+  return ret;
 }
 
 
