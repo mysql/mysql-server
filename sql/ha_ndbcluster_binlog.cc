@@ -670,6 +670,7 @@ setup_thd(char * stackptr)
 static int
 ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 {
+  int error = 0;
   THD * save_thd= thd;
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
   DBUG_PRINT("enter", ("file: %s", file));
@@ -697,21 +698,20 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
     }
   }
 
-  char buf[1024];
-  char *end= strmov(strmov(strmov(buf,
-                                  "DELETE FROM "
-                                  NDB_REP_DB "." NDB_REP_TABLE
-                                  " WHERE File='"), file), "'");
-
-  run_query(thd, buf, end, NULL, TRUE, FALSE);
-  if (thd_stmt_da(thd)->is_error() &&
-      thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)
+  /*
+    delete rows from mysql.ndb_binlog_index table for the given
+    filename, if table does not exist ignore the error as it
+    is a "consistent" behavior
+  */
+  Ndb_local_connection mysqld(thd);
+  const bool ignore_no_such_table = true;
+  if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
+                        STRING_WITH_LEN("ndb_binlog_index"),
+                        ignore_no_such_table,
+                        "File='", file, "'", NULL))
   {
-    /*
-      If table does not exist ignore the error as it
-      is a consistant behavior
-    */
-    thd_stmt_da(thd)->reset_diagnostics_area();
+    // Failed to delete rows from table
+    error = 1;
   }
 
   if (save_thd == 0)
@@ -720,7 +720,7 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
     delete thd;
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 static void
