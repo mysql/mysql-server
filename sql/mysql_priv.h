@@ -580,11 +580,12 @@ protected:
 #define OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL (1<<16)
 #define OPTIMIZER_SWITCH_JOIN_CACHE_HASHED (1<<17)
 #define OPTIMIZER_SWITCH_JOIN_CACHE_BKA (1<<18)
+#define OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE (1<<19)
 #ifdef DBUG_OFF
-#  define OPTIMIZER_SWITCH_LAST (1<<19)
-#else
-#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<19)
 #  define OPTIMIZER_SWITCH_LAST (1<<20)
+#else
+#  define OPTIMIZER_SWITCH_TABLE_ELIMINATION (1<<20)
+#  define OPTIMIZER_SWITCH_LAST (1<<21)
 #endif
 
 #ifdef DBUG_OFF 
@@ -605,7 +606,8 @@ protected:
                                     OPTIMIZER_SWITCH_SUBQUERY_CACHE | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA)
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
+                                    OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE)
 #else
 #  define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                     OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -623,7 +625,8 @@ protected:
                                     OPTIMIZER_SWITCH_MRR_SORT_KEYS|\
                                     OPTIMIZER_SWITCH_JOIN_CACHE_INCREMENTAL | \
                                     OPTIMIZER_SWITCH_JOIN_CACHE_HASHED | \
-                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA)
+                                    OPTIMIZER_SWITCH_JOIN_CACHE_BKA | \
+                                    OPTIMIZER_SWITCH_OPTIMIZE_JOIN_BUFFER_SIZE)
 #endif
 
 /*

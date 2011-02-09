@@ -351,6 +351,7 @@ static const char *optimizer_switch_names[]=
   "join_cache_incremental",
   "join_cache_hashed",
   "join_cache_bka",
+  "optimize_join_buffer_size",
 #ifndef DBUG_OFF
   "table_elimination",
 #endif
@@ -379,6 +380,7 @@ static const unsigned int optimizer_switch_names_len[]=
   sizeof("join_cache_incremental") - 1,
   sizeof("join_cache_hashed") - 1,
   sizeof("join_cache_bka") - 1,
+  sizeof("optimize_join_buffer_size") - 1,
 #ifndef DBUG_OFF
   sizeof("table_elimination") - 1,
 #endif
@@ -482,7 +484,8 @@ static const char *optimizer_switch_str="index_merge=on,index_merge_union=on,"
                                         "mrr_sort_keys=on,"
                                         "join_cache_incremental=on,"
                                         "join_cache_hashed=on,"
-                                        "join_cache_bka=on"
+                                        "join_cache_bka=on,"
+                                        "optimize_join_buffer_size=on"
 #ifndef DBUG_OFF
                                         ",table_elimination=on";
 #else
@@ -7115,7 +7118,7 @@ thread is in the relay logs.",
    "The limit of the space for all join buffers used by a query.",
    &global_system_variables.join_buff_space_limit,
    &max_system_variables.join_buff_space_limit, 0, GET_ULL,
-   REQUIRED_ARG, 8*128*1024L, 2048+MALLOC_OVERHEAD, (longlong) ULONGLONG_MAX,
+   REQUIRED_ARG, 16*128*1024L, 2048+MALLOC_OVERHEAD, (longlong) ULONGLONG_MAX,
    MALLOC_OVERHEAD, 2048, 0},
    {"join_cache_level", OPT_JOIN_CACHE_LEVEL,
    "Controls what join operations can be executed with join buffers. Odd numbers are used for plain join buffers while even numbers are used for linked buffers",
