@@ -13061,6 +13061,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     goto ndb_util_thread_fail;
   lex_start(thd);
   thd->init_for_queries();
+  thd_set_command(thd, COM_DAEMON);
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
 #endif
