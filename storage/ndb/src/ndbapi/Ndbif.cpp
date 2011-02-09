@@ -376,7 +376,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
 	Uint32 com;
 	if(aSignal->m_noOfSections > 0){
 	  if(tRec->getType()==NdbReceiver::NDB_QUERY_OPERATION){
-	    com = tRec->m_query_operation_impl
+	    com = ((NdbQueryOperationImpl*)(tRec->m_owner))
               ->execTRANSID_AI(ptr[0].p, ptr[0].sz);
 	  }else{
 	    com = tRec->execTRANSID_AI(ptr[0].p, ptr[0].sz);
@@ -409,8 +409,10 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
                      (Uint32) NO_WAIT : tWaitState);
 	  break;
         case NdbReceiver::NDB_QUERY_OPERATION:
+        {
           // Handled differently whether it is a scan or lookup
-          if (tRec->m_query_operation_impl->getQueryDef().isScanQuery()) {
+          NdbQueryOperationImpl* tmp = (NdbQueryOperationImpl*)(tRec->m_owner);
+          if (tmp->getQueryDef().isScanQuery()) {
             tNewState = (((WaitSignalType) tWaitState) == WAIT_SCAN ? 
                        (Uint32) NO_WAIT : tWaitState);
             break;
@@ -420,6 +422,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
             }
             return;
           }
+        }
 	default:
 	  goto InvalidSignal;
 	}
@@ -507,7 +510,9 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       if (tCon != NULL) {
         if (tCon->theSendStatus == NdbTransaction::sendTC_OP) {
           if (receiver->getType()==NdbReceiver::NDB_QUERY_OPERATION) {
-            if (receiver->m_query_operation_impl->execTCKEYREF(aSignal) &&
+            NdbQueryOperationImpl* tmp =
+              (NdbQueryOperationImpl*)(receiver->m_owner);
+            if (tmp->execTCKEYREF(aSignal) &&
                tCon->OpCompleteFailure() != -1) {
               completedTransaction(tCon);
               return;

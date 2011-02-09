@@ -58,7 +58,7 @@ public:
                           NDB_QUERY_OPERATION = 4
   };
   
-  NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl=0);
+  NdbReceiver(Ndb *aNdb);
   int init(ReceiverType type, bool useRec, void* owner);
   void release();
   ~NdbReceiver();
@@ -209,11 +209,7 @@ private:
    */
   Uint32 m_expected_result_length;
   Uint32 m_received_result_length;
-  /** If non-NULL, certain signals should be handled by the 
-   * NdbQueryOperationImpl object. The signals are TRANSID_AI, 
-   * SCAN_TABCONF, TCKEYREF and TCKEYCONF.*/
-  NdbQueryOperationImpl* const m_query_operation_impl;
-  
+
   bool hasResults() const { return m_result_rows > 0; }
   bool nextResult() const { return m_current_row < m_result_rows; }
   NdbRecAttr* copyout(NdbReceiver&);

@@ -20,7 +20,7 @@
 #include <signaldata/TcKeyConf.hpp>
 #include <signaldata/DictTabInfo.hpp>
 
-NdbReceiver::NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl) :
+NdbReceiver::NdbReceiver(Ndb *aNdb) :
   theMagicNumber(0),
   m_ndb(aNdb),
   m_id(NdbObjectIdMap::InvalidId),
@@ -32,9 +32,8 @@ NdbReceiver::NdbReceiver(Ndb *aNdb, NdbQueryOperationImpl* queryOpImpl) :
   theCurrentRecAttr(NULL),
   m_rows(NULL),
   m_current_row(0xffffffff),
-  m_result_rows(0),
+  m_result_rows(0)
 //m_defined_rows(0),
-  m_query_operation_impl(queryOpImpl)
 {}
  
 NdbReceiver::~NdbReceiver()
@@ -50,8 +49,6 @@ NdbReceiver::~NdbReceiver()
 int
 NdbReceiver::init(ReceiverType type, bool useRec, void* owner)
 {
-  assert((type==NDB_QUERY_OPERATION && m_query_operation_impl!=NULL)
-         || (type!=NDB_QUERY_OPERATION && m_query_operation_impl==NULL));
   theMagicNumber = 0x11223344;
   m_type = type;
   m_using_ndb_record= useRec;
@@ -889,7 +886,8 @@ NdbReceiver::setErrorCode(int code)
 {
   theMagicNumber = 0;
   if(getType()==NDB_QUERY_OPERATION){
-    m_query_operation_impl->getQuery().setErrorCode(code);
+    NdbQueryOperationImpl* op = (NdbQueryOperationImpl*)getOwner();
+    op->getQuery().setErrorCode(code);
   }else{
     NdbOperation* const op = (NdbOperation*)getOwner();
     assert(op->checkMagicNumber()==0);

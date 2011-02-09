@@ -477,7 +477,7 @@ private:
 
 NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation, Uint32 rootFragNo):
   m_rootFragNo(rootFragNo),
-  m_receiver(operation.getQuery().getNdbTransaction().getNdb(), &operation),
+  m_receiver(operation.getQuery().getNdbTransaction().getNdb()),
   m_maxRows(0),
   m_rowCount(0),
   m_operation(operation),

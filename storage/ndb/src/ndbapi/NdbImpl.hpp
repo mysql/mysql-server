@@ -265,7 +265,7 @@ NdbReceiver::getTransaction() const {
     assert(false);
     return NULL;
   case NDB_QUERY_OPERATION:
-    return &m_query_operation_impl->getQuery().getNdbTransaction();
+    return &((NdbQueryOperationImpl*)m_owner)->getQuery().getNdbTransaction();
   default:
     return ((NdbOperation*)m_owner)->theNdbCon;
   }
