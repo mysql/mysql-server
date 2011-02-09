@@ -4366,7 +4366,8 @@ no_gap_lock:
 
 			err = lock_trx_handle_wait(trx);
 
-			if (err == DB_SUCCESS) {
+			switch (err) {
+			case DB_SUCCESS:
 				/* The lock was granted while we were
 				searching for the last committed version.
 				Do a normal locking read. */
@@ -4374,12 +4375,14 @@ no_gap_lock:
 				offsets = rec_get_offsets(
 					rec, index, offsets, ULINT_UNDEFINED,
 					&heap);
-				break;
-			} else if (err == DB_DEADLOCK) {
+				goto locks_ok;
+			case DB_DEADLOCK:
 				goto lock_wait_or_error;
- 			} else {
-				ut_a(err == DB_LOCK_WAIT);
+			case DB_LOCK_WAIT:
 				err = DB_SUCCESS;
+				break;
+			default:
+				ut_error;
 			}
 
 			if (old_vers == NULL) {
@@ -4469,6 +4472,7 @@ no_gap_lock:
 		}
 	}
 
+locks_ok:
 	/* NOTE that at this point rec can be an old version of a clustered
 	index record built for a consistent read. We cannot assume after this
 	point that rec is on a buffer pool page. Functions like

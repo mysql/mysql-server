@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -857,16 +857,7 @@ fill_innodb_locks_from_cache(
 	for (i = 0; i < rows_num; i++) {
 
 		i_s_locks_row_t*	row;
-
-		/* note that the decoded database or table name is
-		never expected to be longer than NAME_LEN;
-		NAME_LEN for database name
-		2 for surrounding quotes around database name
-		NAME_LEN for table name
-		2 for surrounding quotes around table name
-		1 for the separating dot (.)
-		9 for the #mysql50# prefix */
-		char			buf[2 * NAME_LEN + 14];
+		char			buf[MAX_FULL_NAME_LEN + 1];
 		const char*		bufend;
 
 		char			lock_trx_id[TRX_ID_MAX_LEN + 1];
@@ -3283,19 +3274,6 @@ i_s_innodb_buffer_page_get_info(
 		page_type = fil_page_get_type(frame);
 
 		i_s_innodb_set_page_type(page_info, page_type, frame);
-
-	} else if (page_info->page_state == BUF_BLOCK_MEMORY) {
-		const byte*	frame;
-		const buf_block_t*block;
-		ulint		page_type;
-
-		block = reinterpret_cast<const buf_block_t*>(bpage);
-
-		frame = block->frame;
-
-		page_type = fil_page_get_type(frame);
-
-		i_s_innodb_set_page_type(page_info, page_type, frame);
 	} else {
 		page_info->page_type = I_S_PAGE_TYPE_UNKNOWN;
 	}
@@ -4066,7 +4044,7 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 
 #define SYS_TABLE_NAME		1
 	{STRUCT_FLD(field_name,		"NAME"),
-	 STRUCT_FLD(field_length,	NAME_LEN + 1),
+	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
