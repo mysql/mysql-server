@@ -840,23 +840,29 @@ int ndbcluster_binlog_end(THD *thd)
 ****************************************************************/
 static void ndbcluster_reset_slave(THD *thd)
 {
+  int error = 0;
   if (!ndb_binlog_running)
     return;
 
   DBUG_ENTER("ndbcluster_reset_slave");
-  char buf[1024];
-  char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_APPLY_TABLE);
-  run_query(thd, buf, end, NULL, TRUE, FALSE);
-  if (thd_stmt_da(thd)->is_error() &&
-      ((thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)))
+
+  /*
+    delete all rows from mysql.ndb_apply_status table
+    - if table does not exist ignore the error as it
+      is a consistent behavior
+  */
+  Ndb_local_connection mysqld(thd);
+  const bool ignore_no_such_table = true;
+  if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
+                        STRING_WITH_LEN("ndb_apply_status"),
+                        ignore_no_such_table,
+                        NULL))
   {
-    /*
-      If table does not exist ignore the error as it
-      is a consistant behavior
-    */
-    thd_stmt_da(thd)->reset_diagnostics_area();
+    // Failed to delete rows from table
+    error = 1;
   }
 
+  // pending fix for bug#59844 will make this function return int
   DBUG_VOID_RETURN;
 }
 
