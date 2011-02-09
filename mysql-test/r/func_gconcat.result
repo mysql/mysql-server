@@ -1029,4 +1029,16 @@ GROUP_CONCAT(t1.a ORDER BY t1.a)
 1,1,2,2
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
+#
+# Bug#58396 group_concat and explain extended are still crashy
+#
+CREATE TABLE t1(a INT);
+EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
+ERROR HY000: Only constant XPATH queries are supported
+SHOW WARNINGS;
+Level	Code	Message
+Error	1105	Only constant XPATH queries are supported
+Note	1003	select updatexml('1',`test`.`t1`.`a`,'1') AS `UPDATEXML('1', a, '1')` from `test`.`t1` order by (select group_concat(1 separator ',') from `test`.`t1`)
+DROP TABLE t1;
 End of 5.1 tests
