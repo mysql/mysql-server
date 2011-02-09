@@ -21,6 +21,7 @@
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
+#include "ndb_local_connection.h"
 
 #include "rpl_injector.h"
 #include "rpl_filter.h"
@@ -54,8 +55,6 @@ bool ndb_log_empty_epochs(void);
 #include "ha_ndbcluster_tables.h"
 #define NDB_APPLY_TABLE_FILE "./" NDB_REP_DB "/" NDB_APPLY_TABLE
 #define NDB_SCHEMA_TABLE_FILE "./" NDB_REP_DB "/" NDB_SCHEMA_TABLE
-static char repdb[]= NDB_REP_DB;
-static char reptable[]= NDB_REP_TABLE;
 
 /*
   Timeout for syncing schema events between
@@ -602,33 +601,18 @@ static int ndbcluster_reset_logs(THD *thd)
   ndbcluster_binlog_wait(thd);
 
   /*
-    Could use run_query() here, but it is actually wrong,
-    see comment in run_query()
+    Truncate mysql.ndb_binlog_index table, if table does not
+    exist ignore the error as it is a "consistent" behavior
   */
-  TABLE_LIST table;
-  bzero((char*) &table, sizeof(table));
-  table.db= repdb;
-  table.alias= table.table_name= reptable;
-  mysql_truncate_table(thd, &table);
-
-  /*
-    Calling function only expects and handles error cases,
-    so reset state if not an error as not to hit asserts
-    in upper layers
-  */
-  while (thd_stmt_da(thd)->is_error())
+  Ndb_local_connection mysqld(thd);
+  const bool ignore_no_such_table = true;
+  if(mysqld.truncate_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("ndb_binlog_index"),
+                           ignore_no_such_table))
   {
-    if (thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)
-    {
-      /*
-        If table does not exist ignore the error as it
-        is a consistant behavior
-      */
-      break;
-    }
+    // Failed to truncate table
     DBUG_RETURN(1);
   }
-  thd_stmt_da(thd)->reset_diagnostics_area();
   DBUG_RETURN(0);
 }
 

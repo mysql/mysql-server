@@ -38,7 +38,6 @@
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "sql_parse.h"      // mysql_parse
-#include "sql_truncate.h"   // mysql_truncate_table
 #include "key.h"            // key_restore
 #else
 #include "mysql_priv.h"
@@ -292,19 +291,6 @@ uint partition_info_num_subparts(const partition_info* part_info)
 #else
   /* renamed to 'num_subparts' and no accessor function */
   return part_info->num_subparts;
-#endif
-}
-
-/*  mysql_truncate_table emulation */
-static inline
-bool mysql_truncate_table(THD *thd, TABLE_LIST *table_ref)
-{
-#if MYSQL_VERSION_ID < 50500
-  return mysql_truncate(thd, table_ref, 0);
-#else
-  /* mysql_truncate support removed in 5.5.7 */
-  abort();
-  return false;
 #endif
 }
 
