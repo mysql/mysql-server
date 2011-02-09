@@ -2022,7 +2022,7 @@ sub read_plugin_defs($)
 
   # Need to check if we will be running mysqld-debug
   if ($opt_debug_server) {
-    $running_debug= 1 if find_mysqld($basedir) =~ /-debug$/;
+    $running_debug= 1 if find_mysqld($basedir) =~ /mysqld-debug/;
   }
 
   while (<PLUGDEF>) {
