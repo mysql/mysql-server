@@ -1022,7 +1022,6 @@ Thd_ndb::Thd_ndb()
   trans= NULL;
   m_handler= NULL;
   m_error= FALSE;
-  m_error_code= 0;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
@@ -1077,7 +1076,6 @@ Thd_ndb::init_open_tables()
 {
   count= 0;
   m_error= FALSE;
-  m_error_code= 0;
   my_hash_reset(&open_tables);
 }
 
@@ -1148,7 +1146,6 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure()
 {
   DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_execute_failure");
   get_thd_ndb(current_thd)->m_error= TRUE;
-  get_thd_ndb(current_thd)->m_error_code= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -1186,26 +1183,6 @@ static void set_ndb_err(THD *thd, const NdbError &err)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (thd_ndb == NULL)
     DBUG_VOID_RETURN;
-#ifdef NOT_YET
-  /*
-    Check if error code is overwritten, in this case the original
-    failure cause will be lost.  E.g. if 4350 error is given. So
-    push a warning so that it can be detected which is the root
-    error cause.
-  */
-  if (thd_ndb->m_query_id == thd->query_id &&
-      thd_ndb->m_error_code != 0 &&
-      thd_ndb->m_error_code != err.code)
-  {
-    char buf[FN_REFLEN];
-    ndb_error_string(thd_ndb->m_error_code, buf, sizeof(buf));
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-			thd_ndb->m_error_code, buf, "NDB");
-  }
-#endif
-  thd_ndb->m_query_id= thd->query_id;
-  thd_ndb->m_error_code= err.code;
   DBUG_VOID_RETURN;
 }
 
