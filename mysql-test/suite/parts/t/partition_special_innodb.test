@@ -58,8 +58,8 @@ ENGINE = InnoDB
 PARTITION BY HASH (a)
 PARTITIONS 2;
 
-connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);
-connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
 
 --connection con1
 SET autocommit=OFF;
