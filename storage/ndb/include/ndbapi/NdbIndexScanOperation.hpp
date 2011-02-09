@@ -376,7 +376,7 @@ NdbIndexScanOperation::setBound(Uint32 anAttrId, int type, const void* value,
   return setBound(anAttrId, type, value);
 }
 
-/** 
+/**
  *   Compare keys of  the current records of two NdbReceiver objects.
  * @param r1 holds the first record to compare.
  * @param r2 holds the second record to compare.

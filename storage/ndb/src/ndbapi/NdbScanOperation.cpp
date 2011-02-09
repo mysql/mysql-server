@@ -3692,7 +3692,7 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
   while (first < last)
   {
     Uint32 idx= (first+last)/2;
-    int res= compare_ndbrecord(receiver, 
+    int res= compare_ndbrecord(receiver,
                                m_api_receivers[idx],
                                m_key_record,
                                m_attribute_record,
