@@ -197,7 +197,7 @@ static
 ulint
 btr_rec_get_externally_stored_len(
 /*==============================*/
-	rec_t*		rec,	/*!< in: record */
+	const rec_t*	rec,	/*!< in: record */
 	const ulint*	offsets);/*!< in: array returned by rec_get_offsets() */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1886,8 +1886,8 @@ btr_cur_update_in_place(
 		NOT call it if index is secondary */
 
 		if (!dict_index_is_clust(index)
-		    || row_upd_changes_ord_field_binary(NULL, NULL,
-							index, update)) {
+		    || row_upd_changes_ord_field_binary(index, update, thr,
+							NULL, NULL)) {
 
 			/* Remove possible hash index pointer to this record */
 			btr_search_update_hash_on_delete(cursor);
@@ -3762,34 +3762,62 @@ btr_estimate_number_of_different_key_vals(
 /*================== EXTERNAL STORAGE OF BIG FIELDS ===================*/
 
 /***********************************************************//**
+Gets the offset of the pointer to the externally stored part of a field.
+@return	offset of the pointer to the externally stored part */
+static
+ulint
+btr_rec_get_field_ref_offs(
+/*=======================*/
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint		n)	/*!< in: index of the external field */
+{
+	ulint	field_ref_offs;
+	ulint	local_len;
+
+	ut_a(rec_offs_nth_extern(offsets, n));
+	field_ref_offs = rec_get_nth_field_offs(offsets, n, &local_len);
+	ut_a(local_len != UNIV_SQL_NULL);
+	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+	return(field_ref_offs + local_len - BTR_EXTERN_FIELD_REF_SIZE);
+}
+
+/** Gets a pointer to the externally stored part of a field.
+@param rec	record
+@param offsets	rec_get_offsets(rec)
+@param n	index of the externally stored field
+@return pointer to the externally stored part */
+#define btr_rec_get_field_ref(rec, offsets, n)			\
+	((rec) + btr_rec_get_field_ref_offs(offsets, n))
+
+/***********************************************************//**
 Gets the externally stored size of a record, in units of a database page.
 @return	externally stored part, in units of a database page */
 static
 ulint
 btr_rec_get_externally_stored_len(
 /*==============================*/
-	rec_t*		rec,	/*!< in: record */
+	const rec_t*	rec,	/*!< in: record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ulint	n_fields;
-	byte*	data;
-	ulint	local_len;
-	ulint	extern_len;
 	ulint	total_extern_len = 0;
 	ulint	i;
 
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
+
+	if (!rec_offs_any_extern(offsets)) {
+		return(0);
+	}
+
 	n_fields = rec_offs_n_fields(offsets);
 
 	for (i = 0; i < n_fields; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
 
-			data = rec_get_nth_field(rec, offsets, i, &local_len);
-
-			local_len -= BTR_EXTERN_FIELD_REF_SIZE;
-
-			extern_len = mach_read_from_4(data + local_len
-						      + BTR_EXTERN_LEN + 4);
+			ulint	extern_len = mach_read_from_4(
+				btr_rec_get_field_ref(rec, offsets, i)
+				+ BTR_EXTERN_LEN + 4);
 
 			total_extern_len += ut_calc_align(extern_len,
 							  UNIV_PAGE_SIZE);
@@ -3819,7 +3847,7 @@ btr_cur_set_ownership_of_extern_field(
 	ulint	byte_val;
 
 	data = rec_get_nth_field(rec, offsets, i, &local_len);
-
+	ut_ad(rec_offs_nth_extern(offsets, i));
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
 	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -3829,6 +3857,9 @@ btr_cur_set_ownership_of_extern_field(
 	if (val) {
 		byte_val = byte_val & (~BTR_EXTERN_OWNER_FLAG);
 	} else {
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		ut_a(!(byte_val & BTR_EXTERN_OWNER_FLAG));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 		byte_val = byte_val | BTR_EXTERN_OWNER_FLAG;
 	}
 
@@ -4067,8 +4098,8 @@ file segment of the index tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 ulint
-btr_store_big_rec_extern_fields(
-/*============================*/
+btr_store_big_rec_extern_fields_func(
+/*=================================*/
 	dict_index_t*	index,		/*!< in: index of rec; the index tree
 					MUST be X-latched */
 	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
@@ -4077,11 +4108,17 @@ btr_store_big_rec_extern_fields(
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
-	big_rec_t*	big_rec_vec,	/*!< in: vector containing fields
+#ifdef UNIV_DEBUG
+	mtr_t*		local_mtr,	/*!< in: mtr containing the
+					latch to rec and to the tree */
+#endif /* UNIV_DEBUG */
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ibool		update_in_place,/*! in: TRUE if the record is updated
+					in place (not delete+insert) */
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
+	const big_rec_t*big_rec_vec)	/*!< in: vector containing fields
 					to be stored externally */
-	mtr_t*		local_mtr __attribute__((unused))) /*!< in: mtr
-					containing the latch to rec and to the
-					tree */
+
 {
 	ulint	rec_page_no;
 	byte*	field_ref;
@@ -4099,6 +4136,7 @@ btr_store_big_rec_extern_fields(
 	z_stream c_stream;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(rec_offs_any_extern(offsets));
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(local_mtr, rec_block, MTR_MEMO_PAGE_X_FIX));
@@ -4130,21 +4168,37 @@ btr_store_big_rec_extern_fields(
 		ut_a(err == Z_OK);
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	/* All pointers to externally stored columns in the record
+	must either be zero or they must be pointers to inherited
+	columns, owned by this record or an earlier record version. */
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		if (!rec_offs_nth_extern(offsets, i)) {
+			continue;
+		}
+		field_ref = btr_rec_get_field_ref(rec, offsets, i);
+
+		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
+		/* Either this must be an update in place,
+		or the BLOB must be inherited, or the BLOB pointer
+		must be zero (will be written in this function). */
+		ut_a(update_in_place
+		     || (field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_INHERITED_FLAG)
+		     || !memcmp(field_ref, field_ref_zero,
+				BTR_EXTERN_FIELD_REF_SIZE));
+	}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	/* We have to create a file segment to the tablespace
 	for each field and put the pointer to the field in rec */
 
 	for (i = 0; i < big_rec_vec->n_fields; i++) {
-		ut_ad(rec_offs_nth_extern(offsets,
-					  big_rec_vec->fields[i].field_no));
-		{
-			ulint	local_len;
-			field_ref = rec_get_nth_field(
-				rec, offsets, big_rec_vec->fields[i].field_no,
-				&local_len);
-			ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
-			local_len -= BTR_EXTERN_FIELD_REF_SIZE;
-			field_ref += local_len;
-		}
+		field_ref = btr_rec_get_field_ref(
+			rec, offsets, big_rec_vec->fields[i].field_no);
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+		/* A zero BLOB pointer should have been initially inserted. */
+		ut_a(!memcmp(field_ref, field_ref_zero,
+			     BTR_EXTERN_FIELD_REF_SIZE));
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 		extern_len = big_rec_vec->fields[i].len;
 		UNIV_MEM_ASSERT_RW(big_rec_vec->fields[i].data,
 				   extern_len);
@@ -4426,6 +4480,23 @@ next_zip_page:
 		mem_heap_free(heap);
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	/* All pointers to externally stored columns in the record
+	must be valid. */
+	for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+		if (!rec_offs_nth_extern(offsets, i)) {
+			continue;
+		}
+
+		field_ref = btr_rec_get_field_ref(rec, offsets, i);
+
+		/* The pointer must not be zero. */
+		ut_a(0 != memcmp(field_ref, field_ref_zero,
+				 BTR_EXTERN_FIELD_REF_SIZE));
+		/* The column must not be disowned by this record. */
+		ut_a(!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG));
+	}
+#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 	return(DB_SUCCESS);
 }
 
@@ -4448,6 +4519,7 @@ btr_check_blob_fil_page_type(
 	if (UNIV_UNLIKELY(type != FIL_PAGE_TYPE_BLOB)) {
 		ulint	flags = fil_space_get_flags(space_id);
 
+#ifndef UNIV_DEBUG /* Improve debug test coverage */
 		if (UNIV_LIKELY
 		    ((flags & DICT_TF_FORMAT_MASK) == DICT_TF_FORMAT_51)) {
 			/* Old versions of InnoDB did not initialize
@@ -4456,6 +4528,7 @@ btr_check_blob_fil_page_type(
 			a BLOB page that is in Antelope format.*/
 			return;
 		}
+#endif /* !UNIV_DEBUG */
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -4505,23 +4578,13 @@ btr_free_externally_stored_field(
 	ulint		page_no;
 	ulint		next_page_no;
 	mtr_t		mtr;
-#ifdef UNIV_DEBUG
+
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(local_mtr, field_ref,
 				     MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
-
-	if (rec) {
-		ulint	local_len;
-		const byte*	f = rec_get_nth_field(rec, offsets,
-						      i, &local_len);
-		ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
-		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
-		f += local_len;
-		ut_ad(f == field_ref);
-	}
-#endif /* UNIV_DEBUG */
+	ut_ad(!rec || field_ref == btr_rec_get_field_ref(rec, offsets, i));
 
 	if (UNIV_UNLIKELY(!memcmp(field_ref, field_ref_zero,
 				  BTR_EXTERN_FIELD_REF_SIZE))) {
@@ -4684,13 +4747,8 @@ btr_rec_free_externally_stored_fields(
 
 	for (i = 0; i < n_fields; i++) {
 		if (rec_offs_nth_extern(offsets, i)) {
-			ulint	len;
-			byte*	data
-				= rec_get_nth_field(rec, offsets, i, &len);
-			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
-
 			btr_free_externally_stored_field(
-				index, data + len - BTR_EXTERN_FIELD_REF_SIZE,
+				index, btr_rec_get_field_ref(rec, offsets, i),
 				rec, offsets, page_zip, i, rb_ctx, mtr);
 		}
 	}

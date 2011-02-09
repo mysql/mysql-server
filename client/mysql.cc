@@ -1127,6 +1127,8 @@ int main(int argc,char *argv[])
   if (status.batch && !status.line_buff &&
       !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
+    put_info("Can't initialize batch_readline - may be the input source is "
+             "a directory or a block device.", INFO_ERROR, 0);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);

@@ -2122,7 +2122,7 @@ function_exit:
 
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(&cursor),
-			rec, offsets, big_rec, &mtr);
+			rec, offsets, &mtr, FALSE, big_rec);
 
 		if (modify) {
 			dtuple_big_rec_free(big_rec);

@@ -835,3 +835,45 @@
    fun:lf_hash_search
 }
 
+{
+   Bug 59874 Valgrind warning in InnoDB compression code
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:btr_store_big_rec_extern_fields_func
+   fun:row_ins_index_entry_low
+   fun:row_ins_index_entry
+   fun:row_ins_index_entry_step
+   fun:row_ins
+   fun:row_ins_step
+   fun:row_insert_for_mysql
+}
+
+{
+   In page0zip.c we have already checked that the memory is initialized before calling deflate()
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:page_zip_compress
+}
+
+{
+   In page0zip.c we have already checked that the memory is initialized before calling deflate()
+   Memcheck:Cond
+   fun:*
+   fun:*
+   fun:deflate
+   fun:page_zip_compress_deflate
+}
+
+{
+   Bug 59875 Valgrind warning in buf0buddy.c
+   Memcheck:Addr1
+   fun:mach_read_from_4
+   fun:buf_buddy_relocate
+   fun:buf_buddy_free_low
+   fun:buf_buddy_free
+   fun:buf_LRU_block_remove_hashed_page
+}

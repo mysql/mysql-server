@@ -865,9 +865,9 @@ buf_block_init(
 
 	block->modify_clock = 0;
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	block->page.file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
@@ -2229,7 +2229,7 @@ buf_page_peek_if_search_hashed(
 	return(is_hashed);
 }
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -2252,6 +2252,8 @@ buf_page_set_file_page_was_freed(
 
 	if (bpage) {
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
+		/* bpage->file_page_was_freed can already hold
+		when this code is invoked from dict_drop_index_tree() */
 		bpage->file_page_was_freed = TRUE;
 	}
 
@@ -2289,7 +2291,7 @@ buf_page_reset_file_page_was_freed(
 
 	return(bpage);
 }
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 /********************************************************************//**
 Get read access to a compressed page (usually of type
@@ -2390,7 +2392,7 @@ got_block:
 
 	buf_page_set_accessed_make_young(bpage, access_time);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(!bpage->file_page_was_freed);
 #endif
 
@@ -3058,7 +3060,7 @@ wait_until_unfixed:
 
 	buf_page_set_accessed_make_young(&block->page, access_time);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(!block->page.file_page_was_freed);
 #endif
 
@@ -3217,7 +3219,7 @@ buf_page_optimistic_get(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 	if (UNIV_UNLIKELY(!access_time)) {
@@ -3329,7 +3331,7 @@ buf_page_get_known_nowait(
 	ut_a(block->page.buf_fix_count > 0);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
 #endif
 
@@ -3415,9 +3417,9 @@ buf_page_try_get_func(
 	ut_a(block->page.buf_fix_count > 0);
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(block->page.file_page_was_freed == FALSE);
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 	buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
 	buf_pool->stat.n_page_gets++;
@@ -3446,9 +3448,9 @@ buf_page_init_low(
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	bpage->file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 }
 
 /********************************************************************//**
@@ -3807,9 +3809,9 @@ buf_page_create(
 #ifdef UNIV_IBUF_COUNT_DEBUG
 		ut_a(ibuf_count_get(space, offset) == 0);
 #endif
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 		block->page.file_page_was_freed = FALSE;
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 		/* Page can be found in buf_pool */
 		buf_pool_mutex_exit(buf_pool);

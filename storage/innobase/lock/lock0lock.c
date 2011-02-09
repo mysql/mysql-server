@@ -3622,6 +3622,80 @@ lock_table_create(
 }
 
 /*************************************************************//**
+Pops autoinc lock requests from the transaction's autoinc_locks. We
+handle the case where there are gaps in the array and they need to
+be popped off the stack. */
+UNIV_INLINE
+void
+lock_table_pop_autoinc_locks(
+/*=========================*/
+	trx_t*	trx)	/*!< in/out: transaction that owns the AUTOINC locks */
+{
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(!ib_vector_is_empty(trx->autoinc_locks));
+
+	/* Skip any gaps, gaps are NULL lock entries in the
+	trx->autoinc_locks vector. */
+
+	do {
+		ib_vector_pop(trx->autoinc_locks);
+
+		if (ib_vector_is_empty(trx->autoinc_locks)) {
+			return;
+		}
+
+	} while (ib_vector_get_last(trx->autoinc_locks) == NULL);
+}
+
+/*************************************************************//**
+Removes an autoinc lock request from the transaction's autoinc_locks. */
+UNIV_INLINE
+void
+lock_table_remove_autoinc_lock(
+/*===========================*/
+	lock_t*	lock,	/*!< in: table lock */
+	trx_t*	trx)	/*!< in/out: transaction that owns the lock */
+{
+	lock_t*	autoinc_lock;
+	lint	i = ib_vector_size(trx->autoinc_locks) - 1;
+
+	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(lock_get_mode(lock) == LOCK_AUTO_INC);
+	ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+	ut_ad(!ib_vector_is_empty(trx->autoinc_locks));
+
+	/* With stored functions and procedures the user may drop
+	a table within the same "statement". This special case has
+	to be handled by deleting only those AUTOINC locks that were
+	held by the table being dropped. */
+
+	autoinc_lock = ib_vector_get(trx->autoinc_locks, i);
+
+	/* This is the default fast case. */
+
+	if (autoinc_lock == lock) {
+		lock_table_pop_autoinc_locks(trx);
+	} else {
+		/* The last element should never be NULL */
+		ut_a(autoinc_lock != NULL);
+
+		/* Handle freeing the locks from within the stack. */
+
+		while (--i >= 0) {
+			autoinc_lock = ib_vector_get(trx->autoinc_locks, i);
+
+			if (UNIV_LIKELY(autoinc_lock == lock)) {
+				ib_vector_set(trx->autoinc_locks, i, NULL);
+				return;
+			}
+		}
+
+		/* Must find the autoinc lock. */
+		ut_error;
+	}
+}
+
+/*************************************************************//**
 Removes a table lock request from the queue and the trx list of locks;
 this is a low-level function which does NOT check if waiting requests
 can now be granted. */
@@ -3660,10 +3734,8 @@ lock_table_remove_low(
 
 		if (!lock_get_wait(lock)
 		    && !ib_vector_is_empty(trx->autoinc_locks)) {
-			lock_t*	autoinc_lock;
 
-			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
-			ut_a(autoinc_lock == lock);
+			lock_table_remove_autoinc_lock(lock, trx);
 		}
 
 		ut_a(table->n_waiting_or_granted_auto_inc_locks > 0);
