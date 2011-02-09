@@ -1,2 +1,0 @@
-perl mysql-test-run.pl --force --timer --parallel=auto --comment=ps  --skip-ndbcluster --ps-protocol --report-features --experimental=collections/default.experimental
-perl mysql-test-run.pl --force --timer --parallel=auto --comment=stress --suite=stress --experimental=collections/default.experimental
