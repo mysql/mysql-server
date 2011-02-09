@@ -1323,7 +1323,10 @@ ulint
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
-	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
+	mem_heap_t*	heap,	/*!< in: memory heap for temporary storage */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when
+				loading the index definition */
 {
 	dict_table_t*	sys_indexes;
 	dict_index_t*	sys_index;
@@ -1406,10 +1409,22 @@ dict_load_indexes(
 				"InnoDB: but the index tree has been freed!\n",
 				index->name, table->name);
 
+			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
+				/* If caller can tolerate this error,
+				we will continue to load the index and
+				let caller deal with this error. However
+				mark the index and table corrupted */
+				index->corrupted = TRUE;
+				table->corrupted = TRUE;
+				fprintf(stderr,
+					"InnoDB: Index is corrupt but forcing"
+					" load into data dictionary\n");
+			} else {
 corrupted:
-			dict_mem_index_free(index);
-			error = DB_CORRUPTION;
-			goto func_exit;
+				dict_mem_index_free(index);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
@@ -1618,7 +1633,10 @@ dict_load_table(
 /*============*/
 	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
-	ibool		cached)	/*!< in: TRUE=add to cache, FALSE=do not */
+	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when loading
+				table and its indexes' definition */
 {
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
@@ -1733,7 +1751,7 @@ err_exit:
 
 	mem_heap_empty(heap);
 
-	err = dict_load_indexes(table, heap);
+	err = dict_load_indexes(table, heap, ignore_err);
 
 	/* Initialize table foreign_child value. Its value could be
 	changed when dict_load_foreigns() is called below */
@@ -1869,7 +1887,7 @@ dict_load_table_on_id(
 	field = rec_get_nth_field_old(rec, 1, &len);
 	/* Load the table definition to memory */
 	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
-				TRUE);
+				TRUE, DICT_ERR_IGNORE_NONE);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1894,7 +1912,7 @@ dict_load_sys_table(
 
 	heap = mem_heap_create(1000);
 
-	dict_load_indexes(table, heap);
+	dict_load_indexes(table, heap, DICT_ERR_IGNORE_NONE);
 
 	mem_heap_free(heap);
 }
