@@ -3435,9 +3435,9 @@ fseg_free_page(
 
 	fseg_free_page_low(seg_inode, space, zip_size, page, mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_set_file_page_was_freed(space, page);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 }
 
 /**********************************************************************//**
@@ -3503,13 +3503,13 @@ fseg_free_extent(
 
 	fsp_free_extent(space, zip_size, page, mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	for (i = 0; i < FSP_EXTENT_SIZE; i++) {
 
 		buf_page_set_file_page_was_freed(space,
 						 first_page_in_extent + i);
 	}
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 }
 
 /**********************************************************************//**
