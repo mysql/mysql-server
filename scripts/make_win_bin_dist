@@ -187,8 +187,8 @@ cp ChangeLog              $DESTDIR/Docs/ || /bin/true
 cp support-files/my-*.ini $DESTDIR/
 
 if [ -f COPYING ] ; then
-  cp COPYING EXCEPTIONS-CLIENT $DESTDIR/
-  cp COPYING                   $DESTDIR/Docs/
+  cp COPYING $DESTDIR/
+  cp COPYING $DESTDIR/Docs/
 fi
 
 # ----------------------------------------------------------------------
