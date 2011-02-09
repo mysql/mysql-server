@@ -1,1 +1,0 @@
-perl mysql-test-run.pl --force --timer --parallel=auto --comment=debug --skip-ndbcluster --skip-rpl --report-features --experimental=collections/default.experimental
