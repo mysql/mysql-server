@@ -55,6 +55,10 @@ public:
                         const char* create_definiton,
                         const char* create_options);
 
+  /* Don't use this function for new implementation, backward compat. only */
+  bool raw_run_query(const char* query, size_t query_length,
+                     const int* suppress_errors);
+
 private:
   bool execute_query(MYSQL_LEX_STRING sql_text,
                      const uint* ignore_mysql_errors,
