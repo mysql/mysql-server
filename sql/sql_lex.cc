@@ -305,7 +305,7 @@ void lex_start(THD *thd)
   lex->select_lex.group_list.empty();
   lex->describe= 0;
   lex->subqueries= FALSE;
-  lex->view_prepare_mode= FALSE;
+  lex->context_analysis_only= 0;
   lex->derived_tables= 0;
   lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;
