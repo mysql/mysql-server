@@ -140,7 +140,9 @@ struct PFS_engine_table_share
   void check_one_table(THD *thd);
   static void init_all_locks(void);
   static void delete_all_locks(void);
+  /** Get the row count. */
   ha_rows get_row_count(void) const;
+  /** Write a row. */
   int write_row(TABLE *table, unsigned char *buf, Field **fields) const;
 
   /** Table name. */
@@ -172,6 +174,10 @@ struct PFS_engine_table_share
   bool m_checked;
 };
 
+/**
+  Privileges for read only tables.
+  The only operation allowed is SELECT.
+*/
 class PFS_readonly_acl : public ACL_internal_table_access
 {
 public:
@@ -184,8 +190,13 @@ public:
   ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 };
 
+/** Singleton instance of PFS_readonly_acl. */
 extern PFS_readonly_acl pfs_readonly_acl;
 
+/**
+  Privileges for truncatable tables.
+  Operations allowed are SELECT and TRUNCATE.
+*/
 class PFS_truncatable_acl : public ACL_internal_table_access
 {
 public:
@@ -198,8 +209,13 @@ public:
   ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 };
 
+/** Singleton instance of PFS_truncatable_acl. */
 extern PFS_truncatable_acl pfs_truncatable_acl;
 
+/**
+  Privileges for updatable tables.
+  Operations allowed are SELECT and UPDATE.
+*/
 class PFS_updatable_acl : public ACL_internal_table_access
 {
 public:
@@ -212,8 +228,13 @@ public:
   ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 };
 
+/** Singleton instance of PFS_updatable_acl. */
 extern PFS_updatable_acl pfs_updatable_acl;
 
+/**
+  Privileges for editable tables.
+  Operations allowed are SELECT, INSERT, UPDATE, DELETE and TRUNCATE.
+*/
 class PFS_editable_acl : public ACL_internal_table_access
 {
 public:
@@ -226,8 +247,12 @@ public:
   ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 };
 
+/** Singleton instance of PFS_editable_acl. */
 extern PFS_editable_acl pfs_editable_acl;
 
+/**
+  Privileges for unknown tables.
+*/
 class PFS_unknown_acl : public ACL_internal_table_access
 {
 public:
@@ -240,6 +265,7 @@ public:
   ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 };
 
+/** Singleton instance of PFS_unknown_acl. */
 extern PFS_unknown_acl pfs_unknown_acl;
 
 /** Position of a cursor, for simple iterations. */
@@ -262,6 +288,7 @@ struct PFS_simple_index
   { m_index++; }
 };
 
+/** Position of a double cursor, for iterations using 2 nested loops. */
 struct PFS_double_index
 {
   /** Outer index. */
@@ -286,6 +313,7 @@ struct PFS_double_index
   }
 };
 
+/** Position of a triple cursor, for iterations using 3 nested loops. */
 struct PFS_triple_index
 {
   /** Outer index. */
