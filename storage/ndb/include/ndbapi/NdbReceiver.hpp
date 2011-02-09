@@ -22,24 +22,40 @@
 
 #include <ndb_types.h>
 
+
 class Ndb;
+class NdbImpl;
 class NdbTransaction;
 class NdbRecord;
+class NdbQueryOperationImpl;
 
 class NdbReceiver
 {
   friend class Ndb;
   friend class NdbOperation;
+  friend class NdbQueryImpl;
+  friend class NdbQueryOperationImpl;
+  friend class NdbResultStream;
   friend class NdbScanOperation;
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
+  friend class NdbRootFragment;
+  friend class ReceiverIdIterator;
+  friend int compare_ndbrecord(const NdbReceiver *r1,
+                      const NdbReceiver *r2,
+                      const NdbRecord *key_record,
+                      const NdbRecord *result_record,
+                      bool descending,
+                      bool read_range_no);
+  friend int spjTest(int argc, char** argv);
 
 public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
 			  NDB_OPERATION = 1,
 			  NDB_SCANRECEIVER = 2,
-			  NDB_INDEX_OPERATION = 3
+			  NDB_INDEX_OPERATION = 3,
+                          NDB_QUERY_OPERATION = 4
   };
   
   NdbReceiver(Ndb *aNdb);
@@ -47,16 +63,16 @@ public:
   void release();
   ~NdbReceiver();
   
-  Uint32 getId(){
+  Uint32 getId() const{
     return m_id;
   }
 
-  ReceiverType getType(){
+  ReceiverType getType() const {
     return m_type;
   }
   
-  inline NdbTransaction * getTransaction();
-  void* getOwner(){
+  inline NdbTransaction * getTransaction() const;
+  void* getOwner() const {
     return m_owner;
   }
   
@@ -82,8 +98,20 @@ private:
   class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
   void getValues(const NdbRecord*, char*);
   void prepareSend();
-  void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&,
-                            const NdbRecord *);
+
+  static
+  void calculate_batch_size(const NdbImpl&,
+                            const NdbRecord *,
+                            const NdbRecAttr *first_rec_attr,
+                            Uint32, Uint32, Uint32&, Uint32&, Uint32&);
+
+  void calculate_batch_size(Uint32 key_size,
+                            Uint32 parallelism,
+                            Uint32& batch_size,
+                            Uint32& batch_byte_size,
+                            Uint32& first_batch_size,
+                            const NdbRecord *rec) const;
+
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals
     during a scan using NdbRecord.
@@ -91,8 +119,13 @@ private:
   void do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                           Uint32 key_size, Uint32 read_range_no,
                           Uint32 rowsize, char *buf, Uint32 column_count);
-  Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record, Uint32 key_size,
-                           Uint32 read_range_no, Uint32 extra_size);
+
+  static
+  Uint32 ndbrecord_rowsize(const NdbRecord *ndb_record,
+                           const NdbRecAttr *first_rec_attr,
+                           Uint32 key_size,
+                           bool   read_range_no);
+
 
   int execKEYINFO20(Uint32 info, const Uint32* ptr, Uint32 len);
   int execTRANSID_AI(const Uint32* ptr, Uint32 len); 
@@ -166,8 +199,8 @@ private:
   Uint32 m_current_row;
   /* m_result_rows: Total number of rows contained in this batch. */
   Uint32 m_result_rows;
-  /* m_defined_rows: One less that the allocated length of the m_rows array. */
-  Uint32 m_defined_rows;
+
+  Uint32 m__UNUSED;
 
   /*
     m_expected_result_length: Total number of 32-bit words of TRANSID_AI and
@@ -176,7 +209,8 @@ private:
    */
   Uint32 m_expected_result_length;
   Uint32 m_received_result_length;
-  
+
+  bool hasResults() const { return m_result_rows > 0; }
   bool nextResult() const { return m_current_row < m_result_rows; }
   NdbRecAttr* copyout(NdbReceiver&);
   Uint32 receive_packed_recattr(NdbRecAttr**, Uint32 bmlen, 
@@ -199,6 +233,10 @@ private:
   int get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
                     const char * & data_ptr) const;
   int getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const;
+  /** Used by NdbQueryOperationImpl, where random access to rows is needed.*/
+  void setCurrentRow(Uint32 currentRow);
+  /** Used by NdbQueryOperationImpl.*/
+  Uint32 getCurrentRow() const { return m_current_row; }
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
@@ -223,11 +261,12 @@ NdbReceiver::prepareSend(){
   /* Set pointers etc. to prepare for receiving the first row of the batch. */
   theMagicNumber = 0x11223344;
   m_current_row = 0;
+  m_result_rows = 0;
   m_received_result_length = 0;
   m_expected_result_length = 0;
   if (m_using_ndb_record)
   {
-    if (m_type==NDB_SCANRECEIVER)
+    if (m_type==NDB_SCANRECEIVER || m_type==NDB_QUERY_OPERATION)
       m_record.m_row= m_record.m_row_buffer;
   }
   theCurrentRecAttr = theFirstRecAttr;
@@ -255,10 +294,20 @@ NdbReceiver::execSCANOPCONF(Uint32 tcPtrI, Uint32 len, Uint32 rows){
 }
 
 inline
+void
+NdbReceiver::setCurrentRow(Uint32 currentRow)
+{
+  m_current_row = currentRow;
+}
+
+inline
 const char *
 NdbReceiver::get_row()
 {
-  return m_record.m_row_buffer + m_current_row++ * m_record.m_row_offset;
+#ifdef assert
+  assert(m_current_row < m_result_rows);
+#endif
+  return m_record.m_row_buffer + (m_current_row++ * m_record.m_row_offset);
 }
 
 inline
