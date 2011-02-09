@@ -199,8 +199,8 @@ private:
   Uint32 m_current_row;
   /* m_result_rows: Total number of rows contained in this batch. */
   Uint32 m_result_rows;
-  /* m_defined_rows: One less that the allocated length of the m_rows array. */
-//Uint32 m_defined_rows; - UNUSED
+
+  Uint32 m__UNUSED;
 
   /*
     m_expected_result_length: Total number of 32-bit words of TRANSID_AI and

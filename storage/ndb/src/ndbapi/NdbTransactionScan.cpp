@@ -103,7 +103,7 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
       return 1; // -> Finished
     }
 
-    int scanStatus = 0;
+    int retVal = -1;
     Uint32 words_per_op = theScanningOp ? 3 : 4;
     for(Uint32 i = 0; i<len; i += words_per_op)
     {
@@ -122,7 +122,7 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
         opCount = * ops++;
         totalLen = * ops++;
       }
-      
+
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
@@ -135,21 +135,24 @@ NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
           assert (&queryOp->getQuery() == m_scanningQuery);
 
           if (queryOp->execSCAN_TABCONF(tcPtrI, opCount, totalLen, tOp))
-            scanStatus = 1; // We have result data, wakeup receiver
+            retVal = 0; // We have result data, wakeup receiver
         }
         else
         {
           if (tcPtrI == RNIL && opCount == 0)
+          {
             theScanningOp->receiver_completed(tOp);
+            retVal = 0;
+          }
           else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
+          {
             theScanningOp->receiver_delivered(tOp);
-
-          // Plain Old scans always wakeup after SCAN_TABCONF
-          scanStatus = 1;
+            retVal = 0;
+          }
         }
       }
     } //for
-    return scanStatus;
+    return retVal;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();

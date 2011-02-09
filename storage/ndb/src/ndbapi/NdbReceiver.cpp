@@ -33,7 +33,6 @@ NdbReceiver::NdbReceiver(Ndb *aNdb) :
   m_rows(NULL),
   m_current_row(0xffffffff),
   m_result_rows(0)
-//m_defined_rows(0),
 {}
  
 NdbReceiver::~NdbReceiver()
@@ -253,7 +252,8 @@ NdbReceiver::ndbrecord_rowsize(const NdbRecord *ndb_record,
   */
   const NdbRecAttr *ra= first_rec_attr;
   while (ra != NULL)
-  { rowsize+= sizeof(Uint32) + ra->getColumn()->getSizeInBytes();
+  {
+    rowsize+= sizeof(Uint32) + ra->getColumn()->getSizeInBytes();
     ra= ra->next();
   }
   /* Ensure 4-byte alignment. */
@@ -667,7 +667,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   Uint32 save_pos= 0;
 
   bool ndbrecord_part_done= !m_using_ndb_record;
-  const bool isScan= (m_type == NDB_SCANRECEIVER) || 
+  const bool isScan= (m_type == NDB_SCANRECEIVER) ||
     (m_type == NDB_QUERY_OPERATION);
 
   /* Read words from the incoming signal train.
@@ -885,10 +885,13 @@ void
 NdbReceiver::setErrorCode(int code)
 {
   theMagicNumber = 0;
-  if(getType()==NDB_QUERY_OPERATION){
+  if (getType()==NDB_QUERY_OPERATION)
+  {
     NdbQueryOperationImpl* op = (NdbQueryOperationImpl*)getOwner();
     op->getQuery().setErrorCode(code);
-  }else{
+  }
+  else
+  {
     NdbOperation* const op = (NdbOperation*)getOwner();
     assert(op->checkMagicNumber()==0);
     op->setErrorCode(code);
