@@ -530,7 +530,7 @@ buf_read_ibuf_merge_pages(
 		buf_pool_t*	buf_pool;
 		ulint		zip_size = fil_space_get_zip_size(space_ids[i]);
 
-		buf_pool = buf_pool_get(space_ids[i], space_versions[i]);
+		buf_pool = buf_pool_get(space_ids[i], page_nos[i]);
 
 		while (buf_pool->n_pend_reads
 		       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
