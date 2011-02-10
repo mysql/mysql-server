@@ -73,12 +73,14 @@ private:
   uint m_open_test_lock;                // Open test_if_locked
   char *m_file_buffer;                  // Buffer with names
   char *m_name_buffer_ptr;		// Pointer to first partition name
+  MEM_ROOT m_mem_root;
   plugin_ref *m_engine_array;           // Array of types of the handlers
   handler **m_file;                     // Array of references to handler inst.
   uint m_file_tot_parts;                // Debug
   handler **m_new_file;                 // Array of references to new handlers
   handler **m_reorged_file;             // Reorganised partitions
   handler **m_added_file;               // Added parts kept for errors
+  LEX_STRING *m_connect_string;
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan

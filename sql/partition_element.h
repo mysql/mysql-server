@@ -65,6 +65,7 @@ public:
   char* data_file_name;
   char* index_file_name;
   handlerton *engine_type;
+  LEX_STRING connect_string;
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
