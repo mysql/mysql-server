@@ -41,7 +41,8 @@ static const char *set_collation_name, *opt_tmpdir, *opt_log_dir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
-static my_bool opt_transaction_logging, opt_debug, opt_require_control_file;
+static my_bool opt_transaction_logging, opt_debug;
+static my_bool opt_ignore_control_file, opt_require_control_file;
 static my_bool opt_warning_for_wrong_transid, opt_update_state;
 
 static const char *type_names[]=
@@ -115,10 +116,11 @@ int main(int argc, char **argv)
   maria_init();
 
   maria_block_size= 0;                 /* Use block size from control file */
-  if (ma_control_file_open(FALSE, opt_require_control_file ||
-                           !(check_param.testflag & T_SILENT)) &&
-      (opt_require_control_file ||
-       (opt_transaction_logging && (check_param.testflag & T_REP_ANY))))
+  if (!opt_ignore_control_file &&
+      (ma_control_file_open(FALSE, opt_require_control_file ||
+                            !(check_param.testflag & T_SILENT)) &&
+       (opt_require_control_file ||
+        (opt_transaction_logging && (check_param.testflag & T_REP_ANY)))))
   {
     error= 1;
     goto end;
@@ -203,7 +205,8 @@ enum options_mc {
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
-  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
+  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN,
+  OPT_REQUIRE_CONTROL_FILE, OPT_IGNORE_CONTROL_FILE,
   OPT_LOG_DIR, OPT_DATADIR, OPT_WARNING_FOR_WRONG_TRANSID
 };
 
@@ -265,6 +268,10 @@ static struct my_option my_long_options[] =
   {"information", 'i',
    "Print statistics information about table that is checked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "ignore-control-file", OPT_IGNORE_CONTROL_FILE,
+    "Ignore the control file",
+    (uchar**)&opt_ignore_control_file, 0, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
    "Tell MARIA to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
    &check_param.keys_in_use,
@@ -452,6 +459,9 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   --datadir=path      Path for control file (and logs if --logdir not used)\n\
   --logdir=path       Path for log files\n\
+  --ignore-control-file  Don't open the control file. Only use this if you\n\
+                         are sure the tables are not in use by another\n\
+                         program!\n\
   --require-control-file  Abort if we can't find/read the maria_log_control\n\
                           file\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
@@ -493,7 +503,7 @@ static void usage(void)
  		      rid of warnings like 'table not properly closed'. If\n\
 		      table was updated, update also the timestamp for when\n\
  		      the check was made. This option is on by default!\n\
-		      use --skip-update-state to disable.\n\
+		      Use --skip-update-state to disable.\n\
   --warning-for-wrong-transaction-id\n\
    Give a warning if we find a transaction id in the table that is bigger\n\
    than what exists in the control file. Use --skip-... to disable warning\n\

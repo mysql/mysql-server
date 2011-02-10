@@ -254,8 +254,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 
       if (!share->changed)
       {
-	share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
 	share->changed= 1;			/* Update on close */
+	share->state.changed|= STATE_CHANGED | STATE_NOT_ANALYZED;
 	if (!share->global_changed)
 	{
 	  share->global_changed= 1;
@@ -291,10 +291,9 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (!error && share->changed)
     {
       pthread_mutex_lock(&share->intern_lock);
-      if (!(error= _ma_state_info_write(share,
-                                        MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET|
-                                        MA_STATE_INFO_WRITE_FULL_INFO)))
-        share->changed= 0;
+      error= _ma_state_info_write(share,
+                                  MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET|
+                                  MA_STATE_INFO_WRITE_FULL_INFO);
       pthread_mutex_unlock(&share->intern_lock);
     }
     pthread_mutex_lock(&THR_LOCK_maria);
@@ -311,11 +310,14 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     share->deleting= TRUE;
     share->global_changed= FALSE;     /* force writing changed flag */
     /* To force repair if reopened */
-    _ma_mark_file_changed(info);
+    share->state.open_count= 1;
+    share->changed= 1;
+    _ma_mark_file_changed_now(share);
     /* Fall trough */
   case HA_EXTRA_PREPARE_FOR_RENAME:
   {
     my_bool do_flush= test(function != HA_EXTRA_PREPARE_FOR_DROP);
+    my_bool save_global_changed;
     enum flush_type type;
     pthread_mutex_lock(&THR_LOCK_maria);
     /*
@@ -340,7 +342,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     */
     pthread_mutex_lock(&share->intern_lock);
     if (share->kfile.file >= 0 && function != HA_EXTRA_PREPARE_FOR_DROP)
-      _ma_decrement_open_count(info);
+      _ma_decrement_open_count(info, 0);
     if (info->trn)
     {
       _ma_remove_table_from_trnman(share, info->trn);
@@ -349,12 +351,15 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     }
 
     type= do_flush ? FLUSH_RELEASE : FLUSH_IGNORE_CHANGED;
+    save_global_changed= share->global_changed;
+    share->global_changed= 1;                 /* Don't increment open count */
     if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                               type, type))
     {
       error=my_errno;
       share->changed= 1;
     }
+    share->global_changed= save_global_changed;
     if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED))
     {
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -372,13 +377,13 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
                                   MA_STATE_INFO_WRITE_FULL_INFO)) ||
             my_sync(share->kfile.file, MYF(0)))
           error= my_errno;
-        else
-          share->changed= 0;
       }
       else
       {
         /* be sure that state is not tried for write as file may be closed */
         share->changed= 0;
+        share->global_changed= 0;
+        share->state.open_count= 0;
       }
     }
     if (share->data_file_type == BLOCK_RECORD &&
@@ -410,8 +415,8 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
     if (!share->temporary)
       error= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
                                    FLUSH_KEEP, FLUSH_KEEP);
-#ifdef HAVE_PWRITE
-    _ma_decrement_open_count(info);
+#ifdef HAVE_PREAD
+    _ma_decrement_open_count(info, 1);
 #endif
     if (share->not_flushed)
     {
@@ -601,6 +606,8 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
 {
   int error= 0;
   MARIA_SHARE *share= info->s;
+  DBUG_ENTER("_ma_flush_table_files");
+
   /* flush data file first because it's more critical */
   if (flush_data_or_index & MARIA_FLUSH_DATA)
   {
@@ -632,8 +639,8 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
                              flush_type_for_index))
     error= 1;
   if (!error)
-    return 0;
+    DBUG_RETURN(0);
 
   _ma_set_fatal_error(info->s, HA_ERR_CRASHED);
-  return 1;
+  DBUG_RETURN(1);
 }

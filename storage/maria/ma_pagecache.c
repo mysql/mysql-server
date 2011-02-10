@@ -1380,6 +1380,8 @@ static void link_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block,
   else
   {
     /* The LRU chain is empty */
+    /* QQ: Ask sanja if next line is correct; Should we really put block
+       in both chain if one chain is empty ? */
     pagecache->used_last= pagecache->used_ins= block->next_used= block;
     block->prev_used= &block->next_used;
   }
@@ -1803,6 +1805,7 @@ restart:
     link_hash(start, hash_link);
     /* Register the request for the page */
     hash_link->requests++;
+    DBUG_ASSERT(hash_link->block == 0);
   }
 
   return hash_link;
@@ -1824,7 +1827,10 @@ restart:
       wrmode              <-> get for writing
       block_is_copied     1 if block will be copied from page cache under
                           the pagelock mutex.
-      reg_req             Register request to the page
+      reg_req             Register request to the page. Normally all pages
+                          should be registered; The only time it's ok to
+                          not register a page is when the page is already
+                          pinned (and thus registered) by the same thread.
       page_st        out  {PAGE_READ,PAGE_TO_BE_READ,PAGE_WAIT_TO_BE_READ}
 
   RETURN VALUE
@@ -2028,6 +2034,7 @@ restart:
 #ifndef DBUG_OFF
         block->type= PAGECACHE_EMPTY_PAGE;
 #endif
+        DBUG_ASSERT(reg_req);
         block->requests= 1;
         block->temperature= PCBLOCK_COLD;
         block->hits_left= init_hits_left;
@@ -2068,12 +2075,17 @@ restart:
           }
           while (thread->next);
           thread->opt_info= NULL;
+          block= hash_link->block;
+          /*
+            Ensure that we are register this block (all blocks not used by this
+            thread has to be registered).
+          */
+          DBUG_ASSERT(reg_req);
         }
+        else
 #else
         KEYCACHE_DBUG_ASSERT(pagecache->used_last);
 #endif
-        block= hash_link->block;
-        if (! block)
         {
           /*
              Take the first block from the LRU chain
@@ -3455,7 +3467,10 @@ restart:
       if (make_lock_and_pin(pagecache, block,
                             lock_to_read[lock].unlock_lock,
                             unlock_pin, FALSE))
+      {
         DBUG_ASSERT(0);
+        return (uchar*) 0;
+      }
     }
     /*
       Link the block into the LRU chain if it's the last submitted request
@@ -3959,7 +3974,10 @@ restart:
 
     inc_counter_for_resize_op(pagecache);
     pagecache->global_cache_w_requests++;
-    /* See NOTE for pagecache_unlock about registering requests. */
+    /*
+      Here we register a request if the page was not already pinned.
+      See NOTE for pagecache_unlock about registering requests.
+    */
     reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                   (pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
@@ -4108,7 +4126,10 @@ restart:
     block->hash_link->requests--;
     /* See NOTE for pagecache_unlock about registering requests. */
     if (pin == PAGECACHE_PIN_LEFT_UNPINNED || pin == PAGECACHE_UNPIN)
+    {
       unreg_request(pagecache, block, 1);
+      DBUG_ASSERT(page_link == &fake_link);
+    }
     else
       *page_link= block;
 

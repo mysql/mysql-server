@@ -1306,6 +1306,7 @@ prototype_redo_exec_hook(FILE_ID)
       /* let ma_close() mark the table properly closed */
       info->s->state.open_count= 1;
       info->s->global_changed= 1;
+      info->s->changed= 1;
     }
     if (maria_close(info))
     {
@@ -3430,6 +3431,7 @@ static int close_all_tables(void)
       /* let maria_close() mark the table properly closed */
       info->s->state.open_count= 1;
       info->s->global_changed= 1;
+      info->s->changed= 1;
     }
     prepare_table_for_close(info, addr);
     error|= maria_close(info);

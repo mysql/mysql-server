@@ -1568,7 +1568,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
       /* Abort if warning was converted to error */
-      if (current_thd->is_error())
+      if (table->in_use->is_error())
         error= 1;
     }
   }
@@ -1803,7 +1803,7 @@ int ha_maria::enable_indexes(uint mode)
   }
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
-    THD *thd= current_thd;
+    THD *thd= table->in_use;
     HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
     if (!&param)
       return HA_ADMIN_INTERNAL_ERROR;
@@ -1905,7 +1905,7 @@ int ha_maria::indexes_are_disabled(void)
 void ha_maria::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_maria::start_bulk_insert");
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   ulong size= min(thd->variables.read_buff_size,
                   (ulong) (table->s->avg_row_length * rows));
   MARIA_SHARE *share= file->s;
@@ -2388,7 +2388,7 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
                                  (uchar*) thd->query(), thd->query_length());
   if (file->s->now_transactional &&
@@ -2418,8 +2418,9 @@ int ha_maria::delete_table(const char *name)
 
 void ha_maria::drop_table(const char *name)
 {
+  DBUG_ASSERT(file->s->temporary);
   (void) close();
-  (void) maria_delete_table(name);
+  (void) maria_delete_table_files(name, 0);
 }
 
 
@@ -2514,6 +2515,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       {
         DBUG_PRINT("info",
                    ("locked_tables: %u", trnman_has_locked_tables(trn)));
+        DBUG_ASSERT(trnman_has_locked_tables(trn) > 0);
         if (trnman_has_locked_tables(trn) &&
             !trnman_decrement_locked_tables(trn))
         {
@@ -2647,12 +2649,12 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
       statement assuming they have a trn (see ha_maria::start_stmt()).
     */
     trn= trnman_new_trn(& thd->transaction.wt);
-    /* This is just a commit, tables stay locked if they were: */
-    trnman_reset_locked_tables(trn, locked_tables);
     THD_TRN= trn;
     if (unlikely(trn == NULL))
+    {
       error= HA_ERR_OUT_OF_MEM;
-
+      goto end;
+    }
     /*
       Move all locked tables to the new transaction
       We must do it here as otherwise file->thd and file->state may be
@@ -2677,6 +2679,8 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
         }
       }
     }
+    /* This is just a commit, tables stay locked if they were: */
+    trnman_reset_locked_tables(trn, locked_tables);
   }
 end:
   DBUG_RETURN(error);
@@ -2813,7 +2817,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
       ha_create_info->row_type != ROW_TYPE_PAGE &&
       ha_create_info->row_type != ROW_TYPE_NOT_USED &&
       ha_create_info->row_type != ROW_TYPE_DEFAULT)
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_ILLEGAL_HA_CREATE_OPTION,
                  "Row format set to PAGE because of TRANSACTIONAL=1 option");
 

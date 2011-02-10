@@ -2017,6 +2017,7 @@ static my_bool write_tail(MARIA_HA *info,
                                PAGECACHE_WRITE_DELAY, &page_link.link,
                                LSN_IMPOSSIBLE)))
     {
+      DBUG_ASSERT(page_link.link);
       page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
       page_link.changed= 1;
       push_dynamic(&info->pinned_pages, (void*) &page_link);
@@ -3146,6 +3147,7 @@ static my_bool write_block_record(MARIA_HA *info,
                         PAGECACHE_WRITE_DELAY, &page_link.link,
                         LSN_IMPOSSIBLE))
       goto disk_err;
+    DBUG_ASSERT(page_link.link);
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link.changed= 1;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
@@ -6337,6 +6339,12 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   empty_space-= (uint) data_length;
   int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
 
+  /* Fix bitmap */
+  if (!enough_free_entries_on_page(share, buff))
+    empty_space= 0;                         /* Page is full */
+  if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
+    goto err;
+
   /*
     If page was not read before, write it but keep it pinned.
     We don't update its LSN When we have processed all REDOs for this page
@@ -6353,12 +6361,6 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                       PAGECACHE_WRITE_DELAY, &page_link.link,
                       LSN_IMPOSSIBLE))
     result= my_errno;
-
-  /* Fix bitmap */
-  if (!enough_free_entries_on_page(share, buff))
-    empty_space= 0;                         /* Page is full */
-  if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE, empty_space))
-    goto err;
 
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
   page_link.changed= 1;

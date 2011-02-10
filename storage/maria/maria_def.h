@@ -380,6 +380,11 @@ typedef struct st_maria_share
   my_bool temporary;
   /* Below flag is needed to make log tables work with concurrent insert */
   my_bool is_log_table;
+  /*
+    Set to 1 if open_count was wrong at open. Set to avoid asserts for
+    wrong open count on close.
+  */
+  my_bool open_count_not_zero_on_open;
 
   my_bool changed,			/* If changed since lock */
     global_changed,			/* If changed since open */
@@ -921,12 +926,13 @@ extern my_bool _ma_ck_real_delete(register MARIA_HA *info, MARIA_KEY *key,
 extern int _ma_readinfo(MARIA_HA *info, int lock_flag, int check_keybuffer);
 extern int _ma_writeinfo(MARIA_HA *info, uint options);
 extern int _ma_test_if_changed(MARIA_HA *info);
-extern int _ma_mark_file_changed(MARIA_HA *info);
+extern int _ma_mark_file_changed(MARIA_SHARE *info);
+extern int _ma_mark_file_changed_now(MARIA_SHARE *info);
 extern void _ma_mark_file_crashed(MARIA_SHARE *share);
 void _ma_set_fatal_error(MARIA_SHARE *share, int error);
-extern my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid);
+extern my_bool _ma_set_uuid(MARIA_SHARE *info, my_bool reset_uuid);
 extern my_bool _ma_check_if_zero(uchar *pos, size_t size);
-extern int _ma_decrement_open_count(MARIA_HA *info);
+extern int _ma_decrement_open_count(MARIA_HA *info, my_bool lock_table);
 extern int _ma_check_index(MARIA_HA *info, int inx);
 extern int _ma_search(MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
                       my_off_t pos);
@@ -1181,6 +1187,7 @@ void _ma_remap_file(MARIA_HA *info, my_off_t size);
 
 MARIA_RECORD_POS _ma_write_init_default(MARIA_HA *info, const uchar *record);
 my_bool _ma_write_abort_default(MARIA_HA *info);
+int maria_delete_table_files(const char *name, myf sync_dir);
 
 C_MODE_START
 #define MARIA_FLUSH_DATA  1

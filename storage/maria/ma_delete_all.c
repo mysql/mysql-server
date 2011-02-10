@@ -52,8 +52,6 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (_ma_readinfo(info,F_WRLCK,1))
     DBUG_RETURN(my_errno);
   log_record= share->now_transactional && !share->temporary;
-  if (_ma_mark_file_changed(info))
-    goto err;
 
   if (log_record)
   {
@@ -75,14 +73,19 @@ int maria_delete_all_rows(MARIA_HA *info)
       If we fail in this function after this point, log and table will be
       inconsistent.
     */
+    if (_ma_mark_file_changed(share))
+      goto err;
   }
   else
   {
+    if (_ma_mark_file_changed(share))
+      goto err;
     /* Other branch called function below when writing log record, in hook */
     _ma_reset_status(info);
   }
   /* Remove old history as the table is now empty for everyone */
   _ma_reset_state(info);
+  share->state.changed= 0;
 
   /*
     If we are using delayed keys or if the user has done changes to the tables
@@ -180,6 +183,10 @@ void _ma_reset_status(MARIA_HA *info)
   state->state.data_file_length= 0;
   state->state.empty= state->state.key_empty= 0;
   state->state.checksum= 0;
+  share->state.open_count= 0;
+  share->global_changed= 0;
+
+  share->changed= 1;                            /* We must write state */
 
   *info->state= state->state;
 

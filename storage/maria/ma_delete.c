@@ -63,7 +63,7 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   if ((*share->compare_record)(info,record))
     goto err;				/* Error on read-check */
 
-  if (_ma_mark_file_changed(info))
+  if (_ma_mark_file_changed(share))
     goto err;
 
   /* Ensure we don't change the autoincrement value */

@@ -74,7 +74,8 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
       goto err_end;
     }
   }
-  if (_ma_mark_file_changed(info))
+
+  if (_ma_mark_file_changed(share))
   {
     save_errno=my_errno;
     goto err_end;

@@ -429,6 +429,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
       goto err;
     }
+    if (share->state.open_count)
+      share->open_count_not_zero_on_open= 1;
 
     /*
       We can ignore testing uuid if STATE_NOT_MOVABLE is set, as in this
@@ -790,7 +792,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->options|= HA_OPTION_READ_ONLY_DATA;
     share->is_log_table= FALSE;
 
-    if (open_flags & HA_OPEN_TMP_TABLE)
+    if (open_flags & HA_OPEN_TMP_TABLE ||
+        (share->options & HA_OPTION_TMP_TABLE))
     {
       share->options|= HA_OPTION_TMP_TABLE;
       share->temporary= share->delay_key_write= 1;
@@ -912,6 +915,19 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
         share->lock.start_trans=    _ma_block_start_trans_no_versioning;
       }
+    }
+#endif
+#ifdef SAFE_MUTEX
+    if (share->data_file_type == BLOCK_RECORD)
+    {
+      /*
+        We must have internal_lock before bitmap_lock because we call
+        _ma_flush_tables_files() with internal_lock locked.
+      */
+      pthread_mutex_lock(&share->intern_lock);
+      pthread_mutex_lock(&share->bitmap.bitmap_lock);
+      pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+      pthread_mutex_unlock(&share->intern_lock);
     }
 #endif
     /*
@@ -1251,7 +1267,8 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
   if (pWrite & MA_STATE_INFO_WRITE_LOCK)
     pthread_mutex_unlock(&share->intern_lock);
-  share->changed= 0;
+  /* If open_count != 0 we have to write the state again at close */
+  share->changed= share->state.open_count != 0;
   return res;
 }
 

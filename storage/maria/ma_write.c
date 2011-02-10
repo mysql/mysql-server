@@ -120,7 +120,7 @@ int maria_write(MARIA_HA *info, uchar *record)
     my_errno=HA_ERR_INDEX_FILE_FULL;
     goto err2;
   }
-  if (_ma_mark_file_changed(info))
+  if (_ma_mark_file_changed(share))
     goto err2;
 
   /* Calculate and check all unique constraints */

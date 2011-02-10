@@ -3478,7 +3478,7 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
     _ma_tmp_disable_logging_for_table(info, 0);
   if (!(error= (maria_zerofill_index(param, info, name) ||
                 maria_zerofill_data(param, info, name) ||
-                _ma_set_uuid(info, 0))))
+                _ma_set_uuid(info->s, 0))))
   {
     /*
       Mark that we have done zerofill of data and index. If we zeroed pages'
@@ -3857,11 +3857,13 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
       if (param->testflag & T_SAFE_REPAIR)
       {
 	/* Don't repair if we loosed more than one row */
-	if (share->state.state.records+1 < start_records)
+        if (sort_info.new_info->s->state.state.records+1 < start_records)
 	{
           _ma_check_print_error(param,
-                                "Rows lost; Aborting because safe repair was "
-                                "requested");
+                                "Rows lost (Found %lu of %lu); Aborting "
+                                "because safe repair was requested",
+                                (ulong) share->state.state.records,
+                                (ulong) start_records);
           share->state.state.records=start_records;
 	  goto err;
 	}
@@ -4420,8 +4422,13 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     if (param->testflag & T_SAFE_REPAIR)
     {
       /* Don't repair if we loosed more than one row */
-      if (share->state.state.records+1 < start_records)
+      if (sort_info.new_info->s->state.state.records+1 < start_records)
       {
+        _ma_check_print_error(param,
+                              "Rows lost (Found %lu of %lu); Aborting "
+                              "because safe repair was requested",
+                              (ulong) share->state.state.records,
+                              (ulong) start_records);
         share->state.state.records=start_records;
         goto err;
       }
@@ -6069,6 +6076,7 @@ int maria_update_state_info(HA_CHECK *param, MARIA_HA *info,uint update)
   {
     share->state.open_count=0;
     share->global_changed=0;
+    share->changed= 1;
   }
   if (update & UPDATE_STAT)
   {
@@ -6096,7 +6104,6 @@ int maria_update_state_info(HA_CHECK *param, MARIA_HA *info,uint update)
                              MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET |
                              MA_STATE_INFO_WRITE_FULL_INFO))
       goto err;
-    share->changed=0;
   }
   {						/* Force update of status */
     int error;

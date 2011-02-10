@@ -144,6 +144,8 @@ static my_bool _ma_read_bitmap_page(MARIA_HA *info,
 static my_bool _ma_bitmap_create_missing(MARIA_HA *info,
                                          MARIA_FILE_BITMAP *bitmap,
                                          pgcache_page_no_t page);
+static void _ma_bitmap_unpin_all(MARIA_SHARE *share);
+
 
 /* Write bitmap page to key cache */
 
@@ -177,6 +179,15 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   }
   else
   {
+    /*
+      bitmap->non_flushable means that someone has changed the bitmap,
+      but it's not yet complete so it can't yet be written to disk.
+      In this case we write the changed bitmap to the disk cache,
+      but keep it pinned until the change is completed. The page will
+      be unpinned later by _ma_bitmap_unpin_all() as soon as non_flushable
+      is set back to 0.
+    */
+    DBUG_PRINT("info", ("Writing pinned bitmap page"));
     MARIA_PINNED_PAGE page_link;
     int res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
@@ -275,8 +286,15 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
 my_bool _ma_bitmap_end(MARIA_SHARE *share)
 {
-  my_bool res= _ma_bitmap_flush(share);
+  my_bool res;
   safe_mutex_assert_owner(&share->close_lock);
+  DBUG_ASSERT(share->bitmap.non_flushable == 0);
+  DBUG_ASSERT(share->bitmap.flush_all_requested == 0);
+  DBUG_ASSERT(share->bitmap.waiting_for_non_flushable == 0 &&
+              share->bitmap.waiting_for_flush_all_requested == 0);
+  DBUG_ASSERT(share->bitmap.pinned_pages.elements == 0);
+
+  res= _ma_bitmap_flush(share);
   pthread_mutex_destroy(&share->bitmap.bitmap_lock);
   pthread_cond_destroy(&share->bitmap.bitmap_cond);
   delete_dynamic(&share->bitmap.pinned_pages);
@@ -388,6 +406,30 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
 #endif
 
   pthread_mutex_lock(&bitmap->bitmap_lock);
+  if (!bitmap->changed && !bitmap->changed_not_flushed)
+  {
+    pthread_mutex_unlock(&bitmap->bitmap_lock);
+    DBUG_RETURN(0);
+  }
+
+  /*
+    Before flusing bitmap, ensure that we have incremented open count.
+    This is needed to ensure that we don't call
+    _ma_mark_file_changed() as part of flushing bitmap page as in this
+    case we would use mutex lock in wrong order.
+    It's extremely unlikely that the following test is true as normally
+    this is happening when table is flushed.
+  */
+  if (unlikely(!share->global_changed))
+  {
+    /* purecov: begin inspected */
+    /* unlock bitmap mutex as it can't be hold during _ma_mark_file_changed */
+    pthread_mutex_unlock(&bitmap->bitmap_lock);
+    _ma_mark_file_changed(share);
+    pthread_mutex_lock(&bitmap->bitmap_lock);
+    /* purecov: end */
+  }
+
   if (bitmap->changed || bitmap->changed_not_flushed)
   {
     bitmap->flush_all_requested++;
@@ -514,6 +556,7 @@ void _ma_bitmap_unlock(MARIA_SHARE *share)
 
   pthread_mutex_lock(&bitmap->bitmap_lock);
   bitmap->non_flushable= 0;
+  _ma_bitmap_unpin_all(share);
   send_signal= bitmap->waiting_for_non_flushable;
   if (!--bitmap->flush_all_requested)
     send_signal|= bitmap->waiting_for_flush_all_requested;
@@ -2544,9 +2587,9 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                    uint count)
 {
   MARIA_FILE_BITMAP *bitmap= &info->s->bitmap;
+  my_bool res;
   DBUG_ENTER("_ma_bitmap_free_full_pages");
 
-  pthread_mutex_lock(&bitmap->bitmap_lock);
   for (; count--; extents+= ROW_EXTENT_SIZE)
   {
     pgcache_page_no_t page=  uint5korr(extents);
@@ -2557,15 +2600,15 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
       if (page == 0 && page_count == 0)
         continue;                               /* Not used extent */
       if (pagecache_delete_pages(info->s->pagecache, &info->dfile, page,
-                                 page_count, PAGECACHE_LOCK_WRITE, 1) ||
-          _ma_bitmap_reset_full_page_bits(info, bitmap, page, page_count))
-      {
-        pthread_mutex_unlock(&bitmap->bitmap_lock);
+                                 page_count, PAGECACHE_LOCK_WRITE, 1))
         DBUG_RETURN(1);
-      }
+      pthread_mutex_lock(&bitmap->bitmap_lock);
+      res= _ma_bitmap_reset_full_page_bits(info, bitmap, page, page_count);
+      pthread_mutex_unlock(&bitmap->bitmap_lock);
+      if (res)
+        DBUG_RETURN(1);
     }
   }
-  pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(0);
 }
 
