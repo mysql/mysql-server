@@ -107,7 +107,6 @@ DblqhProxy::~DblqhProxy()
 SimulatedBlock*
 DblqhProxy::newWorker(Uint32 instanceNo)
 {
-  // new Dbspj(m_ctx, instanceNo);
   return new Dblqh(m_ctx, instanceNo);
 }
 
