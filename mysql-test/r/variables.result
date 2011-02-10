@@ -1732,3 +1732,25 @@ set @@session.autocommit=t1_min(), @@session.autocommit=t1_max(),
 drop table t1;
 drop function t1_min;
 drop function t1_max;
+#
+# Bug #59884: setting charset to 2048 crashes
+#
+set session character_set_results = 2048;
+ERROR 42000: Unknown character set: '2048'
+set session character_set_client=2048;
+ERROR 42000: Unknown character set: '2048'
+set session character_set_connection=2048;
+ERROR 42000: Unknown character set: '2048'
+set session character_set_server=2048;
+ERROR 42000: Unknown character set: '2048'
+set session collation_server=2048;
+ERROR HY000: Unknown collation: '2048'
+set session character_set_filesystem=2048;
+ERROR 42000: Unknown character set: '2048'
+set session character_set_database=2048;
+ERROR 42000: Unknown character set: '2048'
+set session collation_connection=2048;
+ERROR HY000: Unknown collation: '2048'
+set session collation_database=2048;
+ERROR HY000: Unknown collation: '2048'
+End of 5.5 tests
