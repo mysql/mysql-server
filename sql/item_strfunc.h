@@ -51,6 +51,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
+  String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
 
@@ -66,8 +67,10 @@ public:
   Item_str_ascii_func(Item *a) :Item_str_func(a) {}
   Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
-  String *val_str_convert_from_ascii(String *str, String *ascii_buf);
-  String *val_str(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   virtual String *val_str_ascii(String *)= 0;
 };
 

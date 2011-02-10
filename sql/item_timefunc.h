@@ -773,16 +773,32 @@ class Item_date_add_interval :public Item_date_func
 {
   String value;
   enum_field_types cached_field_type;
-
+  String ascii_buf;
 public:
   const interval_type int_type; // keep it public
   const bool date_sub_interval; // keep it public
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
-  String *val_str(String *);
+  String *val_str_ascii(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
+  CHARSET_INFO *charset_for_protocol(void) const
+  {
+    /*
+      DATE_ADD() can return DATE, DATETIME or VARCHAR depending on arguments.
+      Send using "binary" when DATE or DATETIME,
+      or using collation.collation when VARCHAR
+      (which was fixed from @collation_connection in fix_length_and_dec).
+    */
+    DBUG_ASSERT(fixed == 1);
+    return cached_field_type == MYSQL_TYPE_STRING ?
+                                collation.collation : &my_charset_bin;
+  }
   longlong val_int();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
