@@ -1411,7 +1411,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
     return -1;
   }//if
   
-  theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ);
+  theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ, DBTC);
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   req->apiConnectPtr = theNdbCon->theTCConPtr;
   req->tableId = m_accessTable->m_id;
@@ -1977,7 +1977,7 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
 {
   if(cnt > 0){
     NdbApiSignal tSignal(theNdb->theMyRef);
-    tSignal.setSignal(GSN_SCAN_NEXTREQ);
+    tSignal.setSignal(GSN_SCAN_NEXTREQ, DBTC);
     
     Uint32* theData = tSignal.getDataPtrSend();
     theData[0] = theNdbCon->theTCConPtr;
@@ -2639,7 +2639,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     
     Uint32 left = len - i;
     while(tSignal && left > KeyInfo::DataLength){
-      tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setSignal(GSN_KEYINFO, DBTC);
       tSignal->setLength(KeyInfo::MaxSignalLength);
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * KeyInfo::DataLength);
@@ -2652,7 +2652,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     }
     
     if(tSignal && left > 0){
-      tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setSignal(GSN_KEYINFO, DBTC);
       tSignal->setLength(KeyInfo::HeaderLength + left);
       newOp->theLastKEYINFO = tSignal;
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
@@ -3796,7 +3796,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   
   NdbReceiver* tRec = m_api_receivers[idx];
   NdbApiSignal tSignal(theNdb->theMyRef);
-  tSignal.setSignal(GSN_SCAN_NEXTREQ);
+  tSignal.setSignal(GSN_SCAN_NEXTREQ, DBTC);
   
   Uint32 last = m_sent_receivers_count;
   Uint32* theData = tSignal.getDataPtrSend();
