@@ -1476,3 +1476,29 @@ drop function t1_max;
 
 
 ###########################################################################
+
+
+--echo #
+--echo # Bug #59884: setting charset to 2048 crashes
+--echo #
+
+--error ER_UNKNOWN_CHARACTER_SET
+set session character_set_results = 2048;
+--error ER_UNKNOWN_CHARACTER_SET
+set session character_set_client=2048;
+--error ER_UNKNOWN_CHARACTER_SET
+set session character_set_connection=2048;
+--error ER_UNKNOWN_CHARACTER_SET
+set session character_set_server=2048;
+--error ER_UNKNOWN_COLLATION
+set session collation_server=2048;
+--error ER_UNKNOWN_CHARACTER_SET
+set session character_set_filesystem=2048;
+--error ER_UNKNOWN_CHARACTER_SET
+set session character_set_database=2048;
+--error ER_UNKNOWN_COLLATION
+set session collation_connection=2048;
+--error ER_UNKNOWN_COLLATION
+set session collation_database=2048;
+
+--echo End of 5.5 tests
