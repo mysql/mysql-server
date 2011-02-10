@@ -436,7 +436,7 @@ private:
     /** If the n'th bit is set, then a matching tuple for the n,th child has been seen. 
      * This information is needed when generating left join tuples for those tuples
      * that had no matching children.*/
-    Bitmask<NDB_SPJ_MAX_TREE_NODES> m_hasMatchingChild;
+    Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> m_hasMatchingChild;
 
     explicit TupleSet()
     {}
