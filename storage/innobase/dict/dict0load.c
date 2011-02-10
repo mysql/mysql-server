@@ -1854,40 +1854,42 @@ dict_load_table_on_id(
 
 	btr_pcur_open_on_user_rec(sys_table_ids, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
+
+check_rec:
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur)) {
-		/* Not found */
-		goto func_exit;
-	}
+	if (page_rec_is_user_rec(rec)) {
+		/*---------------------------------------------------*/
+		/* Now we have the record in the secondary index
+		containing the table ID and NAME */
 
-	/* Find the first record that is not delete marked */
-	while (rec_get_deleted_flag(rec, 0)) {
-		if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
-			goto func_exit;
+		field = rec_get_nth_field_old(rec, 0, &len);
+		ut_ad(len == 8);
+
+		/* Check if the table id in record is the one searched for */
+		if (table_id == mach_read_from_8(field)) {
+			if (rec_get_deleted_flag(rec, 0)) {
+				/* Until purge has completed, there
+				may be delete-marked duplicate records
+				for the same SYS_TABLES.ID.
+				Due to Bug #60049, some delete-marked
+				records may survive the purge forever. */
+				if (btr_pcur_move_to_next(&pcur, &mtr)) {
+
+					goto check_rec;
+				}
+			} else {
+				/* Now we get the table name from the record */
+				field = rec_get_nth_field_old(rec, 1, &len);
+				/* Load the table definition to memory */
+				table = dict_load_table(
+					mem_heap_strdupl(
+						heap, (char*) field, len),
+					TRUE, DICT_ERR_IGNORE_NONE);
+			}
 		}
-		rec = btr_pcur_get_rec(&pcur);
 	}
 
-	/*---------------------------------------------------*/
-	/* Now we have the record in the secondary index containing the
-	table ID and NAME */
-
-	rec = btr_pcur_get_rec(&pcur);
-	field = rec_get_nth_field_old(rec, 0, &len);
-	ut_ad(len == 8);
-
-	/* Check if the table id in record is the one searched for */
-	if (table_id != mach_read_from_8(field)) {
-		goto func_exit;
-	}
-
-	/* Now we get the table name from the record */
-	field = rec_get_nth_field_old(rec, 1, &len);
-	/* Load the table definition to memory */
-	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
-				TRUE, DICT_ERR_IGNORE_NONE);
-func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
