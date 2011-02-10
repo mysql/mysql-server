@@ -432,8 +432,9 @@ public:
    * @param hasMoreSiblingsMask The n'th bit should be set if the n'th ancestor
    * (counted from the root) has more sibling nodes.
    */
-  void printTree(Uint32 depth, 
-                 Bitmask<NDB_SPJ_MAX_TREE_NODES> hasMoreSiblingsMask) const;
+  void printTree(
+           Uint32 depth, 
+           Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> hasMoreSiblingsMask) const;
 
 protected:
   // QueryTree building:
