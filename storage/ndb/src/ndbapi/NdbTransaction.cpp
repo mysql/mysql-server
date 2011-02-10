@@ -861,7 +861,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
     return -1;
   }
 
-  if (tSignal->setSignal(GSN_TC_HBREP) == -1) {
+  if (tSignal->setSignal(GSN_TC_HBREP, DBTC) == -1) {
     return -1;
   }
 
@@ -985,7 +985,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
 
     tTransId1 = (Uint32) theTransactionId;
     tTransId2 = (Uint32) (theTransactionId >> 32);
-    tSignal.setSignal(GSN_TCROLLBACKREQ);
+    tSignal.setSignal(GSN_TCROLLBACKREQ, DBTC);
     tSignal.setData(theTCConPtr, 1);
     tSignal.setData(tTransId1, 2);
     tSignal.setData(tTransId2, 3);
@@ -1038,7 +1038,7 @@ NdbTransaction::sendCOMMIT()    // Send a TC_COMMITREQ signal;
 
   tTransId1 = (Uint32) theTransactionId;
   tTransId2 = (Uint32) (theTransactionId >> 32);
-  tSignal.setSignal(GSN_TC_COMMITREQ);
+  tSignal.setSignal(GSN_TC_COMMITREQ, DBTC);
   tSignal.setData(theTCConPtr, 1);
   tSignal.setData(tTransId1, 2);
   tSignal.setData(tTransId2, 3);
