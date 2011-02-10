@@ -1073,6 +1073,8 @@ static void close_connections(void)
     statements and inform their clients that the server is about to die.
   */
 
+  sql_print_information("Giving client threads a chance to die gracefully");
+
   THD *tmp;
   mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
 
@@ -1105,6 +1107,8 @@ static void close_connections(void)
   mysql_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
   Events::deinit();
+
+  sql_print_information("Shutting down slave threads");
   end_slave();
 
   if (thread_count)
@@ -1116,6 +1120,7 @@ static void close_connections(void)
     client on a blocking read call are aborted.
   */
 
+  sql_print_information("Forcefully disconnecting remaining clients");
   for (;;)
   {
     DBUG_PRINT("quit",("Locking LOCK_thread_count"));
@@ -1416,6 +1421,7 @@ void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
+  sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
   logger.cleanup_base();
