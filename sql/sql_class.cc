@@ -217,6 +217,16 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
+void* thd_get_scheduler(THD *thd)
+{
+  return thd->scheduler.data;
+}
+
+PSI_thread* thd_get_psi(THD *thd)
+{
+  return thd->scheduler.m_psi;
+}
+
 /*
   The following functions form part of the C plugin API
 */
