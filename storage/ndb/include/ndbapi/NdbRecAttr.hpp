@@ -80,6 +80,7 @@ class NdbRecAttr
   friend class NdbEventOperationImpl;
   friend class NdbReceiver;
   friend class Ndb;
+  friend class NdbQueryOperationImpl;
   friend class NdbOut& operator<<(class NdbOut&, const class AttributeS&);
 #endif
 

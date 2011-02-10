@@ -346,11 +346,11 @@ trp_client::getNodeInfo(Uint32 nodeId) const
 class LinearSectionIterator: public GenericSectionIterator
 {
 private :
-  Uint32* data;
+  const Uint32* data;
   Uint32 len;
   bool read;
 public :
-  LinearSectionIterator(Uint32* _data, Uint32 _len)
+  LinearSectionIterator(const Uint32* _data, Uint32 _len)
   {
     data= (_len == 0)? NULL:_data;
     len= _len;
