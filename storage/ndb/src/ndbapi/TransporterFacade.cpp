@@ -1340,7 +1340,6 @@ TransporterFacade::sendSignal(const NdbApiSignal* aSignal, NodeId aNode,
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     SignalHeader tmp = * aSignal;
     tmp.theSendersBlockRef = numberToRef(aSignal->theSendersBlockRef, theOwnId);
-    LinearSectionPtr ptr[3];
     signalLogger.sendSignal(tmp,
                             1,
                             aSignal->getConstDataPtrSend(),

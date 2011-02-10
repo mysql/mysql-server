@@ -2177,7 +2177,7 @@ Parameters:    aErrorCode: The error code.
 Remark:        An operation was completed with failure.
 *******************************************************************************/
 int 
-NdbTransaction::OpCompleteFailure(NdbOperation* op)
+NdbTransaction::OpCompleteFailure()
 {
   Uint32 tNoComp = theNoOfOpCompleted;
   Uint32 tNoSent = theNoOfOpSent;
