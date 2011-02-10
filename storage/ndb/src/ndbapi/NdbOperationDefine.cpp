@@ -951,7 +951,7 @@ NdbOperation::insertATTRINFO( Uint32 aData )
     tAI_LenInCurrAI = 3;
     tSignal = tNdb->getSignal();
     if (tSignal != NULL) {
-      tSignal->setSignal(m_attrInfoGSN);
+      tSignal->setSignal(m_attrInfoGSN, DBTC);
       tAttrPtr = &tSignal->getDataPtrSend()[3];
       if (tFirstAttrinfo == NULL) {
         tSignal->next(NULL);
@@ -1008,7 +1008,7 @@ NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr,
       tAI_LenInCurrAI = 3;
       tSignal = tNdb->getSignal();
       if (tSignal != NULL) {
-        tSignal->setSignal(m_attrInfoGSN);
+        tSignal->setSignal(m_attrInfoGSN, DBTC);
         tAttrPtr = &tSignal->getDataPtrSend()[3];
         if (tFirstAttrinfo == NULL) {
           tSignal->next(NULL);

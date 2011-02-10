@@ -1329,6 +1329,7 @@ protected:
   int	      insertBranch(Uint32 aBranch);
 
   Uint32 ptr2int() { return theReceiver.getId(); };
+  Uint32 ptr2int() const { return theReceiver.getId(); };
 
   // get table or index key from prepared signals
   int getKeyFromTCREQ(Uint32* data, Uint32 & size);

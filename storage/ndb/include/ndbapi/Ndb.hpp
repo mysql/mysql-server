@@ -1072,6 +1072,8 @@ class Ndb
   friend class Ndb_internal;
   friend class NdbScanFilterImpl;
   friend class PollGuard;
+  friend class NdbQueryImpl;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:
@@ -1956,7 +1958,7 @@ private:
   NdbTransaction*     void2con     (void* val);
   NdbOperation*      void2rec_op  (void* val);
   NdbIndexOperation* void2rec_iop (void* val);
-
+  NdbTransaction* lookupTransactionFromOperation(const class TcKeyConf *);
 
   Uint64 allocate_transaction_id();
 
