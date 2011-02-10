@@ -19,6 +19,28 @@
 #define THREAD_POOL_PRIV_INCLUDED
 
 /*
+  A thread pool plugins requires inclusion of sql_class.h to get proper
+  access to THD variables and functions.
+  There are some DTrace probes that requires definition inside the plugin,
+  this requires include of probes_mysql.h.
+  scheduler.h contains definitions required by the plugin.
+  A thread pool can also use DEBUG_SYNC and must thus include
+  debug_sync.h
+  To handle definitions of Information Schema plugins it is also required
+  to include sql_profile.h and table.h.
+
+  The goal is to move all dependencies from a thread pool plugin on the
+  MySQL Server into a version-handled plugin API.
+*/
+#define MYSQL_SERVER 1
+#include <sql_class.h>
+#include <probes_mysql.h>
+#include <scheduler.h>
+#include <debug_sync.h>
+#include <sql_profile.h>
+#include <table.h>
+
+/*
   The thread pool must be able to execute commands using the connection
   state in THD object. This is the main objective of the thread pool to
   schedule the start of these commands.
