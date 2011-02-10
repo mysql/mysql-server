@@ -281,9 +281,9 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds)
       no outer table dependencies, this count may be used as the real count.
       Schema tables are filled after this function is invoked, so we can't
       get row count.
-      Derived table aren't filled yet, their number of rows are estimates.
+      Derived tables aren't filled yet, their number of rows are estimates.
     */
-    bool table_filled= !(tl->schema_table || tl->is_materialized_derived());
+    bool table_filled= !(tl->schema_table || tl->uses_materialization());
     if ((tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
         table_filled)
     {

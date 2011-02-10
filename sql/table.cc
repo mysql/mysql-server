@@ -755,23 +755,21 @@ err_not_open:
 
 void KEY_PART_INFO::init_flags()
 {
+  DBUG_ASSERT(field);
   if (field->type() == MYSQL_TYPE_BLOB ||
-      field->real_type() == MYSQL_TYPE_VARCHAR ||
       field->type() == MYSQL_TYPE_GEOMETRY)
-  {
-    if (field->type() == MYSQL_TYPE_BLOB ||
-        field->type() == MYSQL_TYPE_GEOMETRY)
-      key_part_flag|= HA_BLOB_PART;
-    else
-      key_part_flag|= HA_VAR_LENGTH_PART;
-  }
-  if (field->type() == MYSQL_TYPE_BIT)
+    key_part_flag|= HA_BLOB_PART;
+  else if (field->real_type() == MYSQL_TYPE_VARCHAR)
+    key_part_flag|= HA_VAR_LENGTH_PART;
+  else if (field->type() == MYSQL_TYPE_BIT)
     key_part_flag|= HA_BIT_PART;
 }
 
 
 /**
   Initialize KEY_PART_INFO from the given field.
+
+  @param fld The field to initialize keypart from
 */
 
 void KEY_PART_INFO::init_from_field(Field *fld)
@@ -5167,7 +5165,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 {
   DBUG_ASSERT(!created && s->keys < max_keys && key_parts);
 
-  KEY* cur_key;
+  KEY* cur_key= key_info + s->keys;
   Field **reg_field;
   uint i= 0;
   bool key_start= TRUE;
@@ -5177,9 +5175,8 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 
   for (reg_field=field ; *reg_field; i++, reg_field++)
   {
-    /* Don't create index over a blob field. */
-    if (key_parts & (1 << i) && (*reg_field)->flags & BLOB_FLAG)
-      return FALSE;
+    // Ensure that we're not creating a key over a blob field.
+    DBUG_ASSERT(!(key_parts & (1 << i) && (*reg_field)->flags & BLOB_FLAG));
     field_count++;
   }
   uint key_part_count= my_count_bits(key_parts);
@@ -5192,7 +5189,6 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
   if (!key_buf)
     return TRUE;
   memset(key_buf, 0, key_buf_size);
-  cur_key= key_info + s->keys;
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
   cur_key->usable_key_parts= cur_key->key_parts= key_part_count;
   s->key_parts+= key_part_count;
@@ -5242,9 +5238,7 @@ bool TABLE::add_tmp_key(ulonglong key_parts, char *key_name)
 
 void TABLE::use_index(int key_to_save)
 {
-  if (!s->keys)
-    return;
-  DBUG_ASSERT(!created && key_to_save < (int)s->keys);
+  DBUG_ASSERT(!created && s->keys && key_to_save < (int)s->keys);
 
   if (key_to_save < 0)
   {
@@ -5570,7 +5564,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (is_materialized_derived() && !materialized)
+  if (uses_materialization() && !materialized)
     table->file->stats.records= derived->get_result()->estimated_rowcount;
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -5634,10 +5628,11 @@ int TABLE_LIST::fetch_number_of_rows()
                           Create/extend list of possible keys for one derived
                           table/view based on given field/used tables info.
                           (Step one)
-    generate_derived_keys This function is called at the moment when all
-                          possible info on keys is gathered and it's safe to
-                          add keys - no keys or key parts would be missed.
-                          Walk over list of derived tables/views and
+    JOIN::generate_derived_keys
+                          This function is called from update_ref_and_keys
+                          when all possible info on keys is gathered and it's
+                          safe to add keys - no keys or key parts would be
+                          missed.  Walk over list of derived tables/views and
                           call to TABLE_LIST::generate_keys to actually
                           generate keys. (Step two)
     TABLE_LIST::generate_keys
@@ -5668,11 +5663,13 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
     key++;
     if (ref_by_tbl)
     {
+      /* Search for entry referenced by non-zero ref_by_tbl. */
       if (entry->referenced_by & ref_by_tbl)
         break;
     }
     else
     {
+      /* Search for entry referenced by zero ref_by_tbl. */
       if (!entry->referenced_by)
         break;
     }
@@ -5702,14 +5699,15 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   Update derived table's list of possible keys
 
   @param field      derived table's field to take part in a key
-  @param values     array of values
+  @param values     array of values that a part of equality predicate with the
+                    field above
   @param num_values number of elements in the array values
 
   @details
   This function creates/extends a list of possible keys for this derived
   table/view. For each table used by a value from the 'values' array the
   corresponding possible key is extended to include the 'field'.
-  If there is no such possible key then it is created. field's
+  If there is no such possible key, then it is created. field's
   part_of_key bitmaps are updated accordingly.
   @see add_derived_key
 
@@ -5758,11 +5756,11 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   See TABLE_LIST::generate_keys.
 */
 
-static int DKL_sort_func(Derived_key *e1, Derived_key *e2, void *arg)
+static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
 {
   /* Move entries for tables with greater table bit to the end. */
-  return ((e1->referenced_by < e2->referenced_by) ? 1 :
-          ((e1->referenced_by > e1->referenced_by) ? -1 : 0));
+  return ((e1->referenced_by < e2->referenced_by) ? -1 :
+          ((e1->referenced_by > e1->referenced_by) ? 1 : 0));
 }
 
 
@@ -5787,7 +5785,7 @@ bool TABLE_LIST::generate_keys()
   Derived_key *entry;
   uint key= 0;
   char buf[NAME_CHAR_LEN];
-  DBUG_ASSERT(is_materialized_derived());
+  DBUG_ASSERT(uses_materialization());
 
   if (!derived_key_list.elements)
     return FALSE;
@@ -5796,7 +5794,7 @@ bool TABLE_LIST::generate_keys()
     return TRUE;
 
   /* Sort entries to make key numbers sequence deterministic. */
-  derived_key_list.sort((Node_cmp_func)DKL_sort_func, 0);
+  derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
   while ((entry= it++))
   {
     sprintf(buf, "auto_key%i", key++);
@@ -5819,7 +5817,7 @@ bool TABLE_LIST::generate_keys()
   handling materialized derived tables. They are processed in the bottom->up
   order i.e. derived tables that belong to selects of this derived table are
   handled prior to this derived table itself. This differs from the
-  mysql_handle_derived where recursion goes top->bottom. 'lex' is passed as
+  mysql_handle_derived where recursion goes top-down. 'lex' is passed as
   an argument to called functions.
 
   @see mysql_handle_derived.
@@ -5835,7 +5833,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
   DBUG_ASSERT(unit);
 
   /* Dive into a merged derived table or materialize as is otherwise. */
-  if (!is_materialized_derived())
+  if (!uses_materialization())
   {
     for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
       if (sl->handle_derived(lex, processor))

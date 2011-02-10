@@ -233,6 +233,8 @@ TEST_F(SqlListTest, Sort)
     EXPECT_EQ(*m_int_list.pop(), i);
   }
   EXPECT_TRUE(m_int_list.is_empty());
+  // Test sorting of empty string.
+  m_int_list.sort(cmp_test, (void*)0xFEE1BEEF);
 }
 
 

@@ -24,7 +24,6 @@
 
 #include <my_sys.h>
 #include <my_bitmap.h>
-#include <my_bit.h>
 
 template <uint default_width> class Bitmap
 {
@@ -143,13 +142,6 @@ public:
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }
-  /**
-    Return number of bits set in the bitmap.
-  */
-  uint bits_set()
-  {
-    return my_count_bits(map);
-  }
 };
 
 

@@ -80,8 +80,8 @@ public:
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
   uint8 null_bit;			/* Position to null_bit */
-  void init_from_field(Field *fld);     /* Fill data from given field */
-  void init_flags();                    /* Set key_part_flag from field */
+  void init_from_field(Field *fld);     /** Fill data from given field */
+  void init_flags();                    /** Set key_part_flag from field */
 };
 
 

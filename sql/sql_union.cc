@@ -473,57 +473,52 @@ err:
 
 bool st_select_lex_unit::optimize()
 {
-  SELECT_LEX *lex_select_save= thd->lex->current_select;
-  SELECT_LEX *select_cursor=first_select();
   DBUG_ENTER("st_select_lex_unit::optimize");
 
-  if (optimized && !uncacheable && !describe)
+  if (optimized && item && item->assigned() && !uncacheable && !describe)
     DBUG_RETURN(FALSE);
 
-  if (uncacheable || !item || !item->assigned() || describe)
+  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
-    for (SELECT_LEX *sl= select_cursor; sl; sl= sl->next_select())
+    DBUG_ASSERT(sl->join);
+    if (optimized)
+      saved_error= sl->join->reinit();
+    else
     {
+      SELECT_LEX *lex_select_save= thd->lex->current_select;
       thd->lex->current_select= sl;
-
-      if (optimized)
-        saved_error= sl->join->reinit();
-      else
+      set_limit(sl);
+      if (sl == global_parameters || describe)
       {
-        set_limit(sl);
-        if (sl == global_parameters || describe)
-        {
-          offset_limit_cnt= 0;
-          /*
-            We can't use LIMIT at this stage if we are using ORDER BY for the
-            whole query
-          */
-          if (sl->order_list.first || describe)
-            select_limit_cnt= HA_POS_ERROR;
-        }
-
+        offset_limit_cnt= 0;
         /*
-          When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
-          we don't calculate found_rows() per union part.
-          Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+          We can't use LIMIT at this stage if we are using ORDER BY for the
+          whole query
         */
-        sl->join->select_options= 
-          (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
-          sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
-
-        saved_error= sl->join->optimize();
-        /* Save estimated number of rows. */
-        result->estimated_rowcount+= sl->join->best_rowcount;
+        if (sl->order_list.first || describe)
+          select_limit_cnt= HA_POS_ERROR;
       }
 
-      if (saved_error)
-        break;
+      /*
+        When using braces, SQL_CALC_FOUND_ROWS affects the whole query:
+        we don't calculate found_rows() per union part.
+        Otherwise, SQL_CALC_FOUND_ROWS should be done on all sub parts.
+      */
+      sl->join->select_options= 
+        (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
+        sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
+
+      saved_error= sl->join->optimize();
+      /* Save estimated number of rows. */
+      result->estimated_rowcount+= sl->join->best_rowcount;
+      thd->lex->current_select= lex_select_save;
     }
+    if (saved_error)
+      break;
   }
   if (!saved_error)
     optimized= 1;
 
-  thd->lex->current_select= lex_select_save;
   DBUG_RETURN(saved_error);
 }
 
@@ -561,6 +556,7 @@ bool st_select_lex_unit::exec()
     for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     {
       ha_rows records_at_start= 0;
+      DBUG_ASSERT(sl->join);
       thd->lex->current_select= sl;
 
       set_limit(sl);

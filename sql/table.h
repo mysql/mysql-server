@@ -1785,9 +1785,11 @@ struct TABLE_LIST
     return FALSE;
   }
   /**
-    TRUE <=> this is a materializable derived table/view.
+    @returns
+      TRUE  this is a materializable derived table/view.
+      FALSE otherwise.
   */
-  inline bool is_materialized_derived()
+  inline bool uses_materialization()
   {
     return (effective_algorithm == VIEW_ALGORITHM_TMPTABLE ||
             effective_algorithm == DERIVED_ALGORITHM_TMPTABLE);
