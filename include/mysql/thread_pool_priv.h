@@ -34,7 +34,6 @@
 */
 #define MYSQL_SERVER 1
 #include <sql_class.h>
-#include <probes_mysql.h>
 #include <scheduler.h>
 #include <debug_sync.h>
 #include <sql_profile.h>
@@ -55,9 +54,10 @@ bool do_command(THD *thd);
   ensure that the proper MySQL Server logic attached to these events is
   executed.
 */
-bool login_connection(THD *thd);
-void prepare_new_connection_state(THD* thd);
+bool thd_prepare_connection(THD *thd);
+bool thd_is_connection_alive(THD *thd);
 void end_connection(THD *thd);
+void mysql_audit_release(THD *thd);
 bool setup_connection_thread_globals(THD *thd);
 bool init_new_connection_handler_thread();
 
