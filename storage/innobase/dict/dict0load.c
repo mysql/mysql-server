@@ -1828,6 +1828,8 @@ dict_load_table_on_id(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
+	table = NULL;
+
 	/* NOTE that the operation of this function is protected by
 	the dictionary mutex, and therefore no deadlocks can occur
 	with other dictionary operations. */
@@ -1854,15 +1856,17 @@ dict_load_table_on_id(
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur)
-	    || rec_get_deleted_flag(rec, 0)) {
+	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		/* Not found */
+		goto func_exit;
+	}
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-
-		return(NULL);
+	/* Find the first record that is not delete marked */
+	while (rec_get_deleted_flag(rec, 0)) {
+		if (!btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
+			goto func_exit;
+		}
+		rec = btr_pcur_get_rec(&pcur);
 	}
 
 	/*---------------------------------------------------*/
@@ -1875,12 +1879,7 @@ dict_load_table_on_id(
 
 	/* Check if the table id in record is the one searched for */
 	if (table_id != mach_read_from_8(field)) {
-
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-
-		return(NULL);
+		goto func_exit;
 	}
 
 	/* Now we get the table name from the record */
@@ -1888,7 +1887,7 @@ dict_load_table_on_id(
 	/* Load the table definition to memory */
 	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
 				TRUE, DICT_ERR_IGNORE_NONE);
-
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 	mem_heap_free(heap);
