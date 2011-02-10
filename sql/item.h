@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3203,11 +3203,10 @@ class Item_cache: public Item_basic_constant
 protected:
   Item *example;
   table_map used_table_map;
-  /*
-    Field that this object will get value from. This is set/used by 
+  /**
+    Field that this object will get value from. This is used by 
     index-based subquery engines to detect and remove the equality injected 
     by IN->EXISTS transformation.
-    For all other uses of Item_cache, cached_field doesn't matter.
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
@@ -3275,6 +3274,14 @@ public:
   {
     return (value_cached || cache_value()) && !null_value;
   }
+
+  /** 
+    If this item caches a field value, return pointer to underlying field.
+
+    @return Pointer to field, or NULL if this is not a cache for a field value.
+  */
+  Field* field() { return cached_field; }
+
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const

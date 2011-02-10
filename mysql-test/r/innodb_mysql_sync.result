@@ -90,3 +90,68 @@ test.t1	optimize	status	Operation failed
 # Connection default
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';
+#
+# Bug#42230 during add index, cannot do queries on storage engines
+#           that implement add_index
+#
+DROP DATABASE IF EXISTS db1;
+DROP TABLE IF EXISTS t1;
+# Test 1: Secondary index, should not block reads (original test case).
+# Connection default
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, value INT) engine=innodb;
+INSERT INTO db1.t1(value) VALUES (1), (2);
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+# Sending:
+ALTER TABLE db1.t1 ADD INDEX(value);
+# Connection con1
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+USE db1;
+SELECT * FROM t1;
+id	value
+1	1
+2	2
+SET DEBUG_SYNC= "now SIGNAL query";
+# Connection default
+# Reaping: ALTER TABLE db1.t1 ADD INDEX(value)
+DROP DATABASE db1;
+# Test 2: Primary index (implicit), should block reads.
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL) engine=innodb;
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+# Sending:
+ALTER TABLE t1 ADD UNIQUE INDEX(a);
+# Connection con1
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+USE test;
+# Sending:
+SELECT * FROM t1;
+# Connection con2
+# Waiting for SELECT to be blocked by the metadata lock on t1
+SET DEBUG_SYNC= "now SIGNAL query";
+# Connection default
+# Reaping: ALTER TABLE t1 ADD UNIQUE INDEX(a)
+# Connection con1
+# Reaping: SELECT * FROM t1
+a	b
+# Test 3: Primary index (explicit), should block reads.
+# Connection default
+ALTER TABLE t1 DROP INDEX a;
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+# Sending:
+ALTER TABLE t1 ADD PRIMARY KEY (a);
+# Connection con1
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+# Sending:
+SELECT * FROM t1;
+# Connection con2
+# Waiting for SELECT to be blocked by the metadata lock on t1
+SET DEBUG_SYNC= "now SIGNAL query";
+# Connection default
+# Reaping: ALTER TABLE t1 ADD PRIMARY KEY (a)
+# Connection con1
+# Reaping: SELECT * FROM t1
+a	b
+# Test 4: Secondary unique index, should not block reads.
+# Connection default
+SET DEBUG_SYNC= "RESET";
+DROP TABLE t1;

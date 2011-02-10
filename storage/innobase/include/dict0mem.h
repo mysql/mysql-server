@@ -376,6 +376,12 @@ struct dict_index_struct{
 				dict_get_n_unique(index); we
 				periodically calculate new
 				estimates */
+	ib_int64_t*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */

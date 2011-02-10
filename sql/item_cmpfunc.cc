@@ -918,7 +918,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
         cache_converted_constant can't be used here because it can't
         correctly convert a DATETIME value from string to int representation.
       */
-      Item_cache_int *cache= new Item_cache_int();
+      Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
       /* Mark the cache as non-const to prevent re-caching. */
       cache->set_used_tables(1);
       if (!(*a)->is_datetime())
@@ -1208,9 +1208,12 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
          value of 2000.
   */
   Item *real_item= item->real_item();
-  if (!(real_item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
-        ((Item_field *)real_item)->field->field_length == 4))
+  Field *field= NULL;
+  if (real_item->type() == Item::FIELD_ITEM)
+    field= ((Item_field *)real_item)->field;
+  else if (real_item->type() == Item::CACHE_ITEM)
+    field= ((Item_cache *)real_item)->field();
+  if (!(field && field->type() == MYSQL_TYPE_YEAR && field->field_length == 4))
   {
     if (value < 70)
       value+= 100;

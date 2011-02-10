@@ -461,10 +461,9 @@ public:
   */
   virtual void no_rows_in_result()
   {
-    if (!aggr)
-      set_aggregator(with_distinct ?
-                     Aggregator::DISTINCT_AGGREGATOR :
-                     Aggregator::SIMPLE_AGGREGATOR);
+    set_aggregator(with_distinct ?
+                   Aggregator::DISTINCT_AGGREGATOR :
+                   Aggregator::SIMPLE_AGGREGATOR);
     aggregator_clear();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
@@ -515,11 +514,10 @@ public:
     quick_group= with_distinct ? 0 : 1;
   }
 
-  /**
+  /*
     Set the type of aggregation : DISTINCT or not.
 
-    Called when the final determination is done about the aggregation
-    type and the object is about to be used.
+    May be called multiple times.
   */
 
   int set_aggregator(Aggregator::Aggregator_type aggregator);

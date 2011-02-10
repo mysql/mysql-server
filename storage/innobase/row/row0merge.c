@@ -2157,13 +2157,15 @@ row_merge_drop_temp_indexes(void)
 }
 
 /*********************************************************************//**
-Create a merge file. */
-static
-void
-row_merge_file_create(
-/*==================*/
-	merge_file_t*	merge_file)	/*!< out: merge file structure */
+Creates temperary merge files, and if UNIV_PFS_IO defined, register
+the file descriptor with Performance Schema.
+@return File descriptor */
+UNIV_INLINE
+int
+row_merge_file_create_low(void)
+/*===========================*/
 {
+	int	fd;
 #ifdef UNIV_PFS_IO
 	/* This temp file open does not go through normal
 	file APIs, add instrumentation to register with
@@ -2175,14 +2177,46 @@ row_merge_file_create(
 				     "Innodb Merge Temp File",
 				     __FILE__, __LINE__);
 #endif
-	merge_file->fd = innobase_mysql_tmpfile();
+	fd = innobase_mysql_tmpfile();
+#ifdef UNIV_PFS_IO
+        register_pfs_file_open_end(locker, fd);
+#endif
+	return(fd);
+}
+/*********************************************************************//**
+Create a merge file. */
+static
+void
+row_merge_file_create(
+/*==================*/
+	merge_file_t*	merge_file)	/*!< out: merge file structure */
+{
+	merge_file->fd = row_merge_file_create_low();
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
-#ifdef UNIV_PFS_IO
-        register_pfs_file_open_end(locker, merge_file->fd);
-#endif
 }
 
+/*********************************************************************//**
+Destroy a merge file. And de-register the file from Performance Schema
+if UNIV_PFS_IO is defined. */
+UNIV_INLINE
+void
+row_merge_file_destroy_low(
+/*=======================*/
+	int		fd)	/*!< in: merge file descriptor */
+{
+#ifdef UNIV_PFS_IO
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
+	register_pfs_file_io_begin(&state, locker,
+				   fd, 0, PSI_FILE_CLOSE,
+				   __FILE__, __LINE__);
+#endif
+	close(fd);
+#ifdef UNIV_PFS_IO
+	register_pfs_file_io_end(locker, 0);
+#endif
+}
 /*********************************************************************//**
 Destroy a merge file. */
 static
@@ -2191,20 +2225,10 @@ row_merge_file_destroy(
 /*===================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
-#ifdef UNIV_PFS_IO
-	struct PSI_file_locker*	locker = NULL;
-	PSI_file_locker_state	state;
-	register_pfs_file_io_begin(&state, locker, merge_file->fd, 0, PSI_FILE_CLOSE,
-				   __FILE__, __LINE__);
-#endif
 	if (merge_file->fd != -1) {
-		close(merge_file->fd);
+		row_merge_file_destroy_low(merge_file->fd);
 		merge_file->fd = -1;
 	}
-
-#ifdef UNIV_PFS_IO
-	register_pfs_file_io_end(locker, 0);
-#endif
 }
 
 /*********************************************************************//**
@@ -2363,7 +2387,7 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -2377,7 +2401,7 @@ row_merge_rename_tables(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -2598,7 +2622,7 @@ row_merge_build_indexes(
 		row_merge_file_create(&merge_files[i]);
 	}
 
-	tmpfd = innobase_mysql_tmpfile();
+	tmpfd = row_merge_file_create_low();
 
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */
@@ -2640,7 +2664,7 @@ row_merge_build_indexes(
 	}
 
 func_exit:
-	close(tmpfd);
+	row_merge_file_destroy_low(tmpfd);
 
 	for (i = 0; i < n_indexes; i++) {
 		row_merge_file_destroy(&merge_files[i]);
