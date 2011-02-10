@@ -217,14 +217,24 @@ bool foreign_key_prefix(Key *a, Key *b)
 ** Thread specific functions
 ****************************************************************************/
 
-void* thd_get_scheduler(THD *thd)
+void *thd_get_scheduler_data(THD *thd)
 {
   return thd->scheduler.data;
 }
 
-PSI_thread* thd_get_psi(THD *thd)
+void thd_set_scheduler_data(THD *thd, void *data)
+{
+  thd->scheduler.data= data;
+}
+
+PSI_thread *thd_get_psi(THD *thd)
 {
   return thd->scheduler.m_psi;
+}
+
+void thd_set_psi(THD *thd, PSI_thread *psi)
+{
+  thd->scheduler.m_psi= psi;
 }
 
 /*
