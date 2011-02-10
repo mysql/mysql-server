@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, 
+   MA 02110-1301  USA */
 
 /* sql_yacc.yy */
 
@@ -1874,7 +1875,7 @@ change:
             /*
               Clear LEX_MASTER_INFO struct and allocate memory for
               repl_ignore_server_ids. repl_ignore_server_ids is freed
-              at the end of change_master. So it is guaranteed to be
+              in THD::cleanup_after_query.  So it is guaranteed to be
               uninitialized before here.
             */
             lex->mi.set_unspecified();

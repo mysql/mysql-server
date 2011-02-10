@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,14 +42,14 @@ public:
   Item *new_item()
   {
     Item *result;
-    if (m_free)
-    {
-      result= m_free;
-      m_free= m_free->next;
-    }
-    else
-      result= alloc_new_blk();
+    if (!m_free && alloc_new_blk())
+      return NULL;
 
+    DBUG_ASSERT(m_free);
+    result= m_free;
+    m_free= m_free->next;
+
+    result->next= NULL;
     return result;
   }
   inline void free_item(Item *item)
@@ -83,7 +83,7 @@ protected:
   Item *m_free;
   Item *m_keep;
 
-  Item *alloc_new_blk();
+  bool alloc_new_blk();
   void format_blk(void* block);
   inline Item *ptr_add(Item *ptr, int n_items)
   {
