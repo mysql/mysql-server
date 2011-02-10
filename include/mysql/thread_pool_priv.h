@@ -38,19 +38,6 @@
 #include <sql_profile.h>
 #include <table.h>
 
-struct scheduler_functions
-{
-  uint max_threads;
-  bool (*init)(void);
-  bool (*init_new_connection_thread)(void);
-  void (*add_connection)(THD *thd);
-  void (*thd_wait_begin)(THD *thd, int wait_type);
-  void (*thd_wait_end)(THD *thd);
-  void (*post_kill_notification)(THD *thd);
-  bool (*end_thread)(THD *thd, bool cache_thread);
-  void (*end)(void);
-};
-
 /* Needed to get access to scheduler variables */
 void* thd_get_scheduler(THD *thd);
 PSI_thread* thd_get_psi(THD *thd);
