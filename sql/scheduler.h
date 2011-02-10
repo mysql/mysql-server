@@ -97,11 +97,6 @@ public:
 
   void *data;                  /* scheduler-specific data structure */
 
-#  ifndef DBUG_OFF
-  char dbug_explain[512];
-  bool set_explain;
-#  endif
-
   thd_scheduler();
   ~thd_scheduler();
 };
