@@ -53,7 +53,8 @@ protected:
   virtual void SetUp()
   {
     m_thd= new THD(false);
-    m_thd->thread_stack= (char*) &m_thd;
+    THD *stack_thd= m_thd;
+    m_thd->thread_stack= (char*) &stack_thd;
     m_thd->store_globals();
   }
 
@@ -63,7 +64,6 @@ protected:
     delete m_thd;
   }
 
-private:
   THD      *m_thd;
 };
 
@@ -165,6 +165,22 @@ TEST_F(ItemTest, ItemInt)
    TODO: There are about 100 member functions in Item.
          Figure out which ones are relevant for unit testing here.
   */
+}
+
+
+TEST_F(ItemTest, ItemFuncDesDecrypt)
+{
+  // Bug #59632 Assertion failed: arg_length > length
+  const uint length= 1U;
+  Item_int *item_one= new Item_int(1, length);
+  Item_int *item_two= new Item_int(2, length);
+  Item_func_des_decrypt *item_decrypt=
+    new Item_func_des_decrypt(item_two, item_one);
+  
+  EXPECT_FALSE(item_decrypt->fix_fields(m_thd, NULL));
+  EXPECT_EQ(length, item_one->max_length);
+  EXPECT_EQ(length, item_two->max_length);
+  EXPECT_LE(item_decrypt->max_length, length);
 }
 
 }

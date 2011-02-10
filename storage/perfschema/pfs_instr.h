@@ -42,6 +42,7 @@ struct PFS_thread_class;
 
 struct PFS_thread;
 
+/** Base structure for wait instruments. */
 struct PFS_instr
 {
   /** Internal lock. */

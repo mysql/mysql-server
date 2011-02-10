@@ -199,6 +199,7 @@ enum PFS_TL_LOCK_TYPE
 
 #define COUNT_PFS_TL_LOCK_TYPE 11
 
+/** Statistics for table locks. */
 struct PFS_table_lock_stat
 {
   PFS_single_stat m_stat[COUNT_PFS_TL_LOCK_TYPE];
