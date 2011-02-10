@@ -96,8 +96,10 @@ public:
   ~thd_scheduler();
 };
 
-void *thd_get_scheduler(THD *thd);
+void *thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
 PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
 
 extern scheduler_functions *thread_scheduler;
 
