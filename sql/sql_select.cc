@@ -10966,7 +10966,7 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	}
       }
     }
-    if (cond->const_item())
+    if (cond->const_item() && !cond->is_expensive())
     {
       *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
       return (COND*) 0;

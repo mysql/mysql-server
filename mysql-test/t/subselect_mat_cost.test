@@ -345,3 +345,25 @@ FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
 WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
 
 drop table t1,t2,t3;
+
+--echo #
+--echo # LP BUG#714999 Second crash in select_describe() with nested subqueries
+--echo #
+
+CREATE TABLE t1 ( pk int(11)) ;
+INSERT INTO t1 VALUES (29);
+
+CREATE TABLE t2 ( f1 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+
+CREATE TABLE t3 ( f2 varchar(1)) ;
+
+EXPLAIN SELECT f2 FROM t3 WHERE (
+        SELECT MAX( pk ) FROM t1
+        WHERE EXISTS (
+                SELECT DISTINCT f1
+                FROM t2
+        )
+) IS NULL ;
+
+drop table t1, t2;
