@@ -326,23 +326,19 @@ bool Item_subselect::set_fake_select_as_master_processor(uchar *arg)
   /*
     Move the st_select_lex_unit of a subquery from a global ORDER BY clause to
     become a direct child of the fake_select of a UNION. In this way the
-    ORDER BY is applied to the temporary table that contains the result of the
-    whole UNION, and all columns in the subquery are resolved against this table.
-
-    Apply the transformation only for immediate child subqueries of a
-    UNION query.
+    ORDER BY that is applied to the temporary table that contains the result of
+    the whole UNION, and all columns in the subquery are resolved against this
+    table. The transformation is applied only for immediate child subqueries of
+    a UNION query.
   */
   if (unit->outer_select()->master_unit()->fake_select_lex == fake_select)
   {
     /*
-      Set the master of the subquery to be the fake select (i.e. the whole UNION),
-      instead of the last query in the UNION.
-      TODO:
-      This is a hack, instead we should call: unit->include_down(fake_select);
-      However, this call results in an infinite loop where
-      some_select_lex->master == some_select_lex.
+      Set the master of the subquery to be the fake select (i.e. the whole
+      UNION), instead of the last query in the UNION.
     */
-    unit->set_master(fake_select);
+    fake_select->add_slave(unit);
+    DBUG_ASSERT(unit->outer_select() == fake_select);
     /* Adjust the name resolution context hierarchy accordingly. */
     for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
       sl->context.outer_context= &(fake_select->context);

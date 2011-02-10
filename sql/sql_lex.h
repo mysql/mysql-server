@@ -439,10 +439,10 @@ public:
   st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
   virtual ~st_select_lex_node() {}
   inline st_select_lex_node* get_master() { return master; }
-  inline void set_master(st_select_lex_node* master_arg) { master= master_arg; }
   virtual void init_query();
   virtual void init_select();
   void include_down(st_select_lex_node *upper);
+  void add_slave(st_select_lex_node *slave_arg);
   void include_neighbour(st_select_lex_node *before);
   void include_standalone(st_select_lex_node *sel, st_select_lex_node **ref);
   void include_global(st_select_lex_node **plink);
