@@ -332,7 +332,7 @@ NdbQueryDef::destroy() const
 void
 NdbQueryDef::print() const
 {
-  m_impl.getQueryOperation(0U).printTree(0, Bitmask<NDB_SPJ_MAX_TREE_NODES>());
+  m_impl.getQueryOperation(0U).printTree(0, Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32>());
 }
 
 /*************************************************************************
@@ -1137,7 +1137,7 @@ NdbQueryBuilderImpl::prepare()
   if (doPrintQueryTree)
   {
     ndbout << "Query tree:" << endl;
-    def->getQueryOperation(0U).printTree(0, Bitmask<NDB_SPJ_MAX_TREE_NODES>());
+    def->getQueryOperation(0U).printTree(0, Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32>());
   }
 
   return def;
@@ -2102,7 +2102,7 @@ NdbQueryOperationDefImpl::appendChildProjection(Uint32Buffer& serializedDef) con
  * that connect the tree nodes.
  */
 static void printMargin(Uint32 depth, 
-                        Bitmask<NDB_SPJ_MAX_TREE_NODES> hasMoreSiblingsMask, 
+                        Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> hasMoreSiblingsMask, 
                         bool header)
 {
   if (depth > 0)
@@ -2136,11 +2136,11 @@ static void printMargin(Uint32 depth,
 
 void 
 NdbQueryOperationDefImpl::printTree(Uint32 depth, 
-                                    Bitmask<NDB_SPJ_MAX_TREE_NODES> 
+                                    Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> 
                                     hasMoreSiblingsMask) const
 {
   // Print vertical line leading down to this node.
-  Bitmask<NDB_SPJ_MAX_TREE_NODES> firstLineMask = hasMoreSiblingsMask;
+  Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> firstLineMask = hasMoreSiblingsMask;
   firstLineMask.set(depth);
   printMargin(depth, firstLineMask, false);
   ndbout << endl;
