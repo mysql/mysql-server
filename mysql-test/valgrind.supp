@@ -876,5 +876,4 @@
    fun:buf_buddy_relocate
    fun:buf_buddy_free_low
    fun:buf_buddy_free
-   fun:buf_LRU_block_remove_hashed_page
 }
