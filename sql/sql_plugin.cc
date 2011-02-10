@@ -957,7 +957,10 @@ static void reap_plugins(void)
 
   list= reap;
   while ((plugin= *(--list)))
+  {
+    sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
+  }
 
   mysql_mutex_lock(&LOCK_plugin);
 
