@@ -2306,7 +2306,7 @@ srv_master_do_active_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+	ibuf_contract_in_background(FALSE);
 
 	/* Flush logs if needed */
 	srv_main_thread_op_info = "flushing log";
@@ -2384,7 +2384,7 @@ srv_master_do_idle_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	ibuf_contract_in_background(TRUE);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2456,7 +2456,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	n_bytes_merged = ibuf_contract_in_background(TRUE);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
