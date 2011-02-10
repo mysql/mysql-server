@@ -160,6 +160,16 @@ thd_scheduler::~thd_scheduler()
 {
 }
 
+void* thd_get_scheduler(THD *thd)
+{
+  return thd->scheduler.data;
+}
+
+PSI_thread* thd_get_psi(THD *thd)
+{
+  return thd->scheduler.m_psi;
+}
+
 static scheduler_functions *saved_thread_scheduler;
 static uint saved_thread_handling;
 
