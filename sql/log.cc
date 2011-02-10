@@ -1918,8 +1918,9 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         if (my_b_write(&log_file, (uchar*) buff, buff_len))
           tmp_errno= errno;
       }
-      buff_len= my_snprintf(buff, 14, "  Id: %5ld\n", (long) thd->thread_id);
-      if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff))
+      buff_len= my_snprintf(buff, 14, "%5ld", (long) thd->thread_id);
+      if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff)
+          == (uint) -1)
         tmp_errno= errno;
     }
     /* For slow query log */
