@@ -40,8 +40,6 @@ ERROR HY000: Wrong number of arguments to reverse_lookup;  Use the source
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");
-reverse_lookup("localhost")
-NULL
 select avgcost();
 ERROR HY000: wrong number of arguments: AVGCOST() requires two arguments
 select avgcost(100,23.76);
