@@ -1738,6 +1738,32 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data
+--echo #
+SELECT @@collation_connection, @@character_set_results;
+CREATE TABLE t1 AS
+SELECT
+  DATE_SUB('2007-08-03', INTERVAL 1 MINUTE) AS field_str1,
+  DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+  DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+  DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--enable_metadata
+SELECT
+  DATE_SUB('2007-08-03', INTERVAL 1 DAY) AS field_str1,
+  DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
+  DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
+  DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
+--disable_metadata
+SELECT
+  HEX(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
+  HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
+  HEX(DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY)) AS field_date,
+  HEX(DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE)) AS field_datetime;
+ 
+
+--echo #
 --echo # Bug#52159 returning time type from function and empty left join causes debug assertion
 --echo #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
