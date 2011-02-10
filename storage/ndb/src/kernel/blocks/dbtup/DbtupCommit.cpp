@@ -475,6 +475,86 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
   c_lqh->tupcommit_conf_callback(signal, regOperPtr.p->userpointer);
 }
 
+int Dbtup::retrieve_data_page(Signal *signal,
+                              Page_cache_client::Request req,
+                              OperationrecPtr regOperPtr)
+{
+  req.m_callback.m_callbackData= regOperPtr.i;
+  req.m_callback.m_callbackFunction =
+    safe_cast(&Dbtup::disk_page_commit_callback);
+
+  /*
+   * Consider commit to be correlated.  Otherwise pk op + commit makes
+   * the page hot.   XXX move to TUP which knows better.
+   */
+  int flags= regOperPtr.p->op_struct.op_type |
+    Page_cache_client::COMMIT_REQ | Page_cache_client::CORR_REQ;
+  Page_cache_client pgman(this, c_pgman);
+  int res= pgman.get_page(signal, req, flags);
+  m_pgman_ptr = pgman.m_ptr;
+
+  switch(res){
+  case 0:
+    /**
+     * Timeslice
+     */
+    jam();
+    signal->theData[0] = 1;
+    return res;
+  case -1:
+    ndbrequire("NOT YET IMPLEMENTED" == 0);
+    break;
+  default:
+    jam();
+  }
+  {
+    PagePtr tmpptr;
+    tmpptr.i = m_pgman_ptr.i;
+    tmpptr.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
+
+    disk_page_set_dirty(tmpptr);
+  }
+  regOperPtr.p->m_commit_disk_callback_page= res;
+  regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
+
+  return res;
+}
+
+int Dbtup::retrieve_log_page(Signal *signal,
+                             FragrecordPtr regFragPtr,
+                             OperationrecPtr regOperPtr)
+{
+  jam();
+  /**
+   * Only last op on tuple needs "real" commit,
+   *   hence only this one should have m_wait_log_buffer
+   */
+
+  CallbackPtr cb;
+  cb.m_callbackData= regOperPtr.i;
+  cb.m_callbackIndex = DISK_PAGE_LOG_BUFFER_CALLBACK;
+  Uint32 sz= regOperPtr.p->m_undo_buffer_space;
+
+  D("Logfile_client - execTUP_COMMITREQ");
+  Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
+  int res= lgman.get_log_buffer(signal, sz, &cb);
+  jamEntry();
+  switch(res){
+  case 0:
+    jam();
+    signal->theData[0] = 1;
+    return res;
+  case -1:
+    ndbrequire("NOT YET IMPLEMENTED" == 0);
+    break;
+  default:
+    jam();
+  }
+  regOperPtr.p->op_struct.m_wait_log_buffer= 0;
+
+  return res;
+}
+
 /**
  * Move to the first operation performed on this tuple
  */
@@ -640,44 +720,12 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       
       ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
     }
-    req.m_callback.m_callbackData= regOperPtr.i;
-    req.m_callback.m_callbackFunction = 
-      safe_cast(&Dbtup::disk_page_commit_callback);
 
-    /*
-     * Consider commit to be correlated.  Otherwise pk op + commit makes
-     * the page hot.   XXX move to TUP which knows better.
-     */
-    int flags= regOperPtr.p->op_struct.op_type |
-      Page_cache_client::COMMIT_REQ | Page_cache_client::CORR_REQ;
-    Page_cache_client pgman(this, c_pgman);
-    int res= pgman.get_page(signal, req, flags);
-    m_pgman_ptr = pgman.m_ptr;
-    switch(res){
-    case 0:
-      /**
-       * Timeslice
-       */
-      jam();
-      signal->theData[0] = 1;
-      return;
-    case -1:
-      ndbrequire("NOT YET IMPLEMENTED" == 0);
-      break;
-    default:
-      jam();
+    if (retrieve_data_page(signal, req, regOperPtr) == 0)
+    {
+      return; // Data page has not been retrieved yet.
     }
     get_page = true;
-
-    {
-      PagePtr tmpptr;
-      tmpptr.i = m_pgman_ptr.i;
-      tmpptr.p = reinterpret_cast<Page*>(m_pgman_ptr.p);
-      disk_page_set_dirty(tmpptr);
-    }
-    
-    regOperPtr.p->m_commit_disk_callback_page= res;
-    regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
   } 
   
   if(regOperPtr.p->op_struct.m_wait_log_buffer)
@@ -689,25 +737,9 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
      */
     ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
     
-    CallbackPtr cb;
-    cb.m_callbackData= regOperPtr.i;
-    cb.m_callbackIndex = DISK_PAGE_LOG_BUFFER_CALLBACK;
-    Uint32 sz= regOperPtr.p->m_undo_buffer_space;
-    
-    D("Logfile_client - execTUP_COMMITREQ");
-    Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
-    int res= lgman.get_log_buffer(signal, sz, &cb);
-    jamEntry();
-    switch(res){
-    case 0:
-      jam();
-      signal->theData[0] = 1;
-      return;
-    case -1:
-      ndbrequire("NOT YET IMPLEMENTED" == 0);
-      break;
-    default:
-      jam();
+    if (retrieve_log_page(signal, regFragPtr, regOperPtr) == 0)
+    {
+      return; // Log page has not been retrieved yet.
     }
   }
   
