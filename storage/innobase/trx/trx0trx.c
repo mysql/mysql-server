@@ -595,7 +595,6 @@ trx_lists_init_at_db_start(void)
 
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
-Skips the SYSTEM rollback segment if another is available.
 @return	assigned rollback segment */
 UNIV_INLINE
 trx_rseg_t*
@@ -604,11 +603,12 @@ trx_assign_rseg(void)
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
+	static ulint	latest_rseg = 0;
 
-	/* This breaks true round robin but that should be OK.
-	Our aim is to reduce the contention of the trx_sys_t::lock.  */
-	i = trx_sys->latest_rseg;
-	i %= TRX_SYS_N_RSEGS;
+	/* This breaks true round robin but that should be OK. */
+
+	i = latest_rseg++;
+        i %= TRX_SYS_N_RSEGS;
 
 	do {
 		rseg = trx_sys->rseg_array[i];
@@ -618,13 +618,13 @@ trx_assign_rseg(void)
 
 	} while (rseg == NULL);
 
+#ifdef UNIV_DEBUG
 	rw_lock_x_lock(&trx_sys->lock);
-
-	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
 
 	ut_ad(trx_sys_validate_trx_list());
 
 	rw_lock_x_unlock(&trx_sys->lock);
+#endif /* UNIV_DEBUG */
 
 	return(rseg);
 }
