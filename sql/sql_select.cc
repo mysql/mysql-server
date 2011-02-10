@@ -1753,18 +1753,7 @@ JOIN::optimize()
   thd_proc_info(thd, "optimizing");
 
   /* Run optimize phase for all derived tables/views used in this SELECT. */
-  {
-    select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
-    if (thd->lex->describe)
-    {
-      /*
-        Force join->join_tmp creation, because we will use this JOIN
-        twice for EXPLAIN and we have to have unchanged join for EXPLAINing
-      */
-      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-    }
-  }
+  select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   if (flatten_subqueries())
@@ -2354,7 +2343,8 @@ JOIN::optimize()
       tables == 1 && conds &&
       !unit->is_union())
   {
-    bool res;
+    bool changed= FALSE;
+    subselect_engine *engine= 0;
     if (!having)
     {
       Item *where= conds;
@@ -2365,12 +2355,9 @@ JOIN::optimize()
         save_index_subquery_explain_info(join_tab, where);
         join_tab[0].type= JT_UNIQUE_SUBQUERY;
         error= 0;
-        res= unit->item->
-                    change_engine(new
-                                  subselect_uniquesubquery_engine(thd,
-                                                                  join_tab,
-                                                                  unit->item,
-                                                                  where));
+        changed= TRUE;
+        engine= new subselect_uniquesubquery_engine(thd, join_tab, unit->item,
+                                                    where);
       }
       else if (join_tab[0].type == JT_REF &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name)
@@ -2379,14 +2366,9 @@ JOIN::optimize()
         save_index_subquery_explain_info(join_tab, where);
         join_tab[0].type= JT_INDEX_SUBQUERY;
         error= 0;
-        res= unit->item->
-                    change_engine(new
-                                  subselect_indexsubquery_engine(thd,
-                                                                 join_tab,
-                                                                 unit->item,
-                                                                 where,
-                                                                 NULL,
-                                                                 0));
+        changed= TRUE;
+        engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
+                                                   where, NULL, 0);
       }
     } else if (join_tab[0].type == JT_REF_OR_NULL &&
 	       join_tab[0].ref.items[0]->name == in_left_expr_name &&
@@ -2394,32 +2376,14 @@ JOIN::optimize()
     {
       join_tab[0].type= JT_INDEX_SUBQUERY;
       error= 0;
+      changed= TRUE;
       conds= remove_additional_cond(conds);
       save_index_subquery_explain_info(join_tab, conds);
-      res= unit->item->
-		  change_engine(new subselect_indexsubquery_engine(thd,
-								   join_tab,
-                                                                   unit->item,
-                                                                   conds,
-                                                                   having,
-                                                                   1));
+      engine= new subselect_indexsubquery_engine(thd, join_tab, unit->item,
+                                                 conds, having, 1);
     }
-    if (join_tab[0].type == JT_INDEX_SUBQUERY ||
-        join_tab[0].type == JT_UNIQUE_SUBQUERY)
-    {
-      /*
-        We came here when a subquery in WHERE is being executed.
-        Materialize the derived table prior to reading it.
-      */
-      if (!res && join_tab->table->pos_in_table_list->is_materialized_derived())
-      {
-        TABLE_LIST *derived= join_tab->table->pos_in_table_list;
-        res= (mysql_derived_create(thd, thd->lex, derived) ||
-              mysql_derived_materialize(thd, thd->lex, derived));
-      }
-      DBUG_RETURN(res);
-    }
-
+    if (changed)
+      DBUG_RETURN(unit->item->change_engine(engine));
   }
   /*
     Need to tell handlers that to play it safe, it should fetch all
@@ -4480,12 +4444,12 @@ bool pull_out_semijoin_tables(JOIN *join)
   @param limit  select limit
 
   @notes
-    In case of valid range a QUICK_SELECT_I object will be constructed and
+    In case of valid range, a QUICK_SELECT_I object will be constructed and
     saved in select->quick.
 
   @return
-    HA_POS_ERROR for derived tables/views or if an error occur
-    estimated number of rows otherwise
+    HA_POS_ERROR for derived tables/views or if an error occur.
+    Otherwise, estimated number of rows.
 */
 
 static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
@@ -4499,7 +4463,7 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
     DBUG_RETURN(0);                           // Fatal error flag is set
   // Derived tables aren't filled yet, so no stats are available.
   if (select &&
-      (!table->pos_in_table_list->is_materialized_derived() ||
+      (!table->pos_in_table_list->uses_materialization() ||
        table->pos_in_table_list->materialized))
   {
     select->head=table;
@@ -5549,7 +5513,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   DBUG_PRINT("info",("add_key_field for field %s",field->field_name));
   uint exists_optimize= 0;
   TABLE_LIST *table= field->table->pos_in_table_list;
-  if (!table->derived_keys_ready && table->is_materialized_derived() &&
+  if (!table->derived_keys_ready && table->uses_materialization() &&
       !field->table->created &&
       table->update_derived_keys(field, value, num_values))
     return;
@@ -9970,13 +9934,13 @@ static bool make_join_select(JOIN *join, Item *cond)
 
 bool JOIN::generate_derived_keys()
 {
-  TABLE_LIST *table= select_lex->leaf_tables;
-
-  for (; table; table= table->next_leaf)
+  for (TABLE_LIST *table= select_lex->leaf_tables;
+       table;
+       table= table->next_leaf)
   {
     table->derived_keys_ready= TRUE;
     /* Process tables that aren't materialized yet. */
-    if (table->is_materialized_derived() && !table->table->created &&
+    if (table->uses_materialization() && !table->table->created &&
         table->generate_keys())
       return TRUE;
   }
@@ -10009,10 +9973,10 @@ void JOIN::drop_unused_derived_keys()
         only one defined key and we need to leave it as is if it's used or
         ignore it otherwise).
     */
-    if (table->pos_in_table_list->is_materialized_derived() && // (1)
+    if (table->pos_in_table_list->uses_materialization() && // (1)
         !table->created &&                                       // (2)
-        table->max_keys != 0 &&                                 // (3)
-        (table->max_keys != 1 || tab->ref.key != 0))            // (4)
+        (table->max_keys > 1 ||                                 // (3)
+        (table->max_keys == 1 && tab->ref.key < 0)))            // (4)
     {
       table->use_index(tab->ref.key);
       /* Now there is only 1 index, point to it. */
@@ -11362,7 +11326,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       abort();					/* purecov: deadcode */
     }
     // Materialize derived tables prior to accessing them.
-    if (tab->table->pos_in_table_list->is_materialized_derived() &&
+    if (tab->table->pos_in_table_list->uses_materialization() &&
         !tab->table->pos_in_table_list->materialized)
     {
       tab->save_read_first_record= tab->read_first_record;
@@ -18467,17 +18431,14 @@ static int
 join_materialize_table(JOIN_TAB *tab)
 {
   TABLE_LIST *derived= tab->table->pos_in_table_list;
-  DBUG_ASSERT(derived->is_materialized_derived() &&
+  DBUG_ASSERT(derived->uses_materialization() &&
               !derived->materialized);
-  if (mysql_handle_single_derived(tab->table->in_use->lex,
-                                  derived, &mysql_derived_materialize))
-  {
-    mysql_handle_single_derived(tab->table->in_use->lex,
-                                derived, &mysql_derived_cleanup);
-    return -1;
-  }
+  bool res= mysql_handle_single_derived(tab->table->in_use->lex,
+                                        derived, &mysql_derived_materialize);
   mysql_handle_single_derived(tab->table->in_use->lex,
                               derived, &mysql_derived_cleanup);
+  if (res)
+    return -1;
   tab->read_first_record= tab->save_read_first_record;
   tab->save_read_first_record= NULL;
   return (*tab->read_first_record)(tab);
@@ -20440,7 +20401,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   {
     TABLE_LIST *derived= table->pos_in_table_list;
     // Fill derived table prior to sorting.
-    if (derived && derived->is_materialized_derived() &&
+    if (derived && derived->uses_materialization() &&
         (mysql_handle_single_derived(thd->lex, derived,
                                      &mysql_derived_create) ||
          mysql_handle_single_derived(thd->lex, derived,

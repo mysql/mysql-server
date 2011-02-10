@@ -88,9 +88,9 @@ out:
   @brief
   Run processor on the given derived table.
 
-  @param  thd	    Thread handle
   @param  lex       LEX for this thread
   @param  derived   TABLE_LIST for the upper SELECT
+  @param  processor procedure of derived table processing
 
   @return
     false  OK
@@ -167,7 +167,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
   DBUG_ENTER("mysql_derived_prepare");
   bool res= FALSE;
   DBUG_ASSERT(unit);
-  if (derived->is_materialized_derived())
+  if (derived->uses_materialization())
   {
     SELECT_LEX *first_select= unit->first_select();
     TABLE *table= 0;
@@ -291,6 +291,7 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
       (mysql_derived_create(thd, lex, derived) ||
        mysql_derived_materialize(thd, lex, derived)))
     return TRUE;
+
   return FALSE;
 }
 
@@ -326,7 +327,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
       tables => no need to create result table also.
    *) Table is already created.
   */
-  if (!derived->is_materialized_derived() || !table || table->created)
+  if (!derived->uses_materialization() || !table || table->created)
     return FALSE;
   /* create tmp table */
   select_union *result= (select_union*)unit->get_result();

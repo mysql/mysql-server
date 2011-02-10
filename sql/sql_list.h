@@ -309,8 +309,10 @@ public:
     @details
     The function sorts list nodes by an exchange sort algorithm.
     The order of list nodes isn't changed, values of info fields are
-    swapped instead. As this isn't an effective algorithm the list to be
-    sorted is supposed to be short.
+    swapped instead. Due to this list iterators that are initialized before
+    sort could be safely used after sort, i.e they wouldn't cause a crash.
+    As this isn't an effective algorithm the list to be sorted is supposed to
+    be short.
   */
   void sort(Node_cmp_func cmp, void *arg)
   {
@@ -320,7 +322,7 @@ public:
     {
       for (list_node *n2= n1->next; n2 && n2 != &end_of_list; n2= n2->next)
       {
-        if ((*cmp)(n1->info, n2->info, arg) < 0)
+        if ((*cmp)(n1->info, n2->info, arg) > 0)
         {
           void *tmp= n1->info;
           n1->info= n2->info;

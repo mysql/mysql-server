@@ -38,6 +38,7 @@
 #include "set_var.h"
 #include "sql_select.h"
 #include "sql_parse.h"                          // check_stack_overrun
+#include "sql_derived.h"                        // mysql_derived_create, ...
 
 inline Item * and_items(Item* cond, Item *item)
 {
@@ -2362,8 +2363,10 @@ int subselect_single_select_engine::exec()
             bool *cond_guard= tab->ref.cond_guards[i];
             if (cond_guard && !*cond_guard)
             {
-              /* Make sure that save_read_first_record usage doesn't
-               * intersect with join_materialize_table()'s */
+              /*
+                Make sure that save_read_first_record usage doesn't
+                intersect with join_materialize_table()'s.
+              */
               DBUG_ASSERT(!tab->save_read_first_record);
               /* Change the access method to full table scan */
               tab->save_read_first_record= tab->read_first_record;
@@ -2601,9 +2604,20 @@ int subselect_uniquesubquery_engine::exec()
   DBUG_ENTER("subselect_uniquesubquery_engine::exec");
   int error;
   TABLE *table= tab->table;
+  TABLE_LIST *tl= table->pos_in_table_list;
   empty_result_set= TRUE;
   table->status= 0;
  
+  if (tl->uses_materialization() && !tl->materialized)
+  {
+    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_create) ||
+              mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_materialize);
+    if (err)
+      DBUG_RETURN(1);
+  }
+
   /* TODO: change to use of 'full_scan' here? */
   if (copy_ref_key())
     DBUG_RETURN(1);
@@ -2705,11 +2719,22 @@ int subselect_indexsubquery_engine::exec()
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
+  TABLE_LIST *tl= table->pos_in_table_list;
 
   ((Item_in_subselect *) item)->value= 0;
   empty_result_set= TRUE;
   null_keypart= 0;
   table->status= 0;
+
+  if (tl->uses_materialization() && !tl->materialized)
+  {
+    bool err= mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_create) ||
+              mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_materialize);
+    if (err)
+      DBUG_RETURN(1);
+  }
 
   if (check_null)
   {
