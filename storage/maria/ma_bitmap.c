@@ -152,6 +152,7 @@ static void _ma_bitmap_unpin_all(MARIA_SHARE *share);
 static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                                            MARIA_FILE_BITMAP *bitmap)
 {
+  my_bool res;
   DBUG_ENTER("write_changed_bitmap");
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
   DBUG_ASSERT(bitmap->file.write_callback != 0);
@@ -169,7 +170,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
 #endif
       )
   {
-    my_bool res= pagecache_write(share->pagecache,
+    res= pagecache_write(share->pagecache,
                                  &bitmap->file, bitmap->page, 0,
                                  bitmap->map, PAGECACHE_PLAIN_PAGE,
                                  PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -187,9 +188,9 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
       be unpinned later by _ma_bitmap_unpin_all() as soon as non_flushable
       is set back to 0.
     */
-    DBUG_PRINT("info", ("Writing pinned bitmap page"));
     MARIA_PINNED_PAGE page_link;
-    int res= pagecache_write(share->pagecache,
+    DBUG_PRINT("info", ("Writing pinned bitmap page"));
+    res= pagecache_write(share->pagecache,
                              &bitmap->file, bitmap->page, 0,
                              bitmap->map, PAGECACHE_PLAIN_PAGE,
                              PAGECACHE_LOCK_LEFT_UNLOCKED, PAGECACHE_PIN,
@@ -197,7 +198,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
                              LSN_IMPOSSIBLE);
     page_link.unlock= PAGECACHE_LOCK_LEFT_UNLOCKED;
     page_link.changed= 1;
-    push_dynamic(&bitmap->pinned_pages, (void*) &page_link);
+    push_dynamic(&bitmap->pinned_pages, (const uchar*) (void*) &page_link);
     DBUG_RETURN(res);
   }
 }
