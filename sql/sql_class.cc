@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA */
 
 
 /*****************************************************************************
@@ -1458,6 +1458,11 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+  /* reset replication info structure */
+  if (lex && lex->mi.repl_ignore_server_ids.buffer) 
+  {
+    delete_dynamic(&lex->mi.repl_ignore_server_ids);
+  }
 }
 
 

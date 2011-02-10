@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 CREATE DATABASE test_user_db;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string

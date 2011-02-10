@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1550,7 +1550,7 @@ err_len:
 				"InnoDB: in InnoDB data dictionary"
 				" has unknown type %lx.\n",
 				(ulong) flags);
-			return(NULL);
+			return("incorrect flags in SYS_TABLES");
 		}
 	} else {
 		flags = 0;

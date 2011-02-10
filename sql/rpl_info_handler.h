@@ -55,13 +55,13 @@ public:
   /**
     Flushes and syncs in-memory information into a stable storage (i.e.
     repository). Usually, syncing after flushing depends on other options
-    such as @code relay-log-info-sync, master-info-sync. These options
+    such as @c relay-log-info-sync, @c master-info-sync. These options
     dictate after how many events or transactions the information
     should be synced. We can ignore them and always sync by setting the
-    parameter @code force, which is by default false, to @code true.
+    parameter @c force, which is by default @c false, to @c true.
 
     So if the number of events is below a threshold, the parameter
-    @code force is FALSE and we are using a file system as a storage
+    @c force is FALSE and we are using a file system as a storage
     system, it may happen that the changes will only end up in the
     operating system's cache and a crash may lead to inconsistencies.
 

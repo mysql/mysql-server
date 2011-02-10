@@ -2205,8 +2205,6 @@ void Item_date_add_interval::fix_length_and_dec()
   enum_field_types arg0_field_type;
 
   maybe_null=1;
-  fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
-  value.alloc(max_length);
 
   /*
     The field type for the result of an Item_date function is defined as
@@ -2231,6 +2229,21 @@ void Item_date_add_interval::fix_length_and_dec()
     else
       cached_field_type= MYSQL_TYPE_DATETIME;
   }
+
+  if (cached_field_type == MYSQL_TYPE_STRING)
+  {
+    /* Behave as a usual string function when return type is VARCHAR. */
+    fix_length_and_charset(MAX_DATETIME_FULL_WIDTH, default_charset());
+  }
+  else
+  {
+    /*
+      Follow the "Number-to-string conversion" rules as in WorkLog 2649
+      when return type is DATE or DATETIME.
+    */
+    fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
+  }
+  value.alloc(max_length);
 }
 
 
@@ -2253,7 +2266,7 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 }
 
 
-String *Item_date_add_interval::val_str(String *str)
+String *Item_date_add_interval::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
