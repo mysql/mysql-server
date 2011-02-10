@@ -1750,12 +1750,15 @@ SELECT
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 --enable_metadata
+# PS protocol gives different "Max length" value for DATETIME.
+--disable_ps_protocol
 SELECT
   DATE_SUB('2007-08-03', INTERVAL 1 DAY) AS field_str1,
   DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE) AS field1_str2,
   DATE_SUB(DATE('2007-08-03'), INTERVAL 1 DAY) AS field_date,
   DATE_SUB(CAST('2007-08-03 17:33:00' AS DATETIME), INTERVAL 1 MINUTE) AS field_datetime;
 --disable_metadata
+--enable_ps_protocol
 SELECT
   HEX(DATE_SUB('2007-08-03', INTERVAL 1 MINUTE)) AS field_str1,
   HEX(DATE_SUB('2007-08-03 17:33:00', INTERVAL 1 MINUTE)) AS field1_str2,
