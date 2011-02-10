@@ -72,11 +72,6 @@ enum scheduler_types
 void one_thread_per_connection_scheduler();
 void one_thread_scheduler();
 
-enum pool_command_op
-{
-  NOT_IN_USE_OP= 0, NORMAL_OP= 1, CONNECT_OP, KILL_OP, DIE_OP
-};
-
 /*
  To be used for pool-of-threads (implemeneted differently on various OSs)
 */
@@ -100,6 +95,9 @@ public:
   thd_scheduler();
   ~thd_scheduler();
 };
+
+void *thd_get_scheduler(THD *thd);
+PSI_thread* thd_get_psi(THD *thd);
 
 extern scheduler_functions *thread_scheduler;
 
