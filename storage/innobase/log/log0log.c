@@ -3078,6 +3078,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 {
 	ib_uint64_t	lsn;
 	ulint		arch_log_no;
+	ulint		status_factor	= 0;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3088,6 +3089,11 @@ logs_empty_and_mark_files_at_shutdown(void)
 
 	srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 loop:
+	if (srv_print_verbose_log && status_factor-- == 0) {
+		os_aio_print(stderr);
+		status_factor = 10 * 60 * 2;
+	}
+
 	os_thread_sleep(100000);
 
 	mutex_enter(&kernel_mutex);
