@@ -3875,3 +3875,23 @@ t1a ON (t1a.c2 = t1b.pk AND 2)
 WHERE t1.pk) ;
 pk
 DROP TABLE t1, t1a, t1b, t2;
+#
+# LP BUG#714808 Assertion `outer_lookup_keys <= outer_record_count'
+# failed with materialization
+CREATE TABLE t1 ( pk int(11), PRIMARY KEY (pk)) ;
+CREATE TABLE t2 ( f2 int(11)) ;
+CREATE TABLE t3 ( f1 int(11), f3 varchar(1), KEY (f1)) ;
+INSERT INTO t3 VALUES (7,'f');
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+EXPLAIN
+SELECT t1.*
+FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
+WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT t1.*
+FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
+WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
+pk
+drop table t1,t2,t3;

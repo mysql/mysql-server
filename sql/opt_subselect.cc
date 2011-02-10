@@ -3737,6 +3737,13 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       outer_record_count= 1;
       outer_lookup_keys=1;
     }
+    /*
+      Due to imprecise cost calculations, record/key counts my be < 1, while
+      an IN predicate will be executed at least once.
+    */
+    set_if_bigger(outer_record_count, 1);
+    set_if_bigger(outer_lookup_keys, 1);
+
     DBUG_ASSERT(outer_lookup_keys <= outer_record_count);
 
     /*

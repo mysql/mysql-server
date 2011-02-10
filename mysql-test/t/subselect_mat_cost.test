@@ -323,3 +323,25 @@ eval EXPLAIN EXTENDED $query;
 eval $query;
 
 DROP TABLE t1, t1a, t1b, t2;
+
+--echo #
+--echo # LP BUG#714808 Assertion `outer_lookup_keys <= outer_record_count'
+--echo # failed with materialization
+
+CREATE TABLE t1 ( pk int(11), PRIMARY KEY (pk)) ;
+CREATE TABLE t2 ( f2 int(11)) ;
+CREATE TABLE t3 ( f1 int(11), f3 varchar(1), KEY (f1)) ;
+INSERT INTO t3 VALUES (7,'f');
+
+set @@optimizer_switch='materialization=on,in_to_exists=on,semijoin=off';
+
+EXPLAIN
+SELECT t1.*
+FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
+WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
+
+SELECT t1.*
+FROM t3 RIGHT JOIN t1 ON t1.pk = t3.f1
+WHERE t3.f3 OR ( 3 ) IN ( SELECT f2 FROM t2 );
+
+drop table t1,t2,t3;
