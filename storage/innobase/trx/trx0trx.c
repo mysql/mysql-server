@@ -1445,17 +1445,18 @@ static
 void
 trx_prepare(
 /*========*/
-	trx_t*	trx)	/*!< in: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx_rseg_t*	rseg;
-	ib_uint64_t	lsn		= 0;
+	ib_uint64_t	lsn;
 	mtr_t		mtr;
 
 	rseg = trx->rseg;
+	/* Only fresh user transactions can be prepared.
+	Recovered transactions cannot. */
+	ut_a(!trx->is_recovered);
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
-
-		trx_mutex_exit(trx);
 
 		mtr_start(&mtr);
 
@@ -1489,16 +1490,13 @@ trx_prepare(
 					world */
 		/*--------------*/
 		lsn = mtr.end_lsn;
-
-		trx_mutex_enter(trx);
+		ut_ad(lsn);
+	} else {
+		lsn = 0;
 	}
 
-	ut_ad(trx_mutex_own(trx));
-
-	/* Note: This state change is only covered by the trx_t::mutex and
-	not the trx_sys_t::lock. */
-
 	/*--------------------------------------*/
+	ut_a(trx->state == TRX_STATE_ACTIVE);
 	trx->state = TRX_STATE_PREPARED;
 	/*--------------------------------------*/
 
@@ -1519,8 +1517,6 @@ trx_prepare(
 
 		TODO: find out if MySQL holds some mutex when calling this.
 		That would spoil our group prepare algorithm. */
-
-		trx_mutex_exit(trx);
 
 		if (srv_flush_log_at_trx_commit == 0) {
 			/* Do nothing */
@@ -1544,8 +1540,6 @@ trx_prepare(
 		} else {
 			ut_error;
 		}
-
-		trx_mutex_enter(trx);
 	}
 }
 
@@ -1559,15 +1553,11 @@ trx_prepare_for_mysql(
 {
 	trx_start_if_not_started_xa(trx);
 
-	trx_mutex_enter(trx);
-
 	trx->op_info = "preparing";
 
 	trx_prepare(trx);
 
 	trx->op_info = "";
-
-	trx_mutex_exit(trx);
 }
 
 /**********************************************************************//**
@@ -1685,8 +1675,6 @@ trx_get_trx_by_xid(
 			trx->xid.formatID = -1;
 			break;
 		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
 	rw_lock_s_unlock(&trx_sys->lock);

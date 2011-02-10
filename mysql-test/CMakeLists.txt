@@ -93,7 +93,7 @@ ADD_CUSTOM_TARGET(test-force
   COMMAND perl ./mysql-test-run.pl --force ${EXP}
 )
 
-FOREACH(collection test-bt test-bt-fast test-bt-debug)
+FOREACH(collection)
   IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection})
     MESSAGE(FATAL_ERROR 
       "${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection} does not exist")

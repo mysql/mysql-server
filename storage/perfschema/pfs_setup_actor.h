@@ -35,6 +35,7 @@ struct PFS_global_param;
   @{
 */
 
+/** Hash key for @sa PFS_setup_actor. */
 struct PFS_setup_actor_key
 {
   /**
@@ -47,6 +48,7 @@ struct PFS_setup_actor_key
   uint m_key_length;
 };
 
+/** A setup_actor record. */
 struct PFS_setup_actor
 {
   /** Internal lock. */

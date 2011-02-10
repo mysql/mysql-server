@@ -2266,9 +2266,14 @@ ha_innobase::reset_template(void)
 
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
-	/* Reset index condition pushdown state */
-	prebuilt->idx_cond = NULL;
-	prebuilt->idx_cond_n_cols = 0;
+	/* Reset index condition pushdown state. */
+	if (prebuilt->idx_cond) {
+		prebuilt->idx_cond = NULL;
+		prebuilt->idx_cond_n_cols = 0;
+		/* Invalidate prebuilt->mysql_template
+		in ha_innobase::write_row(). */
+		prebuilt->template_type = ROW_MYSQL_NO_TEMPLATE;
+	}
 }
 
 /*****************************************************************//**
@@ -6657,6 +6662,17 @@ create_table_def(
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name,
 						  (THD*) trx->mysql_thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
+	}
+
+	/* MySQL does the name length check. But we do additional check
+	on the name length here */
+	if (strlen(table_name) > MAX_FULL_NAME_LEN) {
+		push_warning_printf(
+			(THD*) trx->mysql_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_TABLE_NAME,
+			"InnoDB: Table Name or Database Name is too long");
+
+		DBUG_RETURN(ER_TABLE_NAME);
 	}
 
 	n_cols = form->s->fields;
