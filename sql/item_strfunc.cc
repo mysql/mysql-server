@@ -70,7 +70,7 @@ String my_empty_string("",default_charset_info);
   Normally conversion does not happen, and val_str_ascii() is immediately
   returned instead.
 */
-String *Item_str_ascii_func::val_str(String *str)
+String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -82,19 +82,19 @@ String *Item_str_ascii_func::val_str(String *str)
     return res;
   }
   
-  DBUG_ASSERT(str != &ascii_buf);
+  DBUG_ASSERT(str != str2);
   
   uint errors;
-  String *res= val_str_ascii(&ascii_buf);
+  String *res= val_str_ascii(str);
   if (!res)
     return 0;
   
-  if ((null_value= str->copy(res->ptr(), res->length(),
-                             &my_charset_latin1, collation.collation,
-                             &errors)))
+  if ((null_value= str2->copy(res->ptr(), res->length(),
+                              &my_charset_latin1, collation.collation,
+                              &errors)))
     return 0;
   
-  return str;
+  return str2;
 }
 
 
