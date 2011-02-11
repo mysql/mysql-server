@@ -9494,10 +9494,6 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 senderData = nextReq->senderData;
   Uint32 hashHi = signal->getSendersBlockRef();
 
-  /**
-   * XXX TODO handle upgrade...
-   */
-
   if (findTransaction(transid1, transid2, senderData, hashHi) != ZOK){
     jam();
     DEBUG(senderData << 
@@ -9525,15 +9521,16 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
       return;
     }
   }//if
-  if (ERROR_INSERTED(5025)){
-    // Delay signal if sender is NOT same node
-    if (refToNode(signal->senderBlockRef()) != cownNodeid) {
-      CLEAR_ERROR_INSERT_VALUE;
-      sendSignalWithDelay(cownref, GSN_SCAN_NEXTREQ, signal, 1000,
-			  signal->length());
-      return;
-    }
-  }//if
+  if (ERROR_INSERTED(5025))
+  {
+    /**
+     * This does not work as signal->getSendersBlockRef() is used
+     *   as "hashHi"...not having a real data-word for this is not optimal
+     *   but it will work...summary: disable this ERROR_INSERT
+     */
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   if (ERROR_INSERTED(5030)){
     ndbout << "ERROR 5030" << endl;
     CLEAR_ERROR_INSERT_VALUE;
@@ -9545,10 +9542,11 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
     return;
   }
 
-  if (signal->getLength() > ScanFragNextReq::SignalLength)
+  Uint32 pos = 0;
+  if (ScanFragNextReq::getCorrFactorFlag(nextReq->requestInfo))
   {
     jam();
-    Uint32 corrFactorLo = signal->theData[ScanFragNextReq::SignalLength];
+    Uint32 corrFactorLo = nextReq->variableData[pos++];
     tcConnectptr.p->m_corrFactorLo &= 0xFFFF0000;
     tcConnectptr.p->m_corrFactorLo |= corrFactorLo;
   }
@@ -9996,9 +9994,6 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   Uint32 hashIndex;
   TcConnectionrecPtr nextHashptr;
   Uint32 senderHi = signal->getSendersBlockRef();
-  /**
-   * XXX TODO handle upgrade...
-   */
 
   const Uint32 reqinfo = scanFragReq->requestInfo;
 
