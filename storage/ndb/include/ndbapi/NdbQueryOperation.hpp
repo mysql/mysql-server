@@ -336,8 +336,9 @@ public:
   int setBatchSize(Uint32 batchSize);
 
   /**
-   * Set the NdbInterpretedCode needed for defining a scan filter for 
-   * this operation. 
+   * Set the NdbInterpretedCode needed for defining a conditional filter 
+   * (aka: predicate) for this operation. Might be used both on scan 
+   * and lookup operations.
    *
    * Typically, one would create NdbScanFilter and NdbInterpretedCode objects
    * on the stack, e.g.:
@@ -346,9 +347,8 @@ public:
    *   filter.begin();
    *   filter.ge(0, 5U); // Check if column 1 is greater of equal to 5.
    *   filter.end();
-   *   scanOp->setInterpretedCode(code);
+   *   queryOp->setInterpretedCode(code);
    *
-   * It is an error to call this method on a lookup operation.
    * @param code The interpreted code. This object is copied internally, 
    * meaning that 'code' may be destroyed as soon as this method returns.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)

@@ -22,6 +22,7 @@
 #include <NdbQueryBuilder.hpp>
 #include "NdbQueryBuilderImpl.hpp"
 #include "NdbQueryOperationImpl.hpp"
+#include "NdbInterpretedCode.hpp"
 
 #include <signaldata/TcKeyReq.hpp>
 #include <signaldata/TcKeyRef.hpp>
@@ -4803,29 +4804,35 @@ NdbQueryOperationImpl::getResultStream(Uint32 rootFragNo) const
 bool
 NdbQueryOperationImpl::hasInterpretedCode() const
 {
-  return m_interpretedCode && m_interpretedCode->m_instructions_length > 0;
+  return (m_interpretedCode && m_interpretedCode->m_instructions_length > 0) ||
+         (getQueryOperationDef().getInterpretedCode() != NULL);
 } // NdbQueryOperationImpl::hasInterpretedCode
 
 int
 NdbQueryOperationImpl::prepareInterpretedCode(Uint32Buffer& attrInfo) const
 {
+  const NdbInterpretedCode* interpretedCode =
+    (m_interpretedCode && m_interpretedCode->m_instructions_length > 0)
+     ? m_interpretedCode
+     : getQueryOperationDef().getInterpretedCode();
+
   // There should be no subroutines in a filter.
-  assert(m_interpretedCode->m_first_sub_instruction_pos==0);
-  assert(m_interpretedCode->m_instructions_length > 0);
-  assert(m_interpretedCode->m_instructions_length <= 0xffff);
+  assert(interpretedCode->m_first_sub_instruction_pos==0);
+  assert(interpretedCode->m_instructions_length > 0);
+  assert(interpretedCode->m_instructions_length <= 0xffff);
 
   // Allocate space for program and length field.
   Uint32* const buffer = 
-    attrInfo.alloc(1+m_interpretedCode->m_instructions_length);
+    attrInfo.alloc(1+interpretedCode->m_instructions_length);
   if(unlikely(buffer==NULL))
   {
     return Err_MemoryAlloc;
   }
 
-  buffer[0] = m_interpretedCode->m_instructions_length;
+  buffer[0] = interpretedCode->m_instructions_length;
   memcpy(buffer+1, 
-         m_interpretedCode->m_buffer, 
-         m_interpretedCode->m_instructions_length * sizeof(Uint32));
+         interpretedCode->m_buffer, 
+         interpretedCode->m_instructions_length * sizeof(Uint32));
   return 0;
 } // NdbQueryOperationImpl::prepareInterpretedCode
 

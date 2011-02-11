@@ -29,6 +29,7 @@
 #include "AttributeHeader.hpp"
 #include "NdbIndexScanOperation.hpp"
 #include "NdbOut.hpp"
+#include "NdbInterpretedCode.hpp"
 
 /**
  * Implementation of all QueryBuilder objects are hidden from
@@ -54,6 +55,7 @@ static const bool doPrintQueryTree = false;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_MemoryAlloc = 4000;
+static const int Err_FinaliseNotCalled = 4519;
 
 static void
 setErrorCode(NdbQueryBuilderImpl* qb, int aErrorCode)
@@ -473,6 +475,77 @@ NdbQueryOptions::setParent(const NdbQueryOperationDef* parent)
   m_pimpl->m_parent = &parent->getImpl();
   return 0;
 }
+
+int
+NdbQueryOptions::setInterpretedCode(const NdbInterpretedCode& code)
+{
+  if (m_pimpl==&defaultOptions)
+  {
+    m_pimpl = new NdbQueryOptionsImpl;
+    if (unlikely(m_pimpl==0))
+    {
+      return Err_MemoryAlloc;
+    }
+  }
+  return m_pimpl->copyInterpretedCode(code);
+}
+
+
+NdbQueryOptionsImpl::~NdbQueryOptionsImpl()
+{
+  delete m_interpretedCode;
+}
+
+NdbQueryOptionsImpl::NdbQueryOptionsImpl(const NdbQueryOptionsImpl& src)
+ : m_matchType(src.m_matchType),
+   m_scanOrder(src.m_scanOrder),
+   m_parent(src.m_parent),
+   m_interpretedCode(NULL)
+{
+  if (src.m_interpretedCode)
+  {
+    copyInterpretedCode(*src.m_interpretedCode);
+  }
+}
+
+/* 
+ * Make a deep copy, such that 'src' can be destroyed when this method 
+ * returns.
+ */
+int
+NdbQueryOptionsImpl::copyInterpretedCode(const NdbInterpretedCode& src)
+{
+  /* Check the program's finalised */
+  if (unlikely(!(src.m_flags & NdbInterpretedCode::Finalised)))
+  {
+    return Err_FinaliseNotCalled;  // NdbInterpretedCode::finalise() not called.
+  }
+  if (src.m_instructions_length == 0)
+  {
+    return 0;
+  }
+
+  NdbInterpretedCode* interpretedCode = new NdbInterpretedCode();
+  if (unlikely(interpretedCode==NULL))
+  {
+    return Err_MemoryAlloc;
+  }
+
+  const int error = interpretedCode->copy(src);
+  if (unlikely(error))
+  {
+    delete interpretedCode;
+    return error;
+  }
+
+  /* Replace existing NdbInterpretedCode */
+  if (m_interpretedCode)
+    delete m_interpretedCode;
+
+  m_interpretedCode = interpretedCode;
+  return 0;
+}
+
 
 /****************************************************************************
  * Glue layer between NdbQueryOperationDef interface and its Impl'ementation.
@@ -1837,15 +1910,16 @@ NdbQueryOperationDefImpl::NdbQueryOperationDefImpl (
     error = Err_MemoryAlloc;
     return;
   }
-  if (m_options.m_parent!=NULL)
+  if (m_options.m_parent != NULL)
   {
-     m_parent = m_options.m_parent;
-     const int res = m_parent->addChild(this);
-     if (unlikely(res != 0))
-     {
-       error = res;
-     }
-  }
+    m_parent = m_options.m_parent;
+    const int res = m_parent->addChild(this);
+    if (unlikely(res != 0))
+    {
+      error = res;
+      return;
+    }
+  }  // else, ::linkWithParent() will assign 'm_parent'
 }
 
 
