@@ -403,7 +403,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
   Field *field= field_item->field;
   int result= 0;
 
-  if ((*item)->const_item())
+  if (!(*item)->with_subselect && (*item)->const_item())
   {
     TABLE *table= field->table;
     ulonglong orig_sql_mode= thd->variables.sql_mode;
