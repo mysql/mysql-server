@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -376,7 +376,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   if (!option)
     return 0;
 
-  if (find_type((char *)group_name, ctx->group, 3))
+  if (find_type((char *)group_name, ctx->group, FIND_TYPE_NO_PREFIX))
   {
     if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
