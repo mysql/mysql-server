@@ -7330,7 +7330,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	      sel->cond->quick_fix_field();
 
 	    if (sel->test_quick_select(thd, tab->keys,
-				       used_tables & ~ current_map,
+				       (used_tables & ~ current_map) | OUTER_REF_TABLE_BIT,
 				       (join->select_options &
 					OPTION_FOUND_ROWS ?
 					HA_POS_ERROR :

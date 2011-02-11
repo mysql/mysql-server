@@ -602,3 +602,20 @@ SET SESSION join_cache_level = @old_join_cache_level;
 
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # BUG#716293: "Range checked for each record" is not used if condition refers to outside of subquery
+--echo #
+
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 (a int, b int, `filler` char(200), key(a), key (b));
+insert into t2 
+  select A.a + 10*B.a + 100 * C.a, A.a + 10*B.a + 100 * C.a, 'filler' from t1 A, t1 B, t1 C;
+
+--echo # The following must use "Range checked for each record" for table B
+explain 
+select a, 
+       (select sum(X.a+B.b) from t1 X, t2 B where B.a=A.a or B.b=A.a)
+from t1 A;  
+drop table t1, t2;
+
