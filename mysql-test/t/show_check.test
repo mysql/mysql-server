@@ -1073,7 +1073,7 @@ set names latin1;
 SET NAMES latin1;
 CREATE DATABASE `ä`;
 CREATE TABLE `ä`.`ä` (a int) ENGINE=Memory;
---replace_column 7 # 8 # 9 #
+--replace_column 6 # 7 # 8 # 9 #
 SHOW TABLE STATUS FROM `ä` LIKE 'ä';
 DROP DATABASE `ä`;
 

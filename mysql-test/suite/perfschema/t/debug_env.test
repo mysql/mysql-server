@@ -1,0 +1,42 @@
+# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+-- echo "============================================================================"
+-- echo "This is not a test, it's a debug utility to troubleshoot test suite problems"
+-- echo "This script is flagged as experimental, as failures are expected"
+-- echo "============================================================================"
+
+show engines;
+show status like "performance_schema%";
+show variables like "performance_schema%";
+show engine performance_schema status;
+
+use performance_schema;
+show tables;
+
+select * from performance_timers;
+select * from setup_timers;
+
+# Investigating bug#59740
+select * from threads;
+select count(*) from setup_instruments;
+select count(*) from events_waits_summary_by_thread_by_event_name;
+
+

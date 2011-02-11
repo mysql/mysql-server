@@ -157,6 +157,7 @@ public:
   uint curr_list_object;
   uint num_columns;
 
+  TABLE *table;
   /*
     These key_map's are used for Partitioning to enable quick decisions
     on whether we can derive more information about which partition to

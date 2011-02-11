@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -6348,6 +6348,31 @@ uint8 ha_partition::table_cache_type()
 }
 
 
+/**
+  Calculate hash value for KEY partitioning using an array of fields.
+
+  @param field_array   An array of the fields in KEY partitioning
+
+  @return hash_value calculated
+
+  @note Uses the hash function on the character set of the field.
+  Integer and floating point fields use the binary character set by default.
+*/
+
+uint32 ha_partition::calculate_key_hash_value(Field **field_array)
+{
+  ulong nr1= 1;
+  ulong nr2= 4;
+
+  do
+  {
+    Field *field= *field_array;
+    field->hash(&nr1, &nr2);
+  } while (*(++field_array));
+  return (uint32) nr1;
+}
+
+
 /****************************************************************************
                 MODULE print messages
 ****************************************************************************/
@@ -6433,28 +6458,28 @@ uint ha_partition::alter_table_flags(uint flags)
     already altered, partitions. So both ADD and DROP can only be supported in
     pairs.
   */
-  flags_to_check= HA_ONLINE_ADD_INDEX_NO_WRITES;
-  flags_to_check|= HA_ONLINE_DROP_INDEX_NO_WRITES;
+  flags_to_check= HA_INPLACE_ADD_INDEX_NO_READ_WRITE;
+  flags_to_check|= HA_INPLACE_DROP_INDEX_NO_READ_WRITE;
   if ((flags_to_return & flags_to_check) != flags_to_check)
     flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
-  flags_to_check|= HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES;
+  flags_to_check= HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE;
+  flags_to_check|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
   if ((flags_to_return & flags_to_check) != flags_to_check)
     flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_ONLINE_ADD_PK_INDEX_NO_WRITES;
-  flags_to_check|= HA_ONLINE_DROP_PK_INDEX_NO_WRITES;
+  flags_to_check= HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE;
+  flags_to_check|= HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE;
   if ((flags_to_return & flags_to_check) != flags_to_check)
     flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_ONLINE_ADD_INDEX;
-  flags_to_check|= HA_ONLINE_DROP_INDEX;
+  flags_to_check= HA_INPLACE_ADD_INDEX_NO_WRITE;
+  flags_to_check|= HA_INPLACE_DROP_INDEX_NO_WRITE;
   if ((flags_to_return & flags_to_check) != flags_to_check)
     flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_ONLINE_ADD_UNIQUE_INDEX;
-  flags_to_check|= HA_ONLINE_DROP_UNIQUE_INDEX;
+  flags_to_check= HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE;
+  flags_to_check|= HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE;
   if ((flags_to_return & flags_to_check) != flags_to_check)
     flags_to_return&= ~flags_to_check;
-  flags_to_check= HA_ONLINE_ADD_PK_INDEX;
-  flags_to_check|= HA_ONLINE_DROP_PK_INDEX;
+  flags_to_check= HA_INPLACE_ADD_PK_INDEX_NO_WRITE;
+  flags_to_check|= HA_INPLACE_DROP_PK_INDEX_NO_WRITE;
   if ((flags_to_return & flags_to_check) != flags_to_check)
     flags_to_return&= ~flags_to_check;
   DBUG_RETURN(flags_to_return);

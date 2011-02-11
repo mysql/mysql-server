@@ -531,11 +531,11 @@ public:
 
     @param cmp  node comparison function
     @param arg  additional info to be passed to comparison function
-  */
+  * /
   inline void sort(Node_cmp_func cmp, void *arg)
   {
     base_list::sort(cmp, arg);
-  }
+  }*/
 };
 
 

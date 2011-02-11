@@ -1009,7 +1009,7 @@ convert_error:
 						    user_thd);
 	}
 
-	ut_a(innodb_table->n_ref_count == 1);
+	ut_a(!new_primary || innodb_table->n_ref_count == 1);
 
 	mem_heap_free(heap);
 	trx_commit_for_mysql(trx);

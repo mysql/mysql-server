@@ -659,6 +659,9 @@ drop table t1;
 --echo #             switching ICP off"
 --echo #
 
+# Save optimizer switch setting
+set @save_optimizer_switch_bug58816= @@optimizer_switch;
+
 CREATE TABLE t1 (
   pk INT NOT NULL,
   c1 INT NOT NULL,
@@ -674,6 +677,9 @@ SET SESSION optimizer_switch='index_condition_pushdown=off';
 SELECT pk, c1 FROM t1 WHERE pk <> 3;
 
 DROP TABLE t1;
+
+# Restore optimzer switch setting
+set optimizer_switch= @save_optimizer_switch_bug58816;
 
 --echo #
 --echo # Bug#58837: ICP crash or valgrind error due to uninitialized 

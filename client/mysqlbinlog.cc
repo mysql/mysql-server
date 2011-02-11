@@ -994,7 +994,7 @@ static struct my_option my_long_options[] =
     /* 'unspec' is not mentioned because it is just a placeholder. */
    "Determine when the output statements should be base64-encoded BINLOG "
    "statements: 'never' disables it and works only for binlogs without "
-   "row-based events; 'decode-rows' decodes row events into commented SQL "
+   "row-based events; 'decode-rows' decodes row events into commented pseudo-SQL "
    "statements if the --verbose option is also given; 'auto' prints base64 "
    "only when necessary (i.e., for row-based events and format description "
    "events).  If no --base64-output[=name] option is given at all, the "
@@ -1150,7 +1150,7 @@ static struct my_option my_long_options[] =
   {"user", 'u', "Connect to the remote server as username.",
    &user, &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-  {"verbose", 'v', "Reconstruct SQL statements out of row events. "
+  {"verbose", 'v', "Reconstruct pseudo-SQL statements out of row events. "
                    "-v -v adds comments on column data types.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,

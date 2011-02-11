@@ -1889,6 +1889,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
   set_up_range_analysis_info(part_info);
+  table->file->set_part_info(part_info, FALSE);
   result= FALSE;
 end:
   thd->mark_used_columns= save_mark_used_columns;
@@ -2719,40 +2720,11 @@ static inline int part_val_int(Item *item_expr, longlong *result)
 
   We have a set of support functions for these 14 variants. There are 4
   variants of hash functions and there is a function for each. The KEY
-  partitioning uses the function calculate_key_value to calculate the hash
+  partitioning uses the function calculate_key_hash_value to calculate the hash
   value based on an array of fields. The linear hash variants uses the
   method get_part_id_from_linear_hash to get the partition id using the
   hash value and some parameters calculated from the number of partitions.
 */
-
-/*
-  Calculate hash value for KEY partitioning using an array of fields.
-
-  SYNOPSIS
-    calculate_key_value()
-    field_array             An array of the fields in KEY partitioning
-
-  RETURN VALUE
-    hash_value calculated
-
-  DESCRIPTION
-    Uses the hash function on the character set of the field. Integer and
-    floating point fields use the binary character set by default.
-*/
-
-static uint32 calculate_key_value(Field **field_array)
-{
-  ulong nr1= 1;
-  ulong nr2= 4;
-
-  do
-  {
-    Field *field= *field_array;
-    field->hash(&nr1, &nr2);
-  } while (*(++field_array));
-  return (uint32) nr1;
-}
-
 
 /*
   A simple support function to calculate part_id given local part and
@@ -2841,25 +2813,25 @@ static int get_part_id_linear_hash(partition_info *part_info,
 }
 
 
-/*
+/**
   Calculate part_id for (SUB)PARTITION BY KEY
 
-  SYNOPSIS
-    get_part_id_key()
-    field_array         Array of fields for PARTTION KEY
-    num_parts           Number of KEY partitions
+  @param file                Handler to storage engine
+  @param field_array         Array of fields for PARTTION KEY
+  @param num_parts           Number of KEY partitions
+  @param func_value[out]     Returns calculated hash value
 
-  RETURN VALUE
-    Calculated partition id
+  @return Calculated partition id
 */
 
 inline
-static uint32 get_part_id_key(Field **field_array,
+static uint32 get_part_id_key(handler *file,
+                              Field **field_array,
                               uint num_parts,
                               longlong *func_value)
 {
   DBUG_ENTER("get_part_id_key");
-  *func_value= calculate_key_value(field_array);
+  *func_value= file->calculate_key_hash_value(field_array);
   DBUG_RETURN((uint32) (*func_value % num_parts));
 }
 
@@ -2886,7 +2858,7 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 {
   DBUG_ENTER("get_part_id_linear_key");
 
-  *func_value= calculate_key_value(field_array);
+  *func_value= part_info->table->file->calculate_key_hash_value(field_array);
   DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            num_parts));
@@ -3574,7 +3546,8 @@ int get_partition_id_key_nosub(partition_info *part_info,
                                 uint32 *part_id,
                                 longlong *func_value)
 {
-  *part_id= get_part_id_key(part_info->part_field_array,
+  *part_id= get_part_id_key(part_info->table->file,
+                            part_info->part_field_array,
                             part_info->num_parts, func_value);
   return 0;
 }
@@ -3664,7 +3637,8 @@ int get_partition_id_key_sub(partition_info *part_info,
                              uint32 *part_id)
 {
   longlong func_value;
-  *part_id= get_part_id_key(part_info->subpart_field_array,
+  *part_id= get_part_id_key(part_info->table->file,
+                            part_info->subpart_field_array,
                             part_info->num_subparts, &func_value);
   return FALSE;
 }
@@ -4366,7 +4340,8 @@ bool mysql_unpack_partition(THD *thd,
     *work_part_info_used= true;
   }
   table->part_info= part_info;
-  table->file->set_part_info(part_info);
+  part_info->table= table;
+  table->file->set_part_info(part_info, TRUE);
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);

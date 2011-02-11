@@ -599,6 +599,7 @@ drop table t1;
 # Bug #58816 "Extra temporary duplicate rows in result set when 
 #             switching ICP off"
 #
+set @save_optimizer_switch_bug58816= @@optimizer_switch;
 CREATE TABLE t1 (
 pk INT NOT NULL,
 c1 INT NOT NULL,
@@ -616,6 +617,7 @@ pk	c1
 4	3
 5	1
 DROP TABLE t1;
+set optimizer_switch= @save_optimizer_switch_bug58816;
 #
 # Bug#58837: ICP crash or valgrind error due to uninitialized 
 #            value in innobase_index_cond

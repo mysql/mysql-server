@@ -237,21 +237,26 @@ enum PSI_file_operation
   PSI_FILE_SYNC= 16
 };
 
-/** Operation performed on an instrumented table. */
-enum PSI_table_operation
+/** IO operation performed on an instrumented table. */
+enum PSI_table_io_operation
+{
+  /** Row fetch. */
+  PSI_TABLE_FETCH_ROW= 0,
+  /** Row write. */
+  PSI_TABLE_WRITE_ROW= 1,
+  /** Row update. */
+  PSI_TABLE_UPDATE_ROW= 2,
+  /** Row delete. */
+  PSI_TABLE_DELETE_ROW= 3
+};
+
+/** Lock operation performed on an instrumented table. */
+enum PSI_table_lock_operation
 {
   /** Table lock, in the server layer. */
   PSI_TABLE_LOCK= 0,
   /** Table lock, in the storage engine layer. */
-  PSI_TABLE_EXTERNAL_LOCK= 1,
-  /** Row fetch. */
-  PSI_TABLE_FETCH_ROW= 2,
-  /** Row write. */
-  PSI_TABLE_WRITE_ROW= 3,
-  /** Row update. */
-  PSI_TABLE_UPDATE_ROW= 4,
-  /** Row delete. */
-  PSI_TABLE_DELETE_ROW= 5
+  PSI_TABLE_EXTERNAL_LOCK= 1
 };
 
 /**
@@ -572,13 +577,15 @@ struct PSI_file_locker_state_v1
 };
 
 /**
-  State data storage for @c get_thread_table_locker_v1_t.
+  State data storage for @c get_thread_table_io_locker_v1_t,
+  @c get_thread_table_lock_locker_v1_t.
   This structure provide temporary storage to a table locker.
   The content of this structure is considered opaque,
   the fields are only hints of what an implementation
   of the psi interface can use.
   This memory is provided by the instrumented code for performance reasons.
-  @sa get_thread_table_locker_v1_t
+  @sa get_thread_table_io_locker_v1_t
+  @sa get_thread_table_lock_locker_v1_t
 */
 struct PSI_table_locker_state_v1
 {
@@ -588,20 +595,20 @@ struct PSI_table_locker_state_v1
   struct PSI_table *m_table;
   /** Current table share. */
   struct PSI_table_share *m_table_share;
-  /** Instrumentation class. */
-  void *m_class;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
   ulonglong m_timer_start;
   /** Timer function. */
   ulonglong (*m_timer)(void);
-  /** Current operation. */
-  enum PSI_table_operation m_operation;
-  /** Current table io index. */
+  /** Current io operation. */
+  enum PSI_table_io_operation m_io_operation;
+  /**
+    Implementation specific.
+    For table io, the table io index.
+    For table lock, the lock type.
+  */
   uint m_index;
-  /** Current table lock index. */
-  uint m_lock_index;
   /** Source file. */
   const char* m_src_file;
   /** Source line number. */
@@ -896,16 +903,28 @@ typedef struct PSI_cond_locker* (*get_thread_cond_locker_v1_t)
    enum PSI_cond_operation op);
 
 /**
-  Get a table instrumentation locker.
+  Get a table instrumentation io locker.
+  @param state data storage for the locker
+  @param table the instrumented table to lock
+  @param op the operation to be performed
+  @param index the index used if any, or MAX_KEY
+  @return a table locker, or NULL
+*/
+typedef struct PSI_table_locker* (*get_thread_table_io_locker_v1_t)
+  (struct PSI_table_locker_state_v1 *state,
+   struct PSI_table *table, enum PSI_table_io_operation op, uint index);
+
+/**
+  Get a table instrumentation lock locker.
   @param state data storage for the locker
   @param table the instrumented table to lock
   @param op the operation to be performed
   @param flags Per operation flags
   @return a table locker, or NULL
 */
-typedef struct PSI_table_locker* (*get_thread_table_locker_v1_t)
+typedef struct PSI_table_locker* (*get_thread_table_lock_locker_v1_t)
   (struct PSI_table_locker_state_v1 *state,
-   struct PSI_table *table, enum PSI_table_operation op, ulong flags);
+   struct PSI_table *table, enum PSI_table_lock_operation op, ulong flags);
 
 /**
   Get a file instrumentation locker, for opening or creating a file.
@@ -1035,20 +1054,34 @@ typedef void (*end_cond_wait_v1_t)
   (struct PSI_cond_locker *locker, int rc);
 
 /**
-  Record a table instrumentation wait start event.
+  Record a table instrumentation io wait start event.
   @param locker a table locker for the running thread
-  @param index the index used if any, or MAX_KEY
   @param file the source file name
   @param line the source line number
 */
-typedef void (*start_table_wait_v1_t)
-  (struct PSI_table_locker *locker, uint index, const char *src_file, uint src_line);
+typedef void (*start_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
 
 /**
-  Record a table instrumentation wait end event.
+  Record a table instrumentation io wait end event.
   @param locker a table locker for the running thread
 */
-typedef void (*end_table_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+
+/**
+  Record a table instrumentation lock wait start event.
+  @param locker a table locker for the running thread
+  @param file the source file name
+  @param line the source line number
+*/
+typedef void (*start_table_lock_wait_v1_t)
+  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
+
+/**
+  Record a table instrumentation lock wait end event.
+  @param locker a table locker for the running thread
+*/
+typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 
 /**
   Start a file instrumentation open operation.
@@ -1176,8 +1209,10 @@ struct PSI_v1
   get_thread_rwlock_locker_v1_t get_thread_rwlock_locker;
   /** @sa get_thread_cond_locker_v1_t. */
   get_thread_cond_locker_v1_t get_thread_cond_locker;
-  /** @sa get_thread_table_locker_v1_t. */
-  get_thread_table_locker_v1_t get_thread_table_locker;
+  /** @sa get_thread_table_io_locker_v1_t. */
+  get_thread_table_io_locker_v1_t get_thread_table_io_locker;
+  /** @sa get_thread_table_lock_locker_v1_t. */
+  get_thread_table_lock_locker_v1_t get_thread_table_lock_locker;
   /** @sa get_thread_file_name_locker_v1_t. */
   get_thread_file_name_locker_v1_t get_thread_file_name_locker;
   /** @sa get_thread_file_stream_locker_v1_t. */
@@ -1208,10 +1243,14 @@ struct PSI_v1
   start_cond_wait_v1_t start_cond_wait;
   /** @sa end_cond_wait_v1_t. */
   end_cond_wait_v1_t end_cond_wait;
-  /** @sa start_table_wait_v1_t. */
-  start_table_wait_v1_t start_table_wait;
-  /** @sa end_table_wait_v1_t. */
-  end_table_wait_v1_t end_table_wait;
+  /** @sa start_table_io_wait_v1_t. */
+  start_table_io_wait_v1_t start_table_io_wait;
+  /** @sa end_table_io_wait_v1_t. */
+  end_table_io_wait_v1_t end_table_io_wait;
+  /** @sa start_table_lock_wait_v1_t. */
+  start_table_lock_wait_v1_t start_table_lock_wait;
+  /** @sa end_table_lock_wait_v1_t. */
+  end_table_lock_wait_v1_t end_table_lock_wait;
   /** @sa start_file_open_wait_v1_t. */
   start_file_open_wait_v1_t start_file_open_wait;
   /** @sa end_file_open_wait_v1_t. */

@@ -25,3 +25,41 @@
 #
 ##############################################################################
 
+ortho_iter                        : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_global_2u_2t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_global_2u_3t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_global_4u_2t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_global_4u_3t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_hist_2u_2t        : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_hist_2u_3t        : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_hist_4u_2t        : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_hist_4u_3t        : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_thread_2u_2t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_thread_2u_3t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_thread_4u_2t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_aggregate_thread_4u_3t      : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_global_2u_2t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_global_2u_3t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_global_4u_2t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_global_4u_3t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_hist_2u_2t     : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_hist_2u_3t     : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_hist_4u_2t     : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_hist_4u_3t     : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_thread_2u_2t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_thread_2u_3t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_thread_4u_2t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_io_aggregate_thread_4u_3t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_global_2u_2t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_global_2u_3t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_global_4u_2t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_global_4u_3t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_hist_2u_2t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_hist_2u_3t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_hist_4u_2t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_hist_4u_3t   : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_thread_2u_2t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_thread_2u_3t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_thread_4u_2t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+table_lock_aggregate_thread_4u_3t : BUG#59740 2011-02-26 Marc Alff Test fails on FreeBSD
+
