@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1038,9 +1038,9 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
     }
     if (!(extension= strrchr(file->name, '.')))
       extension= strend(file->name);
-    if (find_type(extension, &deletable_extentions,1+2) <= 0)
+    if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0)
     {
-      if (find_type(extension, ha_known_exts(),1+2) <= 0)
+      if (find_type(extension, ha_known_exts(), FIND_TYPE_NO_PREFIX) <= 0)
 	*found_other_files= true;
       continue;
     }
