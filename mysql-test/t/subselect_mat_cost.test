@@ -367,3 +367,21 @@ EXPLAIN SELECT f2 FROM t3 WHERE (
 ) IS NULL ;
 
 drop table t1, t2;
+
+--echo #
+--echo # LP BUG#715034 Item_sum_distinct::clear(): Assertion `tree != 0' failed
+--echo #
+
+CREATE TABLE t2 ( f2 int(11)) ;
+
+CREATE TABLE t1 ( f3 int(11), KEY (f3)) ;
+INSERT INTO t1 VALUES (6),(4);
+
+EXPLAIN
+SELECT * FROM (SELECT * FROM t2) AS a2
+WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
+
+insert into t2 values (1),(2);
+EXPLAIN
+SELECT * FROM (SELECT * FROM t2) AS a2
+WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
