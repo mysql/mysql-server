@@ -6396,25 +6396,47 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   @param str     A String to store the user list.
   @param user    A LEX_USER which will be appended into user list.
   @param comma   If TRUE, append a ',' before the the user.
-  @param passwd  If TRUE, append ' IDENTIFIED BY PASSWORD ...' after the user,
-                 if the given user has password.
+  @param ident   If TRUE, append ' IDENTIFIED BY/WITH...' after the user,
+                 if the given user has credentials set with 'IDENTIFIED BY/WITH'
  */
 static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
-                        bool passwd= FALSE)
+                        bool ident= FALSE)
 {
+  String from_user(user->user.str, user->user.length, system_charset_info);
+  String from_plugin(user->plugin.str, user->plugin.length, system_charset_info);
+  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+  String from_host(user->host.str, user->host.length, system_charset_info);
+
   if (comma)
     str->append(',');
-  str->append('\'');
-  str->append(user->user.str);
-  str->append(STRING_WITH_LEN("'@'"));
-  str->append(user->host.str);
-  str->append('\'');
+  append_query_string(system_charset_info, &from_user, str);
+  str->append(STRING_WITH_LEN("@"));
+  append_query_string(system_charset_info, &from_host, str);
 
-  if (passwd && user->password.str)
+  if (ident)
   {
-    str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-    str->append(user->password.str, user->password.length);
-    str->append('\'');
+    if (user->plugin.str && (user->plugin.length > 0))
+    {
+      /** 
+          The plugin identifier is allowed to be specified,
+          both with and without quote marks. We log it with
+          quotes always.
+        */
+      str->append(STRING_WITH_LEN(" IDENTIFIED WITH "));
+      append_query_string(system_charset_info, &from_plugin, str);
+
+      if (user->auth.str && (user->auth.length > 0))
+      {
+        str->append(STRING_WITH_LEN(" AS "));
+        append_query_string(system_charset_info, &from_auth, str);
+      }
+    }
+    else if (user->password.str)
+    {
+      str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
+      str->append(user->password.str, user->password.length);
+      str->append('\'');
+    }
   }
 }
 
