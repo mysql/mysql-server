@@ -383,10 +383,10 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.socket_instances("
   "EVENT_NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
-  "THREAD_ID INTEGER,"
-  "SOCKET_ID INTEGER,"
-  "IP VARCHAR(64),"
-  "PORT INTEGER"
+  "THREAD_ID INTEGER not null,"
+  "SOCKET_ID INTEGER not null,"
+  "IP VARCHAR(64) not null,"
+  "PORT INTEGER not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -399,9 +399,9 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.socket_summary_by_instance("
-  "EVENT_NAME VARCHAR(128),"
+  "EVENT_NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
-  "OBJECT_NAME VARCHAR(64),"
+  "OBJECT_NAME VARCHAR(64) default '' not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
   "MIN_TIMER_WAIT BIGINT unsigned not null,"
