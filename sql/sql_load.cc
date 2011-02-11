@@ -402,10 +402,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
     // if we are not in slave thread, the file must be:
     if (!thd->slave_thread &&
-	      !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-	        (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-	        ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	         (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
+        !((stat_info.st_mode & S_IFLNK) != S_IFLNK &&   // symlink
+          ((stat_info.st_mode & S_IFREG) == S_IFREG ||  // regular file
+           (stat_info.st_mode & S_IFIFO) == S_IFIFO)))  // named pipe
     {
 	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
 	    DBUG_RETURN(TRUE);
