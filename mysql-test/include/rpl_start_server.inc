@@ -45,15 +45,7 @@ if ($rpl_server_parameters)
 --source include/rpl_connection.inc
 
 # Write file to make mysql-test-run.pl start up the server again
---let WRITE_TO_FILE= $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
---let WRITE_TO_VAR= $_rpl_start_server_command
-perl;
-my $file= $ENV{'WRITE_TO_FILE'};
-my $var= $ENV{'WRITE_TO_VAR'};
-open WRITE_FILE, ">> $file" or die "Error opening $file: $!";
-print WRITE_FILE $var, "\n" or die "Error appending to $file: $!";
-close WRITE_FILE or die "Error closing $file: $!";
-EOF
+--exec echo "$_rpl_start_server_command" > $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
 
 --source include/rpl_reconnect.inc
 

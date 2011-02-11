@@ -1334,7 +1334,7 @@ CREATE DATABASE `ä`;
 CREATE TABLE `ä`.`ä` (a int) ENGINE=Memory;
 SHOW TABLE STATUS FROM `ä` LIKE 'ä';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-ä	MEMORY	10	Fixed	0	8	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
+ä	MEMORY	10	Fixed	0	#	#	#	#	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL		
 DROP DATABASE `ä`;
 show columns from `#mysql50#????????`;
 Got one of the listed errors

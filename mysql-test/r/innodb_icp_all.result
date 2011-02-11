@@ -619,5 +619,56 @@ pk	c1
 4	3
 5	1
 DROP TABLE t1;
+#
+# Bug#58837: ICP crash or valgrind error due to uninitialized 
+#            value in innobase_index_cond
+#
+CREATE TABLE t1 (
+t1_int INT,
+t1_time TIME
+);
+CREATE TABLE t2 ( 
+t2_int int PRIMARY KEY,
+t2_int2 INT
+);
+INSERT INTO t2 VALUES ();
+INSERT INTO t1 VALUES ();
+
+SELECT *
+FROM t1 AS t1a 
+WHERE NOT EXISTS
+(SELECT *
+FROM t1 AS t1b
+WHERE t1b.t1_int NOT IN
+(SELECT t2.t2_int 
+FROM t2
+WHERE t1b.t1_time LIKE t1b.t1_int
+OR t1b.t1_time <> t2.t2_int2
+AND 6=7 
+)
+)
+;;
+t1_int	t1_time
+
+EXPLAIN SELECT *
+FROM t1 AS t1a 
+WHERE NOT EXISTS
+(SELECT *
+FROM t1 AS t1b
+WHERE t1b.t1_int NOT IN
+(SELECT t2.t2_int 
+FROM t2
+WHERE t1b.t1_time LIKE t1b.t1_int
+OR t1b.t1_time <> t2.t2_int2
+AND 6=7 
+)
+)
+;;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	SUBQUERY	t1b	ALL	NULL	NULL	NULL	NULL	1	Using where
+3	DEPENDENT SUBQUERY	t2	unique_subquery	PRIMARY	PRIMARY	4	func	1	Using where; Full scan on NULL key
+
+DROP TABLE t1,t2;
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;
