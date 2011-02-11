@@ -172,6 +172,26 @@ public:
    */
   int setParent(const class NdbQueryOperationDef* parent);
 
+  /**
+   * Set the NdbInterpretedCode needed for defining a conditional filter 
+   * (aka: predicate) for this operation. Might be used both on scan 
+   * and lookup operations.
+   *
+   * Typically, one would create NdbScanFilter and NdbInterpretedCode objects
+   * on the stack, e.g.:
+   *   NdbInterpretedCode code(table);
+   *   NdbScanFilter filter(code);
+   *   filter.begin();
+   *   filter.ge(0, 5U); // Check if column 1 is greater of equal to 5.
+   *   filter.end();
+   *   queryOp->setInterpretedCode(code);
+   *
+   * @param code The interpreted code. This object is copied internally, 
+   * meaning that 'code' may be destroyed as soon as this method returns.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int setInterpretedCode(const class NdbInterpretedCode& code);
+
   const NdbQueryOptionsImpl& getImpl() const;
 
 private:

@@ -270,13 +270,25 @@ public:
   explicit NdbQueryOptionsImpl()
   : m_matchType(NdbQueryOptions::MatchAll),
     m_scanOrder(NdbQueryOptions::ScanOrdering_void),
-    m_parent(NULL)
+    m_parent(NULL),
+    m_interpretedCode(NULL)
   {};
+  NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
+  ~NdbQueryOptionsImpl();
 
 private:
   NdbQueryOptions::MatchType     m_matchType;
   NdbQueryOptions::ScanOrdering  m_scanOrder;
   NdbQueryOperationDefImpl*      m_parent;
+  const NdbInterpretedCode*      m_interpretedCode;
+
+  /**
+   * Assign NdbInterpretedCode by taking a deep copy of 'src'
+   * @return possible error code.
+   */
+  int copyInterpretedCode(const NdbInterpretedCode& src);
+
+  NdbQueryOptionsImpl&operator=(const NdbQueryOptionsImpl&);  // Not impl.
 };
 
 
@@ -329,6 +341,9 @@ public:
 
   enum NdbQueryOptions::ScanOrdering getOrdering() const
   { return m_options.m_scanOrder; }
+
+  const NdbInterpretedCode* getInterpretedCode() const
+  { return m_options.m_interpretedCode; }
 
   Uint32 assignQueryOperationId(Uint32& nodeId)
   { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
