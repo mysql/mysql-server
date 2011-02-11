@@ -486,6 +486,16 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
      */
     if (push_cnt == 0)
     {
+      NdbQueryOptions options;
+      if (m_cond)
+      {
+        NdbInterpretedCode code(m_table);
+        if (m_cond->generate_scan_filter(&code, NULL) != 0)
+          ERR_RETURN(code.getNdbError());
+
+        options.setInterpretedCode(code);
+      }
+
       if (ndbcluster_is_lookup_operation(access_type))
       {
         const KEY* const key= 
@@ -511,7 +521,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
           DBUG_PRINT("info", ("Root operation is 'primary-key-lookup'"));
           DBUG_ASSERT(join_root->get_index_no() == 
                       static_cast<int>(table->s->primary_key));
-          query_op= builder->readTuple(m_table, root_key);
+          query_op= builder->readTuple(m_table, root_key, &options);
         }
         else
         {
@@ -519,7 +529,7 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
           const NdbDictionary::Index* const index 
             = m_index[join_root->get_index_no()].unique_index;
           DBUG_ASSERT(index);
-          query_op= builder->readTuple(index, m_table, root_key);
+          query_op= builder->readTuple(index, m_table, root_key, &options);
         }
       }
       /**
@@ -542,12 +552,12 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
 
         // Bounds will be generated and supplied during execute
         query_op= 
-          builder->scanIndex(m_index[join_root->get_index_no()].index, m_table);
+          builder->scanIndex(m_index[join_root->get_index_no()].index, m_table, 0, &options);
       }
       else if (access_type == AQP::AT_TABLE_SCAN) 
       {
         DBUG_PRINT("info", ("Root operation is 'table scan'"));
-        query_op= builder->scanTable(m_table);
+        query_op= builder->scanTable(m_table, &options);
       }
       else
       {
@@ -700,6 +710,14 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
       DBUG_ASSERT(parent_op != NULL);
       options.setParent(parent_op);
     }
+    if (handler->m_cond)
+    {
+      NdbInterpretedCode code(table);
+      if (handler->m_cond->generate_scan_filter(&code, NULL) != 0)
+        ERR_RETURN(code.getNdbError());
+
+      options.setInterpretedCode(code);
+    }
 
     if (join_tab->get_access_type() == AQP::AT_ORDERED_INDEX_SCAN)
     {
@@ -721,7 +739,6 @@ ha_ndbcluster::make_pushed_join(ndb_pushed_builder_ctx& context,
       query_op= builder->readTuple(index, table, linked_key, &options);
     }
 
-//  DBUG_ASSERT(query_op);
     if (unlikely(!query_op))
     {
       const NdbError error = builder->getNdbError();
@@ -1019,7 +1036,6 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
     ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
   // Bind to instantiated NdbQueryOperations.
-  // Append filters for for pushed conditions where available
   for (uint i= 0; i < m_pushed_join->get_operation_count(); i++)
   {
     const TABLE* const tab= m_pushed_join->get_table(i);
@@ -1027,16 +1043,6 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
 
     NdbQueryOperation* const op= query->getQueryOperation(i);
     handler->m_pushed_operation= op;
-
-    if (handler->m_cond)
-    {
-      NdbInterpretedCode code(handler->m_table);
-      if (handler->m_cond->generate_scan_filter(&code, NULL) != 0)
-        ERR_RETURN(code.getNdbError());
-
-      if (op->setInterpretedCode(code) != 0)
-        ERR_RETURN(query->getNdbError());
-    }
 
     // Bind to result buffers
     const NdbRecord* const resultRec= handler->m_ndb_record;
