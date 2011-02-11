@@ -289,6 +289,7 @@ ha_partition::~ha_partition()
     for (i= 0; i < m_tot_parts; i++)
       delete m_file[i];
   }
+  my_free(m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
 
   clear_handler_file();
 
@@ -2234,9 +2235,10 @@ bool ha_partition::create_handler_file(const char *name)
       part_elem= part_it++;
       uint length = part_elem->connect_string.length;
       int4store(buffer, length);
-      my_write(file, buffer, 4, MYF(MY_WME | MY_NABP));
-      my_write(file, (uchar *) part_elem->connect_string.str, length,
-               MYF(MY_WME | MY_NABP));
+      if (my_write(file, buffer, 4, MYF(MY_WME | MY_NABP)) ||
+          my_write(file, (uchar *) part_elem->connect_string.str, length,
+                   MYF(MY_WME | MY_NABP)))
+        result= TRUE;
     }
     VOID(my_close(file, MYF(0)));
   }
@@ -2264,7 +2266,6 @@ void ha_partition::clear_handler_file()
   m_file_buffer= NULL;
   m_engine_array= NULL;
   m_connect_string= NULL;
-  m_ordered_rec_buffer= NULL;
 }
 
 /*
@@ -2568,7 +2569,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   alloc_len+= table_share->max_key_length;
   if (!m_ordered_rec_buffer)
   {
-    if (!(m_ordered_rec_buffer= (uchar*) alloc_root(&m_mem_root, alloc_len)))
+    if (!(m_ordered_rec_buffer= (uchar*) (uchar*)my_malloc(alloc_len,
+                                                           MYF(MY_WME))))
     {
       DBUG_RETURN(1);
     }

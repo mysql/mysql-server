@@ -1982,6 +1982,9 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
+  if (p_elem->connect_string.length)
+    err+= add_keyword_string(fptr, "CONNECTION", TRUE,
+                             p_elem->connect_string.str);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 

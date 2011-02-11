@@ -81,6 +81,8 @@ public:
     nodegroup_id(UNDEF_NODEGROUP), has_null_value(FALSE),
     signed_flag(FALSE), max_value(FALSE)
   {
+    connect_string.str= 0;
+    connect_string.length= 0;
   }
   partition_element(partition_element *part_elem)
   : part_max_rows(part_elem->part_max_rows),
@@ -95,6 +97,8 @@ public:
     nodegroup_id(part_elem->nodegroup_id),
     has_null_value(FALSE)
   {
+    connect_string.str= 0;
+    connect_string.length= 0;
   }
   ~partition_element() {}
 };
