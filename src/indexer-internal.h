@@ -42,7 +42,7 @@ struct __toku_indexer_internal {
 
     // test functions
     int (*undo_do)(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
-    int (*test_is_xid_live)(DB_INDEXER *indexer, TXNID xid);
+    int (*test_xid_state)(DB_INDEXER *indexer, TXNID xid);
     int (*test_lock_key)(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key);
     int (*test_delete_provisional)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);
     int (*test_delete_committed)(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids);

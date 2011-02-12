@@ -37,11 +37,13 @@ live <XIDLIST>
 
 the live transaction set is initially empty
 
+xid <XID> [live|committing|aborting]
+
 == push a delete transaction record onto the leaf entry stack ==
-delete <committed|provisional> <XID>
+delete [committed|provisional] <XID>
 
 == push an insert transaction records onto the leaf entry stack ==
-insert <committed|provisional> <XID> <VALUE>
+insert [committed|provisional] <XID> <VALUE>
 
 == push a placeholder onto the leaf entry stack ==
 placeholder <XID>

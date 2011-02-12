@@ -86,8 +86,18 @@ int  toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum);
 int  toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum);
 int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
+enum tokutxn_state {
+    TOKUTXN_NOT_LIVE,
+    TOKUTXN_LIVE,
+    TOKUTXN_COMMIT,
+    TOKUTXN_ABORT,
 };
+typedef enum tokutxn_state TOKUTXN_STATE;
+
+TOKUTXN_STATE toku_txn_get_state(TOKUTXN txn);
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+}
 #endif
 
 #endif //TOKUTXN_H

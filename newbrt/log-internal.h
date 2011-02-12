@@ -155,6 +155,7 @@ struct tokutxn {
     ROLLBACK_LOG_NODE pinned_inprogress_rollback_log;
     struct toku_list checkpoint_before_commit;
     TXN_IGNORE_S ignore_errors; // 2954
+    TOKUTXN_STATE state;
 };
 
 struct txninfo {
