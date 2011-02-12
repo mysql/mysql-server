@@ -234,7 +234,7 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
     c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startingNodes);
     NdbNodeBitmask tmp;
     tmp.assign(NdbNodeBitmask::Size, conf->startedNodes);
-    ndbrequire(tmp.isclear()); // No nodes can be started during SR
+    c_alive_nodes.bitOR(tmp);
   }
 
   sendSTTORRY(signal);
