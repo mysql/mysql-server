@@ -2577,7 +2577,7 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
       wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
-      wait->m_object_instance_addr= pfs_socket;
+      wait->m_object_instance_addr= pfs_socket->m_identity;
    // wait->m_object_name= pfs_socket->m_ip;   // TBD: Where is object_name defined?
    // wait->m_object_name_length= pfs_socket->m_ip_length;
       wait->m_event_id= pfs_thread->m_event_id++;

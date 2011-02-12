@@ -118,6 +118,7 @@ int table_ews_global_by_event_name::rnd_next(void)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
+  PFS_socket_class *socket_class;
 
   if (global_instr_class_waits_array == NULL)
     return HA_ERR_END_OF_FILE;
@@ -178,6 +179,15 @@ int table_ews_global_by_event_name::rnd_next(void)
         return 0;
       }
       break;
+    case pos_ews_global_by_event_name::VIEW_SOCKET:
+      socket_class= find_socket_class(m_pos.m_index_2);
+      if (socket_class)
+      {
+        make_socket_row(socket_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
+      }
+      break;
     default:
       break;
     }
@@ -193,6 +203,7 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
   PFS_rwlock_class *rwlock_class;
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
+  PFS_socket_class *socket_class;
 
   set_position(pos);
 
@@ -240,6 +251,14 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
       make_table_io_row(&global_table_io_class);
     else
       make_table_lock_row(&global_table_lock_class);
+    break;
+  case pos_ews_global_by_event_name::VIEW_SOCKET:
+    socket_class= find_socket_class(m_pos.m_index_2);
+    if (socket_class)
+    {
+      make_socket_row(socket_class);
+      return 0;
+    }
     break;
   }
 
@@ -321,6 +340,19 @@ void table_ews_global_by_event_name
   
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   m_row.m_stat.set(normalizer, & visitor.m_stat);
+  m_row_exists= true;
+}
+
+void table_ews_global_by_event_name
+::make_socket_row(PFS_socket_class *klass)
+{
+  m_row.m_event_name.make_row(klass);
+
+  PFS_instance_wait_visitor visitor;
+  PFS_instance_iterator::visit_socket_instances(klass, &visitor);
+
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
   m_row_exists= true;
 }
 

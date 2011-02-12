@@ -120,6 +120,7 @@ int table_ews_by_thread_by_event_name::rnd_next(void)
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
   PFS_instr_class *table_class;
+  PFS_socket_class *socket_class;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
@@ -227,6 +228,26 @@ int table_ews_by_thread_by_event_name::rnd_next(void)
         }
       } while (table_class != NULL);
       break;
+    case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
+      do
+      {
+        socket_class= find_socket_class(m_pos.m_index_2);
+        if (socket_class)
+        {
+          for ( ; m_pos.has_more_thread(); m_pos.next_thread())
+          {
+            thread= &thread_array[m_pos.m_index_3];
+            if (thread->m_lock.is_populated())
+            {
+              make_row(thread, socket_class);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
+          }
+          m_pos.next_instrument();
+        }
+      } while (socket_class != NULL);
+      break;
     default:
       break;
     }
@@ -244,6 +265,7 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
   PFS_cond_class *cond_class;
   PFS_file_class *file_class;
   PFS_instr_class *table_class;
+  PFS_socket_class *socket_class;
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_3 < thread_max);
@@ -291,6 +313,14 @@ table_ews_by_thread_by_event_name::rnd_pos(const void *pos)
     if (table_class)
     {
       make_row(thread, table_class);
+      return 0;
+    }
+    break;
+  case pos_ews_by_thread_by_event_name::VIEW_SOCKET:
+    socket_class= find_socket_class(m_pos.m_index_2);
+    if (socket_class)
+    {
+      make_row(thread, socket_class);
       return 0;
     }
     break;
