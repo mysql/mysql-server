@@ -120,6 +120,14 @@ static void step_down_to(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
     TRUE   No more ranges in the sequence
 */
 
+#if (_MSC_FULL_VER == 160030319)
+/*
+   Workaround Visual Studio 2010 RTM compiler backend bug, the function enters 
+   infinite loop.
+ */
+#pragma optimize("g", off)
+#endif
+
 bool sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   SEL_ARG *key_tree;
@@ -272,6 +280,12 @@ walk_up_n_right:
   seq->param->max_key_part=max(seq->param->max_key_part,key_tree->part);
   return 0;
 }
+
+#if (_MSC_FULL_VER == 160030319)
+/* VS2010 compiler bug workaround */
+#pragma optimize("g", on)
+#endif
+
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks array<QUICK_RANGE>
