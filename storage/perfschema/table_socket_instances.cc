@@ -62,7 +62,6 @@ static const TABLE_FIELD_TYPE field_types[]=
   }
 };
 
-
 TABLE_FIELD_DEF
 table_socket_instances::m_field_def=
 { 6, field_types };

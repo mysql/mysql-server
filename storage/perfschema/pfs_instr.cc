@@ -1201,7 +1201,7 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
       {
         if (pfs->m_lock.free_to_dirty())
         {
-          pfs->m_identity= identity;
+          pfs->m_identity= (identity == NULL ? pfs : identity); // TBD: fix this
           pfs->m_class= klass;
           pfs->m_wait_stat.reset();
           pfs->m_socket_stat.reset();
