@@ -43,6 +43,7 @@ SET(ARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c
             ma_pagecache.c ma_pagecaches.c compat_aliases.cc compat_aliases.h
             ma_checkpoint.c ma_recovery.c ma_commit.c ma_pagecrc.c
             ha_maria.h maria_def.h ma_recovery_util.c ma_servicethread.c
+            ma_norec.c
 )
 
 MYSQL_STORAGE_ENGINE(ARIA)
