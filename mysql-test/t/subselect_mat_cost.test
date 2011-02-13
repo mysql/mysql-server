@@ -385,3 +385,36 @@ insert into t2 values (1),(2);
 EXPLAIN
 SELECT * FROM (SELECT * FROM t2) AS a2
 WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
+
+drop table t1,t2;
+
+--echo #
+--echo # LP BUG#715027 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
+--echo #
+
+CREATE TABLE t1 ( f1 int(11), PRIMARY KEY (f1)) ;
+INSERT INTO t1 VALUES (28),(29);
+
+CREATE TABLE t2 ( f2 int(11), f3 int(11), f10 varchar(1)) ;
+INSERT INTO t2 VALUES (NULL,6,'f'),(4,2,'d');
+
+EXPLAIN
+SELECT alias2.f2 AS field1
+FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
+WHERE (
+        SELECT t2.f2
+        FROM t2 JOIN t1 ON t1.f1
+        WHERE t1.f1 AND alias2.f10
+)
+ORDER BY field1 ;
+
+SELECT alias2.f2 AS field1
+FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
+WHERE (
+        SELECT t2.f2
+        FROM t2 JOIN t1 ON t1.f1
+        WHERE t1.f1 AND alias2.f10
+)
+ORDER BY field1 ;
+
+drop table t1,t2;

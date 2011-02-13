@@ -3936,3 +3936,36 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
 3	SUBQUERY	t1	index	NULL	f3	5	NULL	2	Using index
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+drop table t1,t2;
+#
+# LP BUG#715027 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
+#
+CREATE TABLE t1 ( f1 int(11), PRIMARY KEY (f1)) ;
+INSERT INTO t1 VALUES (28),(29);
+CREATE TABLE t2 ( f2 int(11), f3 int(11), f10 varchar(1)) ;
+INSERT INTO t2 VALUES (NULL,6,'f'),(4,2,'d');
+EXPLAIN
+SELECT alias2.f2 AS field1
+FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
+WHERE (
+SELECT t2.f2
+FROM t2 JOIN t1 ON t1.f1
+WHERE t1.f1 AND alias2.f10
+)
+ORDER BY field1 ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where; Using filesort
+1	PRIMARY	alias1	eq_ref	PRIMARY	PRIMARY	4	alias2.f3	1	Using index
+3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
+3	DEPENDENT SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index; Using join buffer (flat, BNL join)
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	
+SELECT alias2.f2 AS field1
+FROM t1 AS alias1 JOIN ( SELECT * FROM t2 ) AS alias2 ON alias2.f3 = alias1.f1
+WHERE (
+SELECT t2.f2
+FROM t2 JOIN t1 ON t1.f1
+WHERE t1.f1 AND alias2.f10
+)
+ORDER BY field1 ;
+field1
+drop table t1,t2;

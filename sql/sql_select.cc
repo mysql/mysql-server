@@ -6553,7 +6553,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 }
 
 
-inline void add_cond_and_fix(Item **e1, Item *e2)
+inline void add_cond_and_fix(THD *thd, Item **e1, Item *e2)
 {
   if (*e1)
   {
@@ -6563,7 +6563,7 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
     if ((res= new Item_cond_and(*e1, e2)))
     {
       *e1= res;
-      res->quick_fix_field();
+      res->fix_fields(thd, 0);
       res->update_used_tables();
     }
   }
@@ -6665,11 +6665,11 @@ static void add_not_null_conds(JOIN *join)
           if (!tab->first_inner)
 	  {
             COND *new_cond= referred_tab->select_cond;
-            add_cond_and_fix(&new_cond, notnull);
+            add_cond_and_fix(join->thd, &new_cond, notnull);
             referred_tab->set_select_cond(new_cond, __LINE__);
           }
           else
-            add_cond_and_fix(tab->first_inner->on_expr_ref, notnull);
+            add_cond_and_fix(join->thd, tab->first_inner->on_expr_ref, notnull);
         }
       }
     }
@@ -6851,7 +6851,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                               (table_map) 0, MAX_TABLES, FALSE, FALSE);
         /* Add conditions added by add_not_null_conds(). */
         for (uint i= 0 ; i < join->const_tables ; i++)
-          add_cond_and_fix(&join->exec_const_cond, join->join_tab[i].select_cond);
+          add_cond_and_fix(thd, &join->exec_const_cond,
+                           join->join_tab[i].select_cond);
 
         DBUG_EXECUTE("where",print_where(join->exec_const_cond,"constants",
 					 QT_ORDINARY););
@@ -6959,7 +6960,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	tmp= make_cond_for_table(cond, used_tables, current_map, i, FALSE, FALSE);
       /* Add conditions added by add_not_null_conds(). */
       if (tab->select_cond)
-        add_cond_and_fix(&tmp, tab->select_cond);
+        add_cond_and_fix(thd, &tmp, tab->select_cond);
       if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)
@@ -7208,7 +7209,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                               current_map, (tab - first_tab),
 					      FALSE, FALSE);
           if (tab == first_inner_tab && tab->on_precond)
-            add_cond_and_fix(&tmp_cond, tab->on_precond);
+            add_cond_and_fix(thd, &tmp_cond, tab->on_precond);
           if (tmp_cond)
           {
             JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
