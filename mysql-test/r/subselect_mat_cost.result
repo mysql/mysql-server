@@ -3969,3 +3969,19 @@ WHERE t1.f1 AND alias2.f10
 ORDER BY field1 ;
 field1
 drop table t1,t2;
+#
+# LP BUG#718578 Yet another Assertion `!table ||
+# (!table->read_set || bitmap_is_set(table->read_set, field_index))'
+CREATE TABLE t1 ( f1 int(11), f2 int(11), f3 int(11)) ;
+INSERT IGNORE INTO t1 VALUES (28,5,6),(29,NULL,4);
+CREATE TABLE t2 ( f10 varchar(1) );
+INSERT IGNORE INTO t2 VALUES (NULL);
+SELECT f1 AS field1
+FROM ( SELECT * FROM t1 ) AS alias1
+WHERE (SELECT t1.f1
+FROM t2 JOIN t1 ON t1.f2
+WHERE alias1.f3 AND t1.f3) AND f2
+ORDER BY field1;
+field1
+28
+drop table t1,t2;

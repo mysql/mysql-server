@@ -175,12 +175,13 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 int join_read_always_key_or_null(JOIN_TAB *tab);
 int join_read_next_same_or_null(READ_RECORD *info);
-static COND *make_cond_for_table(Item *cond,table_map table,
+static COND *make_cond_for_table(THD *thd, Item *cond,table_map table,
                                  table_map used_table,
                                  uint join_tab_idx_arg,
                                  bool exclude_expensive_cond,
                                  bool retain_ref_cond);
-static COND *make_cond_for_table_from_pred(Item *root_cond, Item *cond,
+static COND *make_cond_for_table_from_pred(THD *thd, Item *root_cond,
+                                           Item *cond,
                                            table_map tables,
                                            table_map used_table,
                                            uint join_tab_idx_arg,
@@ -928,7 +929,8 @@ JOIN::optimize()
       if (conds && !(thd->lex->describe & DESCRIBE_EXTENDED))
       {
         COND *table_independent_conds=
-          make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0, MAX_TABLES, FALSE, FALSE);
+          make_cond_for_table(thd, conds, PSEUDO_TABLE_BITS, 0, MAX_TABLES,
+                              FALSE, FALSE);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
                                  "where after opt_sum_query()",
@@ -2310,7 +2312,7 @@ JOIN::exec()
       table_map used_tables= (curr_join->const_table_map |
 			      curr_table->table->map);
 
-      Item* sort_table_cond= make_cond_for_table(curr_join->tmp_having,
+      Item* sort_table_cond= make_cond_for_table(thd, curr_join->tmp_having,
 						 used_tables,
 						 (table_map)0, MAX_TABLES,
 						 FALSE, FALSE);
@@ -2342,7 +2344,7 @@ JOIN::exec()
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having",
                                          QT_ORDINARY););
-	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
+	curr_join->tmp_having= make_cond_for_table(thd, curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables, MAX_TABLES,
 						   FALSE, FALSE);
@@ -6061,7 +6063,8 @@ int JOIN_TAB::make_scan_filter()
                 *get_first_inner_table()->on_expr_ref : join->conds;
 
   if (cond &&
-      (tmp=make_cond_for_table(cond, join->const_table_map | table->map,
+      (tmp= make_cond_for_table(join->thd, cond,
+                               join->const_table_map | table->map,
 			       table->map, MAX_TABLES, FALSE, TRUE)))
   {
      DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
@@ -6846,7 +6849,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       */
       {						// Check const tables
         join->exec_const_cond=
-	  make_cond_for_table(cond,
+	  make_cond_for_table(thd, cond,
                               join->const_table_map,
                               (table_map) 0, MAX_TABLES, FALSE, FALSE);
         /* Add conditions added by add_not_null_conds(). */
@@ -6862,7 +6865,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           if (*tab->on_expr_ref)
           {
             JOIN_TAB *cond_tab= tab->first_inner;
-            COND *tmp= make_cond_for_table(*tab->on_expr_ref,
+            COND *tmp= make_cond_for_table(thd, *tab->on_expr_ref,
                                            join->const_table_map,
 					   (table_map) 0, MAX_TABLES,
 					   FALSE, FALSE);
@@ -6957,7 +6960,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
       tmp= NULL;
       if (cond)
-	tmp= make_cond_for_table(cond, used_tables, current_map, i, FALSE, FALSE);
+	tmp= make_cond_for_table(thd, cond, used_tables, current_map, i,
+                                 FALSE, FALSE);
       /* Add conditions added by add_not_null_conds(). */
       if (tab->select_cond)
         add_cond_and_fix(thd, &tmp, tab->select_cond);
@@ -7018,8 +7022,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
           {
             COND *push_cond= 
-              make_cond_for_table(tmp, current_map, current_map, MAX_TABLES,
-				  FALSE, FALSE);
+              make_cond_for_table(thd, tmp, current_map, current_map,
+                                  MAX_TABLES, FALSE, FALSE);
             if (push_cond)
             {
               /* Push condition to handler */
@@ -7168,7 +7172,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         if (*join_tab->on_expr_ref)
         {
           JOIN_TAB *cond_tab= join_tab->first_inner;
-          COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
+          COND *tmp= make_cond_for_table(thd, *join_tab->on_expr_ref,
                                          join->const_table_map,
                                          (table_map) 0, MAX_TABLES, FALSE, FALSE);
           if (!tmp)
@@ -7205,7 +7209,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         {
           current_map= tab->table->map;
           used_tables2|= current_map;
-          COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
+          COND *tmp_cond= make_cond_for_table(thd, on_expr, used_tables2,
                                               current_map, (tab - first_tab),
 					      FALSE, FALSE);
           if (tab == first_inner_tab && tab->on_precond)
@@ -15034,19 +15038,20 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 */
 
 static Item *
-make_cond_for_table(Item *cond, table_map tables, table_map used_table,
+make_cond_for_table(THD *thd, Item *cond, table_map tables,
+                    table_map used_table,
                     uint join_tab_idx_arg,
                     bool exclude_expensive_cond __attribute__((unused)),
 		    bool retain_ref_cond)
 {
-  return make_cond_for_table_from_pred(cond, cond, tables, used_table,
+  return make_cond_for_table_from_pred(thd, cond, cond, tables, used_table,
                                        join_tab_idx_arg,
                                        exclude_expensive_cond,
                                        retain_ref_cond);
 }
 
 static Item *
-make_cond_for_table_from_pred(Item *root_cond, Item *cond,
+make_cond_for_table_from_pred(THD *thd, Item *root_cond, Item *cond,
                               table_map tables, table_map used_table,
                               uint join_tab_idx_arg,
                               bool exclude_expensive_cond __attribute__((unused)),
@@ -15067,7 +15072,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table_from_pred(root_cond, item, 
+	Item *fix=make_cond_for_table_from_pred(thd, root_cond, item, 
                                                 tables, used_table,
 						join_tab_idx_arg,
                                                 exclude_expensive_cond,
@@ -15082,10 +15087,11 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	return new_cond->argument_list()->head();
       default:
 	/*
-	  Item_cond_and do not need fix_fields for execution, its parameters
-	  are fixed or do not need fix_fields, too
+          Call fix_fields to propagate all properties of the children to
+          the new parent Item. This should not be expensive because all
+	  children of Item_cond_and should be fixed by now.
 	*/
-	new_cond->quick_fix_field();
+	new_cond->fix_fields(thd, 0);
 	new_cond->used_tables_cache=
 	  ((Item_cond_and*) cond)->used_tables_cache &
 	  tables;
@@ -15101,7 +15107,7 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table_from_pred(root_cond, item,
+	Item *fix=make_cond_for_table_from_pred(thd, root_cond, item,
                                                 tables, 0L,
                                                 join_tab_idx_arg,
                                                 exclude_expensive_cond,
@@ -15111,10 +15117,11 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 	new_cond->argument_list()->push_back(fix);
       }
       /*
-	Item_cond_and do not need fix_fields for execution, its parameters
-	are fixed or do not need fix_fields, too
+        Call fix_fields to propagate all properties of the children to
+        the new parent Item. This should not be expensive because all
+        children of Item_cond_and should be fixed by now.
       */
-      new_cond->quick_fix_field();
+      new_cond->fix_fields(thd, 0);
       new_cond->used_tables_cache= ((Item_cond_or*) cond)->used_tables_cache;
       new_cond->top_level_item();
       return new_cond;
@@ -16333,8 +16340,9 @@ static bool fix_having(JOIN *join, Item **having)
   table_map used_tables= join->const_table_map | table->table->map;
 
   DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
-  Item* sort_table_cond=make_cond_for_table(*having, used_tables, used_tables,
-                                            MAX_TABLES, FALSE, FALSE);
+  Item* sort_table_cond= make_cond_for_table(join->thd, *having, used_tables,
+                                            used_tables, MAX_TABLES,
+                                            FALSE, FALSE);
   if (sort_table_cond)
   {
     if (!table->select)
@@ -16352,7 +16360,8 @@ static bool fix_having(JOIN *join, Item **having)
     DBUG_EXECUTE("where",print_where(table->select_cond,
 				     "select and having",
                                      QT_ORDINARY););
-    *having= make_cond_for_table(*having,~ (table_map) 0,~used_tables,
+    *having= make_cond_for_table(join->thd, *having,
+                                 ~ (table_map) 0,~used_tables,
                                  MAX_TABLES, FALSE, FALSE);
     DBUG_EXECUTE("where",
                  print_where(*having,"having after make_cond", QT_ORDINARY););
