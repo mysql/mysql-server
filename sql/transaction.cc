@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 Sun/MySQL
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -635,8 +635,9 @@ bool trans_xa_commit(THD *thd)
 
   if (xa_trans_rolled_back(&thd->transaction.xid_state))
   {
-    if ((res= test(ha_rollback_trans(thd, TRUE))))
+    if (ha_rollback_trans(thd, TRUE))
       my_error(ER_XAER_RMERR, MYF(0));
+    res= thd->is_error();
   }
   else if (xa_state == XA_IDLE && thd->lex->xa_opt == XA_ONE_PHASE)
   {
