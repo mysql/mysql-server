@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -908,6 +908,8 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %{license_files_server}
 %endif
 %doc %{src_dir}/Docs/ChangeLog
+%doc %{src_dir}/Docs/INFO_SRC*
+%doc release/Docs/INFO_BIN*
 %doc release/support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
@@ -1085,6 +1087,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Jan 31 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Install the new "manifest" files: "INFO_SRC" and "INFO_BIN".
+
 * Tue Nov 23 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
 
 - EXCEPTIONS-CLIENT has been deleted, remove it from here too
