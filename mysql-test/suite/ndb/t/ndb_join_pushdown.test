@@ -1951,22 +1951,44 @@ while ($1)
 }
 enable_query_log;
 
+analyze table t1;
+
+explain extended
+select count(*)
+from t1 
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 select count(*)
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 
+explain extended
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 
+explain extended
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.c;
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c;
 
 alter table t1 partition by key(a);
+explain extended
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
