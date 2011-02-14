@@ -25,6 +25,7 @@
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 #include "pfs_timer.h"
+#include "m_string.h"
 
 THR_LOCK table_events_waits_current::m_table_lock;
 
@@ -279,6 +280,46 @@ int table_events_waits_common::make_file_object_columns(volatile PFS_events_wait
   return 0;
 }
 
+int table_events_waits_common::make_socket_object_columns(volatile PFS_events_waits *wait)
+{
+  PFS_socket *safe_socket;
+
+  safe_socket= sanitize_socket(wait->m_weak_socket);
+  if (unlikely(safe_socket == NULL))
+    return 1;
+
+  m_row.m_object_type= "SOCKET";
+  m_row.m_object_type_length= 6;
+  m_row.m_object_schema_length= 0;
+
+  if (safe_socket->get_version() == wait->m_weak_version)
+  {
+    /* Convert port number to string, include delimiter in port name length */
+    char port[128];
+    port[0] = ':';
+    int port_len= int10_to_str(safe_socket->m_port, (port+1), 10) - port + 1;
+
+    /* OBJECT NAME */
+    m_row.m_object_name_length= safe_socket->m_ip_length + port_len;
+
+    if (unlikely((m_row.m_object_name_length == 0) ||
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+      return 1;
+
+    char *name= m_row.m_object_name;
+    memcpy(name, safe_socket->m_ip, safe_socket->m_ip_length);
+    memcpy(name + safe_socket->m_ip_length, port, port_len);
+  }
+  else
+  {
+    m_row.m_object_name_length= 0;
+  }
+
+  m_row.m_index_name_length= 0;
+
+  return 0;
+}
+
 /**
   Build a row.
   @param thread_own_wait            True if the memory for the wait
@@ -351,6 +392,11 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     if (make_file_object_columns(wait))
       return;
     safe_class= sanitize_file_class((PFS_file_class*) wait->m_class);
+    break;
+  case WAIT_CLASS_SOCKET:
+    if (make_socket_object_columns(wait))
+      return;
+    safe_class= sanitize_socket_class((PFS_socket_class*) wait->m_class);
     break;
   case NO_WAIT_CLASS:
   default:
