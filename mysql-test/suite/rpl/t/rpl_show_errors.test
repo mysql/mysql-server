@@ -27,7 +27,7 @@ DROP TABLE t1;
 -- connection slave
 # action: now  wait for the slave to stop because it cannot
 #         remove a table that does not exist
--- let $slave_sql_errno=1051
+let $slave_sql_errno=1051; # ER_BAD_TABLE_ERROR
 -- source include/wait_for_slave_sql_error.inc
 
 --let $errts0= query_get_value("SHOW SLAVE STATUS", $field, 1)
