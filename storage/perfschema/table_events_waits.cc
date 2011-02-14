@@ -101,6 +101,11 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("NESTING_EVENT_TYPE") },
+    { C_STRING_WITH_LEN("enum(\'STATEMENT\',\'STAGE\',\'WAIT\'") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("OPERATION") },
     { C_STRING_WITH_LEN("varchar(32)") },
     { NULL, 0}
@@ -119,7 +124,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_waits_current::m_field_def=
-{ 17, field_types };
+{ 18, field_types };
 
 PFS_engine_table_share
 table_events_waits_current::m_share=
@@ -362,9 +367,8 @@ void table_events_waits_common::make_row(bool thread_own_wait,
 
   m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
   m_row.m_event_id= wait->m_event_id;
-#ifdef HAVE_NESTED_EVENTS
   m_row.m_nesting_event_id= wait->m_nesting_event_id;
-#endif
+  m_row.m_nesting_event_type= wait->m_nesting_event_type;
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
@@ -580,17 +584,22 @@ int table_events_waits_common::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.m_object_instance_addr);
         break;
       case 13: /* NESTING_EVENT_ID */
-#ifdef HAVE_NESTED_EVENTS
-        set_field_ulonglong(f, m_row.m_nesting_event_id);
-#else
-        f->set_null();
-#endif
+        if (m_row.m_nesting_event_id != 0)
+          set_field_ulonglong(f, m_row.m_nesting_event_id);
+        else
+          f->set_null();
         break;
-      case 14: /* OPERATION */
+      case 14: /* NESTING_EVENT_TYPE */
+        if (m_row.m_nesting_event_id != 0)
+          set_field_enum(f, m_row.m_nesting_event_type);
+        else
+          f->set_null();
+        break;
+      case 15: /* OPERATION */
         operation= &operation_names_map[(int) m_row.m_operation - 1];
         set_field_varchar_utf8(f, operation->str, operation->length);
         break;
-      case 15: /* NUMBER_OF_BYTES */
+      case 16: /* NUMBER_OF_BYTES */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
             (m_row.m_operation == OPERATION_TYPE_FILECHSIZE))
@@ -598,7 +607,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 16: /* FLAGS */
+      case 17: /* FLAGS */
         f->set_null();
         break;
       default:
@@ -652,7 +661,7 @@ int table_events_waits_current::rnd_next(void)
     if (m_pos.m_index_2 >= 1)
       continue;
 #else
-    uint safe_events_waits_count= pfs_thread->m_events_waits_count;
+    uint safe_events_waits_count= pfs_thread->m_events_waits_count - WAIT_STACK_BOTTOM;
 
     if (safe_events_waits_count == 0)
     {
@@ -668,7 +677,8 @@ int table_events_waits_current::rnd_next(void)
     }
 #endif
 
-    wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2];
+    /* m_events_waits_stack[0] is a dummy record */
+    wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
 
     if (wait->m_wait_class == NO_WAIT_CLASS)
     {
@@ -704,7 +714,7 @@ int table_events_waits_current::rnd_pos(const void *pos)
   if (m_pos.m_index_2 >= 1)
     return HA_ERR_RECORD_DELETED;
 #else
-  uint safe_events_waits_count= pfs_thread->m_events_waits_count;
+  uint safe_events_waits_count= pfs_thread->m_events_waits_count - WAIT_STACK_BOTTOM;
 
   if (safe_events_waits_count == 0)
   {
@@ -720,9 +730,9 @@ int table_events_waits_current::rnd_pos(const void *pos)
   }
 #endif
 
-  DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_SIZE);
+  DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
 
-  wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2];
+  wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2 + WAIT_STACK_BOTTOM];
 
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;
@@ -826,11 +836,10 @@ int table_events_waits_history::rnd_pos(const void *pos)
       (m_pos.m_index_2 >= pfs_thread->m_waits_history_index))
     return HA_ERR_RECORD_DELETED;
 
-  if (pfs_thread->m_waits_history[m_pos.m_index_2].m_wait_class
-      == NO_WAIT_CLASS)
-    return HA_ERR_RECORD_DELETED;
-
   wait= &pfs_thread->m_waits_history[m_pos.m_index_2];
+
+  if (wait->m_wait_class == NO_WAIT_CLASS)
+    return HA_ERR_RECORD_DELETED;
 
   make_row(true, pfs_thread, wait);
   return 0;

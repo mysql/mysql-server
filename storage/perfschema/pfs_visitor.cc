@@ -260,7 +260,44 @@ void PFS_connection_wait_visitor::visit_global()
 
 void PFS_connection_wait_visitor::visit_thread(PFS_thread *pfs)
 {
-  m_stat.aggregate(& pfs->m_instr_class_wait_stats[m_index]);
+  m_stat.aggregate(& pfs->m_instr_class_waits_stats[m_index]);
+}
+
+PFS_connection_stage_visitor::PFS_connection_stage_visitor(PFS_stage_class *klass)
+{
+  m_index= klass->m_event_name_index;
+}
+
+PFS_connection_stage_visitor::~PFS_connection_stage_visitor()
+{}
+
+void PFS_connection_stage_visitor::visit_global()
+{
+  m_stat.aggregate(& global_instr_class_stages_array[m_index]);
+}
+
+void PFS_connection_stage_visitor::visit_thread(PFS_thread *pfs)
+{
+  m_stat.aggregate(& pfs->m_instr_class_stages_stats[m_index]);
+}
+
+PFS_connection_statement_visitor
+::PFS_connection_statement_visitor(PFS_statement_class *klass)
+{
+  m_index= klass->m_event_name_index;
+}
+
+PFS_connection_statement_visitor::~PFS_connection_statement_visitor()
+{}
+
+void PFS_connection_statement_visitor::visit_global()
+{
+  m_stat.aggregate(& global_instr_class_statements_array[m_index]);
+}
+
+void PFS_connection_statement_visitor::visit_thread(PFS_thread *pfs)
+{
+  m_stat.aggregate(& pfs->m_instr_class_statements_stats[m_index]);
 }
 
 PFS_instance_wait_visitor::PFS_instance_wait_visitor()
