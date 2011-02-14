@@ -127,9 +127,9 @@ ERROR HY000: Table to exchange with partition is partitioned: 'tsp'
 ALTER TABLE tsp EXCHANGE PARTITION p0 WITH TABLE t_10;
 ERROR HY000: Subpartitioned table, use subpartition instead of partition
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_100;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 ALTER TABLE tp EXCHANGE PARTITION p2 WITH TABLE t_10;
-ERROR HY000: Found row that does not match the partition
+ERROR HY000: Found a row that does not match the partition
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;
