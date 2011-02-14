@@ -196,6 +196,9 @@ private:
 /** Instrumented socket implementation. @see PSI_socket. */
 struct PFS_socket : public PFS_instr
 {
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
   /** Socket identity, typically int */
   const void *m_identity;
   /** Thread identifier */

@@ -2573,16 +2573,15 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
 #ifdef HAVE_NESTED_EVENTS
       wait->m_nesting_event_id= (wait - 1)->m_event_id;
 #endif
-      wait->m_thread= pfs_thread;
-      wait->m_class= klass;
+      wait->m_thread=      pfs_thread;
+      wait->m_class=       klass;
       wait->m_timer_start= 0;
-      wait->m_timer_end= 0;
+      wait->m_timer_end=   0;
       wait->m_object_instance_addr= pfs_socket->m_identity;
-   // wait->m_object_name= pfs_socket->m_ip;   // TBD: Where is object_name defined?
-   // wait->m_object_name_length= pfs_socket->m_ip_length;
-      wait->m_event_id= pfs_thread->m_event_id++;
-      wait->m_operation= socket_operation_map[static_cast<int>(op)];
-      wait->m_wait_class= WAIT_CLASS_SOCKET;
+      wait->m_weak_socket= pfs_socket;
+      wait->m_event_id=    pfs_thread->m_event_id++;
+      wait->m_operation=   socket_operation_map[static_cast<int>(op)];
+      wait->m_wait_class=  WAIT_CLASS_SOCKET;
 
       pfs_thread->m_events_waits_count++;
     }
@@ -3701,6 +3700,8 @@ static void set_socket_address_v1(PSI_socket *socket,
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
+  memset(pfs->m_ip, 0, pfs->m_ip_length);
+
   switch (socket_addr->sa_family)
   {
     case AF_INET:
@@ -3724,6 +3725,9 @@ static void set_socket_address_v1(PSI_socket *socket,
     default:
       break;
   }
+
+  /* Adjust IP address string length */
+  pfs->m_ip_length= strlen((const char*)pfs->m_ip);
 }
 
 static void set_socket_info_v1(PSI_socket *socket,

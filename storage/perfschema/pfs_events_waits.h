@@ -85,6 +85,8 @@ struct PFS_events_waits
   PFS_table_share *m_weak_table_share;
   /** File, for file operations only. */
   PFS_file *m_weak_file;
+  /** Socket, for socket operations only. */
+  PFS_socket *m_weak_socket;
   /** For weak pointers, target object version. */
   uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */
