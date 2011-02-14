@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -104,6 +104,12 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
 IF(MYSQL_DOCS_LOCATION)
   MESSAGE("Copying documentation files from " ${MYSQL_DOCS_LOCATION})
   EXECUTE_PROCESS(COMMAND ${CMAKE_COMMAND} -E copy_directory "${MYSQL_DOCS_LOCATION}" "${PACKAGE_DIR}")
+ENDIF()
+
+# Ensure there is an "INFO_SRC" file.
+INCLUDE(${CMAKE_BINARY_DIR}/info_macros.cmake)
+IF(NOT EXISTS ${PACKAGE_DIR}/Docs/INFO_SRC)
+  CREATE_INFO_SRC(${PACKAGE_DIR}/Docs)
 ENDIF()
 
 # In case we used CPack, it could have copied some
