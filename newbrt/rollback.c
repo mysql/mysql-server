@@ -779,7 +779,7 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
 }
 
 int toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE *result) {
-    assert(txn->state == TOKUTXN_LIVE);
+    invariant(txn->state == TOKUTXN_LIVE); // #3258
     int r;
     ROLLBACK_LOG_NODE log;
     if (txn_has_inprogress_rollback_log(txn)) {

@@ -17,8 +17,8 @@
 #include "xids-internal.h"
 
 typedef enum {
-    TOKUTXN_NOT_LIVE, TOKUTXN_LIVE, TOKUTXN_COMMIT, TOKUTXN_ABORT,
-} TOKUTXN_STATE;
+    TOKUTXN_LIVE, TOKUTXN_COMMITTING, TOKUTXN_ABORTING, TOKUTXN_RETIRED,
+} TOKUTXN_STATE; // see txn.h
 
 struct txn {
     TXNID xid;
@@ -55,7 +55,7 @@ live_add(struct live *live, TXNID xid, TOKUTXN_STATE state) {
 
 static int
 txn_state(struct live *live, TXNID xid) {
-    int r = TOKUTXN_NOT_LIVE;
+    int r = TOKUTXN_RETIRED;
     for (int i = 0; i < live->o; i++) {
         if (live->txns[i].xid == xid) {
             r = live->txns[i].state;
@@ -340,13 +340,13 @@ read_test(char *testname, ULE ule) {
             // xid <XID> [live|committing|aborting]
             if (strcmp(fields[0], "xid") == 0 && nfields == 3) {
                 TXNID xid = atoll(fields[1]);
-                TOKUTXN_STATE state = TOKUTXN_NOT_LIVE;
+                TOKUTXN_STATE state = TOKUTXN_RETIRED;
                 if (strcmp(fields[2], "live") == 0)
                     state = TOKUTXN_LIVE;
                 else if (strcmp(fields[2], "committing") == 0)
-                    state = TOKUTXN_COMMIT;
+                    state = TOKUTXN_COMMITTING;
                 else if (strcmp(fields[2], "aborting") == 0)
-                    state = TOKUTXN_ABORT;
+                    state = TOKUTXN_ABORTING;
                 else
                     assert(0);
                 live_add(&live_xids, xid, state);
