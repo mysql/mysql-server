@@ -26,7 +26,7 @@ DELETE FROM t1 WHERE a = 1;
 START SLAVE SQL_THREAD;
 include/wait_for_slave_sql_to_start.inc
 ---- Sync slave and verify that there is no error ----
-Last_SQL_Error = '' (expected no error)
+include/check_slave_no_error.inc
 SELECT * FROM t1;
 a
 1
@@ -44,7 +44,7 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Sync slave and verify that there is no error ----
-Last_SQL_Error =  (expected no error)
+include/check_slave_no_error.inc
 SELECT * FROM t1;
 a
 ==== Clean up ====
