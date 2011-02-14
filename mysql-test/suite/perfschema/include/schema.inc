@@ -24,6 +24,16 @@ use performance_schema;
 show tables;
 
 show create table cond_instances;
+show create table events_stages_current;
+show create table events_stages_history;
+show create table events_stages_history_long;
+show create table events_stages_summary_by_thread_by_event_name;
+show create table events_stages_summary_global_by_event_name;
+show create table events_statements_current;
+show create table events_statements_history;
+show create table events_statements_history_long;
+show create table events_statements_summary_by_thread_by_event_name;
+show create table events_statements_summary_global_by_event_name;
 show create table events_waits_current;
 show create table events_waits_history;
 show create table events_waits_history_long;
