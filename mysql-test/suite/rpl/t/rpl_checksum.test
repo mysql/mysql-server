@@ -99,7 +99,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 connection slave;
 set @@global.debug='d,simulate_slave_unaware_checksum';
 start slave;
---let $slave_io_errno= 1236
+let $slave_io_errno= 1236; # ER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
 source include/wait_for_slave_io_error.inc;
 
@@ -140,7 +140,7 @@ connection slave;
 # instruction to io thread
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
---let $slave_io_errno= 1595
+let $slave_io_errno= 1595; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
 --let $show_slave_io_error= 1
 source include/wait_for_slave_io_error.inc;
 set @@global.debug='';
@@ -158,7 +158,7 @@ set @@global.slave_sql_verify_checksum = 1;
 set @@global.debug='d,simulate_checksum_test_failure';
 
 start slave sql_thread;
---let $slave_sql_errno= 1593
+let $slave_sql_errno= 1593; # ER_SLAVE_FATAL_ERROR
 --let $show_slave_sql_error= 1
 source include/wait_for_slave_sql_error.inc;
 
