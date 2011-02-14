@@ -3352,18 +3352,54 @@ c int not null,
 d char(255) not null,
 primary key (`a`,`b`)
 ) engine=ndbcluster;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+explain extended
+select count(*)
+from t1 
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	259	test.t1.c,test.t1.d	1	100.00	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Child of pushed join@1
+Warnings:
+Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 count(*)
 2996
+explain extended
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	30	100.00	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Child of pushed join@1
+Warnings:
+Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 count(*)
 8990
+explain extended
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	259	test.t1.c,test.t1.d	1	100.00	Child of pushed join@1
+1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t2.c	30	100.00	Child of pushed join@1
+Warnings:
+Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -3371,6 +3407,17 @@ join t1 as t3 on t3.a = t2.c;
 count(*)
 8988
 alter table t1 partition by key(a);
+explain extended
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	30	100.00	Child of pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Child of pushed join@1
+Warnings:
+Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
 from t1
 join t1 as t2 on t2.a = t1.c
@@ -4810,7 +4857,7 @@ PRUNED_RANGE_SCANS_RECEIVED	17
 RANGE_SCANS_RECEIVED	718
 READS_NOT_FOUND	404
 READS_RECEIVED	61
-SCAN_ROWS_RETURNED	69724
+SCAN_ROWS_RETURNED	78712
 TABLE_SCANS_RECEIVED	226
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
@@ -4822,13 +4869,13 @@ LOCAL+REMOTE READS_SENT
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2676
+2681
 pruned_scan_count
 8
 sorted_scan_count
 9
 pushed_queries_defined
-350
+354
 pushed_queries_dropped
 11
 pushed_queries_executed
