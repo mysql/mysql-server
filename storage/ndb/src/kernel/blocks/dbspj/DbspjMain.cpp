@@ -1893,8 +1893,8 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
 
   DEBUG("Incomming SCAN_NEXTREQ");
 #ifdef DEBUG_SCAN_FRAGREQ
-  printSCANNEXTREQ(stdout, &signal->theData[0], ScanFragNextReq:: SignalLength,
-                   DBLQH);
+  printSCANFRAGNEXTREQ(stdout, &signal->theData[0], 
+                       ScanFragNextReq::SignalLength, DBLQH);
 #endif
 
   Request key;
@@ -4071,8 +4071,8 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
   DEBUG("scanFrag_execSCAN_NEXTREQ to: " << hex << treeNodePtr.p->m_send.m_ref
         << ", senderData: " << req->senderData);
 #ifdef DEBUG_SCAN_FRAGREQ
-  printSCANNEXTREQ(stdout, &signal->theData[0], ScanFragNextReq:: SignalLength,
-                   DBLQH);
+  printSCANFRAGNEXTREQ(stdout, &signal->theData[0], 
+                       ScanFragNextReq::SignalLength, DBLQH);
 #endif
 
   sendSignal(treeNodePtr.p->m_send.m_ref,
@@ -5257,8 +5257,8 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
             << ", senderData: " << req->senderData);
 
 #ifdef DEBUG_SCAN_FRAGREQ
-      printSCANNEXTREQ(stdout, &signal->theData[0],
-                       ScanFragNextReq:: SignalLength + 1, DBLQH);
+      printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
+                           ScanFragNextReq:: SignalLength + 1, DBLQH);
 #endif
 
       req->senderData = fragPtr.i;
