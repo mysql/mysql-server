@@ -30,7 +30,15 @@
     <Property Id="CLEANUPDATA" Secure="yes" Value="1"/>
     <!-- Force per machine installation -->
     <Property Id="ALLUSERS" Secure="yes" Value="1"/>
-
+    <!--
+      Check, if upgrade wizard was built 
+      It currently requires MFC, which is not in SDK 
+      neither in express edítions of VS.
+    -->
+    <?ifndef HaveUpgradeWizard ?>
+      <?define HaveUpgradeWizard="1"?>
+    <?endif?>
+	
     <!-- 
       User interface dialogs 
      -->
@@ -435,6 +443,8 @@
           Arguments="/k  &quot;set MYSQL_HOME=[DATADIR]&amp;&amp; set PATH=[D.bin];%PATH%;&amp;&amp;echo Setting environment for [ProductName] &quot;"
           Description="Opens command line in the installation bin directory" />
       </Component>
+
+
     </Feature>
 
     <Feature Id="SharedClientServerComponents"
@@ -463,6 +473,20 @@
           Arguments="/k  &quot;set PATH=[D.bin];%PATH%;&amp;&amp;echo Setting environment for [ProductName] &quot;"
           Description="Opens command line in the installation bin directory" />
       </Component>
+     <?if $(var.HaveUpgradeWizard) != "0" ?>
+     <ComponentRef Id='C.bin.mysql_upgrade_wizard.exe'/>
+     <Component Id="c.shortcuts.upgrade_wizard"  Guid="*"  Directory="ShortcutFolder" Transitive="yes">
+       <RegistryValue
+       Root="HKCU" Key="Software\@CPACK_WIX_PACKAGE_NAME@\Uninstall"
+       Name="shortcuts.upgrade_wizard"
+       Value="1" Type="string" KeyPath="yes" />
+      <Shortcut Id="shortcut.upgrade_wizard"
+        Name="Upgrade Wizard (@CPACK_WIX_PACKAGE_NAME@)"
+       Target="[INSTALLDIR]bin\mysql_upgrade_wizard.exe"
+       Directory="ShortcutFolder"
+       Description="Upgrades older instances of MariaDB/MySQL services to version @MAJOR_VERSION@.@MINOR_VERSION@" />
+     </Component>
+     <?endif?>
     </Feature>
 
     <!--  Custom action, call mysql_install_db  -->
@@ -592,14 +616,7 @@
       Optionally, start upgrade wizard on exit.
     -->
     
-    <!--
-      Check, if upgrade wizard was built 
-      It currently requires MFC, which is not in SDK 
-      neither in express edítions of VS.
-    -->
-    <?ifndef HaveUpgradeWizard ?>
-      <?define HaveUpgradeWizard="1"?>
-    <?endif?>
+
     
     <?if $(var.HaveUpgradeWizard) != "0" ?>
     <UI>
@@ -612,7 +629,7 @@
       Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" 
       Value="Launch wizard to upgrade existing MariaDB or MySQL services." />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
-    <Property Id="WixShellExecTarget" Value="[#F.bin.upgrade_wizard.exe]" />
+    <Property Id="WixShellExecTarget" Value="[#F.bin.mysql_upgrade_wizard.exe]" />
     <CustomAction Id="LaunchApplication"
         BinaryKey="WixCA"
         DllEntry="WixShellExec"
@@ -623,16 +640,16 @@
       Execute="immediate" />
     <InstallUISequence>
       <Custom Action="CheckServiceUpgrades" After="CostFinalize">
-        $C.bin.upgrade_wizard.exe = 3 AND NOT Installed
+        $C.bin.mysql_upgrade_wizard.exe = 3 AND NOT Installed
       </Custom>
     </InstallUISequence>
     <SetProperty Before="ExecuteAction" Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" 
        Sequence="ui"  Value="[NonExistentProperty]">
-      <![CDATA[($C.bin.upgrade_wizard.exe <> 3) AND NOT Installed]]>
+      <![CDATA[($C.bin.mysql_upgrade_wizard.exe <> 3) AND NOT Installed]]>
     </SetProperty>
     <SetProperty Before="ExecuteAction" Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" 
        Sequence="ui"  Value="[NonExistentProperty]">
-      <![CDATA[($C.bin.upgrade_wizard.exe <> 3) AND NOT Installed]]>
+      <![CDATA[($C.bin.mysql_upgrade_wizard.exe <> 3) AND NOT Installed]]>
     </SetProperty>
     
     <?endif ?> <!-- HaveUpgradeWizard -->

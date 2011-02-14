@@ -95,7 +95,7 @@ ENDIF()
 GET_TARGET_PROPERTY(WIXCA_LOCATION wixca LOCATION)
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
 
-GET_TARGET_PROPERTY(upgrade_wizard_location upgrade_wizard LOCATION)
+GET_TARGET_PROPERTY(upgrade_wizard_location mysql_upgrade_wizard LOCATION)
 IF(NOT upgrade_wizard_location)
   SET(EXTRA_WIX_PREPROCESSOR_FLAGS "-dHaveUpgradeWizard=0")
 ENDIF()
