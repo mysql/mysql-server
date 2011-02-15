@@ -4391,7 +4391,7 @@ bool mysql_create_table_no_lock(THD *thd,
     }
   }
 
-  thd_proc_info(thd, "creating table");
+  THD_STAGE_INFO(thd, stage_creating_table);
 
 #ifdef HAVE_READLINK
   {
@@ -4507,7 +4507,7 @@ bool mysql_create_table_no_lock(THD *thd,
 
   error= FALSE;
 err:
-  thd_proc_info(thd, "After create");
+  THD_STAGE_INFO(thd, stage_after_create);
   delete file;
   DBUG_RETURN(error);
 
@@ -4878,7 +4878,7 @@ mysql_discard_or_import_tablespace(THD *thd,
     ALTER TABLE
   */
 
-  thd_proc_info(thd, "discard_or_import_tablespace");
+  THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
 
   discard= test(tablespace_op == DISCARD_TABLESPACE);
 
@@ -4896,7 +4896,7 @@ mysql_discard_or_import_tablespace(THD *thd,
 
   error= table->file->ha_discard_or_import_tablespace(discard);
 
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
 
   if (error)
     goto err;
@@ -5938,7 +5938,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     to simplify further comparisions: we want to see if it's a RENAME
     later just by comparing the pointers, avoiding the need for strcmp.
   */
-  thd_proc_info(thd, "init");
+  THD_STAGE_INFO(thd, stage_init);
   table_name=table_list->table_name;
   alias= (lower_case_table_names == 2) ? table_list->alias : table_name;
   db=table_list->db;
@@ -6129,8 +6129,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     my_error(ER_ILLEGAL_HA, MYF(0), table_name);
     goto err;
   }
-  
-  thd_proc_info(thd, "setup");
+
+  THD_STAGE_INFO(thd, stage_setup);
   if (!(alter_info->flags & ~(ALTER_RENAME | ALTER_KEYS_ONOFF)) &&
       !table->s->tmp_table) // no need to touch frm
   {
@@ -6163,7 +6163,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
     if (!error && (new_name != table_name || new_db != db))
     {
-      thd_proc_info(thd, "rename");
+      THD_STAGE_INFO(thd, stage_rename);
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -6609,7 +6609,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* We don't want update TIMESTAMP fields during ALTER TABLE. */
     new_table->timestamp_field_type= TIMESTAMP_NO_AUTO_SET;
     new_table->next_number_field=new_table->found_next_number_field;
-    thd_proc_info(thd, "copy to tmp table");
+    THD_STAGE_INFO(thd, stage_copy_to_tmp_table);
     DBUG_EXECUTE_IF("abort_copy_table", {
         my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
         goto err_new_table_cleanup;
@@ -6632,7 +6632,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (!table->s->tmp_table && need_lock_for_indexes &&
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto err_new_table_cleanup;
-    thd_proc_info(thd, "manage keys");
+    THD_STAGE_INFO(thd, stage_manage_keys);
     DEBUG_SYNC(thd, "alter_table_manage_keys");
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
@@ -6794,7 +6794,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       (mysql_execute_command()) to release metadata locks.
   */
 
-  thd_proc_info(thd, "rename result table");
+  THD_STAGE_INFO(thd, stage_rename_result_table);
   my_snprintf(old_name, sizeof(old_name), "%s2-%lx-%lx", tmp_file_prefix,
 	      current_pid, thd->thread_id);
   if (lower_case_table_names)
@@ -6909,7 +6909,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
 
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
 
   DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
   DEBUG_SYNC(thd, "alter_table_before_main_binlog");

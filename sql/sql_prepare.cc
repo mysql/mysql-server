@@ -2962,6 +2962,7 @@ Execute_sql_statement(LEX_STRING sql_text)
 bool
 Execute_sql_statement::execute_server_code(THD *thd)
 {
+  PSI_statement_locker *parent_locker;
   bool error;
 
   if (alloc_query(thd, m_sql_text.str, m_sql_text.length))
@@ -2981,7 +2982,10 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   thd->lex->set_trg_event_type_for_tables();
 
-  error= mysql_execute_command(thd);
+  parent_locker= thd->m_statement_psi;
+  thd->m_statement_psi= NULL;
+  error= mysql_execute_command(thd) ;
+  thd->m_statement_psi= parent_locker;
 
   /* report error issued during command execution */
   if (error == 0 && thd->spcont == NULL)
@@ -3757,13 +3761,17 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     if (query_cache_send_result_to_client(thd, thd->query(),
                                           thd->query_length()) <= 0)
     {
+      PSI_statement_locker *parent_locker;
       MYSQL_QUERY_EXEC_START(thd->query(),
                              thd->thread_id,
                              (char *) (thd->db ? thd->db : ""),
                              &thd->security_ctx->priv_user[0],
                              (char *) thd->security_ctx->host_or_ip,
                              1);
+      parent_locker= thd->m_statement_psi;
+      thd->m_statement_psi= NULL;
       error= mysql_execute_command(thd);
+      thd->m_statement_psi= parent_locker;
       MYSQL_QUERY_EXEC_DONE(error);
     }
   }

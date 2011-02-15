@@ -97,6 +97,7 @@ public:
 int mysql_open_cursor(THD *thd, select_result *result,
                       Server_side_cursor **pcursor)
 {
+  PSI_statement_locker *parent_locker;
   select_result *save_result;
   Select_materialize *result_materialize;
   LEX *lex= thd->lex;
@@ -115,7 +116,10 @@ int mysql_open_cursor(THD *thd, select_result *result,
                          &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip,
                          2);
+  parent_locker= thd->m_statement_psi;
+  thd->m_statement_psi= NULL;
   rc= mysql_execute_command(thd);
+  thd->m_statement_psi= parent_locker;
   MYSQL_QUERY_EXEC_DONE(rc);
 
   lex->result= save_result;
