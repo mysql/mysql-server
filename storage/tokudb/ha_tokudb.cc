@@ -4195,6 +4195,10 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
             error = HA_ERR_TABLE_DEF_CHANGED;
             my_error(ER_TABLE_DEF_CHANGED, MYF(0));
         }
+        if (error == DB_LOCK_NOTGRANTED) {
+            error = HA_ERR_LOCK_WAIT_TIMEOUT;
+            my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+        }
         table->status = STATUS_NOT_FOUND;
         last_cursor_error = error;
         cursor = NULL;             // Safety
