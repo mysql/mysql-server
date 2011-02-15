@@ -11,8 +11,8 @@ count(*)
 select count(*) from performance_schema.setup_consumers;
 count(*)
 5
-select count(*) > 1 from performance_schema.setup_instruments;
-count(*) > 1
+select count(*) > 2 from performance_schema.setup_instruments;
+count(*) > 2
 0
 select count(*) from performance_schema.setup_timers;
 count(*)
@@ -36,6 +36,9 @@ select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
+select * from performance_schema.table_io_waits_summary_by_index_usage;
+select * from performance_schema.table_io_waits_summary_by_table;
+select * from performance_schema.table_lock_waits_summary_by_table;
 select * from performance_schema.threads;
 show variables like "performance_schema%";
 Variable_name	Value

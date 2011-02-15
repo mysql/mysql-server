@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,16 @@ class MY_LOCALE;
 
 class Item_str_func :public Item_func
 {
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result() {
+    str_value.set("", 0, collation.collation);
+    return &str_value; 
+  }
 public:
   Item_str_func() :Item_func() { decimals=NOT_FIXED_DEC; }
   Item_str_func(Item *a) :Item_func(a) {decimals=NOT_FIXED_DEC; }
@@ -41,6 +51,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref);
+  String *val_str_from_val_str_ascii(String *str, String *str2);
 };
 
 
@@ -56,8 +67,10 @@ public:
   Item_str_ascii_func(Item *a) :Item_str_func(a) {}
   Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
-  String *val_str_convert_from_ascii(String *str, String *ascii_buf);
-  String *val_str(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   virtual String *val_str_ascii(String *)= 0;
 };
 
@@ -372,7 +385,9 @@ public:
   {
     maybe_null=1;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
-    max_length = args[0]->max_length - 9;
+    max_length= args[0]->max_length;
+    if (max_length >= 9U)
+      max_length-= 9U;
   }
   const char *func_name() const { return "des_decrypt"; }
 };
@@ -802,6 +817,7 @@ public:
 class Item_func_conv_charset :public Item_str_func
 {
   bool use_cached_value;
+  String tmp_value;
 public:
   bool safe;
   CHARSET_INFO *conv_charset; // keep it public

@@ -163,7 +163,7 @@ static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
-static char *opt_plugin_dir= 0, *opt_default_auth;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1128,6 +1128,8 @@ int main(int argc,char *argv[])
   if (status.batch && !status.line_buff &&
       !(status.line_buff= batch_readline_init(MAX_BATCH_BUFFER_SIZE, stdin)))
   {
+    put_info("Can't initialize batch_readline - may be the input source is "
+             "a directory or a block device.", INFO_ERROR, 0);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);
@@ -1568,7 +1570,7 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
    (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"default_auth", OPT_PLUGIN_DIR,
+  {"default_auth", OPT_DEFAULT_AUTH,
     "Default authentication client-side plugin to use.",
    (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1843,14 +1845,13 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
-  bool truncated= 0;
   status.exit_status=1;
-  
+
   for (;;)
   {
     if (!interactive)
     {
-      line=batch_readline(status.line_buff, &truncated);
+      line=batch_readline(status.line_buff);
       /*
         Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
         Editors like "notepad" put this marker in
@@ -1913,9 +1914,13 @@ static int read_and_execute(bool interactive)
       if (opt_outfile && line)
 	fprintf(OUTFILE, "%s\n", line);
     }
-    if (!line)					// End of file
+    // End of file or system error
+    if (!line)
     {
-      status.exit_status=0;
+      if (status.line_buff && status.line_buff->error)
+        status.exit_status= 1;
+      else
+        status.exit_status= 0;
       break;
     }
 
@@ -1936,7 +1941,8 @@ static int read_and_execute(bool interactive)
 #endif
       continue;
     }
-    if (add_line(glob_buffer,line,&in_string,&ml_comment, truncated))
+    if (add_line(glob_buffer, line, &in_string, &ml_comment,
+                 status.line_buff ? status.line_buff->truncated : 0))
       break;
   }
   /* if in batch mode, send last query even if it doesn't end with \g or go */

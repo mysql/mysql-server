@@ -122,6 +122,7 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *pre_system= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 const char *delimiter= "\n";
 
@@ -339,6 +340,12 @@ int main(int argc, char **argv)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (!opt_only_print) 
   {
@@ -583,6 +590,10 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", 'F',
     "Delimiter to use in SQL statements supplied in file or command line.",
     &delimiter, &delimiter, 0, GET_STR, REQUIRED_ARG,
@@ -622,6 +633,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
     NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection.", &opt_mysql_port,
     &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, MYSQL_PORT, 0, 0, 0, 0,
     0},
@@ -1509,7 +1523,12 @@ generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt)
       exit(1);
     }
 
-    result= mysql_store_result(mysql);
+    if (!(result= mysql_store_result(mysql)))
+    {
+      fprintf(stderr, "%s: Error when storing result: %d %s\n",
+              my_progname, mysql_errno(mysql), mysql_error(mysql));
+      exit(1);
+    }
     primary_keys_number_of= mysql_num_rows(result);
 
     /* So why check this? Blackhole :) */
@@ -1881,10 +1900,15 @@ limit_not_met:
       {
         if (mysql_field_count(mysql))
         {
-          result= mysql_store_result(mysql);
-          while ((row = mysql_fetch_row(result)))
-            counter++;
-          mysql_free_result(result);
+          if (!(result= mysql_store_result(mysql)))
+            fprintf(stderr, "%s: Error when storing result: %d %s\n",
+                    my_progname, mysql_errno(mysql), mysql_error(mysql));
+          else
+          {
+            while ((row= mysql_fetch_row(result)))
+              counter++;
+            mysql_free_result(result);
+          }
         }
       } while(mysql_next_result(mysql) == 0);
       queries++;

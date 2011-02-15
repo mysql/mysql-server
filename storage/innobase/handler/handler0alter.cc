@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1009,7 +1009,7 @@ convert_error:
 						    user_thd);
 	}
 
-	ut_a(innodb_table->n_ref_count == 1);
+	ut_a(!new_primary || innodb_table->n_ref_count == 1);
 
 	mem_heap_free(heap);
 	trx_commit_for_mysql(trx);

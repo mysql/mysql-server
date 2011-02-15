@@ -23,6 +23,12 @@
 #include <my_rdtsc.h>
 #include "pfs_column_types.h"
 
+/**
+  A time normalizer.
+  A time normalizer consist of a transformation that
+  converts raw timer values (expressed in the timer unit)
+  to normalized values, expressed in picoseconds.
+*/
 struct time_normalizer
 {
   static time_normalizer* get(enum_timer_name timer_name);

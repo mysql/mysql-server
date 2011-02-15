@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,10 @@ public:
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -102,6 +106,12 @@ public:
     *input_version= output_version;
     return 0;
   }
+
+  /* Only meaningful with date part and optional time part */
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -118,6 +128,10 @@ public:
     maybe_null=1; 
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -142,6 +156,10 @@ public:
     maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -171,6 +189,10 @@ public:
     maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -187,6 +209,10 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -203,6 +229,10 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -219,6 +249,10 @@ public:
      maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -235,6 +269,10 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -265,6 +303,10 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -283,6 +325,10 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -312,6 +358,10 @@ public:
     maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 class Item_func_dayname :public Item_func_weekday
@@ -341,7 +391,7 @@ public:
     (and thus may not be used as a partitioning function)
     when its argument is NOT of the TIMESTAMP type.
   */
-  bool is_timezone_dependent_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_timestamp_args();
   }
@@ -366,6 +416,10 @@ public:
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -621,6 +675,10 @@ public:
   const char *func_name() const { return "from_days"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return has_date_args() || has_time_args();
+  }
 };
 
 
@@ -715,16 +773,32 @@ class Item_date_add_interval :public Item_date_func
 {
   String value;
   enum_field_types cached_field_type;
-
+  String ascii_buf;
 public:
   const interval_type int_type; // keep it public
   const bool date_sub_interval; // keep it public
   Item_date_add_interval(Item *a,Item *b,interval_type type_arg,bool neg_arg)
     :Item_date_func(a,b),int_type(type_arg), date_sub_interval(neg_arg) {}
-  String *val_str(String *);
+  String *val_str_ascii(String *str);
+  String *val_str(String *str)
+  {
+    return val_str_from_val_str_ascii(str, &ascii_buf);
+  }
   const char *func_name() const { return "date_add_interval"; }
   void fix_length_and_dec();
   enum_field_types field_type() const { return cached_field_type; }
+  CHARSET_INFO *charset_for_protocol(void) const
+  {
+    /*
+      DATE_ADD() can return DATE, DATETIME or VARCHAR depending on arguments.
+      Send using "binary" when DATE or DATETIME,
+      or using collation.collation when VARCHAR
+      (which was fixed from @collation_connection in fix_length_and_dec).
+    */
+    DBUG_ASSERT(fixed == 1);
+    return cached_field_type == MYSQL_TYPE_STRING ?
+                                collation.collation : &my_charset_bin;
+  }
   longlong val_int();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -746,6 +820,42 @@ class Item_extract :public Item_int_func
   bool eq(const Item *item, bool binary_cmp) const;
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    switch (int_type) {
+    case INTERVAL_YEAR:
+    case INTERVAL_YEAR_MONTH:
+    case INTERVAL_QUARTER:
+    case INTERVAL_MONTH:
+    /* case INTERVAL_WEEK: Not allowed as partitioning function, bug#57071 */
+    case INTERVAL_DAY:
+      return !has_date_args();
+    case INTERVAL_DAY_HOUR:
+    case INTERVAL_DAY_MINUTE:
+    case INTERVAL_DAY_SECOND:
+    case INTERVAL_DAY_MICROSECOND:
+      return !has_datetime_args();
+    case INTERVAL_HOUR:
+    case INTERVAL_HOUR_MINUTE:
+    case INTERVAL_HOUR_SECOND:
+    case INTERVAL_MINUTE:
+    case INTERVAL_MINUTE_SECOND:
+    case INTERVAL_SECOND:
+    case INTERVAL_MICROSECOND:
+    case INTERVAL_HOUR_MICROSECOND:
+    case INTERVAL_MINUTE_MICROSECOND:
+    case INTERVAL_SECOND_MICROSECOND:
+      return !has_time_args();
+    default:
+      /*
+        INTERVAL_LAST is only an end marker,
+        INTERVAL_WEEK depends on default_week_format which is a session
+        variable and cannot be used for partitioning. See bug#57071.
+      */
+      break;
+    }
+    return true;
+  }
 };
 
 
@@ -991,6 +1101,10 @@ public:
     maybe_null=1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -172,10 +172,9 @@ struct trx_i_s_cache_struct {
 /** Number of hash cells in the cache storage */
 #define CACHE_STORAGE_HASH_CELLS	2048
 	ha_storage_t*	storage;	/*!< storage for external volatile
-					data that can possibly not be
-					available later, when we release
-					the lock_sys_t::mutex or the
-					trx_sys_t::mutex */
+					data that may become unavailable
+					when we release
+					lock_sys->mutex or trx_sys->lock */
 	ulint		mem_allocd;	/*!< the amount of memory
 					allocated with mem_alloc*() */
 	ibool		is_truncated;	/*!< this is TRUE if the memory
@@ -462,7 +461,7 @@ fill_trx_row(
 /*=========*/
 	i_s_trx_row_t*		row,		/*!< out: result object
 						that's filled */
-	trx_t*			trx,		/*!< in: transaction to
+	const trx_t*		trx,		/*!< in: transaction to
 						get data from */
 	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
 						corresponding row in
@@ -555,15 +554,15 @@ thd_done:
 
 	row->trx_tables_locked = trx->mysql_n_tables_locked;
 
-	trx_mutex_enter(trx);
+	/* These are protected by both trx->mutex or lock_sys->mutex,
+	or just lock_sys->mutex. For reading, it suffices to hold
+	lock_sys->mutex. */
 
 	row->trx_lock_structs = UT_LIST_GET_LEN(trx->lock.trx_locks);
 
 	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock.lock_heap);
 
-	row->trx_rows_locked = lock_number_of_rows_locked(trx);
-
-	trx_mutex_exit(trx);
+	row->trx_rows_locked = lock_number_of_rows_locked(&trx->lock);
 
 	row->trx_rows_modified = trx->undo_no;
 
@@ -1277,12 +1276,14 @@ fetch_data_into_cache(
 /*==================*/
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
-	trx_t*			trx;
+	const trx_t*		trx;
 	i_s_trx_row_t*		trx_row;
 	i_s_locks_row_t*	requested_lock_row;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	trx_i_s_cache_clear(cache);
 
@@ -1294,6 +1295,8 @@ fetch_data_into_cache(
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+
+		ut_ad(trx->in_trx_list);
 
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {

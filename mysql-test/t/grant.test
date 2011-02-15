@@ -1295,6 +1295,107 @@ SELECT CURRENT_USER();
 SET PASSWORD FOR CURRENT_USER() = PASSWORD("admin");
 SET PASSWORD FOR CURRENT_USER() = PASSWORD("");
 
+#
+# Bug#57952: privilege change is not taken into account by EXECUTE.
+#
+
+--echo
+--echo # Bug#57952
+--echo
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqltest1;
+DROP DATABASE IF EXISTS mysqltest2;
+--enable_warnings
+
+CREATE DATABASE mysqltest1;
+CREATE DATABASE mysqltest2;
+
+use mysqltest1;
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES (1, 1);
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (2);
+
+CREATE TABLE mysqltest2.t3(a INT);
+INSERT INTO mysqltest2.t3 VALUES (4);
+
+CREATE USER testuser@localhost;
+GRANT CREATE ROUTINE, EXECUTE ON mysqltest1.* TO testuser@localhost;
+GRANT SELECT(b) ON t1 TO testuser@localhost;
+GRANT SELECT    ON t2 TO testuser@localhost;
+GRANT SELECT    ON mysqltest2.* TO testuser@localhost;
+
+--echo
+--echo # Connection: bug57952_con1 (testuser@localhost, db: mysqltest1)
+--connect (bug57952_con1,localhost,testuser,,mysqltest1)
+PREPARE s1 FROM 'SELECT b FROM t1';
+PREPARE s2 FROM 'SELECT a FROM t2';
+PREPARE s3 FROM 'SHOW TABLES FROM mysqltest2';
+
+CREATE PROCEDURE p1() SELECT b FROM t1;
+CREATE PROCEDURE p2() SELECT a FROM t2;
+CREATE PROCEDURE p3() SHOW TABLES FROM mysqltest2;
+
+CALL p1;
+CALL p2;
+CALL p3;
+
+--echo
+--echo # Connection: default
+--connection default
+REVOKE SELECT ON t1 FROM testuser@localhost;
+GRANT SELECT(a) ON t1 TO testuser@localhost;
+REVOKE SELECT ON t2 FROM testuser@localhost;
+REVOKE SELECT ON mysqltest2.* FROM testuser@localhost;
+
+--echo
+--echo # Connection: bug57952_con1 (testuser@localhost, db: mysqltest1)
+--connection bug57952_con1
+--echo #   - Check column-level privileges...
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE s1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+SELECT b FROM t1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+EXECUTE s1;
+
+--error ER_COLUMNACCESS_DENIED_ERROR
+CALL p1;
+
+--echo #   - Check table-level privileges...
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT a FROM t2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+EXECUTE s2;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+CALL p2;
+
+--echo #   - Check database-level privileges...
+--error ER_DBACCESS_DENIED_ERROR
+SHOW TABLES FROM mysqltest2;
+
+--error ER_DBACCESS_DENIED_ERROR
+EXECUTE s3;
+
+--error ER_DBACCESS_DENIED_ERROR
+CALL p3;
+
+--echo
+--echo # Connection: default
+--connection default
+--disconnect bug57952_con1
+DROP DATABASE mysqltest1;
+DROP DATABASE mysqltest2;
+DROP USER testuser@localhost;
+use test;
+--echo
+
 --echo End of 5.0 tests
 
 #

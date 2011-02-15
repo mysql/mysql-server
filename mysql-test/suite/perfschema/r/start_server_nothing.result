@@ -11,8 +11,8 @@ count(*)
 select count(*) from performance_schema.setup_consumers;
 count(*)
 5
-select count(*) > 1 from performance_schema.setup_instruments;
-count(*) > 1
+select count(*) > 2 from performance_schema.setup_instruments;
+count(*) > 2
 0
 select count(*) from performance_schema.setup_timers;
 count(*)
@@ -36,6 +36,9 @@ select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
+select * from performance_schema.table_io_waits_summary_by_index_usage;
+select * from performance_schema.table_io_waits_summary_by_table;
+select * from performance_schema.table_lock_waits_summary_by_table;
 select * from performance_schema.threads;
 show variables like "performance_schema%";
 Variable_name	Value
@@ -82,6 +85,7 @@ performance_schema_setup_objects_size	0
 select * from performance_schema.setup_instruments;
 NAME	ENABLED	TIMED
 wait/io/table/sql/handler	YES	YES
+wait/lock/table/sql/handler	YES	YES
 select TIMER_NAME from performance_schema.performance_timers;
 TIMER_NAME
 CYCLE
@@ -102,11 +106,11 @@ wait	CYCLE
 select * from performance_schema.cond_instances;
 NAME	OBJECT_INSTANCE_BEGIN
 select * from performance_schema.events_waits_current;
-THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
+THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
 select * from performance_schema.events_waits_history;
-THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
+THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
 select * from performance_schema.events_waits_history_long;
-THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
+THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
 select * from performance_schema.events_waits_summary_by_instance;
 EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
 select * from performance_schema.events_waits_summary_by_thread_by_event_name;
@@ -114,6 +118,7 @@ THREAD_ID	EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX
 select * from performance_schema.events_waits_summary_global_by_event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
 wait/io/table/sql/handler	0	0	0	0	0
+wait/lock/table/sql/handler	0	0	0	0	0
 select * from performance_schema.file_instances;
 FILE_NAME	EVENT_NAME	OPEN_COUNT
 select * from performance_schema.file_summary_by_event_name;

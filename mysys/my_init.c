@@ -510,7 +510,7 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
-  key_THR_LOCK_open, key_THR_LOCK_threads, key_THR_LOCK_time,
+  key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
 
 static PSI_mutex_info all_mysys_mutexes[]=
@@ -540,7 +540,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_time, "THR_LOCK_time", PSI_FLAG_GLOBAL},
   { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };

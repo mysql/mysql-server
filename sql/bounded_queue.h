@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,6 +166,10 @@ int Bounded_queue<Element_type, Key_type>::init(ha_rows max_elements,
   if (compare == NULL)
     compare=
       reinterpret_cast<compare_function>(get_ptr_compare(compare_length));
+
+  DBUG_EXECUTE_IF("bounded_queue_init_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   // We allocate space for one extra element, for replace when queue is full.
   return init_queue(&m_queue, (uint) max_elements + 1,
                     0, max_at_top,

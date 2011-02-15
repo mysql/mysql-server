@@ -1818,8 +1818,9 @@ int ha_myisam::extra(enum ha_extra_function operation)
 
 int ha_myisam::reset(void)
 {
-  pushed_idx_cond= NULL;
-  pushed_idx_cond_keyno= MAX_KEY;
+  /* Reset MyISAM specific part for index condition pushdown */
+  DBUG_ASSERT(pushed_idx_cond == NULL);
+  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
   mi_set_index_cond_func(file, NULL, 0);
   ds_mrr.dsmrr_close();
   return mi_reset(file);

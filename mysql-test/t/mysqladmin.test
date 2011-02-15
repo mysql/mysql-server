@@ -39,3 +39,14 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 # - running mysqladmin --protcol=tcp --bind-address=127.0.0.1
 #
 --exec $MYSQLADMIN --no-defaults --protocol=tcp --bind-address=127.0.0.1 --host=127.0.0.1 -P $MASTER_MYPORT -u root ping 2>&1
+--echo #
+--echo # Bug#58221 : mysqladmin --sleep=x --count=x keeps looping
+--echo #
+
+--echo # Executing mysqladmin with --sleep=1 and --count=2.
+--exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --sleep=1 --count=2 ping > $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
+--echo # Done.
+--echo # Displaying the output :
+--cat_file $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
+
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp

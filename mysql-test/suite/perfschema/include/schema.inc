@@ -42,5 +42,8 @@ show create table setup_consumers;
 show create table setup_instruments;
 show create table setup_objects;
 show create table setup_timers;
+show create table table_io_waits_summary_by_index_usage;
+show create table table_io_waits_summary_by_table;
+show create table table_lock_waits_summary_by_table;
 show create table threads;
 

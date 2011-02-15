@@ -64,7 +64,9 @@ select ST_DISTANCE(geomfromtext('linestring(0 0, 3 6, 6 3, 0 0)'), geomfromtext(
 
 
 # Operations tests
+--replace_result 23.85542168674699 23.855421686746986
 select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')));
+--replace_result 23.85542168674699 23.855421686746986
 select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
 select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45)')));
 select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POINT(20 20)')));
@@ -82,12 +84,13 @@ select astext(ST_buffer(geometryfromtext('point(1 1)'), 1));
 create table t1(geom geometrycollection);
 insert into t1 values (geomfromtext('POLYGON((0 0, 10 10, 0 8, 0 0))'));
 insert into t1 values (geomfromtext('POLYGON((1 1, 10 10, 0 8, 1 1))'));
+--replace_result 101.67150840374887 101.67150840374886 108.55539589266462 108.55539589266459
 select astext(geom), area(geom),area(ST_buffer(geom,2)) from t1;
-select astext(ST_buffer(geom,2)) from t1;
+select NUMPOINTS(EXTERIORRING(ST_buffer(geom,2))) from t1;
 
 set @geom=geomfromtext('LINESTRING(2 1, 4 2, 2 3, 2 5)');
 set @buff=ST_buffer(@geom,1);
-select astext(@buff);
+select NUMPOINTS(EXTERIORRING(@buff)) from t1;
 
 # cleanup
 DROP TABLE t1;

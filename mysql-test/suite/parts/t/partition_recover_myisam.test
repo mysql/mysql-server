@@ -20,7 +20,8 @@ FLUSH TABLES;
 let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
---disable_warnings
+--replace_result \\ /
+--replace_regex /Table '.*data/Table './
 SELECT * FROM t1_will_crash;
 --enable_warnings
 DROP TABLE t1_will_crash;
@@ -35,7 +36,8 @@ FLUSH TABLES;
 --echo # head -c1024 t1#P#p1.MYI > corrupt_t1#P#p1.MYI 
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 --copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
---disable_warnings
+--replace_result \\ /
+--replace_regex /Table '.*data/Table './
 SELECT * FROM t1_will_crash;
 --enable_warnings
 DROP TABLE t1_will_crash;

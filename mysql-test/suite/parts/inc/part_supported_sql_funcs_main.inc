@@ -88,8 +88,9 @@ let $val2 =  '2006-01-17';
 let $val3 =  '2006-02-25';
 let $val4 =  '2006-02-05';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
-let $coltype = char(30);
---source suite/parts/inc/partition_supported_sql_funcs.inc
+# Disabled after fixing bug#54483.
+#let $coltype = char(30);
+#--source suite/parts/inc/partition_supported_sql_funcs.inc
 
 let $sqlfunc = extract(month from col1);
 let $valsqlfunc = extract(year from '1998-11-23');
@@ -139,8 +140,9 @@ let $val2 =  '14:30:20';
 let $val3 =  '21:59:22';
 let $val4 =  '10:22:33';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
-let $coltype = char(30);
---source suite/parts/inc/partition_supported_sql_funcs.inc
+# second(non_time_col) is disabled after bug#54483.
+#let $coltype = char(30);
+#--source suite/parts/inc/partition_supported_sql_funcs.inc
 
 let $sqlfunc = month(col1);
 let $valsqlfunc = month('2006-10-14');
@@ -172,26 +174,28 @@ let $val3 =  '21:59:22';
 let $val4 =  '10:33:11';
 --source suite/parts/inc/partition_supported_sql_funcs.inc
 
-let $sqlfunc = to_days(col1)-to_days('2006-01-01');
-let $valsqlfunc = to_days('2006-02-02')-to_days('2006-01-01');
-let $coltype = date;
-let $infile = part_supported_sql_funcs_int_date.inc;
-let $val1 =  '2006-02-03';
-let $val2 =  '2006-01-17';
-let $val3 =  '2006-01-25';
-let $val4 =  '2006-02-06';
---source suite/parts/inc/partition_supported_sql_funcs.inc
+# to_days(non_date_col) is disabled after bug#54483.
+#let $sqlfunc = to_days(col1)-to_days('2006-01-01');
+#let $valsqlfunc = to_days('2006-02-02')-to_days('2006-01-01');
+#let $coltype = date;
+#let $infile = part_supported_sql_funcs_int_date.inc;
+#let $val1 =  '2006-02-03';
+#let $val2 =  '2006-01-17';
+#let $val3 =  '2006-01-25';
+#let $val4 =  '2006-02-06';
+#--source suite/parts/inc/partition_supported_sql_funcs.inc
 
+# to_days(non_date_col) is disabled after bug#54483.
 # DATEDIFF() is implemented as (TO_DAYS(d1) - TO_DAYS(d2))
-let $sqlfunc = datediff(col1, '2006-01-01');
-let $valsqlfunc = datediff('2006-02-02', '2006-01-01');
-let $coltype = date;
-let $infile = part_supported_sql_funcs_int_date.inc;
-let $val1 =  '2006-02-03';
-let $val2 =  '2006-01-17';
-let $val3 =  '2006-01-25';
-let $val4 =  '2006-02-06';
---source suite/parts/inc/partition_supported_sql_funcs.inc
+#let $sqlfunc = datediff(col1, '2006-01-01');
+#let $valsqlfunc = datediff('2006-02-02', '2006-01-01');
+#let $coltype = date;
+#let $infile = part_supported_sql_funcs_int_date.inc;
+#let $val1 =  '2006-02-03';
+#let $val2 =  '2006-01-17';
+#let $val3 =  '2006-01-25';
+#let $val4 =  '2006-02-06';
+#--source suite/parts/inc/partition_supported_sql_funcs.inc
 
 let $sqlfunc = weekday(col1);
 let $valsqlfunc = weekday('2006-10-14');

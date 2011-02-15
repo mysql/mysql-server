@@ -188,9 +188,21 @@ struct PFS_table_key
 struct PFS_table_share
 {
 public:
+  uint32 get_version()
+  { return m_lock.get_version(); }
+
   enum_object_type get_object_type()
   {
     return (enum_object_type) m_key.m_hash_key[0];
+  }
+
+  void aggregate_io(void);
+  void aggregate_lock(void);
+
+  inline void aggregate(void)
+  {
+    aggregate_io();
+    aggregate_lock();
   }
 
   inline void init_refcount(void)
@@ -232,7 +244,7 @@ public:
   /** True if this table instrument is timed. */
   bool m_timed;
   bool m_purge;
-  /** Table io statistics. */
+  /** Table statistics. */
   PFS_table_stat m_table_stat;
   /** Number of indexes. */
   uint m_key_count;
@@ -249,6 +261,12 @@ private:
   This instrument is used with table SETUP_OBJECTS.
 */
 extern PFS_instr_class global_table_io_class;
+
+/**
+  Instrument controlling all table lock.
+  This instrument is used with table SETUP_OBJECTS.
+*/
+extern PFS_instr_class global_table_lock_class;
 
 struct PFS_file;
 
