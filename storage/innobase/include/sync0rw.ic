@@ -280,7 +280,6 @@ rw_lock_set_writer_id_and_recursion_flag(
 	local_thread = lock->writer_thread;
 	success = os_compare_and_swap_thread_id(
 		&lock->writer_thread, local_thread, curr_thread);
-	UNIV_MEM_VALID(&success, sizeof(success));
 	ut_a(success);
 	lock->recursive = recursive;
 
