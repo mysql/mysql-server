@@ -61,10 +61,10 @@ public:
 
 private:
   bool execute_query(MYSQL_LEX_STRING sql_text,
-                     const uint* ignore_mysql_errors,
+                     const unsigned int* ignore_mysql_errors,
                      const class Suppressor* suppressor = NULL);
   bool execute_query_iso(MYSQL_LEX_STRING sql_text,
-                         const uint* ignore_mysql_errors,
+                         const unsigned int* ignore_mysql_errors,
                          const class Suppressor* suppressor = NULL);
 private:
   THD* m_thd;
