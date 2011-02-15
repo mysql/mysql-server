@@ -6295,8 +6295,24 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
     return TRUE;
 
   if (cond)
+  {
     add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
                    sargables);
+    for (KEY_FIELD *fld= field; fld != end ; fld++)
+    {
+      /* Mark that we can optimize LEFT JOIN */
+      if (fld->val->type() == Item::NULL_ITEM &&
+          !fld->field->real_maybe_null())
+      {
+        /*
+          Example:
+          SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
+          this just wants rows of t1 where t1.a does not exist in t2.
+        */
+        fld->field->table->reginfo.not_exists_optimize=1;
+      }
+    }
+  }
 
   for (i=0 ; i < tables ; i++)
   {
@@ -6334,17 +6350,6 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
   {
-    /* Mark that we can optimize LEFT JOIN */
-    if (field->val->type() == Item::NULL_ITEM &&
-        !field->field->real_maybe_null())
-    {
-      /*
-        Example:
-        SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
-        this just wants rows of t1 where t1.a does not exist in t2.
-      */
-      field->field->table->reginfo.not_exists_optimize=1;
-    }
     if (add_key_part(keyuse,field))
       return TRUE;
   }
