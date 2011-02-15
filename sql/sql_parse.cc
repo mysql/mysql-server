@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1491,7 +1491,6 @@ void log_slow_statement(THD *thd)
   if (thd->enable_slow_log)
   {
     ulonglong end_utime_of_query= thd->current_utime();
-    thd_proc_info(thd, "logging slow query");
 
     if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &

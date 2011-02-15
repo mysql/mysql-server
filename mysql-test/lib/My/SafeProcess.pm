@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -139,6 +139,7 @@ sub new {
   my $host     = delete($opts{'host'});
   my $shutdown = delete($opts{'shutdown'});
   my $user_data= delete($opts{'user_data'});
+  my $envs     = delete($opts{'envs'});
 
 #  if (defined $host) {
 #    $safe_script=  "lib/My/SafeProcess/safe_process_cpcd.pl";
@@ -160,6 +161,13 @@ sub new {
 
   # Point the safe_process at the right parent if running on cygwin
   push(@safe_args, "--parent-pid=".Cygwin::pid_to_winpid($$)) if IS_CYGWIN;
+
+  foreach my $env_var (@$envs) {
+    croak("Missing = in env string") unless $env_var =~ /=/;
+    croak("Env string $env_var seen, probably missing value for --mysqld-env")
+      if $env_var =~ /^--/;
+    push @safe_args, "--env $env_var";
+  }
 
   push(@safe_args, "--");
   push(@safe_args, $path); # The program safe_process should execute
