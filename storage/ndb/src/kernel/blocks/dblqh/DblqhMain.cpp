@@ -4526,8 +4526,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }//if
 
   Uint32 TanyValueFlag = LqhKeyReq::getCorrFactorFlag(Treqinfo);
-  if (TanyValueFlag == 1)
+  if (isLongReq && TanyValueFlag == 1)
   {
+    /**
+     * For short lqhkeyreq, ai-length in-signal is stored in same pos...
+     */
     regTcPtr->m_corrFactorLo = lqhKeyReq->variableData[nextPos + 0];
     regTcPtr->m_corrFactorHi = lqhKeyReq->variableData[nextPos + 1];
     nextPos += 2;
