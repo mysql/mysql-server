@@ -125,7 +125,15 @@ protected:
     Cardinality of the range of join tables whose fields can be put into the
     cache. A table from the range not necessarily contributes to the cache.
   */
-  uint tables;
+  // psergey-merge: gone: uint tables;
+  /*
+    JOIN_TAB of the first table that can have it's fields in the join cache. 
+    That is, tables in the [start_tab, tab) range can have their fields in the
+    join cache. 
+    If a join tab in the range represents an SJM-nest, then all tables from the
+    nest can have their fields in the join cache, too.
+  */
+  JOIN_TAB *start_tab;
 
   /* 
     The total number of flag and data fields that can appear in a record
@@ -647,7 +655,7 @@ public:
     buff= 0;
   }   
   
-  JOIN_TAB *get_next_table(JOIN_TAB *tab);
+  // JOIN_TAB *get_next_table(JOIN_TAB *tab);
   
   friend class JOIN_CACHE_HASHED;
   friend class JOIN_CACHE_BNL;

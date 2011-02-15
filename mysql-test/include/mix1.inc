@@ -1532,6 +1532,12 @@ INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+--echo # MariaDB note:
+--echo #  This will show 2 for table which has 5 rows. 
+--echo #  This is because the access method employed is actually range access
+--echo #  which scans 2 records (yes, EXPLAIN displays it incorrectly).
+--echo #  our correct printing is an artifact of changing in select_describe()
+--echo #  from printing table->starts.records() to tab->records.
 EXPLAIN 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
@@ -1545,6 +1551,7 @@ INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+--echo # See above "MariaDB note"
 EXPLAIN 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
@@ -1559,6 +1566,7 @@ INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
+--echo # See above "MariaDB note"
 EXPLAIN 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;

@@ -3033,8 +3033,7 @@ bool select_dumpvar::send_eof()
 }
 
 
-bool
-select_materialize_with_stats::
+bool select_materialize_with_stats::
 create_result_table(THD *thd_arg, List<Item> *column_types,
                     bool is_union_distinct, ulonglong options,
                     const char *table_alias, bool bit_fields_as_long)
