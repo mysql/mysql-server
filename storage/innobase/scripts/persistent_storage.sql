@@ -10,7 +10,7 @@ CREATE TABLE innodb.table_stats (
 	clustered_index_size		BIGINT UNSIGNED NOT NULL,
 	sum_of_other_index_sizes	BIGINT UNSIGNED NOT NULL,
 	PRIMARY KEY (database_name, table_name)
-) ENGINE=INNODB;
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
 
 -- DROP TABLE IF EXISTS innodb.index_stats;
 CREATE TABLE innodb.index_stats (
@@ -29,4 +29,4 @@ CREATE TABLE innodb.index_stats (
 	PRIMARY KEY (database_name, table_name, index_name, stat_name),
 	FOREIGN KEY (database_name, table_name)
 	  REFERENCES table_stats (database_name, table_name)
-) ENGINE=INNODB;
+) ENGINE=INNODB DEFAULT CHARSET=utf8;

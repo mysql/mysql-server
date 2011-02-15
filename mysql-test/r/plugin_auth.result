@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 PLUGIN_STATUS	ACTIVE
@@ -332,4 +333,16 @@ mysqld is alive
 # Executing 'mysqldump'
 # Executing 'mysql_upgrade'
 The --upgrade-system-tables option was used, databases won't be touched.
+#
+# Bug #59657: Move the client authentication_pam plugin into the 
+#  server repository
+#
+CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
+  AS 'cleartext_test';
+## test plugin auth
+ERROR 28000: Access denied for user 'uplain'@'localhost' (using password: YES)
+select USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+uplain@localhost	uplain@localhost
+DROP USER uplain@localhost;
 End of 5.5 tests

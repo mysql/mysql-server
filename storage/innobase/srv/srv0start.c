@@ -1327,13 +1327,16 @@ innobase_start_or_create_for_mysql(void)
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
-	still applies to windows. */
-	if (!srv_use_native_aio) {
-		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
-	} else {
+	io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
+
+	/* On Windows when using native aio the number of aio requests
+	that a thread can handle at a given time is limited to 32
+	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
+# ifdef __WIN__
+	if (srv_use_native_aio) {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
+# endif /* __WIN__ */
 
 	os_aio_init(io_limit,
 		    srv_n_read_io_threads,
