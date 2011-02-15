@@ -8477,6 +8477,7 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
 static bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
+  JOIN_TAB *tab;
   uint i;
   DBUG_ENTER("make_join_readinfo");
 
@@ -8488,14 +8489,15 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
   //for (i= 0; i < join->const_tables; i++) //psergey-merge-todo: partial_join_cardinality for everything.
-  for (JOIN_TAB *tab= first_linear_tab(join, TRUE); 
+  for (tab= first_linear_tab(join, TRUE); 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE), i++) /// << psergey-merge2: is that ok???
-    join->join_tab[i].partial_join_cardinality= 1; 
+       tab= next_linear_tab(join, tab, TRUE)) /// << psergey-merge2: is that ok???
+  {
+    tab->partial_join_cardinality= 1; 
+  }
 
   //for (i=join->const_tables ; i < join->tables ; i++)
-  i= 0;
-  for (JOIN_TAB *tab= first_linear_tab(join, TRUE); 
+  for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
        tab; 
        tab= next_linear_tab(join, tab, TRUE), i++)
   {
@@ -8505,7 +8507,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         - it does not differentiate between inner joins, outer joins and semi-joins.
       Later it should be improved.
     */
-    JOIN_TAB *tab=join->join_tab+i;
     tab->partial_join_cardinality= join->best_positions[i].records_read *
                                    (i ? (tab-1)->partial_join_cardinality : 1);
   }
@@ -8513,11 +8514,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
 
   //for (i=join->const_tables ; i < join->tables ; i++)
-  for (JOIN_TAB *tab= first_linear_tab(join, TRUE); 
+  for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
        tab; 
        tab= next_linear_tab(join, tab, TRUE), i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
+    //JOIN_TAB *tab=join->join_tab+i;
     TABLE *table=tab->table;
     uint jcl= tab->used_join_cache_level;
     tab->read_record.table= table;
