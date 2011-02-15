@@ -11985,7 +11985,7 @@ void Dbdih::startFragment(Signal* signal, Uint32 tableId, Uint32 fragId)
     BaseString::snprintf(buf, sizeof(buf), "table: %d fragment: %d gci: %d",
 			 tableId, fragId, SYSFILE->newestRestorableGCI);
 
-    ndbout_c(buf);
+    ndbout_c("%s", buf);
     dump_replica_info();
     
     progError(__LINE__, NDBD_EXIT_NO_RESTORABLE_REPLICA, buf);
@@ -16618,6 +16618,7 @@ void Dbdih::sendStartFragreq(Signal* signal,
     startFragReq->lcpId = replicaPtr.p->createLcpId;
     startFragReq->tableId = tabPtr.i;
     startFragReq->fragId = fragId;
+    startFragReq->requestInfo = StartFragReq::SFR_RESTORE_LCP;
 
     if(ERROR_INSERTED(7072) || ERROR_INSERTED(7074)){
       jam();
@@ -17177,7 +17178,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
 	  strcat(buf, tmp);
 	}
-	infoEvent(buf);
+	infoEvent("%s", buf);
       }
     }
   }
@@ -17556,7 +17557,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	num++;
 	replicaPtr.i = replicaPtr.p->nextReplica;
       } while (replicaPtr.i != RNIL);
-      infoEvent(buf);
+      infoEvent("%s", buf);
     }
   }
 
