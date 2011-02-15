@@ -309,7 +309,7 @@ public:
     @details
     The function sorts list nodes by an exchange sort algorithm.
     The order of list nodes isn't changed, values of info fields are
-    swapped instead. Due to this list iterators that are initialized before
+    swapped instead. Due to this, list iterators that are initialized before
     sort could be safely used after sort, i.e they wouldn't cause a crash.
     As this isn't an effective algorithm the list to be sorted is supposed to
     be short.

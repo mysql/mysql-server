@@ -39,8 +39,11 @@
   @details
   This function runs all derived tables present in the query through specified
   'phases' and used for preparing derived tables and instantiating result
-  tables. Derived tables are processed in the top->bottom order.
-  This differs from the mysql_handle_derived where recursion goes bottom->up.
+  tables. The provided processor is called on all derived tables without
+  exceptions. This differs from the TABLE_LIST::handle_derived where
+  derived tables of different type are handled separately. Because of this
+  SELECT_LEX::handle_derived can't be used here (it employs
+  TABLE_LIST::handle_derived).
 
   @see TABLE_LIST::handle_derived.
 
