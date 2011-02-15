@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1675,7 +1675,13 @@ public:
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
   Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
+  /*
+    Return used table information for the level on which this table is resolved.
+  */
+  virtual table_map resolved_used_tables() const= 0;
   const char *full_name() const;
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select, Item **ref);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
@@ -1761,16 +1767,11 @@ public:
   bool send(Protocol *protocol, String *str_arg);
   void reset_field(Field *f);
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
   void make_field(Send_field *tmp_field);
   int save_in_field(Field *field,bool no_conversions);
   void save_org_in_field(Field *field);
   table_map used_tables() const;
-  /*
-    Return used table information for the level on which this table is resolved.
-  */
-  table_map resolved_used_tables() const;
+  virtual table_map resolved_used_tables() const;
   enum Item_result result_type () const
   {
     return field->result_type();
@@ -2604,6 +2605,7 @@ public:
     if (!depended_from) 
       (*ref)->update_used_tables(); 
   }
+  virtual table_map resolved_used_tables() const;
   table_map not_null_tables() const { return (*ref)->not_null_tables(); }
   void set_result_field(Field *field)	{ result_field= field; }
   bool is_result_field() { return 1; }
@@ -2726,8 +2728,6 @@ public:
   {}
 
   bool fix_fields(THD *, Item **);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
   bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)
   {
@@ -3312,11 +3312,10 @@ class Item_cache: public Item_basic_constant
 protected:
   Item *example;
   table_map used_table_map;
-  /*
-    Field that this object will get value from. This is set/used by 
+  /**
+    Field that this object will get value from. This is used by 
     index-based subquery engines to detect and remove the equality injected 
     by IN->EXISTS transformation.
-    For all other uses of Item_cache, cached_field doesn't matter.
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
@@ -3384,6 +3383,14 @@ public:
   {
     return (value_cached || cache_value()) && !null_value;
   }
+
+  /** 
+    If this item caches a field value, return pointer to underlying field.
+
+    @return Pointer to field, or NULL if this is not a cache for a field value.
+  */
+  Field* field() { return cached_field; }
+
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const

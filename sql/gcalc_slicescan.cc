@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,15 +62,15 @@ void Gcalc_dyn_list::format_blk(void* block)
 }
 
 
-Gcalc_dyn_list::Item *Gcalc_dyn_list::alloc_new_blk()
+bool Gcalc_dyn_list::alloc_new_blk()
 {
   void *new_block= my_malloc(m_blk_size, MYF(MY_WME));
   if (!new_block)
-    return NULL;
+    return true;
   *m_blk_hook= new_block;
   m_blk_hook= (void**)new_block;
   format_blk(new_block);
-  return new_item();
+  return false;
 }
 
 
@@ -260,8 +260,8 @@ Gcalc_scan_iterator::Gcalc_scan_iterator(size_t blk_size) :
 Gcalc_scan_iterator::point
   *Gcalc_scan_iterator::new_slice(Gcalc_scan_iterator::point *example)
 {
-  point *result= NULL;
-  Gcalc_dyn_list::Item **result_hook= (Gcalc_dyn_list::Item **)&result;
+  Gcalc_dyn_list::Item *item_result= NULL;
+  Gcalc_dyn_list::Item **result_hook= &item_result;
   while (example)
   {
     *result_hook= new_slice_point();
@@ -269,6 +269,7 @@ Gcalc_scan_iterator::point
     example= example->get_next();
   }
   *result_hook= NULL;
+  point *result= static_cast<point*>(item_result);
   return result;
 }
 
@@ -321,13 +322,10 @@ static inline bool slice_first(const Gcalc_scan_iterator::point *p0,
 
 int Gcalc_scan_iterator::insert_top_point()
 {
-  point *sp= m_slice1;
-  Gcalc_dyn_list::Item **prev_hook= (Gcalc_dyn_list::Item **)&m_slice1;
-  point *sp1;
   point *sp0= new_slice_point();
-
   if (!sp0)
     return 1;
+
   sp0->pi= m_cur_pi;
   sp0->next_pi= m_cur_pi->left;
   sp0->thread= m_cur_thread++;
@@ -338,7 +336,8 @@ int Gcalc_scan_iterator::insert_top_point()
     m_event1= scev_thread;
 
     /*Now just to increase the size of m_slice0 to be same*/
-    if (!(sp1= new_slice_point()))
+    point *sp1= new_slice_point();
+    if (!sp1)
       return 1;
     sp1->next= m_slice0;
     m_slice0= sp1;
@@ -354,15 +353,18 @@ int Gcalc_scan_iterator::insert_top_point()
      Binary search could probably make things faster here,
      but structures used aren't suitable, and the
      scan is usually not really long */
-  for (; sp && slice_first(sp, sp0);
-       prev_hook= &sp->next, sp=sp->get_next())
-  {}
+  point *sp= m_slice1;
+  point **prev_hook= &m_slice1;
+  for (; sp && slice_first(sp, sp0); sp=sp->get_next())
+  {
+    prev_hook= reinterpret_cast<point**>(&(sp->next));
+  }
 
   if (m_cur_pi->right)
   {
     m_event1= scev_two_threads;
     /*We have two threads so should decide which one will be first*/
-    sp1= new_slice_point();
+    point *sp1= new_slice_point();
     if (!sp1)
       return 1;
     sp1->pi= m_cur_pi;
@@ -549,7 +551,6 @@ int Gcalc_scan_iterator::add_intersection(const point *a, const point *b,
 int Gcalc_scan_iterator::find_intersections()
 {
   point *sp1= m_slice1;
-  Gcalc_dyn_list::Item **hook;
 
   m_n_intersections= 0;
   {
@@ -564,7 +565,8 @@ int Gcalc_scan_iterator::find_intersections()
     }
   }
 
-  hook= (Gcalc_dyn_list::Item **)&m_intersections;
+  Gcalc_dyn_list::Item **hook=
+    reinterpret_cast<Gcalc_dyn_list::Item **>(&m_intersections);
   bool intersections_found;
 
   point *last_possible_isc= NULL;

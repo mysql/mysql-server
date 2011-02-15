@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,11 +32,6 @@ typedef struct dict_field_struct	dict_field_t;
 typedef struct dict_index_struct	dict_index_t;
 typedef struct dict_table_struct	dict_table_t;
 typedef struct dict_foreign_struct	dict_foreign_t;
-
-/* A cluster object is a table object with the type field set to
-DICT_CLUSTERED */
-
-typedef dict_table_t			dict_cluster_t;
 
 typedef struct ind_node_struct		ind_node_t;
 typedef struct tab_node_struct		tab_node_t;

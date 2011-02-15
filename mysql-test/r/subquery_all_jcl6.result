@@ -5092,7 +5092,7 @@ SELECT 1 FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
 ORDER BY count(*);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using index; Using temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	2	Using index
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 # should not crash the next statement
@@ -6156,6 +6156,32 @@ HAVING t2s.i = 999
 ) IS UNKNOWN;
 i
 DROP TABLE t1,t1s,t2s;
+#
+# Bug #56690  Wrong results with subquery with 
+# GROUP BY inside < ANY clause
+#
+CREATE TABLE t1 (
+pk INT NOT NULL PRIMARY KEY,
+number INT,
+KEY key_number (number)
+);
+INSERT INTO t1 VALUES (8,8);
+CREATE TABLE t2 (
+pk INT NOT NULL PRIMARY KEY,
+number INT,
+KEY key_number (number)
+);
+INSERT INTO t2 VALUES (1,2);
+INSERT INTO t2 VALUES (2,8);
+INSERT INTO t2 VALUES (3,NULL);
+INSERT INTO t2 VALUES (4,166);
+SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2 GROUP BY number);
+pk	number
+8	8
+SELECT * FROM t1 WHERE t1.number < ANY(SELECT number FROM t2);
+pk	number
+8	8
+DROP TABLE t1,t2;
 End of 5.1 tests
 #
 # BUG#50257: Missing info in REF column of the EXPLAIN 

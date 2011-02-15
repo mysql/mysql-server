@@ -71,11 +71,6 @@ struct pos_ews_global_by_event_name
     m_index_1++;
     m_index_2= 1;
   }
-
-  inline void next_instrument(void)
-  {
-    m_index_2++;
-  }
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME. */
