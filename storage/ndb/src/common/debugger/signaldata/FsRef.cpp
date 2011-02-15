@@ -38,7 +38,7 @@ printFSREF(FILE * output, const Uint32 * theData,
     fprintf(output, "No error");
     break;
   default:
-    fprintf(output, ndbd_exit_message(sig->getErrorCode(sig->errorCode), &cl));
+    fprintf(output, "%s", ndbd_exit_message(sig->getErrorCode(sig->errorCode), &cl));
     break;
   }
   fprintf(output, "\n");
