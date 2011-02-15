@@ -5668,13 +5668,16 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
     key++;
     if (ref_by_tbl)
     {
-      /* Search for entry referenced by non-zero ref_by_tbl. */
+      /* Search for the entry for the specified table.*/
       if (entry->referenced_by & ref_by_tbl)
         break;
     }
     else
     {
-      /* Search for entry referenced by zero ref_by_tbl. */
+      /*
+        Search for the special entry that should contain fields referred
+        from any table.
+      */
       if (!entry->referenced_by)
         break;
     }
@@ -5819,10 +5822,13 @@ bool TABLE_LIST::generate_keys()
                 (set of DT_XXX constants)
   @details
   This function runs this derived table through specified 'phases' and used for
-  handling materialized derived tables. They are processed in the bottom->up
-  order i.e. derived tables that belong to selects of this derived table are
-  handled prior to this derived table itself. This differs from the
-  mysql_handle_derived where recursion goes top-down. 'lex' is passed as
+  handling materialized derived tables on all stages except preparation.
+  The reason that on all stages except prepare derived tables of different
+  type needs different handling. Materializable derived tables needs
+  processor to be called directly on them. Mergeable derived tables doesn't
+  need such call, but require diving into them to process underlying derived
+  tables. This differs from the mysql_handle_derived which runs preparation
+  processor on all derived tables without exception. 'lex' is passed as
   an argument to called functions.
 
   @see mysql_handle_derived.

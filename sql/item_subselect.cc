@@ -2617,7 +2617,9 @@ int subselect_uniquesubquery_engine::exec()
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
               mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_materialize);
+                                          mysql_derived_materialize) ||
+              mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_cleanup);
     if (err)
       DBUG_RETURN(1);
   }
@@ -2735,7 +2737,9 @@ int subselect_indexsubquery_engine::exec()
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
               mysql_handle_single_derived(table->in_use->lex, tl,
-                                          mysql_derived_materialize);
+                                          mysql_derived_materialize) ||
+              mysql_handle_single_derived(table->in_use->lex, tl,
+                                          mysql_derived_cleanup);
     if (err)
       DBUG_RETURN(1);
   }
