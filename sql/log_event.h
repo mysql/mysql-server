@@ -4014,7 +4014,16 @@ public:
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
-    m_message= msg;
+    m_message.str= NULL;
+    m_message.length= 0;
+    if (!(m_message.str= (char*) my_malloc(msg.length+1, MYF(MY_WME))))
+    {
+      /* Mark this event invalid */
+      m_incident= INCIDENT_NONE;
+      DBUG_VOID_RETURN;
+    }
+    strmake(m_message.str, msg.str, msg.length);
+    m_message.length= msg.length;
     set_direct_logging();
     DBUG_VOID_RETURN;
   }

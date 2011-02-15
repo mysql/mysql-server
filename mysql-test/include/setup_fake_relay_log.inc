@@ -74,6 +74,7 @@ let $_fake_relay_index= $_fake_datadir/$_fake_filename.index;
 let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 
 RESET SLAVE;
+let $_orphan_relay_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 
 # Create relay log file.
 --copy_file $fake_relay_log $_fake_relay_log
@@ -102,6 +103,8 @@ RESET SLAVE;
 # Setup replication from existing relay log.
 eval CHANGE MASTER TO MASTER_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;
 
+# remove the orphan log file (became spurious)
+-- remove_file $_fake_datadir/$_orphan_relay_file
 
 --let $include_filename= setup_fake_relay_log.inc
 --source include/end_include_file.inc

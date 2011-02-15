@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -282,6 +282,7 @@ const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
+static my_bool opt_autocommit; ///< for --autocommit command-line option
 
 /*
   Used with --help for detailed option
@@ -943,7 +944,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr);
 static bool add_terminator(DYNAMIC_ARRAY *options);
 extern "C" my_bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
-static int init_thread_environment();
 static char *get_relative_path(const char *path);
 static int fix_paths(void);
 void handle_connections_sockets();
@@ -2886,6 +2886,19 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
 
+#ifndef EMBEDDED_LIBRARY
+static
+int
+check_enough_stack_size()
+{
+  uchar stack_top;
+
+  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+                             &stack_top);
+}
+#endif
+
+
 /**
   Initialize one of the global date/time format variables.
 
@@ -3115,12 +3128,6 @@ static int init_common_variables()
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3158,6 +3165,13 @@ static int init_common_variables()
     inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
+
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
@@ -3375,7 +3389,11 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-  my_regex_init(&my_charset_latin1);
+#ifndef EMBEDDED_LIBRARY
+  my_regex_init(&my_charset_latin1, check_enough_stack_size);
+#else
+  my_regex_init(&my_charset_latin1, NULL);
+#endif
   /*
     Process a comma-separated character set list and choose
     the first available character set. This is mostly for
@@ -3550,7 +3568,7 @@ You should consider changing lower_case_table_names to 1 or 2",
 }
 
 
-static int init_thread_environment()
+int init_thread_environment()
 {
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
@@ -4443,8 +4461,10 @@ int mysqld_main(int argc, char **argv)
 
   orig_argc= argc;
   orig_argv= argv;
+  my_getopt_use_args_separator= TRUE;
   if (load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv))
     return 1;
+  my_getopt_use_args_separator= FALSE;
   defaults_argc= argc;
   defaults_argv= argv;
   remaining_argc= argc;
@@ -5910,8 +5930,9 @@ struct my_option my_long_options[]=
     Because Sys_var_bit does not support command-line options, we need to
     explicitely add one for --autocommit
   */
-  {"autocommit", OPT_AUTOCOMMIT, "Set default value for autocommit (0 or 1)",
-   NULL, NULL, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, NULL},
+  {"autocommit", 0, "Set default value for autocommit (0 or 1)",
+   &opt_autocommit, &opt_autocommit, 0,
+   GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, NULL},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, "
    "and exclude all others not explicitly mentioned.",
@@ -7347,13 +7368,6 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
-  case OPT_AUTOCOMMIT:
-    const ulonglong turn_bit_on= (argument && (atoi(argument) == 0)) ?
-      OPTION_NOT_AUTOCOMMIT : OPTION_AUTOCOMMIT;
-    global_system_variables.option_bits=
-      (global_system_variables.option_bits &
-       ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
-    break;
   }
   return 0;
 }
@@ -7504,10 +7518,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   else
     global_system_variables.option_bits&= ~OPTION_BIG_SELECTS;
 
-  if (global_system_variables.option_bits & OPTION_AUTOCOMMIT)
-    global_system_variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
-  else
-    global_system_variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+  // Synchronize @@global.autocommit on --autocommit
+  const ulonglong turn_bit_on= opt_autocommit ?
+    OPTION_AUTOCOMMIT : OPTION_NOT_AUTOCOMMIT;
+  global_system_variables.option_bits=
+    (global_system_variables.option_bits &
+     ~(OPTION_NOT_AUTOCOMMIT | OPTION_AUTOCOMMIT)) | turn_bit_on;
 
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode);

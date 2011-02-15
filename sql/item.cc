@@ -649,7 +649,6 @@ void Item_ident::cleanup()
   db_name= orig_db_name; 
   table_name= orig_table_name;
   field_name= orig_field_name;
-  depended_from= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2310,7 +2309,7 @@ table_map Item_field::resolved_used_tables() const
   return field->table->map;
 }
 
-void Item_field::fix_after_pullout(st_select_lex *parent_select,
+void Item_ident::fix_after_pullout(st_select_lex *parent_select,
                                    st_select_lex *removed_select,
                                    Item **ref)
 {
@@ -2350,17 +2349,16 @@ void Item_field::fix_after_pullout(st_select_lex *parent_select,
     */
     st_select_lex *child_select= context->select_lex;
 
-    if (child_select->outer_select() != depended_from)
+    while (child_select->outer_select() != depended_from)
     {
       /*
         The subquery on this level is outer-correlated with respect to the field
       */
       Item_subselect *subq_predicate= child_select->master_unit()->item;
-      subq_predicate->used_tables_cache|= OUTER_REF_TABLE_BIT;
-    }
 
-    while (child_select->outer_select() != depended_from)
+      subq_predicate->used_tables_cache|= OUTER_REF_TABLE_BIT;
       child_select= child_select->outer_select();
+    }
 
     /*
       child_select is select_lex immediately inner to the depended_from level.
@@ -6509,6 +6507,13 @@ void Item_ref::set_properties()
 }
 
 
+table_map Item_ref::resolved_used_tables() const
+{
+  DBUG_ASSERT((*ref)->type() == FIELD_ITEM);
+  return ((Item_field*)(*ref))->resolved_used_tables();
+}
+
+
 void Item_ref::cleanup()
 {
   DBUG_ENTER("Item_ref::cleanup");
@@ -6885,28 +6890,11 @@ void Item_ref::fix_after_pullout(st_select_lex *parent_select,
                                  st_select_lex *removed_select,
                                  Item **ref_arg)
 {
-  // @todo: Find an actual test case where depended_from == new_parent.
-  DBUG_ASSERT(depended_from != parent_select);
-  if (depended_from == parent_select)
-    depended_from= NULL;
-}
-
-void Item_direct_view_ref::fix_after_pullout(st_select_lex *parent_select,
-                                             st_select_lex *removed_select,
-                                             Item **refptr)
-{
-  DBUG_EXECUTE("where",
-               print_where(*refptr,
-                           "Item_direct_view_ref::fix_after_pullout",
-                           QT_ORDINARY););
-
   (*ref)->fix_after_pullout(parent_select, removed_select, ref);
 
-  // @todo: Find an actual test case where depended_from == parent_select.
-  DBUG_ASSERT(depended_from != parent_select);
-  if (depended_from == parent_select)
-    depended_from= NULL;
+  Item_ident::fix_after_pullout(parent_select, removed_select, ref_arg);
 }
+
 
 /**
   Compare two view column references for equality.
@@ -6975,9 +6963,11 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     goto error;
   }
-  if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
+
+  def_field= field_arg->field->clone();
+  if (def_field == NULL)
     goto error;
-  memcpy(def_field, field_arg->field, field_arg->field->size_of());
+
   def_field->move_field_offset((my_ptrdiff_t)
                                (def_field->table->s->default_values -
                                 def_field->table->record[0]));
@@ -7118,10 +7108,10 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
 
   if (field_arg->field->table->insert_values)
   {
-    Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
+    Field *def_field= field_arg->field->clone();
     if (!def_field)
       return TRUE;
-    memcpy(def_field, field_arg->field, field_arg->field->size_of());
+
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));
@@ -7500,8 +7490,7 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
     return new Item_cache_decimal();
   case STRING_RESULT:
     /* Not all functions that return DATE/TIME are actually DATE/TIME funcs. */
-    if ((item->field_type() == MYSQL_TYPE_DATE ||
-         item->field_type() == MYSQL_TYPE_DATETIME ||
+    if ((item->is_datetime() ||
          item->field_type() == MYSQL_TYPE_TIME) &&
         (const_cast<Item*>(item))->result_as_longlong())
       return new Item_cache_datetime(item->field_type());

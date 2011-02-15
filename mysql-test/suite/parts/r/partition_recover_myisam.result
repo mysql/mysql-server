@@ -18,6 +18,13 @@ a
 9
 10
 11
+Warnings:
+Error	145	Table './test/t1_will_crash' is marked as crashed and should be repaired
+Error	1194	Table 't1_will_crash' is marked as crashed and should be repaired
+Error	1034	1 client is using or hasn't closed the table properly
+Error	1034	Size of indexfile is: 1024        Should be: 2048
+Error	1034	Size of datafile is: 77       Should be: 7
+Error	1034	Number of rows changed from 1 to 11
 DROP TABLE t1_will_crash;
 CREATE TABLE t1_will_crash (a INT, KEY (a))
 ENGINE=MyISAM
@@ -41,4 +48,11 @@ a
 9
 10
 11
+Warnings:
+Error	145	Table './test/t1_will_crash#P#p1' is marked as crashed and should be repaired
+Error	1194	Table 't1_will_crash' is marked as crashed and should be repaired
+Error	1034	1 client is using or hasn't closed the table properly
+Error	1034	Size of indexfile is: 1024        Should be: 2048
+Error	1034	Size of datafile is: 28       Should be: 7
+Error	1034	Number of rows changed from 1 to 4
 DROP TABLE t1_will_crash;

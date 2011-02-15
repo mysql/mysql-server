@@ -51,11 +51,33 @@ bool String::real_alloc(uint32 length)
 }
 
 
-/*
-** Check that string is big enough. Set string[alloc_length] to 0
-** (for C functions)
-*/
+/**
+   Allocates a new buffer on the heap for this String.
 
+   - If the String's internal buffer is privately owned and heap allocated,
+     one of the following is performed.
+
+     - If the requested length is greater than what fits in the buffer, a new
+       buffer is allocated, data moved and the old buffer freed.
+
+     - If the requested length is less or equal to what fits in the buffer, a
+       null character is inserted at the appropriate position.
+
+   - If the String does not keep a private buffer on the heap, such a buffer
+     will be allocated and the string copied accoring to its length, as found
+     in String::length().
+ 
+   For C compatibility, the new string buffer is null terminated.
+
+   @param alloc_length The requested string size in characters, excluding any
+   null terminator.
+
+   @retval false Either the copy operation is complete or, if the size of the
+   new buffer is smaller than the currently allocated buffer (if one exists),
+   no allocation occured.
+
+   @retval true An error occured when attempting to allocate memory.
+*/
 bool String::realloc(uint32 alloc_length)
 {
   uint32 len=ALIGN_SIZE(alloc_length+1);
@@ -128,6 +150,17 @@ bool String::copy()
   return FALSE;
 }
 
+/**
+   Copies the internal buffer from str. If this String has a private heap
+   allocated buffer where new data does not fit, a new buffer is allocated
+   before copying and the old buffer freed. Character set information is also
+   copied.
+   
+   @param str The string whose internal buffer is to be copied.
+   
+   @retval false Success.
+   @retval true Memory allocation failed.
+*/
 bool String::copy(const String &str)
 {
   if (alloc(str.str_length))

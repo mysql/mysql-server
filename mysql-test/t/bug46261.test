@@ -7,7 +7,7 @@
 
 --replace_regex /\.dll/.so/
 --error ER_OPTION_PREVENTS_STATEMENT
-eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 --replace_regex /\.dll/.so/
 --error ER_OPTION_PREVENTS_STATEMENT

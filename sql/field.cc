@@ -1812,8 +1812,8 @@ bool Field::optimize_range(uint idx, uint part)
 Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
                         bool keep_type __attribute__((unused)))
 {
-  Field *tmp;
-  if (!(tmp= (Field*) memdup_root(root,(char*) this,size_of())))
+  Field *tmp= clone(root);
+  if (tmp == NULL)
     return 0;
 
   if (tmp->table->maybe_null)
@@ -1840,21 +1840,6 @@ Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table,
     tmp->ptr=      new_ptr;
     tmp->null_ptr= new_null_ptr;
     tmp->null_bit= new_null_bit;
-  }
-  return tmp;
-}
-
-
-/* This is used to generate a field in TABLE from TABLE_SHARE */
-
-Field *Field::clone(MEM_ROOT *root, TABLE *new_table)
-{
-  Field *tmp;
-  if ((tmp= (Field*) memdup_root(root,(char*) this,size_of())))
-  {
-    tmp->init(new_table);
-    tmp->move_field_offset((my_ptrdiff_t) (new_table->record[0] -
-                                           new_table->s->default_values));
   }
   return tmp;
 }
@@ -9119,6 +9104,7 @@ void Create_field::create_length_to_internal_length(void)
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
   case MYSQL_TYPE_VARCHAR:

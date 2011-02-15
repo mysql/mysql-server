@@ -13,8 +13,6 @@ source include/have_binlog_rows_query.inc;
 source include/have_innodb.inc;
 source include/have_debug.inc;
 
-SET @old_debug= @@global.debug;
-SET GLOBAL debug="+d,waiting_for_delayed_insert_queue_is_empty";
 --echo # Test non-transaction
 let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
 let $master_binlog= query_get_value(SHOW MASTER STATUS, File, 1);
@@ -60,6 +58,10 @@ insert into t5(a, b) values(3,1);
 --echo # out all its related tables by replication filtering rules
 update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
 
+SET @old_debug= @@global.debug;
+SET GLOBAL debug="+d,after_handle_inserts";
+set DEBUG_SYNC= 'before_write_delayed SIGNAL before_insert EXECUTE 3';
+set DEBUG_SYNC= 'after_write_delayed WAIT_FOR inserts_handled EXECUTE 3';
 --echo # Test insert delayed ...
 let $table=t3;
 insert delayed into t3(a,b) values(1,5),(1,6),(1,7);

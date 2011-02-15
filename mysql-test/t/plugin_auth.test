@@ -1,6 +1,7 @@
 --source include/have_plugin_auth.inc
 --source include/not_embedded.inc
 --source include/mysql_upgrade_preparation.inc
+CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 
 query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
   FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
@@ -395,7 +396,7 @@ FLUSH PRIVILEGES;
 FLUSH PRIVILEGES;
 
 --echo #
---echo # Bug#58139 : default-auth option not recognized in MySQL standardi
+--echo # Bug#58139 : default-auth option not recognized in MySQL standard
 --echo #             command line clients
 --echo #
 
@@ -407,5 +408,30 @@ FLUSH PRIVILEGES;
 
 --echo # Executing 'mysqldump'
 --exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
+
+--echo # Executing 'mysql_upgrade'
+--exec $MYSQL_UPGRADE -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT --skip-verbose --force --upgrade-system-tables
+
+--echo #
+--echo # Bug #59657: Move the client authentication_pam plugin into the 
+--echo #  server repository
+--echo #
+
+CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
+  AS 'cleartext_test';
+
+--echo ## test plugin auth
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR : this should fail : no grant
+connect(cleartext_fail_con,localhost,uplain,cleartext_test2);
+--enable_query_log
+
+connect(cleartext_con,localhost,uplain,cleartext_test);
+connection cleartext_con;
+select USER(),CURRENT_USER();
+
+connection default;
+disconnect cleartext_con;
+DROP USER uplain@localhost;
 
 --echo End of 5.5 tests

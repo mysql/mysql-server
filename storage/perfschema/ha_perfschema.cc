@@ -242,6 +242,7 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data)
   DBUG_ENTER("ha_perfschema::update_row");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_update_count);
   int result= m_table->update_row(table, old_data, new_data, table->field);
   DBUG_RETURN(result);
 }
@@ -251,6 +252,7 @@ int ha_perfschema::delete_row(const uchar *buf)
   DBUG_ENTER("ha_perfschema::delete_row");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_delete_count);
   int result= m_table->delete_row(table, buf, table->field);
   DBUG_RETURN(result);
 }
@@ -287,6 +289,8 @@ int ha_perfschema::rnd_next(uchar *buf)
   DBUG_ENTER("ha_perfschema::rnd_next");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+
   int result= m_table->rnd_next();
   if (result == 0)
   {
@@ -311,6 +315,7 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos)
   DBUG_ENTER("ha_perfschema::rnd_pos");
 
   DBUG_ASSERT(m_table);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   int result= m_table->rnd_pos(pos);
   if (result == 0)
     result= m_table->read_row(table, buf, table->field);

@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -219,6 +219,10 @@ int main(int argc, const char** argv )
       else if (strcmp(arg, "--nocore") == 0)
       {
         nocore= TRUE;
+      }
+      else if ( strncmp (arg, "--env ", 6) == 0 )
+      {
+	putenv(strdup(arg+6));
       }
       else
         die("Unknown option: %s", arg);

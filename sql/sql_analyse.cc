@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -521,9 +521,6 @@ void field_decimal::add()
   {
     found = 1;
     min_arg = max_arg = sum[0] = *dec;
-    min_arg.fix_buffer_pointer();
-    max_arg.fix_buffer_pointer();
-    sum[0].fix_buffer_pointer();
     my_decimal_mul(E_DEC_FATAL_ERROR, sum_sqr, dec, dec);
     cur_sum= 0;
     min_length = max_length = length;
@@ -545,12 +542,10 @@ void field_decimal::add()
     if (my_decimal_cmp(dec, &min_arg) < 0)
     {
       min_arg= *dec;
-      min_arg.fix_buffer_pointer();
     }
     if (my_decimal_cmp(dec, &max_arg) > 0)
     {
       max_arg= *dec;
-      max_arg.fix_buffer_pointer();
     }
   }
 }

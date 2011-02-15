@@ -1744,3 +1744,28 @@ ORDER BY c2 DESC, c1 ASC LIMIT 1
 c1	c2
 t1a	3
 DROP TABLE t1, t2;
+#
+# Bug #58970 Problem Subquery (without referencing a table) 
+#            and Order By
+#
+SELECT(SELECT 0 AS a UNION SELECT 1 AS a ORDER BY a ASC  LIMIT 1) AS dev;
+dev
+0
+SELECT(SELECT 0 AS a UNION SELECT 1 AS a ORDER BY a DESC LIMIT 1) AS dev;
+dev
+1
+SELECT(SELECT 0 AS a FROM dual UNION SELECT 1 AS a FROM dual ORDER BY a ASC  LIMIT 1) AS dev;
+dev
+0
+SELECT(SELECT 0 AS a FROM dual UNION SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
+dev
+1
+SELECT(SELECT 1 AS a ORDER BY a) AS dev;
+dev
+1
+SELECT(SELECT 1 AS a LIMIT 1) AS dev;
+dev
+1
+SELECT(SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
+dev
+1
