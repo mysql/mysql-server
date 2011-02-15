@@ -130,17 +130,30 @@ int get_mysql_service_properties(const wchar_t *bin_path,
      get_file_version(props->mysqld_exe, &props->version_major, 
       &props->version_minor, &props->version_patch);
   }
+
   if (have_inifile)
   {
-    /* Easy case, we have --defaults-file in service definition. */
+    /* We have --defaults-file in service definition. */
     wcstombs(props->inifile, args[1]+16, MAX_PATH);
     normalize_path(props->inifile, MAX_PATH);
-    if (GetFileAttributes(props->inifile) == INVALID_FILE_ATTRIBUTES)
-      goto end;
-    GetPrivateProfileString("mysqld", "datadir", NULL, props->datadir, MAX_PATH, 
-      props->inifile);
+    if (GetFileAttributes(props->inifile) != INVALID_FILE_ATTRIBUTES)
+    {
+      GetPrivateProfileString("mysqld", "datadir", NULL, props->datadir, MAX_PATH, 
+        props->inifile);
+    }
+    else
+    {
+      /*
+        Service will start even with invalid .ini file, using lookup for
+        datadir relative to mysqld.exe. This is equivalent to the case no ini
+        file used.
+      */
+      props->inifile[0]= 0;
+      have_inifile= FALSE;
+    }
   }
-  else
+
+  if(!have_inifile)
   {
     /*
       Hard, although a rare case, we're guessing datadir and defaults-file.
