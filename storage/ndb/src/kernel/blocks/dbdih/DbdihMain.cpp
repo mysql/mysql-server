@@ -1023,7 +1023,6 @@ void Dbdih::execFSCLOSEREF(Signal* signal)
     sprintf(msg, "File system close failed during FileRecord status %d", (Uint32)status);
     fsRefError(signal,__LINE__,msg);
   }
-
   return;
 }//Dbdih::execFSCLOSEREF()
 
@@ -1325,6 +1324,13 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
 
+  {
+    Uint32 val = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_2PASS_INR,
+                              &val);
+    c_2pass_inr = val ? true : false;
+  }
+
   /**
    * Set API assigned nodegroup(s)
    */
@@ -1368,7 +1374,6 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
       }
     }
   }
-
   return;
 }//Dbdih::execSIZEALT_REP()
 
@@ -1980,7 +1985,33 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     }//if
   }//for  
   nodeArray[index] = RNIL; // terminate
-  
+
+  if (c_2pass_inr)
+  {
+    jam();
+    printf("Checking 2-pass initial node restart: ");
+    for (i = 0; i<index; i++)
+    {
+      if (!ndbd_non_trans_copy_frag_req(getNodeInfo(nodeArray[i]).m_version))
+      {
+        jam();
+        c_2pass_inr = false;
+        printf("not ok (node %u) => disabled\n", nodeArray[i]);
+        break;
+      }
+    }
+    if (c_2pass_inr)
+      printf("ok\n");
+
+    /**
+     * Note: In theory it would be ok for just nodes that we plan to copy from
+     *   supported this...but in e.g a 3/4-replica scenario,
+     *      if one of the nodes does, and the other doesnt, we don't
+     *      have enought infrastructure to easily check this...
+     *      therefor we require all nodes to support it.
+     */
+  }
+
   if(cstarttype == NodeState::ST_SYSTEM_RESTART || 
      cstarttype == NodeState::ST_NODE_RESTART)
   {
@@ -3646,32 +3677,40 @@ Dbdih::nr_start_fragment(Signal* signal,
   
   Uint32 gci = 0;
   Uint32 restorableGCI = takeOverPtr.p->restorableGci;
-  
+
+#if defined VM_TRACE || defined ERROR_INSERT
   ndbout_c("tab: %d frag: %d replicaP->nextLcp: %d",
 	   takeOverPtr.p->toCurrentTabref,
 	   takeOverPtr.p->toCurrentFragid,
 	   replicaPtr.p->nextLcp);
-  
+#endif
+
   Int32 j = replicaPtr.p->noCrashedReplicas - 1;
   Uint32 idx = prevLcpNo(replicaPtr.p->nextLcp);
   for(i = 0; i<MAX_LCP_USED; i++, idx = prevLcpNo(idx))
   {
+#if defined VM_TRACE || defined ERROR_INSERT
     printf("scanning idx: %d lcpId: %d crashed replicas: %u %s", 
            idx, replicaPtr.p->lcpId[idx],
            replicaPtr.p->noCrashedReplicas,
            replicaPtr.p->lcpStatus[idx] == ZVALID ? "VALID" : "NOT VALID");
+#endif
     if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
     {
       Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
       Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
+#if defined VM_TRACE || defined ERROR_INSERT
       ndbout_c(" maxGciCompleted: %u maxGciStarted: %u", startGci - 1, stopGci);
+#endif
       for (; j>= 0; j--)
       {
+#if defined VM_TRACE || defined ERROR_INSERT
 	ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
 		 j, 
 		 replicaPtr.p->noCrashedReplicas,
                  replicaPtr.p->createGci[j],
 		 replicaPtr.p->replicaLastGci[j]);
+#endif
 	if (replicaPtr.p->createGci[j] <= startGci &&
             replicaPtr.p->replicaLastGci[j] >= stopGci)
 	{
@@ -3684,23 +3723,29 @@ Dbdih::nr_start_fragment(Signal* signal,
     }
     else
     {
+#if defined VM_TRACE || defined ERROR_INSERT
       printf("\n");
+#endif
     }
   }
   
   idx = 2; // backward compat code
+#if defined VM_TRACE || defined ERROR_INSERT
   ndbout_c("- scanning idx: %d lcpId: %d", idx, replicaPtr.p->lcpId[idx]);
+#endif
   if (replicaPtr.p->lcpStatus[idx] == ZVALID) 
   {
     Uint32 startGci = replicaPtr.p->maxGciCompleted[idx] + 1;
     Uint32 stopGci = replicaPtr.p->maxGciStarted[idx];
     for (;j >= 0; j--)
     {
+#if defined VM_TRACE || defined ERROR_INSERT
       ndbout_c("crashed replica: %d(%d) replica(createGci: %u lastGci: %d )",
                j, 
                replicaPtr.p->noCrashedReplicas,
                replicaPtr.p->createGci[j],
                replicaPtr.p->replicaLastGci[j]);
+#endif
       if (replicaPtr.p->createGci[j] <= startGci &&
           replicaPtr.p->replicaLastGci[j] >= stopGci)
       {
@@ -3714,17 +3759,17 @@ Dbdih::nr_start_fragment(Signal* signal,
   
 done:
   
+  StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
+  req->requestInfo = StartFragReq::SFR_RESTORE_LCP;
   if (maxLcpIndex == ~ (Uint32) 0)
   {
+    /**
+     * we didn't find a local LCP that we can restore
+     */
     jam();
     ndbassert(gci == 0);
     replicaPtr.p->m_restorable_gci = gci;
-    ndbout_c("Didnt find any LCP for node: %d tab: %d frag: %d",
-	     takeOverPtr.p->toStartingNode,
-	     takeOverPtr.p->toCurrentTabref,
-	     takeOverPtr.p->toCurrentFragid);
 
-    StartFragReq *req = (StartFragReq *)signal->getDataPtrSend();
     req->userPtr = 0;
     req->userRef = reference();
     req->lcpNo = ZNIL;
@@ -3732,6 +3777,60 @@ done:
     req->tableId = takeOverPtr.p->toCurrentTabref;
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 0;
+
+    if (c_2pass_inr)
+    {
+      /**
+       * Check if we can make 2-phase copy
+       *   1) non-transaction, (after we rebuild indexes)
+       *   2) transaction (maintaining indexes during rebuild)
+       *      where the transactional copies efterything >= startGci
+       *
+       * NOTE: c_2pass_inr is only set if all nodes in cluster currently
+       *       supports this
+       */
+
+      if (takeOverPtr.p->startGci == 0)
+      {
+        jam();
+        /**
+         * Set a startGci to currently lastCompletedGCI of master
+         *   any value will do...as long as subsequent transactinal copy
+         *   will be using it (scanning >= this value)
+         */
+        takeOverPtr.p->startGci = SYSFILE->lastCompletedGCI[cmasterNodeId];
+      }
+
+      TabRecordPtr tabPtr;
+      tabPtr.i = takeOverPtr.p->toCurrentTabref;
+      ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+      FragmentstorePtr fragPtr;
+      getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
+      Uint32 nodes[MAX_REPLICAS];
+      extractNodeInfo(fragPtr.p, nodes);
+
+      req->lqhLogNode[0] = nodes[0]; // Source
+      req->requestInfo = StartFragReq::SFR_COPY_FRAG;
+      replicaPtr.p->m_restorable_gci = takeOverPtr.p->startGci;
+    }
+
+    if (req->requestInfo == StartFragReq::SFR_RESTORE_LCP)
+    {
+      ndbout_c("node: %d tab: %d frag: %d no lcp to restore",
+               takeOverPtr.p->toStartingNode,
+               takeOverPtr.p->toCurrentTabref,
+               takeOverPtr.p->toCurrentFragid);
+    }
+    else
+    {
+      ndbout_c("node: %d tab: %d frag: %d copying data from %u (gci: %u)",
+               takeOverPtr.p->toStartingNode,
+               takeOverPtr.p->toCurrentTabref,
+               takeOverPtr.p->toCurrentFragid,
+               req->lqhLogNode[0],
+               req->lcpId);
+    }
 
     BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
@@ -3748,17 +3847,19 @@ done:
 
       FragmentstorePtr fragPtr;
       getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
-      
       dump_replica_info(fragPtr.p);
     }
     ndbassert(gci == restorableGCI);
     replicaPtr.p->m_restorable_gci = gci;
     Uint32 startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex] + 1;
-    ndbout_c("Found LCP: %d(%d) maxGciStarted: %d maxGciCompleted: %d restorable: %d(%d) newestRestorableGCI: %d",
+    ndbout_c("node: %d tab: %d frag: %d restore lcp: %u(idx: %u) maxGciStarted: %u maxGciCompleted: %u (restorable: %u(%u) newestRestorableGCI: %u)",
+             takeOverPtr.p->toStartingNode,
+             takeOverPtr.p->toCurrentTabref,
+             takeOverPtr.p->toCurrentFragid,
 	     maxLcpId,
-	     maxLcpIndex,
+             maxLcpIndex,
 	     replicaPtr.p->maxGciStarted[maxLcpIndex],
-	     replicaPtr.p->maxGciCompleted[maxLcpIndex],	     
+	     replicaPtr.p->maxGciCompleted[maxLcpIndex],
 	     restorableGCI,
 	     SYSFILE->lastCompletedGCI[takeOverPtr.p->toStartingNode],
 	     SYSFILE->newestRestorableGCI);
@@ -4238,7 +4339,8 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
     extractNodeInfo(fragPtr.p, 
                     copyFragReq->nodeList);
   copyFragReq->nodeList[len] = takeOverPtr.p->maxPage;
-  sendSignal(ref, GSN_COPY_FRAGREQ, signal, 
+  copyFragReq->nodeList[len+1] = CopyFragReq::CFR_TRANSACTIONAL;
+  sendSignal(ref, GSN_COPY_FRAGREQ, signal,
              CopyFragReq::SignalLength + len, JBB);
 }//Dbdih::toStartCopy()
 
