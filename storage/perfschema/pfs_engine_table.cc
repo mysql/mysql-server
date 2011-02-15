@@ -912,7 +912,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= setup_object_max * sizeof(PFS_setup_object);
       total_memory+= size;
       break;
-   case 56:
+    case 56:
       name= "events_waits_summary_global_by_event_name.row_size";
       size= sizeof(PFS_single_stat);
       break;
@@ -1078,7 +1078,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
-      /* DBUG_ASSERT(size == pfs_allocated_memory); */
+      DBUG_ASSERT(size == pfs_allocated_memory);
       break;
     default:
       goto end;

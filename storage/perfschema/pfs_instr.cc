@@ -834,9 +834,6 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
             child_statement->m_source_line= 0;
             child_statement->m_current_schema_name_length= 0;
             child_statement->m_sqltext_length= 0;
-            child_statement->m_sp_type= 0;
-            child_statement->m_schema_name_length= 0;
-            child_statement->m_object_name_length= 0;
 
             child_statement->m_message_text[0]= '\0';
             child_statement->m_sql_errno= 0;
