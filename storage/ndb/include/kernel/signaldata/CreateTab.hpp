@@ -78,4 +78,29 @@ struct CreateTabRef {
   Uint32 errorStatus;
 };
 
+/**
+ * TcSchVerReq is CreateTab but towards TC...
+ *   should be removed in favor of CreateTab
+ */
+struct TcSchVerReq
+{
+  Uint32 tableId;
+  Uint32 tableVersion;
+  Uint32 tableLogged;
+  Uint32 senderRef;
+  Uint32 tableType;
+  Uint32 senderData;
+  Uint32 noOfPrimaryKeys;
+  Uint32 singleUserMode;
+  Uint32 userDefinedPartition;
+  STATIC_CONST( SignalLength = 9 );
+};
+
+struct TcSchVerConf
+{
+  Uint32 senderRef;
+  Uint32 senderData;
+  STATIC_CONST( SignalLength = 2 );
+};
+
 #endif
