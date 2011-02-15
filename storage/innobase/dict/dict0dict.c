@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1281,7 +1281,7 @@ dict_table_rename_in_cache(
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1293,7 +1293,7 @@ dict_table_rename_in_cache(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -1343,11 +1343,11 @@ dict_table_rename_in_cache(
 		    ut_fold_string(old_name), table);
 
 	if (strlen(new_name) > strlen(table->name)) {
-		/* We allocate MAX_TABLE_NAME_LEN+1 bytes here to avoid
+		/* We allocate MAX_FULL_NAME_LEN + 1 bytes here to avoid
 		memory fragmentation, we assume a repeated calls of
 		ut_realloc() with the same size do not cause fragmentation */
-		ut_a(strlen(new_name) <= MAX_TABLE_NAME_LEN);
-		table->name = ut_realloc(table->name, MAX_TABLE_NAME_LEN + 1);
+		ut_a(strlen(new_name) <= MAX_FULL_NAME_LEN);
+		table->name = ut_realloc(table->name, MAX_FULL_NAME_LEN + 1);
 	}
 	memcpy(table->name, new_name, strlen(new_name) + 1);
 
@@ -2053,6 +2053,11 @@ undo_size_ok:
 			new_index->heap,
 			(1 + dict_index_get_n_unique(new_index))
 			* sizeof(*new_index->stat_n_sample_sizes));
+
+		new_index->stat_n_non_null_key_vals = mem_heap_zalloc(
+			new_index->heap,
+			(1 + dict_index_get_n_unique(new_index))
+			* sizeof(*new_index->stat_n_non_null_key_vals));
 
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */

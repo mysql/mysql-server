@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA */
 
 
 /*****************************************************************************
@@ -58,6 +58,7 @@
 #include "debug_sync.h"
 #include "sql_parse.h"                          // is_update_query
 #include "sql_callback.h"
+#include "lock.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -272,10 +273,11 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
     thd= current_thd;
 
   const char *old_info= thd->proc_info;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line,
-                           (info != NULL) ? info : "(null)"));
+  const char *basename= calling_file ? base_name(calling_file) : NULL;
+  DBUG_PRINT("proc_info", ("%s:%d  %s", basename, calling_line, info));
+
 #if defined(ENABLED_PROFILING)
-  thd->profiling.status_change(info, calling_function, calling_file, calling_line);
+  thd->profiling.status_change(info, calling_function, basename, calling_line);
 #endif
   thd->proc_info= info;
 #ifdef HAVE_PSI_INTERFACE
@@ -496,7 +498,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
-THD::THD()
+THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
@@ -525,6 +527,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+   m_enable_plugins(enable_plugins),
    main_warning_info(0)
 {
   ulong tmp;
@@ -926,7 +929,8 @@ extern "C"   THD *_current_thd_noinline(void)
 void THD::init(void)
 {
   mysql_mutex_lock(&LOCK_global_system_variables);
-  plugin_thdvar_init(this);
+  if (m_enable_plugins)
+    plugin_thdvar_init(this);
   /*
     variables= global_system_variables above has reset
     variables.pseudo_thread_id to 0. We need to correct it here to
@@ -1100,7 +1104,8 @@ THD::~THD()
   mdl_context.destroy();
   ha_close_connection(this);
   mysql_audit_release(this);
-  plugin_thdvar_cleanup(this);
+  if (m_enable_plugins)
+    plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -1321,6 +1326,45 @@ void THD::disconnect()
 }
 
 
+bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
+                             bool needs_thr_lock_abort)
+{
+  THD *in_use= ctx_in_use->get_thd();
+  bool signalled= FALSE;
+  if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
+      !in_use->killed)
+  {
+    in_use->killed= THD::KILL_CONNECTION;
+    mysql_mutex_lock(&in_use->mysys_var->mutex);
+    if (in_use->mysys_var->current_cond)
+      mysql_cond_broadcast(in_use->mysys_var->current_cond);
+    mysql_mutex_unlock(&in_use->mysys_var->mutex);
+    signalled= TRUE;
+  }
+
+  if (needs_thr_lock_abort)
+  {
+    mysql_mutex_lock(&in_use->LOCK_thd_data);
+    for (TABLE *thd_table= in_use->open_tables;
+         thd_table ;
+         thd_table= thd_table->next)
+    {
+      /*
+        Check for TABLE::needs_reopen() is needed since in some places we call
+        handler::close() for table instance (and set TABLE::db_stat to 0)
+        and do not remove such instances from the THD::open_tables
+        for some time, during which other thread can see those instances
+        (e.g. see partitioning code).
+      */
+      if (!thd_table->needs_reopen())
+        signalled|= mysql_lock_abort_for_thread(this, thd_table);
+    }
+    mysql_mutex_unlock(&in_use->LOCK_thd_data);
+  }
+  return signalled;
+}
+
+
 /*
   Remember the location of thread info, the structure needed for
   sql_alloc() and the structure for the net buffer
@@ -1414,6 +1458,11 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+  /* reset replication info structure */
+  if (lex && lex->mi.repl_ignore_server_ids.buffer) 
+  {
+    delete_dynamic(&lex->mi.repl_ignore_server_ids);
+  }
 }
 
 
@@ -2515,26 +2564,24 @@ bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
@@ -2542,13 +2589,14 @@ bool select_max_min_finder_subselect::cmp_decimal()
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue, mvalue) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     my_decimal_cmp(cvalue,mvalue) < 0);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) 
+      ? (my_decimal_cmp(cvalue,mvalue) > 0)
+      : (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -2561,13 +2609,14 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     sortcmp(val1, val2, cache->collation.collation) < 0);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) 
+      ? (sortcmp(val1, val2, cache->collation.collation) > 0)
+      : (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 bool select_exists_subselect::send_data(List<Item> &items)

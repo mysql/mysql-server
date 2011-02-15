@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +22,40 @@ The transaction
 
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
+
+/**********************************************************************//**
+Determines if a transaction is in the given state.
+The caller must hold trx_sys->lock, or it must be the thread
+that is serving a running transaction.
+A running transaction must be in trx_sys->trx_list.
+@return	TRUE if trx->state == state */
+UNIV_INLINE
+ibool
+trx_state_eq(
+/*=========*/
+	const trx_t*	trx,	/*!< in: transaction */
+	trx_state_t	state)	/*!< in: state;
+				if state != TRX_STATE_NOT_STARTED
+				asserts that
+				trx->state != TRX_STATE_NOT_STARTED */
+{
+#ifdef UNIV_DEBUG
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
+		/* This state is not allowed for running transactions. */
+		ut_a(state == TRX_STATE_NOT_STARTED);
+		ut_ad(!trx->in_trx_list);
+		return(state == trx->state);
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+	case TRX_STATE_PREPARED:
+		ut_ad(trx->in_trx_list);
+		return(state == trx->state);
+	}
+	ut_error;
+#endif /* UNIV_DEBUG */
+	return(trx->state == state);
+}
 
 /****************************************************************//**
 Retrieves the error_info field from a trx.
