@@ -253,7 +253,7 @@ psergey-merge: was:
     The following loop will get inside SJM nests, because data may be unpacked
     to sjm-inner tables.
   */
-  for ( ; tab != join_tab ; tab= next_linear_tab(join, tab, TRUE))
+  for ( ; tab != join_tab ; tab= next_linear_tab(join, tab, FALSE))
   {	    
     tab->calc_used_field_length(FALSE);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
@@ -313,7 +313,7 @@ void JOIN_CACHE::collect_info_on_key_args()
         tab"=start_tab" is not a correct substitute for 
         "cache->join_tab - cache->tables".
     */
-    for (tab= cache->start_tab; tab != cache->join_tab; tab= next_linear_tab(join, tab, TRUE))
+    for (tab= cache->start_tab; tab != cache->join_tab; tab= next_linear_tab(join, tab, FALSE))
     //for (tab= cache->join_tab-cache->tables; tab ;
     //     tab= cache->get_next_table(tab))
     { 
@@ -433,7 +433,7 @@ void JOIN_CACHE::create_flag_fields()
   /* Create fields for all null bitmaps and null row flags that are needed */
 // // psergey-merge:  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   //for (tab= join_tab-tables; tab < join_tab; tab++)
-  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
+  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
   {
     TABLE *table= tab->table;
 
@@ -524,7 +524,7 @@ void JOIN_CACHE::create_key_arg_fields()
     //     tab= cache->get_next_table(tab))
     //psergey-merge: ^ 
     for (tab= cache->start_tab; tab != cache->join_tab; 
-         tab= next_linear_tab(join, tab, TRUE))
+         tab= next_linear_tab(join, tab, FALSE))
     { 
       CACHE_FIELD *copy_end;
       MY_BITMAP *key_read_set= &tab->table->tmp_set;
@@ -574,7 +574,7 @@ void JOIN_CACHE::create_key_arg_fields()
   
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
-  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
+  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
   //for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
@@ -631,7 +631,7 @@ void JOIN_CACHE::create_remaining_fields()
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
+  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
 //psergey-merge:  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   //for (tab= join_tab-tables; tab < join_tab; tab++)
   {
@@ -791,7 +791,7 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   {
     ulong len= 0;
     //for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
-    for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
+    for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
       len+= tab->get_max_used_fieldlength();
     len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
     ulong min_sz= len*min_records;
@@ -845,7 +845,7 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
     ulong min_sz= get_min_join_buffer_size(); 
     ulong len= 0;
     //for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
-    for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
+    for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
       len+= tab->get_used_fieldlength();
     len+= get_record_max_affix_length();
     avg_record_length= len;
@@ -924,7 +924,7 @@ int JOIN_CACHE::alloc_buffer()
 // for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
 // (fixed)
     for (tab= join->join_tab + join->const_tables; tab!= join_tab; 
-         tab= next_linear_tab(join, tab, TRUE))
+         tab= next_linear_tab(join, tab, FALSE))
   {
     cache= tab->cache;
     if (cache)
