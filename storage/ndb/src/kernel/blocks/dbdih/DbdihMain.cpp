@@ -1970,7 +1970,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 
   csystemnodes  = readNodes->noOfNodes;
   cmasterNodeId = readNodes->masterNodeId;
-  int index = 0;
+  unsigned index = 0;
   NdbNodeBitmask tmp; tmp.assign(2, readNodes->allNodes);
   for (i = 1; i < MAX_NDB_NODES; i++){
     jam();
