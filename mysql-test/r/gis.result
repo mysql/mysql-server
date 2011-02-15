@@ -1034,4 +1034,12 @@ p
 NULL
 NULL
 drop table t1;
+#
+# Test for bug #59888 "debug assertion when attempt to create spatial index
+#                      on char > 31 bytes".
+#
+create table t1(a char(32) not null) engine=myisam;
+create spatial index i on t1 (a);
+ERROR HY000: Can't create table '#sql-temporary' (errno: 140)
+drop table t1;
 End of 5.1 tests
