@@ -7,11 +7,10 @@ flush logs;
 flush logs;
 flush logs;
 delete from ba;
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
 ndb_log_updated_only	ON
-sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM test.ba WHERE   @1=2
@@ -26,11 +25,10 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
 ndb_log_updated_only	OFF
-sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
@@ -45,11 +43,10 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
 ndb_log_updated_only	ON
-sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM test.ba WHERE   @1=2
@@ -64,11 +61,10 @@ ks	st	lp
 3	3	3
 4	4	40
 delete from ba;
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	OFF
 ndb_log_updated_only	OFF
-sql_log_update	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
 DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
@@ -84,11 +80,10 @@ ks	st	lp
 4	4	40
 drop table ba;
 reset master;
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 Variable_name	Value
 ndb_log_update_as_write	ON
 ndb_log_updated_only	ON
-sql_log_update	ON
 create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
 insert into bah values (1,1,1);
 update bah set cvy= 2 where tst=1;

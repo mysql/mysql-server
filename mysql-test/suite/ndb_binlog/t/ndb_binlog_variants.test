@@ -97,7 +97,7 @@ delete from ba;
 
 connection mysqld1;
 
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
 --disable_query_log
@@ -111,7 +111,7 @@ delete from ba;
 
 connection mysqld2;
 
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
 --disable_query_log
@@ -126,7 +126,7 @@ delete from ba;
 
 connection mysqld3;
 
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
 --disable_query_log
@@ -140,7 +140,7 @@ delete from ba;
 
 connection mysqld4;
 
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 --source suite/ndb_binlog/t/ndb_binlog_get_binlog_stmts.inc
 
 --disable_query_log
@@ -175,7 +175,7 @@ flush logs;
 
 connection mysqld1;
 reset master;
-show variables like '%log_update%';
+show variables like 'ndb_log_update%';
 
 create table bah (tst int primary key, cvy int, sqs int, unique(sqs)) engine=ndb;
 
