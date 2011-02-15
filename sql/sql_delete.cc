@@ -76,7 +76,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 	     table_list->view_db.str, table_list->view_name.str);
     DBUG_RETURN(TRUE);
   }
-  thd_proc_info(thd, "init");
+  THD_STAGE_INFO(thd, stage_init);
   table->map=1;
 
   if (mysql_prepare_delete(thd, table_list, &conds))
@@ -252,7 +252,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         free_underlaid_joins(thd, &thd->lex->select_lex);
         DBUG_RETURN(TRUE);
       }
-      thd->examined_row_count+= examined_rows;
+      thd->inc_examined_row_count(examined_rows);
       /*
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
@@ -276,7 +276,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
   init_ftfuncs(thd, select_lex, 1);
-  thd_proc_info(thd, "updating");
+  THD_STAGE_INFO(thd, stage_updating);
 
   if (table->triggers &&
       table->triggers->has_triggers(TRG_EVENT_DELETE,
@@ -299,7 +299,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
-    thd->examined_row_count++;
+    thd->inc_examined_row_count(1);
     // thd->is_error() is tested to disallow delete row on error
     if (!select || (!select->skip_record(thd, &skip_record) && !skip_record))
     {
@@ -355,7 +355,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       table->file->print_error(loc_error,MYF(0));
     error=1;
   }
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
   end_read_record(&info);
   if (options & OPTION_QUICK)
     (void) table->file->extra(HA_EXTRA_NORMAL);
@@ -580,7 +580,7 @@ multi_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("multi_delete::prepare");
   unit= u;
   do_delete= 1;
-  thd_proc_info(thd, "deleting from main table");
+  THD_STAGE_INFO(thd, stage_deleting_from_main_table);
   DBUG_RETURN(0);
 }
 
@@ -960,7 +960,7 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
 bool multi_delete::send_eof()
 {
   THD::killed_state killed_status= THD::NOT_KILLED;
-  thd_proc_info(thd, "deleting from reference tables");
+  THD_STAGE_INFO(thd, stage_deleting_from_reference_tables);
 
   /* Does deletes for the last n - 1 tables, returns 0 if ok */
   int local_error= do_deletes();		// returns 0 if success
@@ -969,7 +969,7 @@ bool multi_delete::send_eof()
   local_error= local_error || error;
   killed_status= (local_error == 0)? THD::NOT_KILLED : thd->killed;
   /* reset used flags */
-  thd_proc_info(thd, "end");
+  THD_STAGE_INFO(thd, stage_end);
 
   if (thd->transaction.stmt.modified_non_trans_table)
     thd->transaction.all.modified_non_trans_table= TRUE;
