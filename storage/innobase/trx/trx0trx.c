@@ -1242,10 +1242,6 @@ state_ok:
 		fputs(" recovered trx", f);
 	}
 
-	if (trx->id == 0) {
-		fputs(" purge trx", f);
-	}
-
 	if (trx->declared_to_be_inside_innodb) {
 		fprintf(f, ", thread declared inside InnoDB %lu",
 			(ulong) trx->n_tickets_to_enter_innodb);
