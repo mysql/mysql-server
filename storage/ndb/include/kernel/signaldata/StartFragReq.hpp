@@ -32,10 +32,16 @@ class StartFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 19 );
+  STATIC_CONST( SignalLength = 20 );
 
   friend bool printSTART_FRAG_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
   
+  enum
+  {
+    SFR_RESTORE_LCP = 1,
+    SFR_COPY_FRAG = 2
+  };
+
   Uint32 userPtr;
   Uint32 userRef;
   Uint32 lcpNo;
@@ -46,5 +52,6 @@ public:
   Uint32 lqhLogNode[4];
   Uint32 startGci[4];
   Uint32 lastGci[4];
+  Uint32 requestInfo;
 };
 #endif
