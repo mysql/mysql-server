@@ -8402,13 +8402,21 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
 {
   //JOIN_TAB *first_sjm_table= NULL;
   //JOIN_TAB *last_sjm_table= NULL;
+  JOIN_TAB *tab;
 
-  for (uint i= join->const_tables; i < join->tables; i++)
-    join->join_tab[i].used_join_cache_level= join->max_allowed_join_cache_level;  
-   
-  for (uint i= join->const_tables; i < join->tables; i++)
+  //for (uint i= join->const_tables; i < join->tables; i++)
+  for (tab= first_linear_tab(join, TRUE); 
+       tab; 
+       tab= next_linear_tab(join, tab, TRUE))
   {
-    JOIN_TAB *tab= join->join_tab+i;
+    tab->used_join_cache_level= join->max_allowed_join_cache_level;  
+  }
+
+  //for (uint i= join->const_tables; i < join->tables; i++)
+  for (tab= first_linear_tab(join, TRUE); 
+       tab; 
+       tab= next_linear_tab(join, tab, TRUE))
+  {
 #if 0
     if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     {
@@ -8442,8 +8450,11 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
                                                          //  tab-1); 
                                                          prev_tab);
       tab->use_join_cache= test(tab->used_join_cache_level);
+      DBUG_ASSERT(!join->return_tab);
+      /*
       if (join->return_tab)
         i= join->return_tab-join->join_tab-1;   // always >= 0
+      */
       break; 
     default:
       tab->used_join_cache_level= 0;
@@ -8507,8 +8518,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         - it does not differentiate between inner joins, outer joins and semi-joins.
       Later it should be improved.
     */
+    JOIN_TAB *prev_tab= tab - 1;
+    if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
+      prev_tab= NULL;
     tab->partial_join_cardinality= join->best_positions[i].records_read *
-                                   (i ? (tab-1)->partial_join_cardinality : 1);
+                                   (prev_tab? prev_tab->partial_join_cardinality : 1);
   }
  
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
@@ -8519,23 +8533,20 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
        tab= next_linear_tab(join, tab, TRUE), i++)
   {
     //JOIN_TAB *tab=join->join_tab+i;
+    if (tab->bush_children)
+    {
+      if (setup_sj_materialization(tab))
+        return TRUE;
+    }
+
     TABLE *table=tab->table;
     uint jcl= tab->used_join_cache_level;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
     tab->read_record.unlock_row= rr_unlock_row;
-    tab->next_select=sub_select;		/* normal select */
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
     
-    if (tab->bush_children)
-    {
-      if (setup_sj_materialization(tab))
-        return TRUE;
-      table= tab->table;
-    }
-
-
     if (!(tab->bush_root_tab && 
           tab->bush_root_tab->bush_children->end == tab + 1))
     {

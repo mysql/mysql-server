@@ -235,6 +235,10 @@ psergey-merge: was:
     }
   }
   start_tab= tab;
+  while (start_tab->bush_children && start_tab != join_tab)
+    start_tab++;
+  tab= start_tab;
+
   //tables= join_tab-tab;
   //tables= 0;
   fields= 0;
