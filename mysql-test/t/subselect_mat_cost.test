@@ -366,7 +366,7 @@ EXPLAIN SELECT f2 FROM t3 WHERE (
         )
 ) IS NULL ;
 
-drop table t1, t2;
+drop table t1, t2, t3;
 
 --echo #
 --echo # LP BUG#715034 Item_sum_distinct::clear(): Assertion `tree != 0' failed
@@ -437,3 +437,22 @@ WHERE (SELECT t1.f1
 ORDER BY field1;
 
 drop table t1,t2;
+
+--echo #
+--echo # LP BUG#601124 Bug in eliminate_item_equal
+--echo # leads to crash in Item_func::Item_func
+
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1)) ;
+INSERT INTO t1 VALUES (5,'m'),(NULL,'c');
+
+CREATE TABLE t2 ( f2 int(11), f3 varchar(1)) ;
+INSERT INTO t2 VALUES (6,'f'),(2,'d');
+
+CREATE TABLE t3 ( f2 int(11), f3 varchar(1)) ;
+INSERT INTO t3 VALUES (6,'f'),(2,'d');
+
+SELECT * FROM t3
+WHERE ( f2 ) IN (SELECT t1.f1
+                 FROM t1 STRAIGHT_JOIN t2 ON t2.f3 = t1.f3
+                 WHERE t2.f3 = 'c');
+drop table t1,t2,t3;

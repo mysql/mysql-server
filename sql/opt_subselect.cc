@@ -3738,13 +3738,13 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       outer_lookup_keys=1;
     }
     /*
-      Due to imprecise cost calculations, record/key counts my be < 1, while
-      an IN predicate will be executed at least once.
+      There cannot be more lookup keys than the total number of records.
+      TODO: this a temporary solution until we find a better way to compute
+      get_partial_join_cost() and prev_record_reads() in a consitent manner,
+      where it is guaranteed that (outer_lookup_keys <= outer_record_count).
     */
-    set_if_bigger(outer_record_count, 1);
-    set_if_bigger(outer_lookup_keys, 1);
-
-    DBUG_ASSERT(outer_lookup_keys <= outer_record_count);
+    if (outer_lookup_keys > outer_record_count)
+      outer_lookup_keys= outer_record_count;
 
     /*
       B. Estimate the cost and number of records of the subquery both
