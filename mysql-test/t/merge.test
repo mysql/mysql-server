@@ -2851,6 +2851,30 @@ repair table m1;
 checksum table m1;
 drop tables t1, m1;
 
+# Check effect of Bug#27480-preliminary patch:
+# a merge-table with non-existing children, opened from a prelocked list.
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS m1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TABLE IF EXISTS q1;
+DROP TABLE IF EXISTS q2;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+CREATE TABLE m1(a INT) ENGINE = MERGE UNION (q1, q2);
+
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+FOR EACH ROW
+  INSERT INTO m1 VALUES (1);
+
+--error ER_WRONG_MRG_TABLE
+DELETE FROM t1;
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE m1;
 
 --echo End of 6.0 tests
 

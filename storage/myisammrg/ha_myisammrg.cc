@@ -626,6 +626,13 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     goto end;
   }
   child= child_l->table;
+
+  if (!child)
+  {
+    DBUG_PRINT("myrg", ("Child table does not exist"));
+    my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
+    goto end;
+  }
   /* Prepare for next child. */
   param->next();
 
