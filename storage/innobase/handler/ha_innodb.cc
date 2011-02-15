@@ -296,7 +296,15 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
 	{&trx_mutex_key, "trx_mutex", 0},
 	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0},
-	{&read_view_mutex_key, "read_view_mutex", 0}
+	{&read_view_mutex_key, "read_view_mutex", 0},
+
+	/* mutex with os_fast_mutex_ interfaces */
+#  ifndef PFS_SKIP_EVENT_MUTEX
+	{&event_os_mutex_key, "event_os_mutex", 0},
+#  endif /* PFS_SKIP_EVENT_MUTEX */
+	{&os_mutex_key, "os_mutex", 0},
+	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
+	{&ut_list_mutex_key, "ut_list_mutex", 0}
 };
 # endif /* UNIV_PFS_MUTEX */
 

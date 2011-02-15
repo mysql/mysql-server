@@ -455,6 +455,8 @@ UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /* Key to register srv_sys_t::tasks_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+/* Key to register srv_conc_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_conc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* Temporary file for innodb monitor output */
@@ -957,7 +959,7 @@ srv_init(void)
 
 	/* Init the server concurrency restriction data structures */
 
-	os_fast_mutex_init(&srv_conc_mutex);
+	os_fast_mutex_init(srv_conc_mutex_key, &srv_conc_mutex);
 
 	UT_LIST_INIT(srv_conc_queue);
 
