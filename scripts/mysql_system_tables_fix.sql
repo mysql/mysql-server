@@ -645,6 +645,20 @@ ALTER TABLE user MODIFY plugin char(60) DEFAULT '' NOT NULL;
 
 CREATE TABLE IF NOT EXISTS proxy_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_User char(60) binary DEFAULT '' NOT NULL, Proxied_Host char(16) binary DEFAULT '' NOT NULL, With_Grant BOOL DEFAULT 0 NOT NULL, PRIMARY KEY Host (Host,User,Proxied_Host,Proxied_User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
 
+#
+# mysql.ndb_binlog_index
+#
+ALTER ndb_binlog_index
+  MODIFY inserts INT UNSIGNED NOT NULL,
+  MODIFY updates INT UNSIGNED NOT NULL,
+  MODIFY deletes INT UNSIGNED NOT NULL,
+  MODIFY schemaops INT UNSIGNED NOT NULL,
+  ADD orig_server_id INT UNSIGNED NOT NULL,
+  ADD orig_epoch BIGINT UNSIGNED NOT NULL,
+  ADD gci INT UNSIGNED NOT NULL,
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(epoch, orig_server_id, orig_epoch);
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
