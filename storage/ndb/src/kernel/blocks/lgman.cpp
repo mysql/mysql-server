@@ -369,8 +369,8 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                            !ptr.p->m_log_buffer_waiters.isEmpty(),
                            !ptr.p->m_log_sync_waiters.isEmpty());
       if (signal->theData[0] == 12001)
-        infoEvent(tmp);
-      ndbout_c(tmp);
+        infoEvent("%s", tmp);
+      ndbout_c("%s", tmp);
 
       BaseString::snprintf(tmp, sizeof(tmp),
                            "   callback_buffer_words: %u"
@@ -379,8 +379,8 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                            ptr.p->m_free_buffer_words,
                            ptr.p->m_free_file_words);
       if (signal->theData[0] == 12001)
-        infoEvent(tmp);
-      ndbout_c(tmp);
+        infoEvent("%s", tmp);
+      ndbout_c("%s", tmp);
       if (!ptr.p->m_log_buffer_waiters.isEmpty())
       {
 	Ptr<Log_waiter> waiter;
@@ -392,8 +392,8 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                              waiter.p->m_size,
                              FREE_BUFFER_MARGIN);
         if (signal->theData[0] == 12001)
-          infoEvent(tmp);
-        ndbout_c(tmp);
+          infoEvent("%s", tmp);
+        ndbout_c("%s", tmp);
       }
       if (!ptr.p->m_log_sync_waiters.isEmpty())
       {
@@ -407,8 +407,8 @@ Lgman::execDUMP_STATE_ORD(Signal* signal){
                              waiter.i,
                              waiter.p->m_sync_lsn);
         if (signal->theData[0] == 12001)
-          infoEvent(tmp);
-        ndbout_c(tmp);
+          infoEvent("%s", tmp);
+        ndbout_c("%s", tmp);
 	
 	while(!waiter.isNull())
 	{
