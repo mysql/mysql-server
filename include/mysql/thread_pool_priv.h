@@ -39,8 +39,26 @@
 #include <table.h>
 
 /* Needed to get access to scheduler variables */
-void* thd_get_scheduler(THD *thd);
+void* thd_get_scheduler_data(THD *thd);
+void thd_set_scheduler_data(THD *thd, void *data);
 PSI_thread* thd_get_psi(THD *thd);
+void thd_set_psi(THD *thd, PSI_thread *psi);
+
+/* Interface to THD variables and functions */
+void thd_set_killed(THD *thd);
+void thd_clear_errors(THD *thd);
+void thd_set_thread_stack(THD *thd, char *stack_start);
+void thd_lock_connection_data(THD *thd);
+void thd_unlock_connection_data(THD *thd);
+void thd_close_connection(THD *thd);
+THD *thd_get_current_thd();
+void thd_new_connection_setup(THD *thd, char *stack_start);
+void thd_lock_data(THD *thd);
+void thd_unlock_data(THD *thd);
+bool thd_is_transaction_active(THD *thd);
+int thd_connection_has_data(THD *thd);
+void thd_set_net_read_write(THD *thd, uint val);
+void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var);
 
 /*
   The thread pool must be able to execute commands using the connection
