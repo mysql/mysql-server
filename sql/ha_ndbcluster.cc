@@ -14569,7 +14569,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   int error;
   const char *errmsg;
   Ndb *ndb;
-  DBUG_ENTER("ha_ndbcluster::alter_tablespace");
+  DBUG_ENTER("ndbcluster_alter_tablespace");
   LINT_INIT(errmsg);
 
   ndb= check_ndb_in_thd(thd);
