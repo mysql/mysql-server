@@ -2827,7 +2827,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   SARGABLE_PARAM *sargables= 0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
   DBUG_ENTER("make_join_statistics");
-
+  
+  LINT_INIT(table); /* inited in all loops */
   table_count=join->tables;
 
   stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*(table_count));
@@ -9250,7 +9251,8 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   table_map ref;
   bool first_is_base_table= FALSE;
   DBUG_ENTER("remove_const");
-
+  
+  LINT_INIT(first_table); /* protected by first_is_base_table */
   if (join->join_tab[join->const_tables].table)
   {
     first_table= join->join_tab[join->const_tables].table->map;
