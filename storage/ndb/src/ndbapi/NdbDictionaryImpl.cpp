@@ -637,6 +637,7 @@ NdbTableImpl::init(){
   m_single_user_mode = 0;
   m_hash_map_id = RNIL;
   m_hash_map_version = ~0;
+  m_storageType = NDB_STORAGETYPE_DEFAULT;
 }
 
 bool
@@ -921,6 +922,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_name = org.m_tablespace_name;
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
+  m_storageType = org.m_storageType;
+
   DBUG_RETURN(0);
 }
 
