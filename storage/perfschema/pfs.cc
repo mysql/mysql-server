@@ -2794,7 +2794,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    mutex->m_wait_stat.aggregate_timed(wait_time);
+    mutex->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -2817,7 +2817,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     if (flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -2886,7 +2886,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    rwlock->m_wait_stat.aggregate_timed(wait_time);
+    rwlock->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -2921,7 +2921,7 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     if (state->m_flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -2991,7 +2991,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    rwlock->m_wait_stat.aggregate_timed(wait_time);
+    rwlock->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3018,7 +3018,7 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     if (state->m_flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3088,7 +3088,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    cond->m_wait_stat.aggregate_timed(wait_time);
+    cond->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3108,7 +3108,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     if (state->m_flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3206,7 +3206,7 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    stat->aggregate_timed(wait_time);
+    stat->aggregate_value(wait_time);
   }
   else
   {
@@ -3283,7 +3283,7 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    stat->aggregate_timed(wait_time);
+    stat->aggregate_value(wait_time);
   }
   else
   {
@@ -3426,7 +3426,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    file->m_wait_stat.aggregate_timed(wait_time);
+    file->m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
@@ -3445,7 +3445,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     if (flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_timed(wait_time);
+      event_name_array[index].aggregate_value(wait_time);
     }
     else
     {
@@ -3545,9 +3545,9 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 
   PFS_socket *socket= reinterpret_cast<PFS_socket *> (state->m_socket);
   DBUG_ASSERT(socket != NULL);
+  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
 
-  PFS_single_stat *time_stat;
-  PFS_single_stat *io_stat;
+  PFS_single_stat *time_stat, *io_stat;
 
   switch (state->m_operation)
   {
@@ -3604,33 +3604,57 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    time_stat->aggregate_timed(wait_time);
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
+    socket->m_wait_stat.aggregate_value(wait_time);
+    /* Aggregate to current operation (timed) */
+    time_stat->aggregate_value(wait_time);
   }
   else
   {
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+    socket->m_wait_stat.aggregate_counted();
+    /* Aggregate to current operation (counted) */
     time_stat->aggregate_counted();
   }
 
-  if (flags & STATE_FLAG_WAIT)
+  if (flags & STATE_FLAG_THREAD)
   {
-    DBUG_ASSERT(flags & STATE_FLAG_THREAD);
-    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
-    DBUG_ASSERT(thread != NULL);
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= socket->m_class->m_event_name_index;
 
-    PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
-    DBUG_ASSERT(wait != NULL);
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
 
-    wait->m_timer_end= timer_end;
-    if (flag_events_waits_history)
-      insert_events_waits_history(thread, wait);
-    if (flag_events_waits_history_long)
-      insert_events_waits_history_long(wait);
-    thread->m_events_waits_count--;
+    if (flags & STATE_FLAG_WAIT)
+    {
+      DBUG_ASSERT(flags & STATE_FLAG_THREAD);
+      PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+      DBUG_ASSERT(thread != NULL);
+
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
+    }
   }
 
-  /** Aggregate the number of bytes for the operation */
+  /** Aggregate number of bytes for the operation */
   if ((int)byte_count > -1)
-    io_stat->aggregate_timed(byte_count);
+    io_stat->aggregate_value(byte_count);
 }
 
 static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)

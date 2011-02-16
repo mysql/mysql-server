@@ -166,8 +166,8 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   vio->has_data=        (flags & VIO_BUFFERED_READ) ?
                             vio_buff_has_data : has_no_data;
 #ifdef HAVE_PSI_INTERFACE
-  vio->mysql_socket.fd= sd; // TBDs
-  vio->mysql_socket.m_psi= NULL;
+  mysql_socket_getfd(vio->mysql_socket)= sd;
+  vio->mysql_socket.m_psi= NULL; // TBD
 #endif
   DBUG_VOID_RETURN;
 }
