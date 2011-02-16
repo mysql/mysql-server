@@ -2612,7 +2612,8 @@ int subselect_uniquesubquery_engine::exec()
   empty_result_set= TRUE;
   table->status= 0;
  
-  if (tl->uses_materialization() && !tl->materialized)
+  if (engine_type() == UNIQUESUBQUERY_ENGINE &&
+      tl->uses_materialization() && !tl->materialized)
   {
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
