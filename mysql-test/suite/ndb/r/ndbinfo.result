@@ -108,7 +108,7 @@ DELETE FROM ndb$tables WHERE table_id > 1;
 ERROR HY000: Table 'ndb$tables' is read only
 
 ALTER TABLE ndb$test ADD COLUMN another_col varchar(255);
-ERROR HY000: Table 'ndb$test' is read only
+ERROR HY000: Table storage engine for 'ndb$test' doesn't have this option
 
 FLUSH TABLES;
 SELECT table_id FROM ndb$tables;
@@ -178,7 +178,7 @@ SELECT node_id != 0 FROM ndb$test LIMIT 1;
 node_id != 0
 1
 Warnings:
-Warning	40001	Table 'ndb$test' is defined differently in NDB, there are more columns available. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
+Note	40001	Table 'ndb$test' is defined differently in NDB, there are more columns available. The SQL to regenerate is: 'CREATE TABLE `ndbinfo`.`ndb$test` (`node_id` INT UNSIGNED, `block_number` INT UNSIGNED, `block_instance` INT UNSIGNED, `counter` INT UNSIGNED, `counter2` BIGINT UNSIGNED) ENGINE=NDBINFO'
 
 ## 2) Column does not exist in NDB -> error, with warning
 DROP TABLE ndb$test;

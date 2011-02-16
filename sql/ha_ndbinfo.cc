@@ -655,7 +655,9 @@ int ndbinfo_init(void *plugin)
 
   handlerton *hton = (handlerton *) plugin;
   hton->create = create_handler;
-  hton->flags = HTON_TEMPORARY_NOT_SUPPORTED;
+  hton->flags =
+    HTON_TEMPORARY_NOT_SUPPORTED |
+    HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
 
   ndbinfo_hton = hton;
