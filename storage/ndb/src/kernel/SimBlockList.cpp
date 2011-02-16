@@ -84,7 +84,7 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 
 void
 SimBlockList::load(EmulatorData& data){
-  noOfBlocks = NO_OF_BLOCKS;
+  noOfBlocks = NO_OF_BLOCKS - /* SPJ */ 1;
   theList = new SimulatedBlock * [noOfBlocks];
   if (!theList)
   {
@@ -149,19 +149,18 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   theList[19] = NEW_BLOCK(Dbinfo)(ctx);
-  assert(NO_OF_BLOCKS == 20);
+  assert(NO_OF_BLOCKS == 20 + /** SPJ */ 1);
 
   if (globalData.isNdbMt) {
     add_main_thr_map();
     if (globalData.isNdbMtLqh) {
-      Uint32 i;
-      for (i = 0; i < NO_OF_BLOCKS; i++)
+      for (int i = 0; i < noOfBlocks; i++)
         theList[i]->loadWorkers();
     }
   }
 
   // Check that all blocks could be created
-  for (int i = 0; i < NO_OF_BLOCKS; i++)
+  for (int i = 0; i < noOfBlocks; i++)
   {
     if (!theList[i])
     {

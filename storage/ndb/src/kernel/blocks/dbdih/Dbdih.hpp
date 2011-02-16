@@ -1857,6 +1857,8 @@ private:
     return instanceKey;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
+
+  bool c_2pass_inr;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

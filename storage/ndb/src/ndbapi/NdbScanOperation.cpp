@@ -1411,7 +1411,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
     return -1;
   }//if
   
-  theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ);
+  theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ, DBTC);
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   req->apiConnectPtr = theNdbCon->theTCConPtr;
   req->tableId = m_accessTable->m_id;
@@ -1977,7 +1977,7 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
 {
   if(cnt > 0){
     NdbApiSignal tSignal(theNdb->theMyRef);
-    tSignal.setSignal(GSN_SCAN_NEXTREQ);
+    tSignal.setSignal(GSN_SCAN_NEXTREQ, DBTC);
     
     Uint32* theData = tSignal.getDataPtrSend();
     theData[0] = theNdbCon->theTCConPtr;
@@ -2316,16 +2316,11 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   /* All scans use NdbRecord internally */
   assert(theStatus == UseNdbRecord);
   
-  /* Calculate the extra bytes needed per row for extra getValues */
-  Uint32 extra_size= 0;
-  if (theReceiver.theFirstRecAttr != NULL)
-    extra_size= calcGetValueSize();
-  
   assert(theParallelism > 0);
-  Uint32 rowsize= m_receivers[0]->ndbrecord_rowsize(m_attribute_record,
-                                                    key_size,
-                                                    m_read_range_no,
-                                                    extra_size);
+  Uint32 rowsize= NdbReceiver::ndbrecord_rowsize(m_attribute_record,
+                                                 theReceiver.theFirstRecAttr,
+                                                 key_size,
+                                                 m_read_range_no);
   Uint32 bufsize= batch_size*rowsize;
   char *buf= new char[bufsize*theParallelism];
   if (!buf)
@@ -2365,26 +2360,6 @@ NdbScanOperation::doSendSetAISectionSizes()
 
   return 0;
 }
-
-/*
-  Compute extra space needed to buffer getValue() results in NdbRecord
-  scans.
- */
-Uint32
-NdbScanOperation::calcGetValueSize()
-{
-  Uint32 size= 0;
-  const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
-  while (ra != NULL)
-  {
-    size+= sizeof(Uint32) + ra->getColumn()->getSizeInBytes();
-    ra= ra->next();
-  }
-  return size;
-}
-
-
-
 
 
 /*****************************************************************************
@@ -2664,7 +2639,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     
     Uint32 left = len - i;
     while(tSignal && left > KeyInfo::DataLength){
-      tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setSignal(GSN_KEYINFO, DBTC);
       tSignal->setLength(KeyInfo::MaxSignalLength);
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
       memcpy(keyInfo->keyData, src, 4 * KeyInfo::DataLength);
@@ -2677,7 +2652,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
     }
     
     if(tSignal && left > 0){
-      tSignal->setSignal(GSN_KEYINFO);
+      tSignal->setSignal(GSN_KEYINFO, DBTC);
       tSignal->setLength(KeyInfo::HeaderLength + left);
       newOp->theLastKEYINFO = tSignal;
       KeyInfo * keyInfo = CAST_PTR(KeyInfo, tSignal->getDataPtrSend());
@@ -3568,14 +3543,15 @@ NdbIndexScanOperation::processIndexScanDefs(LockMode lm,
   return res;
 }
 
-int
-NdbIndexScanOperation::compare_ndbrecord(const NdbReceiver *r1,
-                                         const NdbReceiver *r2) const
+int compare_ndbrecord(const NdbReceiver *r1,
+                      const NdbReceiver *r2,
+                      const NdbRecord *key_record,
+                      const NdbRecord *result_record,
+                      bool descending,
+                      bool read_range_no)
 {
   Uint32 i;
-  int jdir= 1 - 2 * (int)m_descending;
-  const NdbRecord *key_record= m_key_record;
-  const NdbRecord *result_record= m_attribute_record;
+  int jdir= 1 - 2 * (int)descending;
 
   assert(jdir == 1 || jdir == -1);
 
@@ -3583,7 +3559,7 @@ NdbIndexScanOperation::compare_ndbrecord(const NdbReceiver *r1,
   const char *b_row= r2->peek_row();
 
   /* First compare range_no if needed. */
-  if (m_read_range_no)
+  if (read_range_no)
   {
     Uint32 a_range_no= uint4korr(a_row+result_record->m_row_size);
     Uint32 b_range_no= uint4korr(b_row+result_record->m_row_size);
@@ -3716,7 +3692,12 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
   while (first < last)
   {
     Uint32 idx= (first+last)/2;
-    int res= compare_ndbrecord(receiver, m_api_receivers[idx]);
+    int res= compare_ndbrecord(receiver,
+                               m_api_receivers[idx],
+                               m_key_record,
+                               m_attribute_record,
+                               m_descending,
+                               m_read_range_no);
     if (res <= 0)
       last= idx;
     else
@@ -3815,7 +3796,7 @@ NdbIndexScanOperation::send_next_scan_ordered(Uint32 idx)
   
   NdbReceiver* tRec = m_api_receivers[idx];
   NdbApiSignal tSignal(theNdb->theMyRef);
-  tSignal.setSignal(GSN_SCAN_NEXTREQ);
+  tSignal.setSignal(GSN_SCAN_NEXTREQ, DBTC);
   
   Uint32 last = m_sent_receivers_count;
   Uint32* theData = tSignal.getDataPtrSend();

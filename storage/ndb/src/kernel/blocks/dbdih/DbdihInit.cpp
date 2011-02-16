@@ -70,6 +70,7 @@ void Dbdih::initData()
   cntrlblockref    = RNIL;
   c_set_initial_start_flag = FALSE;
   c_sr_wait_to = false;
+  c_2pass_inr = false;
 }//Dbdih::initData()
 
 void Dbdih::initRecords() 

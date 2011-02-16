@@ -73,6 +73,9 @@ printTCKEYREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiver
     if(sig->getDistributionKeyFlag(sig->requestInfo)){
       fprintf(output, "d-key ");
     }
+    if(sig->getViaSPJFlag(sig->requestInfo)){
+      fprintf(output, " spj");
+    }
     if(sig->getQueueOnRedoProblemFlag(sig->requestInfo))
       fprintf(output, "Queue ");
 

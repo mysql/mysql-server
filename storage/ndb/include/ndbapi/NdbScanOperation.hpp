@@ -36,6 +36,7 @@ class NdbScanOperation : public NdbOperation {
   friend class NdbOperation;
   friend class NdbBlob;
   friend class NdbScanFilter;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:
@@ -553,7 +554,6 @@ protected:
   Uint32 m_keyInfo;
 
   int getFirstATTRINFOScan();
-  Uint32 calcGetValueSize();
   int doSendScan(int ProcessorId);
   int finaliseScanOldApi();
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);

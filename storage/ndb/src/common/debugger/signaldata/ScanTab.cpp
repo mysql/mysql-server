@@ -31,7 +31,7 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
   fprintf(output, " apiConnectPtr: H\'%.8x", 
 	  sig->apiConnectPtr);
   fprintf(output, " requestInfo: H\'%.8x:\n",  requestInfo);
-  fprintf(output, "  Parallellism: %u Batch: %u LockMode: %u Keyinfo: %u Holdlock: %u RangeScan: %u Descending: %u TupScan: %u\n ReadCommitted: %u DistributionKeyFlag: %u NoDisk: %u",
+  fprintf(output, "  Parallellism: %u Batch: %u LockMode: %u Keyinfo: %u Holdlock: %u RangeScan: %u Descending: %u TupScan: %u\n ReadCommitted: %u DistributionKeyFlag: %u NoDisk: %u spj: %u",
 	  sig->getParallelism(requestInfo), 
 	  sig->getScanBatch(requestInfo), 
 	  sig->getLockMode(requestInfo), 
@@ -42,7 +42,8 @@ printSCANTABREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiv
           sig->getTupScanFlag(requestInfo),
 	  sig->getReadCommittedFlag(requestInfo),
 	  sig->getDistributionKeyFlag(requestInfo),
-	  sig->getNoDiskFlag(requestInfo));
+	  sig->getNoDiskFlag(requestInfo),
+          sig->getViaSPJFlag(requestInfo));
   
   if(sig->getDistributionKeyFlag(requestInfo))
     fprintf(output, " DKey: %x", sig->distributionKey);
@@ -75,21 +76,33 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
 	  (requestInfo & ScanTabConf::EndOfData) == ScanTabConf::EndOfData,
 	  (requestInfo & (~ScanTabConf::EndOfData)));
   size_t op_count= requestInfo & (~ScanTabConf::EndOfData);
-  if(op_count){
+  if (op_count)
+  {
     fprintf(output, " Operation(s) [api tc rows len]:\n");
-    ScanTabConf::OpData * op = (ScanTabConf::OpData*)
-      (theData + ScanTabConf::SignalLength);
-    for(size_t i = 0; i<op_count; i++){
-      if(op->info != ScanTabConf::EndOfData)
-	fprintf(output, " [0x%x 0x%x %d %d]",
-		op->apiPtrI, op->tcPtrI,
-		ScanTabConf::getRows(op->info),
-		ScanTabConf::getLength(op->info));
-      else
-	fprintf(output, " [0x%x 0x%x eod]",
-		op->apiPtrI, op->tcPtrI);
-      
-      op++;
+    if (len == ScanTabConf::SignalLength + 4 * op_count)
+    {
+      ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+        (theData + ScanTabConf::SignalLength);
+      for(size_t i = 0; i<op_count; i++)
+      {
+        fprintf(output, " [0x%x 0x%x %d %d]",
+                op->apiPtrI, op->tcPtrI,
+                op->rows, op->len);
+        op++;
+      }
+    }
+    else
+    {
+      assert(len == ScanTabConf::SignalLength + 3 * op_count);
+      for(size_t i = 0; i<op_count; i++)
+      {
+        ScanTabConf::OpData * op = (ScanTabConf::OpData*)
+          (theData + ScanTabConf::SignalLength + 3 * i);
+        fprintf(output, " [0x%x 0x%x %d %d]",
+                op->apiPtrI, op->tcPtrI,
+                ScanTabConf::getRows(op->rows),
+                ScanTabConf::getLength(op->rows));
+      }
     }
     fprintf(output, "\n");
   }
@@ -125,6 +138,9 @@ printSCANFRAGNEXTREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 r
 	  sig->transId1, sig->transId2);
   
   fprintf(output, " requestInfo: 0x%.8x\n", sig->requestInfo);
+
+  fprintf(output, " batch_size_rows: %u\n", sig->batch_size_rows);
+  fprintf(output, " batch_size_bytes: %u\n", sig->batch_size_bytes);
 
   return false;
 }

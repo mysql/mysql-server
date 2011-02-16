@@ -52,8 +52,9 @@ class TcKeyReq {
   /**
    * Sender(s)
    */
-  friend class Ndbcntr;      
-  friend class NdbOperation; 
+  friend class Ndbcntr;
+  friend class NdbQueryImpl;
+  friend class NdbOperation;
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
   friend class NdbBlob;
@@ -164,6 +165,7 @@ private:
   static Uint8 getDirtyFlag(const UintR & requestInfo);
   static Uint8 getInterpretedFlag(const UintR & requestInfo);
   static Uint8 getDistributionKeyFlag(const UintR & requestInfo);
+  static Uint8 getViaSPJFlag(const UintR & requestInfo);
   static Uint8 getScanIndFlag(const UintR & requestInfo);
   static Uint8 getOperationType(const UintR & requestInfo);
   static Uint8 getExecuteFlag(const UintR & requestInfo);
@@ -191,6 +193,7 @@ private:
   static void setDirtyFlag(UintR & requestInfo, Uint32 flag);
   static void setInterpretedFlag(UintR & requestInfo, Uint32 flag);
   static void setDistributionKeyFlag(UintR & requestInfo, Uint32 flag);
+  static void setViaSPJFlag(UintR & requestInfo, Uint32 flag);
   static void setScanIndFlag(UintR & requestInfo, Uint32 flag);
   static void setExecuteFlag(UintR & requestInfo, Uint32 flag);  
   static void setOperationType(UintR & requestInfo, Uint32 type);
@@ -218,6 +221,7 @@ private:
  a = Attr Info in TCKEYREQ - 3  Bits -> Max 7 (Bit 16-18)
      (Short TCKEYREQ only, for long req a == 0)
  b = Distribution Key Ind  - 1  Bit 2
+ v = Via SPJ               - 1  Bit 3
  c = Commit Indicator      - 1  Bit 4
  d = Dirty Indicator       - 1  Bit 0
  e = Scan Indicator        - 1  Bit 14
@@ -237,7 +241,7 @@ private:
            1111111111222222222233
  01234567890123456789012345678901
  dnb cooop lsyyeiaaarkkkkkkkkkkkk  (Short TCKEYREQ)
- dnb cooopqlsyyei   r              (Long TCKEYREQ)
+ dnbvcooopqlsyyei   r              (Long TCKEYREQ)
 */
 
 #define TCKEY_NODISK_SHIFT (1)
@@ -248,6 +252,7 @@ private:
 #define EXECUTE_SHIFT      (10)
 #define INTERPRETED_SHIFT  (15)
 #define DISTR_KEY_SHIFT    (2)
+#define VIA_SPJ_SHIFT      (3)
 #define SCAN_SHIFT         (14)
 
 #define OPERATION_SHIFT   (5)
@@ -362,6 +367,12 @@ TcKeyReq::getDistributionKeyFlag(const UintR & requestInfo){
 
 inline
 Uint8
+TcKeyReq::getViaSPJFlag(const UintR & requestInfo){
+  return (Uint8)((requestInfo >> VIA_SPJ_SHIFT) & 1);
+}
+
+inline
+Uint8
 TcKeyReq::getScanIndFlag(const UintR & requestInfo){
   return (Uint8)((requestInfo >> SCAN_SHIFT) & 1);
 }
@@ -456,6 +467,14 @@ TcKeyReq::setDistributionKeyFlag(UintR & requestInfo, Uint32 flag){
 
 inline
 void 
+TcKeyReq::setViaSPJFlag(UintR & requestInfo, Uint32 flag){
+  ASSERT_BOOL(flag, "TcKeyReq::setViaSPJFlag");
+  requestInfo &= ~(1 << VIA_SPJ_SHIFT);
+  requestInfo |= (flag << VIA_SPJ_SHIFT);
+}
+
+inline
+void
 TcKeyReq::setScanIndFlag(UintR & requestInfo, Uint32 flag){
   ASSERT_BOOL(flag, "TcKeyReq::setScanIndFlag");
   requestInfo &= ~(1 << SCAN_SHIFT);

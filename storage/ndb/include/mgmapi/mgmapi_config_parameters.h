@@ -179,6 +179,8 @@
 #define CFG_DB_NUMA                   614
 #define CFG_DB_LATE_ALLOC             615
 
+#define CFG_DB_2PASS_INR              616
+
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
 #define CFG_RESERVED_SEND_BUFFER_MEMORY 202

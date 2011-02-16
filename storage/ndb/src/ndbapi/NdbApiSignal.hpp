@@ -60,8 +60,9 @@ public:
   
   void 			setData(Uint32 aWord, Uint32 aDataNo);  
   Uint32 		readData(Uint32 aDataNo) const; // Read word in signal
-  
-  int 			setSignal(int NdbSignalType);  	// Set signal header  
+
+  // Set signal header
+  int                   setSignal(int NdbSignalType, Uint32 receiverBlockNo);
   int 			readSignalNumber() const;	// Read signal number
   Uint32             	getLength() const;
   void	             	setLength(Uint32 aLength);

@@ -2467,6 +2467,9 @@ private:
 
   Uint32 read_lcp(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   void update_lcp(KeyReqStruct *req_struct, const Uint32* src, Uint32 len);
+
+  void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
+			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
 public:
   /**
    * Used by Restore...
@@ -3317,6 +3320,10 @@ private:
                            const Dbtup::ScanOp& op);
   void commit_operation(Signal*, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
+  int retrieve_data_page(Signal*,
+                         Page_cache_client::Request,
+                         OperationrecPtr);
+  int retrieve_log_page(Signal*, FragrecordPtr, OperationrecPtr);
   
   void dealloc_tuple(Signal* signal, Uint32, Page*, Tuple_header*, 
 		     Operationrec*, Fragrecord*, Tablerec*);

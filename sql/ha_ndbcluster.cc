@@ -477,13 +477,13 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   {"api_wait_meta_request_count" NAME_SUFFIX,                           \
    (char*) ARRAY_LOCATION[ Ndb::WaitMetaRequestCount ],                 \
    SHOW_LONGLONG},                                                      \
-  {"api_wait_nanos" NAME_SUFFIX,                                        \
+  {"api_wait_nanos_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::WaitNanosCount ],                       \
    SHOW_LONGLONG},                                                      \
-  {"api_bytes_sent" NAME_SUFFIX,                                        \
+  {"api_bytes_sent_count" NAME_SUFFIX,                                  \
    (char*) ARRAY_LOCATION[ Ndb::BytesSentCount ],                       \
    SHOW_LONGLONG},                                                      \
-  {"api_bytes_received" NAME_SUFFIX,                                    \
+  {"api_bytes_received_count" NAME_SUFFIX,                              \
    (char*) ARRAY_LOCATION[ Ndb::BytesRecvdCount ],                      \
    SHOW_LONGLONG},                                                      \
   {"api_trans_start_count" NAME_SUFFIX,                                 \
@@ -7908,7 +7908,7 @@ static int create_ndb_column(THD *thd,
 
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
-  DBUG_ENTER("update_create_info");
+  DBUG_ENTER("ha_ndbcluster::update_create_info");
   THD *thd= current_thd;
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
@@ -14507,7 +14507,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   int error;
   const char *errmsg;
   Ndb *ndb;
-  DBUG_ENTER("ha_ndbcluster::alter_tablespace");
+  DBUG_ENTER("ndbcluster_alter_tablespace");
   LINT_INIT(errmsg);
 
   ndb= check_ndb_in_thd(thd);

@@ -3520,7 +3520,7 @@ void Dblqh::execTUPKEYREF(Signal* signal)
     abortErrorLab(signal);
     break;
   case TcConnectionrec::COPY_TUPKEY:
-    ndbrequire(false);
+    copyTupkeyRefLab(signal);
     break;
   case TcConnectionrec::SCAN_TUPKEY:
     jam();
@@ -11806,8 +11806,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   ndbrequire(cfirstfreeTcConrec != RNIL);
   ndbrequire(fragptr.p->m_scanNumberMask.get(NR_ScanNo));
 
-  Uint32 key = fragptr.p->fragDistributionKey = copyFragReq->distributionKey;
-  
   Uint32 checkversion = NDB_VERSION >= MAKE_VERSION(5,1,0) ?
     NDBD_UPDATE_FRAG_DIST_KEY_51 :  NDBD_UPDATE_FRAG_DIST_KEY_50;
   
@@ -11821,12 +11819,29 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   }
   Uint32 maxPage = copyFragReq->nodeList[nodeCount];
   Uint32 version = getNodeInfo(refToNode(userRef)).m_version;
+  Uint32 requestInfo = copyFragReq->nodeList[nodeCount + 1];
   if (ndb_check_prep_copy_frag_version(version) < 2)
   {
     jam();
     maxPage = RNIL;
   }
-    
+
+  if (signal->getLength() < CopyFragReq::SignalLength + nodeCount)
+  {
+    jam();
+    requestInfo = CopyFragReq::CFR_TRANSACTIONAL;
+  }
+
+  if (requestInfo == CopyFragReq::CFR_NON_TRANSACTIONAL)
+  {
+    jam();
+  }
+  else
+  {
+    fragptr.p->fragDistributionKey = copyFragReq->distributionKey;
+  }
+  Uint32 key = fragptr.p->fragDistributionKey;
+
   if (DictTabInfo::isOrderedIndex(tabptr.p->tableType)) {
     jam();
     /**
@@ -11842,7 +11857,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
 	       CopyFragConf::SignalLength, JBB);
     return;
   }//if
-  
+
   LocalDLList<ScanRecord> scans(c_scanRecordPool, fragptr.p->m_activeScans);
   ndbrequire(m_reserved_scans.first(scanptr));
   m_reserved_scans.remove(scanptr);
@@ -11882,6 +11897,7 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   scanptr.p->scanLockHold = ZFALSE;
   scanptr.p->m_curr_batch_size_rows = 0;
   scanptr.p->m_curr_batch_size_bytes= 0;
+  scanptr.p->readCommitted = 0;
   
   initScanTc(0,
              0,
@@ -11905,10 +11921,30 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
   req->tableId = tabptr.i;
   req->fragmentNo = fragId;
   req->requestInfo = 0;
-  AccScanReq::setLockMode(req->requestInfo, 0);
-  AccScanReq::setReadCommittedFlag(req->requestInfo, 0);
-  AccScanReq::setNRScanFlag(req->requestInfo, 1);
-  AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+
+  if (requestInfo == CopyFragReq::CFR_TRANSACTIONAL)
+  {
+    jam();
+    /**
+     * An node-recovery scan, is shared lock
+     *   and may not perform disk-scan (as it then can miss uncomitted inserts)
+     */
+    AccScanReq::setLockMode(req->requestInfo, 0);
+    AccScanReq::setReadCommittedFlag(req->requestInfo, 0);
+    AccScanReq::setNRScanFlag(req->requestInfo, 1);
+    AccScanReq::setNoDiskScanFlag(req->requestInfo, 1);
+  }
+  else
+  {
+    jam();
+    /**
+     * The non-transaction scan is really only a "normal" tup scan
+     *   committed read, and don't disable disk-scan
+     */
+    AccScanReq::setLockMode(req->requestInfo, 0);
+    AccScanReq::setReadCommittedFlag(req->requestInfo, 1);
+    scanptr.p->readCommitted = 1;
+  }
 
   req->transId1 = tcConnectptr.p->transid[0];
   req->transId2 = tcConnectptr.p->transid[1];
@@ -12235,6 +12271,51 @@ void Dblqh::execTRANSID_AI(Signal* signal)
 /*--------------------------------------------------------------------------*/
 /*  PRECONDITION:   TRANSACTION_STATE = COPY_TUPKEY                         */
 /*--------------------------------------------------------------------------*/
+void Dblqh::copyTupkeyRefLab(Signal* signal)
+{
+  //const TupKeyRef * tupKeyRef = (TupKeyRef *)signal->getDataPtr();
+
+  scanptr.i = tcConnectptr.p->tcScanRec;
+  c_scanRecordPool.getPtr(scanptr);
+  ScanRecord* scanP = scanptr.p;
+
+  if (scanP->readCommitted == 0)
+  {
+    jam();
+    ndbrequire(false); // Should not be possibe...we read with lock
+  }
+  else
+  {
+    jam();
+    /**
+     * Any readCommitted scan, can get 626 if it finds a candidate record
+     *   that is not visible to the scan (i.e uncommitted inserts)
+     *   if scanning with locks (shared/exclusive) this is not visible
+     *   to LQH as lock is taken earlier
+     */
+    ndbrequire(terrorCode == 626);
+  }
+
+  ndbrequire(scanptr.p->scanState == ScanRecord::WAIT_TUPKEY_COPY);
+  if (tcConnectptr.p->errorCode != 0)
+  {
+    jam();
+    closeCopyLab(signal);
+    return;
+  }
+
+  if (scanptr.p->scanCompletedStatus == ZTRUE)
+  {
+    jam();
+    closeCopyLab(signal);
+    return;
+  }
+
+  ndbrequire(tcConnectptr.p->copyCountWords < cmaxWordsAtNodeRec);
+  scanptr.p->scanState = ScanRecord::WAIT_LQHKEY_COPY;
+  nextRecordCopy(signal);
+}
+
 void Dblqh::copyTupkeyConfLab(Signal* signal) 
 {
   const TupKeyConf * const tupKeyConf = (TupKeyConf *)signal->getDataPtr();
@@ -12245,10 +12326,14 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   ScanRecord* scanP = scanptr.p;
 
-  Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanP, 0, false);
-  ndbassert(accOpPtr != (Uint32)-1);
-  c_acc->execACCKEY_ORD(signal, accOpPtr);
-  
+  if (scanP->readCommitted == 0)
+  {
+    jam();
+    Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanP, 0, false);
+    ndbassert(accOpPtr != (Uint32)-1);
+    c_acc->execACCKEY_ORD(signal, accOpPtr);
+  }
+
   if (tcConnectptr.p->errorCode != 0) {
     jam();
     closeCopyLab(signal);
@@ -16242,6 +16327,12 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 lcpNo = startFragReq->lcpNo;
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
+  Uint32 requestInfo = startFragReq->requestInfo;
+  if (signal->getLength() < StartFragReq::SignalLength)
+  {
+    jam();
+    requestInfo = StartFragReq::SFR_RESTORE_LCP;
+  }
 
   bool doprint = false;
 #ifdef ERROR_INSERT
@@ -16275,6 +16366,16 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   fragptr.p->logFlag = Fragrecord::STATE_FALSE;
   fragptr.p->srStatus = Fragrecord::SS_IDLE;
 
+  if (requestInfo == StartFragReq::SFR_COPY_FRAG)
+  {
+    ndbrequire(lcpNo == ZNIL);
+    Uint32 n = fragptr.p->srLqhLognode[0] = startFragReq->lqhLogNode[0]; // src
+    ndbrequire(ndbd_non_trans_copy_frag_req(getNodeInfo(n).m_version));
+
+    // Magic no, meaning to COPY_FRAGREQ instead of read from disk
+    fragptr.p->srChkpnr = Z8NIL;
+  }
+
   if (noOfLogNodes > 0) 
   {
     jam();
@@ -16300,7 +16401,11 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     }
   }//if
   
-  if (lcpNo == ZNIL)
+  if (requestInfo == StartFragReq::SFR_COPY_FRAG)
+  {
+    jam();
+  }
+  else if (lcpNo == ZNIL)
   {
     jam();
     /**
@@ -16326,15 +16431,19 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
     jam();
     c_tup->disk_restart_lcp_id(tabptr.i, fragId, lcpId);
     jamEntry();
+
+    if (ERROR_INSERTED(5055))
+    {
+      ndbrequire(c_lcpId == 0 || lcpId == 0 || c_lcpId == lcpId);
+    }
+
+    /**
+     * Keep track of minimal lcp-id
+     */
+    c_lcpId = (c_lcpId == 0 ? lcpId : c_lcpId);
+    c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
   }
 
-  if (ERROR_INSERTED(5055))
-  {
-    ndbrequire(c_lcpId == 0 || lcpId == 0 || c_lcpId == lcpId);
-  }
-
-  c_lcpId = (c_lcpId == 0 ? lcpId : c_lcpId);
-  c_lcpId = (c_lcpId < lcpId ? c_lcpId : lcpId);
   c_lcp_waiting_fragments.add(fragptr);
   if(c_lcp_restoring_fragments.isEmpty())
     send_restore_lcp(signal);
@@ -16346,18 +16455,85 @@ Dblqh::send_restore_lcp(Signal * signal)
   c_lcp_waiting_fragments.first(fragptr);
   c_lcp_waiting_fragments.remove(fragptr);
   c_lcp_restoring_fragments.add(fragptr);
-  
-  RestoreLcpReq* req= (RestoreLcpReq*)signal->getDataPtrSend();
-  req->senderData = fragptr.i;
-  req->senderRef = reference();
-  req->tableId = fragptr.p->tabRef;
-  req->fragmentId = fragptr.p->fragId;
-  req->lcpNo = fragptr.p->srChkpnr;
-  req->lcpId = fragptr.p->lcpId[fragptr.p->srChkpnr];
-  
-  BlockReference restoreRef = calcInstanceBlockRef(RESTORE);
-  sendSignal(restoreRef, GSN_RESTORE_LCP_REQ, signal, 
-	     RestoreLcpReq::SignalLength, JBB);
+
+  if (fragptr.p->srChkpnr != Z8NIL)
+  {
+    jam();
+    RestoreLcpReq* req= (RestoreLcpReq*)signal->getDataPtrSend();
+    req->senderData = fragptr.i;
+    req->senderRef = reference();
+    req->tableId = fragptr.p->tabRef;
+    req->fragmentId = fragptr.p->fragId;
+    req->lcpNo = fragptr.p->srChkpnr;
+    req->lcpId = fragptr.p->lcpId[fragptr.p->srChkpnr];
+    BlockReference restoreRef = calcInstanceBlockRef(RESTORE);
+    sendSignal(restoreRef, GSN_RESTORE_LCP_REQ, signal,
+               RestoreLcpReq::SignalLength, JBB);
+  }
+  else
+  {
+    jam();
+
+    tabptr.i = fragptr.p->tabRef;
+    ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
+
+    fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
+    CopyFragReq * req = CAST_PTR(CopyFragReq, signal->getDataPtrSend());
+    req->senderData = fragptr.i;
+    req->senderRef = reference();
+    req->tableId = fragptr.p->tabRef;
+    req->fragId = fragptr.p->fragId;
+    req->nodeId = getOwnNodeId();
+    req->schemaVersion = tabptr.p->schemaVersion;
+    req->distributionKey = 0;
+    req->gci = fragptr.p->lcpId[0];
+    req->nodeCount = 0;
+    req->nodeList[1] = CopyFragReq::CFR_NON_TRANSACTIONAL;
+    Uint32 instanceKey = fragptr.p->lqhInstanceKey;
+    BlockReference ref = numberToRef(DBLQH, instanceKey,
+                                     fragptr.p->srLqhLognode[0]);
+
+    sendSignal(ref, GSN_COPY_FRAGREQ, signal,
+               CopyFragReq::SignalLength, JBB);
+
+  }
+}
+
+void
+Dblqh::execCOPY_FRAGREF(Signal* signal)
+{
+  jamEntry();
+  ndbrequire(false);
+}
+
+void
+Dblqh::execCOPY_FRAGCONF(Signal* signal)
+{
+  jamEntry();
+  {
+    const CopyFragConf* conf = CAST_CONSTPTR(CopyFragConf,
+                                             signal->getDataPtr());
+    c_fragment_pool.getPtr(fragptr, conf->senderData);
+    fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
+
+    Uint32 rows_lo = conf->rows_lo;
+    Uint32 bytes_lo = conf->bytes_lo;
+    signal->theData[0] = NDB_LE_NR_CopyFragDone;
+    signal->theData[1] = getOwnNodeId();
+    signal->theData[2] = fragptr.p->tabRef;
+    signal->theData[3] = fragptr.p->fragId;
+    signal->theData[4] = rows_lo;
+    signal->theData[5] = 0;
+    signal->theData[6] = bytes_lo;
+    signal->theData[7] = 0;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
+  }
+
+  {
+    RestoreLcpConf* conf= (RestoreLcpConf*)signal->getDataPtr();
+    conf->senderData = fragptr.i;
+    execRESTORE_LCP_CONF(signal);
+  }
 }
 
 void Dblqh::startFragRefLab(Signal* signal) 

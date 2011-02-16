@@ -2246,6 +2246,8 @@ private:
   void execSTORED_PROCCONF(Signal* signal);
   void execSTORED_PROCREF(Signal* signal);
   void execCOPY_FRAGREQ(Signal* signal);
+  void execCOPY_FRAGREF(Signal* signal);
+  void execCOPY_FRAGCONF(Signal* signal);
   void execPREPARE_COPY_FRAG_REQ(Signal* signal);
   void execUPDATE_FRAG_DIST_KEY_ORD(Signal*);
   void execCOPY_ACTIVEREQ(Signal* signal);
@@ -2643,6 +2645,7 @@ private:
   void restartOperationsAfterStopLab(Signal* signal);
   void startphase1Lab(Signal* signal, Uint32 config, Uint32 nodeId);
   void tupkeyConfLab(Signal* signal);
+  void copyTupkeyRefLab(Signal* signal);
   void copyTupkeyConfLab(Signal* signal);
   void scanTupkeyConfLab(Signal* signal);
   void scanTupkeyRefLab(Signal* signal);

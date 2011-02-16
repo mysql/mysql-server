@@ -6751,25 +6751,27 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   if (refToBlock(signal->getSendersBlockRef()) == DBLQH) {
     jam();
     // prepare table in DBTC
-    signal->theData[0] = tabPtr.i;
-    signal->theData[1] = tabPtr.p->tableVersion;
-    signal->theData[2] = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_Logged);
-    signal->theData[3] = reference();
-    signal->theData[4] = (Uint32)tabPtr.p->tableType;
-    signal->theData[5] = op_ptr.p->op_key;
-    signal->theData[6] = (Uint32)tabPtr.p->noOfPrimkey;
-    signal->theData[7] = (Uint32)tabPtr.p->singleUserMode;
-    signal->theData[8] = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+    TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
+    req->tableId = tabPtr.i;
+    req->tableVersion = tabPtr.p->tableVersion;
+    req->tableLogged = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_Logged);
+    req->senderRef = reference();
+    req->tableType = (Uint32)tabPtr.p->tableType;
+    req->senderData = op_ptr.p->op_key;
+    req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
+    req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
+    req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
 
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
       jam();
       TableRecordPtr basePtr;
       c_tableRecordPool.getPtr(basePtr, tabPtr.p->primaryTableId);
-      signal->theData[8] =(basePtr.p->fragmentType == DictTabInfo::UserDefined);
+      req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
     }
 
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal, 9, JBB);
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal,
+               TcSchVerReq::SignalLength, JBB);
     return;
   }
 
