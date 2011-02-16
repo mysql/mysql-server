@@ -7955,7 +7955,7 @@ static int create_ndb_column(THD *thd,
 
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
-  DBUG_ENTER("update_create_info");
+  DBUG_ENTER("ha_ndbcluster::update_create_info");
   THD *thd= current_thd;
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
