@@ -744,6 +744,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::MinRowsHigh, tablePtr.p->minRowsHigh);
   w.add(DictTabInfo::SingleUserMode, tablePtr.p->singleUserMode);
   w.add(DictTabInfo::HashMapObjectId, tablePtr.p->hashMapObjectId);
+  w.add(DictTabInfo::TableStorageType, tablePtr.p->storageType);
 
   if (tablePtr.p->hashMapObjectId != RNIL)
   {
@@ -2452,6 +2453,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr)
   tablePtr.p->triggerId = RNIL;
   tablePtr.p->buildTriggerId = RNIL;
   tablePtr.p->m_read_locked= 0;
+  tablePtr.p->storageType = NDB_STORAGETYPE_DEFAULT;
 }//Dbdict::initialiseTableRecord()
 
 void Dbdict::initTriggerRecords()
@@ -4941,6 +4943,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->singleUserMode = c_tableDesc.SingleUserMode;
   tablePtr.p->hashMapObjectId = c_tableDesc.HashMapObjectId;
   tablePtr.p->hashMapVersion = c_tableDesc.HashMapVersion;
+  tablePtr.p->storageType = c_tableDesc.TableStorageType;
 
   tabRequire(tablePtr.p->noOfAttributes <= MAX_ATTRIBUTES_IN_TABLE,
              CreateTableRef::NoMoreAttributeRecords); // bad error code!
