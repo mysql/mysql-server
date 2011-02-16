@@ -4895,6 +4895,14 @@ static bool read_init_file(char *file_name)
 }
 
 
+/**
+  Increment number of created threads
+*/
+void inc_thread_created(void)
+{
+  thread_created++;
+}
+
 #ifndef EMBEDDED_LIBRARY
 
 /*

@@ -59,6 +59,7 @@ bool thd_is_transaction_active(THD *thd);
 int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
 void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var);
+my_socket thd_get_fd(THD *thd);
 
 /*
   The thread pool must be able to execute commands using the connection
@@ -85,14 +86,16 @@ bool init_new_connection_handler_thread();
 /*
   thread_created is maintained by thread pool when activated since
   user threads are created by the thread pool (and also special
-  threads to maintain the thread pool).
+  threads to maintain the thread pool). This is done through
+  inc_thread_created.
   max_connections is needed to calculate the maximum number of threads
-  that is allowed to be started by the thread pool.
+  that is allowed to be started by the thread pool. The method
+  get_max_connections() gets reference to this variable.
+  connection_attrib is the thread attributes for connection threads,
+  the method get_connection_attrib provides a reference to these
+  attributes.
 */
-extern MYSQL_PLUGIN_IMPORT ulong thread_created;
-extern MYSQL_PLUGIN_IMPORT ulong max_connections;
-extern MYSQL_PLUGIN_IMPORT mysql_cond_t COND_thread_count;
-extern MYSQL_PLUGIN_IMPORT pthread_attr_t connection_attrib;
-/* extern MYSQL_PLUGIN_IMPORT I_List<THD> threads; */
-extern MYSQL_PLUGIN_IMPORT PSI_thread_key key_thread_one_connection;
+pthread_attr_t *get_connection_attrib(void);
+void inc_thread_created(void);
+ulong get_max_connections(void);
 #endif
