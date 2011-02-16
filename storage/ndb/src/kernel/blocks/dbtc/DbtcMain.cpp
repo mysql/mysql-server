@@ -86,7 +86,7 @@
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
-
+#include <signaldata/CreateTab.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -391,17 +391,18 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
     jam();
     return;
   }
-  tabptr.i = signal->theData[0];
+  const TcSchVerReq* req = CAST_CONSTPTR(TcSchVerReq, signal->getDataPtr());
+  tabptr.i = req->tableId;
   ptrCheckGuard(tabptr, ctabrecFilesize, tableRecord);
-  tabptr.p->currentSchemaVersion = signal->theData[1];
+  tabptr.p->currentSchemaVersion = req->tableVersion;
   tabptr.p->m_flags = 0;
-  tabptr.p->set_storedTable((bool)signal->theData[2]);
-  BlockReference retRef = signal->theData[3];
-  tabptr.p->tableType = (Uint8)signal->theData[4];
-  BlockReference retPtr = signal->theData[5];
-  Uint32 noOfKeyAttr = signal->theData[6];
-  tabptr.p->singleUserMode = (Uint8)signal->theData[7];
-  Uint32 userDefinedPartitioning = (Uint8)signal->theData[8];
+  tabptr.p->set_storedTable((bool)req->tableLogged);
+  BlockReference retRef = req->senderRef;
+  tabptr.p->tableType = (Uint8)req->tableType;
+  BlockReference retPtr = req->senderData;
+  Uint32 noOfKeyAttr = req->noOfPrimaryKeys;
+  tabptr.p->singleUserMode = (Uint8)req->singleUserMode;
+  Uint32 userDefinedPartitioning = (Uint8)req->userDefinedPartition;
   ndbrequire(noOfKeyAttr <= MAX_ATTRIBUTES_IN_INDEX);
 
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tabptr.i);
@@ -418,9 +419,11 @@ void Dbtc::execTC_SCHVERREQ(Signal* signal)
   tabptr.p->hasVarKeys = desc->noOfVarKeys > 0;
   tabptr.p->set_user_defined_partitioning(userDefinedPartitioning);
 
-  signal->theData[0] = tabptr.i;
-  signal->theData[1] = retPtr;
-  sendSignal(retRef, GSN_TC_SCHVERCONF, signal, 2, JBB);
+  TcSchVerConf * conf = (TcSchVerConf*)signal->getDataPtr();
+  conf->senderRef = reference();
+  conf->senderData = retPtr;
+  sendSignal(retRef, GSN_TC_SCHVERCONF, signal,
+             TcSchVerConf::SignalLength, JBB);
 }//Dbtc::execTC_SCHVERREQ()
 
 // create table commit

@@ -62,10 +62,15 @@
 #define RG_DISK_PAGE_BUFFER     7
 
 /**
+ * Query memory
+ */
+#define RG_QUERY_MEMORY         8
+
+/**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                8
+#define RG_COUNT                9
 
 /**
  * Record types
@@ -88,5 +93,11 @@
 #define RT_JOB_BUFFER              MAKE_TID( 1, RG_JOBBUFFER)
 
 #define RT_FILE_BUFFER             MAKE_TID( 1, RG_FILE_BUFFERS)
+
+#define RT_SPJ_REQUEST             MAKE_TID( 1, RG_QUERY_MEMORY)
+#define RT_SPJ_TREENODE            MAKE_TID( 2, RG_QUERY_MEMORY)
+#define RT_SPJ_ARENA_BLOCK         MAKE_TID( 3, RG_QUERY_MEMORY)
+#define RT_SPJ_DATABUFFER          MAKE_TID( 4, RG_QUERY_MEMORY)
+#define RT_SPJ_SCANFRAG            MAKE_TID( 5, RG_QUERY_MEMORY)
 
 #endif

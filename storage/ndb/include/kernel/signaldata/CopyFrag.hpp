@@ -32,11 +32,23 @@ class CopyFragReq {
    */
   friend class Dblqh;
 public:
-  STATIC_CONST( SignalLength = 10 );
+  STATIC_CONST( SignalLength = 11 );
 
 private:
-  Uint32 userPtr;
-  Uint32 userRef;
+
+  enum
+  {
+    CFR_TRANSACTIONAL = 1,    // Copy rows >= gci in transactional fashion
+    CFR_NON_TRANSACTIONAL = 2 // Copy rows <= gci in non transactional fashion
+  };
+  union {
+    Uint32 userPtr;
+    Uint32 senderData;
+  };
+  union {
+    Uint32 userRef;
+    Uint32 senderRef;
+  };
   Uint32 tableId;
   Uint32 fragId;
   Uint32 nodeId;
@@ -46,6 +58,7 @@ private:
   Uint32 nodeCount;
   Uint32 nodeList[1];
   //Uint32 maxPage; is stored in nodeList[nodeCount]
+  //Uint32 requestInfo is stored after maxPage
 };
 
 class CopyFragConf {
@@ -62,7 +75,10 @@ public:
   STATIC_CONST( SignalLength = 7 );
 
 private:
-  Uint32 userPtr;
+  union {
+    Uint32 userPtr;
+    Uint32 senderData;
+  };
   Uint32 sendingNodeId;
   Uint32 startingNodeId;
   Uint32 tableId;

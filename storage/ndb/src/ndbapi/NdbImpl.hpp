@@ -22,7 +22,6 @@
 #include "API.hpp"
 #include <NdbOut.hpp>
 #include <kernel/ndb_limits.h>
-
 #include <NdbTick.h>
 
 #include "ndb_cluster_connection_impl.hpp"
@@ -259,8 +258,14 @@ Ndb::void2rec_iop(void* val){
 
 inline 
 NdbTransaction * 
-NdbReceiver::getTransaction(){ 
-  return ((NdbOperation*)m_owner)->theNdbCon;
+NdbReceiver::getTransaction() const {
+  switch(getType()){
+  case NDB_UNINITIALIZED:
+    assert(false);
+    return NULL;
+  default:
+    return ((NdbOperation*)m_owner)->theNdbCon;
+  }
 }
 
 

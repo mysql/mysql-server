@@ -163,7 +163,7 @@ Ndb::NDB_connect(Uint32 tNode)
     releaseNdbCon(tNdbCon);
     DBUG_RETURN(4);
   }//if
-  if (tSignal->setSignal(GSN_TCSEIZEREQ) == -1) {
+  if (tSignal->setSignal(GSN_TCSEIZEREQ, DBTC) == -1) {
     releaseNdbCon(tNdbCon);
     releaseSignal(tSignal);
     DBUG_RETURN(4);

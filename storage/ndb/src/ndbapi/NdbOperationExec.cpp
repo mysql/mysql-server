@@ -497,7 +497,8 @@ NdbOperation::prepareSend(Uint32 aTC_ConnectPtr,
   tcKeyReq->setDirtyFlag(tReqInfo, tDirtyIndicator);
   tcKeyReq->setOperationType(tReqInfo, tOperationType);
   tcKeyReq->setKeyLength(tReqInfo, 0); // Not needed
-  
+  tcKeyReq->setViaSPJFlag(tReqInfo, 0);
+
   // A dirty read is always ignore error
   abortOption = tDirtyState ? (Uint8) AO_IgnoreError : (Uint8) abortOption;
   tcKeyReq->setAbortOption(tReqInfo, abortOption);
@@ -1743,7 +1744,7 @@ NdbOperation::receiveTCKEYREF(const NdbApiSignal* aSignal)
   // not dirty read
   if(! (theOperationType == ReadRequest && theDirtyIndicator))
   {
-    theNdbCon->OpCompleteFailure(this);
+    theNdbCon->OpCompleteFailure();
     return -1;
   }
   
@@ -1753,7 +1754,7 @@ NdbOperation::receiveTCKEYREF(const NdbApiSignal* aSignal)
    */
   if(theReceiver.m_expected_result_length)
   {
-    return theNdbCon->OpCompleteFailure(this);
+    return theNdbCon->OpCompleteFailure();
   }
   
   return -1;
