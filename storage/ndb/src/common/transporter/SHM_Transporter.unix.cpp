@@ -77,7 +77,7 @@ SHM_Transporter::checkConnected(){
 		    "shmctl(%d, IPC_STAT) errno: %d(%s). ", shmId,
 		    errno, strerror(errno));
     make_error_info(buf+r, sizeof(buf)-r);
-    DBUG_PRINT("error",(buf));
+    DBUG_PRINT("error",("%s", buf));
     switch (errno)
     {
     case EACCES:

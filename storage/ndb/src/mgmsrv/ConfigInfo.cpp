@@ -1911,6 +1911,21 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1"                      /* Max */
   },
 
+
+  {
+    CFG_DB_2PASS_INR,
+    "TwoPassInitialNodeRestartCopy",
+    DB_TOKEN,
+    "Copy data in 2 passes for initial node restart, "
+    "this enables multi-threaded-ordered index build for initial node restart",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",                     /* Min */
+    "true"                       /* Max */
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
