@@ -2051,6 +2051,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
     Approx. write size in bytes over transporter
   */
   m_bytes_per_write= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
+
+  /* Open indexes */
   if ((error= open_indexes(thd, ndb, table, FALSE)) != 0)
     goto err;
 
