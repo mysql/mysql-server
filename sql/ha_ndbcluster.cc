@@ -2051,15 +2051,17 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
     Approx. write size in bytes over transporter
   */
   m_bytes_per_write= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
-  if ((error= open_indexes(thd, ndb, table, FALSE)) == 0)
-  {
-    ndbtab_g.release();
+  if ((error= open_indexes(thd, ndb, table, FALSE)) != 0)
+    goto err;
+
+  ndbtab_g.release();
+
 #ifdef HAVE_NDB_BINLOG
-    ndbcluster_read_binlog_replication(thd, ndb, m_share, m_table,
-                                       ::server_id, table, FALSE);
+  ndbcluster_read_binlog_replication(thd, ndb, m_share, m_table,
+                                     ::server_id, table, FALSE);
 #endif
-    DBUG_RETURN(0);
-  }
+
+  DBUG_RETURN(0);
 
 err:
   ndbtab_g.invalidate();
