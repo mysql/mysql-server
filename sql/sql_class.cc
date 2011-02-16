@@ -433,6 +433,38 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var)
   thd->set_mysys_var(mysys_var);
 }
 
+/**
+  Get socket file descriptor for this connection
+
+  @param thd            THD object
+
+  @retval               Socket of the connection
+*/
+my_socket thd_get_fd(THD *thd)
+{
+  return thd->net.vio->sd;
+}
+
+/**
+  Get thread attributes for connection threads
+
+  @retval      Reference to thread attribute for connection threads
+*/
+pthread_attr_t *get_connection_attrib(void)
+{
+  return &connection_attrib;
+}
+
+/**
+  Get max number of connections
+
+  @retval         Max number of connections for MySQL Server
+*/
+ulong get_max_connections(void)
+{
+  return max_connections;
+}
+
 /*
   The following functions form part of the C plugin API
 */
