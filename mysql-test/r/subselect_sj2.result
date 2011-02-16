@@ -150,6 +150,7 @@ a	mid(filler1, 1,10)	Z
 10	filler1234	1
 11	filler1234	1
 12	filler1234	1
+2	duplicate 	1
 13	filler1234	1
 14	filler1234	1
 15	filler1234	1
@@ -157,7 +158,6 @@ a	mid(filler1, 1,10)	Z
 17	filler1234	1
 18	filler1234	1
 19	filler1234	1
-2	duplicate 	1
 18	duplicate 	1
 explain select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
@@ -218,6 +218,7 @@ a	mid(filler1, 1,10)	Z
 10	filler1234	1
 11	filler1234	1
 12	filler1234	1
+2	duplicate 	1
 13	filler1234	1
 14	filler1234	1
 15	filler1234	1
@@ -225,7 +226,6 @@ a	mid(filler1, 1,10)	Z
 17	filler1234	1
 18	filler1234	1
 19	filler1234	1
-2	duplicate 	1
 18	duplicate 	1
 explain select 
 a, mid(filler1, 1,10), length(filler1)=length(filler2) 
