@@ -10,7 +10,7 @@
 
 --perl
 print "\nChecking 'INFO_SRC' and 'INFO_BIN'\n";
-$dir_docs = $ENV{'MYSQL_LIBDIR'};
+$dir_docs = $ENV{'MYSQL_BINDIR'};
 if($dir_docs =~ m|/usr/|) {
   # RPM package
   $dir_docs =~ s|/lib|/share/doc|;
