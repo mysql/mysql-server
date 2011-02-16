@@ -39,3 +39,4 @@ FileSystemPathDataFiles=/data1/autotest
 FileSystemPathUndoFiles=/data2/autotest
 InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
 InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+TwoPassInitialNodeRestartCopy=1

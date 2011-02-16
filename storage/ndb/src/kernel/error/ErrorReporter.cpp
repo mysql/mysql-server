@@ -239,8 +239,8 @@ ErrorReporter::handleError(int messageID,
   
   WriteMessage(messageID, problemData, objRef, nst);
 
-  g_eventLogger->info(problemData);
-  g_eventLogger->info(objRef);
+  g_eventLogger->info("%s", problemData);
+  g_eventLogger->info("%s", objRef);
 
   NdbShutdown(messageID, nst);
   exit(1); // kill warning
