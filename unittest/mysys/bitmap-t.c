@@ -253,7 +253,7 @@ error2:
 
 my_bool test_get_first_bit(MY_BITMAP *map, uint bitsize)
 {
-  uint i, test_bit;
+  uint i, test_bit= 0;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
 
   bitmap_set_all(map);
