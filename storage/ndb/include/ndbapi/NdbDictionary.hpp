@@ -287,7 +287,8 @@ public:
      */
     enum StorageType {
       StorageTypeMemory = NDB_STORAGETYPE_MEMORY,
-      StorageTypeDisk = NDB_STORAGETYPE_DISK
+      StorageTypeDisk = NDB_STORAGETYPE_DISK,
+      StorageTypeDefault = NDB_STORAGETYPE_DEFAULT
     };
 
     /** 
@@ -1054,6 +1055,12 @@ public:
      *   this as way way too much stuff is pushed into NdbDictInterface
      */
     void assignObjId(const ObjectId &);
+
+    /**
+     * set/get table-storage-method
+     */
+    void setStorageType(Column::StorageType);
+    Column::StorageType getStorageType() const;
 #endif
 
     // these 2 are not de-doxygenated
