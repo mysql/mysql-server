@@ -431,8 +431,6 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
-Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -552,6 +550,8 @@ Overlaps(@horiz1, @point2)
 DROP TABLE t1;
 End of 5.0 tests
 set engine_condition_pushdown = on;
+Warnings:
+Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POINT);
 CREATE TABLE gis_line  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g LINESTRING);
@@ -983,8 +983,6 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
-Warnings:
-Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
