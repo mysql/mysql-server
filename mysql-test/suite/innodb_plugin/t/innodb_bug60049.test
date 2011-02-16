@@ -23,13 +23,13 @@ open(FILE, "<$file") || die "Unable to open $file";
 # Read DICT_HDR_TABLE_IDS, the root page number of ID_IND (SYS_TABLES.ID).
 seek(FILE, 7*16384+38+36, 0) || die "Unable to seek $file";
 die unless read(FILE, $_, 4) == 4;
-my $sys_tables_id_root = unpack "N";
+my $sys_tables_id_root = unpack("N", $_);
 print "Last record of ID_IND root page ($sys_tables_id_root):\n";
 # This should be the last record in ID_IND. Dump it in hexadecimal.
 seek(FILE, $sys_tables_id_root*16384 + 152, 0) || die "Unable to seek $file";
 read(FILE, $_, 32) || die "Unable to read $file";
 close(FILE);
-print unpack("H*"),"\n";
+print unpack("H*", $_), "\n";
 EOF
 
 # Restart the server.
