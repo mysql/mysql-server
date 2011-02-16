@@ -71,7 +71,7 @@ struct PFS_single_stat
     m_count++;
   }
 
-  inline void aggregate_timed(ulonglong value)
+  inline void aggregate_value(ulonglong value)
   {
     m_count++;
     m_sum+= value;
@@ -82,7 +82,7 @@ struct PFS_single_stat
   }
 };
 
-/** Single statistic. */
+/** Combined statistic. */
 struct PFS_multi_stat
 {
   /** Timer statistics */

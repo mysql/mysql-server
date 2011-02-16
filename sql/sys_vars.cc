@@ -135,7 +135,7 @@ static Sys_var_ulong Sys_pfs_max_file_instances(
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_sockets(
-       "performance_schema_max_sockets",
+       "performance_schema_max_socket_instances",
        "Maximum number of opened instrumented sockets.",
        READ_ONLY GLOBAL_VAR(pfs_param.m_socket_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),

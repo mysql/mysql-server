@@ -215,7 +215,9 @@ vio_is_blocking(Vio * vio)
 int vio_fastsend(Vio* vio __attribute__((unused)))
 {
   int r=0;
+  MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_fastsend");
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket.m_psi, PSI_SOCKET_OPT, 0);
 
 #if defined(IPTOS_THROUGHPUT)
   {
@@ -234,8 +236,10 @@ int vio_fastsend(Vio* vio __attribute__((unused)))
     r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
                   IF_WIN((const char*), (void*)) &nodelay,
                   sizeof(nodelay));
-
   }
+
+  MYSQL_END_SOCKET_WAIT(locker, 0);
+
   if (r)
   {
     DBUG_PRINT("warning", ("Couldn't set socket option for fast send"));
@@ -249,9 +253,12 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
 {
   int r=0;
   uint opt = 0;
+  MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_keepalive");
   DBUG_PRINT("enter", ("sd: %d  set_keep_alive: %d", vio->sd, (int)
 		       set_keep_alive));
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket.m_psi, PSI_SOCKET_OPT, 0);
+
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
     if (set_keep_alive)
@@ -259,6 +266,8 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
     r = setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
 		   sizeof(opt));
   }
+
+  MYSQL_END_SOCKET_WAIT(locker, 0);
   DBUG_RETURN(r);
 }
 
@@ -300,11 +309,11 @@ int vio_close(Vio * vio)
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
-
     DBUG_ASSERT(vio->sd >= 0);
-    if (shutdown(vio->sd, SHUT_RDWR))
+
+    if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
       r= -1;
-    if (closesocket(vio->sd))
+    if (mysql_socket_close(vio->mysql_socket))
       r= -1;
   }
   if (r)
@@ -314,6 +323,7 @@ int vio_close(Vio * vio)
   }
   vio->type= VIO_CLOSED;
   vio->sd=   -1;
+  mysql_socket_getfd(vio->mysql_socket)= vio->sd;
   DBUG_RETURN(r);
 }
 

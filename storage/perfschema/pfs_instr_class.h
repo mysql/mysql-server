@@ -373,6 +373,7 @@ extern ulong thread_class_lost;
 extern ulong file_class_max;
 extern ulong file_class_lost;
 extern ulong socket_class_max;
+extern ulong socket_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
 extern PFS_table_share *table_share_array;

@@ -242,17 +242,6 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t count)
     inline_mysql_socket_accept(FD, A, LP)
 #endif
 
-/** Not supported by P_S */
-#if 0
-  #ifdef HAVE_PSI_INTERFACE
-    #define mysql_socket_accept4(K, FD, A, LP, FL) \
-      inline_mysql_socket_accept4(K, __FILE__, __LINE__, FD, A, LP, FL)
-  #else
-    #define mysql_socket_accept4(FD, A, LP, FL) \
-      inline_mysql_socket_accept4(FD, A, LP, FL)
-  #endif
-#endif
-
 #ifdef HAVE_PSI_INTERFACE
   #define mysql_socket_close(FD) \
     inline_mysql_socket_close(__FILE__, __LINE__, FD)
@@ -267,6 +256,17 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t count)
 #else
   #define mysql_socket_shutdown(FD, H) \
     inline_mysql_socket_shutdown(FD, H)
+#endif
+
+/** Not supported by P_S */
+#if 0
+  #ifdef HAVE_PSI_INTERFACE
+    #define mysql_socket_accept4(K, FD, A, LP, FL) \
+      inline_mysql_socket_accept4(K, __FILE__, __LINE__, FD, A, LP, FL)
+  #else
+    #define mysql_socket_accept4(FD, A, LP, FL) \
+      inline_mysql_socket_accept4(FD, A, LP, FL)
+  #endif
 #endif
 
 /** Not supported by Winsock */
@@ -332,7 +332,6 @@ struct st_mysql_socket
     Note that this hook is not conditionally defined,
     for binary compatibility of the @c MYSQL_FILE interface.
   */
-
   struct PSI_socket *m_psi;
 };
 
@@ -754,9 +753,76 @@ inline_mysql_socket_accept
   return socket_accept;
 }
 
-/** mysql_socket_accept4 */
+/** mysql_socket_close */
+
+static inline int
+inline_mysql_socket_close
+(
+#ifdef HAVE_PSI_INTERFACE
+  const char *src_file, uint src_line,
+#endif
+  MYSQL_SOCKET mysql_socket)
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_socket_locker *locker= NULL;
+  PSI_socket_locker_state state;
+
+  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
+  {
+    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_CLOSE);
+    if (likely(locker !=NULL))
+      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
+  }
+#endif
+  result= closesocket(mysql_socket.fd);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+  {
+    PSI_server->end_socket_wait(locker, (size_t)0);
+    /* This socket will no longer be used by the server */
+    PSI_server->destroy_socket(mysql_socket.m_psi);
+  }
+#endif
+  return result;
+}
+
+/** mysql_socket_shutdown */
+
+static inline int
+inline_mysql_socket_shutdown
+(
+#ifdef HAVE_PSI_INTERFACE
+  const char *src_file, uint src_line,
+#endif
+  MYSQL_SOCKET mysql_socket, int how)
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_socket_locker *locker= NULL;
+  PSI_socket_locker_state state;
+
+  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
+  {
+    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_SHUTDOWN);
+    if (likely(locker !=NULL))
+      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
+  }
+#endif
+  result= shutdown(mysql_socket.fd, how);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+    PSI_server->end_socket_wait(locker, (size_t)0);
+#endif
+  return result;
+}
+
+/** Not supported by P_S */
 
 #if 0
+
+/** mysql_socket_accept4 */
+
   static inline MYSQL_SOCKET
   inline_mysql_socket_accept4
   (
@@ -791,67 +857,9 @@ inline_mysql_socket_accept
   #endif
     return socket_accept;
   }
-#endif
 
-/** mysql_socket_close */
+#endif // unsupported
 
-static inline int
-inline_mysql_socket_close
-(
-#ifdef HAVE_PSI_INTERFACE
-  const char *src_file, uint src_line,
-#endif
-  MYSQL_SOCKET mysql_socket)
-{
-  int result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
-  {
-    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_CLOSE);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-  }
-#endif
-  result= closesocket(mysql_socket.fd);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-    PSI_server->end_socket_wait(locker, (size_t)0);
-#endif
-  return result;
-}
-
-/** mysql_socket_shutdown */
-
-static inline int
-inline_mysql_socket_shutdown
-(
-#ifdef HAVE_PSI_INTERFACE
-  const char *src_file, uint src_line,
-#endif
-  MYSQL_SOCKET mysql_socket, int how)
-{
-  int result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
-  {
-    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_SHUTDOWN);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-  }
-#endif
-  result= shutdown(mysql_socket.fd, how);
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-    PSI_server->end_socket_wait(locker, (size_t)0);
-#endif
-  return result;
-}
 
 /** Not supported by Winsock */
 
