@@ -9201,7 +9201,7 @@ static int create_ndb_column(THD *thd,
 
 void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
 {
-  DBUG_ENTER("update_create_info");
+  DBUG_ENTER("ha_ndbcluster::update_create_info");
   THD *thd= current_thd;
   const NDBTAB *ndbtab= m_table;
   Ndb *ndb= check_ndb_in_thd(thd);
@@ -10954,8 +10954,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     local_close(thd, TRUE);
     DBUG_RETURN(res);
   }
-  if (!ndb_binlog_tables_inited ||
-      (ndb_binlog_running && !ndb_binlog_is_ready))
+  if (ndb_binlog_is_read_only())
   {
     table->db_stat|= HA_READ_ONLY;
     sql_print_information("table '%s' opened read only", name);
@@ -14505,8 +14504,6 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
-  /* create tables needed by the replication */
-  ndbcluster_setup_binlog_table_shares(thd);
 
   set_timespec(abstime, 0);
   for (;;)
@@ -14525,23 +14522,28 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 #endif
 
     /*
-      Check that the ndb_apply_status_share and ndb_schema_share 
-      have been created.
-      If not try to create it
+      Check if the Ndb object in thd_ndb is still valid(it will be
+      invalid if connection to cluster has been lost) and recycle
+      it if necessary.
     */
     if (!check_ndb_in_thd(thd, false))
     {
       set_timespec(abstime, 1);
       continue;
     }
-    if (!ndb_binlog_tables_inited)
+
+    /*
+      Regularly give the ndb_binlog component chance to set it self up
+      i.e at first start it needs to create the ndb_* system tables
+      and setup event operations on those. In case of lost connection
+      to cluster, the ndb_* system tables are hopefully still there
+      but the event operations need to be recreated.
+    */
+    if (!ndb_binlog_setup(thd))
     {
-      ndbcluster_setup_binlog_table_shares(thd);
-      if (!ndb_binlog_tables_inited)
-      {
-        set_timespec(abstime, 1);
-        continue;
-      }
+      /* Failed to setup binlog, try again in 1 second */
+      set_timespec(abstime, 1);
+      continue;
     }
 
     if (opt_ndb_cache_check_time == 0)
@@ -15939,7 +15941,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   int error;
   const char *errmsg;
   Ndb *ndb;
-  DBUG_ENTER("ha_ndbcluster::alter_tablespace");
+  DBUG_ENTER("ndbcluster_alter_tablespace");
   LINT_INIT(errmsg);
 
   ndb= check_ndb_in_thd(thd);
