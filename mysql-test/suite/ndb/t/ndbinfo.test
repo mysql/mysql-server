@@ -49,7 +49,7 @@ DELETE FROM ndb$tables WHERE 1=0;
 --error ER_OPEN_AS_READONLY
 DELETE FROM ndb$tables WHERE table_id > 1;
 
---error ER_OPEN_AS_READONLY
+--error ER_ILLEGAL_HA
 ALTER TABLE ndb$test ADD COLUMN another_col varchar(255);
 
 FLUSH TABLES;
