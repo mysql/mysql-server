@@ -9597,30 +9597,31 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
   DBUG_ENTER("ha_ndbcluster::open");
   DBUG_PRINT("enter", ("name: %s  mode: %d  test_if_locked: %d",
                        name, mode, test_if_locked));
-  
-  /*
-    Setup ref_length to make room for the whole 
-    primary key to be written in the ref variable
-  */
-  
+
   if (bitmap_init(&m_save_read_set, NULL, table_share->fields, FALSE))
   {
     DBUG_RETURN(1);
   }
-  if (table_share->primary_key != MAX_KEY) 
+
+  if (table_share->primary_key != MAX_KEY)
   {
+    /*
+      Setup ref_length to make room for the whole
+      primary key to be written in the ref variable
+    */
     key= table->key_info+table_share->primary_key;
     ref_length= key->key_length;
   }
-  else // (table_share->primary_key == MAX_KEY) 
+  else
   {
     if (m_user_defined_partitioning)
     {
+      /* Add space for partid in ref */
       ref_length+= sizeof(m_part_id);
     }
   }
-
   DBUG_PRINT("info", ("ref_length: %d", ref_length));
+
   {
     char* bitmap_array;
     uint extra_hidden_keys= table_share->primary_key != MAX_KEY ? 0 : 1;
