@@ -416,7 +416,6 @@ class ha_ndbcluster: public handler
                               bool eq_range, bool sorted,
                               uchar* buf);
   int read_range_next();
-  int alter_tablespace(st_alter_tablespace *info);
 
 #ifndef NDB_WITH_NEW_MRR_INTERFACE
   /**
