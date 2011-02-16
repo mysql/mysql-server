@@ -923,7 +923,7 @@ int JOIN_CACHE::alloc_buffer()
 //psergey-merge:  for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
 // for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
 // (fixed)
-    for (tab= join->join_tab + join->const_tables; tab!= join_tab; 
+    for (tab= /*join->join_tab + join->const_tables*/ start_tab; tab!= join_tab; 
          tab= next_linear_tab(join, tab, FALSE))
   {
     cache= tab->cache;

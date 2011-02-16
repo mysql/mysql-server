@@ -8429,10 +8429,12 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
     if (!(tab >= first_sjm_table && tab < last_sjm_table))
       tab->first_sjm_sibling= NULL;
 #endif 
+    JOIN_TAB *prev_tab;
+restart:
     tab->icp_other_tables_ok= TRUE;
     tab->idx_cond_fact_out= TRUE;
 
-    JOIN_TAB *prev_tab= tab - 1;
+    prev_tab= tab - 1;
     if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
       prev_tab= NULL;
 
@@ -8450,11 +8452,20 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
                                                          //  tab-1); 
                                                          prev_tab);
       tab->use_join_cache= test(tab->used_join_cache_level);
-      DBUG_ASSERT(!join->return_tab);
+      /*
+        psergey-merge: todo: raise the question that this is really stupid that
+        we can first allocate a join buffer, then decide not to use it and free
+        it.
+      */
       /*
       if (join->return_tab)
         i= join->return_tab-join->join_tab-1;   // always >= 0
       */
+      if (join->return_tab)
+      {
+        tab= join->return_tab;
+        goto restart;
+      }
       break; 
     default:
       tab->used_join_cache_level= 0;
