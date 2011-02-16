@@ -1560,12 +1560,6 @@ sub command_line_setup {
     $debug_d= "d,query,info,error,enter,exit";
   }
 
-  if ($opt_debug && $opt_debug ne "1")
-  {
-    $debug_d= "d,$opt_debug";
-    $debug_d= "d,query,info,error,enter,exit" if $opt_debug eq "std";
-  }
-
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
