@@ -2,6 +2,7 @@
 # This test requires a fresh server start-up and a slow shutdown.
 # This was a suspected bug (not a bug).
 
+-- source include/not_embedded.inc
 -- source include/have_innodb_plugin.inc
 
 CREATE TABLE t(a INT)ENGINE=InnoDB;
