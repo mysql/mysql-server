@@ -82,6 +82,11 @@ static inline void copy_events_stages(PFS_events_stages *dest,
 */
 void insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage)
 {
+  if (unlikely(events_stages_history_per_thread == 0))
+    return;
+
+  DBUG_ASSERT(thread->m_stages_history != NULL);
+
   uint index= thread->m_stages_history_index;
 
   /*
@@ -109,6 +114,11 @@ void insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage)
 */
 void insert_events_stages_history_long(PFS_events_stages *stage)
 {
+  if (unlikely(events_stages_history_long_size == 0))
+    return;
+
+  DBUG_ASSERT(events_stages_history_long_array != NULL);
+
   uint index= PFS_atomic::add_u32(&events_stages_history_long_index, 1);
 
   index= index % events_stages_history_long_size;
