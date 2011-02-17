@@ -21,6 +21,8 @@
 /*
   The thread pool requires access to some MySQL server error codes, this is
   accessed from mysqld_error.h.
+  We need access to the struct that defines the thread pool plugin interface
+  which is accessed through scheduler.h.
   All accesses to THD variables and functions are defined in this header file.
   A thread pool can also use DEBUG_SYNC and must thus include
   debug_sync.h
