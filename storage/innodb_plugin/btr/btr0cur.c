@@ -2572,6 +2572,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	page_zip = buf_block_get_page_zip(block);
 
+	btr_blob_dbg_set_deleted_flag(rec, index, offsets, val);
 	btr_rec_set_deleted_flag(rec, page_zip, val);
 
 	trx = thr_get_trx(thr);
@@ -3595,6 +3596,8 @@ btr_cur_set_ownership_of_extern_field(
 	} else {
 		mach_write_to_1(data + local_len + BTR_EXTERN_LEN, byte_val);
 	}
+
+	btr_blob_dbg_owner(rec, index, offsets, i, val);
 }
 
 /*******************************************************************//**
@@ -4094,6 +4097,11 @@ btr_store_big_rec_extern_fields_func(
 				}
 
 				if (prev_page_no == FIL_NULL) {
+					btr_blob_dbg_add_blob(
+						rec, big_rec_vec->fields[i]
+						.field_no, page_no, index,
+						"store");
+
 					mach_write_to_4(field_ref
 							+ BTR_EXTERN_SPACE_ID,
 							space_id);
@@ -4169,6 +4177,11 @@ next_zip_page:
 						 MLOG_4BYTES, &mtr);
 
 				if (prev_page_no == FIL_NULL) {
+					btr_blob_dbg_add_blob(
+						rec, big_rec_vec->fields[i]
+						.field_no, page_no, index,
+						"store");
+
 					mlog_write_ulint(field_ref
 							 + BTR_EXTERN_SPACE_ID,
 							 space_id,
@@ -4336,6 +4349,37 @@ btr_free_externally_stored_field(
 		ut_ad(!page_zip);
 		rec_zip_size = 0;
 	}
+
+#ifdef UNIV_BLOB_DEBUG
+	if (!(field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG)
+	    && !((field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_INHERITED_FLAG)
+		 && (rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY))) {
+		/* This off-page column will be freed.
+		Check that no references remain. */
+
+		btr_blob_dbg_t	b;
+
+		b.blob_page_no = mach_read_from_4(
+			field_ref + BTR_EXTERN_PAGE_NO);
+
+		if (rec) {
+			/* Remove the reference from the record to the
+			BLOB. If the BLOB were not freed, the
+			reference would be removed when the record is
+			removed. Freeing the BLOB will overwrite the
+			BTR_EXTERN_PAGE_NO in the field_ref of the
+			record with FIL_NULL, which would make the
+			btr_blob_dbg information inconsistent with the
+			record. */
+			b.ref_page_no = page_get_page_no(page_align(rec));
+			b.ref_heap_no = page_rec_get_heap_no(rec);
+			b.ref_field_no = i;
+			btr_blob_dbg_rbt_delete(index, &b, "free");
+		}
+
+		btr_blob_dbg_assert_empty(index, b.blob_page_no);
+	}
+#endif /* UNIV_BLOB_DEBUG */
 
 	for (;;) {
 #ifdef UNIV_SYNC_DEBUG
