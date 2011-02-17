@@ -108,7 +108,7 @@ MariaDB-5.3: this is expected to go away when FROM subquery optimizations are pu
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	Using filesort
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 drop view v1;
 create view v1 as select c+1 from t1 order by 1 desc limit 2;
 select * from v1;
@@ -120,7 +120,7 @@ MariaDB-5.3: this is expected to go away when FROM subquery optimizations are pu
 explain select * from v1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	
-2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	Using filesort
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	4	Using filesort
 drop view v1;
 drop table t1;
 create table t1 (a int,
