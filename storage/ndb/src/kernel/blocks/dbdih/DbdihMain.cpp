@@ -1989,6 +1989,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
   if (c_2pass_inr)
   {
     jam();
+    Uint32 workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
     printf("Checking 2-pass initial node restart: ");
     for (i = 0; i<index; i++)
     {
@@ -1996,7 +1997,16 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
       {
         jam();
         c_2pass_inr = false;
-        printf("not ok (node %u) => disabled\n", nodeArray[i]);
+        printf("not ok (version node %u) => disabled\n", nodeArray[i]);
+        break;
+      }
+
+      if (workers > 1 &&
+          workers != getNodeInfo(nodeArray[i]).m_lqh_workers)
+      {
+        c_2pass_inr = false;
+        printf("not ok (different worker cnt node %u) => disabled\n", 
+               nodeArray[i]);
         break;
       }
     }
@@ -3778,7 +3788,7 @@ done:
     req->fragId = takeOverPtr.p->toCurrentFragid;
     req->noOfLogNodes = 0;
 
-    if (c_2pass_inr)
+    if (c_2pass_inr && cstarttype == NodeState::ST_INITIAL_NODE_RESTART)
     {
       /**
        * Check if we can make 2-phase copy
@@ -3829,7 +3839,7 @@ done:
                takeOverPtr.p->toCurrentTabref,
                takeOverPtr.p->toCurrentFragid,
                req->lqhLogNode[0],
-               req->lcpId);
+               takeOverPtr.p->startGci);
     }
 
     BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
