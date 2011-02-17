@@ -4054,9 +4054,14 @@ retry:
 			that user can adopt necessary measures for the
 			mismatch while still being accessible to the table
 			date. */
-			ref_length = table->key_info[0].key_length;
+			if (!table->key_info) {
+				ut_ad(!table->s->keys);
+				ref_length = 0;
+			} else {
+				ref_length = table->key_info[0].key_length;
+			}
 
-			/* Find correspoinding cluster index
+			/* Find corresponding cluster index
 			key length in MySQL's key_info[] array */
 			for (ulint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
