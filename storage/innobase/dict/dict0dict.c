@@ -812,7 +812,10 @@ dict_table_t*
 dict_table_open_on_name_low(
 /*========================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	dict_err_ignore_t
+			ignore_err)	/*!< in: error to be ignored when
+					loading a table definition */
 {
 	dict_table_t*	table;
 
@@ -820,11 +823,21 @@ dict_table_open_on_name_low(
 		mutex_enter(&(dict_sys->mutex));
 	}
 
+	ut_ad(table_name);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	table = dict_table_get_low(table_name);
+	table = dict_table_check_if_in_cache_low(table_name);
+
+	if (table == NULL) {
+		table = dict_load_table(table_name, TRUE, ignore_err);
+	}
+
+	ut_ad(!table || table->cached);
 
 	if (table != NULL) {
+
+		ut_ad(ignore_err != DICT_ERR_IGNORE_NONE
+		      || table->corrupted == FALSE);
 
 		if (table->can_be_evicted) {
 			dict_move_to_mru(table);
@@ -857,7 +870,8 @@ dict_table_open_on_name(
 {
 	dict_table_t*	table;
 
-	table = dict_table_open_on_name_low(table_name, dict_locked);
+	table = dict_table_open_on_name_low(table_name, dict_locked,
+					    DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL) {
 		/* If table->ibd_file_missing == TRUE, this will
@@ -881,9 +895,13 @@ dict_table_t*
 dict_table_open_on_name_no_stats(
 /*=============================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	dict_err_ignore_t
+			ignore_err)	/*!< in: error to be ignored during
+					table open */
 {
-	return(dict_table_open_on_name_low(table_name, dict_locked));
+	return(dict_table_open_on_name_low(table_name, dict_locked,
+					   ignore_err));
 }
 
 #endif /* !UNIV_HOTBACKUP */

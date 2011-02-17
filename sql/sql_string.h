@@ -33,9 +33,12 @@ typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
-uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
-			const char *from, uint32 from_length,
-			CHARSET_INFO *from_cs, uint *errors);
+inline uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+                               const char *from, uint32 from_length,
+                               CHARSET_INFO *from_cs, uint *errors)
+{
+  return my_convert(to, to_length, to_cs, from, from_length, from_cs, errors);
+}
 uint32 well_formed_copy_nchars(CHARSET_INFO *to_cs,
                                char *to, uint to_length,
                                CHARSET_INFO *from_cs,
@@ -113,6 +116,9 @@ public:
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {
+    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length || 
+                (Alloced_length >= (str_length + 1)));
+
     if (!Ptr || Ptr[str_length])		/* Should be safe */
       (void) realloc(str_length);
     return Ptr;

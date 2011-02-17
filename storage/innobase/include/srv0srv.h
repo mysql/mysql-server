@@ -172,7 +172,7 @@ extern ulong    srv_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
-#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
+#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) (p) / 100.0)))
 
 /* The "innodb_stats_method" setting, decides how InnoDB is going
 to treat NULL value when collecting statistics. It is not defined

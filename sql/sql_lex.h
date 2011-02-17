@@ -196,8 +196,7 @@ typedef struct st_lex_server_options
 
 
 /**
-  Structure to hold parameters for CHANGE MASTER or START/STOP SLAVE
-  or SHOW NEW MASTER.
+  Structure to hold parameters for CHANGE MASTER, START SLAVE, and STOP SLAVE.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,

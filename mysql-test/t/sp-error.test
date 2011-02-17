@@ -931,12 +931,6 @@ return 1; end|
 create function bug8409() returns int begin flush status;
 return 1; end|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function bug8409() returns int begin flush slave;
-return 1; end|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
-create function bug8409() returns int begin flush master;
-return 1; end|
---error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG
 create function bug8409() returns int begin flush des_key_file;
 return 1; end|
 --error ER_STMT_NOT_ALLOWED_IN_SF_OR_TRG

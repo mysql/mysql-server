@@ -170,7 +170,10 @@ dict_load_table(
 /*============*/
 	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
-	ibool		cached);/*!< in: TRUE=add to cache, FALSE=do not */
+	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	dict_err_ignore_t ignore_err);
+				/*!< in: error to be ignored when loading
+				table and its indexes' definition */
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return	table; NULL if table does not exist */
