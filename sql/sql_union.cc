@@ -32,10 +32,10 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
   DBUG_ENTER("mysql_union");
-  bool res;
-  if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
-                           setup_tables_done_option)))
-    res= (unit->optimize() || unit->exec());
+  bool res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
+                           setup_tables_done_option) ||
+            unit->optimize() ||
+            unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
 }

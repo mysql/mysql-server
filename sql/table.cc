@@ -5252,14 +5252,18 @@ void TABLE::use_index(int key_to_save)
     s->key_parts= 0;
     s->keys= 0;
     covering_keys.clear_all();
-  } else {
+  }
+  else
+  {
     /* Save the given key. No need to copy key#0. */
     if (key_to_save > 0)
-      memcpy(key_info, key_info + key_to_save, sizeof(KEY));
+      key_info[0]= key_info[key_to_save];
     s->keys= 1;
     s->key_parts= key_info[0].key_parts;
     if (covering_keys.is_set(key_to_save))
       covering_keys.set_prefix(1);
+    else
+      covering_keys.clear_all();
   }
 }
 
@@ -5736,7 +5740,6 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   {
     table->keys_in_use_for_query.set_all();
     table->s->uniques= 0;
-    derived_key_list.empty();
   }
 
   for (uint i= 0; i < num_values; i++)
@@ -5768,7 +5771,7 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
 {
   /* Move entries for tables with greater table bit to the end. */
   return ((e1->referenced_by < e2->referenced_by) ? -1 :
-          ((e1->referenced_by > e1->referenced_by) ? 1 : 0));
+          ((e1->referenced_by > e2->referenced_by) ? 1 : 0));
 }
 
 
