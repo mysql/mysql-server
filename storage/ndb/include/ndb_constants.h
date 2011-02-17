@@ -87,6 +87,7 @@
 
 #define NDB_STORAGETYPE_MEMORY          0
 #define NDB_STORAGETYPE_DISK            1
+#define NDB_STORAGETYPE_DEFAULT         2 /* not set */
 
 /*
  * Table temporary status.

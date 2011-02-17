@@ -148,6 +148,8 @@ public:
     HashMapObjectId    = 153,
     HashMapVersion     = 154,
 
+    TableStorageType   = 155,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -376,7 +378,9 @@ public:
 
     Uint32 HashMapObjectId;
     Uint32 HashMapVersion;
-    
+
+    Uint32 TableStorageType;
+
     Table() {}
     void init();
   };
