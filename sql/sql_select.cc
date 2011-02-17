@@ -7857,7 +7857,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
   memcpy((uchar*) join->best_positions, (uchar*) join->positions,
          sizeof(POSITION)*idx);
   join->best_read= read_time;
-  join->best_rowcount= record_count;
+  join->best_rowcount= (ha_rows)record_count;
 }
 
 
@@ -8413,7 +8413,7 @@ best_extension_by_limited_search(JOIN      *join,
           memcpy((uchar*) join->best_positions, (uchar*) join->positions,
                  sizeof(POSITION) * (idx + 1));
           join->best_read= current_read_time - 0.001;
-          join->best_rowcount= current_record_count;
+          join->best_rowcount= (ha_rows)current_record_count;
         }
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                        current_record_count,
@@ -23441,8 +23441,9 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->select_number= UINT_MAX; // jost for initialization
     unit->fake_select_lex->type= "UNION RESULT";
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
-    if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
-      res= (unit->optimize() || unit->exec());
+    res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE) ||
+         unit->optimize() ||
+         unit->exec();
     res|= unit->cleanup();
   }
   else
