@@ -9505,12 +9505,20 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
     */     
     Item *on_expr= *first_inner_tab->on_expr_ref;
 
-    table_map used_tables= (join->const_table_map |
-                            OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
+    table_map used_tables= 0;
+
     for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
          join_tab <= last_tab ; join_tab++)
     {
+      /*
+        For explanation on how these bitmasks are built, see
+        make_join_select(), Step #2.
+      */
       table_map current_map= join_tab->table->map;
+      if (join_tab == join->join_tab + join->const_tables)
+        current_map|= join->const_table_map | OUTER_REF_TABLE_BIT;
+      if (join_tab == last_tab)
+        current_map|= RAND_TABLE_BIT;
       used_tables|= current_map;
       Item *tmp_cond= make_cond_for_table(on_expr, used_tables, current_map, 0);
       if (!tmp_cond)
@@ -9567,7 +9575,6 @@ static bool make_join_select(JOIN *join, Item *cond)
   DBUG_ENTER("make_join_select");
   {
     add_not_null_conds(join);
-    table_map used_tables;
     /*
       Step #1: Extract constant condition
        - Extract and check the constant part of the WHERE 
@@ -9634,21 +9641,33 @@ static bool make_join_select(JOIN *join, Item *cond)
     /*
       Step #2: Extract WHERE/ON parts
     */
+    table_map used_tables= 0;
     table_map save_used_tables= 0;
-    used_tables= join->const_table_map | OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-    JOIN_TAB *tab;
-    table_map current_map;
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
-      tab= join->join_tab+i;
+      JOIN_TAB *tab= join->join_tab + i;
       /*
         first_inner is the X in queries like:
         SELECT * FROM t1 LEFT OUTER JOIN (t2 JOIN t3) ON X
       */
       JOIN_TAB *first_inner_tab= tab->first_inner; 
-      current_map= tab->table->map;
       bool use_quick_range=0;
       Item *tmp;
+
+      /*
+        Calculate used table information added at this stage.
+        The current table is always added. Const tables are assumed to be
+        available together with the first table in the join order.
+        All outer references are available, so these may be evaluated together
+        with the first table.
+        Random expressions must be added to the last table's condition.
+        It solves problem with queries like SELECT * FROM t1 WHERE rand() > 0.5
+      */
+      table_map current_map= tab->table->map;
+      if (i == join->const_tables)
+        current_map|= join->const_table_map | OUTER_REF_TABLE_BIT;
+      if (i == join->tables - 1)
+        current_map|= RAND_TABLE_BIT;
 
       /* 
         Tables that are within SJ-Materialization nests cannot have their
@@ -9660,17 +9679,10 @@ static bool make_join_select(JOIN *join, Item *cond)
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
       {
         save_used_tables= used_tables;
-        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT | 
-                     RAND_TABLE_BIT;
+        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT;
       }
 
-      /*
-	Following force including random expression in last table condition.
-	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
-      */
-      if (i == join->tables-1)
-	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-      used_tables|=current_map;
+      used_tables|= current_map;
 
       if (tab->type == JT_REF && tab->quick &&
 	  (uint) tab->ref.key == tab->quick->index &&
@@ -19131,7 +19143,7 @@ static bool replace_subcondition(JOIN *join, Item **tree,
   
   @param cond       Condition to analyze
   @param tables     Tables for which "current field values" are available
-  @param used_table Table that we're extracting the condition for (may 
+  @param used_table Table(s) that we are extracting the condition for (may 
                     also include PSEUDO_TABLE_BITS, and may be zero)
   @param exclude_expensive_cond  Do not push expensive conditions
 
@@ -19139,15 +19151,32 @@ static bool replace_subcondition(JOIN *join, Item **tree,
   @retval = NULL Already checked, OR error
 
   @details
-    Extract the condition that can be checked after reading the table
-    specified in 'used_table', given that current-field values for tables
-    specified in 'tables' bitmap are available.
-    If 'used_table' is 0, extract conditions for all tables in 'tables'.
+    Extract the condition that can be checked after reading the table(s)
+    specified in @c used_table, given that current-field values for tables
+    specified in @c tables bitmap are available.
+    If @c used_table is 0, extract conditions for all tables in @c tables.
 
-    The function assumes that
-      - Constant parts of the condition has already been checked.
-      - Condition that could be checked for tables in 'tables' has already 
-        been checked.
+    This function can be used to extract conditions relevant for a table
+    in a join order. Together with its caller, it will ensure that all
+    conditions are attached to the first table in the join order where all
+    necessary fields are available, and it will also ensure that a given
+    condition is attached to only one table.
+    To accomplish this, first initialize @c tables to the empty
+    set. Then, loop over all tables in the join order, set @c used_table to
+    the bit representing the current table, accumulate @c used_table into the
+    @c tables set, and call this function. To ensure correct handling of
+    const expressions and outer references, add the const table map and
+    OUTER_REF_TABLE_BIT to @c used_table for the first table. To ensure
+    that random expressions are evaluated for the final table, add
+    RAND_TABLE_BIT to @c used_table for the final table.
+
+    The function assumes that constant, inexpensive parts of the condition
+    have already been checked. Constant, expensive parts will be attached
+    to the first table in the join order, provided that the above call
+    sequence is followed.
+
+    The call order will ensure that conditions covering tables in @c tables
+    minus those in @c used_table, have already been checked.
         
     The function takes into account that some parts of the condition are
     guaranteed to be true by employed 'ref' access methods (the code that
@@ -19175,21 +19204,14 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   /*
     Ignore this condition if
      1. We are extracting conditions for a specific table, and
-     2. that table is not referenced by the condition, and
-     3. exclude constant conditions not checked at optimization time if
-        the table we are pushing conditions to is the first one.
-        As a result, such conditions are not considered as already checked
-        and will be checked at execution time, attached to the first table.
+     2. that table is not referenced by the condition, but not if
+     3. this is a constant condition not checked at optimization time and
+        this is the first table we are extracting conditions for.
+       (Assuming that used_table == tables for the first table.)
   */
   if (used_table &&                                                 // 1
       !(cond->used_tables() & used_table) &&                        // 2
-      /*
-        psergey: TODO: "used_table & 1" doesn't make sense in nearly any
-        context. Look at setup_table_map(), table bits reflect the order 
-        the tables were encountered by the parser. Check what we should
-        replace this condition with.
-      */
-      !((used_table & 1) && cond->is_expensive()))                  // 3
+      !(cond->is_expensive() && used_table == tables))              // 3
     return NULL;
 
   if (cond->type() == Item::COND_ITEM)
