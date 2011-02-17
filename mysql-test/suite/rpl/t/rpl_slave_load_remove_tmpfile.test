@@ -13,6 +13,7 @@
 --source include/have_debug.inc
 --source include/master-slave.inc
 --source include/not_embedded.inc
+--source include/not_var_link.inc
 
 ##########################################################################
 #                            Loading data
