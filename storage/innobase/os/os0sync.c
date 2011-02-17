@@ -75,6 +75,11 @@ UNIV_INTERN ulint	os_fast_mutex_count	= 0;
 /* The number of microsecnds in a second. */
 static const ulint MICROSECS_IN_A_SECOND = 1000000;
 
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	event_os_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	os_mutex_key;
+#endif
+
 /* Because a mutex is embedded inside an event and there is an
 event embedded inside a mutex, on free, this generates a recursive call.
 This version of the free event function doesn't acquire the global lock */
@@ -132,7 +137,7 @@ ibool
 os_cond_wait_timed(
 /*===============*/
 	os_cond_t*		cond,		/*!< in: condition variable. */
-	os_fast_mutex_t*	mutex,		/*!< in: fast mutex */
+	os_fast_mutex_t*	fast_mutex,	/*!< in: fast mutex */
 #ifndef __WIN__
 	const struct timespec*	abstime		/*!< in: timeout */
 #else
@@ -141,6 +146,7 @@ os_cond_wait_timed(
 #endif /* !__WIN__ */
 )
 {
+	fast_mutex_t*	mutex = &fast_mutex->mutex;
 #ifdef __WIN__
 	BOOL	ret;
 	DWORD	err;
@@ -195,8 +201,9 @@ void
 os_cond_wait(
 /*=========*/
 	os_cond_t*		cond,	/*!< in: condition variable. */
-	os_fast_mutex_t*	mutex)	/*!< in: fast mutex */
+	os_fast_mutex_t*	fast_mutex)/*!< in: fast mutex */
 {
+	fast_mutex_t*	mutex = &fast_mutex->mutex;
 	ut_a(cond);
 	ut_a(mutex);
 
@@ -388,7 +395,12 @@ os_event_create(
 
 		event = ut_malloc(sizeof(struct os_event_struct));
 
-		os_fast_mutex_init(&(event->os_mutex));
+#ifndef PFS_SKIP_EVENT_MUTEX
+		os_fast_mutex_init(event_os_mutex_key, &event->os_mutex);
+#else
+		os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &event->os_mutex);
+#endif
+
 
 		os_cond_init(&(event->cond_var));
 
@@ -775,7 +787,7 @@ os_mutex_create(void)
 
 	mutex = ut_malloc(sizeof(os_fast_mutex_t));
 
-	os_fast_mutex_init(mutex);
+	os_fast_mutex_init(os_mutex_key, mutex);
 	mutex_str = ut_malloc(sizeof(os_mutex_str_t));
 
 	mutex_str->handle = mutex;
@@ -864,9 +876,9 @@ os_mutex_free(
 Initializes an operating system fast mutex semaphore. */
 UNIV_INTERN
 void
-os_fast_mutex_init(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex)	/*!< in: fast mutex */
+os_fast_mutex_init_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex)	/*!< in: fast mutex */
 {
 #ifdef __WIN__
 	ut_a(fast_mutex);
@@ -893,9 +905,9 @@ os_fast_mutex_init(
 Acquires ownership of a fast mutex. */
 UNIV_INTERN
 void
-os_fast_mutex_lock(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex)	/*!< in: mutex to acquire */
+os_fast_mutex_lock_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex)	/*!< in: mutex to acquire */
 {
 #ifdef __WIN__
 	EnterCriticalSection((LPCRITICAL_SECTION) fast_mutex);
@@ -908,9 +920,9 @@ os_fast_mutex_lock(
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
-os_fast_mutex_unlock(
-/*=================*/
-	os_fast_mutex_t*	fast_mutex)	/*!< in: mutex to release */
+os_fast_mutex_unlock_func(
+/*======================*/
+	fast_mutex_t*		fast_mutex)	/*!< in: mutex to release */
 {
 #ifdef __WIN__
 	LeaveCriticalSection(fast_mutex);
@@ -923,9 +935,9 @@ os_fast_mutex_unlock(
 Frees a mutex object. */
 UNIV_INTERN
 void
-os_fast_mutex_free(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex)	/*!< in: mutex to free */
+os_fast_mutex_free_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex)	/*!< in: mutex to free */
 {
 #ifdef __WIN__
 	ut_a(fast_mutex);

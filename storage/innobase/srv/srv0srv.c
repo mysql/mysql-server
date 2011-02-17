@@ -455,6 +455,8 @@ UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /* Key to register srv_sys_t::tasks_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+/* Key to register srv_conc_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_conc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* Temporary file for innodb monitor output */
@@ -957,7 +959,7 @@ srv_init(void)
 
 	/* Init the server concurrency restriction data structures */
 
-	os_fast_mutex_init(&srv_conc_mutex);
+	os_fast_mutex_init(srv_conc_mutex_key, &srv_conc_mutex);
 
 	UT_LIST_INIT(srv_conc_queue);
 
@@ -2306,7 +2308,7 @@ srv_master_do_active_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+	ibuf_contract_in_background(FALSE);
 
 	/* Flush logs if needed */
 	srv_main_thread_op_info = "flushing log";
@@ -2384,7 +2386,7 @@ srv_master_do_idle_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	ibuf_contract_in_background(TRUE);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2456,7 +2458,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	n_bytes_merged = ibuf_contract_in_background(TRUE);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
