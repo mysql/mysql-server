@@ -3559,7 +3559,7 @@ class Item_cache_datetime: public Item_cache
 {
 protected:
   String str_value;
-  ulonglong int_value;
+  longlong int_value;
   bool str_value_cached;
 public:
   Item_cache_datetime(enum_field_types field_type_arg):
