@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (C) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,21 +19,16 @@
 #define THREAD_POOL_PRIV_INCLUDED
 
 /*
-  A thread pool plugins requires inclusion of sql_class.h to get proper
-  access to THD variables and functions.
-  There are some DTrace probes that requires definition inside the plugin,
-  this requires include of probes_mysql.h.
-  scheduler.h contains definitions required by the plugin.
+  The thread pool requires access to some MySQL server error codes, this is
+  accessed from mysqld_error.h.
+  All accesses to THD variables and functions are defined in this header file.
   A thread pool can also use DEBUG_SYNC and must thus include
   debug_sync.h
   To handle definitions of Information Schema plugins it is also required
   to include sql_profile.h and table.h.
-
-  The goal is to move all dependencies from a thread pool plugin on the
-  MySQL Server into a version-handled plugin API.
 */
+#include <mysqld_error.h> /* To get ER_ERROR_ON_READ */
 #define MYSQL_SERVER 1
-#include <sql_class.h>
 #include <debug_sync.h>
 #include <sql_profile.h>
 #include <table.h>
@@ -61,8 +56,14 @@ void thd_set_net_read_write(THD *thd, uint val);
 void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var);
 my_socket thd_get_fd(THD *thd);
 
+/* Print to the MySQL error log */
+void sql_print_error(const char *format, ...);
+
+/* Store a table record */
+bool schema_table_store_record(THD *thd, TABLE *table);
+
 /*
-  The thread pool must be able to execute commands using the connection
+  The thread pool must be able to execute statements using the connection
   state in THD object. This is the main objective of the thread pool to
   schedule the start of these commands.
 */
@@ -76,26 +77,38 @@ bool do_command(THD *thd);
   ensure that the proper MySQL Server logic attached to these events is
   executed.
 */
-bool thd_prepare_connection(THD *thd);
-bool thd_is_connection_alive(THD *thd);
-void end_connection(THD *thd);
-void mysql_audit_release(THD *thd);
-bool setup_connection_thread_globals(THD *thd);
+/* Initialise a new connection handler thread */
 bool init_new_connection_handler_thread();
+/* Set up connection thread before use as execution thread */
+bool setup_connection_thread_globals(THD *thd);
+/* Prepare connection as part of connection set-up */
+bool thd_prepare_connection(THD *thd);
+/* Release auditing before executing statement */
+void mysql_audit_release(THD *thd);
+/* Check if connection is still alive */
+bool thd_is_connection_alive(THD *thd);
+/* Close connection with possible error code */
+void close_connection(THD *thd, uint errcode);
+/* End the connection before closing it */
+void end_connection(THD *thd);
+/* Destroy THD object */
+void unlink_thd(THD *thd);
 
 /*
   thread_created is maintained by thread pool when activated since
   user threads are created by the thread pool (and also special
   threads to maintain the thread pool). This is done through
   inc_thread_created.
+
   max_connections is needed to calculate the maximum number of threads
   that is allowed to be started by the thread pool. The method
   get_max_connections() gets reference to this variable.
+
   connection_attrib is the thread attributes for connection threads,
   the method get_connection_attrib provides a reference to these
   attributes.
 */
-pthread_attr_t *get_connection_attrib(void);
 void inc_thread_created(void);
 ulong get_max_connections(void);
+pthread_attr_t *get_connection_attrib(void);
 #endif
