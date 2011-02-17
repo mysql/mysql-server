@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Some general useful functions */
 
@@ -502,7 +502,7 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
   Support routine for check_partition_info
 
   SYNOPSIS
-    has_unique_fields
+    find_duplicate_field
     no parameters
 
   RETURN VALUE
@@ -513,13 +513,13 @@ bool partition_info::set_up_defaults_for_partitioning(handler *file,
     Check that the user haven't defined the same field twice in
     key or column list partitioning.
 */
-char* partition_info::has_unique_fields()
+char* partition_info::find_duplicate_field()
 {
   char *field_name_outer, *field_name_inner;
   List_iterator<char> it_outer(part_field_list);
   uint num_fields= part_field_list.elements;
   uint i,j;
-  DBUG_ENTER("partition_info::has_unique_fields");
+  DBUG_ENTER("partition_info::find_duplicate_field");
 
   for (i= 0; i < num_fields; i++)
   {
@@ -609,7 +609,7 @@ partition_element *partition_info::get_part_elem(const char *partition_name,
 
 
 /**
-  Helper function to has_unique_names.
+  Helper function to find_duplicate_name.
 */
 
 static const char *get_part_name_from_elem(const char *name, size_t *length,
@@ -624,7 +624,7 @@ static const char *get_part_name_from_elem(const char *name, size_t *length,
   partitioned table
 
   SYNOPSIS
-    has_unique_names()
+    find_duplicate_name()
 
   RETURN VALUES
     NULL               Has unique part and subpart names
@@ -635,7 +635,7 @@ static const char *get_part_name_from_elem(const char *name, size_t *length,
     duplicated names.
 */
 
-char *partition_info::has_unique_names()
+char *partition_info::find_duplicate_name()
 {
   HASH partition_names;
   uint max_names;
@@ -644,7 +644,7 @@ char *partition_info::has_unique_names()
   List_iterator<partition_element> parts_it(partitions);
   partition_element *p_elem;  
 
-  DBUG_ENTER("partition_info::has_unique_names");
+  DBUG_ENTER("partition_info::find_duplicate_name");
   
   /*
     TODO: If table->s->ha_part_data->partition_name_hash.elements is > 0,
@@ -1373,12 +1373,12 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   }
 
   if (part_field_list.elements > 0 &&
-      (same_name= has_unique_fields()))
+      (same_name= find_duplicate_field()))
   {
     my_error(ER_SAME_NAME_PARTITION_FIELD, MYF(0), same_name);
     goto end;
   }
-  if ((same_name= has_unique_names()))
+  if ((same_name= find_duplicate_name()))
   {
     my_error(ER_SAME_NAME_PARTITION, MYF(0), same_name);
     goto end;

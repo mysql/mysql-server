@@ -3137,6 +3137,7 @@ libmysqld/examples/mysql_embedded
 sql/.empty
 libmysqld/sql_bootstrap.cc
 mysys/thr_lock
+mysys/queues
 libmysqld/binlog.cc
 libmysqld/sql_alter.cc
 libmysqld/sql_partition_admin.cc

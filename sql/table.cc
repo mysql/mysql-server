@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Some general useful functions */
@@ -204,6 +204,7 @@ static uchar *get_field_name(Field **buff, size_t *length,
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
   A function to return the partition name from a partition element
 */
@@ -213,6 +214,7 @@ uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
   *length= part->length;
   return part->partition_name;
 }
+#endif
 
 
 /*

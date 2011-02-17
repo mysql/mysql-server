@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* drop and alter of tables */
 
@@ -4014,6 +4014,7 @@ void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
 /**
   Auxiliary function which allows to check if freshly created .FRM
   file for table can be opened.
@@ -4051,6 +4052,7 @@ static bool check_if_created_table_can_be_opened(THD *thd,
   (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
   return result;
 }
+#endif
 
 
 /*

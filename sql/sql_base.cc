@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Basic functions needed by many modules */
@@ -4672,6 +4672,11 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 /*
+  TODO: Move all this to prune_partitions() when implementing WL#4443.
+  Needs all items and conds fixed (as in first part in JOIN::optimize,
+  mysql_prepare_delete). Ensure that prune_partitions() is called for all
+  statements supported by WL#5217.
+
   TODO: When adding support for FK in partitioned tables, update this function
   so the referenced table get correct locking.
 */
@@ -4692,11 +4697,6 @@ static bool prune_partition_locks(TABLE_LIST *tables)
         */
         if (table->table->part_info->set_partition_bitmaps(table))
           DBUG_RETURN(TRUE);
-        /*
-          TODO: Add prune_partitions() here as WL#4443.
-          Needs all items and conds fixed (as in first part in JOIN::optimize,
-          mysql_prepare_delete).
-        */
       }
       else if (table->partition_names && table->partition_names->elements)
       {
@@ -4973,6 +4973,7 @@ restart:
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* TODO: move this to prune_partitions() when implementing WL#4443. */
   /* Prune partitions to avoid unneccesary locks */
   if (prune_partition_locks(*start))
   {
@@ -6224,6 +6225,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 /*
   Find field by name in a base table or a view with temp table algorithm.
 
+  The caller is expected to check column-level privileges.
+
   SYNOPSIS
     find_field_in_table()
     thd				thread handler
@@ -6330,6 +6333,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
     - a list of Natural_join_column objects for NATURAL/USING joins.
     This procedure detects the type of the table reference 'table_list'
     and calls the corresponding search routine.
+
+    The routine checks column-level privieleges for the found field.
 
   RETURN
     0			field is not found
@@ -6606,8 +6611,16 @@ find_field_in_tables(THD *thd, Item_ident *item,
       when table_ref->field_translation != NULL.
       */
     if (table_ref->table && !table_ref->view)
+    {
       found= find_field_in_table(thd, table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* Check if there are sufficient access rights to the found field. */
+      if (found && check_privileges &&
+          check_column_grant_in_table_ref(thd, table_ref, name, length))
+        found= WRONG_GRANT;
+#endif
+    }
     else
       found= find_field_in_table_ref(thd, table_ref, name, length, item->name,
                                      NULL, NULL, ref, check_privileges,
