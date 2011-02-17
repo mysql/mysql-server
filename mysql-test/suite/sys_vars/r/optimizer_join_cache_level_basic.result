@@ -30,7 +30,7 @@ Warnings:
 Warning	1292	Truncated incorrect optimizer_join_cache_level value: '9'
 select @@session.optimizer_join_cache_level;
 @@session.optimizer_join_cache_level
-8
+4
 set global optimizer_join_cache_level=1.1;
 ERROR 42000: Incorrect argument type to variable 'optimizer_join_cache_level'
 set global optimizer_join_cache_level=1e1;
