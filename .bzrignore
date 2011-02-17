@@ -3032,7 +3032,6 @@ unittest/examples/.deps/skip_all-t.Po
 unittest/examples/.deps/todo-t.Po
 unittest/mysys/*.t
 unittest/mysys/.deps/base64-t.Po
-unittest/mysys/.deps/bitmap-t.Po
 unittest/mysys/.deps/my_atomic-t.Po
 unittest/mytap/.deps/tap.Po
 unittest/mytap/t/*.t

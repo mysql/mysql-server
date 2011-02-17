@@ -11,27 +11,25 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-   This test was copied from the unit test inside the
-   mysys/my_bitmap.c file and adapted by Mats Kindahl to use the mytap
-   library.
-*/
+#include "my_config.h"
+#include <gtest/gtest.h>
 
 #include <my_global.h>
-#include <my_sys.h>
+#include <my_pthread.h>
 #include <my_bitmap.h>
-#include <tap.h>
-#include <m_string.h>
 
-#define MAX_TESTED_BITMAP_SIZE 1024
+namespace {
+
+const uint MAX_TESTED_BITMAP_SIZE= 1024;
 
 uint get_rand_bit(uint bitsize)
 {
   return (rand() % bitsize);
 }
 
-my_bool test_set_get_clear_bit(MY_BITMAP *map, uint bitsize)
+bool test_set_get_clear_bit(MY_BITMAP *map, uint bitsize)
 {
   uint i, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -45,16 +43,16 @@ my_bool test_set_get_clear_bit(MY_BITMAP *map, uint bitsize)
     if (bitmap_is_set(map, test_bit))
       goto error2;
   }
-  return FALSE;
+  return false;
 error1:
-  printf("Error in set bit, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in set bit  bit=" << test_bit;
+  return true;
 error2:
-  printf("Error in clear bit, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in clear bit  bit=" << test_bit;
+  return true;
 }
 
-my_bool test_flip_bit(MY_BITMAP *map, uint bitsize)
+bool test_flip_bit(MY_BITMAP *map, uint bitsize)
 {
   uint i, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -68,16 +66,16 @@ my_bool test_flip_bit(MY_BITMAP *map, uint bitsize)
     if (bitmap_is_set(map, test_bit))
       goto error2;
   }
-  return FALSE;
+  return false;
 error1:
-  printf("Error in flip bit 1, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in flip bit 1  bit=" << test_bit;
+  return true;
 error2:
-  printf("Error in flip bit 2, bit %u, bitsize = %u", test_bit, bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in flip bit 2  bit=" << test_bit;
+  return true;
 }
 
-my_bool test_get_all_bits(MY_BITMAP *map, uint bitsize)
+bool test_get_all_bits(MY_BITMAP *map, uint bitsize)
 {
   uint i;
   bitmap_set_all(map);
@@ -98,37 +96,37 @@ my_bool test_get_all_bits(MY_BITMAP *map, uint bitsize)
     bitmap_clear_bit(map, i);
   if (!bitmap_is_clear_all(map))
     goto error4;
-  return FALSE;
+  return false;
 error1:
-  diag("Error in set_all, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in set_all";
+  return true;
 error2:
-  diag("Error in clear_all, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in clear_all";
+  return true;
 error3:
-  diag("Error in bitmap_is_set_all, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in bitmap_is_set_all";
+  return true;
 error4:
-  diag("Error in bitmap_is_clear_all, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in bitmap_is_clear_all";
+  return true;
 error5:
-  diag("Error in set_all through set_prefix, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in set_all through set_prefix";
+  return true;
 error6:
-  diag("Error in clear_all through set_prefix, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Error in clear_all through set_prefix";
+  return true;
 }
 
-my_bool test_compare_operators(MY_BITMAP *map, uint bitsize)
+bool test_compare_operators(MY_BITMAP *map, uint bitsize)
 {
   uint i, j, test_bit1, test_bit2, test_bit3,test_bit4;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
   MY_BITMAP map2_obj, map3_obj;
   MY_BITMAP *map2= &map2_obj, *map3= &map3_obj;
-  uint32 map2buf[MAX_TESTED_BITMAP_SIZE];
-  uint32 map3buf[MAX_TESTED_BITMAP_SIZE];
-  bitmap_init(&map2_obj, map2buf, bitsize, FALSE);
-  bitmap_init(&map3_obj, map3buf, bitsize, FALSE);
+  my_bitmap_map map2buf[MAX_TESTED_BITMAP_SIZE];
+  my_bitmap_map map3buf[MAX_TESTED_BITMAP_SIZE];
+  bitmap_init(&map2_obj, map2buf, bitsize, false);
+  bitmap_init(&map3_obj, map3buf, bitsize, false);
   bitmap_clear_all(map2);
   bitmap_clear_all(map3);
   for (i=0; i < no_loops; i++)
@@ -202,30 +200,29 @@ my_bool test_compare_operators(MY_BITMAP *map, uint bitsize)
     bitmap_clear_all(map);
     bitmap_clear_all(map3);
   }
-  return FALSE;
+  return false;
 error1:
-  diag("intersect error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
+  ADD_FAILURE() << "intersect error  size1=" << test_bit1
+                << ",size2=" << test_bit2;
+  return true;
 error2:
-  diag("union error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
+  ADD_FAILURE() << "union error  size1=" << test_bit1
+                << ",size2=" << test_bit2;
+  return true;
 error3:
-  diag("xor error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
+  ADD_FAILURE() << "xor error  size1=" << test_bit1
+                << ",size2=" << test_bit2;
+  return true;
 error4:
-  diag("subtract error  bitsize=%u,size1=%u,size2=%u", bitsize,
-  test_bit1,test_bit2);
-  return TRUE;
+  ADD_FAILURE() << "subtract error  size1=" << test_bit1
+                << ",size2=" << test_bit2;
+  return true;
 error5:
-  diag("invert error  bitsize=%u,size=%u", bitsize,
-  test_bit1);
-  return TRUE;
+  ADD_FAILURE() << "invert error  size=" << test_bit1;
+  return true;
 }
 
-my_bool test_count_bits_set(MY_BITMAP *map, uint bitsize)
+bool test_count_bits_set(MY_BITMAP *map, uint bitsize)
 {
   uint i, bit_count=0, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -242,16 +239,16 @@ my_bool test_count_bits_set(MY_BITMAP *map, uint bitsize)
     goto error1;
   if (bitmap_bits_set(map) != bit_count)
     goto error2;
-  return FALSE;
+  return false;
 error1:
-  diag("No bits set  bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "No bits set";
+  return true;
 error2:
-  diag("Wrong count of bits set, bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "Wrong count of bits set";
+  return true;
 }
 
-my_bool test_get_first_bit(MY_BITMAP *map, uint bitsize)
+bool test_get_first_bit(MY_BITMAP *map, uint bitsize)
 {
   uint i, test_bit= 0;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -280,16 +277,16 @@ my_bool test_get_first_bit(MY_BITMAP *map, uint bitsize)
       goto error2;
     bitmap_clear_all(map);
   }
-  return FALSE;
+  return false;
 error1:
-  diag("get_first_set error bitsize=%u,prefix_size=%u",bitsize,test_bit);
-  return TRUE;
+  ADD_FAILURE() << "get_first_set error  prefix_size=" << test_bit;
+  return true;
 error2:
-  diag("get_first error bitsize= %u, prefix_size= %u",bitsize,test_bit);
-  return TRUE;
+  ADD_FAILURE() << "get_first error  prefix_size=" << test_bit;
+  return true;
 }
 
-my_bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
+bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
 {
   uint i, j, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -302,13 +299,13 @@ my_bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
       goto error1;
     bitmap_clear_all(map);
   }
-  return FALSE;
+  return false;
 error1:
-  diag("get_next error  bitsize= %u, prefix_size= %u", bitsize,test_bit);
-  return TRUE;
+  ADD_FAILURE() << "get_next error  prefix_size=" << test_bit;
+  return true;
 }
 
-my_bool test_prefix(MY_BITMAP *map, uint bitsize)
+bool test_prefix(MY_BITMAP *map, uint bitsize)
 {
   uint i, j, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -348,35 +345,32 @@ my_bool test_prefix(MY_BITMAP *map, uint bitsize)
       bitmap_clear_bit(map, test_bit);
     }
   }
-  return FALSE;
+  return false;
 error1:
-  diag("prefix1 error  bitsize = %u, prefix_size = %u", bitsize,test_bit);
-  return TRUE;
+  ADD_FAILURE() << "prefix1 error  prefix_size=" << test_bit;
+  return true;
 error2:
-  diag("prefix2 error  bitsize = %u, prefix_size = %u", bitsize,test_bit);
-  return TRUE;
+  ADD_FAILURE() << "prefix2 error  prefix_size=" << test_bit;
+  return true;
 error3:
-  diag("prefix3 error  bitsize = %u, prefix_size = %u", bitsize,test_bit);
-  return TRUE;
+  ADD_FAILURE() << "prefix3 error  prefix_size=" << test_bit;
+  return true;
 error4:
-  diag("prefix4 error  bitsize = %u, i = %u", bitsize,i);
-  return TRUE;
+  ADD_FAILURE() << "prefix4 error  i=" << i;
+  return true;
 error5:
-  diag("prefix5 error  bitsize = %u, i = %u", bitsize,i);
-  return TRUE;
+  ADD_FAILURE() << "prefix5 error  i=" << i;
+  return true;
 }
 
-my_bool test_compare(MY_BITMAP *map, uint bitsize)
+bool test_compare(MY_BITMAP *map, uint bitsize)
 {
   MY_BITMAP map2;
-  uint32 map2buf[MAX_TESTED_BITMAP_SIZE];
+  my_bitmap_map map2buf[MAX_TESTED_BITMAP_SIZE];
   uint i, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
-  if (bitmap_init(&map2, map2buf, bitsize, FALSE))
-  {
-    diag("init error for bitsize %d", bitsize);
-    return TRUE;
-  }
+  bitmap_init(&map2, map2buf, bitsize, false);
+
   /* Test all 4 possible combinations of set/unset bits. */
   for (i=0; i < no_loops; i++)
   {
@@ -416,26 +410,23 @@ my_bool test_compare(MY_BITMAP *map, uint bitsize)
     bitmap_clear_bit(&map2, test_bit);
     /* Note that test_bit is not cleared i map2. */
   }
-  return FALSE;
+  return false;
 error_is_subset:
-  diag("is_subset error  bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "is_subset error";
+  return true;
 error_is_overlapping:
-  diag("is_overlapping error  bitsize = %u", bitsize);
-  return TRUE;
+  ADD_FAILURE() << "is_overlapping error";
+  return true;
 }
 
-my_bool test_intersect(MY_BITMAP *map, uint bitsize)
+bool test_intersect(MY_BITMAP *map, uint bitsize)
 {
   uint bitsize2 = 1 + get_rand_bit(MAX_TESTED_BITMAP_SIZE - 1);
   MY_BITMAP map2;
-  uint32 map2buf[bitsize2];
+  my_bitmap_map map2buf[bitsize2];
   uint i, test_bit1, test_bit2, test_bit3;
-  if (bitmap_init(&map2, map2buf, bitsize2, FALSE))
-  {
-    diag("init error for bitsize %d", bitsize2);
-    return TRUE;
-  }
+  bitmap_init(&map2, map2buf, bitsize2, false);
+
   test_bit1= get_rand_bit(bitsize);
   test_bit2= get_rand_bit(bitsize);
   bitmap_set_bit(map, test_bit1);
@@ -468,65 +459,83 @@ my_bool test_intersect(MY_BITMAP *map, uint bitsize)
   bitmap_intersect(map, &map2);
   if (!bitmap_is_clear_all(map))
     goto error;
-  return FALSE;
+  return false;
 error:
-  diag("intersect error  bitsize = %u, bit1 = %u, bit2 = %u, bit3 = %u",
-       bitsize, test_bit1, test_bit2, test_bit3);
-  return TRUE;
+  ADD_FAILURE() << "intersect error  bit1=" << test_bit1
+                << ",bit2=" << test_bit2 << ",bit3=" << test_bit3;
+  return true;
 }
 
-my_bool do_test(uint bitsize)
+#if defined(GTEST_HAS_PARAM_TEST)
+
+class BitMapTest : public ::testing::TestWithParam<uint>
 {
-  MY_BITMAP map;
-  uint32 buf[MAX_TESTED_BITMAP_SIZE];
-  if (bitmap_init(&map, buf, bitsize, FALSE))
+protected:
+  virtual void SetUp()
   {
-    diag("init error for bitsize %d", bitsize);
-    goto error;
+    bitsize= GetParam();
+    ASSERT_FALSE(bitmap_init(&map, buf, bitsize, false));
+    bitmap_clear_all(&map);
   }
-  if (test_set_get_clear_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_flip_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_get_all_bits(&map, bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_compare_operators(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_count_bits_set(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_get_first_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_get_next_bit(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_prefix(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_compare(&map,bitsize))
-    goto error;
-  bitmap_clear_all(&map);
-  if (test_intersect(&map,bitsize))
-    goto error;
-  return FALSE;
-error:
-  return TRUE;
+
+  MY_BITMAP map;
+  my_bitmap_map buf[MAX_TESTED_BITMAP_SIZE];
+  uint bitsize;
+};
+
+INSTANTIATE_TEST_CASE_P(Foo, BitMapTest,
+                        ::testing::Range(1U, MAX_TESTED_BITMAP_SIZE, 1U));
+
+TEST_P(BitMapTest, TestSetGetClearBit)
+{
+  EXPECT_FALSE(test_set_get_clear_bit(&map, bitsize)) << "bitsize=" << bitsize;
 }
 
-int main()
+TEST_P(BitMapTest, TestFlipBit)
 {
-  int i;
-  int const min_size = 1;
-  int const max_size = MAX_TESTED_BITMAP_SIZE;
-  MY_INIT("bitmap-t");
+  EXPECT_FALSE(test_flip_bit(&map, bitsize)) << "bitsize=" << bitsize;
+}
 
-  plan(max_size - min_size);
-  for (i= min_size; i < max_size; i++)
-    ok(do_test(i) == 0, "bitmap size %d", i);
-  return exit_status();
+TEST_P(BitMapTest, TestGetAllBits)
+{
+  EXPECT_FALSE(test_get_all_bits(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestCompareOperators)
+{
+  EXPECT_FALSE(test_compare_operators(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestCountBitsSet)
+{
+  EXPECT_FALSE(test_count_bits_set(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestGetFirstBit)
+{
+  EXPECT_FALSE(test_get_first_bit(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestGetNextBit)
+{
+  EXPECT_FALSE(test_get_next_bit(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestPrefix)
+{
+  EXPECT_FALSE(test_prefix(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestCompare)
+{
+  EXPECT_FALSE(test_compare(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestIntersect)
+{
+  EXPECT_FALSE(test_intersect(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+#endif
+
 }
