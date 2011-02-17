@@ -394,6 +394,8 @@ dict_table_close(
 
 	--table->n_ref_count;
 
+	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
+
 	ut_ad(dict_lru_validate());
 
 #ifdef UNIV_DEBUG
@@ -689,6 +691,8 @@ dict_table_open_on_id(
 		}
 
 		++table->n_ref_count;
+
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
 
 	if (!dict_locked) {
@@ -844,6 +848,8 @@ dict_table_open_on_name_low(
 		}
 
 		++table->n_ref_count;
+
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
 
 	ut_ad(dict_lru_validate());

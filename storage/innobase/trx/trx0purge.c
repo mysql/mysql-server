@@ -1307,6 +1307,8 @@ run_synchronously:
 		trx_purge_truncate();
 	}
 
+	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
+
 	mutex_exit(&purge_sys->mutex);
 
 	if (srv_print_thread_releases) {
