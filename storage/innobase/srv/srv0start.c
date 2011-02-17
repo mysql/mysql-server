@@ -1083,6 +1083,12 @@ innobase_start_or_create_for_mysql(void)
 # endif
 #endif
 
+#ifdef UNIV_BLOB_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
+#endif /* UNIV_BLOB_DEBUG */
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
@@ -1984,7 +1990,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Check that os_fast_mutexes work as expected */
-	os_fast_mutex_init(&srv_os_test_mutex);
+	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
 
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
 		ut_print_timestamp(stderr);

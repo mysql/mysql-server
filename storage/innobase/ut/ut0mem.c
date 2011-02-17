@@ -46,6 +46,11 @@ UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
 /** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
 UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register server_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	ut_list_mutex_key;
+#endif
+
 /** Dynamically allocated memory block */
 struct ut_mem_block_struct{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
@@ -77,7 +82,7 @@ ut_mem_init(void)
 /*=============*/
 {
 	ut_a(!ut_mem_block_list_inited);
-	os_fast_mutex_init(&ut_list_mutex);
+	os_fast_mutex_init(ut_list_mutex_key, &ut_list_mutex);
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
 }
