@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -347,7 +347,7 @@ mem_heap_create_block(
 				return(NULL);
 			}
 		} else {
-			buf_block = buf_block_alloc(NULL, 0);
+			buf_block = buf_block_alloc(NULL);
 		}
 
 		block = (mem_block_t*) buf_block->frame;

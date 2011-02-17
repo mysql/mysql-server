@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -413,7 +413,7 @@ cleanup:
     my_ok(thd, deleted);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
-  DBUG_RETURN(error >= 0 || thd->is_error());
+  DBUG_RETURN(thd->is_error() || thd->killed);
 }
 
 

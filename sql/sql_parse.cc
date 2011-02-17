@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"
@@ -1491,7 +1491,6 @@ void log_slow_statement(THD *thd)
   if (thd->enable_slow_log)
   {
     ulonglong end_utime_of_query= thd->current_utime();
-    thd_proc_info(thd, "logging slow query");
 
     if (((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
          ((thd->server_status &
