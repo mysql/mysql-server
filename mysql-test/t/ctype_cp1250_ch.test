@@ -72,3 +72,13 @@ select a from t1 where a like "abcdefghá";
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #48053 String::c_ptr has a race and/or does an invalid 
+#            memory reference
+#            (triggered by Valgrind tests)
+#  (see also ctype_eucjpms.test, ctype_cp1250.test, ctype_cp1251.test)
+#
+--error 1193
+set global LC_MESSAGES=convert((@@global.log_bin_trust_function_creators) 
+    using cp1250);
