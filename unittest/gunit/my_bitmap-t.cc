@@ -423,7 +423,7 @@ bool test_intersect(MY_BITMAP *map, uint bitsize)
 {
   uint bitsize2 = 1 + get_rand_bit(MAX_TESTED_BITMAP_SIZE - 1);
   MY_BITMAP map2;
-  my_bitmap_map map2buf[bitsize2];
+  my_bitmap_map *map2buf= new my_bitmap_map[bitsize2];
   uint i, test_bit1, test_bit2, test_bit3;
   bitmap_init(&map2, map2buf, bitsize2, false);
 
@@ -459,6 +459,7 @@ bool test_intersect(MY_BITMAP *map, uint bitsize)
   bitmap_intersect(map, &map2);
   if (!bitmap_is_clear_all(map))
     goto error;
+  delete[] map2buf;
   return false;
 error:
   ADD_FAILURE() << "intersect error  bit1=" << test_bit1
