@@ -45,7 +45,7 @@ dict_table_get_low(
 	table = dict_table_check_if_in_cache_low(table_name);
 
 	if (table == NULL) {
-		table = dict_load_table(table_name, TRUE);
+		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
 	}
 
 	ut_ad(!table || table->cached);

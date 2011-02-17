@@ -77,6 +77,16 @@ set names cp1250 collate cp1250_czech_cs;
 
 # End of 4.1 tests
 
+#
+# Bug #48053 String::c_ptr has a race and/or does an invalid 
+#            memory reference
+#            (triggered by Valgrind tests)
+#  (see also ctype_eucjpms.test, ctype_cp1250.test, ctype_cp1251.test)
+#
+--error 1649
+set global LC_MESSAGES=convert((@@global.log_bin_trust_function_creators) 
+    using cp1250);
+
 
 --echo #
 --echo # Start of 5.6 tests
@@ -102,3 +112,4 @@ set names cp1250 collate cp1250_czech_cs;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+

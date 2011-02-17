@@ -135,6 +135,10 @@ static long long innobase_buffer_pool_size, innobase_log_file_size;
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
 
+/** Maximum on-disk size of change buffer in terms of percentage
+of the buffer pool. */
+static uint innobase_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
+
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
 
@@ -292,7 +296,15 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
 	{&trx_mutex_key, "trx_mutex", 0},
 	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0},
-	{&read_view_mutex_key, "read_view_mutex", 0}
+	{&read_view_mutex_key, "read_view_mutex", 0},
+
+	/* mutex with os_fast_mutex_ interfaces */
+#  ifndef PFS_SKIP_EVENT_MUTEX
+	{&event_os_mutex_key, "event_os_mutex", 0},
+#  endif /* PFS_SKIP_EVENT_MUTEX */
+	{&os_mutex_key, "os_mutex", 0},
+	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
+	{&ut_list_mutex_key, "ut_list_mutex", 0}
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -2701,6 +2713,8 @@ innobase_change_buffering_inited_ok:
 
 	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
 		innobase_old_blocks_pct, TRUE);
+
+	ibuf_max_size_update(innobase_change_buffer_max_size);
 
 	innobase_open_tables = hash_create(200);
 	mysql_mutex_init(innobase_share_mutex_key,
@@ -11316,6 +11330,26 @@ innodb_old_blocks_pct_update(
 		*static_cast<const uint*>(save), TRUE);
 }
 
+/****************************************************************//**
+Update the system variable innodb_old_blocks_pct using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_change_buffer_max_size_update(
+/*=================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	innobase_change_buffer_max_size =
+			(*static_cast<const uint*>(save));
+	ibuf_max_size_update(innobase_change_buffer_max_size);
+}
+
 /*************************************************************//**
 Find the corresponding ibuf_use_t value that indexes into
 innobase_change_buffering_values[] array for the input
@@ -12286,6 +12320,14 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   innodb_change_buffering_validate,
   innodb_change_buffering_update, "all");
 
+static MYSQL_SYSVAR_UINT(change_buffer_max_size,
+  innobase_change_buffer_max_size,
+  PLUGIN_VAR_RQCMDARG,
+  "Maximum on-disk size of change buffer in terms of percentage"
+  " of the buffer pool.",
+  NULL, innodb_change_buffer_max_size_update,
+  CHANGE_BUFFER_DEFAULT_SIZE, 0, 50, 0);
+
 static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
    PLUGIN_VAR_RQCMDARG,
   "Specifies how InnoDB index statistics collection code should "
@@ -12396,6 +12438,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(use_native_aio),
   MYSQL_SYSVAR(change_buffering),
+  MYSQL_SYSVAR(change_buffer_max_size),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */

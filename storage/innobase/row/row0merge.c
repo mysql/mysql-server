@@ -2323,7 +2323,7 @@ row_merge_create_temporary_table(
 		use it we need to open the table. */
 
 		temp_table = dict_table_open_on_name_no_stats(
-			new_table->name, TRUE);
+			new_table->name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		ut_a(new_table == temp_table);
 	}
