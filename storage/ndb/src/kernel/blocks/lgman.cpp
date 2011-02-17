@@ -595,7 +595,9 @@ Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
     m_logfile_group_hash.add(ptr);
     m_logfile_group_list.add(ptr);
 
-    if (getNodeState().getNodeRestartInProgress() ||
+    if ((getNodeState().getNodeRestartInProgress() &&
+         getNodeState().starting.restartType !=
+         NodeState::ST_INITIAL_NODE_RESTART)||
         getNodeState().getSystemRestartInProgress())
     {
       ptr.p->m_state = Logfile_group::LG_STARTING;
