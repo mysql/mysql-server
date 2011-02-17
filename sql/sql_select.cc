@@ -8531,7 +8531,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       Later it should be improved.
     */
     JOIN_TAB *prev_tab= tab - 1;
-    if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
+    if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab) || 
+        (tab == join->join_tab + join->const_tables))
       prev_tab= NULL;
     tab->partial_join_cardinality= join->best_positions[i].records_read *
                                    (prev_tab? prev_tab->partial_join_cardinality : 1);
