@@ -381,3 +381,11 @@ select hex(convert(_eucjpms 0xA5FE41 using ucs2));
 # the next character, which is a single byte character 0x41.
 select hex(convert(_eucjpms 0x8FABF841 using ucs2));
 
+#
+# Bug #48053 String::c_ptr has a race and/or does an invalid 
+#            memory reference
+#            (triggered by Valgrind tests)
+#  (see also ctype_eucjpms.test, ctype_cp1250.test, ctype_cp1251.test)
+#
+--error 1105
+set global LC_TIME_NAMES=convert((convert((0x63) using eucjpms)) using utf8);
