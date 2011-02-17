@@ -804,7 +804,7 @@ innobase_commit_low(
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can enable monitor counters/groups by specifying
-"loose-innodb_enable_monitor_counter = monitor_name1;monitor_name2..."
+"loose-innodb_monitor_enable = monitor_name1;monitor_name2..."
 in server configuration file or at the command line. */
 static
 void
@@ -2750,6 +2750,9 @@ innobase_change_buffering_inited_ok:
 		innodb_enable_monitor_at_startup(
 			innobase_enable_monitor_counter);
 	}
+
+	/* Turn on monitor counters that are default on */
+	srv_mon_default_on();
 
 	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
@@ -11695,21 +11698,46 @@ innodb_monitor_validate(
 						for update function */
 	struct st_mysql_value*		value)	/*!< in: incoming string */
 {
-	const char*	monitor_name;
+	const char*	name;
+	char*		monitor_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
 	int		len = sizeof(buff);
+	int		ret;
 
 	ut_a(save != NULL);
 	ut_a(value != NULL);
 
-	monitor_name = value->val_str(value, buff, &len);
+	name = value->val_str(value, buff, &len);
 
-	return(innodb_monitor_valid_byname(save, monitor_name));
+	/* monitor_name could point to memory from MySQL
+	or buff[]. Always dup the name to memory allocated
+	by InnoDB, so we can access it in another callback
+	function innodb_monitor_update() and free it appropriately */
+	if (name) {
+		monitor_name = my_strdup(name, MYF(0));
+	} else {
+		return(1);
+	}
+
+	ret = innodb_monitor_valid_byname(save, monitor_name);
+
+	if (ret) {
+		/* Validation failed */
+		my_free(monitor_name);
+	} else {
+		/* monitor_name will be freed in separate callback function
+		innodb_monitor_update(). Assert "save" point to
+		the "monitor_name" variable */
+		ut_ad(*static_cast<char**>(save) == monitor_name);
+	}
+
+	return(ret);
 }
 
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_* according to
-the "set_option" and turn on/off or reset specified monitor counter. */
+Update the system variable innodb_enable(disable/reset/reset_all)_monitor
+according to the "set_option" and turn on/off or reset specified monitor
+counter. */
 static
 void
 innodb_monitor_update(
@@ -11719,9 +11747,11 @@ innodb_monitor_update(
 						formal string goes */
 	const void*		save,		/*!< in: immediate result
 						from check function */
-	mon_option_t		set_option)	/*!< in: the set option,
+	mon_option_t		set_option,	/*!< in: the set option,
 						whether to turn on/off or
 						reset the counter */
+	ibool			free_mem)	/*!< in: whether we will
+						need to free the memory */
 {
 	monitor_info_t*	monitor_info;
 	ulint		monitor_id;
@@ -11806,11 +11836,15 @@ exit:
 				  srv_mon_get_name((monitor_id_t)err_monitor));
 	}
 
+	if (free_mem && name) {
+		my_free((void*) name);
+	}
+
 	return;
 }
 
 /****************************************************************//**
-Update the system variable innodb_enable_monitor_counter and enable 
+Update the system variable innodb_monitor_enable and enable
 specified monitor counter.
 This function is registered as a callback with MySQL. */
 static
@@ -11825,11 +11859,11 @@ innodb_enable_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON, TRUE);
 }
 
 /****************************************************************//**
-Update the system variable innodb_disable_monitor_counter and turn
+Update the system variable innodb_monitor_disable and turn
 off specified monitor counter. */
 static
 void
@@ -11843,11 +11877,11 @@ innodb_disable_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF, TRUE);
 }
 
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_reset and reset
+Update the system variable innodb_monitor_reset and reset
 specified monitor counter(s).
 This function is registered as a callback with MySQL. */
 static
@@ -11862,11 +11896,11 @@ innodb_reset_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE, TRUE);
 }
 
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_reset_all and reset
+Update the system variable innodb_monitor_reset_all and reset
 all value related monitor counter.
 This function is registered as a callback with MySQL. */
 static
@@ -11881,13 +11915,14 @@ innodb_reset_all_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE,
+			      TRUE);
 }
 
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can list the monitor counters/groups to be enable by specifying
-"loose-innodb_enable_monitor_counter=monitor_name1;monitor_name2..."
+"loose-innodb_monitor_enable=monitor_name1;monitor_name2..."
 in server configuration file or at the command line. The string
 separate could be ";", "," or empty space. */
 static
@@ -11916,7 +11951,7 @@ innodb_enable_monitor_at_startup(
 		/* The name is validated if ret == 0 */
 		if (!ret) {
 			innodb_monitor_update(NULL, NULL, &option,
-					      MONITOR_TURN_ON);
+					      MONITOR_TURN_ON, FALSE);
 		} else {
 			sql_print_warning("Invalid monitor counter"
 					  " name: '%s'", option);
@@ -12342,25 +12377,25 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-static MYSQL_SYSVAR_STR(enable_monitor_counter, innobase_enable_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_enable, innobase_enable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn on a monitor counter",
   innodb_monitor_validate,
   innodb_enable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(disable_monitor_counter, innobase_disable_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_disable, innobase_disable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn off a monitor counter",
   innodb_monitor_validate,
   innodb_disable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(reset_monitor_counter, innobase_reset_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_reset, innobase_reset_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset a monitor counter",
   innodb_monitor_validate,
   innodb_reset_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(reset_all_monitor_counter, innobase_reset_all_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_reset_all, innobase_reset_all_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset all values for a monitor counter",
   innodb_monitor_validate,
@@ -12438,10 +12473,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(enable_monitor_counter),
-  MYSQL_SYSVAR(disable_monitor_counter),
-  MYSQL_SYSVAR(reset_monitor_counter),
-  MYSQL_SYSVAR(reset_all_monitor_counter),
+  MYSQL_SYSVAR(monitor_enable),
+  MYSQL_SYSVAR(monitor_disable),
+  MYSQL_SYSVAR(monitor_reset),
+  MYSQL_SYSVAR(monitor_reset_all),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG

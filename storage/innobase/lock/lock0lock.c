@@ -3982,6 +3982,8 @@ lock_table_enqueue_waiting(
 
 	ut_a(que_thr_stop(thr));
 
+	MONITOR_INC(MONITOR_TABLELOCK_WAIT);
+
 	return(DB_LOCK_WAIT);
 }
 
@@ -5508,6 +5510,8 @@ lock_clust_rec_modify_check_and_lock(
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
 
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
+
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
@@ -5515,8 +5519,6 @@ lock_clust_rec_modify_check_and_lock(
 	if (UNIV_UNLIKELY(err == DB_SUCCESS_LOCKED_REC)) {
 		err = DB_SUCCESS;
 	}
-
-	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	return(err);
 }
@@ -5565,6 +5567,8 @@ lock_sec_rec_modify_check_and_lock(
 
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
+
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	lock_mutex_exit();
 
@@ -5665,6 +5669,8 @@ lock_sec_rec_read_check_and_lock(
 	err = lock_rec_lock(FALSE, mode | gap_mode,
 			    block, heap_no, index, thr);
 
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
+
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
@@ -5733,6 +5739,8 @@ lock_clust_rec_read_check_and_lock(
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
 	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
+
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	lock_mutex_exit();
 

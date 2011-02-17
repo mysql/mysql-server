@@ -736,6 +736,8 @@ trx_commit(
 			trx_undo_update_cleanup(trx, update_hdr_page, &mtr);
 		}
 
+		MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
+
 		mutex_exit(&rseg->mutex);
 
 		/* Update the latest MySQL binlog name and offset info
@@ -789,6 +791,7 @@ trx_commit(
 	lock_print_info_all_transactions() will have a consistent view. */
 	trx->state = TRX_STATE_NOT_STARTED;
 	ut_ad(trx_sys_validate_trx_list());
+	MONITOR_INC(MONITOR_TRX_COMMIT);
 	rw_lock_x_unlock(&trx_sys->lock);
 
 	if (trx->global_read_view != NULL) {
@@ -1089,7 +1092,6 @@ trx_commit_for_mysql(
 	case TRX_STATE_PREPARED:
 		trx->op_info = "committing";
 		trx_commit(trx);
-		MONITOR_INC(MONITOR_TRX_COMMIT);
 		MONITOR_DEC(MONITOR_TRX_ACTIVE);
 		trx->op_info = "";
 		return(DB_SUCCESS);
