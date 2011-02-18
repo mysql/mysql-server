@@ -997,6 +997,7 @@ int runSystemRestart8(NDBT_Context* ctx, NDBT_Step* step){
     CHECK(restarter.waitNodesStartPhase(a_nodeIds, nodeCount-1, 3, 120) == 0);
     CHECK(restarter.startNodes(&nodeId, 1) == 0);
     CHECK(restarter.waitClusterStarted(timeout) == 0);
+    CHECK(pNdb->waitUntilReady() == 0);
     
     int count = records - 1;
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
@@ -1343,6 +1344,7 @@ runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
     restarter.insertErrorInAllNodes(6024);
     CHECK(restarter.startAll()== 0);
     CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(pNdb->waitUntilReady() == 0);
     CHECK(utilTrans.selectCount(pNdb, 64, &count) == 0);
     CHECK(count == records);
     i++;
@@ -1444,7 +1446,8 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
-    
+    CHECK(pNdb->waitUntilReady() == 0);
+
     ndbout << "Starting backup..." << flush;
     CHECK(backup.start() == 0);
     ndbout << "done" << endl;
@@ -1540,6 +1543,8 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(pNdb->waitUntilReady() == 0);
+
     if (error)
     {
       restarter.insertErrorInAllNodes(error);
@@ -1589,6 +1594,7 @@ int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.insertErrorInAllNodes(7072) == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(pNdb->waitUntilReady() == 0);
 
     i++;
     if (i < loops)
@@ -1650,7 +1656,7 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
     CHECK(pNdb->waitUntilReady() == 0);
-    
+
     for (int i = 0; i<NDBT_Tables::getNumTables(); i++)
     {
       const NdbDictionary::Table* tab = 
@@ -1770,7 +1776,8 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     } while (NdbTick_CurrentMillisecond() < (now + 30000));
     g_err.m_out = save[0];
     CHECK(res.waitClusterStarted() == 0);
-    
+    CHECK(pNdb->waitUntilReady() == 0);
+
     hugoTrans.clearTable(pNdb);
     hugoTrans.loadTable(pNdb, rows);
     
@@ -1929,6 +1936,8 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
+  pNdb->waitUntilReady();
+
   NdbDictionary::Table newTab = *pTab;
   col.setName("ATTR4");
   col.setType(NdbDictionary::Column::Varbinary);
@@ -1951,6 +1960,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
+  pNdb->waitUntilReady();
   pDict->dropTable(tab.getName());
 
   return NDBT_OK;
@@ -2191,6 +2201,7 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
     res.insertErrorInAllNodes(5055);
     res.startAll();
     res.waitClusterStarted();
+    pNdb->waitUntilReady();
   }
 
   return NDBT_OK;
@@ -2237,6 +2248,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
+    pNdb->waitUntilReady();
   }
 
   return NDBT_OK;
