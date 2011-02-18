@@ -2187,7 +2187,7 @@ bool sys_var_character_set_client::check(THD *thd, set_var *var)
   if (sys_var_character_set_sv::check(thd, var))
     return 1;
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (var->save_result.charset->mbminlen > 1)
+  if (!is_supported_parser_charset(var->save_result.charset))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, 
              var->save_result.charset->csname);
