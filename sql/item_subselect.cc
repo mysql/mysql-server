@@ -3587,7 +3587,7 @@ subselect_hash_sj_engine::get_strategy_using_schema()
         bitmap_set_bit(&partial_match_key_parts, i);
         ++count_partial_match_columns;
       }
-    };
+    }
   }
 
   /* If no column contains NULLs use regular hash index lookups. */
@@ -3787,7 +3787,8 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   reexecution.
 
   @param tmp_columns the items that produce the data for the temp table
-  @param subquery_id subquery's identifier (for temptable name)
+  @param subquery_id subquery's identifier (to make "<subquery%d>" name for
+                                            EXPLAIN)
 
   @details
   - Create a temporary table to store the result of the IN subquery. The
@@ -3803,7 +3804,7 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   @retval FALSE otherwise
 */
 
-bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns, 
+bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns,
                                               uint subquery_id)
 {
   /* Options to create_tmp_table. */
@@ -3997,7 +3998,6 @@ subselect_hash_sj_engine::make_unique_engine()
 
   tab->table= tmp_table;
   tab->ref.tmp_table_index_lookup_init(thd, tmp_key, it, FALSE);
-
 
   DBUG_RETURN(new subselect_uniquesubquery_engine(thd, tab, item,
                                                   semi_join_conds));

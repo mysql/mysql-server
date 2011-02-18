@@ -2827,7 +2827,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   SARGABLE_PARAM *sargables= 0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
   DBUG_ENTER("make_join_statistics");
-  
+
   LINT_INIT(table); /* inited in all loops */
   table_count=join->tables;
 
@@ -2842,7 +2842,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   stat_end=stat+table_count;
   found_const_table_map= all_table_map=0;
   const_count=0;
-  
+
   for (s= stat, i= 0;
        tables;
        s++, tables= tables->next_leaf, i++)
@@ -2876,7 +2876,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     if (tables->schema_table)
       table->file->stats.records= 2;
     table->quick_condition_rows= table->file->stats.records;
-    
+
     s->on_expr_ref= &tables->on_expr;
     if (*s->on_expr_ref)
     {
@@ -2931,7 +2931,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       no_rows_const_tables |= table->map;
     }
   }
-
   stat_vector[i]=0;
   join->outer_join=outer_join;
 
@@ -6498,7 +6497,7 @@ static Item * const null_ptr= NULL;
         fix_semijoin_strategies_for_picked_join_order)
     - create join->join_tab array and put there the JOIN_TABs in the join order
     - create data structures describing ref access methods.
-  
+
   NOTE
     In this function we switch from pre-join-optimization JOIN_TABs to
     post-join-optimization JOIN_TABs. This is achieved by copying the entire
@@ -6530,7 +6529,7 @@ get_best_combination(JOIN *join)
   used_tables= OUTER_REF_TABLE_BIT;		// Outer row is already read
 
   fix_semijoin_strategies_for_picked_join_order(join);
-   
+  
   JOIN_TAB_RANGE *root_range= new JOIN_TAB_RANGE;
   root_range->start= join->join_tab;
   /* root_range->end will be set later */
@@ -7055,7 +7054,6 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
   else
     *e1= e2;
 }
-
 
 
 /**

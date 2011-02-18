@@ -966,7 +966,7 @@ struct st_table {
     key_read= 1;
     file->extra(HA_EXTRA_KEYREAD);
     DBUG_VOID_RETURN;
-   }
+  }
   /*
     If TRUE, the table is filled at execution phase (and so, the optimizer 
     should not do things like range analysis or constant table detection on

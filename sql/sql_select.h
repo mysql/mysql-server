@@ -162,7 +162,7 @@ typedef enum_nested_loop_state
   RETURN
      0     - OK
     -1     - Record not found
-    Other  - Error
+    Other  - A fatal error
 */
 typedef int (*Read_record_func)(struct st_join_table *tab);
 
@@ -356,7 +356,7 @@ typedef struct st_join_table {
     fix_semijoin_strategies_for_picked_join_order.
   */
   uint sj_strategy;
-  
+
   //psergey-merge: todo: stop using this:
   struct st_join_table *first_sjm_sibling;
 
@@ -446,7 +446,6 @@ typedef struct st_join_table {
   }
   void calc_used_field_length(bool max_fl);
   ulong get_used_fieldlength()
-
   {
     if (!used_fieldlength)
       calc_used_field_length(FALSE);

@@ -1061,7 +1061,6 @@ int JOIN_CACHE::realloc_buffer()
 */
 
 int JOIN_CACHE::init()
-//psergey-merge:wtf is this here:  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, TRUE))
 {
   DBUG_ENTER("JOIN_CACHE::init");
 
@@ -3260,23 +3259,7 @@ uint JOIN_CACHE_HASHED::get_next_key(uchar ** key)
 
 int JOIN_TAB_SCAN::open()
 {
-  //psergey-merge: todo: check the below:
-  //JOIN_TAB *bound= join_tab-cache->tables;
-  
-#if 0
-  JOIN_TAB *bound= cache->start_tab;
-  
-  // psergey-todo-merge: can we really iterate backwards?
-  //   Q: is there really a need to iterate backwards?
-  
-  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
-#endif
   save_or_restore_used_tabs(join_tab, FALSE);
-
   is_first_record= TRUE;
   return join_init_read_record(join_tab);
 }
@@ -3381,12 +3364,7 @@ void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save)
 
 void JOIN_TAB_SCAN::close()
 {
-#if 0
-  JOIN_TAB *bound= join_tab - cache->tables;
-  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
-    tab->table->status= tab->status;
-#endif
-   save_or_restore_used_tabs(join_tab, TRUE);
+  save_or_restore_used_tabs(join_tab, TRUE);
 }
 
 
@@ -3786,15 +3764,6 @@ int JOIN_TAB_SCAN_MRR::open()
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(join_tab->use_quick != 2);
 
-/*
-psergey-merge: done?
-  JOIN_TAB *bound= join_tab - cache->tables;
-  for (JOIN_TAB *tab= join_tab-1; tab != bound && !tab->cache; tab--)
-  {
-    tab->status= tab->table->status;
-    tab->table->status= 0;
-  }
-*/
   save_or_restore_used_tabs(join_tab, FALSE);
 
   init_mrr_buff();
