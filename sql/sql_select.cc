@@ -14728,20 +14728,6 @@ join_read_always_key(JOIN_TAB *tab)
     }
   }
 
-  // psergey-merge:todo: should the below be removed: ?
-  //  if not, what's the BKA equivalent for it?
-  //   (example: this is needed for outer joins where we can't do early NULL
-  //   filtering because we'll still need to produce NULL-complemented records)
-  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
-#if 0  
-  Not needed?
-  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
-  {
-    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
-        return -1;
-  }
-#endif
-
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error= table->file->ha_index_read_map(table->record[0],

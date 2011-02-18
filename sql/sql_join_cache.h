@@ -121,11 +121,6 @@ protected:
   */   
   JOIN *join;  
 
-  /* 
-    Cardinality of the range of join tables whose fields can be put into the
-    cache. A table from the range not necessarily contributes to the cache.
-  */
-  // psergey-merge: gone: uint tables;
   /*
     JOIN_TAB of the first table that can have it's fields in the join cache. 
     That is, tables in the [start_tab, tab) range can have their fields in the

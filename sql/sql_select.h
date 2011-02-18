@@ -357,9 +357,6 @@ typedef struct st_join_table {
   */
   uint sj_strategy;
 
-  //psergey-merge: todo: stop using this:
-  struct st_join_table *first_sjm_sibling;
-
   void cleanup();
   inline bool is_using_loose_index_scan()
   {

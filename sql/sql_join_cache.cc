@@ -2219,7 +2219,7 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
   }
 
   /* Prepare to retrieve all records of the joined table */
-  if ((error= join_tab_scan->open()))  //psergey-merge: TODO: look what it does inside? status-reset should use next_linear_tab
+  if ((error= join_tab_scan->open()))
     goto finish; /* psergey-note: if this returns error, we will assert in net_send_statement() */
   
   if ((rc= join_tab_execution_startup(join_tab)) < 0)

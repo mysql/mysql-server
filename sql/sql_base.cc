@@ -7787,8 +7787,8 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
         DBUG_RETURN(1);
       }
       DBUG_ASSERT(item == table_list->jtbm_subselect);
-      table_list->jtbm_subselect->setup_engine(FALSE);
-      //psergey-merge: ^ todo: error checking!
+      if (table_list->jtbm_subselect->setup_engine(FALSE))
+        DBUG_RETURN(1);
     }
   }
 
