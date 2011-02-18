@@ -346,8 +346,6 @@ struct PFS_socket_io_stat
   PFS_multi_stat m_recvmsg;
   /** SENDMSG statistics */
   PFS_multi_stat m_sendmsg;
-  /** CONNECT statistics */
-  PFS_multi_stat m_connect;
   /** Miscelleanous statistics */
   PFS_multi_stat m_misc;
 
@@ -361,7 +359,6 @@ struct PFS_socket_io_stat
     m_sendto.reset();
     m_recvmsg.reset();
     m_sendmsg.reset();
-    m_connect.reset();
     m_misc.reset();
   }
 
@@ -373,7 +370,6 @@ struct PFS_socket_io_stat
     m_sendto.aggregate(&stat->m_sendto);
     m_recvmsg.aggregate(&stat->m_recvmsg);
     m_sendmsg.aggregate(&stat->m_sendmsg);
-    m_connect.aggregate(&stat->m_connect);
     m_misc.aggregate(&stat->m_misc);
   }
 
@@ -385,7 +381,6 @@ struct PFS_socket_io_stat
     result->aggregate(&m_sendto.m_waits);
     result->aggregate(&m_recvmsg.m_waits);
     result->aggregate(&m_sendmsg.m_waits);
-    result->aggregate(&m_connect.m_waits);
     result->aggregate(&m_misc.m_waits);
   }
 
@@ -397,7 +392,6 @@ struct PFS_socket_io_stat
     result->aggregate(&m_sendto.m_bytes);
     result->aggregate(&m_recvmsg.m_bytes);
     result->aggregate(&m_sendmsg.m_bytes);
-    result->aggregate(&m_connect.m_bytes);
     result->aggregate(&m_misc.m_bytes);
   }
 

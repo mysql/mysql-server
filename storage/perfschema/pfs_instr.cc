@@ -1242,7 +1242,7 @@ void destroy_socket(PFS_socket *pfs)
   global_instr_class_waits_array[index].aggregate(&pfs->m_wait_stat);
   pfs->m_wait_stat.reset();
 
-  /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE */
+  /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE and BY_EVENT_NAME */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
   pfs->m_socket_stat.m_io_stat.reset();
 

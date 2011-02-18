@@ -323,6 +323,21 @@ public:
   PFS_table_lock_stat m_stat;
 };
 
+/**
+  A concrete instance visitor that aggregates
+  socket wait and byte count statistics.
+*/
+class PFS_instance_socket_io_stat_visitor : public PFS_instance_visitor
+{
+public:
+  PFS_instance_socket_io_stat_visitor();
+  virtual ~PFS_instance_socket_io_stat_visitor();
+  virtual void visit_socket_class(PFS_socket_class *pfs);
+  virtual void visit_socket(PFS_socket *pfs);
+
+  /** Wait and byte count statistics collected. */
+  PFS_socket_io_stat m_socket_io_stat;
+};
 /** @} */
 #endif
 
