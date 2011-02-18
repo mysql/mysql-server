@@ -3348,7 +3348,8 @@ and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
 position and fetch next or fetch prev must not be tried to the cursor!
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
-DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
+DB_LOCK_TABLE_FULL, DB_CORRUPTION, DB_SEARCH_ABORTED_BY_USER or
+DB_TOO_BIG_RECORD */
 UNIV_INTERN
 ulint
 row_search_for_mysql(
@@ -4396,12 +4397,15 @@ idx_cond_check:
                 */
                 ut_ad(ib_res);
 		res= prebuilt->idx_cond_func(prebuilt->idx_cond_func_arg);
-		if (res == 0)
+		if (res == XTRADB_ICP_NO_MATCH)
 			goto next_rec;
-		if (res == 2) {
-			err = DB_RECORD_NOT_FOUND;
+		else if (res != XTRADB_ICP_MATCH) {
+                         err= (res == XTRADB_ICP_ABORTED_BY_USER ? 
+                               DB_SEARCH_ABORTED_BY_USER :
+                               DB_RECORD_NOT_FOUND);
 			goto idx_cond_failed;
 		}
+                /* res == XTRADB_ICP_MATCH */
 	}
 
 	/* Get the clustered index record if needed, if we did not do the

@@ -902,7 +902,7 @@ error:
   close_second_handler();
    /* Safety, not really needed but: */
   strategy= NULL;
-  DBUG_RETURN(1);
+  DBUG_RETURN(res);
 
 use_default_impl:
   DBUG_ASSERT(primary_file->inited == handler::INDEX);

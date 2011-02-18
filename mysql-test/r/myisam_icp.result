@@ -148,3 +148,4 @@ COUNT(*)
 12
 DROP PROCEDURE insert_data;
 DROP TABLE t1, t2, t3;
+drop table if exists t0, t1, t1i, t1m;

@@ -577,7 +577,16 @@ struct mysql_row_templ_struct {
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
 
-typedef int (*index_cond_func_t)(void *param);
+
+typedef enum xtradb_icp_result {
+  XTRADB_ICP_ERROR=-1,
+  XTRADB_ICP_NO_MATCH=0,
+  XTRADB_ICP_MATCH=1,
+  XTRADB_ICP_OUT_OF_RANGE=2,
+  XTRADB_ICP_ABORTED_BY_USER=3,
+} xtradb_icp_result_t;
+
+typedef xtradb_icp_result_t (*index_cond_func_t)(void *param);
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 
 handle used within MySQL; these are used to save CPU time. */

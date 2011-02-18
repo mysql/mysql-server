@@ -141,7 +141,11 @@ static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
   flag= (*keyinfo->bin_search)(key, &page, nextflag, &keypos, lastkey,
                                &last_key_not_used);
   if (flag == MARIA_FOUND_WRONG_KEY)
-    DBUG_RETURN(-1);
+  {
+    maria_print_error(info->s, HA_ERR_CRASHED);
+    my_errno= HA_ERR_CRASHED;
+    goto err;
+  }
   page_flag=   page.flag;
   used_length= page.size;
   nod_flag=    page.node;

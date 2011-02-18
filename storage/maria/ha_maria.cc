@@ -758,7 +758,7 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 
 static int maria_create_trn_for_mysql(MARIA_HA *info)
 {
-  THD *thd= (THD*) info->external_ptr;
+  THD *thd= ((TABLE*) info->external_ref)->in_use;
   TRN *trn= THD_TRN;
   DBUG_ENTER("maria_create_trn_for_mysql");
 
@@ -795,6 +795,11 @@ static int maria_create_trn_for_mysql(MARIA_HA *info)
   
 #endif
   DBUG_RETURN(0);
+}
+
+my_bool ma_killed_in_mariadb(MARIA_HA *info)
+{
+  return (((TABLE*) (info->external_ref))->in_use->killed != 0);
 }
 
 } /* extern "C" */
@@ -1013,6 +1018,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     return (my_errno ? my_errno : -1);
 
   file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
+  /* Set external_ref, mainly for temporary tables */
+  file->external_ref= (void*) table;            // For ma_killed()
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -2525,6 +2532,7 @@ void ha_maria::drop_table(const char *name)
 int ha_maria::external_lock(THD *thd, int lock_type)
 {
   DBUG_ENTER("ha_maria::external_lock");
+  file->external_ref= (void*) table;            // For ma_killed()
   /*
     We don't test now_transactional because it may vary between lock/unlock
     and thus confuse our reference counting.
@@ -2543,8 +2551,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     /* Transactional table */
     if (lock_type != F_UNLCK)
     {
-      file->external_ptr= thd;                  // For maria_register_trn()
-
       if (!file->s->lock_key_trees)             // If we don't use versioning
       {
         /*
@@ -3392,6 +3398,9 @@ static int ha_maria_init(void *p)
 #endif
   if (res)
     maria_hton= 0;
+
+  ma_killed= ma_killed_in_mariadb;
+
   return res ? HA_ERR_INITIALIZATION : 0;
 }
 

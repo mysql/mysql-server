@@ -27,6 +27,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
   int error,changed;
   register uint flag;
   MYISAM_SHARE *share=info->s;
+  ICP_RESULT icp_res= ICP_MATCH;
   DBUG_ENTER("mi_rprev");
 
   if ((inx = _mi_check_index(info,inx)) < 0)
@@ -53,12 +54,26 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
 
   if (!error)
   {
-    int res= 0;
+    my_off_t cur_keypage= info->last_keypage;
     while ((share->concurrent_insert && 
             info->lastpos >= info->state->data_file_length) ||
            (info->index_cond_func &&
-            !(res= mi_check_index_cond(info, inx, buf))))
+            (icp_res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
+      /*
+        If we are at the last (i.e. first?) key on the key page, 
+        allow writers to access the index.
+      */
+      if (info->last_keypage != cur_keypage)
+      {
+        cur_keypage= info->last_keypage;
+        if (mi_yield_and_check_if_killed(info, inx))
+        {
+          error= 1;
+          break;
+        }
+      }
+
       /* 
          Skip rows that are either inserted by other threads since
          we got a lock or do not match pushed index conditions
@@ -69,13 +84,6 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
                                   share->state.key_root[inx])))
         break;
     }
-    if (!error && res == 2) 
-    {
-      if (share->concurrent_insert)
-        rw_unlock(&share->key_root_lock[inx]);
-      info->lastpos= HA_OFFSET_ERROR;
-      DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
-    }
   }
 
   if (share->concurrent_insert)
@@ -83,13 +91,16 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx)
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
-  if (error)
+
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_mi_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_mi_writeinfo(info);
     DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info,info->lastpos,buf))
