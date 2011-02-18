@@ -233,6 +233,7 @@ public:
   Uint16 m_keyLenInWords;
   Uint16 m_fragmentCount;
   Uint8 m_single_user_mode;
+  Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
 
   NdbIndexImpl * m_index;
   NdbColumnImpl * getColumn(unsigned attrId);
