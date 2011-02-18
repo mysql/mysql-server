@@ -726,19 +726,19 @@ int_key
 0
 2
 0
-0
-3
-0
-0
-7
-7
 7
 9
-2
 9
 5
+2
 0
+0
+0
+3
+7
+7
 8
+0
 5
 EXPLAIN
 SELECT int_key FROM ot1
