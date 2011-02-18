@@ -52,6 +52,7 @@ table_file_instances.h
 table_file_summary.h
 table_socket_instances.h
 table_socket_summary_by_instance.h
+table_socket_summary_by_event_name.h
 table_helper.h
 table_os_global_by_type.h
 table_performance_timers.h
@@ -90,6 +91,7 @@ table_file_instances.cc
 table_file_summary.cc
 table_socket_instances.cc
 table_socket_summary_by_instance.cc
+table_socket_summary_by_event_name.cc
 table_helper.cc
 table_os_global_by_type.cc
 table_performance_timers.cc

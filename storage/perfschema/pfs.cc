@@ -3551,10 +3551,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 
   switch (state->m_operation)
   {
-  case PSI_SOCKET_CONNECT:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_connect.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_connect.m_bytes;
-    break;
   case PSI_SOCKET_RECV:
     time_stat= &socket->m_socket_stat.m_io_stat.m_recv.m_waits;
     io_stat= &socket->m_socket_stat.m_io_stat.m_recv.m_bytes;
@@ -3581,6 +3577,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     break;
 
   /** These operations are grouped as 'miscellaneous' */
+  case PSI_SOCKET_CONNECT:
   case PSI_SOCKET_CREATE:
   case PSI_SOCKET_BIND:
   case PSI_SOCKET_CLOSE:
