@@ -1153,13 +1153,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     if (ptr < packet_end)
     {
+      CHARSET_INFO *cs;
       if (ptr + 2 > packet_end)
       {
         my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
         break;
       }
 
-      cs_number= uint2korr(ptr);
+      if ((cs_number= uint2korr(ptr)) &&
+          (cs= get_charset(cs_number, MYF(0))) &&
+          !is_supported_parser_charset(cs))
+      {
+        /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+        my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+                 cs->csname);
+        break;
+      }        
     }
 
     /* Convert database name to utf8 */
@@ -1205,7 +1214,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
       if (cs_number)
       {
-        thd_init_client_charset(thd, cs_number);
+        /*
+          We have checked charset earlier,
+          so thd_init_client_charset cannot fail.
+        */
+        DBUG_ASSERT(!thd_init_client_charset(thd, cs_number));
         thd->update_charset();
       }
     }
