@@ -19313,7 +19313,7 @@ static void test_bug58036()
     if (!opt_silent)
       printf("mysql_real_connect() succeeded (failure expected)\n");
     mysql_close(conn);
-    DIE();
+    DIE("");
   }
 
   if (!opt_silent)
@@ -19339,7 +19339,7 @@ static void test_bug58036()
       printf("mysql_real_connect() failed: %s (%d)\n",
              mysql_error(conn), mysql_errno(conn));
     mysql_close(conn);
-    DIE();
+    DIE("");
   }
 
   mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
@@ -19348,7 +19348,7 @@ static void test_bug58036()
     if (!opt_silent)
       printf("mysql_change_user() succedded, error expected!");
     mysql_close(conn);
-    DIE();
+    DIE("");
   }
 
   if (!opt_silent)
