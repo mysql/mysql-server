@@ -6538,7 +6538,7 @@ get_best_combination(JOIN *join)
 
   JOIN_TAB *sjm_nest_end= NULL;
   JOIN_TAB *sjm_saved_tab; /* protected by sjm_nest_end */
-  LINT_INT(sjm_saved_tab);
+  LINT_INIT(sjm_saved_tab);
 
   for (j=join_tab, tablenr=0 ; tablenr < table_count ; tablenr++,j++)
   {
