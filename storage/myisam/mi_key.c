@@ -510,15 +510,26 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
     ICP_OUT_OF_RANGE  Index condition is not satisfied, end the scan. 
 */
 
-int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record)
+ICP_RESULT mi_check_index_cond(register MI_INFO *info, uint keynr,
+                               uchar *record)
 {
+  ICP_RESULT res;
   if (_mi_put_key_in_record(info, keynr, FALSE, record))
   {
+    /* Impossible case; Can only happen if bug in code */
     mi_print_error(info->s, HA_ERR_CRASHED);
-    my_errno=HA_ERR_CRASHED;
-    return ICP_ERROR;
+    info->lastpos= HA_OFFSET_ERROR;             /* No active record */
+    my_errno= HA_ERR_CRASHED;
+    res= ICP_ERROR;
   }
-  return info->index_cond_func(info->index_cond_func_arg);
+  else if ((res= info->index_cond_func(info->index_cond_func_arg)) ==
+           ICP_OUT_OF_RANGE)
+  {
+    /* We got beyond the end of scanned range */
+    info->lastpos= HA_OFFSET_ERROR;             /* No active record */
+    my_errno= HA_ERR_END_OF_FILE;
+  }
+  return res;
 }
 
 /*

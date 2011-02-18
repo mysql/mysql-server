@@ -28,6 +28,7 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
   register uint flag;
   MARIA_SHARE *share= info->s;
   MARIA_KEYDEF *keyinfo;
+  ICP_RESULT   icp_res= ICP_MATCH;
   DBUG_ENTER("maria_rprev");
 
   if ((inx = _ma_check_index(info,inx)) < 0)
@@ -55,8 +56,24 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
 
   if (!error)
   {
-    while (!(*share->row_is_visible)(info))
+    my_off_t cur_keypage= info->last_keypage;
+    while (!(*share->row_is_visible)(info) ||
+           ((icp_res= ma_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
+      /*
+        If we are at the last (i.e. first?) key on the key page, 
+        allow writers to access the index.
+      */
+      if (info->last_keypage != cur_keypage)
+      {
+        cur_keypage= info->last_keypage;
+        if (ma_yield_and_check_if_killed(info, inx))
+        {
+          error= 1;
+          break;
+        }
+      }
+
       /* Skip rows that are inserted by other threads since we got a lock */
       if  ((error= _ma_search_next(info, &info->last_key,
                                    SEARCH_SMALLER,
@@ -68,13 +85,16 @@ int maria_rprev(MARIA_HA *info, uchar *buf, int inx)
     rw_unlock(&keyinfo->root_lock);
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= HA_STATE_PREV_FOUND;
-  if (error)
+
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_ma_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
-      my_errno=HA_ERR_END_OF_FILE;
+      my_errno= HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_ma_writeinfo(info);
     DBUG_RETURN(info->cur_row.lastpos == HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info, buf, info->cur_row.lastpos))

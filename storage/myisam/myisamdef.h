@@ -248,6 +248,7 @@ struct st_myisam_info
   DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit */
+  void *external_ref;			/* For MariaDB TABLE */
   char *filename;                       /* parameter to open filename */
   uchar *buff,                          /* Temp area for key */
    *lastkey, *lastkey2;                 /* Last used search key */
@@ -433,6 +434,7 @@ extern uint NEAR myisam_read_vec[], NEAR myisam_readnext_vec[];
 extern uint myisam_quick_table_bits;
 extern File myisam_log_file;
 extern ulong myisam_pid;
+extern my_bool (*mi_killed)(MI_INFO *);
 
 /* This is used by _mi_calc_xxx_key_length och _mi_store_key */
 
@@ -593,6 +595,8 @@ extern ulonglong mi_safe_mul(ulonglong a, ulonglong b);
 extern int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
                          const uchar *oldrec, const uchar *newrec,
                          my_off_t pos);
+extern my_bool mi_yield_and_check_if_killed(MI_INFO *info, int inx);
+extern my_bool mi_killed_standalone(MI_INFO *);
 
 struct st_sort_info;
 
@@ -729,7 +733,7 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
 int mi_munmap_file(MI_INFO *info);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 
-int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
+ICP_RESULT mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
     /* Functions needed by mi_check */
 int killed_ptr(HA_CHECK *param);
 void mi_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));

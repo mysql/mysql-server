@@ -89,7 +89,10 @@ int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   flag=(*keyinfo->bin_search)(info,keyinfo,buff,key,key_len,nextflag,
                               &keypos,lastkey, &last_key);
   if (flag == MI_FOUND_WRONG_KEY)
-    DBUG_RETURN(-1);
+  {
+    my_errno= HA_ERR_CRASHED;
+    goto err;
+  }
   nod_flag=mi_test_if_nod(buff);
   maxpos=buff+mi_getint(buff)-1;
 

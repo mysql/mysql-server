@@ -2688,6 +2688,12 @@ void handler::print_error(int error, myf errflag)
     SET_FATAL_ERROR;
     textno=ER_KEY_NOT_FOUND;
     break;
+  case HA_ERR_ABORTED_BY_USER:
+  {
+    DBUG_ASSERT(table->in_use->killed);
+    table->in_use->send_kill_message();
+    DBUG_VOID_RETURN;
+  }
   case HA_ERR_WRONG_MRG_TABLE_DEF:
     textno=ER_WRONG_MRG_TABLE;
     break;

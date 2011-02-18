@@ -538,6 +538,13 @@ void mi_check_print_warning(HA_CHECK *param, const char *fmt,...)
   va_end(args);
 }
 
+/* Return 1 if user have requested query to be killed */
+
+my_bool mi_killed_in_mariadb(MI_INFO *info)
+{
+  return (((TABLE*) (info->external_ref))->in_use->killed != 0);
+}
+
 }
 
 
@@ -699,6 +706,8 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     return (my_errno ? my_errno : -1);
 
   file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
+  /* Set external_ref, mainly for temporary tables */
+  file->external_ref= (void*) table;            // For mi_killed()
 
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
@@ -1971,6 +1980,7 @@ int ha_myisam::delete_table(const char *name)
 
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
+  file->external_ref= (void*) table;            // For mi_killed()
   return mi_lock_database(file, !table->s->tmp_table ?
 			  lock_type : ((lock_type == F_UNLCK) ?
 				       F_UNLCK : F_EXTRA_LCK));
@@ -2219,6 +2229,7 @@ static int myisam_init(void *p)
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  mi_killed= mi_killed_in_mariadb;
   return 0;
 }
 

@@ -635,3 +635,9 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   return 1;
 }
 
+
+my_bool ma_killed_standalone(MARIA_HA *info __attribute__((unused)))
+{
+  return 0;
+}
+

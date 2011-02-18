@@ -473,3 +473,8 @@ int mi_reset(MI_INFO *info)
                  HA_STATE_PREV_FOUND);
   DBUG_RETURN(error);
 }
+
+my_bool mi_killed_standalone(MI_INFO *info __attribute__((unused)))
+{
+  return 0;
+}
