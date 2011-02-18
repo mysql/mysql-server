@@ -637,6 +637,7 @@ NdbTableImpl::init(){
   m_single_user_mode = 0;
   m_hash_map_id = RNIL;
   m_hash_map_version = ~0;
+  m_storageType = NDB_STORAGETYPE_DEFAULT;
 }
 
 bool
@@ -921,6 +922,8 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_name = org.m_tablespace_name;
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
+  m_storageType = org.m_storageType;
+
   DBUG_RETURN(0);
 }
 
@@ -2681,6 +2684,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_minLoadFactor = tableDesc->MinLoadFactor;
   impl->m_maxLoadFactor = tableDesc->MaxLoadFactor;
   impl->m_single_user_mode = tableDesc->SingleUserMode;
+  impl->m_storageType = tableDesc->TableStorageType;
 
   impl->m_indexType = (NdbDictionary::Object::Type)
     getApiConstant(tableDesc->TableType,
@@ -3393,6 +3397,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 
   tmpTab->HashMapObjectId = impl.m_hash_map_id;
   tmpTab->HashMapVersion = impl.m_hash_map_version;
+  tmpTab->TableStorageType = impl.m_storageType;
 
   const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:

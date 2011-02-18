@@ -73,6 +73,7 @@
 #include <signaldata/SignalDroppedRep.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/DbinfoScan.hpp>
+#include <signaldata/SystemError.hpp>
 #include <NdbEnv.h>
 
 #include "../suma/Suma.hpp"
@@ -7841,12 +7842,6 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
       EXECUTE_DIRECT(tup, GSN_TUP_COMMITREQ, signal, 
 		     TupCommitReq::SignalLength);
 
-      if(signal->theData[0] != 0)
-      {
-	regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP_COMMIT;
-	return; // TUP_COMMIT was timesliced
-      }
-      
       if (TRACENR_FLAG)
       {
 	TRACENR("COMMIT: ");
@@ -7867,7 +7862,16 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 	if (LqhKeyReq::getRowidFlag(regTcPtr.p->reqinfo))
 	  TRACENR(" rowid: " << regTcPtr.p->m_row_id);
 	TRACENR(" key: " << getKeyInfoWordOrZero(regTcPtr.p, 0));
+
+        if (signal->theData[0] != 0)
+          TRACENR(" TIMESLICE");
 	TRACENR(endl);
+      }
+
+      if(signal->theData[0] != 0)
+      {
+        regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP_COMMIT;
+        return; // TUP_COMMIT was timesliced
       }
 
       TRACE_OP(regTcPtr.p, "ACC_COMMITREQ");
@@ -16558,7 +16562,6 @@ Dblqh::send_restore_lcp(Signal * signal)
 
     sendSignal(ref, GSN_COPY_FRAGREQ, signal,
                CopyFragReq::SignalLength, JBB);
-
   }
 }
 
@@ -16566,7 +16569,17 @@ void
 Dblqh::execCOPY_FRAGREF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
+
+  const CopyFragRef * ref = CAST_CONSTPTR(CopyFragRef, signal->getDataPtr());
+  Uint32 errorCode = ref->errorCode;
+
+  SystemError * sysErr = (SystemError*)&signal->theData[0];
+  sysErr->errorCode = SystemError::CopyFragRefError;
+  sysErr->errorRef = reference();
+  sysErr->data[0] = errorCode;
+  sysErr->data[1] = 0;
+  sendSignal(NDBCNTR_REF, GSN_SYSTEM_ERROR, signal,
+             SystemError::SignalLength, JBB);
 }
 
 void
@@ -16663,7 +16676,18 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     lcpPtr.i = 0;
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
-    
+
+    if (cstartType == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      /**
+       * Skip lgman undo...
+       */
+      signal->theData[0] = LGMAN_REF;
+      sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+      return;
+    }
+
     if (!isNdbMtLqh())
     {
       jam();
