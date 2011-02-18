@@ -276,8 +276,6 @@ buf_flush_free_flush_rbt(void)
 
 		buf_flush_list_mutex_enter(buf_pool);
 
-	MONITOR_INC(MONITOR_PAGE_INFLUSH);
-
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -427,11 +425,11 @@ buf_flush_insert_sorted_into_flush_list(
 				     prev_b, &block->page);
 	}
 
+	MONITOR_INC(MONITOR_PAGE_INFLUSH);
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-	MONITOR_DEC(MONITOR_PAGE_INFLUSH);
 
 	buf_flush_list_mutex_exit(buf_pool);
 }
@@ -562,6 +560,8 @@ buf_flush_remove(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+	MONITOR_DEC(MONITOR_PAGE_INFLUSH);
 
 	buf_flush_list_mutex_exit(buf_pool);
 }
@@ -1309,6 +1309,8 @@ buf_flush_page(
 					   BUF_IO_WRITE);
 		}
 
+		MONITOR_INC(MONITOR_BUF_FLUSH_LIST);
+
 		mutex_exit(block_mutex);
 		buf_pool_mutex_exit(buf_pool);
 
@@ -1341,6 +1343,8 @@ buf_flush_page(
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
 					   BUF_IO_WRITE);
 		}
+
+		MONITOR_INC(MONITOR_BUF_FLUSH_LRU);
 
 		/* Note that the s-latch is acquired before releasing the
 		buf_pool mutex: this ensures that the latch is acquired
@@ -1625,6 +1629,7 @@ buf_flush_flush_list_batch(
 	ulint		len;
 	buf_page_t*	bpage;
 	ulint		count = 0;
+	ulint		scanned = 0;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -1668,6 +1673,7 @@ buf_flush_flush_list_batch(
 		       && !buf_flush_page_and_try_neighbors(
 				bpage, BUF_FLUSH_LIST, min_n, &count)) {
 
+			++scanned;
 			buf_flush_list_mutex_enter(buf_pool);
 
 			/* If we are here that means that buf_pool->mutex
@@ -1696,6 +1702,11 @@ buf_flush_flush_list_batch(
 		}
 
 	} while (count < min_n && bpage != NULL && len > 0);
+
+	MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_BATCH_SCANNED,
+				     MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
+				     MONITOR_FLUSH_BATCH_SCANNED_PER_CALL,
+				     scanned);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -1979,6 +1990,12 @@ buf_flush_list(
 		buf_flush_common(BUF_FLUSH_LIST, page_count);
 
 		total_page_count += page_count;
+
+		MONITOR_INC_VALUE_CUMULATIVE(
+				MONITOR_FLUSH_BATCH_TOTAL_PAGE,
+				MONITOR_FLUSH_BATCH_COUNT,
+				MONITOR_FLUSH_BATCH_PAGES,
+				page_count);
 	}
 
 	return(lsn_limit != IB_ULONGLONG_MAX && skipped
@@ -2065,6 +2082,10 @@ buf_flush_free_margin(
 			let us wait for it to end */
 
 			buf_flush_wait_batch_end(buf_pool, BUF_FLUSH_LRU);
+		} else {
+			MONITOR_INC(MONITOR_NUM_FREE_MARGIN_FLUSHES);
+			MONITOR_INC_VALUE(MONITOR_FLUSH_FREE_MARGIN_PAGES,
+					  n_flushed);
 		}
 	}
 }

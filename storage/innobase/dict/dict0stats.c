@@ -2326,10 +2326,10 @@ dict_stats_open(void)
 	dict_stats = mem_zalloc(sizeof(*dict_stats));
 
 	dict_stats->table_stats = dict_table_open_on_name_no_stats(
-		TABLE_STATS_NAME, FALSE);
+		TABLE_STATS_NAME, FALSE, DICT_ERR_IGNORE_NONE);
 
 	dict_stats->index_stats = dict_table_open_on_name_no_stats(
-		INDEX_STATS_NAME, FALSE);
+		INDEX_STATS_NAME, FALSE, DICT_ERR_IGNORE_NONE);
 
 	/* Check if the tables have the correct structure, if yes then
 	after this function we can safely DELETE from them without worrying
