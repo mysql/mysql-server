@@ -155,7 +155,10 @@ is inserted.
 @param f	in: folded value of data
 @param b	in: buffer block containing the data
 @param d	in: data, must not be NULL */
-# define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,b,d)
+# define ha_insert_for_fold(t,f,b,d) 	do {		\
+	ha_insert_for_fold_func(t,f,b,d);		\
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
+} while(0)
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /**
 Inserts an entry into a hash table. If an entry with the same fold number
@@ -166,7 +169,10 @@ is inserted.
 @param f	in: folded value of data
 @param b	ignored: buffer block containing the data
 @param d	in: data, must not be NULL */
-# define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,d)
+# define ha_insert_for_fold(t,f,b,d)	do {		\
+	ha_insert_for_fold_func(t,f,d);			\
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
+} while (0)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /*********************************************************//**

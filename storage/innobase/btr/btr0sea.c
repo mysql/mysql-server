@@ -1625,25 +1625,6 @@ btr_search_update_hash_node_on_insert(
 
 /********************************************************************//**
 Updates the page hash index when a single record is inserted on a page. */
-UNIV_INLINE
-void
-btr_search_insert_fold(
-/*===================*/
-	hash_table_t*   table,  /*!< in: hash table */
-	ulint           fold,   /*!< in: folded value of data; if a node with
-				the same fold value already exists, it is
-				updated to point to the same data, and no new
-				node is created! */
-	buf_block_t*    block,  /*!< in: buffer block containing the data */
-	void*           data)	/*!< in: data, must not be NULL */
-{
-	ha_insert_for_fold(table, fold, block, data);
-
-	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
-}
-
-/********************************************************************//**
-Updates the page hash index when a single record is inserted on a page. */
 UNIV_INTERN
 void
 btr_search_update_hash_on_insert(
@@ -1722,7 +1703,7 @@ btr_search_update_hash_on_insert(
 
 			locked = TRUE;
 
-			btr_search_insert_fold(table, ins_fold, block, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		}
 
 		goto check_next_rec;
@@ -1738,9 +1719,9 @@ btr_search_update_hash_on_insert(
 		}
 
 		if (!left_side) {
-			btr_search_insert_fold(table, fold, block, rec);
+			ha_insert_for_fold(table, fold, block, rec);
 		} else {
-			btr_search_insert_fold(table, ins_fold, block, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		}
 	}
 
@@ -1755,7 +1736,7 @@ check_next_rec:
 				locked = TRUE;
 			}
 
-			btr_search_insert_fold(table, ins_fold, block, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 		}
 
 		goto function_exit;
@@ -1772,15 +1753,14 @@ check_next_rec:
 
 		if (!left_side) {
 
-			btr_search_insert_fold(table, ins_fold, block, ins_rec);
+			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 			/*
 			fputs("Hash insert for ", stderr);
 			dict_index_name_print(stderr, cursor->index);
 			fprintf(stderr, " fold %lu\n", ins_fold);
 			*/
 		} else {
-			btr_search_insert_fold(table, next_fold, block,
-					       next_rec);
+			ha_insert_for_fold(table, next_fold, block, next_rec);
 		}
 	}
 
