@@ -86,5 +86,15 @@ set global LC_TIME_NAMES=convert((-8388608) using cp1251);
 --source include/ctype_numconv.inc
 
 --echo #
+--echo # Bug#60101 COALESCE with cp1251 tables causes [Err] 1267 - Illegal mix of collations
+--echo #
+CREATE TABLE t1 (test1 INT, test2 VARCHAR(255));
+SHOW CREATE TABLE t1;
+SELECT COALESCE(IF(test1=1, 1, NULL), test2) FROM t1;
+SELECT COALESCE(IF(test1=1, NULL, 1), test2) FROM t1;
+DROP TABLE t1;
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #
