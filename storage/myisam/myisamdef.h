@@ -25,6 +25,10 @@
 #include <my_no_pthread.h>
 #endif
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #if defined(my_write) && !defined(MAP_TO_USE_RAID)
 /* undef map from my_nosys; We need test-if-disk full */
 #undef my_write
@@ -655,9 +659,7 @@ enum myisam_log_commands
 #define fast_mi_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _mi_writeinfo((INFO),0)
 #define fast_mi_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _mi_readinfo((INFO),F_RDLCK,1)
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
+
  extern uint _mi_get_block_info(MI_BLOCK_INFO *, File, my_off_t);
 extern uint _mi_rec_pack(MI_INFO *info, uchar *to, const uchar *from);
 extern uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
