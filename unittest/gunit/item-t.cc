@@ -1,6 +1,5 @@
 /* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved. 
 
-
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -36,7 +35,10 @@ protected:
    */
   static void SetUpTestCase()
   {
-    init_thread_environment();
+    static char *my_name= strdup(my_progname);
+    char *argv[] = { my_name, 0 };
+    set_remaining_args(1, argv);
+    init_common_variables();
     randominit(&sql_rand, 0, 0);
     xid_cache_init();
     delegates_init();
@@ -93,6 +95,9 @@ public:
   {
     EXPECT_EQ(1, m_store_called);
   }
+
+  // Avoid warning about hiding other overloaded versions of store().
+  using Field_long::store;
 
   /*
     This is the only member function we need to override.
@@ -181,6 +186,57 @@ TEST_F(ItemTest, ItemFuncDesDecrypt)
   EXPECT_EQ(length, item_one->max_length);
   EXPECT_EQ(length, item_two->max_length);
   EXPECT_LE(item_decrypt->max_length, length);
+}
+
+
+/*
+  This is not an exhaustive test. It simply demonstrates that more of the
+  initializations in mysqld.cc are needed for testing Item_xxx classes.
+*/
+TEST_F(ItemTest, ItemFuncSetUserVar)
+{
+  const longlong val1= 1;
+  Item_decimal *item_dec= new Item_decimal(val1, false);
+  Item_string  *item_str= new Item_string("1", 1, &my_charset_latin1);
+
+  LEX_STRING var_name= { C_STRING_WITH_LEN("a") };
+  Item_func_set_user_var *user_var=
+    new Item_func_set_user_var(var_name, item_str);
+  EXPECT_FALSE(user_var->set_entry(m_thd, true));
+  EXPECT_FALSE(user_var->fix_fields(m_thd, NULL));
+  EXPECT_EQ(val1, user_var->val_int());
+  
+  my_decimal decimal;
+  my_decimal *decval_1= user_var->val_decimal(&decimal);
+  user_var->save_item_result(item_str);
+  my_decimal *decval_2= user_var->val_decimal(&decimal);
+  user_var->save_item_result(item_dec);
+
+  EXPECT_EQ(decval_1, decval_2);
+  EXPECT_EQ(decval_1, &decimal);
+}
+
+
+// Test of Item::operator new() when we simulate out-of-memory.
+TEST_F(ItemTest, OutOfMemory)
+{
+  Item_int *null_item= NULL;
+  Item_int *item= new Item_int(42);
+  EXPECT_NE(null_item, item);
+  delete null_item;
+
+#if !defined(DBUG_OFF)
+  // Setting debug flags triggers enter/exit trace, so redirect to /dev/null.
+  DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
+
+  DBUG_SET("+d,simulate_out_of_memory");
+  item= new Item_int(42);
+  EXPECT_EQ(null_item, item);
+
+  DBUG_SET("+d,simulate_out_of_memory");
+  item= new (m_thd->mem_root) Item_int(42);
+  EXPECT_EQ(null_item, item);
+#endif
 }
 
 }
