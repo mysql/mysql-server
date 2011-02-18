@@ -216,13 +216,13 @@ protected:
     The expected length of a record in the join buffer together with     
     all prefixes and postfixes
   */
-  ulong avg_record_length;
+  size_t avg_record_length;
 
   /* The expected size of the space per record in the auxiliary buffer */
-  ulong avg_aux_buffer_incr;
+  size_t avg_aux_buffer_incr;
 
   /* Expected join buffer space used for one record */
-  ulong space_per_record; 
+  size_t space_per_record; 
 
   /* Pointer to the beginning of the join buffer */
   uchar *buff;         
@@ -230,26 +230,26 @@ protected:
     Size of the entire memory allocated for the join buffer.
     Part of this memory may be reserved for the auxiliary buffer.
   */ 
-  ulong buff_size;
+  size_t buff_size;
   /* The minimal join buffer size when join buffer still makes sense to use */
-  ulong min_buff_size;
+  size_t min_buff_size;
   /* The maximum expected size if the join buffer to be used */
-  ulong max_buff_size;
+  size_t max_buff_size;
   /* Size of the auxiliary buffer */ 
-  ulong aux_buff_size;
+  size_t aux_buff_size;
 
   /* The number of records put into the join buffer */ 
-  ulong records;
+  size_t records;
   /* 
     The number of records in the fully refilled join buffer of
     the minimal size equal to min_buff_size
   */
-  ulong min_records;
+  size_t min_records;
   /*
     The maximum expected number of records to be put in the join buffer
     at one refill 
   */
-  ulong max_records;
+  size_t max_records;
 
   /* 
     Pointer to the current position in the join buffer.
@@ -578,7 +578,7 @@ public:
   /* Get the current size of the cache join buffer */ 
   ulong get_join_buffer_size() { return buff_size; }
   /* Set the size of the cache join buffer to a new value */
-  void set_join_buffer_size(ulong sz) { buff_size= sz; }
+  void set_join_buffer_size(size_t sz) { buff_size= sz; }
 
   /* Get the minimum possible size of the cache join buffer */
   virtual ulong get_min_join_buffer_size();
@@ -1259,7 +1259,7 @@ protected:
     Get the number of ranges in the cache buffer passed to the MRR
     interface. For each record its own range is passed.
   */
-  uint get_number_of_ranges_for_mrr() { return records; }
+  uint get_number_of_ranges_for_mrr() { return (uint)records; }
 
  /*
    Setup the MRR buffer as the space between the last record put

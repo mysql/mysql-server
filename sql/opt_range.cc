@@ -4924,7 +4924,7 @@ ha_rows get_table_cardinality_for_index_intersect(TABLE *table)
   {
     ha_rows d;
     double q;
-    for (q= table->file->stats.records, d= 1 ; q >= 10; q/= 10, d*= 10 ) ;
+    for (q= (double)table->file->stats.records, d= 1 ; q >= 10; q/= 10, d*= 10 ) ;
     return (ha_rows) (floor(q+0.5) * d);
   } 
 }
@@ -5090,7 +5090,7 @@ bool prepare_search_best_index_intersect(PARAM *param,
     return TRUE;
 
   size_t calc_cost_buff_size=
-         Unique::get_cost_calc_buff_size(records_in_scans,
+         Unique::get_cost_calc_buff_size((size_t)records_in_scans,
                                          common->key_size,
 				         common->max_memory_size);
   if (!(common->buff_elems= (uint *) alloc_root(param->mem_root,
@@ -5432,7 +5432,7 @@ bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
     ulonglong max_memory_size= common_info->max_memory_size; 
     
     records_sent_to_unique+= ext_index_scan_records;
-    cost= Unique::get_use_cost(buff_elems, records_sent_to_unique, key_size,
+    cost= Unique::get_use_cost(buff_elems, (size_t) records_sent_to_unique, key_size,
                                max_memory_size, compare_factor, TRUE,
                                &next->in_memory);
     if (records_filtered_out_by_cpk)
@@ -5442,7 +5442,7 @@ bool check_index_intersect_extension(PARTIAL_INDEX_INTERSECT_INFO *curr,
       double cost2;
       bool in_memory2;
       ha_rows records2= records_sent_to_unique-records_filtered_out_by_cpk;
-      cost2=  Unique::get_use_cost(buff_elems, records2, key_size,
+      cost2=  Unique::get_use_cost(buff_elems, (size_t) records2, key_size,
                                    max_memory_size, compare_factor, TRUE,
                                    &in_memory2);
       cost2+= get_cpk_filter_cost(ext_index_scan_records, common_info->cpk_scan,

@@ -1127,8 +1127,8 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
 
   if (bytes_for_rowids < (ptrdiff_t)rowid_buf_elem_size + 1)
   {
-    ptrdiff_t add= rowid_buf_elem_size + 1 - bytes_for_rowids;
-    bytes_for_rowids= rowid_buf_elem_size + 1;
+    ptrdiff_t add= (ptrdiff_t)(rowid_buf_elem_size + 1 - bytes_for_rowids);
+    bytes_for_rowids= (ptrdiff_t)rowid_buf_elem_size + 1;
     bytes_for_keys -= add;
   }
 
@@ -1138,7 +1138,7 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
   key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end); 
 
   if (!key_buffer->have_space_for(key_buff_elem_size) ||
-      !rowid_buffer.have_space_for(rowid_buf_elem_size))
+      !rowid_buffer.have_space_for((size_t)rowid_buf_elem_size))
     return TRUE; /* Failed to provide minimum space for one of the buffers */
 
   return FALSE;

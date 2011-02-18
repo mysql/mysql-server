@@ -290,17 +290,17 @@ static double get_merge_many_buffs_cost(uint *buffer,
       these will be random seeks.
 */
 
-double Unique::get_use_cost(uint *buffer, uint nkeys, uint key_size,
+double Unique::get_use_cost(uint *buffer, size_t nkeys, uint key_size,
                             ulonglong max_in_memory_size,
                             uint compare_factor,
                             bool intersect_fl, bool *in_memory)
 {
-  ulong max_elements_in_tree;
-  ulong last_tree_elems;
+  size_t max_elements_in_tree;
+  size_t last_tree_elems;
   int   n_full_trees; /* number of trees in unique - 1 */
   double result;
 
-  max_elements_in_tree= ((ulong) max_in_memory_size /
+  max_elements_in_tree= ((size_t) max_in_memory_size /
                          ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
 
   n_full_trees=    nkeys / max_elements_in_tree;

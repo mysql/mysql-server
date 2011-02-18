@@ -1009,7 +1009,7 @@ public:
 
   void set_null(rownum_t row_num)
   {
-    bitmap_set_bit(&null_key, row_num);
+    bitmap_set_bit(&null_key, (uint)row_num);
   }
   bool is_null(rownum_t row_num)
   {
@@ -1025,7 +1025,7 @@ public:
     }
     if (row_num > max_null_row || row_num < min_null_row)
       return FALSE;
-    return bitmap_is_set(&null_key, row_num);
+    return bitmap_is_set(&null_key, (uint)row_num);
   }
   void print(String *str);
 };

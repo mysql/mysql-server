@@ -1724,7 +1724,7 @@ bool JOIN::shrink_join_buffers(JOIN_TAB *jt,
   DBUG_ASSERT(cache);
   if (needed_space < cache->get_min_join_buffer_size())
     return TRUE;
-  cache->set_join_buffer_size(needed_space);
+  cache->set_join_buffer_size((size_t)needed_space);
   
   return FALSE;
 }

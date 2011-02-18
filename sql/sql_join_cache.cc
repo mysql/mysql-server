@@ -736,12 +736,12 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
 {
   if (!min_buff_size)
   {
-    ulong len= 0;
+    size_t len= 0;
     for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
       len+= tab->get_max_used_fieldlength();
     len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
-    ulong min_sz= len*min_records;
-    ulong add_sz= 0;
+    size_t min_sz= len*min_records;
+    size_t add_sz= 0;
     for (uint i=0; i < min_records; i++)
       add_sz+= join_tab_scan->aux_buffer_incr(i+1);
     avg_aux_buffer_incr= add_sz/min_records;
@@ -787,9 +787,9 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
 {
   if (!max_buff_size)
   {
-    ulong max_sz;
-    ulong min_sz= get_min_join_buffer_size(); 
-    ulong len= 0;
+    size_t max_sz;
+    size_t min_sz= get_min_join_buffer_size(); 
+    size_t len= 0;
     for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
       len+= tab->get_used_fieldlength();
     len+= get_record_max_affix_length();
@@ -797,7 +797,7 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
     len+= get_max_key_addon_space_per_record() + avg_aux_buffer_incr;
     space_per_record= len;
     
-    ulong limit_sz= join->thd->variables.join_buff_size;
+    size_t limit_sz= join->thd->variables.join_buff_size;
     if (join_tab->join_buffer_size_limit)
       set_if_smaller(limit_sz, join_tab->join_buffer_size_limit);
     if (!optimize_buff_size)
@@ -860,8 +860,8 @@ int JOIN_CACHE::alloc_buffer()
   min_buff_size= 0;
   max_buff_size= 0;
   min_records= 1;
-  max_records= partial_join_cardinality <= join_buff_space_limit ?
-                 (ulonglong) partial_join_cardinality : join_buff_space_limit;
+  max_records= (size_t) (partial_join_cardinality <= join_buff_space_limit ?
+                 (ulonglong) partial_join_cardinality : join_buff_space_limit);
   set_if_bigger(max_records, 10);
   min_buff_size= get_min_join_buffer_size();
   buff_size= get_max_join_buffer_size(optimize_buff_size);
@@ -931,10 +931,10 @@ fail:
 
 bool JOIN_CACHE::shrink_join_buffer_in_ratio(ulonglong n, ulonglong d)
 {
-  ulonglong next_buff_size;
+  size_t next_buff_size;
   if (n < d)
     return FALSE;
-  next_buff_size= (ulonglong) ((double) buff_size / n * d);
+  next_buff_size= (size_t) ((double) buff_size / n * d);
   set_if_bigger(next_buff_size, min_buff_size);
   buff_size= next_buff_size;
   return realloc_buffer();
@@ -2407,7 +2407,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 
 enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
 {
-  uint cnt; 
+  ulonglong cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
  
