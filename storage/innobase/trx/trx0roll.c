@@ -107,8 +107,10 @@ trx_general_rollback_for_mysql_low(
 
 	if (savept == NULL) {
 		trx_rollback_finish(trx);
+		MONITOR_INC(MONITOR_TRX_ROLLBACK);
 	} else {
 		trx->lock.que_state = TRX_QUE_RUNNING;
+		MONITOR_INC(MONITOR_TRX_ROLLBACK_SAVEPOINT);
 	}
 
 	ut_a(trx->error_state == DB_SUCCESS);
@@ -116,7 +118,6 @@ trx_general_rollback_for_mysql_low(
 
 	mem_heap_free(heap);
 
-	MONITOR_INC(MONITOR_TRX_ABORT);
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
