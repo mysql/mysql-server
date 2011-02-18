@@ -1215,7 +1215,6 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
-	MONITOR_INC(MONITOR_PAGE_COMPRESS);
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1223,6 +1222,8 @@ page_zip_compress(
 
 		goto err_exit;
 	}
+
+	MONITOR_INC(MONITOR_PAGE_COMPRESS);
 
 	heap = mem_heap_create(page_zip_get_size(page_zip)
 			       + n_fields * (2 + sizeof *offsets)
@@ -3024,12 +3025,13 @@ err_exit:
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->decompressed++;
 		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
-		MONITOR_INC(MONITOR_PAGE_DECOMPRESS);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
+
+	MONITOR_INC(MONITOR_PAGE_DECOMPRESS);
 
 	return(TRUE);
 }

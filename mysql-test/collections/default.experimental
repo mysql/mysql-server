@@ -5,8 +5,6 @@ binlog.binlog_multi_engine               # joro : NDB tests marked as experiment
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
 
-innodb.innodb_information_schema         # Bug#48883 2010-05-11 alik Test "innodb_information_schema" takes fewer locks than expected
-
 main.func_math @freebsd                  # Bug#43020 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.gis-rtree @freebsd                  # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
