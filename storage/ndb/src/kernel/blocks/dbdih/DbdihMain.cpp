@@ -1993,6 +1993,9 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
     printf("Checking 2-pass initial node restart: ");
     for (i = 0; i<index; i++)
     {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, nodeArray[i]))
+        continue;
+
       if (!ndbd_non_trans_copy_frag_req(getNodeInfo(nodeArray[i]).m_version))
       {
         jam();
