@@ -1706,7 +1706,7 @@ bool JOIN::shrink_join_buffers(JOIN_TAB *jt,
     cache= tab->cache;
     if (cache)
     { 
-      ulong buff_size;
+      size_t buff_size;
       if (needed_space < cache->get_min_join_buffer_size())
         return TRUE;
       if (cache->shrink_join_buffer_in_ratio(curr_space, needed_space))

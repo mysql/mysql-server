@@ -102,8 +102,8 @@ public:
   
   void sort(qsort2_cmp cmp_func, void *cmp_func_arg)
   {
-    uint elem_size= size1 + size2;
-    uint n_elements= used_size() / elem_size;
+    size_t elem_size= size1 + size2;
+    size_t n_elements= used_size() / elem_size;
     my_qsort2(used_area(), n_elements, elem_size, cmp_func, cmp_func_arg);
   }
 

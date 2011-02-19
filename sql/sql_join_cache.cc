@@ -1230,7 +1230,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 
   /* Make an adjustment for the size of the auxiliary buffer if there is any */
   uint incr= aux_buffer_incr(records);
-  ulong rem= rem_space();
+  size_t rem= rem_space();
   aux_buff_size+= len+incr < rem ? incr : rem;
 
   /*

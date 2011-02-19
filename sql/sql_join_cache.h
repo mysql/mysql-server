@@ -398,7 +398,7 @@ protected:
   virtual uint aux_buffer_incr(ulong recno);
 
   /* Shall calculate how much space is remaining in the join buffer */ 
-  virtual ulong rem_space() 
+  virtual size_t rem_space() 
   { 
     return max(buff_size-(end_pos-buff)-aux_buff_size,0);
   }
@@ -576,7 +576,7 @@ public:
   virtual int init();
 
   /* Get the current size of the cache join buffer */ 
-  ulong get_join_buffer_size() { return buff_size; }
+  size_t get_join_buffer_size() { return buff_size; }
   /* Set the size of the cache join buffer to a new value */
   void set_join_buffer_size(size_t sz) { buff_size= sz; }
 
@@ -921,7 +921,7 @@ protected:
     Calculate how much space in the buffer would not be occupied by
     records, key entries and additional memory for the MMR buffer.
   */ 
-  ulong rem_space() 
+  size_t rem_space() 
   { 
     return max(last_key_entry-end_pos-aux_buff_size,0);
   }

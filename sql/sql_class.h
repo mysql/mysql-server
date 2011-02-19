@@ -768,7 +768,7 @@ public:
   Server_side_cursor *cursor;
 
   inline char *query() { return query_string.str; }
-  inline uint32 query_length() { return query_string.length; }
+  inline uint32 query_length() { return (uint32)query_string.length; }
   void set_query_inner(char *query_arg, uint32 query_length_arg);
 
   /**
