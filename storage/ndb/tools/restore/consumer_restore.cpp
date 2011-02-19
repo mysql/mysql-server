@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include <ndb_internal.hpp>
 #include <ndb_logevent.h>
 
+#include <NdbTypesUtil.hpp>
+
 #define NDB_ANYVALUE_FOR_NOLOGGING 0xFFFFFFFF
 
 extern my_bool opt_core;
@@ -45,132 +47,415 @@ extern Properties g_rewrite_databases;
 
 bool BackupRestore::m_preserve_trailing_spaces = false;
 
+// ----------------------------------------------------------------------
+// conversion handlers
+// ----------------------------------------------------------------------
+
+void *
+BackupRestore::convert_bitset(const void *source,
+                              void *target,
+                              bool &truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  // shortcuts
+  const unsigned char * const s = (const unsigned char *)source;
+  char_n_padding_struct * const t = (char_n_padding_struct *)target;
+
+  // write data
+  if (t->n_new >= t->n_old)
+  {
+    // clear all bits
+    memset(t->new_row, 0, t->n_new);
+
+    memcpy(t->new_row, s, t->n_old);
+    truncated = false;
+  } else {
+    // set all bits, for parity with replication's demotion semantics
+    memset(t->new_row, 0xFF, t->n_new);
+    truncated = true;
+  }
+
+  return t->new_row;
+}
+
+template< typename S, typename T >
+void *
+BackupRestore::convert_array(const void * source,
+                             void * target,
+                             bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  // shortcuts (note that all S::... and T::... are compile-time expr)
+  const unsigned char * const s = (const unsigned char *)source;
+  char_n_padding_struct * const t = (char_n_padding_struct *)target;
+  const Uint32 s_prefix_length = S::lengthPrefixSize();
+  const Uint32 t_prefix_length = T::lengthPrefixSize();
+
+  // read and adjust length
+  Uint32 length = (S::isFixedSized() ? t->n_old : S::readLengthPrefix(s));
+  const Uint32 max_length = t->n_new - t_prefix_length;
+  if (S::isFixedSized() && !m_preserve_trailing_spaces) {
+    const char s_padding_char = (S::isBinary() ? 0x00 : ' ');
+    // ignore padding chars for data copying or truncation reporting
+    while (length > 0 && s[length - 1] == s_padding_char) {
+      length--;
+    }
+  }
+  if (length <= max_length) {
+    truncated = false;
+  } else {
+    length = max_length;
+    truncated = true;
+  }
+
+  // write length prefix
+  if (!T::isFixedSized()) {
+    T::writeLengthPrefix(t->new_row, length);
+  }
+
+  // write data
+  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
+
+  // write padding
+  if (T::isFixedSized()) {
+    const char t_padding_char = (T::isBinary() ? 0x00 : ' ');
+    const Uint32 l = max_length - length;
+    memset(t->new_row + t_prefix_length + length, t_padding_char, l);
+  }
+
+  return t->new_row;
+}
+
+template< typename S, typename T >
+void *
+BackupRestore::convert_integral(const void * source,
+                                void * target,
+                                bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  // read the source value
+  typename S::DomainT s;
+  S::load(&s, (char *)source);
+
+  // Note: important to correctly handle mixed signedness comparisons.
+  //
+  // The problem: A straight-forward approach to convert value 's' into
+  // type 'T' might be to check into which of these subranges 's' falls
+  //    ... < T's lower bound <= ... <= T's upper bound < ...
+  // However, this approach is _incorrect_ when applied to generic code
+  //    if (s < T::lowest()) ... else if (s > T::highest()) ... else ...
+  // since 'S' and 'T' may be types of different signedness.
+  //
+  // Under ansi (and even more K&R) C promotion rules, if 'T' is unsigned
+  // and if there's no larger signed type available, the value 's' gets
+  // promoted to unsigned; then, a negative value of 's' becomes (large)
+  // positive -- with a wrong comparison outcome.
+  //
+  // Furthermore, the code should not trigger compiler warnings for any
+  // selection of integral types 'S', 'T' ("mixed signedness comparison",
+  // "comparison of unsigned expression <0 / >=0 is always false/true").
+  //
+  // The correct approach: do lower bound comparisons on signed types and
+  // upper bound comparisons on unsigned types only; this requires casts.
+  // For the casts to be safe, compare the value against the zero literal
+  //    if (s <= 0) { check as signed } else { check as unsigned }
+  // which is a valid + nontrivial test for signed and unsigned types.
+  //
+  // This implies that correct, generic conversion code must test into
+  // which of these _four_ subranges value 's' falls
+  //    ... < T's lower bound <= ... <= 0 < ... <= T's upper bound < ...
+  // while handling 's' as signed/unsigned where less-equal/greater zero.
+  //
+  // Obviously, simplifications are possible if 'S' is unsigned or known
+  // to be a subset of 'T'.  This can be accomplished by a few additional
+  // compile-time expression tests, which allow code optimization to
+  // issue fewer checks for certain specializations of types 'S' and 'T'.
+
+  // write the target value
+  typename T::DomainT t;
+  if (s <= 0) {
+
+    // check value against lower bound as _signed_, safe since all <= 0
+    assert(S::lowest() <= 0 && T::lowest() <= 0 && s <= 0);
+    const typename S::SignedT s_l_s = S::asSigned(S::lowest());
+    const typename T::SignedT t_l_s = T::asSigned(T::lowest());
+    const typename S::SignedT s_s = S::asSigned(s);
+    if ((s_l_s < t_l_s)      // compile-time expr
+        && (s_s < t_l_s)) {  // lower bound check
+      t = T::lowest();
+      truncated = true;
+    } else {                 // within both bounds
+      t = static_cast< typename T::DomainT >(s);
+      truncated = false;
+    }
+
+  } else { // (s > 0)
+
+    // check value against upper bound as _unsigned_, safe since all > 0
+    assert(S::highest() > 0 && T::highest() > 0 && s > 0);
+    const typename S::UnsignedT s_h_u = S::asUnsigned(S::highest());
+    const typename T::UnsignedT t_h_u = T::asUnsigned(T::highest());
+    const typename S::UnsignedT s_u = S::asUnsigned(s);
+    if ((s_h_u > t_h_u)      // compile-time expr
+        && (s_u > t_h_u)) {  // upper bound check
+      t = T::highest();
+      truncated = true;
+    } else {                 // within both bounds
+      t = static_cast< typename T::DomainT >(s);
+      truncated = false;
+    }
+
+  }
+  T::store((char *)target, &t);
+
+  return target;
+}
+
+// ----------------------------------------------------------------------
+// conversion rules
+// ----------------------------------------------------------------------
+
 const PromotionRules 
 BackupRestore::m_allowed_promotion_attrs[] = {
-  // char promotions/demotions
-  {NDBCOL::Char,           NDBCOL::Char,           check_compat_sizes,     convert_char_char},
-  {NDBCOL::Char,           NDBCOL::Varchar,        check_compat_sizes,     convert_char_varchar},
-  {NDBCOL::Char,           NDBCOL::Longvarchar,    check_compat_sizes,     convert_char_longvarchar},
-  {NDBCOL::Varchar,        NDBCOL::Char,           check_compat_sizes,     convert_varchar_char},
-  {NDBCOL::Varchar,        NDBCOL::Varchar,        check_compat_sizes,     convert_var_var},
-  {NDBCOL::Varchar,        NDBCOL::Longvarchar,    check_compat_sizes,     convert_var_longvar},
-  {NDBCOL::Longvarchar,    NDBCOL::Char,           check_compat_sizes,     convert_longvarchar_char},
-  {NDBCOL::Longvarchar,    NDBCOL::Varchar,        check_compat_sizes,     convert_longvar_var},
-  {NDBCOL::Longvarchar,    NDBCOL::Longvarchar,    check_compat_sizes,     convert_longvar_longvar},
-
-  // binary promotions/demotions
-  {NDBCOL::Binary,         NDBCOL::Binary,         check_compat_sizes,     convert_binary_binary},
-  {NDBCOL::Binary,         NDBCOL::Varbinary,      check_compat_sizes,     convert_binary_varbinary},
-  {NDBCOL::Binary,         NDBCOL::Longvarbinary,  check_compat_sizes,     convert_binary_longvarbinary},
-  {NDBCOL::Varbinary,      NDBCOL::Binary,         check_compat_sizes,     convert_varbinary_binary},
-  {NDBCOL::Varbinary,      NDBCOL::Varbinary,      check_compat_sizes,     convert_var_var},
-  {NDBCOL::Varbinary,      NDBCOL::Longvarbinary,  check_compat_sizes,     convert_var_longvar},
-  {NDBCOL::Longvarbinary,  NDBCOL::Binary,         check_compat_sizes,     convert_longvarbinary_binary},
-  {NDBCOL::Longvarbinary,  NDBCOL::Varbinary,      check_compat_sizes,     convert_longvar_var},
-  {NDBCOL::Longvarbinary,  NDBCOL::Longvarbinary,  check_compat_sizes,     convert_longvar_longvar},
-
   // bitset promotions/demotions
-  {NDBCOL::Bit,            NDBCOL::Bit,            check_compat_sizes,     convert_bit_bit},
+  {NDBCOL::Bit,            NDBCOL::Bit,            check_compat_sizes,
+   convert_bitset},
+
+  // char array promotions/demotions
+  {NDBCOL::Char,           NDBCOL::Char,           check_compat_sizes,
+   convert_array< Hchar, Hchar >},
+  {NDBCOL::Char,           NDBCOL::Varchar,        check_compat_sizes,
+   convert_array< Hchar, Hvarchar >},
+  {NDBCOL::Char,           NDBCOL::Longvarchar,    check_compat_sizes,
+   convert_array< Hchar, Hlongvarchar >},
+  {NDBCOL::Varchar,        NDBCOL::Char,           check_compat_sizes,
+   convert_array< Hvarchar, Hchar >},
+  {NDBCOL::Varchar,        NDBCOL::Varchar,        check_compat_sizes,
+   convert_array< Hvarchar, Hvarchar >},
+  {NDBCOL::Varchar,        NDBCOL::Longvarchar,    check_compat_sizes,
+   convert_array< Hvarchar, Hlongvarchar >},
+  {NDBCOL::Longvarchar,    NDBCOL::Char,           check_compat_sizes,
+   convert_array< Hlongvarchar, Hchar >},
+  {NDBCOL::Longvarchar,    NDBCOL::Varchar,        check_compat_sizes,
+   convert_array< Hlongvarchar, Hvarchar >},
+  {NDBCOL::Longvarchar,    NDBCOL::Longvarchar,    check_compat_sizes,
+   convert_array< Hlongvarchar, Hlongvarchar >},
+
+  // binary array promotions/demotions
+  {NDBCOL::Binary,         NDBCOL::Binary,         check_compat_sizes,
+   convert_array< Hbinary, Hbinary >},
+  {NDBCOL::Binary,         NDBCOL::Varbinary,      check_compat_sizes,
+   convert_array< Hbinary, Hvarbinary >},
+  {NDBCOL::Binary,         NDBCOL::Longvarbinary,  check_compat_sizes,
+   convert_array< Hbinary, Hlongvarbinary >},
+  {NDBCOL::Varbinary,      NDBCOL::Binary,         check_compat_sizes,
+   convert_array< Hvarbinary, Hbinary >},
+  {NDBCOL::Varbinary,      NDBCOL::Varbinary,      check_compat_sizes,
+   convert_array< Hvarbinary, Hvarbinary >},
+  {NDBCOL::Varbinary,      NDBCOL::Longvarbinary,  check_compat_sizes,
+   convert_array< Hvarbinary, Hlongvarbinary >},
+  {NDBCOL::Longvarbinary,  NDBCOL::Binary,         check_compat_sizes,
+   convert_array< Hlongvarbinary, Hbinary >},
+  {NDBCOL::Longvarbinary,  NDBCOL::Varbinary,      check_compat_sizes,
+   convert_array< Hlongvarbinary, Hvarbinary >},
+  {NDBCOL::Longvarbinary,  NDBCOL::Longvarbinary,  check_compat_sizes,
+   convert_array< Hlongvarbinary, Hlongvarbinary >},
 
   // integral promotions
-  {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_promotion, convert_int8_int16},
-  {NDBCOL::Tinyint,        NDBCOL::Mediumint,      check_compat_promotion, convert_int8_int24},
-  {NDBCOL::Tinyint,        NDBCOL::Int,            check_compat_promotion, convert_int8_int32},
-  {NDBCOL::Tinyint,        NDBCOL::Bigint,         check_compat_promotion, convert_int8_int64},
-  {NDBCOL::Smallint,       NDBCOL::Mediumint,      check_compat_promotion, convert_int16_int24},
-  {NDBCOL::Smallint,       NDBCOL::Int,            check_compat_promotion, convert_int16_int32},
-  {NDBCOL::Smallint,       NDBCOL::Bigint,         check_compat_promotion, convert_int16_int64},
-  {NDBCOL::Mediumint,      NDBCOL::Int,            check_compat_promotion, convert_int24_int32},
-  {NDBCOL::Mediumint,      NDBCOL::Bigint,         check_compat_promotion, convert_int24_int64},
-  {NDBCOL::Int,            NDBCOL::Bigint,         check_compat_promotion, convert_int32_int64},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Smallunsigned,  check_compat_promotion, convert_uint8_uint16},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Mediumunsigned, check_compat_promotion, convert_uint8_uint24},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Unsigned,       check_compat_promotion, convert_uint8_uint32},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Bigunsigned,    check_compat_promotion, convert_uint8_uint64},
-  {NDBCOL::Smallunsigned,  NDBCOL::Mediumunsigned, check_compat_promotion, convert_uint16_uint24},
-  {NDBCOL::Smallunsigned,  NDBCOL::Unsigned,       check_compat_promotion, convert_uint16_uint32},
-  {NDBCOL::Smallunsigned,  NDBCOL::Bigunsigned,    check_compat_promotion, convert_uint16_uint64},
-  {NDBCOL::Mediumunsigned, NDBCOL::Unsigned,       check_compat_promotion, convert_uint24_uint32},
-  {NDBCOL::Mediumunsigned, NDBCOL::Bigunsigned,    check_compat_promotion, convert_uint24_uint64},
-  {NDBCOL::Unsigned,       NDBCOL::Bigunsigned,    check_compat_promotion, convert_uint32_uint64},
+  {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_promotion,
+   convert_integral< Hint8, Hint16>},
+  {NDBCOL::Tinyint,        NDBCOL::Mediumint,      check_compat_promotion,
+   convert_integral< Hint8, Hint24>},
+  {NDBCOL::Tinyint,        NDBCOL::Int,            check_compat_promotion,
+   convert_integral< Hint8, Hint32>},
+  {NDBCOL::Tinyint,        NDBCOL::Bigint,         check_compat_promotion,
+   convert_integral< Hint8, Hint64>},
+  {NDBCOL::Smallint,       NDBCOL::Mediumint,      check_compat_promotion,
+   convert_integral< Hint16, Hint24>},
+  {NDBCOL::Smallint,       NDBCOL::Int,            check_compat_promotion,
+   convert_integral< Hint16, Hint32>},
+  {NDBCOL::Smallint,       NDBCOL::Bigint,         check_compat_promotion,
+   convert_integral< Hint16, Hint64>},
+  {NDBCOL::Mediumint,      NDBCOL::Int,            check_compat_promotion,
+   convert_integral< Hint24, Hint32>},
+  {NDBCOL::Mediumint,      NDBCOL::Bigint,         check_compat_promotion,
+   convert_integral< Hint24, Hint64>},
+  {NDBCOL::Int,            NDBCOL::Bigint,         check_compat_promotion,
+   convert_integral< Hint32, Hint64>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Smallunsigned,  check_compat_promotion,
+   convert_integral< Huint8, Huint16>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Mediumunsigned, check_compat_promotion,
+   convert_integral< Huint8, Huint24>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Unsigned,       check_compat_promotion,
+   convert_integral< Huint8, Huint32>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Bigunsigned,    check_compat_promotion,
+   convert_integral< Huint8, Huint64>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Mediumunsigned, check_compat_promotion,
+   convert_integral< Huint16, Huint24>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Unsigned,       check_compat_promotion,
+   convert_integral< Huint16, Huint32>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Bigunsigned,    check_compat_promotion,
+   convert_integral< Huint16, Huint64>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Unsigned,       check_compat_promotion,
+   convert_integral< Huint24, Huint32>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Bigunsigned,    check_compat_promotion,
+   convert_integral< Huint24, Huint64>},
+  {NDBCOL::Unsigned,       NDBCOL::Bigunsigned,    check_compat_promotion,
+   convert_integral< Huint32, Huint64>},
 
   // integral demotions
-  {NDBCOL::Smallint,       NDBCOL::Tinyint,        check_compat_lossy, convert_int16_int8},
-  {NDBCOL::Mediumint,      NDBCOL::Tinyint,        check_compat_lossy, convert_int24_int8},
-  {NDBCOL::Mediumint,      NDBCOL::Smallint,       check_compat_lossy, convert_int24_int16},
-  {NDBCOL::Int,            NDBCOL::Tinyint,        check_compat_lossy, convert_int32_int8},
-  {NDBCOL::Int,            NDBCOL::Smallint,       check_compat_lossy, convert_int32_int16},
-  {NDBCOL::Int,            NDBCOL::Mediumint,      check_compat_lossy, convert_int32_int24},
-  {NDBCOL::Bigint,         NDBCOL::Tinyint,        check_compat_lossy, convert_int64_int8},
-  {NDBCOL::Bigint,         NDBCOL::Smallint,       check_compat_lossy, convert_int64_int16},
-  {NDBCOL::Bigint,         NDBCOL::Mediumint,      check_compat_lossy, convert_int64_int24},
-  {NDBCOL::Bigint,         NDBCOL::Int,            check_compat_lossy, convert_int64_int32},
-  {NDBCOL::Smallunsigned,  NDBCOL::Tinyunsigned,   check_compat_lossy, convert_uint16_uint8},
-  {NDBCOL::Mediumunsigned, NDBCOL::Tinyunsigned,   check_compat_lossy, convert_uint24_uint8},
-  {NDBCOL::Mediumunsigned, NDBCOL::Smallunsigned,  check_compat_lossy, convert_uint24_uint16},
-  {NDBCOL::Unsigned,       NDBCOL::Tinyunsigned,   check_compat_lossy, convert_uint32_uint8},
-  {NDBCOL::Unsigned,       NDBCOL::Smallunsigned,  check_compat_lossy, convert_uint32_uint16},
-  {NDBCOL::Unsigned,       NDBCOL::Mediumunsigned, check_compat_lossy, convert_uint32_uint24},
-  {NDBCOL::Bigunsigned,    NDBCOL::Tinyunsigned,   check_compat_lossy, convert_uint64_uint8},
-  {NDBCOL::Bigunsigned,    NDBCOL::Smallunsigned,  check_compat_lossy, convert_uint64_uint16},
-  {NDBCOL::Bigunsigned,    NDBCOL::Mediumunsigned, check_compat_lossy, convert_uint64_uint24},
-  {NDBCOL::Bigunsigned,    NDBCOL::Unsigned,       check_compat_lossy, convert_uint64_uint32},
+  {NDBCOL::Smallint,       NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Hint16, Hint8>},
+  {NDBCOL::Mediumint,      NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Hint24, Hint8>},
+  {NDBCOL::Mediumint,      NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Hint24, Hint16>},
+  {NDBCOL::Int,            NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Hint32, Hint8>},
+  {NDBCOL::Int,            NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Hint32, Hint16>},
+  {NDBCOL::Int,            NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Hint32, Hint24>},
+  {NDBCOL::Bigint,         NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Hint64, Hint8>},
+  {NDBCOL::Bigint,         NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Hint64, Hint16>},
+  {NDBCOL::Bigint,         NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Hint64, Hint24>},
+  {NDBCOL::Bigint,         NDBCOL::Int,            check_compat_lossy,
+   convert_integral< Hint64, Hint32>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Huint16, Huint8>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Huint24, Huint8>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Huint24, Huint16>},
+  {NDBCOL::Unsigned,       NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Huint32, Huint8>},
+  {NDBCOL::Unsigned,       NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Huint32, Huint16>},
+  {NDBCOL::Unsigned,       NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Huint32, Huint24>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Huint64, Huint8>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Huint64, Huint16>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Huint64, Huint24>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Unsigned,       check_compat_lossy,
+   convert_integral< Huint64, Huint32>},
 
   // integral signedness conversions
-  {NDBCOL::Tinyint,        NDBCOL::Tinyunsigned,   check_compat_lossy, convert_int8_uint8},
-  {NDBCOL::Smallint,       NDBCOL::Smallunsigned,  check_compat_lossy, convert_int16_uint16},
-  {NDBCOL::Mediumint,      NDBCOL::Mediumunsigned, check_compat_lossy, convert_int24_uint24},
-  {NDBCOL::Int,            NDBCOL::Unsigned,       check_compat_lossy, convert_int32_uint32},
-  {NDBCOL::Bigint,         NDBCOL::Bigunsigned,    check_compat_lossy, convert_int64_uint64},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Tinyint,        check_compat_lossy, convert_uint8_int8},
-  {NDBCOL::Smallunsigned,  NDBCOL::Smallint,       check_compat_lossy, convert_uint16_int16},
-  {NDBCOL::Mediumunsigned, NDBCOL::Mediumint,      check_compat_lossy, convert_uint24_int24},
-  {NDBCOL::Unsigned,       NDBCOL::Int,            check_compat_lossy, convert_uint32_int32},
-  {NDBCOL::Bigunsigned,    NDBCOL::Bigint,         check_compat_lossy, convert_uint64_int64},
+  {NDBCOL::Tinyint,        NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Hint8, Huint8>},
+  {NDBCOL::Smallint,       NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Hint16, Huint16>},
+  {NDBCOL::Mediumint,      NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Hint24, Huint24>},
+  {NDBCOL::Int,            NDBCOL::Unsigned,       check_compat_lossy,
+   convert_integral< Hint32, Huint32>},
+  {NDBCOL::Bigint,         NDBCOL::Bigunsigned,    check_compat_lossy,
+   convert_integral< Hint64, Huint64>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Huint8, Hint8>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Huint16, Hint16>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Huint24, Hint24>},
+  {NDBCOL::Unsigned,       NDBCOL::Int,            check_compat_lossy,
+   convert_integral< Huint32, Hint32>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Bigint,         check_compat_lossy,
+   convert_integral< Huint64, Hint64>},
 
   // integral signedness+promotion conversions
-  {NDBCOL::Tinyint,        NDBCOL::Smallunsigned,  check_compat_lossy, convert_int8_uint16},
-  {NDBCOL::Tinyint,        NDBCOL::Mediumunsigned, check_compat_lossy, convert_int8_uint24},
-  {NDBCOL::Tinyint,        NDBCOL::Unsigned,       check_compat_lossy, convert_int8_uint32},
-  {NDBCOL::Tinyint,        NDBCOL::Bigunsigned,    check_compat_lossy, convert_int8_uint64},
-  {NDBCOL::Smallint,       NDBCOL::Mediumunsigned, check_compat_lossy, convert_int16_uint24},
-  {NDBCOL::Smallint,       NDBCOL::Unsigned,       check_compat_lossy, convert_int16_uint32},
-  {NDBCOL::Smallint,       NDBCOL::Bigunsigned,    check_compat_lossy, convert_int16_uint64},
-  {NDBCOL::Mediumint,      NDBCOL::Unsigned,       check_compat_lossy, convert_int24_uint32},
-  {NDBCOL::Mediumint,      NDBCOL::Bigunsigned,    check_compat_lossy, convert_int24_uint64},
-  {NDBCOL::Int,            NDBCOL::Bigunsigned,    check_compat_lossy, convert_int32_uint64},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Smallint,       check_compat_lossy, convert_uint8_int16},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Mediumint,      check_compat_lossy, convert_uint8_int24},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Int,            check_compat_lossy, convert_uint8_int32},
-  {NDBCOL::Tinyunsigned,   NDBCOL::Bigint,         check_compat_lossy, convert_uint8_int64},
-  {NDBCOL::Smallunsigned,  NDBCOL::Mediumint,      check_compat_lossy, convert_uint16_int24},
-  {NDBCOL::Smallunsigned,  NDBCOL::Int,            check_compat_lossy, convert_uint16_int32},
-  {NDBCOL::Smallunsigned,  NDBCOL::Bigint,         check_compat_lossy, convert_uint16_int64},
-  {NDBCOL::Mediumunsigned, NDBCOL::Int,            check_compat_lossy, convert_uint24_int32},
-  {NDBCOL::Mediumunsigned, NDBCOL::Bigint,         check_compat_lossy, convert_uint24_int64},
-  {NDBCOL::Unsigned,       NDBCOL::Bigint,         check_compat_lossy, convert_uint32_int64},
+  {NDBCOL::Tinyint,        NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Hint8, Huint16>},
+  {NDBCOL::Tinyint,        NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Hint8, Huint24>},
+  {NDBCOL::Tinyint,        NDBCOL::Unsigned,       check_compat_lossy,
+   convert_integral< Hint8, Huint32>},
+  {NDBCOL::Tinyint,        NDBCOL::Bigunsigned,    check_compat_lossy,
+   convert_integral< Hint8, Huint64>},
+  {NDBCOL::Smallint,       NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Hint16, Huint24>},
+  {NDBCOL::Smallint,       NDBCOL::Unsigned,       check_compat_lossy,
+   convert_integral< Hint16, Huint32>},
+  {NDBCOL::Smallint,       NDBCOL::Bigunsigned,    check_compat_lossy,
+   convert_integral< Hint16, Huint64>},
+  {NDBCOL::Mediumint,      NDBCOL::Unsigned,       check_compat_lossy,
+   convert_integral< Hint24, Huint32>},
+  {NDBCOL::Mediumint,      NDBCOL::Bigunsigned,    check_compat_lossy,
+   convert_integral< Hint24, Huint64>},
+  {NDBCOL::Int,            NDBCOL::Bigunsigned,    check_compat_lossy,
+   convert_integral< Hint32, Huint64>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Huint8, Hint16>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Huint8, Hint24>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Int,            check_compat_lossy,
+   convert_integral< Huint8, Hint32>},
+  {NDBCOL::Tinyunsigned,   NDBCOL::Bigint,         check_compat_lossy,
+   convert_integral< Huint8, Hint64>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Huint16, Hint24>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Int,            check_compat_lossy,
+   convert_integral< Huint16, Hint32>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Bigint,         check_compat_lossy,
+   convert_integral< Huint16, Hint64>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Int,            check_compat_lossy,
+   convert_integral< Huint24, Hint32>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Bigint,         check_compat_lossy,
+   convert_integral< Huint24, Hint64>},
+  {NDBCOL::Unsigned,       NDBCOL::Bigint,         check_compat_lossy,
+   convert_integral< Huint32, Hint64>},
 
   // integral signedness+demotion conversions
-  {NDBCOL::Smallint,       NDBCOL::Tinyunsigned,   check_compat_lossy, convert_int16_uint8},
-  {NDBCOL::Mediumint,      NDBCOL::Tinyunsigned,   check_compat_lossy, convert_int24_uint8},
-  {NDBCOL::Mediumint,      NDBCOL::Smallunsigned,  check_compat_lossy, convert_int24_uint16},
-  {NDBCOL::Int,            NDBCOL::Tinyunsigned,   check_compat_lossy, convert_int32_uint8},
-  {NDBCOL::Int,            NDBCOL::Smallunsigned,  check_compat_lossy, convert_int32_uint16},
-  {NDBCOL::Int,            NDBCOL::Mediumunsigned, check_compat_lossy, convert_int32_uint24},
-  {NDBCOL::Bigint,         NDBCOL::Tinyunsigned,   check_compat_lossy, convert_int64_uint8},
-  {NDBCOL::Bigint,         NDBCOL::Smallunsigned,  check_compat_lossy, convert_int64_uint16},
-  {NDBCOL::Bigint,         NDBCOL::Mediumunsigned, check_compat_lossy, convert_int64_uint24},
-  {NDBCOL::Bigint,         NDBCOL::Unsigned,       check_compat_lossy, convert_int64_uint32},
-  {NDBCOL::Smallunsigned,  NDBCOL::Tinyint,        check_compat_lossy, convert_uint16_int8},
-  {NDBCOL::Mediumunsigned, NDBCOL::Tinyint,        check_compat_lossy, convert_uint24_int8},
-  {NDBCOL::Mediumunsigned, NDBCOL::Smallint,       check_compat_lossy, convert_uint24_int16},
-  {NDBCOL::Unsigned,       NDBCOL::Tinyint,        check_compat_lossy, convert_uint32_int8},
-  {NDBCOL::Unsigned,       NDBCOL::Smallint,       check_compat_lossy, convert_uint32_int16},
-  {NDBCOL::Unsigned,       NDBCOL::Mediumint,      check_compat_lossy, convert_uint32_int24},
-  {NDBCOL::Bigunsigned,    NDBCOL::Tinyint,        check_compat_lossy, convert_uint64_int8},
-  {NDBCOL::Bigunsigned,    NDBCOL::Smallint,       check_compat_lossy, convert_uint64_int16},
-  {NDBCOL::Bigunsigned,    NDBCOL::Mediumint,      check_compat_lossy, convert_uint64_int24},
-  {NDBCOL::Bigunsigned,    NDBCOL::Int,            check_compat_lossy, convert_uint64_int32},
+  {NDBCOL::Smallint,       NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Hint16, Huint8>},
+  {NDBCOL::Mediumint,      NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Hint24, Huint8>},
+  {NDBCOL::Mediumint,      NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Hint24, Huint16>},
+  {NDBCOL::Int,            NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Hint32, Huint8>},
+  {NDBCOL::Int,            NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Hint32, Huint16>},
+  {NDBCOL::Int,            NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Hint32, Huint24>},
+  {NDBCOL::Bigint,         NDBCOL::Tinyunsigned,   check_compat_lossy,
+   convert_integral< Hint64, Huint8>},
+  {NDBCOL::Bigint,         NDBCOL::Smallunsigned,  check_compat_lossy,
+   convert_integral< Hint64, Huint16>},
+  {NDBCOL::Bigint,         NDBCOL::Mediumunsigned, check_compat_lossy,
+   convert_integral< Hint64, Huint24>},
+  {NDBCOL::Bigint,         NDBCOL::Unsigned,       check_compat_lossy,
+   convert_integral< Hint64, Huint32>},
+  {NDBCOL::Smallunsigned,  NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Huint16, Hint8>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Huint24, Hint8>},
+  {NDBCOL::Mediumunsigned, NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Huint24, Hint16>},
+  {NDBCOL::Unsigned,       NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Huint32, Hint8>},
+  {NDBCOL::Unsigned,       NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Huint32, Hint16>},
+  {NDBCOL::Unsigned,       NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Huint32, Hint24>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Tinyint,        check_compat_lossy,
+   convert_integral< Huint64, Hint8>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Smallint,       check_compat_lossy,
+   convert_integral< Huint64, Hint16>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Mediumint,      check_compat_lossy,
+   convert_integral< Huint64, Hint24>},
+  {NDBCOL::Bigunsigned,    NDBCOL::Int,            check_compat_lossy,
+   convert_integral< Huint64, Hint32>},
 
   {NDBCOL::Undefined,      NDBCOL::Undefined,      NULL,                  NULL}
 };
@@ -2412,2199 +2697,8 @@ BackupRestore::check_compat_sizes(const NDBCOL &old_col,
 }
 
 // ----------------------------------------------------------------------
-// integral attribute promotion conversions
+// explicit template instantiations
 // ----------------------------------------------------------------------
-
-void *
-BackupRestore::convert_int8_int16(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int16 new_data16 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int8_int24(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int32 new_data24 = old_data8;
-  truncated = false;
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int8_int32(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int32 new_data32 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int8_int64(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int64 new_data64 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_int24(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int32 new_data24 = old_data16;
-  truncated = false;
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_int32(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int32 new_data32 = old_data16;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_int64(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int64 new_data64 = old_data16;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_int32(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Int32 new_data32 = old_data24;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_int64(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Int64 new_data64 = old_data24;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_int64(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int64 new_data64 = old_data32;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_uint16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint16 new_data16 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_uint24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint32 new_data24 = old_data8;
-  truncated = false;
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_uint32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint32 new_data32 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_uint64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint64 new_data64 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_uint24(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint32 new_data24 = old_data16;
-  truncated = false;
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_uint32(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint32 new_data32 = old_data16;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_uint64(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint64 new_data64 = old_data16;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_uint32(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Uint32 new_data32 = old_data24;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_uint64(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Uint64 new_data64 = old_data24;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_uint64(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint64 new_data64 = old_data32;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-// ----------------------------------------------------------------------
-// integral attribute demotion conversions
-// (follows MySQL replication semantics truncating to nearest legal value)
-// ----------------------------------------------------------------------
-
-void *
-BackupRestore::convert_int16_int8(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int8 new_data8;
-  if (old_data16 < INT_MIN8) {
-    new_data8 = (Int8)(INT_MIN8);
-    truncated = true;
-  } else if (old_data16 > INT_MAX8) {
-    new_data8 = (Int8)(INT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Int8)(old_data16);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_int8(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Int8 new_data8;
-  if (old_data24 < INT_MIN8) {
-    new_data8 = (Int8)(INT_MIN8);
-    truncated = true;
-  } else if (old_data24 > INT_MAX8) {
-    new_data8 = (Int8)(INT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Int8)(old_data24);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_int16(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Int16 new_data16;
-  if (old_data24 < INT_MIN16) {
-    new_data16 = (Int16)(INT_MIN16);
-    truncated = true;
-  } else if (old_data24 > INT_MAX16) {
-    new_data16 = (Int16)(INT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Int16)(old_data24);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_int8(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int8 new_data8;
-  if (old_data32 < INT_MIN8) {
-    new_data8 = (Int8)(INT_MIN8);
-    truncated = true;
-  } else if (old_data32 > INT_MAX8) {
-    new_data8 = (Int8)(INT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Int8)(old_data32);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_int16(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int16 new_data16;
-  if (old_data32 < INT_MIN16) {
-    new_data16 = (Int16)(INT_MIN16);
-    truncated = true;
-  } else if (old_data32 > INT_MAX16) {
-    new_data16 = (Int16)(INT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Int16)(old_data32);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_int24(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int32 new_data24;
-  if (old_data32 < INT_MIN24) {
-    new_data24 = (Int32)(INT_MIN24);
-    truncated = true;
-  } else if (old_data32 > INT_MAX24) {
-    new_data24 = (Int32)(INT_MAX24);
-    truncated = true;
-  } else {
-    new_data24 = (Int32)(old_data32);
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_int8(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int8 new_data8;
-  if (old_data64 < INT_MIN8) {
-    new_data8 = (Int8)(INT_MIN8);
-    truncated = true;
-  } else if (old_data64 > INT_MAX8) {
-    new_data8 = (Int8)(INT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Int8)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_int16(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int16 new_data16;
-  if (old_data64 < INT_MIN16) {
-    new_data16 = (Int16)(INT_MIN16);
-    truncated = true;
-  } else if (old_data64 > INT_MAX16) {
-    new_data16 = (Int16)(INT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Int16)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_int24(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int32 new_data24;
-  if (old_data64 < INT_MIN24) {
-    new_data24 = (Int32)(INT_MIN24);
-    truncated = true;
-  } else if (old_data64 > INT_MAX24) {
-    new_data24 = (Int32)(INT_MAX24);
-    truncated = true;
-  } else {
-    new_data24 = (Int32)(old_data64);
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_int32(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int32 new_data32;
-  if (old_data64 < INT_MIN32) {
-    new_data32 = (Int32)(INT_MIN32);
-    truncated = true;
-  } else if (old_data64 > INT_MAX32) {
-    new_data32 = (Int32)(INT_MAX32);
-    truncated = true;
-  } else {
-    new_data32 = (Int32)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_uint8(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint8 new_data8;
-  if (old_data16 > UINT_MAX8) {
-    new_data8 = (Uint8)(UINT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)(old_data16);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_uint8(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Uint8 new_data8;
-  if (old_data24 > UINT_MAX8) {
-    new_data8 = (Uint8)(UINT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)(old_data24);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_uint16(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Uint16 new_data16;
-  if (old_data24 > UINT_MAX16) {
-    new_data16 = (Uint16)(UINT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)(old_data24);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_uint8(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint8 new_data8;
-  if (old_data32 > UINT_MAX8) {
-    new_data8 = (Uint8)(UINT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)(old_data32);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_uint16(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint16 new_data16;
-  if (old_data32 > UINT_MAX16) {
-    new_data16 = (Uint16)(UINT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)(old_data32);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_uint24(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint32 new_data24;
-  if (old_data32 > UINT_MAX24) {
-    new_data24 = (Uint32)(UINT_MAX24);
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)(old_data32);
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_uint8(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint8 new_data8;
-  if (old_data64 > UINT_MAX8) {
-    new_data8 = (Uint8)(UINT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_uint16(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint16 new_data16;
-  if (old_data64 > UINT_MAX16) {
-    new_data16 = (Uint16)(UINT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_uint24(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint32 new_data24;
-  if (old_data64 > UINT_MAX24) {
-    new_data24 = (Uint32)(UINT_MAX24);
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)(old_data64);
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_uint32(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint32 new_data32;
-  if (old_data64 > UINT_MAX32) {
-    new_data32 = (Uint32)(UINT_MAX32);
-    truncated = true;
-  } else {
-    new_data32 = (Uint32)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-// ----------------------------------------------------------------------
-// integral attribute signedness conversions
-// (follows MySQL replication semantics truncating to nearest legal value)
-// ----------------------------------------------------------------------
-
-void *
-BackupRestore::convert_int8_uint8(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint8 new_data8;
-  if (old_data8 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)(old_data8);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_uint16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint16 new_data16;
-  if (old_data16 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)(old_data16);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_uint24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Uint32 new_data24;
-  if (old_data24 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)(old_data24);
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_uint32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint32 new_data32;
-  if (old_data32 < 0) {
-    new_data32 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data32 = (Uint32)(old_data32);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_uint64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint64 new_data64;
-  if (old_data64 < 0) {
-    new_data64 = (Uint64)0;
-    truncated = true;
-  } else {
-    new_data64 = (Uint64)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_int8(const void *old_data,
-                                  void *parameter,
-                                  bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int8 new_data8;
-  if (old_data8 > INT_MAX8) {
-    new_data8 = (Int8)(INT_MAX8);
-    truncated = true;
-  } else {
-    new_data8 = (Int8)(old_data8);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_int16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int16 new_data16;
-  if (old_data16 > INT_MAX16) {
-    new_data16 = (Int16)(INT_MAX16);
-    truncated = true;
-  } else {
-    new_data16 = (Int16)(old_data16);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_int24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Int32 new_data24 = (Int32)((old_data24 > INT_MAX24) ? INT_MAX24
-                             : old_data24);
-  if (old_data24 > INT_MAX24) {
-    new_data24 = (Int32)(INT_MAX24);
-    truncated = true;
-  } else {
-    new_data24 = (Int32)(old_data24);
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_int32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int32 new_data32;
-  if (old_data32 > INT_MAX32) {
-    new_data32 = (Int32)(INT_MAX32);
-    truncated = true;
-  } else {
-    new_data32 = (Int32)(old_data32);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_int64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int64 new_data64;
-  if (old_data64 > INT_MAX64) {
-    new_data64 = (Int64)(INT_MAX64);
-    truncated = true;
-  } else {
-    new_data64 = (Int64)(old_data64);
-    truncated = false;
-  }
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-// ----------------------------------------------------------------------
-// integral attribute signedness+promotion conversions
-// (follows MySQL replication semantics truncating to nearest legal value)
-// ----------------------------------------------------------------------
-
-void *
-BackupRestore::convert_int8_uint16(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint16 new_data16;
-  if (old_data8 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)old_data8;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int8_uint24(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint32 new_data24;
-  if (old_data8 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)old_data8;
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int8_uint32(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint32 new_data32;
-  if (old_data8 < 0) {
-    new_data32 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data32 = (Uint32)old_data8;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int8_uint64(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Uint64 new_data64;
-  if (old_data8 < 0) {
-    new_data64 = (Uint64)0;
-    truncated = true;
-  } else {
-    new_data64 = (Uint64)old_data8;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_uint24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint32 new_data24;
-  if (old_data16 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)old_data16;
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_uint32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint32 new_data32;
-  if (old_data16 < 0) {
-    new_data32 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data32 = (Uint32)old_data16;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int16_uint64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint64 new_data64;
-  if (old_data16 < 0) {
-    new_data64 = (Uint64)0;
-    truncated = true;
-  } else {
-    new_data64 = (Uint64)old_data16;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_uint32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Uint32 new_data32;
-  if (old_data24 < 0) {
-    new_data32 = (Uint32)0;
-    truncated = true;
-  } else {
-    new_data32 = (Uint32)old_data24;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_uint64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Uint64 new_data64;
-  if (old_data24 < 0) {
-    new_data64 = (Uint64)0;
-    truncated = true;
-  } else {
-    new_data64 = (Uint64)old_data24;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_uint64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint64 new_data64;
-  if (old_data32 < 0) {
-    new_data64 = (Uint64)0;
-    truncated = true;
-  } else {
-    new_data64 = (Uint64)old_data32;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_int16(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int16 new_data16 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_int24(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int32 new_data24 = old_data8;
-  truncated = false;
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_int32(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int32 new_data32 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint8_int64(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint8 old_data8;
-  memcpy(&old_data8, old_data, 1);
-  Int64 new_data64 = old_data8;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_int24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int32 new_data24 = old_data16;
-  truncated = false;
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_int32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int32 new_data32 = old_data16;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_int64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int64 new_data64 = old_data16;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_int32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Int32 new_data32 = old_data24;
-  truncated = false;
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_int64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Int64 new_data64 = old_data24;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_int64(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int64 new_data64 = old_data32;
-  truncated = false;
-  memcpy(parameter, &new_data64, 8);
-
-  return parameter;
-}
-
-// ----------------------------------------------------------------------
-// integral attribute signedness+demotion conversions
-// (follows MySQL replication semantics truncating to nearest legal value)
-// ----------------------------------------------------------------------
-
-void *
-BackupRestore::convert_int16_uint8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Uint8 new_data8;
-  if (old_data16 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data16 > UINT_MAX8) {
-    new_data8 = (Uint8)UINT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)old_data16;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_uint8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Uint8 new_data8;
-  if (old_data24 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data24 > UINT_MAX8) {
-    new_data8 = (Uint8)UINT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)old_data24;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int24_uint16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data24 = sint3korr((char*)old_data);
-  Uint16 new_data16;
-  if (old_data24 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else if (old_data24 > UINT_MAX16) {
-    new_data16 = (Uint16)UINT_MAX16;
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)old_data24;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_uint8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint8 new_data8;
-  if (old_data32 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data32 > UINT_MAX8) {
-    new_data8 = (Uint8)UINT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)old_data32;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_uint16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint16 new_data16;
-  if (old_data32 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else if (old_data32 > UINT_MAX16) {
-    new_data16 = (Uint16)UINT_MAX16;
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)old_data32;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int32_uint24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Uint32 new_data24;
-  if (old_data32 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else if (old_data32 > UINT_MAX24) {
-    new_data24 = (Uint32)UINT_MAX24;
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)old_data32;
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_uint8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint8 new_data8;
-  if (old_data64 < 0) {
-    new_data8 = (Uint8)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX8) {
-    new_data8 = (Uint8)UINT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Uint8)old_data64;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_uint16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint16 new_data16;
-  if (old_data64 < 0) {
-    new_data16 = (Uint16)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX16) {
-    new_data16 = (Uint16)UINT_MAX16;
-    truncated = true;
-  } else {
-    new_data16 = (Uint16)old_data64;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_uint24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint32 new_data24;
-  if (old_data64 < 0) {
-    new_data24 = (Uint32)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX24) {
-    new_data24 = (Uint32)UINT_MAX24;
-    truncated = true;
-  } else {
-    new_data24 = (Uint32)old_data64;
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_int64_uint32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Int64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Uint32 new_data32;
-  if (old_data64 < 0) {
-    new_data32 = (Uint32)0;
-    truncated = true;
-  } else if (old_data64 > UINT_MAX32) {
-    new_data32 = (Uint32)UINT_MAX32;
-    truncated = true;
-  } else {
-    new_data32 = (Uint32)old_data64;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint16_int8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint16 old_data16;
-  memcpy(&old_data16, old_data, 2);
-  Int8 new_data8;
-  if (old_data16 > INT_MAX8) {
-    new_data8 = (Int8)INT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Int8)old_data16;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_int8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Int8 new_data8;
-  if (old_data24 > INT_MAX8) {
-    new_data8 = (Int8)INT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Int8)old_data24;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint24_int16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data24 = uint3korr((char*)old_data);
-  Int16 new_data16;
-  if (old_data24 > INT_MAX16) {
-    new_data16 = (Int16)INT_MAX16;
-    truncated = true;
-  } else {
-    new_data16 = (Int16)old_data24;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_int8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int8 new_data8;
-  if (old_data32 > INT_MAX8) {
-    new_data8 = (Int8)INT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Int8)old_data32;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_int16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int16 new_data16;
-  if (old_data32 > INT_MAX16) {
-    new_data16 = (Int16)INT_MAX16;
-    truncated = true;
-  } else {
-    new_data16 = (Int16)old_data32;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint32_int24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint32 old_data32;
-  memcpy(&old_data32, old_data, 4);
-  Int32 new_data24;
-  if (old_data32 > INT_MAX24) {
-    new_data24 = (Int32)INT_MAX24;
-    truncated = true;
-  } else {
-    new_data24 = (Int32)old_data32;
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_int8(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int8 new_data8;
-  if (old_data64 > INT_MAX8) {
-    new_data8 = (Int8)INT_MAX8;
-    truncated = true;
-  } else {
-    new_data8 = (Int8)old_data64;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data8, 1);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_int16(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int16 new_data16;
-  if (old_data64 > INT_MAX16) {
-    new_data16 = (Int16)INT_MAX16;
-    truncated = true;
-  } else {
-    new_data16 = (Int16)old_data64;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data16, 2);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_int24(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int32 new_data24;
-  if (old_data64 > INT_MAX24) {
-    new_data24 = (Int32)INT_MAX24;
-    truncated = true;
-  } else {
-    new_data24 = (Int32)old_data64;
-    truncated = false;
-  }
-  int3store((char*)parameter, new_data24);
-
-  return parameter;
-}
-
-void *
-BackupRestore::convert_uint64_int32(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  Uint64 old_data64;
-  memcpy(&old_data64, old_data, 8);
-  Int32 new_data32;
-  if (old_data64 > INT_MAX32) {
-    new_data32 = (Int32)INT_MAX32;
-    truncated = true;
-  } else {
-    new_data32 = (Int32)old_data64;
-    truncated = false;
-  }
-  memcpy(parameter, &new_data32, 4);
-
-  return parameter;
-}
-
-// ----------------------------------------------------------------------
-// attribute promotion/demotion conversions
-// ----------------------------------------------------------------------
-
-void *
-BackupRestore::convert_bit_bit(const void *old_data,
-                               void *parameter,
-                               bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-
-  // write data
-  if (t->n_new >= t->n_old)
-  {
-    // clear all bits
-    memset(t->new_row, 0, t->n_new);
-
-    memcpy(t->new_row, s, t->n_old);
-    truncated = false;
-  } else {
-    // set all bits, for parity with replication's demotion semantics
-    memset(t->new_row, 0xFF, t->n_new);
-    truncated = true;
-  }
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_char_char(const void *old_data,
-                                 void *parameter,
-                                 bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const char * const s = (const char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 0;
-  const Uint32 t_prefix_length = 0;
-
-  // read and adjust length
-  Uint32 length = t->n_old;
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (!m_preserve_trailing_spaces) {
-    // ignore padding chars for data copying or truncation reporting
-    while (length > 0 && s[length - 1] == ' ')
-      length--;
-  }
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write data and padding
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-  const Uint32 l = max_length - length;
-  memset(t->new_row + t_prefix_length + length, ' ', l);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_binary_binary(const void *old_data,
-                                     void *parameter,
-                                     bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const char * const s = (const char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 0;
-  const Uint32 t_prefix_length = 0;
-
-  // read and adjust length
-  Uint32 length = t->n_old;
-  if (!m_preserve_trailing_spaces) {
-    // ignore padding chars for data copying or truncation reporting
-    while (length > 0 && s[length - 1] == 0x00)
-      length--;
-  }
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write data and padding
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-  const Uint32 l = max_length - length;
-  memset(t->new_row + t_prefix_length + length, 0x00, l);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_char_varchar(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const char * const s = (const char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 0;
-  const Uint32 t_prefix_length = 1;
-
-  // read and adjust length
-  Uint32 length = t->n_old;
-  if (!m_preserve_trailing_spaces) {
-    // ignore padding chars for data copying or truncation reporting
-    while (length > 0 && s[length - 1] == ' ')
-      length--;
-  }
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_varchar_char(const void *old_data,
-                                    void *parameter,
-                                    bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 1;
-  const Uint32 t_prefix_length = 0;
-
-  // read and adjust length
-  Uint32 length = s[0];
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write data and padding
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-  const Uint32 l = max_length - length;
-  memset(t->new_row + t_prefix_length + length, ' ', l);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_char_longvarchar(const void *old_data,
-                                        void *parameter,
-                                        bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const char * const s = (const char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 0;
-  const Uint32 t_prefix_length = 2;
-
-  // read and adjust length
-  Uint32 length = t->n_old;
-  if (!m_preserve_trailing_spaces) {
-    // ignore padding chars for data copying or truncation reporting
-    while (length > 0 && s[length - 1] == ' ')
-      length--;
-  }
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  t->new_row[1] = (length & 0x0000FF00) >> 8;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_longvarchar_char(const void *old_data,
-                                        void *parameter,
-                                        bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 2;
-  const Uint32 t_prefix_length = 0;
-
-  // read and adjust length
-  Uint32 length = s[0] + (s[1] << 8);
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write data and padding
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-  const Uint32 l = max_length - length;
-  memset(t->new_row + t_prefix_length + length, ' ', l);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_binary_varbinary(const void *old_data,
-                                        void *parameter,
-                                        bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const char * const s = (const char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 0;
-  const Uint32 t_prefix_length = 1;
-
-  // read and adjust length
-  Uint32 length = t->n_old;
-  if (!m_preserve_trailing_spaces) {
-    // ignore padding chars for data copying or truncation reporting
-    while (length > 0 && s[length - 1] == 0x00)
-      length--;
-  }
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_varbinary_binary(const void *old_data,
-                                        void *parameter,
-                                        bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 1;
-  const Uint32 t_prefix_length = 0;
-
-  // read and adjust length
-  Uint32 length = s[0];
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write data and padding
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-  const Uint32 l = max_length - length;
-  memset(t->new_row + t_prefix_length + length, 0x00, l);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_binary_longvarbinary(const void *old_data,
-                                            void *parameter,
-                                            bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const char * const s = (const char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 0;
-  const Uint32 t_prefix_length = 2;
-
-  // read and adjust length
-  Uint32 length = t->n_old;
-  if (!m_preserve_trailing_spaces) {
-    // ignore padding chars for data copying or truncation reporting
-    while (length > 0 && s[length - 1] == 0x00)
-      length--;
-  }
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  t->new_row[1] = (length & 0x0000FF00) >> 8;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_longvarbinary_binary(const void *old_data,
-                                            void *parameter,
-                                            bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 2;
-  const Uint32 t_prefix_length = 0;
-
-  // read and adjust length
-  Uint32 length = s[0] + (s[1] << 8);
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write data and padding
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-  const Uint32 l = max_length - length;
-  memset(t->new_row + t_prefix_length + length, 0x00, l);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_var_var(const void *old_data,
-                               void *parameter,
-                               bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 1;
-  const Uint32 t_prefix_length = 1;
-
-  // read and adjust length
-  Uint32 length = s[0];
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_var_longvar(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 1;
-  const Uint32 t_prefix_length = 2;
-
-  // read and adjust length
-  Uint32 length = s[0];
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  t->new_row[1] = (length & 0x0000FF00) >> 8;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_longvar_var(const void *old_data,
-                                   void *parameter,
-                                   bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 2;
-  const Uint32 t_prefix_length = 1;
-
-  // read and adjust length
-  Uint32 length = s[0] + (s[1] << 8);
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
-
-void *
-BackupRestore::convert_longvar_longvar(const void *old_data,
-                                       void *parameter,
-                                       bool &truncated)
-{
-  if (!old_data || !parameter)
-    return NULL;
-
-  // shortcuts
-  const unsigned char * const s = (const unsigned char *)old_data;
-  char_n_padding_struct * const t = (char_n_padding_struct *)parameter;
-  const Uint32 s_prefix_length = 2;
-  const Uint32 t_prefix_length = 2;
-
-  // read and adjust length
-  Uint32 length = s[0] + (s[1] << 8);
-  const Uint32 max_length = t->n_new - t_prefix_length;
-  if (length <= max_length) {
-    truncated = false;
-  } else {
-    length = max_length;
-    truncated = true;
-  }
-
-  // write length prefix and data
-  t->new_row[0] = length & 0x000000FF;
-  t->new_row[1] = (length & 0x0000FF00) >> 8;
-  memcpy(t->new_row + t_prefix_length, s + s_prefix_length, length);
-
-  return t->new_row;
-}
 
 template class Vector<NdbDictionary::Table*>;
 template class Vector<const NdbDictionary::Table*>;
@@ -4612,3 +2706,125 @@ template class Vector<NdbDictionary::Tablespace*>;
 template class Vector<NdbDictionary::LogfileGroup*>;
 template class Vector<NdbDictionary::Index*>;
 template class Vector<Vector<NdbDictionary::Index*> >;
+
+// char array promotions/demotions
+template void * BackupRestore::convert_array< Hchar, Hchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hchar, Hvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hchar, Hlongvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarchar, Hchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarchar, Hvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarchar, Hlongvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarchar, Hchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarchar, Hvarchar >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarchar, Hlongvarchar >(const void *, void *, bool &);
+
+// binary array promotions/demotions
+template void * BackupRestore::convert_array< Hbinary, Hbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hbinary, Hvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hbinary, Hlongvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarbinary, Hbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarbinary, Hvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hvarbinary, Hlongvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarbinary, Hbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarbinary, Hvarbinary >(const void *, void *, bool &);
+template void * BackupRestore::convert_array< Hlongvarbinary, Hlongvarbinary >(const void *, void *, bool &);
+
+// integral promotions
+template void * BackupRestore::convert_integral<Hint8, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint8, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint8, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint8, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Huint64>(const void *, void *, bool &);
+
+// integral demotions
+template void * BackupRestore::convert_integral<Hint16, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Huint32>(const void *, void *, bool &);
+
+// integral signedness BackupRestore::conversions
+template void * BackupRestore::convert_integral<Hint8, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Hint64>(const void *, void *, bool &);
+
+// integral signedness+promotion BackupRestore::conversions
+template void * BackupRestore::convert_integral<Hint8, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint8, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint8, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint8, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint16, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Huint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint8, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Hint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Hint64>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Hint64>(const void *, void *, bool &);
+
+// integral signedness+demotion BackupRestore::conversions
+template void * BackupRestore::convert_integral<Hint16, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint24, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint32, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Huint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Huint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Huint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Hint64, Huint32>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint16, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint24, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint32, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Hint8>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Hint16>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Hint24>(const void *, void *, bool &);
+template void * BackupRestore::convert_integral<Huint64, Hint32>(const void *, void *, bool &);
