@@ -66,7 +66,7 @@ struct ArrayTypeTraits {
   static bool isFixedSized();
 
   // the size of the length prefix in bytes, or zero if a fixed-sized array
-  static size_t lengthPrefixSize();
+  static Uint32 lengthPrefixSize();
 };
 
 // aliases for array type traits
@@ -109,7 +109,7 @@ struct NumTypeTraits {
   static bool isSigned() { return NumTypeMap< T >::isSigned(); };
 
   // the width of the type in bytes
-  static size_t size();
+  static Uint32 size();
 
   // the minimum finite value
   static T lowest();
@@ -184,7 +184,7 @@ struct ArrayTypeHelper : ArrayTypeTraits< ID > {
   static Uint32 readLengthPrefix(const void * a);
 
   // write the length prefix (not available if a fixed-sized array)
-  // the upper (non-length-prefix) bytes of 'l' must be zero
+  // the non-length-prefix bytes of 'l' must be zero
   static void writeLengthPrefix(void * a, Uint32 l);
 };
 
@@ -275,7 +275,7 @@ typedef NonStdNumTypeHelper< Uint32 > Huint24;
 #define NDB_SPECIALIZE_ARRAY_TYPE_TRAITS( TR, B, FS, LPS )              \
   template<> inline bool TR::isBinary() { return B; }                   \
   template<> inline bool TR::isFixedSized() { return FS; }              \
-  template<> inline size_t TR::lengthPrefixSize() { return LPS; }
+  template<> inline Uint32 TR::lengthPrefixSize() { return LPS; }
 
 // coincidentally, we could use ndb constants
 //   NDB_ARRAYTYPE_FIXED, NDB_ARRAYTYPE_SHORT_VAR, NDB_ARRAYTYPE_MEDIUM_VAR
@@ -313,7 +313,7 @@ NDB_SPECIALIZE_NUM_TYPE_MAP(double, double, double, false, true)
 
 // specialize the Traits template members for numeric types
 #define NDB_SPECIALIZE_NUM_TYPE_TRAITS( TR, T, SZ, LO, HI, SM )         \
-  template<> inline size_t TR::size() { return SZ; }                    \
+  template<> inline Uint32 TR::size() { return SZ; }                    \
   template<> inline T TR::lowest() { return LO; }                       \
   template<> inline T TR::highest() { return HI; }                      \
   template<> inline T TR::smallest() { return SM; }
@@ -347,10 +347,12 @@ NDB_SPECIALIZE_NON_STD_NUM_TYPE_TRAITS(Tuint24, Uint32, 0, UINT_MAX24)
 #define NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS0( H )                      \
   template<> inline Uint32 H::readLengthPrefix(const void * a) {        \
     assert(false);                                                      \
+    (void)a;                                                            \
     return 0;                                                           \
   };                                                                    \
   template<> inline void H::writeLengthPrefix(void * a, Uint32 l) {     \
     assert(false);                                                      \
+    (void)a; (void)l;                                                   \
   }
 
 NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS0(Hchar)
@@ -361,13 +363,13 @@ NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS0(Hbinary)
 #define NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS1( H )                      \
   template<> inline Uint32 H::readLengthPrefix(const void * a) {        \
     assert(a);                                                          \
-    const unsigned char * s = static_cast<const unsigned char *>(a);    \
+    const Uint8 * s = static_cast<const Uint8 *>(a);                    \
     return s[0];                                                        \
   };                                                                    \
   template<> inline void H::writeLengthPrefix(void * a, Uint32 l) {     \
     assert(a);                                                          \
     assert(l >> (lengthPrefixSize() * 8) == 0);                         \
-    unsigned char * t = static_cast<unsigned char *>(a);                \
+    Uint8 * t = static_cast<Uint8 *>(a);                                \
     t[0] = l & 0x000000FF;                                              \
   }
 
@@ -379,15 +381,15 @@ NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS1(Hvarbinary)
 #define NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS2( H )                      \
   template<> inline Uint32 H::readLengthPrefix(const void * a) {        \
     assert(a);                                                          \
-    const unsigned char * s = static_cast<const unsigned char *>(a);    \
-    return s[0] + (s[1] << 8);                                          \
+    const Uint8 * s = static_cast<const Uint8 *>(a);                    \
+    return static_cast<Uint32>(s[0] + (s[1] << 8));                     \
   };                                                                    \
   template<> inline void H::writeLengthPrefix(void * a, Uint32 l) {     \
     assert(a);                                                          \
     assert(l >> (lengthPrefixSize() * 8) == 0);                         \
-    unsigned char * t = static_cast<unsigned char *>(a);                \
-    t[0] = l & 0x000000FF;                                              \
-    t[1] = (l & 0x0000FF00) >> 8;                                       \
+    Uint8 * t = static_cast<Uint8 *>(a);                                \
+    t[0] = static_cast<Uint8>(l & 0x000000FF);                          \
+    t[1] = static_cast<Uint8>((l & 0x0000FF00) >> 8);                   \
   }
 
 NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS2(Hlongvarchar)
@@ -398,10 +400,11 @@ NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS2(Hlongvarbinary)
 #define NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE( H, T )                     \
   template<> inline void H::load(T * t, const char * s) {               \
     assert(t); assert(s); assert(t != (const T *)s);                    \
-    *t = *s;                                                            \
+    *t = static_cast<T>(*s);                                            \
   }                                                                     \
   template<> inline void H::store(char * t, const T * s) {              \
-    H::load((T *)t, (const char *)s);                                   \
+    H::load(reinterpret_cast<T *>(t),                                   \
+            reinterpret_cast<const char *>(s));                         \
   }
 
 NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Hint8, Int8);
@@ -411,12 +414,12 @@ NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Huint8, Uint8);
 // specialize the Helper template members for numeric types
 #define NDB_SPECIALIZE_NUM_TYPE_HELPER( H, T )                          \
   template<> inline void H::load(T * t, const char * s) {               \
-    assert(t); assert(s);                                               \
-    assert(t != (const T *)s);                                          \
+    assert(t); assert(s); assert(t != (const T *)s);                    \
     memcpy(t, s, H::size());                                            \
   }                                                                     \
   template<> inline void H::store(char * t, const T * s) {              \
-    H::load((T *)t, (const char *)s);                                   \
+    H::load(reinterpret_cast<T *>(t),                                   \
+            reinterpret_cast<const char *>(s));                         \
   }
 
 NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint16, Int16);

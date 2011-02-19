@@ -155,20 +155,22 @@ BackupRestore::convert_integral(const void * source,
   // Under ansi (and even more K&R) C promotion rules, if 'T' is unsigned
   // and if there's no larger signed type available, the value 's' gets
   // promoted to unsigned; then, a negative value of 's' becomes (large)
-  // positive -- with a wrong comparison outcome. Furthermore, no "mixed
-  // signedness comparison" compiler warnings should be triggered for any
-  // specialization of integral types 'S' and 'T'.
+  // positive -- with a wrong comparison outcome.
+  //
+  // Furthermore, the code should not trigger compiler warnings for any
+  // selection of integral types 'S', 'T' ("mixed signedness comparison",
+  // "comparison of unsigned expression <0 / >=0 is always false/true").
   //
   // The correct approach: do lower bound comparisons on signed types and
   // upper bound comparisons on unsigned types only; this requires casts.
   // For the casts to be safe, compare the value against the zero literal
-  //    if (s < 0) { check as signed } else if (s > 0) { check as unsigned }
-  // which is always a valid test, for signed and unsigned types.
+  //    if (s <= 0) { check as signed } else { check as unsigned }
+  // which is a valid + nontrivial test for signed and unsigned types.
   //
   // This implies that correct, generic conversion code must test into
   // which of these _four_ subranges value 's' falls
-  //    ... < T's lower bound <= ... <= 0 <= ... <= T's upper bound < ...
-  // while handling 's' as signed/unsigned where less/greater zero.
+  //    ... < T's lower bound <= ... <= 0 < ... <= T's upper bound < ...
+  // while handling 's' as signed/unsigned where less-equal/greater zero.
   //
   // Obviously, simplifications are possible if 'S' is unsigned or known
   // to be a subset of 'T'.  This can be accomplished by a few additional
@@ -177,12 +179,7 @@ BackupRestore::convert_integral(const void * source,
 
   // write the target value
   typename T::DomainT t;
-  if (s == 0) {               // fast track case
-
-    t = 0;
-    truncated = false;
-
-  } else if (s < 0) {         // compile-time expr if S is unsigned
+  if (s <= 0) {
 
     // check value against lower bound as _signed_, safe since all <= 0
     assert(S::lowest() <= 0 && T::lowest() <= 0 && s <= 0);
@@ -200,8 +197,8 @@ BackupRestore::convert_integral(const void * source,
 
   } else { // (s > 0)
 
-    // check value against upper bound as _unsigned_, safe since all >= 0
-    assert(S::highest() >= 0 && T::highest() >= 0 && s >= 0);
+    // check value against upper bound as _unsigned_, safe since all > 0
+    assert(S::highest() > 0 && T::highest() > 0 && s > 0);
     const typename S::UnsignedT s_h_u = S::asUnsigned(S::highest());
     const typename T::UnsignedT t_h_u = T::asUnsigned(T::highest());
     const typename S::UnsignedT s_u = S::asUnsigned(s);
