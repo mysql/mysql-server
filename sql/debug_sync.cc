@@ -1942,4 +1942,7 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len)
 }
 
 
+#else /* defined(ENABLED_DEBUG_SYNC) */
+/* prevent linker/lib warning about file without public symbols */
+int debug_sync_dummy; 
 #endif /* defined(ENABLED_DEBUG_SYNC) */

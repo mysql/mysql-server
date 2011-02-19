@@ -2062,6 +2062,7 @@ static void lck_do_job(XTThreadPtr self, int job, XSLockTestPtr data, xtBool rea
 
 	switch (job) {
 		case JOB_MEMCPY:
+			b2[0]=0;
 			memcpy(b1, b2, 2048);
 			data->xs_inc++;
 			break;
