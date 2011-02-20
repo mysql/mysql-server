@@ -283,7 +283,11 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
   COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
-  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
+  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
 ENDIF()
 ENDIF()
+
+ADD_CUSTOM_TARGET(show-dist-name
+  COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
+)
 

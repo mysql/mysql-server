@@ -13,9 +13,9 @@ show grants;
 Grants for pfsuser@localhost
 GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
 GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
-select * from performance_schema.SETUP_INSTRUMENTS;
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+select * from performance_schema.setup_instruments;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 connection default;
 set global read_only=1;
 connection con1;
@@ -26,9 +26,9 @@ show grants;
 Grants for pfsuser@localhost
 GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
 GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
-select * from performance_schema.SETUP_INSTRUMENTS;
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+select * from performance_schema.setup_instruments;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 connection default;
 grant super on *.* to pfsuser@localhost;
 flush privileges;
@@ -40,9 +40,9 @@ show grants;
 Grants for pfsuser@localhost
 GRANT SUPER ON *.* TO 'pfsuser'@'localhost'
 GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
-select * from performance_schema.SETUP_INSTRUMENTS;
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+select * from performance_schema.setup_instruments;
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES';
 connection default;
 set global read_only= @start_read_only;
 drop user pfsuser@localhost;

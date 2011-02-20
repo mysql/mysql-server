@@ -3747,7 +3747,8 @@ print_tab_data(MYSQL_RES *result)
 }
 
 static int
-com_tee(String *buffer, char *line __attribute__((unused)))
+com_tee(String *buffer __attribute__((unused)),
+        char *line __attribute__((unused)))
 {
   char file_name[FN_REFLEN], *end, *param;
 
@@ -3806,7 +3807,8 @@ com_notee(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_pager(String *buffer, char *line __attribute__((unused)))
+com_pager(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char pager_name[FN_REFLEN], *end, *param;
 
@@ -3931,7 +3933,8 @@ com_rehash(String *buffer __attribute__((unused)),
 
 #ifdef USE_POPEN
 static int
-com_shell(String *buffer, char *line __attribute__((unused)))
+com_shell(String *buffer __attribute__((unused)),
+          char *line __attribute__((unused)))
 {
   char *shell_cmd;
 
@@ -4023,7 +4026,8 @@ com_connect(String *buffer, char *line)
 }
 
 
-static int com_source(String *buffer, char *line)
+static int com_source(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char source_name[FN_REFLEN], *end, *param;
   LINE_BUFFER *line_buff;
@@ -4941,7 +4945,8 @@ static void init_username()
   }
 }
 
-static int com_prompt(String *buffer, char *line)
+static int com_prompt(String *buffer __attribute__((unused)),
+                      char *line)
 {
   char *ptr=strchr(line, ' ');
   prompt_counter = 0;

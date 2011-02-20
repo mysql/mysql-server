@@ -1545,8 +1545,6 @@ lock table not_exists_write read;
 --echo # We still have the read lock.
 --error ER_CANT_UPDATE_WITH_READLOCK
 drop table t1;
-handler t1 read next;
-handler t1 close;
 handler t1 open;
 select a from t2;
 handler t1 read next;

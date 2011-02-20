@@ -22,6 +22,8 @@
 
 #include <memory.h>
 
+#include "stub_server_misc.h"
+
 void test_no_instruments()
 {
   int rc;

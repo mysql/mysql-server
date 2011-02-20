@@ -1315,6 +1315,20 @@ SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
 1
 1
 DROP TABLE t1;
+#
+# Bug #52160: crash and inconsistent results when grouping
+#             by a function and column
+#
+CREATE TABLE t1(a CHAR(10) NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
+COUNT(*)
+2
+Warnings:
+Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: ''
+Warning	1292	Truncated incorrect time value: ''
+DROP TABLE t1;
 End of 5.1 tests
 #
 # Bug#57039: constant subtime expression returns incorrect result.
@@ -1326,4 +1340,13 @@ date_date
 SELECT * FROM t1 WHERE date_date <= addtime(date_add("2000-1-1", INTERVAL "1:1:1" HOUR_SECOND), "00:20:00");
 date_date
 DROP TABLE t1;
+#
+# Bug#57512 str_to_date crash...
+#
+SELECT WEEK(STR_TO_DATE(NULL,0));
+WEEK(STR_TO_DATE(NULL,0))
+NULL
+SELECT SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR);
+SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR)
+NULL
 #

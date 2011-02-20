@@ -53,24 +53,24 @@ while ($type)
 {
   let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
   connection conn1;
-  if (`select $type = 2`)
+  if ($type == 2)
   {
     SET AUTOCOMMIT = 1;
     BEGIN;
   }
-  if (`select $type = 1`)
+  if ($type == 1)
   {
     SET AUTOCOMMIT = 0;
   }
   eval UPDATE t SET f = 'yellow $type' WHERE i = 3;
   
   connection conn2;
-  if (`select $type = 2`)
+  if ($type == 2)
   {
     SET AUTOCOMMIT = 1;
     BEGIN;
   }
-  if (`select $type = 1`)
+  if ($type == 1)
   {
     SET AUTOCOMMIT = 0;
   }
@@ -88,24 +88,24 @@ while ($type)
 
   let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
   connection conn1;
-  if (`select $type = 2`)
+  if ($type == 2)
   {
     SET AUTOCOMMIT = 1;
     BEGIN;
   }
-  if (`select $type = 1`)
+  if ($type == 1)
   {
     SET AUTOCOMMIT = 0;
   }
   eval UPDATE t SET f = 'gray $type' WHERE i = 3;
   
   connection conn2;
-  if (`select $type = 2`)
+  if ($type == 2)
   {
     SET AUTOCOMMIT = 1;
     BEGIN;
   }
-  if (`select $type = 1`)
+  if ($type == 1)
   {
     SET AUTOCOMMIT = 0;
   }

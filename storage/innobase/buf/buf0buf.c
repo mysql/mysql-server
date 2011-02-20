@@ -172,7 +172,7 @@ The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
 but not written to disk yet. The block with the oldest modification
 which has not yet been written to disk is at the end of the chain.
-The access to this list is protected by flush_list_mutex.
+The access to this list is protected by buf_pool->flush_list_mutex.
 
 The chain of unmodified compressed blocks (buf_pool->zip_clean)
 contains the control blocks (buf_page_t) of those compressed pages
@@ -246,8 +246,8 @@ static const int WAIT_FOR_READ	= 5000;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
-/** The buffer buf_pool of the database */
-UNIV_INTERN buf_pool_t*	buf_pool_ptr[MAX_BUFFER_POOLS];
+/** The buffer pools of the database */
+UNIV_INTERN buf_pool_t*	buf_pool_ptr;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 static ulint	buf_dbg_counter	= 0; /*!< This is used to insert validation
@@ -858,7 +858,7 @@ buf_block_init(
 
 	block->frame = frame;
 
-	block->page.buf_pool = buf_pool;
+	block->page.buf_pool_index = buf_pool_index(buf_pool);
 	block->page.state = BUF_BLOCK_NOT_USED;
 	block->page.buf_fix_count = 0;
 	block->page.io_fix = BUF_IO_NONE;
@@ -1280,8 +1280,6 @@ buf_pool_free_instance(
 	mem_free(buf_pool->chunks);
 	hash_table_free(buf_pool->page_hash);
 	hash_table_free(buf_pool->zip_hash);
-	mem_free(buf_pool);
-	buf_pool = NULL;
 }
 
 /********************************************************************//**
@@ -1294,24 +1292,22 @@ buf_pool_init(
 	ulint	total_size,	/*!< in: size of the total pool in bytes */
 	ulint	n_instances)	/*!< in: number of instances */
 {
-	ulint	i;
+	ulint		i;
+	const ulint	size	= total_size / n_instances;
+
+	ut_ad(n_instances > 0);
+	ut_ad(n_instances <= MAX_BUFFER_POOLS);
+	ut_ad(n_instances == srv_buf_pool_instances);
 
 	/* We create an extra buffer pool instance, this instance is used
 	for flushing the flush lists, to keep track of n_flush for all
 	the buffer pools and also used as a waiting object during flushing. */
+	buf_pool_ptr = mem_zalloc(n_instances * sizeof *buf_pool_ptr);
+
 	for (i = 0; i < n_instances; i++) {
-		buf_pool_t*	ptr;
-		ulint		size;
-
-		ptr = mem_zalloc(sizeof(*ptr));
-
-		size = total_size / n_instances;
-
-		buf_pool_ptr[i] = ptr;
+		buf_pool_t*	ptr	= &buf_pool_ptr[i];
 
 		if (buf_pool_init_instance(ptr, size, i) != DB_SUCCESS) {
-
-			mem_free(buf_pool_ptr[i]);
 
 			/* Free all the instances created so far. */
 			buf_pool_free(i);
@@ -1341,8 +1337,10 @@ buf_pool_free(
 
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
-		buf_pool_ptr[i] = NULL;
 	}
+
+	mem_free(buf_pool_ptr);
+	buf_pool_ptr = NULL;
 }
 
 /********************************************************************//**
@@ -1882,8 +1880,8 @@ buf_pool_watch_set(
 			ut_ad(!bpage->in_page_hash);
 			ut_ad(bpage->buf_fix_count == 0);
 
-			/* bpage is pointing to buf_pool_watch[],
-			which is protected by buf_pool_mutex.
+			/* bpage is pointing to buf_pool->watch[],
+			which is protected by buf_pool->mutex.
 			Normally, buf_page_t objects are protected by
 			buf_block_t::mutex or buf_pool->zip_mutex or both. */
 
@@ -3008,6 +3006,46 @@ wait_until_unfixed:
 	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
 #endif
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)
+	    && ibuf_debug) {
+		/* Try to evict the block from the buffer pool, to use the
+		insert buffer (change buffer) as much as possible. */
+
+		if (buf_LRU_free_block(&block->page, TRUE, NULL)
+		    == BUF_LRU_FREED) {
+			mutex_exit(&block->mutex);
+			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+				/* Set the watch, as it would have
+				been set if the page were not in the
+				buffer pool in the first place. */
+				block = (buf_block_t*) buf_pool_watch_set(
+					space, offset, fold);
+
+				if (UNIV_LIKELY_NULL(block)) {
+
+					/* The page entered the buffer
+					pool for some reason. Try to
+					evict it again. */
+					goto got_block;
+				}
+			}
+			buf_pool_mutex_exit(buf_pool);
+			fprintf(stderr,
+				"innodb_change_buffering_debug evict %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			return(NULL);
+		} else if (buf_flush_page_try(buf_pool, block)) {
+			fprintf(stderr,
+				"innodb_change_buffering_debug flush %u %u\n",
+				(unsigned) space, (unsigned) offset);
+			guess = block;
+			goto loop;
+		}
+
+		/* Failed to evict the page; change it directly */
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 	buf_block_buf_fix_inc(block, file, line);
 
@@ -3645,7 +3683,7 @@ err_exit:
 		bpage = buf_buddy_alloc(buf_pool, sizeof *bpage, &lru);
 
 		/* Initialize the buf_pool pointer. */
-		bpage->buf_pool = buf_pool;
+		bpage->buf_pool_index = buf_pool_index(buf_pool);
 
 		/* If buf_buddy_alloc() allocated storage from the LRU list,
 		it released and reacquired buf_pool->mutex.  Thus, we must

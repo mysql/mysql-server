@@ -316,6 +316,14 @@ SELECT RAND(i) FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#57477 SIGFPE when dividing a huge number a negative number
+--echo #
+--error ER_DATA_OUT_OF_RANGE
+SELECT -9999999999999999991 DIV -1;
+--error ER_DATA_OUT_OF_RANGE
+SELECT -9223372036854775808 DIV -1;
+SELECT -9223372036854775808 MOD -1;
+SELECT -9223372036854775808999 MOD -1;
 
 #
 # Bug #8457: Precision math:
@@ -464,3 +472,11 @@ SELECT -9223372036854775808 MOD -1;
 --echo #
 SELECT floor(log10(format(concat_ws(5445796E25, 5306463, 30837), -358821)))
 as foo;
+
+--echo #
+--echo # Bug #58137 char(0) column cause:
+--echo #            my_gcvt: Assertion `width > 0 && to != ((void *)0)' failed
+--echo #
+CREATE TABLE t1(a char(0));
+INSERT INTO t1 (SELECT -pi());
+DROP TABLE t1;

@@ -25,21 +25,21 @@ use performance_schema;
 
 show tables;
 
-show create table COND_INSTANCES;
-show create table EVENTS_WAITS_CURRENT;
-show create table EVENTS_WAITS_HISTORY;
-show create table EVENTS_WAITS_HISTORY_LONG;
-show create table EVENTS_WAITS_SUMMARY_BY_INSTANCE;
-show create table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
-show create table EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME;
-show create table FILE_INSTANCES;
-show create table FILE_SUMMARY_BY_EVENT_NAME;
-show create table FILE_SUMMARY_BY_INSTANCE;
-show create table MUTEX_INSTANCES;
-show create table PERFORMANCE_TIMERS;
-show create table RWLOCK_INSTANCES;
-show create table SETUP_CONSUMERS;
-show create table SETUP_INSTRUMENTS;
-show create table SETUP_TIMERS;
-show create table THREADS;
+show create table cond_instances;
+show create table events_waits_current;
+show create table events_waits_history;
+show create table events_waits_history_long;
+show create table events_waits_summary_by_instance;
+show create table events_waits_summary_by_thread_by_event_name;
+show create table events_waits_summary_global_by_event_name;
+show create table file_instances;
+show create table file_summary_by_event_name;
+show create table file_summary_by_instance;
+show create table mutex_instances;
+show create table performance_timers;
+show create table rwlock_instances;
+show create table setup_consumers;
+show create table setup_instruments;
+show create table setup_timers;
+show create table threads;
 

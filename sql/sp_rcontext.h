@@ -220,6 +220,7 @@ private:
     during execution.
   */
   bool m_return_value_set;
+
   /**
     TRUE if the context is created for a sub-statement.
   */

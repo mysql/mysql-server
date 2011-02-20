@@ -55,7 +55,7 @@
 #include "sql_handler.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_base.h"                           // close_thread_tables
-#include "lock.h"            // broadcast_refresh, mysql_unlock_tables
+#include "lock.h"                               // mysql_unlock_tables
 #include "key.h"                                // key_copy
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
@@ -131,11 +131,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
     tables->table->open_by_handler= 0;
-    if (close_thread_table(thd, &tables->table))
-    {
-      /* Tell threads waiting for refresh that something has happened */
-      broadcast_refresh();
-    }
+    (void) close_thread_table(thd, &tables->table);
     thd->mdl_context.release_lock(tables->mdl_request.ticket);
   }
   else if (tables->table)
@@ -183,7 +179,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   uint          dblen, namelen, aliaslen, counter;
   bool          error;
   TABLE         *backup_open_tables;
-  MDL_ticket    *mdl_savepoint;
+  MDL_savepoint mdl_savepoint;
   DBUG_ENTER("mysql_ha_open");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'  reopen: %d",
                       tables->db, tables->table_name, tables->alias,
@@ -252,7 +248,13 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
     memcpy(hash_tables->db, tables->db, dblen);
     memcpy(hash_tables->table_name, tables->table_name, namelen);
     memcpy(hash_tables->alias, tables->alias, aliaslen);
-    hash_tables->mdl_request.init(MDL_key::TABLE, db, name, MDL_SHARED);
+    /*
+      We can't request lock with explicit duration for this table
+      right from the start as open_tables() can't handle properly
+      back-off for such locks.
+    */
+    hash_tables->mdl_request.init(MDL_key::TABLE, db, name, MDL_SHARED,
+                                  MDL_TRANSACTION);
     /* for now HANDLER can be used only for real TABLES */
     hash_tables->required_type= FRMTYPE_TABLE;
 
@@ -332,8 +334,8 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   thd->set_open_tables(backup_open_tables);
   if (hash_tables->mdl_request.ticket)
   {
-    thd->mdl_context.
-      move_ticket_after_trans_sentinel(hash_tables->mdl_request.ticket);
+    thd->mdl_context.set_lock_duration(hash_tables->mdl_request.ticket,
+                                       MDL_EXPLICIT);
     thd->mdl_context.set_needs_thr_lock_abort(TRUE);
   }
 
@@ -969,24 +971,23 @@ void mysql_ha_cleanup(THD *thd)
 
 
 /**
-  Move tickets for metadata locks corresponding to open HANDLERs
-  after transaction sentinel in order to protect them from being
-  released at the end of transaction.
+  Set explicit duration for metadata locks corresponding to open HANDLERs
+  to protect them from being released at the end of transaction.
 
   @param thd Thread identifier.
 */
 
-void mysql_ha_move_tickets_after_trans_sentinel(THD *thd)
+void mysql_ha_set_explicit_lock_duration(THD *thd)
 {
   TABLE_LIST *hash_tables;
-  DBUG_ENTER("mysql_ha_move_tickets_after_trans_sentinel");
+  DBUG_ENTER("mysql_ha_set_explicit_lock_duration");
 
   for (uint i= 0; i < thd->handler_tables_hash.records; i++)
   {
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     if (hash_tables->table && hash_tables->table->mdl_ticket)
-      thd->mdl_context.
-             move_ticket_after_trans_sentinel(hash_tables->table->mdl_ticket);
+      thd->mdl_context.set_lock_duration(hash_tables->table->mdl_ticket,
+                                         MDL_EXPLICIT);
   }
   DBUG_VOID_RETURN;
 }

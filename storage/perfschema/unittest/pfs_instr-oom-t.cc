@@ -21,6 +21,7 @@
 #include <tap.h>
 
 #include "stub_pfs_global.h"
+#include "stub_server_misc.h"
 
 void test_oom()
 {

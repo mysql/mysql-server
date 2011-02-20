@@ -17,22 +17,12 @@
 /**
   @file
 
-  dialog client authentication plugin with examples
+  Test driver for the mysql-test/t/plugin_auth.test
 
-  dialog is a general purpose client authentication plugin, it simply
-  asks the user the question, as provided by the server and reports
-  the answer back to the server. No encryption is involved,
-  the answers are sent in clear text.
-
-  Two examples are provided: two_questions server plugin, that asks
-  the password and an "Are you sure?" question with a reply "yes, of course".
-  It demonstrates the usage of "password" (input is hidden) and "ordinary"
-  (input can be echoed) questions, and how to mark the last question,
-  to avoid an extra roundtrip.
-
-  And three_attempts plugin that gives the user three attempts to enter
-  a correct password. It shows the situation when a number of questions
-  is not known in advance.
+  This is a set of test plugins used to test the external authentication 
+  implementation.
+  See the above test file for more details.
+  This test plugin is based on the dialog plugin example.
 */
 
 #include <my_global.h>
@@ -55,7 +45,7 @@
 /********************* SERVER SIDE ****************************************/
 
 /**
-  dialog test plugin mimicing the ordinary auth mechanism. Used to test the auth plugin API
+  dialog test plugin mimicking the ordinary auth mechanism. Used to test the auth plugin API
 */
 static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
 {
@@ -150,10 +140,10 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         in mysql_change_user() the client sends the first packet, so
         the first vio->read_packet() does nothing (pkt == 0).
 
-        We send the "password", assuming the client knows what its doing.
+        We send the "password", assuming the client knows what it's doing.
         (in other words, the dialog plugin should be only set as a default
         authentication plugin on the client if the first question
-        asks for a password - which will be sent in cleat text, by the way)
+        asks for a password - which will be sent in clear text, by the way)
       */
       reply= mysql->passwd;
     }

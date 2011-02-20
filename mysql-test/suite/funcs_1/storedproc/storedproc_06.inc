@@ -117,14 +117,14 @@ create user 'user_1'@'localhost';
 grant create routine on db_storedproc_1.* to 'user_1'@'localhost';
 flush privileges;
 
+--disable_warnings
+DROP PROCEDURE IF EXISTS db_storedproc_1.sp3;
+DROP FUNCTION IF EXISTS db_storedproc_1.fn1;
+--enable_warnings
+
 #  disconnect default;
 connect (user2, localhost, user_1, , db_storedproc_1);
 --source suite/funcs_1/include/show_connection.inc
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp3;
-DROP FUNCTION IF EXISTS fn1;
---enable_warnings
 
 delimiter //;
 CREATE PROCEDURE sp3(v1 char(20))

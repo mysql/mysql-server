@@ -31,4 +31,6 @@ drop table t1;
 delete from mysql.user where user="replicate";
 sync_slave_with_master;
 
+call mtr.force_restart();
+
 # End of 4.1 tests

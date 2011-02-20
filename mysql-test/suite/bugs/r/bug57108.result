@@ -1,0 +1,5 @@
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SELECT @@global.connect_timeout AS connect_timeout, @@global.local_infile AS local_infile;
+connect_timeout	4711
+local_infile	1
+UNINSTALL PLUGIN example;

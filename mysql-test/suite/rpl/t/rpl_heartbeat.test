@@ -142,7 +142,7 @@ source include/check_slave_param.inc;
 let $slave_wait_param_counter= 300;
 let $slave_value= query_get_value("SHOW STATUS like 'Slave_received_heartbeats'", Value, 1);
 # Checking the fact that at least one heartbeat is received
-while (`select $slave_value = 0`)
+while (!$slave_value)
 {
   dec $slave_wait_param_counter;
   if (!$slave_wait_param_counter)

@@ -177,7 +177,7 @@ sync_slave_with_master;
 #--source include/wait_for_slave_to_start.inc
 #
 #let $y=0;
-#while (`select $y < 6`)
+#while ($y < 6)
 #{
 #  connection master;
 #
@@ -202,21 +202,21 @@ sync_slave_with_master;
 #  `c` INT DEFAULT 500, 
 #  PRIMARY KEY(`a`)) ENGINE=$engine DEFAULT CHARSET=LATIN1;
 #  
-#  if (`select $y=0`)
+#  if ($y==0)
 #  {
 #    --echo ************* EXECUTION WITH INSERTS *************
 #    connection master;
 #    INSERT INTO t1(a) VALUES (1);
 #  }
 #  
-#  if (`select $y=1`)
+#  if ($y==1)
 #  {
 #    --echo ************* EXECUTION WITH INSERTS *************
 #    connection master;
 #    INSERT INTO t1(a, b) VALUES (1, NULL);
 #  }
 #  
-#  if (`select $y=2`)
+#  if ($y==2)
 #  {
 #    --echo ************* EXECUTION WITH UPDATES *************
 #    connection master;
@@ -225,14 +225,14 @@ sync_slave_with_master;
 #    UPDATE t3 SET b = NULL where a= 1;
 #  }
 #  
-#  if (`select $y=3`)
+#  if ($y==3)
 #  {
 #    --echo ************* EXECUTION WITH INSERTS/REPLACES *************
 #    connection master;
 #    REPLACE INTO t3(a, b) VALUES (1, null);
 #  }
 #   
-#  if (`select $y=4`)
+#  if ($y==4)
 #  {
 #    --echo ************* EXECUTION WITH UPDATES/REPLACES *************
 #    connection master;
@@ -240,7 +240,7 @@ sync_slave_with_master;
 #    REPLACE INTO t3(a, b) VALUES (1, null);
 #  }
 #   
-#  if (`select $y=5`)
+#  if ($y==5)
 #  {
 #    --echo ************* EXECUTION WITH MULTI-ROW INSERTS *************
 #    connection master;

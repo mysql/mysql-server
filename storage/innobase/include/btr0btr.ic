@@ -39,18 +39,21 @@ Created 6/2/1994 Heikki Tuuri
 Gets a buffer page and declares its latching order level. */
 UNIV_INLINE
 buf_block_t*
-btr_block_get(
-/*==========*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	ulint	mode,		/*!< in: latch mode */
-	mtr_t*	mtr)		/*!< in: mtr */
+btr_block_get_func(
+/*===============*/
+	ulint		space,		/*!< in: space id */
+	ulint		zip_size,	/*!< in: compressed page size in bytes
+					or 0 for uncompressed pages */
+	ulint		page_no,	/*!< in: page number */
+	ulint		mode,		/*!< in: latch mode */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
+	mtr_t*		mtr)		/*!< in/out: mtr */
 {
 	buf_block_t*	block;
 
-	block = buf_page_get(space, zip_size, page_no, mode, mtr);
+	block = buf_page_get_gen(space, zip_size, page_no, mode,
+				 NULL, BUF_GET, file, line, mtr);
 
 	if (mode != RW_NO_LATCH) {
 
@@ -58,23 +61,6 @@ btr_block_get(
 	}
 
 	return(block);
-}
-
-/**************************************************************//**
-Gets a buffer page and declares its latching order level. */
-UNIV_INLINE
-page_t*
-btr_page_get(
-/*=========*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number */
-	ulint	mode,		/*!< in: latch mode */
-	mtr_t*	mtr)		/*!< in: mtr */
-{
-	return(buf_block_get_frame(btr_block_get(space, zip_size, page_no,
-						 mode, mtr)));
 }
 
 /**************************************************************//**

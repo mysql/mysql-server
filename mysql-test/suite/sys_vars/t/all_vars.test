@@ -61,6 +61,9 @@ eval load data infile "$MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt" into table t
 insert into t2 select variable_name from information_schema.global_variables;
 insert into t2 select variable_name from information_schema.session_variables;
 
+# This is only present in debug builds.
+delete from t2 where variable_name='innodb_change_buffering_debug';
+
 # Performance schema variables are too long for files named
 # 'mysql-test/suite/sys_vars/t/' ...
 # ... 'performance_schema_events_waits_history_long_size_basic-master.opt'

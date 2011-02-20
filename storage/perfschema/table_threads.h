@@ -36,7 +36,7 @@ struct row_threads
 {
   /** Column THREAD_ID. */
   ulong m_thread_internal_id;
-  /** Column ID. */
+  /** Column PROCESSLIST_ID. */
   ulong m_thread_id;
   /** Column NAME. */
   const char *m_name;
@@ -79,7 +79,7 @@ private:
 
   /** Current row. */
   row_threads m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;

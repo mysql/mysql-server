@@ -77,7 +77,8 @@
 #include "sql_audit.h"
 
 #ifndef EMBEDDED_LIBRARY
-static bool delayed_get_table(THD *thd, TABLE_LIST *table_list);
+static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
+                              TABLE_LIST *table_list);
 static int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                          LEX_STRING query, bool ignore, bool log_on);
 static void end_delayed_insert(THD *thd);
@@ -529,32 +530,28 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
 static
 bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 {
+  MDL_request protection_request;
   DBUG_ENTER("open_and_lock_for_insert_delayed");
 
 #ifndef EMBEDDED_LIBRARY
-  if (thd->locked_tables_mode && thd->global_read_lock.is_acquired())
-  {
-    /*
-      If this connection has the global read lock, the handler thread
-      will not be able to lock the table. It will wait for the global
-      read lock to go away, but this will never happen since the
-      connection thread will be stuck waiting for the handler thread
-      to open and lock the table.
-      If we are not in locked tables mode, INSERT will seek protection
-      against the global read lock (and fail), thus we will only get
-      to this point in locked tables mode.
-    */
-    my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-
   /*
     In order for the deadlock detector to be able to find any deadlocks
-    caused by the handler thread locking this table, we take the metadata
-    lock inside the connection thread. If this goes ok, the ticket is cloned
-    and added to the list of granted locks held by the handler thread.
+    caused by the handler thread waiting for GRL or this table, we acquire
+    protection against GRL (global IX metadata lock) and metadata lock on
+    table to being inserted into inside the connection thread.
+    If this goes ok, the tickets are cloned and added to the list of granted
+    locks held by the handler thread.
   */
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  if (thd->global_read_lock.can_acquire_protection())
+    DBUG_RETURN(TRUE);
+
+  protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                          MDL_STATEMENT);
+
+  if (thd->mdl_context.acquire_lock(&protection_request,
+                                    thd->variables.lock_wait_timeout))
+    DBUG_RETURN(TRUE);
+
   if (thd->mdl_context.acquire_lock(&table_list->mdl_request,
                                     thd->variables.lock_wait_timeout))
     /*
@@ -564,7 +561,7 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     DBUG_RETURN(TRUE);
 
   bool error= FALSE;
-  if (delayed_get_table(thd, table_list))
+  if (delayed_get_table(thd, &protection_request, table_list))
     error= TRUE;
   else if (table_list->table)
   {
@@ -589,13 +586,13 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   }
 
   /*
-    If a lock was acquired above, we should release it after
-    handle_delayed_insert() has cloned the ticket. Note that acquire_lock() can
-    succeed because the connection already has the lock. In this case the ticket
-    will be before the mdl_savepoint and we should not release it here.
+    We can't release protection against GRL and metadata lock on the table
+    being inserted into here. These locks might be required, for example,
+    because this INSERT DELAYED calls functions which may try to update
+    this or another tables (updating the same table is of course illegal,
+    but such an attempt can be discovered only later during statement
+    execution).
   */
-  if (!thd->mdl_context.has_lock(mdl_savepoint, table_list->mdl_request.ticket))
-    thd->mdl_context.release_lock(table_list->mdl_request.ticket);
 
   /*
     Reset the ticket in case we end up having to use normal insert and
@@ -1873,10 +1870,11 @@ public:
   mysql_cond_t cond, cond_client;
   volatile uint tables_in_use,stacked_inserts;
   volatile bool status;
-  /*
+  /**
     When the handler thread starts, it clones a metadata lock ticket
-    for the table to be inserted. This is done to allow the deadlock
-    detector to detect deadlocks resulting from this lock.
+    which protects against GRL and ticket for the table to be inserted.
+    This is done to allow the deadlock detector to detect deadlocks
+    resulting from these locks.
     Before this is done, the connection thread cannot safely exit
     without causing problems for clone_ticket().
     Once handler_thread_initialized has been set, it is safe for the
@@ -1888,6 +1886,11 @@ public:
   I_List<delayed_row> rows;
   ulong group_count;
   TABLE_LIST table_list;			// Argument
+  /**
+    Request for IX metadata lock protecting against GRL which is
+    passed from connection thread to the handler thread.
+  */
+  MDL_request grl_protection;
 
   Delayed_insert()
     :locks_in_memory(0), table(0),tables_in_use(0),stacked_inserts(0),
@@ -2066,7 +2069,8 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 */
 
 static
-bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
+bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
+                       TABLE_LIST *table_list)
 {
   int error;
   Delayed_insert *di;
@@ -2099,7 +2103,8 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       mysql_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name,
-                                  MYF(MY_WME | ME_FATALERROR)), 0);
+                                  MYF(MY_WME | ME_FATALERROR)),
+                        0, system_charset_info);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
@@ -2110,7 +2115,10 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       /* Replace volatile strings with local copies */
       di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
-      /* We need the ticket so that it can be cloned in handle_delayed_insert */
+      /* We need the tickets so that they can be cloned in handle_delayed_insert */
+      di->grl_protection.init(MDL_key::GLOBAL, "", "",
+                              MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
+      di->grl_protection.ticket= grl_protection_request->ticket;
       init_mdl_requests(&di->table_list);
       di->table_list.mdl_request.ticket= table_list->mdl_request.ticket;
 
@@ -2650,13 +2658,15 @@ pthread_handler_t handle_delayed_insert(void *arg)
     thd->set_current_stmt_binlog_format_row_if_mixed();
 
     /*
-      Clone the ticket representing the lock on the target table for
-      the insert and add it to the list of granted metadata locks held by
-      the handler thread. This is safe since the handler thread is
-      not holding nor waiting on any metadata locks.
+      Clone tickets representing protection against GRL and the lock on
+      the target table for the insert and add them to the list of granted
+      metadata locks held by the handler thread. This is safe since the
+      handler thread is not holding nor waiting on any metadata locks.
     */
-    if (thd->mdl_context.clone_ticket(&di->table_list.mdl_request))
+    if (thd->mdl_context.clone_ticket(&di->grl_protection) ||
+        thd->mdl_context.clone_ticket(&di->table_list.mdl_request))
     {
+      thd->mdl_context.release_transactional_locks();
       di->handler_thread_initialized= TRUE;
       goto err;
     }
@@ -3506,6 +3516,9 @@ bool select_insert::send_eof()
 
   error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
           table->file->ha_end_bulk_insert() : 0);
+  if (!error && thd->is_error())
+    error= thd->stmt_da->sql_errno();
+
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -4049,7 +4062,7 @@ bool select_create::send_eof()
 {
   bool tmp=select_insert::send_eof();
   if (tmp)
-    abort();
+    abort_result_set();
   else
   {
     /*
@@ -4081,7 +4094,7 @@ void select_create::abort_result_set()
   DBUG_ENTER("select_create::abort_result_set");
 
   /*
-    In select_insert::abort() we roll back the statement, including
+    In select_insert::abort_result_set() we roll back the statement, including
     truncating the transaction cache of the binary log. To do this, we
     pretend that the statement is transactional, even though it might
     be the case that it was not.

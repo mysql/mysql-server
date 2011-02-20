@@ -35,7 +35,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   # when a command ends.
   #
   --let $n= $tot_table
-  while (`SELECT $n != 0`)
+  while ($n)
   { 
     --eval DROP TEMPORARY TABLE IF EXISTS nt_tmp_$n
     --eval CREATE TEMPORARY TABLE nt_tmp_$n ( id INT ) ENGINE = MyIsam
@@ -62,7 +62,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   # when a command ends.
   #
   --let $n= $tot_table
-  while (`SELECT $n != 0`)
+  while ($n)
   { 
     --eval DROP TEMPORARY TABLE IF EXISTS tt_tmp_$n
     --eval CREATE TEMPORARY TABLE tt_tmp_$n ( id INT ) ENGINE = Innodb
@@ -89,7 +89,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   # when a command ends.
   #
   --let $n= $tot_table
-  while (`SELECT $n != 0`)
+  while ($n)
   { 
     --eval DROP TABLE IF EXISTS nt_$n
     --eval CREATE TABLE nt_$n ( id INT ) ENGINE = MyIsam
@@ -116,7 +116,7 @@ if (`SELECT HEX(@commands) = HEX('configure')`)
   # when a command ends.
   #
   --let $n= $tot_table
-  while (`SELECT $n != 0`)
+  while ($n)
   { 
     --eval DROP TABLE IF EXISTS tt_$n
     --eval CREATE TABLE tt_$n ( id INT ) ENGINE = Innodb
@@ -163,14 +163,14 @@ if (`SELECT HEX(@commands) = HEX('clean')`)
   DROP TABLE IF EXISTS nt_xx_1;
 
   --let $n= $tot_table
-  while (`SELECT $n != 0`)
+  while ($n)
   { 
     --eval DROP TABLE IF EXISTS nt_$n
     --dec $n
   }
 
   --let $n= $tot_table
-  while (`SELECT $n != 0`)
+  while ($n)
   { 
     --eval DROP TABLE IF EXISTS tt_$n
     --dec $n
@@ -634,11 +634,11 @@ while (`SELECT HEX(@commands) != HEX('')`)
         {
           --let $dropped_temp= $table
         }
-        if (`SELECT $n = 1`)
+        if ($n == 1)
         {
           --let $table_1= $table
         }
-        if (`SELECT $n = 2`)
+        if ($n == 2)
         {
           --let $table_2= $table
         }
@@ -886,7 +886,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     --let $available_n_temp=
     --let $dropped_n_temp=
     --let $n= $tot_table
-    while (`SELECT $n != 0`)
+    while ($n)
     { 
       --eval DROP TEMPORARY TABLE IF EXISTS nt_tmp_$n
       --eval CREATE TEMPORARY TABLE nt_tmp_$n ( id INT ) ENGINE = MyIsam
@@ -905,7 +905,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     --let $available_t_temp=
     --let $dropped_t_temp=
     --let $n= $tot_table
-    while (`SELECT $n != 0`)
+    while ($n)
     { 
       --eval DROP TEMPORARY TABLE IF EXISTS tt_tmp_$n
       --eval CREATE TEMPORARY TABLE tt_tmp_$n ( id INT ) ENGINE = Innodb
@@ -924,7 +924,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     --let $available_t=
     --let $dropped_t=
     --let $n= $tot_table
-    while (`SELECT $n != 0`)
+    while ($n)
     { 
       --eval DROP TABLE IF EXISTS tt_$n
       --eval CREATE TABLE tt_$n ( id INT ) ENGINE = Innodb
@@ -943,7 +943,7 @@ while (`SELECT HEX(@commands) != HEX('')`)
     --let $available_n=
     --let $dropped_n=
     --let $n= $tot_table
-    while (`SELECT $n != 0`)
+    while ($n)
     { 
       --eval DROP TABLE IF EXISTS nt_$n
       --eval CREATE TABLE nt_$n ( id INT ) ENGINE = MyIsam

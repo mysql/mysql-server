@@ -24,8 +24,6 @@
 #include "parse_file.h"
 #include "sp.h"
 #include "sql_base.h"                          // find_temporary_table
-#include "lock.h"                    // wait_if_global_read_lock,
-                                     // start_waiting_global_read_lock
 #include "sql_show.h"                // append_definer, append_identifier
 #include "sql_table.h"                        // build_table_filename,
                                               // check_n_cut_mysql50_prefix
@@ -391,15 +389,6 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     DBUG_RETURN(TRUE);
   }
 
-  /*
-    We don't want perform our operations while global read lock is held
-    so we have to wait until its end and then prevent it from occurring
-    again until we are done, unless we are under lock tables.
-  */
-  if (!thd->locked_tables_mode &&
-      thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-    DBUG_RETURN(TRUE);
-
   if (!create)
   {
     bool if_exists= thd->lex->drop_if_exists;
@@ -546,9 +535,6 @@ end:
   /* Restore the query table list. Used only for drop trigger. */
   if (!create)
     thd->lex->restore_backup_query_tables_list(&backup);
-
-  if (thd->global_read_lock.has_protection())
-    thd->global_read_lock.start_waiting_global_read_lock(thd);
 
   if (!result)
     my_ok(thd);

@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  SET(localstatedir "C:\\mysql\\data")
+  SET(localstatedir "C:\\\\mysql\\\\data\\\\")
   SET(ini_file_extension "ini")
 ELSE()
   SET(localstatedir "${MYSQL_DATADIR}")
@@ -61,12 +61,17 @@ IF(UNIX)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
+    IF(script MATCHES ".ini")
+      SET(comp IniFiles)
+    ELSE()
+      SET(comp Server_Scripts)
+    ENDIF()
     INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${script} 
-       DESTINATION ${inst_location}
+       DESTINATION ${inst_location} COMPONENT ${comp}
        PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
   ENDFOREACH()
   IF(INSTALL_SUPPORTFILESDIR)
-    INSTALL(FILES magic DESTINATION ${inst_location})
+    INSTALL(FILES magic DESTINATION ${inst_location} COMPONENT SupportFiles)
   ENDIF()
 
   INSTALL(FILES mysql.m4 DESTINATION ${INSTALL_SHAREDIR}/aclocal COMPONENT Development)
@@ -83,7 +88,7 @@ IF(UNIX)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql.server.sh 
                  ${CMAKE_CURRENT_BINARY_DIR}/mysql.server @ONLY)
   INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql.server 
-    DESTINATION ${inst_location}
+    DESTINATION ${inst_location} COMPONENT SupportFiles
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ 
     GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 ENDIF()

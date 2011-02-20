@@ -2042,7 +2042,7 @@ row_merge_drop_index(
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
-	dict_table_replace_index_in_foreign_list(table, index);
+	dict_table_replace_index_in_foreign_list(table, index, trx);
 	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";

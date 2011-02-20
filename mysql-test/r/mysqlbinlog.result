@@ -879,3 +879,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 End of 5.0 tests
 End of 5.1 tests
+# Expect deprecation warning.
+WARNING: The --base64-output=always flag and the --base64-output flag (with '=MODE' omitted), are deprecated. The output generated when these flags are used cannot be parsed by mysql 5.6.0 and later. The flags will be removed in a future version. Please use --base64-output=auto instead.
+# Expect deprecation warning again.
+WARNING: The --base64-output=always flag and the --base64-output flag (with '=MODE' omitted), are deprecated. The output generated when these flags are used cannot be parsed by mysql 5.6.0 and later. The flags will be removed in a future version. Please use --base64-output=auto instead.

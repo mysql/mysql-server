@@ -1967,17 +1967,6 @@ my_strnxfrm_unicode_full_bin(CHARSET_INFO *cs,
     if ((res= cs->cset->mb_wc(cs, &wc, src, se)) <= 0)
       break;
     src+= res;
-    if (cs->mbminlen == 2) /* utf16_bin */
-    {
-      /*
-        Reorder code points to weights as follows:
-        U+0000..U+D7FF    -> [00][00][00]..[00][D7][FF] BMP part #1
-        U+10000..U+10FFFF -> [01][00][00]..[10][FF][FF] Supplementary
-        U+E000..U+FFFF    -> [20][E0][00]..[20][FF][FF] BMP part #2
-      */
-      if (wc >= 0xE000 && wc <= 0xFFFF)
-        wc+= 0x200000;
-    }
     *dst++= (uchar) (wc >> 16);
     *dst++= (uchar) ((wc >> 8) & 0xFF);
     *dst++= (uchar) (wc & 0xFF);

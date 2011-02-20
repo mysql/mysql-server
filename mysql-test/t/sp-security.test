@@ -82,7 +82,7 @@ select * from db1_secret.t1;
 # ...and not this
 --error ER_DBACCESS_DENIED_ERROR
 create procedure db1_secret.dummy() begin end;
---error ER_SP_DOES_NOT_EXIST
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure db1_secret.dummy;
 --error ER_PROCACCESS_DENIED_ERROR
 drop procedure db1_secret.stamp;
@@ -106,7 +106,7 @@ select * from db1_secret.t1;
 # ...and not this
 --error ER_DBACCESS_DENIED_ERROR
 create procedure db1_secret.dummy() begin end;
---error ER_SP_DOES_NOT_EXIST
+--error ER_PROCACCESS_DENIED_ERROR
 drop procedure db1_secret.dummy;
 --error ER_PROCACCESS_DENIED_ERROR
 drop procedure db1_secret.stamp;
@@ -925,6 +925,39 @@ DROP USER 'Tester';
 DROP DATABASE B48872;
 
 --echo End of 5.0 tests.
+
+
+--echo #
+--echo # Test for bug#57061 "User without privilege on routine can discover
+--echo # its existence."
+--echo #
+--disable_warnings
+drop database if exists mysqltest_db;
+--enable_warnings
+create database mysqltest_db;
+--echo # Create user with no privileges on mysqltest_db database.
+create user bug57061_user@localhost;
+create function mysqltest_db.f1() returns int return 0;
+create procedure mysqltest_db.p1() begin end;
+--echo # Connect as user 'bug57061_user@localhost'
+connect (conn1, localhost, bug57061_user,,);
+--echo # Attempt to drop routine on which user doesn't have privileges
+--echo # should result in the same 'access denied' type of error whether
+--echo # routine exists or not.
+--error ER_PROCACCESS_DENIED_ERROR
+drop function if exists mysqltest_db.f_does_not_exist;
+--error ER_PROCACCESS_DENIED_ERROR
+drop procedure if exists mysqltest_db.p_does_not_exist;
+--error ER_PROCACCESS_DENIED_ERROR
+drop function if exists mysqltest_db.f1;
+--error ER_PROCACCESS_DENIED_ERROR
+drop procedure if exists mysqltest_db.p1;
+--echo # Connection 'default'.
+connection default;
+disconnect conn1;
+drop user bug57061_user@localhost;
+drop database mysqltest_db;
+
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

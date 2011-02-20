@@ -17,12 +17,12 @@
 
 RESET MASTER;
 
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
+select count(*) > 0 from performance_schema.setup_instruments;
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO'
+update performance_schema.setup_instruments set enabled='NO'
   where name like "wait/synch/rwlock/%";
 
-select count(*) > 0 from performance_schema.EVENTS_WAITS_CURRENT;
+select count(*) > 0 from performance_schema.events_waits_current;
 
 --disable_warnings
 drop table if exists test.t1;
@@ -33,16 +33,16 @@ create table test.t1 (thread_id integer);
 create table test.t2 (name varchar(128));
 
 insert into test.t1
-  select thread_id from performance_schema.EVENTS_WAITS_CURRENT;
+  select thread_id from performance_schema.events_waits_current;
 
 insert into test.t2
-  select name from performance_schema.SETUP_INSTRUMENTS
+  select name from performance_schema.setup_instruments
     where name like "wait/synch/rwlock/%";
 
 drop table test.t1;
 drop table test.t2;
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/synch/rwlock/%";
 
 --source include/show_binlog_events.inc

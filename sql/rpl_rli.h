@@ -97,6 +97,16 @@ public:
   */
   MYSQL_BIN_LOG relay_log;
   LOG_INFO linfo;
+
+  /*
+   cur_log
+     Pointer that either points at relay_log.get_log_file() or
+     &rli->cache_buf, depending on whether the log is hot or there was
+     the need to open a cold relay_log.
+
+   cache_buf 
+     IO_CACHE used when opening cold relay logs.
+   */
   IO_CACHE cache_buf,*cur_log;
 
   /*

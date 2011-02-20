@@ -26,6 +26,11 @@ CALL test.p2();
 SELECT release_lock("test");
 release_lock("test")
 1
+get_lock("test", 100)
+1
+SELECT release_lock("test");
+release_lock("test")
+1
 SELECT * FROM test.t1;
 a
 5
@@ -37,7 +42,10 @@ CREATE TABLE test.t1(a INT,PRIMARY KEY(a))ENGINE=INNODB;
 CALL test.p2();
 CALL test.p1();
 get_lock("test", 100)
-0
+1
+SELECT release_lock("test");
+release_lock("test")
+1
 SELECT * FROM test.t1;
 a
 8

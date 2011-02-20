@@ -19,14 +19,14 @@
 --source include/have_perfschema.inc
 
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.THREADS add column foo integer;
+alter table performance_schema.threads add column foo integer;
 
 -- error ER_WRONG_PERFSCHEMA_USAGE
-truncate table performance_schema.THREADS;
+truncate table performance_schema.threads;
 
 -- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.THREADS ADD INDEX test_index(ID);
+ALTER TABLE performance_schema.threads ADD INDEX test_index(ID);
 
 -- error ER_DBACCESS_DENIED_ERROR
-CREATE UNIQUE INDEX test_index ON performance_schema.THREADS(ID);
+CREATE UNIQUE INDEX test_index ON performance_schema.threads(ID);
 

@@ -1898,6 +1898,37 @@ CONVERT(a, CHAR)	CONVERT(b, CHAR)
 70000	1092
 DROP TABLE t1;
 End of 5.0 tests
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'));
+LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'))
+122587
+SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'));
+LENGTH(RPAD(0.0115E88, 61297, _utf8'йцуя'))
+122587
+SELECT HEX(RPAD(0x20, 2, _utf8 0xD18F));
+HEX(RPAD(0x20, 2, _utf8 0xD18F))
+20D1
+SELECT HEX(RPAD(0x20, 4, _utf8 0xD18F));
+HEX(RPAD(0x20, 4, _utf8 0xD18F))
+20D18FD1
+SELECT HEX(LPAD(0x20, 2, _utf8 0xD18F));
+HEX(LPAD(0x20, 2, _utf8 0xD18F))
+D120
+SELECT HEX(LPAD(0x20, 4, _utf8 0xD18F));
+HEX(LPAD(0x20, 4, _utf8 0xD18F))
+D18FD120
+SELECT HEX(RPAD(_utf8 0xD18F, 3, 0x20));
+HEX(RPAD(_utf8 0xD18F, 3, 0x20))
+D18F20
+SELECT HEX(LPAD(_utf8 0xD18F, 3, 0x20));
+HEX(LPAD(_utf8 0xD18F, 3, 0x20))
+20D18F
+SELECT HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20));
+HEX(INSERT(_utf8 0xD18F, 2, 1, 0x20))
+D120
+SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
+HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20))
+D120D18E
+End of 5.1 tests
 Start of 5.4 tests
 SET NAMES utf8mb3;
 SHOW VARIABLES LIKE 'character_set_results%';
@@ -2039,6 +2070,20 @@ predicted_order	hex(utf8_encoding)
 99	E0B78A
 100	E0B78AE2808DE0B6BA
 101	E0B78AE2808DE0B6BB
+DROP TABLE t1;
+SET NAMES utf8 COLLATE utf8_sinhala_ci;
+CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_sinhala_ci);
+INSERT INTO t1 VALUES ('a'),('ae'),('af');
+SELECT s1,hex(s1) FROM t1 ORDER BY s1;
+s1	hex(s1)
+a	61
+ae	6165
+af	6166
+SELECT * FROM t1 ORDER BY s1;
+s1
+a
+ae
+af
 DROP TABLE t1;
 End of 5.4 tests
 #
@@ -3511,7 +3556,7 @@ create table t1 as select concat(time_to_sec('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET utf8 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(extract(year from 20090702)));
@@ -4834,6 +4879,25 @@ DROP TABLE t1;
 # End of Bug#54916
 #
 #
+# Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+#
+SELECT @@collation_connection;
+@@collation_connection
+utf8_general_ci
+CREATE TABLE t1 (
+id INT(11) DEFAULT NULL,
+date_column DATE DEFAULT NULL,
+KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	4	NULL	1	Using where
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	date_column	date_column	9	NULL	1	Using where
+DROP TABLE t1;
+#
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
 CREATE FUNCTION f1() RETURNS TIME RETURN 1;
@@ -4853,6 +4917,17 @@ maketime(`a`,`a`,`a`)
 00:00:00
 DROP TABLE t1;
 SET sql_mode=default;
+#
+# Bug#57687 crash when reporting duplicate group_key error and utf8
+# Make sure to modify this when Bug#58081 is fixed.
+#
+SET NAMES utf8;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0), (1), (0), (0);
+SELECT COUNT(*) FROM t1, t1 t2 
+GROUP BY INSERT('', t2.a, t1.a, (@@global.max_binlog_size));
+ERROR 23000: Duplicate entry '107374182410737418241' for key 'group_key'
+DROP TABLE t1;
 #
 # End of 5.5 tests
 #

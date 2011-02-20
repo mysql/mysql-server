@@ -176,11 +176,11 @@ err2:
   if (plugin->deinit)
     plugin->deinit();
 err1:
-  if (dlhandle)
-    dlclose(dlhandle);
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
+  if (dlhandle)
+    dlclose(dlhandle);
   return NULL;
 }
 

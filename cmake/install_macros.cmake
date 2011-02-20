@@ -78,7 +78,9 @@ FUNCTION(INSTALL_MANPAGE file)
     ELSE()
       SET(SECTION man8)
     ENDIF()
-    INSTALL(FILES "${MANPAGE}" DESTINATION "${INSTALL_MANDIR}/${SECTION}")
+    MESSAGE("huj!")
+    INSTALL(FILES "${MANPAGE}" DESTINATION "${INSTALL_MANDIR}/${SECTION}"
+      COMPONENT ManPages)
   ENDIF()
 ENDFUNCTION()
 
@@ -137,12 +139,7 @@ IF(UNIX)
     STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
       "\${CMAKE_INSTALL_CONFIG_NAME}" output ${output})
   ENDIF()
-  IF(component)
-    SET(COMP COMPONENT ${component})
-  ELSE()  
-    SET(COMP)
-  ENDIF()
-  INSTALL(FILES ${output} DESTINATION ${destination} ${COMP})
+  INSTALL(FILES ${output} DESTINATION ${destination} COMPONENT ${component})
 ENDIF()
 ENDMACRO()
 
@@ -224,8 +221,6 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
      IF(SIGNCODE AND SIGNCODE_ENABLED)
       SIGN_TARGET(${target})
     ENDIF()
-    # For Windows, add version info to executables
-    ADD_VERSION_INFO(${target})
     # Install man pages on Unix
     IF(UNIX)
       GET_TARGET_PROPERTY(target_location ${target} LOCATION)

@@ -1749,9 +1749,9 @@ UNIV_INTERN
 void
 rec_print(
 /*======*/
-	FILE*		file,	/*!< in: file where to print */
-	const rec_t*	rec,	/*!< in: physical record */
-	dict_index_t*	index)	/*!< in: record descriptor */
+	FILE*			file,	/*!< in: file where to print */
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index)	/*!< in: record descriptor */
 {
 	ut_ad(index);
 
