@@ -2572,7 +2572,7 @@ public:
     DBUG_ASSERT(fixed);
     return (*ref)->get_time(ltime);
   }
-  virtual bool basic_const_item() const { return (*ref)->basic_const_item(); }
+  virtual bool basic_const_item() const { return ref && (*ref)->basic_const_item(); }
   bool is_outer_field() const
   {
     DBUG_ASSERT(fixed);
@@ -3451,8 +3451,8 @@ public:
     cmp_context= STRING_RESULT;
   }
 
-  virtual void store(Item *item) { Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
+  void store(Item *item);
   double val_real();
   longlong val_int();
   String* val_str(String *str);

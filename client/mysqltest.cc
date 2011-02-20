@@ -487,7 +487,8 @@ VAR* var_init(VAR* v, const char *name, int name_len, const char *val,
               int val_len);
 VAR* var_get(const char *var_name, const char** var_name_end,
              my_bool raw, my_bool ignore_not_existing);
-void eval_expr(VAR* v, const char *p, const char** p_end);
+void eval_expr(VAR* v, const char *p, const char** p_end,
+               bool open_end=false, bool backtick=true);
 my_bool match_delimiter(int c, const char *delim, uint length);
 void dump_result_to_reject_file(char *buf, int size);
 void dump_warning_messages();
@@ -2045,9 +2046,11 @@ static void var_free(void *v)
 
 C_MODE_END
 
-void var_set_int(VAR *v, const char *str)
+void var_check_int(VAR *v)
 {
   char *endptr;
+  char *str= v->str_val;
+  
   /* Initially assume not a number */
   v->int_val= 0;
   v->is_int= false;
@@ -2094,7 +2097,7 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
     memcpy(tmp_var->str_val, val, val_len);
     tmp_var->str_val[val_len]= 0;
   }
-  var_set_int(tmp_var, val);
+  var_check_int(tmp_var);
   tmp_var->name_len = name_len;
   tmp_var->str_val_len = val_len;
   tmp_var->alloced_len = val_alloc_len;
@@ -2335,7 +2338,8 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       dynstr_append_mem(&result, "\t", 1);
     }
     end= result.str + result.length-1;
-    eval_expr(var, result.str, (const char**) &end);
+    /* Evaluation should not recurse via backtick */
+    eval_expr(var, result.str, (const char**) &end, false, false);
     dynstr_free(&result);
   }
   else
@@ -2545,7 +2549,8 @@ void var_copy(VAR *dest, VAR *src)
 }
 
 
-void eval_expr(VAR *v, const char *p, const char **p_end)
+void eval_expr(VAR *v, const char *p, const char **p_end,
+               bool open_end, bool backtick)
 {
 
   DBUG_ENTER("eval_expr");
@@ -2563,14 +2568,14 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
 
     /* Make sure there was just a $variable and nothing else */
     const char* end= *p_end + 1;
-    if (end < expected_end)
+    if (end < expected_end && !open_end)
       die("Found junk '%.*s' after $variable in expression",
           (int)(expected_end - end - 1), end);
 
     DBUG_VOID_RETURN;
   }
 
-  if (*p == '`')
+  if (*p == '`' && backtick)
   {
     var_query_set(v, p, p_end);
     DBUG_VOID_RETURN;
@@ -2610,7 +2615,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end)
     v->str_val_len = new_val_len;
     memcpy(v->str_val, p, new_val_len);
     v->str_val[new_val_len] = 0;
-    var_set_int(v, p);
+    var_check_int(v);
   }
   DBUG_VOID_RETURN;
 }
@@ -4240,7 +4245,7 @@ int do_save_master_pos()
         const char latest_applied_binlog_epoch_str[]=
           "latest_applied_binlog_epoch=";
         if (count)
-          sleep(1);
+          my_sleep(100*1000); /* 100ms */
         if (mysql_query(mysql, query= "show engine ndb status"))
           die("failed in '%s': %d %s", query,
               mysql_errno(mysql), mysql_error(mysql));
@@ -4329,7 +4334,7 @@ int do_save_master_pos()
 	count++;
 	if (latest_handled_binlog_epoch >= start_epoch)
           do_continue= 0;
-        else if (count > 30)
+        else if (count > 300) /* 30s */
 	{
 	  break;
         }
@@ -5398,8 +5403,13 @@ void do_connect(struct st_command *command)
                   opt_charsets_dir);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl || con_ssl)
+  if (opt_use_ssl)
+    con_ssl= 1;
+#endif
+
+  if (con_ssl)
   {
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
@@ -5408,35 +5418,36 @@ void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
-  }
 #endif
+  }
 
-#ifdef __WIN__
   if (con_pipe)
   {
+#ifdef __WIN__
     opt_protocol= MYSQL_PROTOCOL_PIPE;
-  }
 #endif
+  }
 
   if (opt_protocol)
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
-#ifdef HAVE_SMEM
   if (con_shm)
   {
+#ifdef HAVE_SMEM
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
     mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+#endif
   }
-  else if(shared_memory_base_name)
+#ifdef HAVE_SMEM
+  else if (shared_memory_base_name)
   {
     mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
-      shared_memory_base_name);
+                  shared_memory_base_name);
   }
 #endif
-
 
   /* Use default db name */
   if (ds_database.length == 0)
@@ -5515,6 +5526,40 @@ int do_done(struct st_command *command)
   return 0;
 }
 
+/* Operands available in if or while conditions */
+
+enum block_op {
+  EQ_OP,
+  NE_OP,
+  GT_OP,
+  GE_OP,
+  LT_OP,
+  LE_OP,
+  ILLEG_OP
+};
+
+
+enum block_op find_operand(const char *start)
+{
+ char first= *start;
+ char next= *(start+1);
+ 
+ if (first == '=' && next == '=')
+   return EQ_OP;
+ if (first == '!' && next == '=')
+   return NE_OP;
+ if (first == '>' && next == '=')
+   return GE_OP;
+ if (first == '>')
+   return GT_OP;
+ if (first == '<' && next == '=')
+   return LE_OP;
+ if (first == '<')
+   return LT_OP;
+ 
+ return ILLEG_OP;
+}
+
 
 /*
   Process start of a "if" or "while" statement
@@ -5540,6 +5585,13 @@ int do_done(struct st_command *command)
   A '!' can be used before the <expr> to indicate it should
   be executed if it evaluates to zero.
 
+  <expr> can also be a simple comparison condition:
+
+  <variable> <op> <expr>
+
+  The left hand side must be a variable, the right hand side can be a
+  variable, number, string or `query`. Operands are ==, !=, <, <=, >, >=.
+  == and != can be used for strings, all can be used for numerical values.
 */
 
 void do_block(enum block_cmd cmd, struct st_command* command)
@@ -5575,11 +5627,16 @@ void do_block(enum block_cmd cmd, struct st_command* command)
   if (!expr_start++)
     die("missing '(' in %s", cmd_name);
 
+  while (my_isspace(charset_info, *expr_start))
+    expr_start++;
+  
   /* Check for !<expr> */
   if (*expr_start == '!')
   {
     not_expr= TRUE;
-    expr_start++; /* Step past the '!' */
+    expr_start++; /* Step past the '!', then any whitespace */
+    while (*expr_start && my_isspace(charset_info, *expr_start))
+      expr_start++;
   }
   /* Find ending ')' */
   expr_end= strrchr(expr_start, ')');
@@ -5593,14 +5650,96 @@ void do_block(enum block_cmd cmd, struct st_command* command)
     die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
 
   var_init(&v,0,0,0,0);
-  eval_expr(&v, expr_start, &expr_end);
 
+  /* If expression starts with a variable, it may be a compare condition */
+
+  if (*expr_start == '$')
+  {
+    const char *curr_ptr= expr_end;
+    eval_expr(&v, expr_start, &curr_ptr, true);
+    while (my_isspace(charset_info, *++curr_ptr))
+    {}
+    /* If there was nothing past the variable, skip condition part */
+    if (curr_ptr == expr_end)
+      goto NO_COMPARE;
+
+    enum block_op operand= find_operand(curr_ptr);
+    if (operand == ILLEG_OP)
+      die("Found junk '%.*s' after $variable in condition",
+          (int)(expr_end - curr_ptr), curr_ptr);
+
+    /* We could silently allow this, but may be confusing */
+    if (not_expr)
+      die("Negation and comparison should not be combined, please rewrite");
+    
+    /* Skip the 1 or 2 chars of the operand, then white space */
+    if (operand == LT_OP || operand == GT_OP)
+    {
+      curr_ptr++;
+    }
+    else
+    {
+      curr_ptr+= 2;
+    }
+    while (my_isspace(charset_info, *curr_ptr))
+      curr_ptr++;
+
+    VAR v2;
+    var_init(&v2,0,0,0,0);
+    eval_expr(&v2, curr_ptr, &expr_end);
+
+    if ((operand!=EQ_OP && operand!=NE_OP) && ! (v.is_int && v2.is_int))
+      die ("Only == and != are supported for string values");
+
+    /* Now we overwrite the first variable with 0 or 1 (for false or true) */
+
+    switch (operand)
+    {
+    case EQ_OP:
+      if (v.is_int)
+        v.int_val= (v2.is_int && v2.int_val == v.int_val);
+      else
+        v.int_val= !strcmp (v.str_val, v2.str_val);
+      break;
+      
+    case NE_OP:
+      if (v.is_int)
+        v.int_val= ! (v2.is_int && v2.int_val == v.int_val);
+      else
+        v.int_val= (strcmp (v.str_val, v2.str_val) != 0);
+      break;
+
+    case LT_OP:
+      v.int_val= (v.int_val < v2.int_val);
+      break;
+    case LE_OP:
+      v.int_val= (v.int_val <= v2.int_val);
+      break;
+    case GT_OP:
+      v.int_val= (v.int_val > v2.int_val);
+      break;
+    case GE_OP:
+      v.int_val= (v.int_val >= v2.int_val);
+      break;
+    case ILLEG_OP:
+      die("Impossible operator, this cannot happen");
+    }
+
+    v.is_int= TRUE;
+  } else
+  {
+    if (*expr_start != '`' && ! my_isdigit(charset_info, *expr_start))
+      die("Expression in if/while must beging with $, ` or a number");
+    eval_expr(&v, expr_start, &expr_end);
+  }
+
+ NO_COMPARE:
   /* Define inner block */
   cur_block++;
   cur_block->cmd= cmd;
-  if (v.int_val)
+  if (v.is_int)
   {
-    cur_block->ok= TRUE;
+    cur_block->ok= (v.int_val != 0);
   } else
   /* Any non-empty string which does not begin with 0 is also TRUE */
   {
@@ -5877,7 +6016,7 @@ int read_line(char *buf, int size)
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
 #ifdef USE_MB
-      int charlen = my_mbcharlen(charset_info, c);
+      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
@@ -5889,16 +6028,16 @@ int read_line(char *buf, int size)
 
 	for (i= 1; i < charlen; i++)
 	{
+	  c= my_getc(cur_file->file);
 	  if (feof(cur_file->file))
 	    goto found_eof;
-	  c= my_getc(cur_file->file);
 	  *p++ = c;
 	}
 	if (! my_ismbchar(charset_info, mb_start, p))
 	{
 	  /* It was not a multiline char, push back the characters */
 	  /* We leave first 'c', i.e. pretend it was a normal char */
-	  while (p > mb_start)
+	  while (p-1 > mb_start)
 	    my_ungetc(*--p);
 	}
       }
@@ -9959,6 +10098,7 @@ void free_pointer_array(POINTER_ARRAY *pa)
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, int len)
 {
+  char lower[512];
 #ifdef __WIN__
   fix_win_paths(val, len);
 #endif
@@ -9966,7 +10106,6 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
   if (display_result_lower) 
   {
     /* Convert to lower case, and do this first */
-    char lower[512];
     char *c= lower;
     for (const char *v= val;  *v;  v++)
       *c++= my_tolower(charset_info, *v);

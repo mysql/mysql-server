@@ -21,7 +21,7 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "debug_sync.h"
-#include "lock.h"        // broadcast_refresh, mysql_lock_remove,
+#include "lock.h"        // mysql_lock_remove,
                          // mysql_unlock_tables,
                          // mysql_lock_have_duplicate
 #include "sql_show.h"    // append_identifier
@@ -1285,20 +1285,12 @@ static void mark_used_tables_as_free_for_reuse(THD *thd, TABLE *table)
 
 static void close_open_tables(THD *thd)
 {
-  bool found_old_table= 0;
-
   mysql_mutex_assert_not_owner(&LOCK_open);
 
   DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
 
   while (thd->open_tables)
-    found_old_table|= close_thread_table(thd, &thd->open_tables);
-
-  if (found_old_table)
-  {
-    /* Tell threads waiting for refresh that something has happened */
-    broadcast_refresh();
-  }
+    (void) close_thread_table(thd, &thd->open_tables);
 }
 
 
@@ -1364,11 +1356,6 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   /* Remove the table share from the cache. */
   tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
                    FALSE);
-  /*
-    There could be a FLUSH thread waiting
-    on the table to go away. Wake it up.
-  */
-  broadcast_refresh();
 }
 
 
@@ -2463,7 +2450,8 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
 
     mdl_request_shared.init(&mdl_request->key,
                             (flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
-                            MDL_SHARED : MDL_SHARED_HIGH_PRIO);
+                            MDL_SHARED : MDL_SHARED_HIGH_PRIO,
+                            MDL_TRANSACTION);
     mdl_request= &mdl_request_shared;
   }
 
@@ -2627,32 +2615,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   key_length= (create_table_def_key(thd, key, table_list, 1) -
                TMP_TABLE_KEY_EXTRA);
 
-  /*
-    We need this to work for all tables, including temporary
-    tables, for backwards compatibility. But not under LOCK
-    TABLES, since under LOCK TABLES one can't use a non-prelocked
-    table.  This code only works for updates done inside DO/SELECT
-    f1() statements, normal DML is handled by means of
-    sql_command_flags.
-  */
-  if (global_read_lock && table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
-      ! (flags & MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK) &&
-      ! thd->locked_tables_mode)
-  {
-    /*
-      Someone has issued FLUSH TABLES WITH READ LOCK and we want
-      a write lock. Wait until the lock is gone.
-    */
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, 1, 1))
-      DBUG_RETURN(TRUE);
-
-    if (thd->open_tables && thd->open_tables->s->version != refresh_version)
-    {
-      (void)ot_ctx->request_backoff_action(Open_table_context::OT_REOPEN_TABLES,
-                                           NULL);
-      DBUG_RETURN(TRUE);
-    }
-  }
   /*
     Unless requested otherwise, try to resolve this table in the list
     of temporary tables of this thread. In MySQL temporary tables
@@ -2824,6 +2786,59 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
+    /*
+      We are not under LOCK TABLES and going to acquire write-lock/
+      modify the base table. We need to acquire protection against
+      global read lock until end of this statement in order to have
+      this statement blocked by active FLUSH TABLES WITH READ LOCK.
+
+      We don't block acquire this protection under LOCK TABLES as
+      such protection already acquired at LOCK TABLES time and
+      not released until UNLOCK TABLES.
+
+      We don't block statements which modify only temporary tables
+      as these tables are not preserved by backup by any form of
+      backup which uses FLUSH TABLES WITH READ LOCK.
+
+      TODO: The fact that we sometimes acquire protection against
+            GRL only when we encounter table to be write-locked
+            slightly increases probability of deadlock.
+            This problem will be solved once Alik pushes his
+            temporary table refactoring patch and we can start
+            pre-acquiring metadata locks at the beggining of
+            open_tables() call.
+    */
+    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+        ! (flags & (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
+                    MYSQL_OPEN_FORCE_SHARED_MDL |
+                    MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                    MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK)) &&
+        ! ot_ctx->has_protection_against_grl())
+    {
+      MDL_request protection_request;
+      MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
+
+      if (thd->global_read_lock.can_acquire_protection())
+        DBUG_RETURN(TRUE);
+
+      protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                              MDL_STATEMENT);
+
+      /*
+        Install error handler which if possible will convert deadlock error
+        into request to back-off and restart process of opening tables.
+      */
+      thd->push_internal_handler(&mdl_deadlock_handler);
+      bool result= thd->mdl_context.acquire_lock(&protection_request,
+                                                 ot_ctx->get_timeout());
+      thd->pop_internal_handler();
+
+      if (result)
+        DBUG_RETURN(TRUE);
+
+      ot_ctx->set_has_protection_against_grl();
+    }
+
     if (open_table_get_mdl_lock(thd, ot_ctx, &table_list->mdl_request,
                                 flags, &mdl_ticket) ||
         mdl_ticket == NULL)
@@ -2902,8 +2917,12 @@ retry_share:
     */
     if (check_and_update_table_version(thd, table_list, share))
       goto err_unlock;
-    if (table_list->i_s_requested_object &  OPEN_TABLE_ONLY)
+    if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+               table_list->table_name);
       goto err_unlock;
+    }
 
     /* Open view */
     if (open_new_frm(thd, share, alias,
@@ -2931,7 +2950,11 @@ retry_share:
   */
 
   if (table_list->i_s_requested_object &  OPEN_VIEW_ONLY)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+             table_list->table_name);
     goto err_unlock;
+  }
 
   if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
   {
@@ -3371,7 +3394,6 @@ unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock, size_t reopen_count)
 
       close_thread_table(thd, &thd->open_tables);
     }
-    broadcast_refresh();
   }
   /* Exclude all closed tables from the LOCK TABLES list. */
   for (TABLE_LIST *table_list= m_locked_tables; table_list; table_list=
@@ -3848,7 +3870,8 @@ Open_table_context::Open_table_context(THD *thd, uint flags)
              LONG_TIMEOUT : thd->variables.lock_wait_timeout),
    m_flags(flags),
    m_action(OT_NO_ACTION),
-   m_has_locks(thd->mdl_context.has_locks())
+   m_has_locks(thd->mdl_context.has_locks()),
+   m_has_protection_against_grl(FALSE)
 {}
 
 
@@ -4005,6 +4028,12 @@ recover_from_failed_open(THD *thd)
     for safety.
   */
   m_failed_table= NULL;
+  /*
+    Reset flag indicating that we have already acquired protection
+    against GRL. It is no longer valid as the corresponding lock was
+    released by close_tables_for_reopen().
+  */
+  m_has_protection_against_grl= FALSE;
   /* Prepare for possible another back-off. */
   m_action= OT_NO_ACTION;
   return result;
@@ -4543,11 +4572,20 @@ lock_table_names(THD *thd,
       if (schema_request == NULL)
         return TRUE;
       schema_request->init(MDL_key::SCHEMA, table->db, "",
-                           MDL_INTENTION_EXCLUSIVE);
+                           MDL_INTENTION_EXCLUSIVE,
+                           MDL_TRANSACTION);
       mdl_requests.push_front(schema_request);
     }
-    /* Take the global intention exclusive lock. */
-    global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+
+    /*
+      Protect this statement against concurrent global read lock
+      by acquiring global intention exclusive lock with statement
+      duration.
+    */
+    if (thd->global_read_lock.can_acquire_protection())
+      return TRUE;
+    global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                        MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
   }
 
@@ -5319,7 +5357,11 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
 
 end:
   if (table == NULL)
+  {
+    if (!thd->in_sub_stmt)
+      trans_rollback_stmt(thd);
     close_thread_tables(thd);
+  }
   thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
@@ -5350,7 +5392,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_and_lock_tables");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
 
@@ -5407,7 +5449,7 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
   uint counter;
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_normal_and_derived_tables");
   DBUG_ASSERT(!thd->fill_derived_tables());
   if (open_tables(thd, &tables, &counter, flags, &prelocking_strategy) ||
@@ -5664,7 +5706,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 */
 
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
-                             MDL_ticket *start_of_statement_svp)
+                             const MDL_savepoint &start_of_statement_svp)
 {
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
   TABLE_LIST *tmp;

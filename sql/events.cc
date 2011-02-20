@@ -30,6 +30,7 @@
 #include "event_scheduler.h"
 #include "sp_head.h" // for Stored_program_creation_ctx
 #include "set_var.h"
+#include "lock.h"   // lock_object_name
 
 /**
   @addtogroup Event_Scheduler
@@ -77,7 +78,6 @@ Event_queue *Events::event_queue;
 Event_scheduler *Events::scheduler;
 Event_db_repository *Events::db_repository;
 ulong Events::opt_event_scheduler= Events::EVENTS_OFF;
-mysql_mutex_t Events::LOCK_event_metadata;
 bool Events::check_system_tables_error= FALSE;
 
 
@@ -340,7 +340,9 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  mysql_mutex_lock(&LOCK_event_metadata);
+  if (lock_object_name(thd, MDL_key::EVENT,
+                       parse_data->dbname.str, parse_data->name.str))
+    DBUG_RETURN(TRUE);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->create_event(thd, parse_data, if_not_exists)))
@@ -388,7 +390,6 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       }
     }
   }
-  mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -472,7 +473,9 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  mysql_mutex_lock(&LOCK_event_metadata);
+  if (lock_object_name(thd, MDL_key::EVENT,
+                       parse_data->dbname.str, parse_data->name.str))
+    DBUG_RETURN(TRUE);
 
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->update_event(thd, parse_data,
@@ -502,7 +505,6 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
-  mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -556,7 +558,9 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  mysql_mutex_lock(&LOCK_event_metadata);
+  if (lock_object_name(thd, MDL_key::EVENT,
+                       dbname.str, name.str))
+    DBUG_RETURN(TRUE);
   /* On error conditions my_error() is called so no need to handle here */
   if (!(ret= db_repository->drop_event(thd, dbname, name, if_exists)))
   {
@@ -566,7 +570,6 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     DBUG_ASSERT(thd->query() && thd->query_length());
     ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
-  mysql_mutex_unlock(&LOCK_event_metadata);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -595,15 +598,12 @@ Events::drop_schema_events(THD *thd, char *db)
   DBUG_PRINT("enter", ("dropping events from %s", db));
 
   /*
-    sic: no check if the scheduler is disabled or system tables
+    Sic: no check if the scheduler is disabled or system tables
     are damaged, as intended.
   */
-
-  mysql_mutex_lock(&LOCK_event_metadata);
   if (event_queue)
     event_queue->drop_schema_events(thd, db_lex);
   db_repository->drop_schema_events(thd, db_lex);
-  mysql_mutex_unlock(&LOCK_event_metadata);
 
   DBUG_VOID_RETURN;
 }
@@ -915,12 +915,11 @@ Events::deinit()
 }
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_mutex_key key_LOCK_event_metadata, key_LOCK_event_queue,
+PSI_mutex_key key_LOCK_event_queue,
               key_event_scheduler_LOCK_scheduler_state;
 
 static PSI_mutex_info all_events_mutexes[]=
 {
-  { &key_LOCK_event_metadata, "LOCK_event_metadata", PSI_FLAG_GLOBAL},
   { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL},
   { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL}
 };
@@ -974,23 +973,6 @@ Events::init_mutexes()
 #ifdef HAVE_PSI_INTERFACE
   init_events_psi_keys();
 #endif
-
-  mysql_mutex_init(key_LOCK_event_metadata,
-                   &LOCK_event_metadata, MY_MUTEX_INIT_FAST);
-}
-
-
-/*
-  Destroys Events mutexes
-
-  SYNOPSIS
-    Events::destroy_mutexes()
-*/
-
-void
-Events::destroy_mutexes()
-{
-  mysql_mutex_destroy(&LOCK_event_metadata);
 }
 
 

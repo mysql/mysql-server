@@ -46,7 +46,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	1
-#define INNODB_VERSION_BUGFIX	3
+#define INNODB_VERSION_BUGFIX	4
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -373,6 +373,9 @@ typedef unsigned long long int	ullint;
 
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t	ib_id_t;
+
+/* The 'undefined' value for a ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

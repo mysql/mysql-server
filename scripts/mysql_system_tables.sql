@@ -171,7 +171,7 @@ set @have_pfs= (select count(engine) from information_schema.engines where engin
 -- TABLE COND_INSTANCES
 --
 
-SET @l1="CREATE TABLE performance_schema.COND_INSTANCES(";
+SET @l1="CREATE TABLE performance_schema.cond_instances(";
 SET @l2="NAME VARCHAR(128) not null,";
 SET @l3="OBJECT_INSTANCE_BEGIN BIGINT not null";
 SET @l4=")ENGINE=PERFORMANCE_SCHEMA;";
@@ -187,7 +187,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_CURRENT
 --
 
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_CURRENT(";
+SET @l1="CREATE TABLE performance_schema.events_waits_current(";
 SET @l2="THREAD_ID INTEGER not null,";
 SET @l3="EVENT_ID BIGINT unsigned not null,";
 SET @l4="EVENT_NAME VARCHAR(128) not null,";
@@ -217,7 +217,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_HISTORY
 --
 
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_HISTORY(";
+SET @l1="CREATE TABLE performance_schema.events_waits_history(";
 -- lines 2 to 18 are unchanged from EVENTS_WAITS_CURRENT
 
 SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8,@l9,@l10,@l11,@l12,@l13,@l14,@l15,@l16,@l17,@l18);
@@ -231,7 +231,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_HISTORY_LONG
 --
 
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG(";
+SET @l1="CREATE TABLE performance_schema.events_waits_history_long(";
 -- lines 2 to 18 are unchanged from EVENTS_WAITS_CURRENT
 
 SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8,@l9,@l10,@l11,@l12,@l13,@l14,@l15,@l16,@l17,@l18);
@@ -245,7 +245,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_BY_INSTANCE
 --
 
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE(";
+SET @l1="CREATE TABLE performance_schema.events_waits_summary_by_instance(";
 SET @l2="EVENT_NAME VARCHAR(128) not null,";
 SET @l3="OBJECT_INSTANCE_BEGIN BIGINT not null,";
 SET @l4="COUNT_STAR BIGINT unsigned not null,";
@@ -266,7 +266,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
 --
 
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME(";
+SET @l1="CREATE TABLE performance_schema.events_waits_summary_by_thread_by_event_name(";
 SET @l2="THREAD_ID INTEGER not null,";
 SET @l3="EVENT_NAME VARCHAR(128) not null,";
 SET @l4="COUNT_STAR BIGINT unsigned not null,";
@@ -287,7 +287,7 @@ DROP PREPARE stmt;
 -- TABLE EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
 --
 
-SET @l1="CREATE TABLE performance_schema.EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME(";
+SET @l1="CREATE TABLE performance_schema.events_waits_summary_global_by_event_name(";
 SET @l2="EVENT_NAME VARCHAR(128) not null,";
 SET @l3="COUNT_STAR BIGINT unsigned not null,";
 SET @l4="SUM_TIMER_WAIT BIGINT unsigned not null,";
@@ -307,7 +307,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_INSTANCES
 --
 
-SET @l1="CREATE TABLE performance_schema.FILE_INSTANCES(";
+SET @l1="CREATE TABLE performance_schema.file_instances(";
 SET @l2="FILE_NAME VARCHAR(512) not null,";
 SET @l3="EVENT_NAME VARCHAR(128) not null,";
 SET @l4="OPEN_COUNT INTEGER unsigned not null";
@@ -324,7 +324,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_SUMMARY_BY_EVENT_NAME
 --
 
-SET @l1="CREATE TABLE performance_schema.FILE_SUMMARY_BY_EVENT_NAME(";
+SET @l1="CREATE TABLE performance_schema.file_summary_by_event_name(";
 SET @l2="EVENT_NAME VARCHAR(128) not null,";
 SET @l3="COUNT_READ BIGINT unsigned not null,";
 SET @l4="COUNT_WRITE BIGINT unsigned not null,";
@@ -343,7 +343,7 @@ DROP PREPARE stmt;
 -- TABLE FILE_SUMMARY_BY_INSTANCE
 --
 
-SET @l1="CREATE TABLE performance_schema.FILE_SUMMARY_BY_INSTANCE(";
+SET @l1="CREATE TABLE performance_schema.file_summary_by_instance(";
 SET @l2="FILE_NAME VARCHAR(512) not null,";
 SET @l3="EVENT_NAME VARCHAR(128) not null,";
 SET @l4="COUNT_READ BIGINT unsigned not null,";
@@ -363,7 +363,7 @@ DROP PREPARE stmt;
 -- TABLE MUTEX_INSTANCES
 --
 
-SET @l1="CREATE TABLE performance_schema.MUTEX_INSTANCES(";
+SET @l1="CREATE TABLE performance_schema.mutex_instances(";
 SET @l2="NAME VARCHAR(128) not null,";
 SET @l3="OBJECT_INSTANCE_BEGIN BIGINT not null,";
 SET @l4="LOCKED_BY_THREAD_ID INTEGER";
@@ -380,7 +380,7 @@ DROP PREPARE stmt;
 -- TABLE PERFORMANCE_TIMERS
 --
 
-SET @l1="CREATE TABLE performance_schema.PERFORMANCE_TIMERS(";
+SET @l1="CREATE TABLE performance_schema.performance_timers(";
 SET @l2="TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null,";
 SET @l3="TIMER_FREQUENCY BIGINT,";
 SET @l4="TIMER_RESOLUTION BIGINT,";
@@ -398,7 +398,7 @@ DROP PREPARE stmt;
 -- TABLE RWLOCK_INSTANCES
 --
 
-SET @l1="CREATE TABLE performance_schema.RWLOCK_INSTANCES(";
+SET @l1="CREATE TABLE performance_schema.rwlock_instances(";
 SET @l2="NAME VARCHAR(128) not null,";
 SET @l3="OBJECT_INSTANCE_BEGIN BIGINT not null,";
 SET @l4="WRITE_LOCKED_BY_THREAD_ID INTEGER,";
@@ -416,7 +416,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_CONSUMERS
 --
 
-SET @l1="CREATE TABLE performance_schema.SETUP_CONSUMERS(";
+SET @l1="CREATE TABLE performance_schema.setup_consumers(";
 SET @l2="NAME VARCHAR(64) not null,";
 SET @l3="ENABLED ENUM ('YES', 'NO') not null";
 SET @l4=")ENGINE=PERFORMANCE_SCHEMA;";
@@ -432,7 +432,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_INSTRUMENTS
 --
 
-SET @l1="CREATE TABLE performance_schema.SETUP_INSTRUMENTS(";
+SET @l1="CREATE TABLE performance_schema.setup_instruments(";
 SET @l2="NAME VARCHAR(128) not null,";
 SET @l3="ENABLED ENUM ('YES', 'NO') not null,";
 SET @l4="TIMED ENUM ('YES', 'NO') not null";
@@ -449,7 +449,7 @@ DROP PREPARE stmt;
 -- TABLE SETUP_TIMERS
 --
 
-SET @l1="CREATE TABLE performance_schema.SETUP_TIMERS(";
+SET @l1="CREATE TABLE performance_schema.setup_timers(";
 SET @l2="NAME VARCHAR(64) not null,";
 SET @l3="TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', 'TICK') not null";
 SET @l4=")ENGINE=PERFORMANCE_SCHEMA;";
@@ -465,10 +465,10 @@ DROP PREPARE stmt;
 -- TABLE THREADS
 --
 
-SET @l1="CREATE TABLE performance_schema.THREADS(";
+SET @l1="CREATE TABLE performance_schema.threads(";
 SET @l2="THREAD_ID INTEGER not null,";
-SET @l3="ID INTEGER not null,";
-SET @l4="NAME VARCHAR(64) not null";
+SET @l3="PROCESSLIST_ID INTEGER,";
+SET @l4="NAME VARCHAR(128) not null";
 SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
@@ -478,7 +478,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-CREATE TABLE IF NOT EXISTS proxy_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_Host char(16) binary DEFAULT '' NOT NULL, Proxied_User char(60) binary DEFAULT '' NOT NULL, With_Grant BOOL DEFAULT 0 NOT NULL, PRIMARY KEY Host (Host,User,Proxied_Host,Proxied_User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
+CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(16) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Timestamp timestamp, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges';
 
--- Remember for later if proxy_priv table already existed
-set @had_proxy_priv_table= @@warning_count != 0;
+-- Remember for later if proxies_priv table already existed
+set @had_proxies_priv_table= @@warning_count != 0;

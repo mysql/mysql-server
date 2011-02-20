@@ -90,8 +90,8 @@ typedef struct st_mysql_server_auth_info
   int  password_used;
 
   /**
-    Set to the name of the connected client if it can be resolved, or to 
-    the address otherwise
+    Set to the name of the connected client host, if it can be resolved, 
+    or to its IP address otherwise.
   */
   const char *host_or_ip;
 
@@ -107,7 +107,7 @@ typedef struct st_mysql_server_auth_info
 */
 struct st_mysql_auth
 {
-  int interface_version;                        /**< version plugin uses */
+  int interface_version;                        /** version plugin uses */
   /**
     A plugin that a client must use for authentication with this server
     plugin. Can be NULL to mean "any plugin".

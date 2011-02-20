@@ -1,5 +1,6 @@
 --source include/have_plugin_auth.inc
 --source include/not_embedded.inc
+--source include/mysql_upgrade_preparation.inc
 
 query_vertical SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
   FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
@@ -16,6 +17,11 @@ connect(plug_con,localhost,plug,plug_dest);
 --enable_query_log
 
 GRANT PROXY ON plug_dest TO plug;
+--echo test proxies_priv columns
+--replace_column 1 xx 7 xx
+SELECT * FROM mysql.proxies_priv;
+--echo test mysql.proxies_priv;
+SHOW CREATE TABLE mysql.proxies_priv;
 
 connect(plug_con,localhost,plug,plug_dest);
 
@@ -226,7 +232,7 @@ CREATE USER test_drop@localhost;
 GRANT PROXY ON future_user TO test_drop@localhost;
 SHOW GRANTS FOR test_drop@localhost;
 DROP USER test_drop@localhost;
-SELECT * FROM mysql.proxy_priv WHERE Host = 'test_drop' AND User = 'localhost';
+SELECT * FROM mysql.proxies_priv WHERE Host = 'test_drop' AND User = 'localhost';
 
 DROP USER proxy_admin;
 
@@ -330,3 +336,62 @@ GRANT PROXY ON standard_user TO ''@'';
 DROP USER ''@'';
 DROP USER standard_user;
 DROP DATABASE shared;
+
+
+--echo #
+--echo # Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
+--echo #
+
+CALL mtr.add_suppression("Missing system table mysql.proxies_priv.");
+
+DROP TABLE mysql.proxies_priv;
+
+--echo # Must come back with mysql.proxies_priv absent.
+--source include/restart_mysqld.inc
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.proxies_priv;
+
+CREATE USER u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u1@localhost;
+
+CREATE USER u2@localhost;
+GRANT ALL PRIVILEGES ON *.* TO u2@localhost;
+
+--echo # access denied because of no privileges to root
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+GRANT PROXY ON u2@localhost TO u1@localhost;
+
+--echo # access denied because of no privileges to root
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+
+--echo # go try graning proxy on itself, so that it will need the table
+connect(proxy_granter_con,localhost,u2,);
+connection proxy_granter_con;
+
+--error ER_NO_SUCH_TABLE
+GRANT PROXY ON u2@localhost TO u1@localhost;
+--error ER_NO_SUCH_TABLE
+REVOKE PROXY ON u2@localhost FROM u1@localhost;
+
+connection default;
+disconnect proxy_granter_con;
+
+--echo # test if REVOKE works without the proxies_priv table
+REVOKE ALL PRIVILEGES ON *.* FROM u1@localhost, u2@localhost;
+
+--echo # test if DROP USER work without the proxies_priv table
+DROP USER u1@localhost,u2@localhost;
+
+--echo # test if FLUSH PRIVILEGES works without the proxies_priv table
+FLUSH PRIVILEGES;
+
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+--query_vertical SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv
+
+FLUSH PRIVILEGES;
+
+--echo End of 5.5 tests

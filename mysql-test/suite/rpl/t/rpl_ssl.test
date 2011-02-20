@@ -75,7 +75,7 @@ source include/check_slave_is_running.inc;
 
 let $slave_count= `select count(*) from t1`;
 
-if (`select $slave_count != $master_count`)
+if ($slave_count != $master_count)
 {
   echo master and slave differed in number of rows;
   echo master: $master_count;

@@ -787,11 +787,8 @@ int field_conv(Field *to,Field *from)
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
-#ifdef HAVE_purify
-      /* This may happen if one does 'UPDATE ... SET x=x' */
-      if (to->ptr != from->ptr)
-#endif
-        memcpy(to->ptr,from->ptr,to->pack_length());
+      // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
+      memmove(to->ptr, from->ptr, to->pack_length());
       return 0;
     }
   }

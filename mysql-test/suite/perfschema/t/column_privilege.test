@@ -26,10 +26,10 @@ grant usage on *.* to 'pfs_user_5'@localhost with GRANT OPTION;
 
 # Test per column privileges on performance_schema
 
-grant SELECT(thread_id, event_id) on performance_schema.EVENTS_WAITS_CURRENT
+grant SELECT(thread_id, event_id) on performance_schema.events_waits_current
   to 'pfs_user_5'@localhost;
 
-grant UPDATE(enabled) on performance_schema.SETUP_INSTRUMENTS
+grant UPDATE(enabled) on performance_schema.setup_instruments
   to 'pfs_user_5'@localhost;
 
 flush privileges;
@@ -42,32 +42,28 @@ connect (con1, localhost, pfs_user_5, , );
 # For statements that works, we do not look at the output
 --disable_result_log
 
-select thread_id from performance_schema.EVENTS_WAITS_CURRENT;
+select thread_id from performance_schema.events_waits_current;
 
-select thread_id, event_id from performance_schema.EVENTS_WAITS_CURRENT;
+select thread_id, event_id from performance_schema.events_waits_current;
 
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES';
 
 --enable_result_log
 
 # For statements that are denied, check the error number and error text.
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_COLUMNACCESS_DENIED_ERROR
-select event_name from performance_schema.EVENTS_WAITS_CURRENT;
+select event_name from performance_schema.events_waits_current;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_COLUMNACCESS_DENIED_ERROR
 select thread_id, event_id, event_name
-  from performance_schema.EVENTS_WAITS_CURRENT;
+  from performance_schema.events_waits_current;
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_COLUMNACCESS_DENIED_ERROR
-update performance_schema.SETUP_INSTRUMENTS set name='illegal';
+update performance_schema.setup_instruments set name='illegal';
 
---replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
 --error ER_COLUMNACCESS_DENIED_ERROR
-update performance_schema.SETUP_INSTRUMENTS set timed='NO';
+update performance_schema.setup_instruments set timed='NO';
 
 # Cleanup
 
@@ -76,7 +72,7 @@ update performance_schema.SETUP_INSTRUMENTS set timed='NO';
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'pfs_user_5'@localhost;
 DROP USER 'pfs_user_5'@localhost;
 flush privileges;
-UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
-UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
-UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'CYCLE';
+UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.setup_consumers SET enabled = 'YES';
+UPDATE performance_schema.setup_timers SET timer_name = 'CYCLE';
 

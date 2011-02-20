@@ -256,7 +256,7 @@ extern my_bool  my_disable_locking, my_disable_async_io,
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */
-extern char *my_defaults_extra_file;
+extern const char *my_defaults_extra_file;
 extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 

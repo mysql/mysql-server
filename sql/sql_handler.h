@@ -31,6 +31,6 @@ void mysql_ha_flush(THD *thd);
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables);
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables);
 void mysql_ha_cleanup(THD *thd);
-void mysql_ha_move_tickets_after_trans_sentinel(THD *thd);
+void mysql_ha_set_explicit_lock_duration(THD *thd);
 
 #endif /* SQL_HANDLER_INCLUDED */

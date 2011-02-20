@@ -8,13 +8,13 @@
 # --source include/rpl_diff_tables.inc
 # #############################################################################
 
-if (`SELECT "XX$diff_table" = "XX"`)
+if (!$diff_table)
 {
   --die diff_table is null.
 }
 
 --let $_servers= master, slave
-if (`SELECT "XX$diff_server_list" <> "XX"`)
+if ($diff_server_list)
 {
   --let $_servers= $diff_server_list
 }
@@ -22,7 +22,7 @@ if (`SELECT "XX$diff_server_list" <> "XX"`)
 --let $_master= `SELECT SUBSTRING_INDEX('$_servers', ',', 1)`
 --let $_servers= `SELECT LTRIM(SUBSTRING('$_servers', LENGTH('$_master') + 2))`
 connection $_master;
-while (`SELECT "XX$_servers" <> "XX"`)
+while ($_servers)
 {
   --let $_slave= `SELECT SUBSTRING_INDEX('$_servers', ',', 1)`
   --let $_servers= `SELECT LTRIM(SUBSTRING('$_servers', LENGTH('$_slave') + 2))`

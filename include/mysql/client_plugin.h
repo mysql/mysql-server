@@ -23,8 +23,10 @@
 */
 #define MYSQL_CLIENT_PLUGIN_INCLUDED
 
+#ifndef MYSQL_ABI_CHECK
 #include <stdarg.h>
 #include <stdlib.h>
+#endif
 
 /* known plugin types */
 #define MYSQL_CLIENT_reserved1               0
@@ -77,8 +79,7 @@ struct st_mysql_client_plugin_AUTHENTICATION
 /**
   loads a plugin and initializes it
 
-  @param mysql  MYSQL structure. only MYSQL_PLUGIN_DIR option value is used,
-                and last_errno/last_error, for error reporting
+  @param mysql  MYSQL structure.
   @param name   a name of the plugin to load
   @param type   type of plugin that should be loaded, -1 to disable type check
   @param argc   number of arguments to pass to the plugin initialization
@@ -98,8 +99,7 @@ mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
   This is the same as mysql_load_plugin, but take va_list instead of
   a list of arguments.
 
-  @param mysql  MYSQL structure. only MYSQL_PLUGIN_DIR option value is used,
-                and last_errno/last_error, for error reporting
+  @param mysql  MYSQL structure.
   @param name   a name of the plugin to load
   @param type   type of plugin that should be loaded, -1 to disable type check
   @param argc   number of arguments to pass to the plugin initialization
@@ -116,8 +116,7 @@ mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
 /**
   finds an already loaded plugin by name, or loads it, if necessary
 
-  @param mysql  MYSQL structure. only MYSQL_PLUGIN_DIR option value is used,
-                and last_errno/last_error, for error reporting
+  @param mysql  MYSQL structure.
   @param name   a name of the plugin to load
   @param type   type of plugin that should be loaded
 

@@ -19,44 +19,37 @@
 --source include/have_perfschema.inc
 
 --replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 12 # 14 #
-select * from performance_schema.EVENTS_WAITS_CURRENT
+select * from performance_schema.events_waits_current
   where event_name like 'Wait/Synch/%' limit 1;
 
-select * from performance_schema.EVENTS_WAITS_CURRENT
+select * from performance_schema.events_waits_current
   where event_name='FOO';
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.EVENTS_WAITS_CURRENT
+insert into performance_schema.events_waits_current
   set thread_id='1', event_id=1,
   event_name='FOO', timer_start=1, timer_end=2, timer_wait=3;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.EVENTS_WAITS_CURRENT
+update performance_schema.events_waits_current
   set timer_start=12;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.EVENTS_WAITS_CURRENT
+update performance_schema.events_waits_current
   set timer_start=12 where thread_id=0;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_CURRENT
+delete from performance_schema.events_waits_current
   where thread_id=1;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_CURRENT;
+delete from performance_schema.events_waits_current;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.EVENTS_WAITS_CURRENT READ;
+LOCK TABLES performance_schema.events_waits_current READ;
 UNLOCK TABLES;
 
---replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.EVENTS_WAITS_CURRENT WRITE;
+LOCK TABLES performance_schema.events_waits_current WRITE;
 UNLOCK TABLES;
 

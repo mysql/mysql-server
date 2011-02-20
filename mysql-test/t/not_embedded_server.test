@@ -54,3 +54,57 @@ lock tables t1 read;
 flush privileges;
 unlock tables;
 drop table t1;
+
+--echo #
+--echo # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
+--echo #
+
+CREATE USER nopriv_user@localhost;
+
+connection default;
+--echo connection: default
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP FUNCTION IF EXISTS f;
+--enable_warnings
+
+CREATE TABLE t1 (key1 INT PRIMARY KEY);
+CREATE TABLE t2 (key2 INT);
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE FUNCTION f() RETURNS INT RETURN 1;
+
+GRANT FILE ON *.* TO 'nopriv_user'@'localhost';
+
+FLUSH PRIVILEGES;
+
+connect (con1,localhost,nopriv_user,,);
+connection con1;
+--echo connection: con1
+
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT MAX(key1) FROM t1 WHERE f() < 1 INTO OUTFILE 'mytest';
+
+--error ER_PROCACCESS_DENIED_ERROR
+INSERT INTO t2 SELECT MAX(key1) FROM t1 WHERE f() < 1;
+
+--error ER_PROCACCESS_DENIED_ERROR
+SELECT MAX(key1) INTO @dummy FROM t1 WHERE f() < 1;
+
+--error ER_PROCACCESS_DENIED_ERROR
+CREATE TABLE t3 (i INT) AS SELECT MAX(key1) FROM t1 WHERE f() < 1;
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
+connection default;
+--echo connection: default
+
+DROP TABLE t1,t2;
+DROP FUNCTION f;
+DROP USER nopriv_user@localhost;
+
+--echo #
+--echo # End Bug#54812
+--echo #

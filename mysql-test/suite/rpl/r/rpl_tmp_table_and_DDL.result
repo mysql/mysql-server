@@ -123,16 +123,16 @@ DROP PROCEDURE p2;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 INSERT INTO t2 VALUES ("DROP PROCEDURE p2 with table locked");
 CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 INSERT INTO t2 VALUES ("CREATE EVENT e1 with table locked");
 UNLOCK TABLE;
 CREATE EVENT e2 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
 LOCK TABLE t1 WRITE;
 ALTER EVENT e2 ON SCHEDULE EVERY 20 HOUR DO SELECT 1;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 INSERT INTO t2 VALUES ("ALTER EVENT e2 with table locked");
 DROP EVENT e2;
-ERROR HY000: Table 'event' was not locked with LOCK TABLES
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 INSERT INTO t2 VALUES ("DROP EVENT e2 with table locked");
 CREATE DATABASE mysqltest1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction

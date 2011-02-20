@@ -268,11 +268,13 @@ class ACL_PROXY_USER :public ACL_ACCESS
   bool with_grant;
 
   typedef enum { 
-    MYSQL_PROXY_PRIV_HOST, 
-    MYSQL_PROXY_PRIV_USER, 
-    MYSQL_PROXY_PRIV_PROXIED_HOST,
-    MYSQL_PROXY_PRIV_PROXIED_USER, 
-    MYSQL_PROXY_PRIV_WITH_GRANT } old_acl_proxy_users;
+    MYSQL_PROXIES_PRIV_HOST, 
+    MYSQL_PROXIES_PRIV_USER, 
+    MYSQL_PROXIES_PRIV_PROXIED_HOST,
+    MYSQL_PROXIES_PRIV_PROXIED_USER, 
+    MYSQL_PROXIES_PRIV_WITH_GRANT,
+    MYSQL_PROXIES_PRIV_GRANTOR,
+    MYSQL_PROXIES_PRIV_TIMESTAMP } old_acl_proxy_users;
 public:
   ACL_PROXY_USER () {};
 
@@ -308,11 +310,11 @@ public:
 
   void init(TABLE *table, MEM_ROOT *mem)
   {
-    init (get_field(mem, table->field[MYSQL_PROXY_PRIV_HOST]),
-          get_field(mem, table->field[MYSQL_PROXY_PRIV_USER]),
-          get_field(mem, table->field[MYSQL_PROXY_PRIV_PROXIED_HOST]),
-          get_field(mem, table->field[MYSQL_PROXY_PRIV_PROXIED_USER]),
-          table->field[MYSQL_PROXY_PRIV_WITH_GRANT]->val_int() != 0);
+    init (get_field(mem, table->field[MYSQL_PROXIES_PRIV_HOST]),
+          get_field(mem, table->field[MYSQL_PROXIES_PRIV_USER]),
+          get_field(mem, table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]),
+          get_field(mem, table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]),
+          table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->val_int() != 0);
   }
 
   bool get_with_grant() { return with_grant; }
@@ -337,7 +339,7 @@ public:
         (hostname_requires_resolving(host.hostname) ||
          hostname_requires_resolving(proxied_host.hostname)))
     {
-      sql_print_warning("'proxy_priv' entry '%s@%s %s@%s' "
+      sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         proxied_user ? proxied_user : "",
                         proxied_host.hostname ? proxied_host.hostname : "",
@@ -452,19 +454,19 @@ public:
                         user->str ? user->str : "<NULL>",
                         proxied_host->str ? proxied_host->str : "<NULL>",
                         proxied_user->str ? proxied_user->str : "<NULL>"));
-    if (table->field[MYSQL_PROXY_PRIV_HOST]->store(host->str, 
+    if (table->field[MYSQL_PROXIES_PRIV_HOST]->store(host->str, 
                                                    host->length,
                                                    system_charset_info))
       DBUG_RETURN(TRUE);
-    if (table->field[MYSQL_PROXY_PRIV_USER]->store(user->str, 
+    if (table->field[MYSQL_PROXIES_PRIV_USER]->store(user->str, 
                                                    user->length,
                                                    system_charset_info))
       DBUG_RETURN(TRUE);
-    if (table->field[MYSQL_PROXY_PRIV_PROXIED_HOST]->store(proxied_host->str,
+    if (table->field[MYSQL_PROXIES_PRIV_PROXIED_HOST]->store(proxied_host->str,
                                                            proxied_host->length,
                                                            system_charset_info))
       DBUG_RETURN(TRUE);
-    if (table->field[MYSQL_PROXY_PRIV_PROXIED_USER]->store(proxied_user->str,
+    if (table->field[MYSQL_PROXIES_PRIV_PROXIED_USER]->store(proxied_user->str,
                                                            proxied_user->length,
                                                            system_charset_info))
       DBUG_RETURN(TRUE);
@@ -472,19 +474,24 @@ public:
     DBUG_RETURN(FALSE);
   }
 
-  static int store_data_record(TABLE *table, 
-                               const LEX_STRING *host, 
+  static int store_data_record(TABLE *table,
+                               const LEX_STRING *host,
                                const LEX_STRING *user,
-                               const LEX_STRING *proxied_host, 
+                               const LEX_STRING *proxied_host,
                                const LEX_STRING *proxied_user,
-                               bool with_grant)
+                               bool with_grant,
+                               const char *grantor)
   {
-    DBUG_ENTER ("ACL_PROXY_USER::store_pk");
-    if (store_pk (table,  host, user, proxied_host, proxied_user))
+    DBUG_ENTER("ACL_PROXY_USER::store_pk");
+    if (store_pk(table,  host, user, proxied_host, proxied_user))
       DBUG_RETURN(TRUE);
-    DBUG_PRINT ("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
-    if (table->field[MYSQL_PROXY_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0, 
+    DBUG_PRINT("info", ("with_grant=%s", with_grant ? "TRUE" : "FALSE"));
+    if (table->field[MYSQL_PROXIES_PRIV_WITH_GRANT]->store(with_grant ? 1 : 0, 
                                                          TRUE))
+      DBUG_RETURN(TRUE);
+    if (table->field[MYSQL_PROXIES_PRIV_GRANTOR]->store(grantor, 
+                                                        strlen(grantor),
+                                                        system_charset_info))
       DBUG_RETURN(TRUE);
 
     DBUG_RETURN(FALSE);
@@ -1022,24 +1029,35 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
 
-  init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
-                   0, FALSE);
-  table->use_all_columns();
   (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
                                50, 100);
-  while (!(read_record_info.read_record(&read_record_info)))
+  if (tables[3].table)
   {
-    ACL_PROXY_USER proxy;
-    proxy.init(table, &mem);
-    if (proxy.check_validity(check_no_resolve))
-      continue;
-    if (push_dynamic(&acl_proxy_users, (uchar*) &proxy))
-      return TRUE;
+    init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
+                     0, FALSE);
+    table->use_all_columns();
+    while (!(read_record_info.read_record(&read_record_info)))
+    {
+      ACL_PROXY_USER proxy;
+      proxy.init(table, &mem);
+      if (proxy.check_validity(check_no_resolve))
+        continue;
+      if (push_dynamic(&acl_proxy_users, (uchar*) &proxy))
+      {
+        end_read_record(&read_record_info);
+        goto end;
+      }
+    }
+    my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER*),
+             acl_proxy_users.elements,
+             sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
+    end_read_record(&read_record_info);
   }
-  my_qsort((uchar*) dynamic_element(&acl_proxy_users, 0, ACL_PROXY_USER*),
-           acl_proxy_users.elements,
-           sizeof(ACL_PROXY_USER), (qsort_cmp) acl_compare);
-  end_read_record(&read_record_info);
+  else
+  {
+    sql_print_error("Missing system table mysql.proxies_priv; "
+                    "please run mysql_upgrade to create it");
+  }
   freeze_size(&acl_proxy_users);
 
   init_check_host();
@@ -1113,13 +1131,14 @@ my_bool acl_reload(THD *thd)
   tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("db"), "db", TL_READ);
   tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("proxy_priv"), 
-                           "proxy_priv", TL_READ);
+                           C_STRING_WITH_LEN("proxies_priv"), 
+                           "proxies_priv", TL_READ);
   tables[0].next_local= tables[0].next_global= tables + 1;
   tables[1].next_local= tables[1].next_global= tables + 2;
   tables[2].next_local= tables[2].next_global= tables + 3;
   tables[0].open_type= tables[1].open_type= tables[2].open_type= 
   tables[3].open_type= OT_BASE_ONLY;
+  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -2608,7 +2627,7 @@ acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 
 
 static int 
-replace_proxy_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
+replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                          const LEX_USER *proxied_user, bool with_grant_arg, 
                          bool revoke_grant)
 {
@@ -2616,8 +2635,9 @@ replace_proxy_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   int error;
   uchar user_key[MAX_KEY_LENGTH];
   ACL_PROXY_USER new_grant;
+  char grantor[USER_HOST_BUFF_SIZE];
 
-  DBUG_ENTER("replace_proxy_priv_table");
+  DBUG_ENTER("replace_proxies_priv_table");
 
   if (!initialized)
   {
@@ -2639,6 +2659,8 @@ replace_proxy_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
 
+  get_grantor(thd, grantor);
+
   table->file->ha_index_init(0, 1);
   if (table->file->index_read_map(table->record[0], user_key,
                                       HA_WHOLE_KEY,
@@ -2655,7 +2677,8 @@ replace_proxy_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     ACL_PROXY_USER::store_data_record(table, &user->host, &user->user,
                                       &proxied_user->host,
                                       &proxied_user->user,
-                                      with_grant_arg);
+                                      with_grant_arg,
+                                      grantor);
   }
   else
   {
@@ -2712,7 +2735,7 @@ table_error:
   table->file->print_error(error, MYF(0));	/* purecov: inspected */
 
 abort:
-  DBUG_PRINT("info", ("aborting replace_proxy_priv_table"));
+  DBUG_PRINT("info", ("aborting replace_proxies_priv_table"));
   table->file->ha_index_end();
   DBUG_RETURN(-1);
 }
@@ -3962,14 +3985,14 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     proxied_user= str_list++;
   }
 
-  /* open the mysql.user and mysql.db or mysql.proxy_priv tables */
+  /* open the mysql.user and mysql.db or mysql.proxies_priv tables */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("user"), "user", TL_WRITE);
   if (is_proxy)
 
     tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                             C_STRING_WITH_LEN("proxy_priv"),
-                             "proxy_priv", 
+                             C_STRING_WITH_LEN("proxies_priv"),
+                             "proxies_priv", 
                              TL_WRITE);
   else
     tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
@@ -4063,7 +4086,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     }
     else if (is_proxy)
     {
-      if (replace_proxy_priv_table (thd, tables[1].table, Str, proxied_user,
+      if (replace_proxies_priv_table (thd, tables[1].table, Str, proxied_user,
                                     rights & GRANT_ACL ? TRUE : FALSE, 
                                     revoke_grant))
         result= -1;
@@ -5690,8 +5713,10 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
                              C_STRING_WITH_LEN("procs_priv"),
                              "procs_priv", TL_WRITE);
   (tables+5)->init_one_table(C_STRING_WITH_LEN("mysql"),
-                             C_STRING_WITH_LEN("proxy_priv"),
-                             "proxy_priv", TL_WRITE);
+                             C_STRING_WITH_LEN("proxies_priv"),
+                             "proxies_priv", TL_WRITE);
+  tables[5].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+
   tables->next_local= tables->next_global= tables + 1;
   (tables+1)->next_local= (tables+1)->next_global= tables + 2;
   (tables+2)->next_local= (tables+2)->next_global= tables + 3;
@@ -6068,7 +6093,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= acl_proxy_user->get_host();
       break;
     default:
-      assert(0);
+      MY_ASSERT_UNREACHABLE();
     }
     if (! user)
       user= "";
@@ -6283,18 +6308,21 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     }
   }
 
-  /* Handle proxy_priv table. */
-  if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
+  /* Handle proxies_priv table. */
+  if (tables[5].table)
   {
-    /* Handle of table failed, don't touch the in-memory array. */
-    result= -1;
-  }
-  else
-  {
-    /* Handle proxy_priv array. */
-    if ((handle_grant_struct(5, drop, user_from, user_to) && !result) ||
-        found)
-      result= 1; /* At least one record/element found. */
+    if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
+    {
+      /* Handle of table failed, don't touch the in-memory array. */
+      result= -1;
+    }
+    else
+    {
+      /* Handle proxies_priv array. */
+      if ((handle_grant_struct(5, drop, user_from, user_to) && !result) ||
+          found)
+        result= 1; /* At least one record/element found. */
+    }
   }
  end:
   DBUG_RETURN(result);
@@ -8091,6 +8119,24 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     DBUG_RETURN (1);
   }
 
+  /*
+    If we're dealing with an older client we can't just send a change plugin
+    packet to re-initiate the authentication handshake, because the client 
+    won't understand it. The good thing is that we don't need to : the old client
+    expects us to just check the user credentials here, which we can do by just reading
+    the cached data that are placed there by parse_com_change_user_packet() 
+    In this case we just do nothing and behave as if normal authentication
+    should continue.
+  */
+  if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
+  {
+    DBUG_PRINT("info", ("old client sent a COM_CHANGE_USER"));
+    DBUG_ASSERT(mpvio->cached_client_reply.pkt);
+    /* get the status back so the read can process the cached result */
+    mpvio->status= MPVIO_EXT::RESTART; 
+    DBUG_RETURN(0);
+  }
+
   DBUG_PRINT("info", ("requesting client to use the %s plugin", 
                       client_auth_plugin));
   DBUG_RETURN(net_write_command(net, switch_plugin_request_buf[0],
@@ -8574,8 +8620,16 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   int res;
 
   DBUG_ENTER("server_mpvio_write_packet");
-  /* reset cached_client_reply */
-  mpvio->cached_client_reply.pkt= 0;
+  /* 
+    Reset cached_client_reply if not an old client doing mysql_change_user, 
+    as this is where the password from COM_CHANGE_USER is stored.
+  */
+  if (!((!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)) && 
+        mpvio->status == MPVIO_EXT::RESTART &&
+        mpvio->cached_client_reply.plugin == 
+        ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin
+        ))
+    mpvio->cached_client_reply.pkt= 0;
   /* for the 1st packet we wrap plugin data into the handshake packet */
   if (mpvio->packets_written == 0)
     res= send_server_handshake_packet(mpvio, (char*) packet, packet_len);
@@ -8641,6 +8695,15 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
       mpvio->packets_read++;
       DBUG_RETURN ((int) mpvio->cached_client_reply.pkt_len);
     }
+
+    /* older clients don't support change of client plugin request */
+    if (!(mpvio->client_capabilities & CLIENT_PLUGIN_AUTH))
+    {
+      mpvio->status= MPVIO_EXT::FAILURE;
+      pkt_len= packet_error;
+      goto err;
+    }
+
     /*
       But if the client has used the wrong plugin, the cached data are
       useless. Furthermore, we have to send a "change plugin" request
@@ -9188,8 +9251,8 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   2. client sends the encrypted password back to the server
   3. the server checks the password.
 */
-static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio, 
-                                              MYSQL_SERVER_AUTH_INFO *info)
+static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
+                                        MYSQL_SERVER_AUTH_INFO *info)
 {
   uchar *pkt;
   int pkt_len;
@@ -9203,7 +9266,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* send it to the client */
   if (mpvio->write_packet(mpvio, (uchar*) mpvio->scramble, SCRAMBLE_LENGTH + 1))
-    return CR_ERROR;
+    DBUG_RETURN(CR_ERROR);
 
   /* reply and authenticate */
 

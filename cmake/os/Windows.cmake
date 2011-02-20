@@ -91,7 +91,6 @@ IF(MSVC)
    STRING(REGEX REPLACE "/INCREMENTAL:([^ ]+)" "" CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_${type}_LINKER_FLAGS_RELWITHDEBINFO}")
   ENDFOREACH()
   
-  ADD_DEFINITIONS(-DPTHREAD_STACK_MIN=1048576)
   # Mark 32 bit executables large address aware so they can 
   # use > 2GB address space
   IF(CMAKE_SIZEOF_VOID_P MATCHES 4)
@@ -105,14 +104,9 @@ IF(MSVC)
   ENDIF()
   
   #TODO: update the code and remove the disabled warnings
-  ADD_DEFINITIONS(/wd4800 /wd4805)
-  IF (MSVC_VERSION GREATER 1310)
-    ADD_DEFINITIONS(/wd4996)
-  ENDIF()
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
 
-  # Make class/struct definition mismatch an error (overseen too often,
-  # adds tons of new warnings)
-  ADD_DEFINITIONS(/we4099)
 
   IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
     # _WIN64 is defined by the compiler itself. 

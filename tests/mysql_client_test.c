@@ -1199,7 +1199,7 @@ my_bool fetch_n(const char **query_list, unsigned query_count,
 
 /* Separate thread query to test some cases */
 
-static my_bool thread_query(char *query)
+static my_bool thread_query(const char *query)
 {
   MYSQL *l_mysql;
   my_bool error;
@@ -1221,7 +1221,7 @@ static my_bool thread_query(char *query)
     goto end;
   }
   l_mysql->reconnect= 1;
-  if (mysql_query(l_mysql, (char *)query))
+  if (mysql_query(l_mysql, query))
   {
      fprintf(stderr, "Query failed (%s)\n", mysql_error(l_mysql));
      error= 1;
@@ -2100,6 +2100,255 @@ static void test_wl4435_2()
     rc= mysql_query(mysql, "DROP PROCEDURE p1");
     myquery(rc);
   }
+}
+
+
+#define WL4435_TEST(sql_type, sql_value, \
+                    c_api_in_type, c_api_out_type, \
+                    c_type, c_type_ext, \
+                    printf_args, assert_condition) \
+\
+  do { \
+  int rc; \
+  MYSQL_STMT *ps; \
+  MYSQL_BIND psp; \
+  MYSQL_RES *rs_metadata; \
+  MYSQL_FIELD *fields; \
+  c_type pspv c_type_ext; \
+  my_bool psp_null; \
+  \
+  bzero(&pspv, sizeof (pspv)); \
+  \
+  rc= mysql_query(mysql, "DROP PROCEDURE IF EXISTS p1"); \
+  myquery(rc); \
+  \
+  rc= mysql_query(mysql, \
+    "CREATE PROCEDURE p1(OUT v " sql_type ") SET v = " sql_value ";"); \
+  myquery(rc); \
+  \
+  ps = mysql_simple_prepare(mysql, "CALL p1(?)"); \
+  check_stmt(ps); \
+  \
+  bzero(&psp, sizeof (psp)); \
+  psp.buffer_type= c_api_in_type; \
+  psp.is_null= &psp_null; \
+  psp.buffer= (char *) &pspv; \
+  psp.buffer_length= sizeof (psp); \
+  \
+  rc= mysql_stmt_bind_param(ps, &psp); \
+  check_execute(ps, rc); \
+  \
+  rc= mysql_stmt_execute(ps); \
+  check_execute(ps, rc); \
+  \
+  DIE_UNLESS(mysql->server_status & SERVER_PS_OUT_PARAMS); \
+  DIE_UNLESS(mysql_stmt_field_count(ps) == 1); \
+  \
+  rs_metadata= mysql_stmt_result_metadata(ps); \
+  fields= mysql_fetch_fields(rs_metadata); \
+  \
+  rc= mysql_stmt_bind_result(ps, &psp); \
+  check_execute(ps, rc); \
+  \
+  rc= mysql_stmt_fetch(ps); \
+  DIE_UNLESS(rc == 0); \
+  \
+  DIE_UNLESS(fields[0].type == c_api_out_type); \
+  printf printf_args; \
+  printf("; in type: %d; out type: %d\n", \
+         (int) c_api_in_type, (int) c_api_out_type); \
+  \
+  rc= mysql_stmt_fetch(ps); \
+  DIE_UNLESS(rc == MYSQL_NO_DATA); \
+  \
+  rc= mysql_stmt_next_result(ps); \
+  DIE_UNLESS(rc == 0); \
+  \
+  mysql_stmt_free_result(ps); \
+  mysql_stmt_close(ps); \
+  \
+  DIE_UNLESS(assert_condition); \
+  \
+  } while (0)
+
+static void test_wl4435_3()
+{
+  char tmp[255];
+
+  puts("");
+
+  // The following types are not supported:
+  //   - ENUM
+  //   - SET
+  //
+  // The following types are supported but can not be used for
+  // OUT-parameters:
+  //   - MEDIUMINT;
+  //   - BIT(..);
+  //
+  // The problem is that those types are not supported for IN-parameters,
+  // and OUT-parameters should be bound as IN-parameters before execution.
+  //
+  // The following types should not be used:
+  //   - MYSQL_TYPE_YEAR (use MYSQL_TYPE_SHORT instead);
+  //   - MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_LONG_BLOB
+  //     (use MYSQL_TYPE_BLOB instead);
+
+  WL4435_TEST("TINYINT", "127",
+              MYSQL_TYPE_TINY, MYSQL_TYPE_TINY,
+              char, ,
+              ("  - TINYINT / char / MYSQL_TYPE_TINY:\t\t\t %d", (int) pspv),
+              pspv == 127);
+
+  WL4435_TEST("SMALLINT", "32767",
+              MYSQL_TYPE_SHORT, MYSQL_TYPE_SHORT,
+              short, ,
+              ("  - SMALLINT / short / MYSQL_TYPE_SHORT:\t\t %d", (int) pspv),
+              pspv == 32767);
+
+  WL4435_TEST("INT", "2147483647",
+              MYSQL_TYPE_LONG, MYSQL_TYPE_LONG,
+              int, ,
+              ("  - INT / int / MYSQL_TYPE_LONG:\t\t\t %d", pspv),
+              pspv == 2147483647l);
+
+  WL4435_TEST("BIGINT", "9223372036854775807",
+              MYSQL_TYPE_LONGLONG, MYSQL_TYPE_LONGLONG,
+              long long, ,
+              ("  - BIGINT / long long / MYSQL_TYPE_LONGLONG:\t\t %lld", pspv),
+              pspv == 9223372036854775807ll);
+
+  WL4435_TEST("TIMESTAMP", "'2007-11-18 15:01:02'",
+              MYSQL_TYPE_TIMESTAMP, MYSQL_TYPE_TIMESTAMP,
+              MYSQL_TIME, ,
+              ("  - TIMESTAMP / MYSQL_TIME / MYSQL_TYPE_TIMESTAMP:\t "
+               "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day,
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.year == 2007 && pspv.month == 11 && pspv.day == 18 &&
+              pspv.hour == 15 && pspv.minute == 1 && pspv.second == 2);
+
+  WL4435_TEST("DATETIME", "'1234-11-12 12:34:59'",
+              MYSQL_TYPE_DATETIME, MYSQL_TYPE_DATETIME,
+              MYSQL_TIME, ,
+              ("  - DATETIME / MYSQL_TIME / MYSQL_TYPE_DATETIME:\t "
+               "%.4d-%.2d-%.2d %.2d:%.2d:%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day,
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.year == 1234 && pspv.month == 11 && pspv.day == 12 &&
+              pspv.hour == 12 && pspv.minute == 34 && pspv.second == 59);
+
+  WL4435_TEST("TIME", "'123:45:01'",
+              MYSQL_TYPE_TIME, MYSQL_TYPE_TIME,
+              MYSQL_TIME, ,
+              ("  - TIME / MYSQL_TIME / MYSQL_TYPE_TIME:\t\t "
+               "%.3d:%.2d:%.2d",
+               (int) pspv.hour, (int) pspv.minute, (int) pspv.second),
+              pspv.hour == 123 && pspv.minute == 45 && pspv.second == 1);
+
+  WL4435_TEST("DATE", "'1234-11-12'",
+              MYSQL_TYPE_DATE, MYSQL_TYPE_DATE,
+              MYSQL_TIME, ,
+              ("  - DATE / MYSQL_TIME / MYSQL_TYPE_DATE:\t\t "
+               "%.4d-%.2d-%.2d",
+               (int) pspv.year, (int) pspv.month, (int) pspv.day),
+              pspv.year == 1234 && pspv.month == 11 && pspv.day == 12);
+
+  WL4435_TEST("YEAR", "'2010'",
+              MYSQL_TYPE_SHORT, MYSQL_TYPE_YEAR,
+              short, ,
+              ("  - YEAR / short / MYSQL_TYPE_SHORT:\t\t\t %.4d", (int) pspv),
+              pspv == 2010);
+
+  WL4435_TEST("FLOAT(7, 4)", "123.4567",
+              MYSQL_TYPE_FLOAT, MYSQL_TYPE_FLOAT,
+              float, ,
+              ("  - FLOAT / float / MYSQL_TYPE_FLOAT:\t\t\t %g", (double) pspv),
+              pspv - 123.4567 < 0.0001);
+
+  WL4435_TEST("DOUBLE(8, 5)", "123.45678",
+              MYSQL_TYPE_DOUBLE, MYSQL_TYPE_DOUBLE,
+              double, ,
+              ("  - DOUBLE / double / MYSQL_TYPE_DOUBLE:\t\t %g", (double) pspv),
+              pspv - 123.45678 < 0.00001);
+
+  WL4435_TEST("DECIMAL(9, 6)", "123.456789",
+              MYSQL_TYPE_NEWDECIMAL, MYSQL_TYPE_NEWDECIMAL,
+              char, [255],
+              ("  - DECIMAL / char[] / MYSQL_TYPE_NEWDECIMAL:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "123.456789"));
+
+  WL4435_TEST("CHAR(32)", "REPEAT('C', 16)",
+              MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+              char, [255],
+              ("  - CHAR(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "CCCCCCCCCCCCCCCC"));
+
+  WL4435_TEST("VARCHAR(32)", "REPEAT('V', 16)",
+              MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_VAR_STRING,
+              char, [255],
+              ("  - VARCHAR(32) / char[] / MYSQL_TYPE_VAR_STRING:\t '%s'", (char *) pspv),
+              !strcmp(pspv, "VVVVVVVVVVVVVVVV"));
+
+  WL4435_TEST("TINYTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TINYTEXT / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("TEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TEXT / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("MEDIUMTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - MEDIUMTEXT / char[] / MYSQL_TYPE_MEDIUM_BLOB:\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("LONGTEXT", "REPEAT('t', 16)",
+              MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - LONGTEXT / char[] / MYSQL_TYPE_LONG_BLOB:\t\t '%s'", (char *) pspv),
+              !strcmp(pspv, "tttttttttttttttt"));
+
+  WL4435_TEST("BINARY(32)", "REPEAT('\1', 16)",
+              MYSQL_TYPE_STRING, MYSQL_TYPE_STRING,
+              char, [255],
+              ("  - BINARY(32) / char[] / MYSQL_TYPE_STRING:\t\t '%s'", (char *) pspv),
+              memset(tmp, 1, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("VARBINARY(32)", "REPEAT('\1', 16)",
+              MYSQL_TYPE_VAR_STRING, MYSQL_TYPE_VAR_STRING,
+              char, [255],
+              ("  - VARBINARY(32) / char[] / MYSQL_TYPE_VAR_STRING:\t '%s'", (char *) pspv),
+              memset(tmp, 1, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("TINYBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_TINY_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - TINYBLOB / char[] / MYSQL_TYPE_TINY_BLOB:\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("BLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - BLOB / char[] / MYSQL_TYPE_BLOB:\t\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("MEDIUMBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - MEDIUMBLOB / char[] / MYSQL_TYPE_MEDIUM_BLOB:\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
+
+  WL4435_TEST("LONGBLOB", "REPEAT('\2', 16)",
+              MYSQL_TYPE_LONG_BLOB, MYSQL_TYPE_BLOB,
+              char, [255],
+              ("  - LONGBLOB / char[] / MYSQL_TYPE_LONG_BLOB:\t\t '%s'", (char *) pspv),
+              memset(tmp, 2, 16) && !memcmp(tmp, pspv, 16));
 }
 
 
@@ -6198,7 +6447,7 @@ static void test_prepare_alter()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  if (thread_query((char *)"ALTER TABLE test_prep_alter change id id_new varchar(20)"))
+  if (thread_query("ALTER TABLE test_prep_alter change id id_new varchar(20)"))
     exit(1);
 
   is_null= 1;
@@ -19061,7 +19310,7 @@ static void test_bug49972()
   my_bool is_null;
 
   DBUG_ENTER("test_bug49972");
-  myheader("test_49972");
+  myheader("test_bug49972");
 
   rc= mysql_query(mysql, "DROP FUNCTION IF EXISTS f1");
   myquery(rc);
@@ -19147,6 +19396,45 @@ static void test_bug49972()
 
   DBUG_VOID_RETURN;
 }
+
+
+/**
+  Bug#57058 SERVER_QUERY_WAS_SLOW not wired up.
+*/
+
+static void test_bug57058()
+{
+  MYSQL_RES *res;
+  int rc;
+
+  DBUG_ENTER("test_bug57058");
+  myheader("test_bug57058");
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=0.1");
+  myquery(rc);
+
+  DIE_UNLESS(!(mysql->server_status & SERVER_QUERY_WAS_SLOW));
+
+  rc= mysql_query(mysql, "select sleep(1)");
+  myquery(rc);
+
+  /*
+    Important: the flag is sent in the last EOF packet of
+    the query, the one which ends the result. Read the
+    result to see the "slow" status.
+  */
+  res= mysql_store_result(mysql);
+
+  DIE_UNLESS(mysql->server_status & SERVER_QUERY_WAS_SLOW);
+
+  mysql_free_result(res);
+
+  rc= mysql_query(mysql, "set @@session.long_query_time=default");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Read and parse arguments and MySQL options from my.cnf
@@ -19468,6 +19756,7 @@ static struct my_tests_st my_tests[]= {
   { "test_wl4284_1", test_wl4284_1 },
   { "test_wl4435",   test_wl4435 },
   { "test_wl4435_2", test_wl4435_2 },
+  { "test_wl4435_3", test_wl4435_3 },
   { "test_bug38486", test_bug38486 },
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
@@ -19481,6 +19770,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug42373", test_bug42373 },
   { "test_bug54041", test_bug54041 },
   { "test_bug47485", test_bug47485 },
+  { "test_bug57058", test_bug57058 },
   { 0, 0 }
 };
 

@@ -227,6 +227,7 @@ struct PFS_thread
 };
 
 PFS_thread *sanitize_thread(PFS_thread *unsafe);
+const char *sanitize_file_name(const char *unsafe);
 
 PFS_single_stat_chain*
 find_per_thread_mutex_class_wait_stat(PFS_thread *thread,

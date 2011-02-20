@@ -57,6 +57,15 @@ extern const char	srv_mysql50_table_name_prefix[9];
 thread starts running */
 extern os_event_t	srv_lock_timeout_thread_event;
 
+/* The monitor thread waits on this event. */
+extern os_event_t	srv_monitor_event;
+
+/* The lock timeout thread waits on this event. */
+extern os_event_t	srv_timeout_event;
+
+/* The error monitor thread waits on this event. */
+extern os_event_t	srv_error_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
