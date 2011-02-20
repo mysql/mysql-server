@@ -8521,7 +8521,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   //for (i=join->const_tables ; i < join->tables ; i++)
   for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE), i++)
+       tab= next_linear_tab(join, tab, TRUE))
   {
     /*
       The approximation below for partial join cardinality is not good because
@@ -8533,8 +8533,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab) || 
         (tab == join->join_tab + join->const_tables))
       prev_tab= NULL;
+    DBUG_ASSERT(tab->bush_children || tab->table == join->best_positions[i].table->table);
     tab->partial_join_cardinality= join->best_positions[i].records_read *
                                    (prev_tab? prev_tab->partial_join_cardinality : 1);
+    if (!tab->bush_children)
+      i++;
   }
  
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
