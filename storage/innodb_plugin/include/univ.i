@@ -46,7 +46,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	13
+#define INNODB_VERSION_BUGFIX	15
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -296,6 +296,18 @@ number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
 
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
+
+/* MAX_FULL_NAME_LEN defines the full name path including the
+database name and table name. In addition, 14 bytes is added for:
+	2 for surrounding quotes around table name
+	1 for the separating dot (.)
+	9 for the #mysql50# prefix */
+#define MAX_FULL_NAME_LEN				\
+	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -359,6 +371,9 @@ typedef unsigned long long int	ullint;
 
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
+
+/* THe 'undefined' value for ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */

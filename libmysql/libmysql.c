@@ -131,8 +131,7 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
       mysql_port = MYSQL_PORT;
 #ifndef MSDOS
       {
-	struct servent *serv_ptr;
-	char	*env;
+	char *env;
 
         /*
           if builder specifically requested a default port, use that
@@ -145,8 +144,11 @@ int STDCALL mysql_server_init(int argc __attribute__((unused)),
         */
 
 #if MYSQL_PORT_DEFAULT == 0
-        if ((serv_ptr = getservbyname("mysql", "tcp")))
-          mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+        {
+          struct servent *serv_ptr;
+          if ((serv_ptr = getservbyname("mysql", "tcp")))
+            mysql_port = (uint) ntohs((ushort) serv_ptr->s_port);
+        }
 #endif
         if ((env = getenv("MYSQL_TCP_PORT")))
           mysql_port =(uint) atoi(env);

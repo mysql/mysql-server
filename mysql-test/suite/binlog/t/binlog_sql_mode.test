@@ -8,7 +8,6 @@
 # Scan binlog file to check if the sql_mode is still set to 0 before generating binlog event
 #
 
--- source include/master-slave.inc
 -- source include/have_log_bin.inc
 
 # BUG#39526 sql_mode not retained in binary log for CREATE PROCEDURE
@@ -50,10 +49,10 @@ CREATE EVENT testEvent ON SCHEDULE
     END;|
 DELIMITER ;|
 
---echo Chceck Result
+--echo Check Result
 
 let $MYSQLD_DATADIR= `select @@datadir`;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))

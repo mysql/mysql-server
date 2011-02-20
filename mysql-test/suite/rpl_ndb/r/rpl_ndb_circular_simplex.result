@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
 SHOW TABLES;
 Tables_in_test
@@ -12,9 +8,9 @@ RESET MASTER;
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (2,3);
 STOP SLAVE;
-CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=SLAVE_PORT,MASTER_USER="root";
+include/rpl_change_topology.inc [new topology=1->2->1]
 START SLAVE;
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
@@ -25,5 +21,6 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
 2	3
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 DROP TABLE t1;
+include/rpl_end.inc

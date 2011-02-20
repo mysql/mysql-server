@@ -222,6 +222,17 @@ SELECT 'Connection on extra port 2 ok';
 Connection on extra port 2 ok
 Connection on extra port 2 ok
 # -- Success: more than --extra-max-connections + 1 normal connections not possible
+#
+# -- Bug#49752: 2469.126.2 unintentionally breaks authentication
+#               against MySQL 5.1 server
+#
+GRANT ALL ON test.* TO 'Azundris12345678'@'localhost' IDENTIFIED BY 'test123';
+FLUSH PRIVILEGES;
+DROP USER 'Azundris12345678'@'localhost';
+FLUSH PRIVILEGES;
+#
+# -- End of Bug#49752
+#
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

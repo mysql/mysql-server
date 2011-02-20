@@ -1,10 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-drop table if exists t1, t2;
+include/master-slave.inc
+[connection master]
 create table t1 (a int);
 drop table t1, t2;
 ERROR 42S02: Unknown table 't2'
@@ -32,3 +27,4 @@ DROP FUNCTION f1;
 DROP TABLE t2, t3;
 SET @@global.binlog_format= @old_binlog_format;
 SET @@global.binlog_format= @old_binlog_format;
+include/rpl_end.inc

@@ -13,7 +13,7 @@
 path=`dirname $0`
 . "$path/SETUP.sh"
 
-extra_flags="-m64 -mt -D_FORTEC_ -xbuiltin=%all -xlibmil -xlibmopt -fns=no -xprefetch=auto -xprefetch_level=3"
+extra_flags="-m64 -fast -mt -D_FORTEC_ -xbuiltin=%all -xlibmil -xlibmopt -fns=no -xprefetch=auto -xprefetch_level=3"
 extra_configs="$max_configs --with-libevent"
 
 warnings=""

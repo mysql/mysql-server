@@ -1,15 +1,12 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(n int);
 select * from t1;
 n
 stop slave sql_thread;
 insert into t1 values(1);
 insert into t1 values(2);
+include/wait_for_slave_param.inc [Read_Master_Log_Pos]
 include/stop_slave.inc
 change master to master_user='root';
 start slave;
@@ -18,3 +15,4 @@ n
 1
 2
 drop table t1;
+include/rpl_end.inc

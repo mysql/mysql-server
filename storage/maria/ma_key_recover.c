@@ -1027,7 +1027,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
                           insert_length, changed_length));
 
       DBUG_ASSERT(insert_length <= changed_length &&
-                  page_length + changed_length <= max_page_size);
+                  page_length + insert_length <= max_page_size);
 
       bmove_upp(buff + page_length + insert_length, buff + page_length,
                 page_length - keypage_header);

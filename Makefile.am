@@ -1,4 +1,5 @@
-# Copyright 2000-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+# Copyright (c) 2009-2011 Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,11 +23,9 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 			README COPYING EXCEPTIONS-CLIENT \
 			CMakeLists.txt \
 			config/ac-macros/libevent_configure.m4
-
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
-			@pstack_dir@ \
-			@sql_union_dirs@ storage \
+			@sql_union_dirs@ unittest \
 			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
@@ -34,7 +33,6 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
-			pstack \
 			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			netware libmysqld \

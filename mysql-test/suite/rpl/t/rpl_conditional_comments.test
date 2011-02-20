@@ -26,15 +26,15 @@ let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 source include/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 sync_slave_with_master;
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
-source include/diff_tables.inc;
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo
 --echo # Case 2:
 --echo # -----------------------------------------------------------------
 --echo # Verify whether it can be binlogged correctly when executing prepared
 --echo # statement.
+--connection master
 PREPARE stmt FROM 'INSERT INTO /*!99999 blabla*/ t1 VALUES(60) /*!99999 ,(61)*/';
 EXECUTE stmt;
 DROP TABLE t1;
@@ -42,10 +42,10 @@ CREATE TABLE t1(c1 INT);
 EXECUTE stmt;
 
 sync_slave_with_master;
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
-source include/diff_tables.inc;
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
+--connection master
 --echo
 SET @value=62;
 PREPARE stmt FROM 'INSERT INTO /*!99999 blabla */ t1 VALUES(?) /*!99999 ,(63)*/';
@@ -58,17 +58,17 @@ source include/show_binlog_events.inc;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 sync_slave_with_master;
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
-source include/diff_tables.inc;
+--let $diff_tables= master:t1,slave:t1
+--source include/diff_tables.inc
 
 --echo
 --echo # Case 3:
 --echo # -----------------------------------------------------------------
 --echo # Verify it can restore the '!', if the it is an uncomplete conditional
 --echo # comments
+--connection master
 --error 1064
 SELECT c1 FROM /*!99999 t1 WHEREN;
 
 DROP TABLE t1;
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

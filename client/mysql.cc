@@ -1,5 +1,5 @@
 /* Copyright (C) 2000-2009 MySQL AB
-   Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright 2000, 2010, Oracle and/or its affiliates.
    Copyright 2000-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -1462,8 +1462,8 @@ static struct my_option my_long_options[] =
    &opt_sigint_ignore,  &opt_sigint_ignore, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"one-database", 'o',
-   "Only update the default database. This is useful for skipping updates "
-   "to other database in the update log.",
+   "Ignore statements except those that occur while the default "
+   "database is the one named at the command line.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef USE_POPEN
   {"pager", OPT_PAGER,
@@ -2756,6 +2756,10 @@ static int reconnect(void)
 static void get_current_db()
 {
   MYSQL_RES *res;
+
+  /* If one_database is set, current_db is not supposed to change. */
+  if (one_database)
+    return;
 
   my_free(current_db, MYF(MY_ALLOW_ZERO_PTR));
   current_db= NULL;

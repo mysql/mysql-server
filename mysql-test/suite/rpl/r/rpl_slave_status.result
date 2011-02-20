@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Create new replication user ====
 [on master]
 GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
@@ -27,9 +23,11 @@ FLUSH PRIVILEGES;
 ==== Restart slave without privileges =====
 include/stop_slave.inc
 START SLAVE;
-==== Verify that Slave_IO_Running = No ====
-Slave_IO_Running = No (should be No)
+include/wait_for_slave_sql_to_start.inc
+==== Verify that Slave IO thread stopped with error ====
+include/wait_for_slave_io_error.inc [errno=1045]
 ==== Cleanup (Note that slave IO thread is not running) ====
-DROP TABLE t1;
+include/rpl_reset.inc
 [on master]
 DROP TABLE t1;
+include/rpl_end.inc

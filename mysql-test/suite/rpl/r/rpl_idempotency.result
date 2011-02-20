@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Can't find record in 't.' Error_code: 1032");
 call mtr.add_suppression("Can't find record in 't.'");
 call mtr.add_suppression("Slave: Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
@@ -33,8 +29,7 @@ SELECT * FROM t2 ORDER BY a;
 a
 -3
 -1
-Last_SQL_Error
-0
+include/check_slave_no_error.inc
 INSERT IGNORE INTO t1 VALUES (-2);
 INSERT IGNORE INTO t1 VALUES (-2);
 SELECT * FROM t1 ORDER BY a;
@@ -47,8 +42,7 @@ a
 -3
 -2
 -1
-Last_SQL_Error
-0
+include/check_slave_no_error.inc
 UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
@@ -71,8 +65,7 @@ SELECT * FROM t2 ORDER BY a;
 a
 -3
 1
-Last_SQL_Error
-0
+include/check_slave_no_error.inc
 DROP TABLE t1, t2;
 select @@global.slave_exec_mode /* must be IDEMPOTENT */;
 @@global.slave_exec_mode
@@ -144,8 +137,7 @@ b
 2
 3
 *** slave must stop (Trying to delete a referenced foreing key)
-Last_SQL_Error
-1451
+include/wait_for_slave_sql_error.inc [errno=1451]
 select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
 b
 1
@@ -162,8 +154,7 @@ set global slave_exec_mode='STRICT';
 delete from ti1 where b=3;
 insert into ti2 set a=3, b=3 /* offending write event */;
 *** slave must stop (Trying to insert an invalid foreign key)
-Last_SQL_Error
-1452
+include/wait_for_slave_sql_error.inc [errno=1452]
 select * from ti2 order by b /* must be (2,2) */;
 a	b
 2	2
@@ -182,8 +173,7 @@ a	b
 insert into ti1 set b=1;
 insert into ti1 set b=1 /* offending write event */;
 *** slave must stop (Trying to insert a dupliacte key)
-Last_SQL_Error
-1062
+include/wait_for_slave_sql_error.inc [errno=1062]
 set foreign_key_checks= 0;
 delete from ti1 where b=1;
 set foreign_key_checks= 1;
@@ -198,15 +188,13 @@ DELETE FROM t1 WHERE a = -2;
 DELETE FROM t2 WHERE a = -2;
 DELETE FROM t1 WHERE a = -2;
 *** slave must stop (Key was not found)
-Last_SQL_Error
-1032
+include/wait_for_slave_sql_error.inc [errno=1032]
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 set global slave_exec_mode='STRICT';
 DELETE FROM t2 WHERE a = -2;
 *** slave must stop (Key was not found)
-Last_SQL_Error
-1032
+include/wait_for_slave_sql_error.inc [errno=1032]
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 set global slave_exec_mode='STRICT';
@@ -214,18 +202,17 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
 *** slave must stop (Key was not found)
-Last_SQL_Error
-1032
+include/wait_for_slave_sql_error.inc [errno=1032]
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 set global slave_exec_mode='STRICT';
 UPDATE t2 SET a = 1 WHERE a = -1;
 *** slave must stop (Key was not found)
-Last_SQL_Error
-1032
+include/wait_for_slave_sql_error.inc [errno=1032]
 set global slave_exec_mode='IDEMPOTENT';
 start slave sql_thread;
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
 set @@session.binlog_format= @save_binlog_format;
 drop table t1,t2,ti2,ti1;
+include/rpl_end.inc
 *** end of tests

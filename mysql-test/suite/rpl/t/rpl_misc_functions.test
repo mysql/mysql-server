@@ -122,3 +122,4 @@ DROP FUNCTION test_replication_sf;
 --sync_slave_with_master
 
 
+--source include/rpl_end.inc

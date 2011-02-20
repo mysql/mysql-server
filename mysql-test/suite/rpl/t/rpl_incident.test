@@ -37,3 +37,4 @@ source include/check_slave_is_running.inc;
 connection master;
 DROP TABLE t1;
 --sync_slave_with_master
+--source include/rpl_end.inc
