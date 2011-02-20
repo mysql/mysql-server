@@ -1,0 +1,82 @@
+Notes added by Monty:
+
+This is HandlerSocket version 1.0.6 (See ChangeLog file)
+The original code can be found at:
+
+https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL
+
+-----------------------------------------------------------------------------
+HandlerSocket plugin for MySQL
+
+Copyright (c) 2010 DeNA Co.,Ltd.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of DeNA Co.,Ltd. nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY DeNA Co.,Ltd. "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+EVENT SHALL DeNA Co.,Ltd. BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+-----------------------------------------------------------------------------
+About HandlerSocket
+
+HandlerSocket is a NoSQL plugin for MySQL. It works as a daemon inside the
+mysqld process, accept tcp connections, and execute requests from clients.
+HandlerSocket does not support SQL queries. Instead, it supports simple CRUD
+operations on tables.
+
+Because of the following reasons, HandlerSocket is much faster than the
+mysqld/libmysql pair in some circumstances:
+
+  - HandlerSocket manipulates data without parsing SQL, which causes less
+    CPU usage.
+  - HandlerSocket reads many requests from clients and executes their
+    requests in bulk, which causes less CPU and disk usage.
+  - HandlerSocket client/server protocol is more compact than the 
+    mysql/libmysql pair, which causes less network usage.
+
+The current version of HandlerSocket only works with GNU/Linux. The source
+archive of HandlerSocket includes a C++ and a Perl client libraries.
+Here is a list of client libraries for other languages:
+
+  - PHP
+    http://openpear.org/package/Net_HandlerSocket
+    http://github.com/tz-lom/HSPHP
+    http://code.google.com/p/php-handlersocket/
+  - Java
+    http://code.google.com/p/hs4j/
+    http://code.google.com/p/handlersocketforjava/
+  - Python
+    http://pypi.python.org/pypi/python-handler-socket
+    https://code.launchpad.net/~songofacandy/+junk/pyhandlersocket
+  - Ruby
+    https://github.com/winebarrel/ruby-handlersocket
+    https://github.com/miyucy/handlersocket
+  - JavaScript
+    https://github.com/koichik/node-handlersocket
+  - Scala
+    https://github.com/fujohnwang/hs2client
+
+The home of HandlerSocket is here:
+    https://github.com/ahiguti/HandlerSocket-Plugin-for-MySQL
+
+More documents are available in docs-en/ and docs-ja/ directories.
+

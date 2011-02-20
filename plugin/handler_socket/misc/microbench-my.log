@@ -1,0 +1,125 @@
+
+[a@c54hdd libhsclient]$ ./hstest_my.sh host=192.168.100.104 key_mask=1000000 num_threads=100 num=10000000 timelimit=10 dbname=hstest
+now: 1274128046 cntdiff: 63061 tdiff: 1.000999 rps: 62998.066579
+now: 1274128047 cntdiff: 61227 tdiff: 1.001013 rps: 61165.037337
+now: 1274128048 cntdiff: 61367 tdiff: 1.001029 rps: 61303.917375
+now: 1274128049 cntdiff: 61959 tdiff: 1.000962 rps: 61899.451554
+now: 1274128050 cntdiff: 62176 tdiff: 1.001006 rps: 62113.520756
+now: 1274128051 cntdiff: 61367 tdiff: 1.000998 rps: 61305.815559
+now: 1274128052 cntdiff: 61644 tdiff: 1.001015 rps: 61581.497988
+now: 1274128053 cntdiff: 60659 tdiff: 1.000984 rps: 60599.373036
+now: 1274128054 cntdiff: 59459 tdiff: 1.000996 rps: 59399.831067
+now: 1274128055 cntdiff: 62310 tdiff: 1.001011 rps: 62247.074757
+now: 1274128056 cntdiff: 61947 tdiff: 1.000991 rps: 61885.664744
+now: 1274128057 cntdiff: 60675 tdiff: 1.001006 rps: 60614.029076
+now: 1274128058 cntdiff: 60312 tdiff: 1.001001 rps: 60251.680861
+now: 1274128059 cntdiff: 60290 tdiff: 1.001004 rps: 60229.530717
+(1274128049.309634: 309654, 1274128059.319648: 920493), 61022.79143 qps
+
+*************************** 1. row ***************************
+  Type: InnoDB
+  Name: 
+Status: 
+=====================================
+100518  5:24:51 INNODB MONITOR OUTPUT
+=====================================
+Per second averages calculated from the last 5 seconds
+----------
+BACKGROUND THREAD
+----------
+srv_master_thread loops: 220 1_second, 219 sleeps, 21 10_second, 6 background, 6 flush
+srv_master_thread log flush and writes: 219
+----------
+SEMAPHORES
+----------
+OS WAIT ARRAY INFO: reservation count 56193, signal count 30826
+Mutex spin waits 3415153, rounds 5618661, OS waits 53251
+RW-shared spins 24, OS waits 17; RW-excl spins 1, OS waits 5
+Spin rounds per wait: 1.65 mutex, 30.00 RW-shared, 181.00 RW-excl
+------------
+TRANSACTIONS
+------------
+Trx id counter EDB514D6
+Purge done for trx's n:o < EC1F94A7 undo n:o < 0
+History list length 20
+LIST OF TRANSACTIONS FOR EACH SESSION:
+---TRANSACTION 0, not started, process no 4533, OS thread id 1306585408
+MySQL thread id 113, query id 920620 localhost root
+show engine innodb status
+---TRANSACTION EDA708BB, not started, process no 4533, OS thread id 1272367424
+MySQL thread id 5, query id 0 handlersocket: mode=rd, 0 conns, 0 active
+---TRANSACTION ED9D5959, not started, process no 4533, OS thread id 1089849664
+MySQL thread id 7, query id 0 handlersocket: mode=rd, 0 conns, 0 active
+---TRANSACTION ED9D5956, not started, process no 4533, OS thread id 1238796608
+MySQL thread id 1, query id 0 handlersocket: mode=rd, 0 conns, 0 active
+---TRANSACTION EDA708BD, not started, process no 4533, OS thread id 1255582016
+MySQL thread id 3, query id 0 handlersocket: mode=rd, 0 conns, 0 active
+---TRANSACTION EDA708BF, not started, process no 4533, OS thread id 1247189312
+MySQL thread id 2, query id 0 handlersocket: mode=rd, 0 conns, 0 active
+---TRANSACTION EDA708BE, not started, process no 4533, OS thread id 1263974720
+MySQL thread id 4, query id 0 handlersocket: mode=rd, 0 conns, 0 active
+--------
+FILE I/O
+--------
+I/O thread 0 state: waiting for i/o request (insert buffer thread)
+I/O thread 1 state: waiting for i/o request (log thread)
+I/O thread 2 state: waiting for i/o request (read thread)
+I/O thread 3 state: waiting for i/o request (read thread)
+I/O thread 4 state: waiting for i/o request (read thread)
+I/O thread 5 state: waiting for i/o request (read thread)
+I/O thread 6 state: waiting for i/o request (write thread)
+I/O thread 7 state: waiting for i/o request (write thread)
+I/O thread 8 state: waiting for i/o request (write thread)
+I/O thread 9 state: waiting for i/o request (write thread)
+Pending normal aio reads: 0, aio writes: 0,
+ ibuf aio reads: 0, log i/o's: 0, sync i/o's: 0
+Pending flushes (fsync) log: 0; buffer pool: 0
+71 OS file reads, 269 OS file writes, 269 OS fsyncs
+0.00 reads/s, 0 avg bytes/read, 2.40 writes/s, 2.40 fsyncs/s
+-------------------------------------
+INSERT BUFFER AND ADAPTIVE HASH INDEX
+-------------------------------------
+Ibuf: size 1, free list len 0, seg size 2,
+0 inserts, 0 merged recs, 0 merges
+Hash table size 12750011, node heap has 2 buffer(s)
+65739.45 hash searches/s, 0.00 non-hash searches/s
+---
+LOG
+---
+Log sequence number 147179774153
+Log flushed up to   147179771813
+Last checkpoint at  147179761899
+0 pending log writes, 0 pending chkp writes
+220 log i/o's done, 1.60 log i/o's/second
+----------------------
+BUFFER POOL AND MEMORY
+----------------------
+Total memory allocated 6587154432; in additional pool allocated 0
+Dictionary memory allocated 33640
+Buffer pool size   393216
+Free buffers       393154
+Database pages     60
+Old database pages 0
+Modified db pages  1
+Pending reads 0
+Pending writes: LRU 0, flush list 0, single page 0
+Pages made young 0, not young 0
+0.00 youngs/s, 0.00 non-youngs/s
+Pages read 60, created 0, written 27
+0.00 reads/s, 0.00 creates/s, 0.40 writes/s
+Buffer pool hit rate 1000 / 1000, young-making rate 0 / 1000 not 0 / 1000
+Pages read ahead 0.00/s, evicted without access 0.00/s
+LRU len: 60, unzip_LRU len: 0
+I/O sum[0]:cur[0], unzip sum[0]:cur[0]
+--------------
+ROW OPERATIONS
+--------------
+0 queries inside InnoDB, 0 queries in queue
+1 read views open inside InnoDB
+Main thread process no. 4533, id 1230403904, state: sleeping
+Number of rows inserted 0, updated 0, deleted 0, read 40071920
+0.00 inserts/s, 0.00 updates/s, 0.00 deletes/s, 66321.54 reads/s
+----------------------------
+END OF INNODB MONITOR OUTPUT
+============================
+
