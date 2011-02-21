@@ -44,6 +44,8 @@ public class ClusterConnectionImpl
     /** Load the ndbjtie system library */
     static {
         loadSystemLibrary("ndbclient");
+        // initialize the charset map
+        Utility.getCharsetMap();
     }
 
     /** Ndb_cluster_connection: one per factory. */
