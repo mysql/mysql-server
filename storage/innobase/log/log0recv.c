@@ -3218,6 +3218,9 @@ recv_recovery_from_checkpoint_start_func(
 
 	log_sys->last_checkpoint_lsn = checkpoint_lsn;
 
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
+
 	log_sys->next_checkpoint_no = checkpoint_no + 1;
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -3393,6 +3396,9 @@ recv_reset_logs(
 
 	log_sys->buf_free = LOG_BLOCK_HDR_SIZE;
 	log_sys->lsn += LOG_BLOCK_HDR_SIZE;
+
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    (log_sys->lsn - log_sys->last_checkpoint_lsn));
 
 	mutex_exit(&(log_sys->mutex));
 

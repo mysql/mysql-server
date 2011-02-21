@@ -280,7 +280,7 @@ mutex_create_func(
 #if defined(HAVE_ATOMIC_BUILTINS)
 	mutex_reset_lock_word(mutex);
 #else
-	os_fast_mutex_init(&(mutex->os_fast_mutex));
+	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &mutex->os_fast_mutex);
 	mutex->lock_word = 0;
 #endif
 	mutex->event = os_event_create(NULL);

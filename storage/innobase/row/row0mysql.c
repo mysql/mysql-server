@@ -1951,7 +1951,8 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_open_on_name_no_stats(table->name, FALSE)) {
+		if (dict_table_open_on_name_no_stats(
+			table->name, FALSE, DICT_ERR_IGNORE_NONE)) {
 
 			/* Make things easy for the drop table code. */
 
@@ -2254,7 +2255,8 @@ loop:
 		return(n_tables + n_tables_dropped);
 	}
 
-	table = dict_table_open_on_name_no_stats(drop->table_name, FALSE);
+	table = dict_table_open_on_name_no_stats(drop->table_name, FALSE,
+						 DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 		/* If for some reason the table has already been dropped
@@ -2281,6 +2283,8 @@ already_dropped:
 	mutex_enter(&row_drop_list_mutex);
 
 	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
+
+	MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
 
 	ut_print_timestamp(stderr);
 	fputs("  InnoDB: Dropped table ", stderr);
@@ -2357,6 +2361,8 @@ row_add_table_to_background_drop_list(
 
 	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
 
+	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
+
 	/*	fputs("InnoDB: Adding table ", stderr);
 	ut_print_name(stderr, trx, TRUE, drop->table_name);
 	fputs(" to background drop list\n", stderr); */
@@ -2425,7 +2431,8 @@ row_discard_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE);
+	table = dict_table_open_on_name_no_stats(name, TRUE,
+						 DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -2624,7 +2631,8 @@ row_import_tablespace_for_mysql(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	table = dict_table_open_on_name_no_stats(name, TRUE);
+	table = dict_table_open_on_name_no_stats(name, TRUE,
+						 DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		ut_print_timestamp(stderr);
@@ -3152,7 +3160,8 @@ row_drop_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_open_on_name_no_stats(name, TRUE);
+	table = dict_table_open_on_name_no_stats(name, TRUE,
+						 DICT_ERR_IGNORE_INDEX_ROOT);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
@@ -3415,7 +3424,7 @@ check_next_foreign:
 
 		dict_table_remove_from_cache(table);
 
-		if (dict_load_table(name, TRUE) != NULL) {
+		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: not able to remove table ",
 			      stderr);
@@ -3572,7 +3581,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE);
+		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);
@@ -3680,7 +3689,8 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name_no_stats(table_name, TRUE);
+		table = dict_table_open_on_name_no_stats(table_name, TRUE,
+							 DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
 		ut_a(!table->can_be_evicted);
@@ -3874,7 +3884,8 @@ row_rename_table_for_mysql(
 
 	dict_locked = trx->dict_operation_lock_mode == RW_X_LATCH;
 
-	table = dict_table_open_on_name_no_stats(old_name, dict_locked);
+	table = dict_table_open_on_name_no_stats(old_name, dict_locked,
+						 DICT_ERR_IGNORE_NONE);
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
