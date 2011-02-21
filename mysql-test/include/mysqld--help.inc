@@ -8,7 +8,7 @@
 # force symbolic-links=0 (valgrind build has a different default)
 #
 
-exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>&1;
+exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>$MYSQL_TMP_DIR/mysqld--help2.txt;
 
 # The inline perl code below will copy $MYSQL_TMP_DIR/mysqld--help.txt
 # to output, but filter away some variable stuff (e.g. paths).
@@ -22,7 +22,7 @@ perl;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
-              thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
+              thread-concurrency super-large-pages mutex-deadlock-detector null-audit falcon/;
 
   # And substitute the content some environment variables with their
   # names:
@@ -33,6 +33,7 @@ perl;
   $skip=0;
   open(F, '<', "$ENV{MYSQL_TMP_DIR}/mysqld--help.txt") or die;
   while (<F>) {
+    if(/^Usage: (.*) \[OPTIONS\]$/) { $mysqld=$1; }
     next if 1../The following groups are read/;
     # formatting, skip line consisting entirely of dashes and blanks
     next if /^[\- ]+\s?$/;
@@ -50,6 +51,18 @@ perl;
     foreach $var (@env) { s/$ENV{$var}/$var/ }
     next if /use --skip-(use-)?symbolic-links to disable/; # for valgrind, again
     next if $skip;
+    print;
+  }
+  close F;
+
+  print "\nstderr:\n";
+  open(F, '<', "$ENV{MYSQL_TMP_DIR}/mysqld--help2.txt") or die;
+  while (<F>) {
+    s/$mysqld/MYSQLD/;
+    s/^\d+\s+\d+:\d\d:\d\d\s+(\[\w+?\]\s+.*)$/$1/; # remove timestamp
+    # skip engines that may or may not be there. print anything else.
+    next if /\'($re2)\'/i;
+    next if /unknown option \'--loose-skip-($re2)\'/;
     print;
   }
   close F;
