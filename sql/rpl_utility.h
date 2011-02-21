@@ -41,6 +41,11 @@ class Relay_log_info;
 class table_def
 {
 public:
+/*
+  MCP NOTE! untagged changes in rpl_utility.h and rpl_utility are
+  part of backport "WL#5151 Conversion between different types when
+  replicating"
+*/
   /**
     Constructor.
 
