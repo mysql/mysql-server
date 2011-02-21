@@ -86,13 +86,16 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 enum enum_duplicates { DUP_ERROR, DUP_REPLACE, DUP_UPDATE };
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
+
 #define SLAVE_EXEC_MODE_STRICT      (1U << 0)
 #define SLAVE_EXEC_MODE_IDEMPOTENT  (1U << 1)
+#ifndef MCP_WL5151
 enum enum_slave_type_conversions {
   SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
   SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
   SLAVE_TYPE_CONVERSIONS_COUNT
 };
+#endif
 
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
