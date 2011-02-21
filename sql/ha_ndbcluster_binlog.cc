@@ -4901,44 +4901,6 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
   DBUG_RETURN(0);
 }
 
-int
-ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share, const char *type_str)
-{
-  DBUG_ENTER("ndbcluster_handle_alter_table");
-  const char *save_proc_info= thd->proc_info;
-  thd->proc_info= "Syncing ndb table schema operation and binlog";
-  pthread_mutex_lock(&share->mutex);
-  int max_timeout= DEFAULT_SYNC_TIMEOUT;
-  while (share->state == NSS_ALTERED)
-  {
-    struct timespec abstime;
-    set_timespec(abstime, 1);
-    int ret= pthread_cond_timedwait(&injector_cond,
-                                    &share->mutex,
-                                    &abstime);
-    if (thd->killed ||
-        (share->state != NSS_ALTERED))
-      break;
-    if (ret)
-    {
-      max_timeout--;
-      if (max_timeout == 0)
-      {
-        sql_print_error("NDB %s: %s timed out. Ignoring...",
-                        type_str, share->key);
-        DBUG_ASSERT(false);
-        break;
-      }
-      if (opt_ndb_extra_logging)
-        ndb_report_waiting(type_str, max_timeout,
-                           type_str, share->key, 0);
-    }
-  }
-  pthread_mutex_unlock(&share->mutex);
-  thd->proc_info= save_proc_info;
-  DBUG_RETURN(0);
-}
-
 /*
   when entering the calling thread should have a share lock id share != 0
   then the injector thread will have  one as well, i.e. share->use_count == 0
