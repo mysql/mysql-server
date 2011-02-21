@@ -1003,6 +1003,18 @@ NdbDictionary::Table::assignObjId(const NdbDictionary::ObjectId& _objId)
   m_impl.m_version = objId.m_version;
 }
 
+void
+NdbDictionary::Table::setStorageType(NdbDictionary::Column::StorageType type)
+{
+  m_impl.m_storageType = type;
+}
+
+NdbDictionary::Column::StorageType
+NdbDictionary::Table::getStorageType() const
+{
+  return (NdbDictionary::Column::StorageType)m_impl.m_storageType;
+}
+
 /*****************************************************************
  * Index facade
  */

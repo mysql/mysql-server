@@ -103,6 +103,9 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0,
                 opt_alltspcs=0, opt_notspcs= 0;
+#ifndef MCP_BUG56691
+static my_bool opt_drop_trigger= 0;
+#endif
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -206,6 +209,10 @@ static struct my_option my_long_options[] =
   {"add-drop-table", OPT_DROP, "Add a DROP TABLE before each create.",
    &opt_drop, &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
+#ifndef MCP_BUG56691
+  {"add-drop-trigger", OPT_MAX_CLIENT_OPTION, "Add a DROP TRIGGER before each create.",
+   (uchar**) &opt_drop_trigger, (uchar**) &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
   {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    &opt_lock, &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -2755,6 +2762,11 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
   if (opt_compact)
     fprintf(sql_file, "/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
 
+#ifndef MCP_BUG56691
+  if (opt_drop_trigger)
+    fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", (*show_trigger_row)[0]);
+#endif
+
   fprintf(sql_file,
           "DELIMITER ;;\n"
           "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
@@ -2830,6 +2842,11 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         row[4]);  /* collation_connection */
 
     switch_sql_mode(sql_file, ";", row[1]);
+
+#ifndef MCP_BUG56691
+    if (opt_drop_trigger)
+      fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", row[0]);
+#endif
 
     fprintf(sql_file,
             "DELIMITER ;;\n"
@@ -3828,6 +3845,51 @@ static int dump_tablespaces(char* ts_where)
   DBUG_RETURN(0);
 }
 
+
+#ifndef MCP_BUG54316
+static int
+is_ndbinfo(MYSQL* mysql, const char* dbname)
+{
+  static int checked_ndbinfo = 0;
+  static int have_ndbinfo = 0;
+
+  if (!checked_ndbinfo)
+  {
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    char buf[32], query[64];
+
+    my_snprintf(query, sizeof(query),
+                "SHOW VARIABLES LIKE %s",
+                quote_for_like("ndbinfo_version", buf));
+
+    checked_ndbinfo = 1;
+
+    if (mysql_query_with_error_report(mysql, &res, query))
+      return 0;
+
+    if (!(row= mysql_fetch_row(res)))
+    {
+      verbose_msg("-- Doesn't have ndbinfo engine\n");
+      mysql_free_result(res);
+      return 0;
+    }
+
+    have_ndbinfo = 1;
+    mysql_free_result(res);
+  }
+
+  if (!have_ndbinfo)
+    return 0;
+
+  if (my_strcasecmp(&my_charset_latin1, dbname, "ndbinfo") == 0)
+    return 1;
+
+  return 0;
+}
+#endif
+
+
 static int dump_all_databases()
 {
   MYSQL_ROW row;
@@ -3845,6 +3907,11 @@ static int dump_all_databases()
     if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
         !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
       continue;
+
+#ifndef MCP_BUG54316
+    if (is_ndbinfo(mysql, row[0]))
+      continue;
+#endif
 
     if (dump_all_tables_in_db(row[0]))
       result=1;
@@ -3867,6 +3934,11 @@ static int dump_all_databases()
       if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
           !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
         continue;
+
+#ifndef MCP_BUG54316
+    if (is_ndbinfo(mysql, row[0]))
+      continue;
+#endif
 
       if (dump_all_views_in_db(row[0]))
         result=1;
@@ -3974,6 +4046,14 @@ int init_dumping_tables(char *qdatabase)
 
 static int init_dumping(char *database, int init_func(char*))
 {
+#ifndef MCP_BUG54316
+  if (is_ndbinfo(mysql, database))
+  {
+    verbose_msg("-- Skipping dump of ndbinfo database\n");
+    return 0;
+  }
+#endif
+
   if (mysql_select_db(mysql, database))
   {
     DB_error(mysql, "when selecting the database");
