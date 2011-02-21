@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"
@@ -5776,6 +5776,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     thr_lock_type lock_type,
 					     enum_mdl_type mdl_type,
 					     List<Index_hint> *index_hints_arg,
+                                             List<String> *partition_names,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
@@ -5920,6 +5921,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   */
   table_list.link_in_list(ptr, &ptr->next_local);
   ptr->next_name_resolution_table= NULL;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  ptr->partition_names= partition_names;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
   ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,

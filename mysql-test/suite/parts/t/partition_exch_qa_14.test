@@ -3,6 +3,7 @@
 
 --source include/not_windows.inc
 --source include/have_partition.inc
+--source include/have_symlink.inc
 
 let $engine_table= MYISAM;
 let $engine_part= MYISAM;
