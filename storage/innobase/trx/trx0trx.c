@@ -595,7 +595,6 @@ trx_lists_init_at_db_start(void)
 
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
-Skips the SYSTEM rollback segment if another is available.
 @return	assigned rollback segment */
 UNIV_INLINE
 trx_rseg_t*
@@ -604,11 +603,12 @@ trx_assign_rseg(void)
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
+	static ulint	latest_rseg = 0;
 
-	/* This breaks true round robin but that should be OK.
-	Our aim is to reduce the contention of the trx_sys_t::lock.  */
-	i = trx_sys->latest_rseg;
-	i %= TRX_SYS_N_RSEGS;
+	/* This breaks true round robin but that should be OK. */
+
+	i = latest_rseg++;
+        i %= TRX_SYS_N_RSEGS;
 
 	do {
 		rseg = trx_sys->rseg_array[i];
@@ -618,13 +618,13 @@ trx_assign_rseg(void)
 
 	} while (rseg == NULL);
 
+#ifdef UNIV_DEBUG
 	rw_lock_x_lock(&trx_sys->lock);
-
-	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
 
 	ut_ad(trx_sys_validate_trx_list());
 
 	rw_lock_x_unlock(&trx_sys->lock);
+#endif /* UNIV_DEBUG */
 
 	return(rseg);
 }
@@ -736,6 +736,8 @@ trx_commit(
 			trx_undo_update_cleanup(trx, update_hdr_page, &mtr);
 		}
 
+		MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
+
 		mutex_exit(&rseg->mutex);
 
 		/* Update the latest MySQL binlog name and offset info
@@ -789,6 +791,7 @@ trx_commit(
 	lock_print_info_all_transactions() will have a consistent view. */
 	trx->state = TRX_STATE_NOT_STARTED;
 	ut_ad(trx_sys_validate_trx_list());
+	MONITOR_INC(MONITOR_TRX_COMMIT);
 	rw_lock_x_unlock(&trx_sys->lock);
 
 	if (trx->global_read_view != NULL) {
@@ -1089,7 +1092,6 @@ trx_commit_for_mysql(
 	case TRX_STATE_PREPARED:
 		trx->op_info = "committing";
 		trx_commit(trx);
-		MONITOR_INC(MONITOR_TRX_COMMIT);
 		MONITOR_DEC(MONITOR_TRX_ACTIVE);
 		trx->op_info = "";
 		return(DB_SUCCESS);
@@ -1240,10 +1242,6 @@ state_ok:
 
 	if (trx->is_recovered) {
 		fputs(" recovered trx", f);
-	}
-
-	if (trx->id == 0) {
-		fputs(" purge trx", f);
 	}
 
 	if (trx->declared_to_be_inside_innodb) {
