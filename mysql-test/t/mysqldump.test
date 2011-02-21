@@ -2218,7 +2218,7 @@ DROP DATABASE `test-database`;
 --echo #
 --echo # Test for --add-drop-trigger
 --echo #
-
+USE `test`;
 CREATE TABLE t1 (a int, b int);
 CREATE TRIGGER tt1_t1 BEFORE INSERT ON t1 FOR EACH ROW 
   SET NEW.b=NEW.a + 10;
