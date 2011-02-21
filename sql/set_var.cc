@@ -87,6 +87,7 @@ TYPELIB delay_key_write_typelib=
   delay_key_write_type_names, NULL
 };
 
+#ifndef MPC_WL5151
 /**
   SLAVE_TYPE_CONVERSIONS variable.
 
@@ -113,6 +114,7 @@ TYPELIB slave_type_conversions_typelib=
   slave_type_conversions_type_name,
   slave_type_conversions_type_length
 };
+#endif
 
 static const char *slave_exec_mode_names[]= { "STRICT", "IDEMPOTENT", NullS };
 static unsigned int slave_exec_mode_names_len[]= { sizeof("STRICT") - 1,
@@ -614,11 +616,13 @@ static sys_var_bool_ptr         sys_slave_allow_batching(&vars, "slave_allow_bat
                                                          &slave_allow_batching);
 #endif
 #endif
+#ifndef MPC_WL5151
 static sys_var_set slave_type_conversions(&vars,
                                           "slave_type_conversions",
                                           &slave_type_conversions_options,
                                           &slave_type_conversions_typelib,
                                           0);
+#endif
 
 static sys_var_long_ptr	sys_slow_launch_time(&vars, "slow_launch_time",
 					     &slow_launch_time);
