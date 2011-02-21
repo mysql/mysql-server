@@ -3872,6 +3872,8 @@ static int dump_tablespaces(char* ts_where)
   DBUG_RETURN(0);
 }
 
+
+#ifndef MCP_BUG54316
 static int
 is_ndbinfo(MYSQL* mysql, const char* dbname)
 {
@@ -3912,6 +3914,8 @@ is_ndbinfo(MYSQL* mysql, const char* dbname)
 
   return 0;
 }
+#endif
+
 
 static int dump_all_databases()
 {
@@ -3927,8 +3931,10 @@ static int dump_all_databases()
         !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
       continue;
 
+#ifndef MCP_BUG54316
     if (is_ndbinfo(mysql, row[0]))
       continue;
+#endif
 
     if (dump_all_tables_in_db(row[0]))
       result=1;
@@ -3948,8 +3954,10 @@ static int dump_all_databases()
           !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
         continue;
 
+#ifndef MCP_BUG54316
     if (is_ndbinfo(mysql, row[0]))
       continue;
+#endif
 
       if (dump_all_views_in_db(row[0]))
         result=1;
@@ -4057,11 +4065,13 @@ int init_dumping_tables(char *qdatabase)
 
 static int init_dumping(char *database, int init_func(char*))
 {
+#ifndef MCP_BUG54316
   if (is_ndbinfo(mysql, database))
   {
     verbose_msg("-- Skipping dump of ndbinfo database\n");
     return 0;
   }
+#endif
 
   if (mysql_select_db(mysql, database))
   {

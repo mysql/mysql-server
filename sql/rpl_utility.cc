@@ -341,6 +341,11 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 }
 
 
+/*
+  MCP NOTE! untagged changes in rpl_utility.h and rpl_utility are
+  part of backport "WL#5151 Conversion between different types when
+  replicating"
+*/
 /**
  */
 void show_sql_type(enum_field_types type, uint16 metadata, String *str)
@@ -518,10 +523,12 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str)
 bool is_conversion_ok(int order, Relay_log_info *rli)
 {
   DBUG_ENTER("is_conversion_ok");
-  bool allow_non_lossy=
-    bit_is_set(slave_type_conversions_options, SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
-  bool allow_lossy=
-    bit_is_set(slave_type_conversions_options, SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
+  bool allow_non_lossy, allow_lossy;
+
+  allow_non_lossy = slave_type_conversions_options &
+                    (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY);
+  allow_lossy= slave_type_conversions_options &
+               (ULL(1) << SLAVE_TYPE_CONVERSIONS_ALL_LOSSY);
 
   DBUG_PRINT("enter", ("order: %d, flags:%s%s", order,
                        allow_non_lossy ? " ALL_NON_LOSSY" : "",
