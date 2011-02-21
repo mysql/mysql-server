@@ -2418,7 +2418,7 @@ case SQLCOM_PREPARE:
       if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
         /* The table already exists */
-        if (create_table->table)
+        if (create_table->table || create_table->view)
         {
           if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
@@ -2442,6 +2442,17 @@ case SQLCOM_PREPARE:
           statements like "CREATE TABLE IF NOT EXISTS existing_view SELECT".
         */
         lex->unlink_first_table(&link_to_local);
+
+        /* Updating any other table is prohibited in CTS statement */
+        for (TABLE_LIST *table= lex->query_tables; table;
+             table= table->next_global)
+          if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+          {
+            res= 1;
+            my_error(ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT, MYF(0),
+                     table->table_name, create_info.alias);
+            goto end_with_restore_list;
+          }
 
         /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
         if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
