@@ -881,4 +881,11 @@ SELECT WEEK(STR_TO_DATE(NULL,0));
 SELECT SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR);
 
 --echo #
+--echo # BUG#59895 - setting storage engine to null segfaults mysqld
+--echo #
+SELECT MONTHNAME(0), MONTHNAME(0) IS NULL, MONTHNAME(0) + 1;
+--error ER_WRONG_VALUE_FOR_VAR
+SET storage_engine=NULL;
+
+--echo #
 
