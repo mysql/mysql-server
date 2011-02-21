@@ -377,7 +377,6 @@ class ha_ndbcluster: public handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster();
 
-  int ha_initialise();
 #ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
   void column_bitmaps_signal(uint sig_type);
 #endif

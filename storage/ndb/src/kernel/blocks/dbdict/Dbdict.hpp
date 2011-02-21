@@ -330,6 +330,11 @@ public:
      */
     Uint8 minLoadFactor;
 
+    /**
+     * Table default storage method
+     */
+    Uint8 storageType; // NDB_STORAGETYPE_
+
     /* Convenience routines */
     bool isTable() const;
     bool isIndex() const;

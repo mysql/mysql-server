@@ -2401,6 +2401,14 @@ static Sys_var_ulong Sys_profiling_history_size(
        VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));
 #endif
 
+#ifndef MCP_WL3733
+my_bool slave_allow_batching;
+static Sys_var_mybool Sys_slave_allow_batching(
+       "slave_allow_batching", "Allow slave to batch requests",
+       GLOBAL_VAR(slave_allow_batching),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+#endif
+
 static Sys_var_harows Sys_select_limit(
        "sql_select_limit",
        "The maximum number of rows to return from SELECT statements",

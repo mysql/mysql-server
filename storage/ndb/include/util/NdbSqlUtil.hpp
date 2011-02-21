@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,16 @@
 struct charset_info_st;
 typedef struct charset_info_st CHARSET_INFO;
 
+/**
+ * Helper class with comparison functions on NDB (column) data types.
+ *
+ * Notes: this Helper class
+ * - is used by kernel code
+ * - provides non-elementary functions
+ * - is not generic, template-based code
+ * - has link/library dependencies upon MySQL code
+ * (in contrast to other type utility classes, like ./NdbTypesUtil).
+ */
 class NdbSqlUtil {
 public:
   /**
