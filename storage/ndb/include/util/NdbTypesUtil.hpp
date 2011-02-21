@@ -435,13 +435,11 @@ NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint64, Uint64);
 // specialize the Helper template members for non-standard numeric types
 #define NDB_SPECIALIZE_NON_STD_NUM_TYPE_HELPER( H, T, INT3KORR )        \
   template<> inline void H::load(T * t, const char * s) {               \
-    assert(t); assert(s);                                               \
-    assert(t > (const T *)s);                                           \
+    assert(t); assert(s); assert(t != (const T *)s);                    \
     *t = (INT3KORR(s));                                                 \
   }                                                                     \
   template<> inline void H::store(char * t, const T * s) {              \
-    assert(t); assert(s);                                               \
-    assert(((T *)t > s) || ((T *)t < s));                               \
+    assert(t); assert(s); assert((const T *)t != s);                    \
     int3store(t, (*s));                                                 \
   }
 
