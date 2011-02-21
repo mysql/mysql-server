@@ -3351,13 +3351,14 @@ runBug57886_subscribe_unsunscribe(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb;
   Ndb_cluster_connection *pCC;
+
+  NdbDictionary::Table tab = * ctx->getTab();
+
   if (cc(&pCC, &pNdb))
   {
     // too few api slots...
     return NDBT_OK;
   }
-
-  NdbDictionary::Table tab = * ctx->getTab();
 
   while (!ctx->isTestStopped())
   {
