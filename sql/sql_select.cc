@@ -333,61 +333,65 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 }
 
 
-/*
+/**
   Fix fields referenced from inner selects.
 
-  SYNOPSIS
-    fix_inner_refs()
-    thd               Thread handle
-    all_fields        List of all fields used in select
-    select            Current select
-    ref_pointer_array Array of references to Items used in current select
-    group_list        GROUP BY list (is NULL by default)
+  @param thd               Thread handle
+  @param all_fields        List of all fields used in select
+  @param select            Current select
+  @param ref_pointer_array Array of references to Items used in current select
+  @param group_list        GROUP BY list (is NULL by default)
 
-  DESCRIPTION
-    The function serves 3 purposes - adds fields referenced from inner
-    selects to the current select list, resolves which class to use
-    to access referenced item (Item_ref of Item_direct_ref) and fixes
-    references (Item_ref objects) to these fields.
+  @details
+    The function serves 3 purposes
 
-    If a field isn't already in the select list and the ref_pointer_array
+    - adds fields referenced from inner query blocks to the current select list
+
+    - Decides which class to use to reference the items (Item_ref or
+      Item_direct_ref)
+
+    - fixes references (Item_ref objects) to these fields.
+
+    If a field isn't already on the select list and the ref_pointer_array
     is provided then it is added to the all_fields list and the pointer to
     it is saved in the ref_pointer_array.
 
     The class to access the outer field is determined by the following rules:
-    1. If the outer field isn't used under an aggregate function
-      then the Item_ref class should be used.
-    2. If the outer field is used under an aggregate function and this
-      function is aggregated in the select where the outer field was
-      resolved or in some more inner select then the Item_direct_ref
-      class should be used.
-      Also it should be used if we are grouping by a subquery containing
-      the outer field.
+
+    -#. If the outer field isn't used under an aggregate function then the
+        Item_ref class should be used.
+
+    -#. If the outer field is used under an aggregate function and this
+        function is, in turn, aggregated in the query block where the outer
+        field was resolved or some query nested therein, then the
+        Item_direct_ref class should be used. Also it should be used if we are
+        grouping by a subquery containing the outer field.
+
     The resolution is done here and not at the fix_fields() stage as
-    it can be done only after sum functions are fixed and pulled up to
-    selects where they are have to be aggregated.
+    it can be done only after aggregate functions are fixed and pulled up to
+    selects where they are to be aggregated.
+
     When the class is chosen it substitutes the original field in the
     Item_outer_ref object.
 
     After this we proceed with fixing references (Item_outer_ref objects) to
     this field from inner subqueries.
 
-  RETURN
-    TRUE  an error occured
-    FALSE ok
-*/
+  @return Status
+  @retval true An error occured.
+  @retval false OK.
+ */
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
                  Item **ref_pointer_array, ORDER *group_list)
 {
   Item_outer_ref *ref;
-  bool res= FALSE;
-  bool direct_ref= FALSE;
 
   List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
   while ((ref= ref_it++))
   {
+    bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
     Item_ref *new_ref;
@@ -459,7 +463,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       return TRUE;
     thd->used_tables|= item->used_tables();
   }
-  return res;
+  return false;
 }
 
 #define MAGIC_IN_WHERE_TOP_LEVEL 10
@@ -9505,12 +9509,20 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
     */     
     Item *on_expr= *first_inner_tab->on_expr_ref;
 
-    table_map used_tables= (join->const_table_map |
-                            OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
+    table_map used_tables= 0;
+
     for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
          join_tab <= last_tab ; join_tab++)
     {
+      /*
+        For explanation on how these bitmasks are built, see
+        make_join_select(), Step #2.
+      */
       table_map current_map= join_tab->table->map;
+      if (join_tab == join->join_tab + join->const_tables)
+        current_map|= join->const_table_map | OUTER_REF_TABLE_BIT;
+      if (join_tab == last_tab)
+        current_map|= RAND_TABLE_BIT;
       used_tables|= current_map;
       Item *tmp_cond= make_cond_for_table(on_expr, used_tables, current_map, 0);
       if (!tmp_cond)
@@ -9567,7 +9579,6 @@ static bool make_join_select(JOIN *join, Item *cond)
   DBUG_ENTER("make_join_select");
   {
     add_not_null_conds(join);
-    table_map used_tables;
     /*
       Step #1: Extract constant condition
        - Extract and check the constant part of the WHERE 
@@ -9634,21 +9645,33 @@ static bool make_join_select(JOIN *join, Item *cond)
     /*
       Step #2: Extract WHERE/ON parts
     */
+    table_map used_tables= 0;
     table_map save_used_tables= 0;
-    used_tables= join->const_table_map | OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-    JOIN_TAB *tab;
-    table_map current_map;
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
-      tab= join->join_tab+i;
+      JOIN_TAB *tab= join->join_tab + i;
       /*
         first_inner is the X in queries like:
         SELECT * FROM t1 LEFT OUTER JOIN (t2 JOIN t3) ON X
       */
       JOIN_TAB *first_inner_tab= tab->first_inner; 
-      current_map= tab->table->map;
       bool use_quick_range=0;
       Item *tmp;
+
+      /*
+        Calculate used table information added at this stage.
+        The current table is always added. Const tables are assumed to be
+        available together with the first table in the join order.
+        All outer references are available, so these may be evaluated together
+        with the first table.
+        Random expressions must be added to the last table's condition.
+        It solves problem with queries like SELECT * FROM t1 WHERE rand() > 0.5
+      */
+      table_map current_map= tab->table->map;
+      if (i == join->const_tables)
+        current_map|= join->const_table_map | OUTER_REF_TABLE_BIT;
+      if (i == join->tables - 1)
+        current_map|= RAND_TABLE_BIT;
 
       /* 
         Tables that are within SJ-Materialization nests cannot have their
@@ -9660,17 +9683,10 @@ static bool make_join_select(JOIN *join, Item *cond)
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
       {
         save_used_tables= used_tables;
-        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT | 
-                     RAND_TABLE_BIT;
+        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT;
       }
 
-      /*
-	Following force including random expression in last table condition.
-	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
-      */
-      if (i == join->tables-1)
-	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-      used_tables|=current_map;
+      used_tables|= current_map;
 
       if (tab->type == JT_REF && tab->quick &&
 	  (uint) tab->ref.key == tab->quick->index &&
@@ -19131,7 +19147,7 @@ static bool replace_subcondition(JOIN *join, Item **tree,
   
   @param cond       Condition to analyze
   @param tables     Tables for which "current field values" are available
-  @param used_table Table that we're extracting the condition for (may 
+  @param used_table Table(s) that we are extracting the condition for (may 
                     also include PSEUDO_TABLE_BITS, and may be zero)
   @param exclude_expensive_cond  Do not push expensive conditions
 
@@ -19139,15 +19155,32 @@ static bool replace_subcondition(JOIN *join, Item **tree,
   @retval = NULL Already checked, OR error
 
   @details
-    Extract the condition that can be checked after reading the table
-    specified in 'used_table', given that current-field values for tables
-    specified in 'tables' bitmap are available.
-    If 'used_table' is 0, extract conditions for all tables in 'tables'.
+    Extract the condition that can be checked after reading the table(s)
+    specified in @c used_table, given that current-field values for tables
+    specified in @c tables bitmap are available.
+    If @c used_table is 0, extract conditions for all tables in @c tables.
 
-    The function assumes that
-      - Constant parts of the condition has already been checked.
-      - Condition that could be checked for tables in 'tables' has already 
-        been checked.
+    This function can be used to extract conditions relevant for a table
+    in a join order. Together with its caller, it will ensure that all
+    conditions are attached to the first table in the join order where all
+    necessary fields are available, and it will also ensure that a given
+    condition is attached to only one table.
+    To accomplish this, first initialize @c tables to the empty
+    set. Then, loop over all tables in the join order, set @c used_table to
+    the bit representing the current table, accumulate @c used_table into the
+    @c tables set, and call this function. To ensure correct handling of
+    const expressions and outer references, add the const table map and
+    OUTER_REF_TABLE_BIT to @c used_table for the first table. To ensure
+    that random expressions are evaluated for the final table, add
+    RAND_TABLE_BIT to @c used_table for the final table.
+
+    The function assumes that constant, inexpensive parts of the condition
+    have already been checked. Constant, expensive parts will be attached
+    to the first table in the join order, provided that the above call
+    sequence is followed.
+
+    The call order will ensure that conditions covering tables in @c tables
+    minus those in @c used_table, have already been checked.
         
     The function takes into account that some parts of the condition are
     guaranteed to be true by employed 'ref' access methods (the code that
@@ -19175,21 +19208,14 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   /*
     Ignore this condition if
      1. We are extracting conditions for a specific table, and
-     2. that table is not referenced by the condition, and
-     3. exclude constant conditions not checked at optimization time if
-        the table we are pushing conditions to is the first one.
-        As a result, such conditions are not considered as already checked
-        and will be checked at execution time, attached to the first table.
+     2. that table is not referenced by the condition, but not if
+     3. this is a constant condition not checked at optimization time and
+        this is the first table we are extracting conditions for.
+       (Assuming that used_table == tables for the first table.)
   */
   if (used_table &&                                                 // 1
       !(cond->used_tables() & used_table) &&                        // 2
-      /*
-        psergey: TODO: "used_table & 1" doesn't make sense in nearly any
-        context. Look at setup_table_map(), table bits reflect the order 
-        the tables were encountered by the parser. Check what we should
-        replace this condition with.
-      */
-      !((used_table & 1) && cond->is_expensive()))                  // 3
+      !(cond->is_expensive() && used_table == tables))              // 3
     return NULL;
 
   if (cond->type() == Item::COND_ITEM)
