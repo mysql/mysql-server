@@ -92,6 +92,9 @@ enum column_format_type {
 /* Global schema lock not available */
 #define NDB_NO_GLOBAL_SCHEMA_LOCK
 
+/* No mysql_rm_table_part2 anymore in 5.5.8 */
+#define NDB_NO_MYSQL_RM_TABLE_PART2
+
 /*
   The enum open_table_mode has been removed in 5.5.7 and 'open_table_from_share'
   now takes "bool is_create_table" instead of the enum type. Define OTM_OPEN

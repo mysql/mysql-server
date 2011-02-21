@@ -10604,6 +10604,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
+#ifndef NDB_NO_MYSQL_RM_TABLE_PART2
   /*
     Delete old files
 
@@ -10640,6 +10641,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     /* Clear error message that is returned when table is deleted */
     thd->clear_error();
   }
+#endif
 
   // Create new files
   List_iterator_fast<char> it2(create_list);
