@@ -7620,7 +7620,7 @@ expr:
         | expr XOR expr %prec XOR
           {
             /* XOR is a proprietary extension */
-            $$ = new (YYTHD->mem_root) Item_cond_xor($1, $3);
+            $$ = new (YYTHD->mem_root) Item_func_xor($1, $3);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }

@@ -239,4 +239,50 @@ TEST_F(ItemTest, OutOfMemory)
 #endif
 }
 
+TEST_F(ItemTest, ItemFuncXor)
+{
+  const uint length= 1U;
+  Item_int *item_zero= new Item_int(0, length);
+  Item_int *item_one_a= new Item_int(1, length);
+
+  Item_func_xor *item_xor=
+    new Item_func_xor(item_zero, item_one_a);
+
+  EXPECT_FALSE(item_xor->fix_fields(m_thd, NULL));
+  EXPECT_EQ(1, item_xor->val_int());
+  EXPECT_EQ(1U, item_xor->decimal_precision());
+
+  Item_int *item_one_b= new Item_int(1, length);
+
+  Item_func_xor *item_xor_same=
+    new Item_func_xor(item_one_a, item_one_b);
+
+  EXPECT_FALSE(item_xor_same->fix_fields(m_thd, NULL));
+  EXPECT_EQ(0, item_xor_same->val_int());
+  EXPECT_FALSE(item_xor_same->val_bool());
+  EXPECT_FALSE(item_xor_same->is_null());
+
+  String print_buffer;
+  item_xor->print(&print_buffer, QT_ORDINARY);
+  EXPECT_STREQ("(0 xor 1)", print_buffer.c_ptr_safe());
+
+  Item *neg_xor= item_xor->neg_transformer(m_thd);
+  EXPECT_FALSE(neg_xor->fix_fields(m_thd, NULL));
+  EXPECT_EQ(0, neg_xor->val_int());
+  EXPECT_DOUBLE_EQ(0.0, neg_xor->val_real());
+  EXPECT_FALSE(neg_xor->val_bool());
+  EXPECT_FALSE(neg_xor->is_null());
+
+  print_buffer= String();
+  neg_xor->print(&print_buffer, QT_ORDINARY);
+  EXPECT_STREQ("((not(0)) xor 1)", print_buffer.c_ptr_safe());
+
+  Item_func_xor *item_xor_null=
+    new Item_func_xor(item_zero, new Item_null());
+  EXPECT_FALSE(item_xor_null->fix_fields(m_thd, NULL));
+
+  EXPECT_EQ(0, item_xor_null->val_int());
+  EXPECT_TRUE(item_xor_null->is_null());
+}
+
 }
