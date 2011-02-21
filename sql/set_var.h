@@ -35,7 +35,9 @@ typedef struct my_locale_st MY_LOCALE;
 
 extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib,
   optimizer_switch_typelib, slave_exec_mode_typelib;
+#ifndef MCP_WL5151
 extern TYPELIB slave_type_conversions_typelib;
+#endif
 
 typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
