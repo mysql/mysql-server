@@ -190,8 +190,8 @@ eval INSERT INTO t1_will_crash VALUES
   ('6 row 7 (crash before completely written to datafile)', 27, '$lt$lt');
 --enable_query_log
 SELECT COUNT(*) FROM t1_will_crash;
-SELECT (b % 7) AS partition, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partition, b, a;
+SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash ORDER BY `partition`, b, a;
 FLUSH TABLES;
 # testing p0, p1, p3, p6(1)
 --echo # truncating p0 to simulate an empty datafile (not recovered!)
@@ -216,8 +216,8 @@ OPTIMIZE TABLE t1_will_crash;
 CHECK TABLE t1_will_crash;
 REPAIR TABLE t1_will_crash;
 SELECT COUNT(*) FROM t1_will_crash;
-SELECT (b % 7) AS partition, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partition, b, a;
+SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash ORDER BY `partition`, b, a;
 FLUSH TABLES;
 
 # testing p2, p4, p6(2, 3)
@@ -254,9 +254,9 @@ FLUSH TABLES;
 #ALTER TABLE t1_will_crash OPTIMIZE PARTITION p6;
 ALTER TABLE t1_will_crash CHECK PARTITION p6;
 ALTER TABLE t1_will_crash REPAIR PARTITION p6;
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash
 WHERE (b % 7) = 6
-ORDER BY partition, b, a;
+ORDER BY `partition`, b, a;
 FLUSH TABLES;
 
 --echo #
@@ -268,18 +268,18 @@ FLUSH TABLES;
 --echo # table, depending if one reads via index or direct on datafile.
 --echo # Since crash when reuse of deleted row space, CHECK MEDIUM or EXTENDED
 --echo # is required (MEDIUM is default) to verify correct behavior!
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash
 WHERE (b % 7) = 6
-ORDER BY partition, b, a;
-SELECT (b % 7) AS partition, b, a FROM (SELECT b,a FROM t1_will_crash) q
+ORDER BY `partition`, b, a;
+SELECT (b % 7) AS `partition`, b, a FROM (SELECT b,a FROM t1_will_crash) q
 WHERE (b % 7) = 6
-ORDER BY partition, b, a;
+ORDER BY `partition`, b, a;
 # NOTE: REBUILD PARTITION without CHECK before, 2 + (1) records will be lost!
 #ALTER TABLE t1_will_crash REBUILD PARTITION p6;
 ALTER TABLE t1_will_crash CHECK PARTITION p6;
 ALTER TABLE t1_will_crash REPAIR PARTITION p6;
 SELECT COUNT(*) FROM t1_will_crash;
-SELECT (b % 7) AS partition, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partition, b, a;
+SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash ORDER BY `partition`, b, a;
 ALTER TABLE t1_will_crash CHECK PARTITION all EXTENDED;
 DROP TABLE t1_will_crash;
