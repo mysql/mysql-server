@@ -72,6 +72,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, SingleUserMode, SingleUserMode),
   DTIMAP(Table, HashMapObjectId, HashMapObjectId),
   DTIMAP(Table, HashMapVersion, HashMapVersion),
+  DTIMAP(Table, TableStorageType, TableStorageType),
   DTIBREAK(AttributeName)
 };
 
@@ -181,6 +182,8 @@ DictTabInfo::Table::init(){
 
   HashMapObjectId = RNIL;
   HashMapVersion = RNIL;
+
+  TableStorageType = NDB_STORAGETYPE_DEFAULT;
 }
 
 void
