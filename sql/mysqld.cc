@@ -547,8 +547,10 @@ static const char *slave_exec_mode_str= "STRICT";
 #ifndef MCP_WL3733
 my_bool slave_allow_batching;
 #endif
+#ifndef MCP_WL5151
 ulong slave_type_conversions_options;
 const char *slave_type_conversions_default= "";
+#endif
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
@@ -5834,7 +5836,9 @@ enum options_mysqld
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   OPT_OLD_MODE,
   OPT_SLAVE_EXEC_MODE,
+#ifndef MCP_WL5151
   OPT_SLAVE_TYPE_CONVERSIONS,
+#endif
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB,
@@ -6530,6 +6534,7 @@ thread is in the relay logs.",
    "not stop for operations that are idempotent. In STRICT mode, replication "
    "will stop on any unexpected difference between the master and the slave.",
    &slave_exec_mode_str, &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef MCP_WL5151
   {"slave-type-conversions", OPT_SLAVE_TYPE_CONVERSIONS,
    "Set of slave type conversions that are enabled. Legal values are:"
    " ALL_LOSSY to enable lossy conversions and"
@@ -6539,6 +6544,7 @@ thread is in the relay logs.",
    &slave_type_conversions_default,
    &slave_type_conversions_default,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
    "Enable/disable slow query log.", &opt_slow_log,
@@ -7899,6 +7905,7 @@ static int mysql_init_variables(void)
                                                  &slave_exec_mode_typelib,
                                                  NULL,
                                                  &error);
+#ifndef MCP_WL5151
   /* Slave type conversions */
   slave_type_conversions_options= 0;
   slave_type_conversions_options=
@@ -7906,6 +7913,7 @@ static int mysql_init_variables(void)
                           &slave_type_conversions_typelib,
                           NULL,
                           &error);
+#endif
   /* Default mode string must not yield a error. */
   DBUG_ASSERT(!error);
   if (error)
@@ -8143,12 +8151,14 @@ mysqld_get_one_option(int optid,
     if (error)
       return 1;
     break;
+#ifndef MCP_WL5151
   case OPT_SLAVE_TYPE_CONVERSIONS:
     slave_type_conversions_options= (uint)
       find_bit_type_or_exit(argument, &slave_type_conversions_typelib, "", &error);
     if (error)
       return 1;
     break;
+#endif
 #endif
   case OPT_SAFEMALLOC_MEM_LIMIT:
 #if !defined(DBUG_OFF) && defined(SAFEMALLOC)
