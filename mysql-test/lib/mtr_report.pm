@@ -72,7 +72,7 @@ sub _mtr_report_test_name ($) {
   print _name(). _timestamp();
   printf "%-40s ", $tname;
   my $worker = $tinfo->{worker};
-  printf "w$worker " if $worker;
+  print "w$worker " if defined $worker;
 
   return $tname;
 }
