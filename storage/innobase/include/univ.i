@@ -144,6 +144,16 @@ resolved */
 #  define UNIV_PFS_IO
 # endif
 # define UNIV_PFS_THREAD
+
+/* There are mutexes/rwlocks that we want to exclude from
+instrumentation even if their corresponding performance schema
+define is set. And this PFS_NOT_INSTRUMENTED is used
+as the key value to identify those objects that would
+be excluded from instrumentation. */
+# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
+
+# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
+
 #endif /* HAVE_PSI_INTERFACE */
 
 /*			DEBUG VERSION CONTROL
@@ -196,6 +206,8 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */

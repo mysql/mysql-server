@@ -588,6 +588,8 @@ btr_search_update_hash_ref(
 
 		ha_insert_for_fold(btr_search_sys->hash_index, fold,
 				   block, rec);
+
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
 	}
 }
 
@@ -1174,7 +1176,10 @@ next_rec:
 
 	block->is_hashed = FALSE;
 	block->index = NULL;
-	
+
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_REMOVED);
+	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_REMOVED, n_cached);
+
 cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
@@ -1430,6 +1435,8 @@ btr_search_build_page_hash_index(
 		ha_insert_for_fold(table, folds[i], block, recs[i]);
 	}
 
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_ADDED);
+	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_ADDED, n_cached);
 exit_func:
 	rw_lock_x_unlock(&btr_search_latch);
 
@@ -1553,7 +1560,11 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	ha_search_and_delete_if_found(table, fold, rec);
+	if (ha_search_and_delete_if_found(table, fold, rec)) {
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVED);
+	} else {
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND);
+	}
 
 	rw_lock_x_unlock(&btr_search_latch);
 }
@@ -1598,8 +1609,11 @@ btr_search_update_hash_node_on_insert(
 
 		table = btr_search_sys->hash_index;
 
-		ha_search_and_update_if_found(table, cursor->fold, rec,
-					      block, page_rec_get_next(rec));
+		if (ha_search_and_update_if_found(
+			table, cursor->fold, rec, block,
+			page_rec_get_next(rec))) {
+			MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_UPDATED);
+		}
 
 		rw_lock_x_unlock(&btr_search_latch);
 	} else {
@@ -1607,6 +1621,25 @@ btr_search_update_hash_node_on_insert(
 
 		btr_search_update_hash_on_insert(cursor);
 	}
+}
+
+/********************************************************************//**
+Updates the page hash index when a single record is inserted on a page. */
+UNIV_INLINE
+void
+btr_search_insert_fold(
+/*===================*/
+	hash_table_t*   table,  /*!< in: hash table */
+	ulint           fold,   /*!< in: folded value of data; if a node with
+				the same fold value already exists, it is
+				updated to point to the same data, and no new
+				node is created! */
+	buf_block_t*    block,  /*!< in: buffer block containing the data */
+	void*           data)	/*!< in: data, must not be NULL */
+{
+	ha_insert_for_fold(table, fold, block, data);
+
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
 }
 
 /********************************************************************//**
@@ -1689,7 +1722,7 @@ btr_search_update_hash_on_insert(
 
 			locked = TRUE;
 
-			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_insert_fold(table, ins_fold, block, ins_rec);
 		}
 
 		goto check_next_rec;
@@ -1705,9 +1738,9 @@ btr_search_update_hash_on_insert(
 		}
 
 		if (!left_side) {
-			ha_insert_for_fold(table, fold, block, rec);
+			btr_search_insert_fold(table, fold, block, rec);
 		} else {
-			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_insert_fold(table, ins_fold, block, ins_rec);
 		}
 	}
 
@@ -1722,7 +1755,7 @@ check_next_rec:
 				locked = TRUE;
 			}
 
-			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_insert_fold(table, ins_fold, block, ins_rec);
 		}
 
 		goto function_exit;
@@ -1739,14 +1772,15 @@ check_next_rec:
 
 		if (!left_side) {
 
-			ha_insert_for_fold(table, ins_fold, block, ins_rec);
+			btr_search_insert_fold(table, ins_fold, block, ins_rec);
 			/*
 			fputs("Hash insert for ", stderr);
 			dict_index_name_print(stderr, cursor->index);
 			fprintf(stderr, " fold %lu\n", ins_fold);
 			*/
 		} else {
-			ha_insert_for_fold(table, next_fold, block, next_rec);
+			btr_search_insert_fold(table, next_fold, block,
+					       next_rec);
 		}
 	}
 
