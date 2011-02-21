@@ -40,19 +40,7 @@ public class NotPersistentTest extends AbstractClusterJModelTest {
         createSessionFactory();
         session = sessionFactory.getSession();
         createNotPersistentTypesInstances(NUMBER_TO_INSERT);
-//        createEmployeeInstances(NUMBER_TO_INSERT);
-//        tx = session.currentTransaction();
-//        int count = 0;
-//        for (int i = 0; i < NUMBER_TO_INSERT; ++i) {
-//            tx.begin();
-//            session.deletePersistent(employees.get(i));
-//            try {
-//                tx.commit();
-//                ++count;
-//            } catch (Exception ex) {
-//                // ignore exceptions -- might not be any instances to delete
-//            }
-//        }
+        int count = session.deletePersistentAll(NotPersistentTypes.class);
         addTearDownClasses(NotPersistentTypes.class);
 //        System.out.println("Deleted " + count + " instances.");
     }
