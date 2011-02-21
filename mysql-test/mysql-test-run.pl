@@ -320,9 +320,10 @@ sub main {
     gcov_prepare($basedir . "/" . $opt_gcov_src_dir);
   }
 
+  
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
-
+	
     # Check for any extra suites to enable based on the path name
     my %extra_suites=
       (
@@ -2376,7 +2377,7 @@ sub setup_vardir() {
     $plugindir="$opt_vardir/plugins";
     unshift (@opt_extra_mysqld_opt, "--plugin-dir=$plugindir");
     mkpath($plugindir);
-    if (IS_WINDOWS)
+    if (IS_WINDOWS && !$opt_embedded_server)
     {
       for (<../storage/*$opt_vs_config/*.dll>,
            <../plugin/*$opt_vs_config/*.dll>,

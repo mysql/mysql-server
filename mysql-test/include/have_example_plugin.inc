@@ -3,7 +3,7 @@
 # i.e it will support dlopen
 #
 --source include/have_dynamic_loading.inc
-
+--source include/not_windows_embedded.inc
 #
 # Check if the variable HA_EXAMPLE_SO is set
 #
