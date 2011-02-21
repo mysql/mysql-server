@@ -21,9 +21,9 @@ CLUSTERJ_EXPORT=com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.a
 
 BASE_DIRS = clusterj-api clusterj-core clusterj-tie
 
-SUBDIRS = $(BASE_DIRS) $(CLUSTERJ_TESTS) $(OPENJPA_OPT)
+SUBDIRS = $(BASE_DIRS) $(CLUSTERJ_TESTS) $(OPENJPA_OPT) $(CLUSTERJ_JDBC_OPT)
 
-DIST_SUBDIRS = clusterj-api clusterj-core clusterj-tie clusterj-jpatest clusterj-openjpa clusterj-test
+DIST_SUBDIRS = clusterj-api clusterj-core clusterj-tie clusterj-jpatest clusterj-openjpa clusterj-test clusterj-jdbc
 
 NDBJTIE_DIRS = $(top_srcdir)/storage/ndb/src/ndbjtie $(top_srcdir)/storage/ndb/src/ndbjtie/jtie
 
@@ -45,7 +45,7 @@ $(CLUSTERJ_MANIFEST):
 	echo "Bundle-Description: ClusterJ"  >> $(CLUSTERJ_MANIFEST)
 
 # make both clusterj and clusterjpa jar (the latter optional based on OPENJPA_OPT)
-$(clusterj_version_jar) : $(SUBDIRS) $(CLUSTERJ_MANIFEST)
+$(clusterj_version_jar) : $(BASE_DIRS) $(CLUSTERJ_TESTS) $(OPENJPA_OPT) $(CLUSTERJ_MANIFEST)
 	rm -f $(clusterj_version_jar); \
 	@JAR@ cvfm $(clusterj_version_jar) $(CLUSTERJ_MANIFEST); \
 	for i in $(BASE_DIRS); do \
