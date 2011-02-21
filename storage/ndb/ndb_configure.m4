@@ -125,14 +125,27 @@ AC_DEFUN([NDB_CHECK_NDBMTD], [
 
 AC_DEFUN([MYSQL_CHECK_JAVA], [
 
+  NDB_JAVA_PATHS="$JAVA_HOME $JDK_HOME"
+  NDB_JAVA_TMP_INC="include"
+  NDB_JAVA_TMP_BIN="bin"
+
   case "$host_os" in
   darwin*)        
-    NDB_JAVA_TMP_INC="Headers"
-    NDB_JAVA_TMP_BIN="Commands"
+    AC_CHECK_FILE([/usr/libexec/java_home],[found=yes])
+    if test X$found = Xyes
+    then
+      # MaxOS >= 1.5
+      NDB_JAVA_PATHS="$NDB_JAVA_PATHS `/usr/libexec/java_home`"
+    else
+      NDB_JAVA_TMP_INC="Headers"
+      NDB_JAVA_TMP_BIN="Commands"
+      NDB_JAVA_PATHS="$NDB_JAVA_PATHS /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK"
+    fi
     ;;
   *)
-    NDB_JAVA_TMP_INC="include"
-    NDB_JAVA_TMP_BIN="bin"
+    NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/lib/jvm/java /usr/lib64/jvm/java"
+    NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/local/jdk /usr/local/java /usr/local/java/jdk"
+    NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/jdk/latest"
     ;;
   esac
 
@@ -142,10 +155,6 @@ AC_DEFUN([MYSQL_CHECK_JAVA], [
 
   NDB_JAVA_INC=""
   NDB_JAVA_BIN=""
-  NDB_JAVA_PATHS="$JAVA_HOME $JDK_HOME"
-  NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/lib/jvm/java /usr/lib64/jvm/java"
-  NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/local/jdk /usr/local/java /usr/local/java/jdk"
-  NDB_JAVA_PATHS="$NDB_JAVA_PATHS /usr/jdk/latest /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK"
 
   for D in $NDB_JAVA_PATHS; do
     AC_CHECK_FILE([$D/$NDB_JAVA_TMP_INC/jni.h],[found=yes])
@@ -492,6 +501,34 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   then
     CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
   fi
+
+  # switch to enable experimental support for ClusterJ-JDBC
+  AC_ARG_WITH([clusterj-jdbc],
+              [AS_HELP_STRING([--with-clusterj-jdbc], Include experimental support for ClusterJ-JDBC)],
+              [clusterj_jdbc="$withval"],
+              [clusterj_jdbc="no"])
+
+  have_clusterj_jdbc=no
+  if test X"$clusterj_jdbc" != Xno
+  then
+    if test X"$have_clusterj" = Xyes
+    then
+      AC_MSG_RESULT([-- including ClusterJ JDBC])
+      have_clusterj_jdbc=yes
+    else
+      AC_MSG_RESULT([-- ClusterJ for JDBC requires external OpenJPA jar set with --with-classpath: not included])
+    fi
+  else
+    AC_MSG_RESULT([-- ClusterJ for JDBC requires Cluster/J and Java to compile: not included])
+  fi
+
+  if test x"$have_clusterj_jdbc" = xyes  
+  then
+    CLUSTERJ_JDBC_OPT="clusterj-jdbc"
+  fi
+
+  AC_SUBST(CLUSTERJ_JDBC_OPT)
+
 
   AC_SUBST(NDBJTIE_OPT)
   AC_SUBST(NDBJTIE_LIBS)
