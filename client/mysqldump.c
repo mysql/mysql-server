@@ -103,6 +103,9 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_include_master_host_port= 0,
                 opt_events= 0,
                 opt_alltspcs=0, opt_notspcs= 0;
+#ifndef MCP_BUG56691
+static my_bool opt_drop_trigger= 0;
+#endif
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static MYSQL mysql_connection,*mysql=0;
@@ -206,6 +209,10 @@ static struct my_option my_long_options[] =
   {"add-drop-table", OPT_DROP, "Add a DROP TABLE before each create.",
    &opt_drop, &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
+#ifndef MCP_BUG56691
+  {"add-drop-trigger", OPT_MAX_CLIENT_OPTION, "Add a DROP TRIGGER before each create.",
+   (uchar**) &opt_drop_trigger, (uchar**) &opt_drop_trigger, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+#endif
   {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    &opt_lock, &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
@@ -2755,6 +2762,11 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
   if (opt_compact)
     fprintf(sql_file, "/*!50003 SET @OLD_SQL_MODE=@@SQL_MODE*/;\n");
 
+#ifndef MCP_BUG56691
+  if (opt_drop_trigger)
+    fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", (*show_trigger_row)[0]);
+#endif
+
   fprintf(sql_file,
           "DELIMITER ;;\n"
           "/*!50003 SET SESSION SQL_MODE=\"%s\" */;;\n"
@@ -2830,6 +2842,11 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         row[4]);  /* collation_connection */
 
     switch_sql_mode(sql_file, ";", row[1]);
+
+#ifndef MCP_BUG56691
+    if (opt_drop_trigger)
+      fprintf(sql_file, "/*!50032 DROP TRIGGER IF EXISTS %s */;\n", row[0]);
+#endif
 
     fprintf(sql_file,
             "DELIMITER ;;\n"
