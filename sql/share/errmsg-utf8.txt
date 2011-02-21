@@ -6394,3 +6394,6 @@ ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
 
 ER_STMT_CACHE_FULL  
         eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
+
+ER_MULTI_UPDATE_KEY_CONFLICT
+  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
