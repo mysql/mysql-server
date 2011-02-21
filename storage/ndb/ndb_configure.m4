@@ -502,6 +502,34 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
     CLUSTERJ_TESTS="$CLUSTERJ_TESTS clusterj-jpatest"
   fi
 
+  # switch to enable experimental support for ClusterJ-JDBC
+  AC_ARG_WITH([clusterj-jdbc],
+              [AS_HELP_STRING([--with-clusterj-jdbc], Include experimental support for ClusterJ-JDBC)],
+              [clusterj_jdbc="$withval"],
+              [clusterj_jdbc="no"])
+
+  have_clusterj_jdbc=no
+  if test X"$clusterj_jdbc" != Xno
+  then
+    if test X"$have_clusterj" = Xyes
+    then
+      AC_MSG_RESULT([-- including ClusterJ JDBC])
+      have_clusterj_jdbc=yes
+    else
+      AC_MSG_RESULT([-- ClusterJ for JDBC requires external OpenJPA jar set with --with-classpath: not included])
+    fi
+  else
+    AC_MSG_RESULT([-- ClusterJ for JDBC requires Cluster/J and Java to compile: not included])
+  fi
+
+  if test x"$have_clusterj_jdbc" = xyes  
+  then
+    CLUSTERJ_JDBC_OPT="clusterj-jdbc"
+  fi
+
+  AC_SUBST(CLUSTERJ_JDBC_OPT)
+
+
   AC_SUBST(NDBJTIE_OPT)
   AC_SUBST(NDBJTIE_LIBS)
   AC_SUBST(CLUSTERJ_TESTS)
