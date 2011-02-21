@@ -166,6 +166,7 @@ trx_purge_sys_create(
 	purge_sys->trx->id = 0;
 	purge_sys->trx->start_time = ut_time();
 	purge_sys->trx->state = TRX_STATE_ACTIVE;
+	purge_sys->trx->op_info = "purge trx";
 
 	purge_sys->query = trx_purge_graph_build(
 		purge_sys->trx, n_purge_threads);
@@ -1305,6 +1306,8 @@ run_synchronously:
 	if (purge_sys->n_submitted == purge_sys->n_completed) {
 		trx_purge_truncate();
 	}
+
+	MONITOR_INC_VALUE(MONITOR_PURGE_N_PAGE_HANDLED, n_pages_handled);
 
 	mutex_exit(&purge_sys->mutex);
 

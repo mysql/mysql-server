@@ -417,6 +417,7 @@ dict_table_open_on_name(
 /*====================*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+
 /**********************************************************************//**
 Returns a table object and increment its open handle count. Table
 statistics will not be updated if they are not initialized.
@@ -427,7 +428,10 @@ dict_table_t*
 dict_table_open_on_name_no_stats(
 /*=============================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	dict_err_ignore_t
+			ignore_err);	/*!< in: error to be ignored when
+					loading the table */
 /**********************************************************************//**
 Find an index that is equivalent to the one passed in and is not marked
 for deletion.

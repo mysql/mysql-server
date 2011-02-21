@@ -737,14 +737,13 @@ row_purge_record_func(
 
 	if (node->rec_type == TRX_UNDO_DEL_MARK_REC) {
 		row_purge_del_mark(node);
-
+		MONITOR_INC(MONITOR_N_DEL_ROW_PURGE);
 	} else if (updated_extern
 		   || node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 
 		row_purge_upd_exist_or_extern(thr, node, undo_rec);
+		MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
 	}
-
-	MONITOR_INC(MONITOR_NUM_ROW_PURGE);
 
 	if (node->found_clust) {
 		btr_pcur_close(&node->pcur);

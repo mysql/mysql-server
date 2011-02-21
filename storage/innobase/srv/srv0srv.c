@@ -455,6 +455,8 @@ UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /* Key to register srv_sys_t::tasks_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+/* Key to register srv_conc_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_conc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* Temporary file for innodb monitor output */
@@ -957,7 +959,7 @@ srv_init(void)
 
 	/* Init the server concurrency restriction data structures */
 
-	os_fast_mutex_init(&srv_conc_mutex);
+	os_fast_mutex_init(srv_conc_mutex_key, &srv_conc_mutex);
 
 	UT_LIST_INIT(srv_conc_queue);
 
@@ -2282,18 +2284,23 @@ void
 srv_master_do_active_tasks(void)
 /*============================*/
 {
-	ib_time_t cur_time = ut_time();
+	ib_time_t	cur_time = ut_time();
+	ullint		counter_time = ut_time_us(NULL);
 
 	/* First do the tasks that we are suppose to do at each
 	invocation of this function. */
 
 	++srv_main_active_loops;
 
+	MONITOR_INC(MONITOR_MASTER_ACTIVE_LOOPS);
+
 	/* ALTER TABLE in MySQL requires on Unix that the table handler
 	can drop tables lazily after there no longer are SELECT
 	queries to them. */
 	srv_main_thread_op_info = "doing background drop tables";
 	row_drop_tables_for_mysql_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND, counter_time);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2306,11 +2313,16 @@ srv_master_do_active_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+	counter_time = ut_time_us(NULL);
+	ibuf_contract_in_background(FALSE);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
 	/* Flush logs if needed */
 	srv_main_thread_op_info = "flushing log";
 	srv_sync_log_buffer_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_LOG_FLUSH_MICROSECOND, counter_time);
 
 	/* Now see if various tasks that are performed at defined
 	intervals need to be performed. */
@@ -2320,6 +2332,8 @@ srv_master_do_active_tasks(void)
 	SRV_MASTER_MEM_VALIDATE_INTERVAL seconds */
 	if (cur_time % SRV_MASTER_MEM_VALIDATE_INTERVAL == 0) {
 		mem_validate_all_blocks();
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_MEM_VALIDATE_MICROSECOND, counter_time);
 	}
 #endif
 	if (srv_shutdown_state > 0) {
@@ -2330,6 +2344,8 @@ srv_master_do_active_tasks(void)
 	if (srv_n_purge_threads == 0
 	    && cur_time % SRV_MASTER_PURGE_INTERVAL == 0) {
 		srv_master_do_purge();
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_PURGE_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2339,6 +2355,8 @@ srv_master_do_active_tasks(void)
 	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
 		srv_main_thread_op_info = "enforcing dict cache limit";
 		srv_master_evict_from_table_cache(50);
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2349,6 +2367,8 @@ srv_master_do_active_tasks(void)
 	if (cur_time % SRV_MASTER_CHECKPOINT_INTERVAL == 0) {
 		srv_main_thread_op_info = "making checkpoint";
 		log_checkpoint(TRUE, FALSE);
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_CHECKPOINT_MICROSECOND, counter_time);
 	}
 }
 
@@ -2365,13 +2385,22 @@ void
 srv_master_do_idle_tasks(void)
 /*==========================*/
 {
+	ullint	counter_time;
+
 	++srv_main_idle_loops;
+
+	MONITOR_INC(MONITOR_MASTER_IDLE_LOOPS);
+
 
 	/* ALTER TABLE in MySQL requires on Unix that the table handler
 	can drop tables lazily after there no longer are SELECT
 	queries to them. */
+	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing background drop tables";
 	row_drop_tables_for_mysql_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND,
+			 counter_time);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2383,8 +2412,11 @@ srv_master_do_idle_tasks(void)
 	log_free_check();
 
 	/* Do an ibuf merge */
+	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	ibuf_contract_in_background(TRUE);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2392,13 +2424,19 @@ srv_master_do_idle_tasks(void)
 
 	srv_main_thread_op_info = "enforcing dict cache limit";
 	srv_master_evict_from_table_cache(100);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_LOG_FLUSH_MICROSECOND, counter_time);
 
 	/* Do a purge if we don't have a dedicated purge thread */
 	if (srv_n_purge_threads == 0) {
 		srv_master_do_purge();
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_PURGE_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2408,6 +2446,8 @@ srv_master_do_idle_tasks(void)
 	/* Make a new checkpoint */
 	srv_main_thread_op_info = "making checkpoint";
 	log_checkpoint(TRUE, FALSE);
+	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
+				       counter_time);
 }
 
 /*********************************************************************//**
@@ -2456,7 +2496,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	n_bytes_merged = ibuf_contract_in_background(TRUE);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
@@ -2544,6 +2584,8 @@ loop:
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		srv_master_sleep();
+
+		MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
 
 		if (srv_check_activity(old_activity_count)) {
 			old_activity_count = srv_get_activity_count();

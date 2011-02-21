@@ -782,6 +782,9 @@ log_init(void)
 
 	log_sys->lsn = LOG_START_LSN;
 
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
+
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
@@ -827,9 +830,9 @@ log_init(void)
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
-	MONITOR_SET_SIMPLE(MONITOR_LSN_CHECKPOINT,
-			   log_sys->last_checkpoint_lsn);
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE, 0);
 	log_sys->n_pending_checkpoint_writes = 0;
+
 
 	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
 		       SYNC_NO_ORDER_CHECK);
@@ -871,6 +874,9 @@ log_init(void)
 
 	log_sys->buf_free = LOG_BLOCK_HDR_SIZE;
 	log_sys->lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	mutex_exit(&(log_sys->mutex));
 
@@ -1516,18 +1522,12 @@ loop:
 
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 
-		MONITOR_SET_SIMPLE(MONITOR_LSN_FLUSHDISK,
-				   log_sys->flushed_to_disk_lsn);
-
 	} else if (flush_to_disk) {
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 		fil_flush(group->space_id);
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
-
-		MONITOR_SET_SIMPLE(MONITOR_LSN_FLUSHDISK,
-				   log_sys->flushed_to_disk_lsn);
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1697,9 +1697,8 @@ log_complete_checkpoint(void)
 	log_sys->next_checkpoint_no++;
 
 	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn;
-
-	MONITOR_SET_SIMPLE(MONITOR_LSN_CHECKPOINT,
-			   log_sys->last_checkpoint_lsn);
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	rw_lock_x_unlock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
 }
