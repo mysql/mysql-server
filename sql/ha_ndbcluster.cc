@@ -9469,16 +9469,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
 }
 
 
-int ha_ndbcluster::ha_initialise()
-{
-  DBUG_ENTER("ha_ndbcluster::ha_initialise");
-  if (check_ndb_in_thd(current_thd))
-  {
-    DBUG_RETURN(FALSE);
-  }
-  DBUG_RETURN(TRUE);
-}
-
 /**
   Destructor for NDB Cluster table handler.
 */
