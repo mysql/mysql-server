@@ -1326,6 +1326,18 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
     other_checksum = checksum;
   }
 
+  if (m_prepared_config)
+  {
+    g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d while "
+                         "config change in progress (m_prepared_config). "
+                         "Returning incorrect state, causing it to be retried",
+                         nodeId);
+    sendConfigCheckRef(ss, from, ConfigCheckRef::WrongState,
+                       generation, other_generation,
+                       m_config_state, CS_UNINITIALIZED);
+    return;
+  }
+
   g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d. "
                        "Our generation: %d, other generation: %d, "
                        "our state: %d, other state: %d, "
