@@ -30,6 +30,9 @@ eval create table t1 (s1 int primary key) engine=federated
    partition p2 values in (2,4)
      connection='mysql://root@127.0.0.1:$SLAVE_MYPORT/federated/t1_2');
 
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+show create table t1;
+
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 

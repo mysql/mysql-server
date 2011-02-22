@@ -98,6 +98,8 @@ public:
     nodegroup_id(part_elem->nodegroup_id),
     has_null_value(FALSE)
   {
+    connect_string.str= 0;
+    connect_string.length= 0;
   }
   ~partition_element() {}
 };

@@ -2237,9 +2237,10 @@ bool ha_partition::create_handler_file(const char *name)
       part_elem= part_it++;
       uint length = part_elem->connect_string.length;
       int4store(buffer, length);
-      result= (my_write(file, buffer, 4, MYF(MY_WME | MY_NABP)) ||
-               my_write(file, (uchar *) part_elem->connect_string.str, length,
-                        MYF(MY_WME | MY_NABP)));
+      if (my_write(file, buffer, 4, MYF(MY_WME | MY_NABP)) ||
+          my_write(file, (uchar *) part_elem->connect_string.str, length,
+                   MYF(MY_WME | MY_NABP)))
+        result= TRUE;
     }
     VOID(my_close(file, MYF(0)));
   }
