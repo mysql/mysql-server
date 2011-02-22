@@ -469,7 +469,8 @@ CREATE TABLE `db_17876.slow_log_data` (
 `last_insert_id` int(11) default NULL,
 `insert_id` int(11) default NULL,
 `server_id` int(11) default NULL,
-`sql_text` mediumtext 
+`sql_text` mediumtext,
+`thread_id` int(11) default NULL
 );
 CREATE TABLE `db_17876.general_log_data` (
 `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
