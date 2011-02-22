@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifndef SQL_CLASS_INCLUDED
@@ -553,6 +553,7 @@ typedef struct system_status_var
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
+  ulong ha_external_lock_count;
 
   /* KEY_CACHE parts. These are copies of the original */
   ulong key_blocks_changed;
