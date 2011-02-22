@@ -24,6 +24,8 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx)
   
   DBUG_ENTER("heap_rfirst");
   info->lastinx= inx;
+  info->key_version= info->s->key_version;
+
   if (keyinfo->algorithm == HA_KEY_ALG_BTREE)
   {
     uchar *pos;
@@ -57,15 +59,8 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx)
   }
   else
   {
-    if (!(info->s->records))
-    {
-      my_errno=HA_ERR_END_OF_FILE;
-      DBUG_RETURN(my_errno);
-    }
-    DBUG_ASSERT(0); /* TODO fix it */
-    info->current_record=0;
-    info->current_hash_ptr=0;
-    info->update=HA_STATE_PREV_FOUND;
-    DBUG_RETURN(heap_rnext(info,record));
+    /* We can't scan a non existing key value with hash index */
+    my_errno= HA_ERR_WRONG_COMMAND;
+    DBUG_RETURN(my_errno);
   }
 }

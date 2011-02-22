@@ -34,7 +34,7 @@ SET DEBUG_SYNC = 'multi_update_reopen_tables SIGNAL parked WAIT_FOR go';
 
 connection con1;
 let $wait_condition= SELECT 1 FROM information_schema.processlist WHERE ID = $ID AND
-state = "Locked";
+state = "Table lock";
 --source include/wait_condition.inc
 DROP TABLE t1, t2;
 SET DEBUG_SYNC = 'now WAIT_FOR parked';

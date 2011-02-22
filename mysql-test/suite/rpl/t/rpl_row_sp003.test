@@ -10,6 +10,7 @@
 -- source include/have_binlog_format_row.inc
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
+--source include/long_test.inc
 -- source include/master-slave.inc
 
 let $engine_type=INNODB;

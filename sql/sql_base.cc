@@ -22,6 +22,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "sql_trigger.h"
+#include "sql_handler.h"
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>

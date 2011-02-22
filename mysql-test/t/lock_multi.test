@@ -24,7 +24,7 @@ connection reader;
 # Sleep a bit till the update of connection writer is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update low_priority t1 set n = 4";
+  where state = "Table lock" and info = "update low_priority t1 set n = 4";
 --source include/wait_condition.inc
 send
 select n from t1;
@@ -32,7 +32,7 @@ connection locker;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "select n from t1";
+  where state = "Table lock" and info = "select n from t1";
 --source include/wait_condition.inc
 unlock tables;
 connection writer;
@@ -52,7 +52,7 @@ connection reader;
 # Sleep a bit till the update of connection writer is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update low_priority t1 set n = 4";
+  where state = "Table Lock" and info = "update low_priority t1 set n = 4";
 --source include/wait_condition.inc
 select n from t1;
 connection locker;
@@ -96,7 +96,7 @@ insert t1 select * from t2;
 connection locker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert t1 select * from t2";
+  where state = "Table Lock" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
 connection reader;
@@ -120,7 +120,7 @@ connection locker;
 # Sleep a bit till the insert of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert t1 select * from t2";
+  where state = "Table Lock" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
 connection reader;
@@ -299,7 +299,7 @@ connection reader;
 # Wait till connection writer is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "alter table t1 auto_increment=0";
+  where state = "Table Lock" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 send
 alter table t1 auto_increment=0;
@@ -307,7 +307,7 @@ connection locker;
 # Wait till connection reader is blocked
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
-  where state = "Locked" and info = "alter table t1 auto_increment=0";
+  where state = "Table Lock" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 unlock tables;
 connection writer;
@@ -462,16 +462,16 @@ update t1 set i= 10;
 connection reader;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update t1 set i= 10";
+  where state = "Table Lock" and info = "update t1 set i= 10";
 --source include/wait_condition.inc
 send
 select * from t1;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "select * from t1";
+  where state = "Table Lock" and info = "select * from t1";
 --source include/wait_condition.inc
-let $ID= `select id from information_schema.processlist where state = "Locked" and info = "update t1 set i= 10"`;
+let $ID= `select id from information_schema.processlist where state = "Table Lock" and info = "update t1 set i= 10"`;
 --replace_result $ID ID
 eval kill query $ID;
 connection reader;
@@ -483,22 +483,6 @@ connection locker;
 unlock tables;
 connection default;
 drop table t1;
-
-#
-# Bug#25856 HANDLER table OPEN in one connection lock DROP TABLE in another one
-#
---disable_warnings
-drop table if exists t1;
---enable_warnings
-create table t1 (a int) ENGINE=MEMORY;
---echo --> client 2
-connection locker;
---error ER_ILLEGAL_HA
-handler t1 open;
---echo --> client 1
-connection default;
-drop table t1;
-
 
 # Disconnect sessions used in many subtests above
 disconnect locker;
@@ -622,7 +606,7 @@ connection waiter;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert into t1 values(1)";
+  where state = "Table Lock" and info = "insert into t1 values(1)";
 --source include/wait_condition.inc
 let $tlwb= `show status like 'Table_locks_waited'`;
 unlock tables;

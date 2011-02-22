@@ -122,7 +122,7 @@ connection default;
 --echo ** Wait till con0 is blocked **
 let $wait_condition=
    SELECT COUNT(*) = 1 FROM information_schema.processlist
-   WHERE state = 'Locked' AND info = '$my_select';
+   WHERE state = "Table Lock" AND info = '$my_select';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -207,7 +207,7 @@ connection default;
 --echo ** Wait till con0 is blocked **
 let $wait_condition=
    SELECT COUNT(*) = 1 FROM information_schema.processlist
-   WHERE state = 'Locked' AND info = '$my_select';
+   WHERE state = "Table Lock" AND info = '$my_select';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 

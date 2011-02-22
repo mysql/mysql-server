@@ -64,12 +64,12 @@ connection user3;
 # The values marked with 'X' must be reached.
 --echo # Poll till the select of connection user1 is blocked by the write lock on t1.
 let $wait_condition= SELECT COUNT(*) = 1 FROM information_schema.processlist
-WHERE state = 'Locked'
+WHERE state = "Table Lock"
   AND info = '$select_for_qc';
 --source include/wait_condition.inc
 eval
 SELECT user,command,state,info FROM information_schema.processlist
-WHERE state = 'Locked'
+WHERE state = "Table Lock"
   AND info = '$select_for_qc';
 INSERT INTO t1 VALUES (4);
 

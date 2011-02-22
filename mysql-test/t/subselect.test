@@ -4230,6 +4230,21 @@ deallocate prepare stmt1;
 
 drop table t1,t2;
 
+--echo #
+--echo # Bug LP#693935/#58727: Assertion failure with 
+--echo # a single row subquery returning more than one row
+--echo #
+
+create table t1 (a char(1) charset utf8);
+insert into t1 values ('a'), ('b');
+create table t2 (a binary(1));
+insert into t2 values ('x'), ('y');
+
+-- error ER_SUBQUERY_NO_1_ROW
+select * from t2 where a=(select a from t1) and a='x';
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
 
 --echo #

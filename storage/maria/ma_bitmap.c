@@ -399,7 +399,8 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
       become false, wake them up.
     */
     DBUG_PRINT("info", ("bitmap flusher waking up others"));
-    pthread_cond_broadcast(&bitmap->bitmap_cond);
+    if (bitmap->flush_all_requested)
+      pthread_cond_broadcast(&bitmap->bitmap_cond);
   }
   pthread_mutex_unlock(&bitmap->bitmap_lock);
   DBUG_RETURN(res);
@@ -465,7 +466,8 @@ void _ma_bitmap_unlock(MARIA_SHARE *share)
   bitmap->flush_all_requested--;
   bitmap->non_flushable= 0;
   pthread_mutex_unlock(&bitmap->bitmap_lock);
-  pthread_cond_broadcast(&bitmap->bitmap_cond);
+  if (bitmap->flush_all_requested > 0)
+    pthread_cond_broadcast(&bitmap->bitmap_cond);
   DBUG_VOID_RETURN;
 }
 

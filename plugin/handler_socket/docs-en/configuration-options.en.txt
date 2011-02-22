@@ -1,0 +1,87 @@
+
+-----------------------------------------------------------------
+handlersocket_verbose (default = 10, min = 0, max = 10000)
+
+  Specify the logging verboseness.
+
+-----------------------------------------------------------------
+handlersocket_address (default = '')
+
+  Specify the address to bind. If empty, it binds to 0.0.0.0.
+
+-----------------------------------------------------------------
+handlersocket_port (default = '9998')
+
+  Specify the port to bind. This option is for the listener for
+  read requests. If empty, the listener is disabled.
+
+-----------------------------------------------------------------
+handlersocket_port_wr (default = '9999')
+
+  Specify the port to bind. This option is for the listener for
+  write requests. If empty, the listener is disabled.
+
+-----------------------------------------------------------------
+handlersocket_epoll (default = 1, min = 0, max = 1)
+
+  Specify whether handlersocket uses epoll for I/O multiplexing.
+
+-----------------------------------------------------------------
+handlersocket_threads (default = 16, min = 1, max = 3000)
+
+  Specify the number of handlersocket worker threads. This option
+  is for the listener for read requests. Recommended value is
+  (the number of CPU cores * 2).
+
+-----------------------------------------------------------------
+handlersocket_threads_wr (default = 1, min = 1, max = 3000)
+
+  Specify the number of handlersocket worker threads. This option
+  is for the listener for write requests. Recommended value is 1.
+
+-----------------------------------------------------------------
+handlersocket_timeout (default = 300, min = 30, max = 3600)
+
+  Specify the socket timeout in seconds.
+
+-----------------------------------------------------------------
+handlersocket_backlog (default = 32768, min = 5, max = 1000000)
+
+  Specify the length of the listen backlog.
+
+-----------------------------------------------------------------
+handlersocket_sndbuf (default = 0, min = 0, max = 1677216)
+
+  Specify the maximum socket send buffer in bytes. If 0, the
+  system-wide default value is set.
+
+-----------------------------------------------------------------
+handlersocket_rcvbuf (default = 0, min = 0, max = 1677216)
+
+  Specify the maximum socket receive buffer in bytes. If 0, the
+  system-wide default value is set.
+
+-----------------------------------------------------------------
+handlersocket_readsize (default = 0, min = 0, max = 1677216)
+
+  Specify the minimum length of the handlersocket request buffer.
+  Larger value can make handlersocket faster for large requests,
+  but can consume memory. The default value is possibly 4096.
+
+-----------------------------------------------------------------
+handlersocket_accept_balance (default = 0, min = 0, max = 10000)
+
+  When this option is set to non-zero, handlersocket tries to
+  balance accepted connections among threads. Non-zero is
+  recommended if you use persistent connections (i.e., connection
+  pooling on the client side).
+
+-----------------------------------------------------------------
+handlersocket_wrlock_timeout (default = 12, min = 0, max = 3600)
+
+  Specify the lock timeout in seconds. When a write request is
+  performed, handlersocket locks an advisory lock named
+  'handlersocket_wr'. This option sets the timeout for the
+  locking.
+
+

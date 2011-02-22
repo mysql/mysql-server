@@ -36,7 +36,7 @@
 
 uint thr_client_alarm;
 static int alarm_aborted=1;			/* No alarm thread */
-my_bool thr_alarm_inited= 0;
+my_bool thr_alarm_inited= 0, my_disable_thr_alarm= 0;
 volatile my_bool alarm_thread_running= 0;
 time_t next_alarm_expire_time= ~ (time_t) 0;
 static sig_handler process_alarm_part2(int sig);
@@ -173,6 +173,21 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   DBUG_ENTER("thr_alarm");
   DBUG_PRINT("enter",("thread: %s  sec: %d",my_thread_name(),sec));
 
+  if (my_disable_thr_alarm)
+  {
+    (*alrm)= &alarm_data->alarmed;
+    alarm_data->alarmed= 1;                 /* Abort if interrupted */
+    DBUG_RETURN(0);
+  }
+
+  if (unlikely(alarm_aborted))
+  {					/* No signal thread */
+    DBUG_PRINT("info", ("alarm aborted"));
+    if (alarm_aborted > 0)
+      goto abort_no_unlock;
+    sec= 1;					/* Abort mode */
+  }
+
   now= my_time(0);
   if (!alarm_data)
   {
@@ -190,13 +205,6 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 
   one_signal_hand_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
   pthread_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
-  if (unlikely(alarm_aborted))
-  {					/* No signal thread */
-    DBUG_PRINT("info", ("alarm aborted"));
-    if (alarm_aborted > 0)
-      goto abort;
-    sec= 1;					/* Abort mode */
-  }
   if (alarm_queue.elements >= max_used_alarms)
   {
     if (alarm_queue.elements == alarm_queue.max_elements)
@@ -251,6 +259,8 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 #endif
   DBUG_ENTER("thr_end_alarm");
 
+  if (my_disable_thr_alarm)
+    DBUG_VOID_RETURN;
   one_signal_hand_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
   alarm_data= (ALARM*) ((uchar*) *alarmed - offsetof(ALARM,alarmed));
   pthread_mutex_lock(&LOCK_alarm);

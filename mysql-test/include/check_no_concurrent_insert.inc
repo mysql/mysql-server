@@ -43,7 +43,7 @@ connection default;
 # of our statement.
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert into $table (i) values (0)";
+  where state = "Table lock" and info = "insert into $table (i) values (0)";
 --source include/wait_condition.inc
 
 --disable_result_log

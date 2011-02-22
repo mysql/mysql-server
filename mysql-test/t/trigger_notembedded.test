@@ -916,7 +916,7 @@ INSERT INTO t1 VALUES (5);
 CONNECTION rl_contender;
 # Wait until wl_acquirer is waiting for the read lock on t2 to be released.
 let $wait_condition=
-  SELECT STATE = 'Locked' FROM INFORMATION_SCHEMA.PROCESSLIST
+  SELECT STATE = "Table Lock" FROM INFORMATION_SCHEMA.PROCESSLIST
    WHERE ID = $wl_acquirer_thread_id;
 --source include/wait_condition.inc
 # must not "see" the row inserted by the INSERT (as it must run before the

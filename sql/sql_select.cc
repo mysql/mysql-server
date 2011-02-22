@@ -5535,7 +5535,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 
     All other cases are in-between these two extremes. Thus the parameter
     'search_depth' controlls the exhaustiveness of the search. The higher the
-    value, the longer the optimizaton time and possibly the better the
+    value, the longer the optimization time and possibly the better the
     resulting plan. The lower the value, the fewer alternative plans are
     estimated, but the more likely to get a bad QEP.
 
@@ -13119,6 +13119,11 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
     DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
     if (write_err)
       goto err;
+    if (thd->killed)
+    {
+      thd->send_kill_message();
+      goto err_killed;
+    }
   }
   if (!new_table.no_rows && new_table.file->ha_end_bulk_insert())
     goto err;
@@ -13151,6 +13156,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
  err:
   DBUG_PRINT("error",("Got error: %d",write_err));
   table->file->print_error(write_err, MYF(0));
+err_killed:
   (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
