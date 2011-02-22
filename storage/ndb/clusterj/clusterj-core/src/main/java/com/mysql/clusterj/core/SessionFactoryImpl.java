@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJFatalException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJHelper;
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
@@ -89,25 +90,44 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     static final protected Map<String, SessionFactoryImpl> sessionFactoryMap =
             new HashMap<String, SessionFactoryImpl>();
 
-    /** Get a session factory. If there is already a session factory
+    /** The key for this factory */
+    final String key;
+
+    /** Get a session factory. If using connection pooling and there is already a session factory
      * with the same connect string and database, return it, regardless of whether other
      * properties of the factory are the same as specified in the Map.
+     * If not using connection pooling (maximum sessions per connection == 0), create a new session factory.
      * @param props properties of the session factory
      * @return the session factory
      */
-    static public synchronized SessionFactoryImpl getSessionFactory(Map<String, String> props) {
-        String clusterConnectString = 
-                getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
-        String clusterDatabase = getStringProperty(props, PROPERTY_CLUSTER_DATABASE,
-                Constants.DEFAULT_PROPERTY_CLUSTER_DATABASE);
-        String sessionFactoryKey = clusterConnectString + "+" + clusterDatabase;
-        SessionFactoryImpl result = sessionFactoryMap.get(sessionFactoryKey);
-        if (result == null) {
-            logger.info("SessionFactoryImpl creating new SessionFactory with key " + sessionFactoryKey);
+    static public SessionFactoryImpl getSessionFactory(Map<String, String> props) {
+        int maximumSessionsPerConnection = getIntProperty(props, 
+                PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION, DEFAULT_PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION);
+        String sessionFactoryKey = getSessionFactoryKey(props);
+        
+        SessionFactoryImpl result = null;
+        if (maximumSessionsPerConnection != 0) {
+            // if using connection pooling, see if already a session factory created
+            synchronized(sessionFactoryMap) {
+                result = sessionFactoryMap.get(sessionFactoryKey);
+                if (result == null) {
+                    logger.info("SessionFactoryImpl creating new SessionFactory with key " + sessionFactoryKey);
+                    result = new SessionFactoryImpl(props);
+                    sessionFactoryMap.put(sessionFactoryKey, result);
+                }
+            }
+        } else {
             result = new SessionFactoryImpl(props);
-            sessionFactoryMap.put(sessionFactoryKey, result);
         }
         return result;
+    }
+
+    private static String getSessionFactoryKey(Map<String, String> props) {
+        String clusterConnectString = 
+            getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
+        String clusterDatabase = getStringProperty(props, PROPERTY_CLUSTER_DATABASE,
+                Constants.DEFAULT_PROPERTY_CLUSTER_DATABASE);
+        return clusterConnectString + "+" + clusterDatabase;
     }
 
     /** Create a new SessionFactoryImpl from the properties in the Map, and
@@ -117,6 +137,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      */
     protected SessionFactoryImpl(Map<String, String> props) {
         this.props = props;
+        this.key = getSessionFactoryKey(props);
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
         CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES,
                 Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES);
@@ -174,12 +195,24 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      */
     public Session getSession(Map properties) {
         try {
-            Db db = clusterConnection.createDb(CLUSTER_DATABASE, CLUSTER_MAX_TRANSACTIONS);
+            Db db = null;
+            synchronized(this) {
+                checkConnection();
+                db = clusterConnection.createDb(CLUSTER_DATABASE, CLUSTER_MAX_TRANSACTIONS);
+            }
             Dictionary dictionary = db.getDictionary();
             return new SessionImpl(this, properties, db, dictionary);
+        } catch (ClusterJException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new ClusterJFatalException(
                     local.message("ERR_Create_Ndb"), ex);
+        }
+    }
+
+    private void checkConnection() {
+        if (clusterConnection == null) {
+            throw new ClusterJUserException(local.message("ERR_Session_Factory_Closed"));
         }
     }
 
@@ -207,6 +240,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     @SuppressWarnings( "unchecked" )
     public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls,
             Dictionary dictionary) {
+        checkConnection();
         DomainTypeHandler<T> domainTypeHandler;
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
@@ -256,11 +290,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     public <T> T newInstance(Class<T> cls, Dictionary dictionary) {
+        checkConnection();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls, dictionary);
         return domainTypeHandler.newInstance();
     }
 
     public Table getTable(String tableName, Dictionary dictionary) {
+        checkConnection();
         Table result;
         try {
             result = dictionary.getTable(tableName);
@@ -348,8 +384,16 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         }
     }
 
-    public void close() {
-        // TODO: What should this do?
+    public synchronized void close() {
+        // if already closed, we're done
+        if (clusterConnection != null) {
+            clusterConnection.close();
+            clusterConnection = null;
+            synchronized(sessionFactoryMap) {
+                // now remove this from the map
+                sessionFactoryMap.remove(key);
+            }
+        }
     }
 
     public void setDomainTypeHandlerFactory(DomainTypeHandlerFactory domainTypeHandlerFactory) {
