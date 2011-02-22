@@ -1,3 +1,7 @@
+######################################################################
+# Test restoring backups of older/packed formats
+######################################################################
+
 -- source include/have_ndb.inc
 -- source include/have_case_sensitive_file_system.inc
 
