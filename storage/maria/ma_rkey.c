@@ -44,7 +44,7 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
 
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->last_key_func= search_flag;
-  keyinfo= share->keyinfo + inx;
+  keyinfo= info->last_key.keyinfo;
 
   key_buff= info->lastkey_buff+info->s->base.max_key_length;
 

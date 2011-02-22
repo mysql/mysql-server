@@ -38,12 +38,18 @@ int _ma_check_index(MARIA_HA *info, int inx)
   if (info->lastinx != inx)             /* Index changed */
   {
     info->lastinx = inx;
+    info->last_key.keyinfo= info->s->keyinfo + inx;
+    info->last_key.flag= 0;
     info->page_changed=1;
     info->update= ((info->update & (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED)) |
                    HA_STATE_NEXT_FOUND | HA_STATE_PREV_FOUND);
   }
-  if (info->opt_flag & WRITE_CACHE_USED && flush_io_cache(&info->rec_cache))
+  if ((info->opt_flag & WRITE_CACHE_USED) && flush_io_cache(&info->rec_cache))
+  {
+    if (unlikely(!my_errno))
+      my_errno= HA_ERR_INTERNAL_ERROR;          /* Impossible */
     return(-1);
+  }
   return(inx);
 } /* _ma_check_index */
 
@@ -95,6 +101,7 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
 
    @note
      Position to row is stored in info->lastpos
+     Last used key is stored in info->last_key
 
    @return
    @retval  0   ok (key found)
@@ -120,6 +127,7 @@ static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
                       (ulong) (pos / info->s->block_size),
                       nextflag, (ulong) info->cur_row.lastpos));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE, key););
+  DBUG_ASSERT(info->last_key.keyinfo == key->keyinfo);
 
   if (pos == HA_OFFSET_ERROR)
   {
@@ -184,7 +192,6 @@ static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
     }
   }
 
-  info->last_key.keyinfo= keyinfo;
   if ((nextflag & (SEARCH_SMALLER | SEARCH_LAST)) && flag != 0)
   {
     uint not_used[2];
@@ -1702,7 +1709,7 @@ int _ma_search_next(register MARIA_HA *info, MARIA_KEY *key,
   }
 
   tmp_key.data=   lastkey;
-  info->last_key.keyinfo= tmp_key.keyinfo= keyinfo;
+  tmp_key.keyinfo= keyinfo;
 
   if (nextflag & SEARCH_BIGGER)                                 /* Next key */
   {
@@ -1784,8 +1791,6 @@ int _ma_search_first(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     first_pos= page.buff + share->keypage_header + page.node;
   } while ((pos= _ma_kpos(page.node, first_pos)) != HA_OFFSET_ERROR);
 
-  info->last_key.keyinfo= keyinfo;
-
   if (!(*keyinfo->get_key)(&info->last_key, page.flag, page.node, &first_pos))
     DBUG_RETURN(-1);                            /* Crashed */
 
@@ -1835,8 +1840,6 @@ int _ma_search_last(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     }
     end_of_page= page.buff + page.size;
   } while ((pos= _ma_kpos(page.node, end_of_page)) != HA_OFFSET_ERROR);
-
-  info->last_key.keyinfo= keyinfo;
 
   if (!_ma_get_last_key(&info->last_key, &page, end_of_page))
     DBUG_RETURN(-1);

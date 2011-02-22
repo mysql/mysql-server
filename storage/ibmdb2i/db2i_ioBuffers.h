@@ -290,7 +290,7 @@ class IOAsyncReadBuffer : public IOReadBuffer
       Return a pointer to the next row in the table, where "next" is defined
       by the orientation.
       
-      @param orientaton
+      @param orientation
       @param[out] rrn The relative record number of the row returned. Not reliable
                       if NULL is returned by this function.
       

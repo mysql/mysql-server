@@ -1343,7 +1343,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 
 
 /* THESE ARE COPIED FROM NON-HOTBACKUP PART OF THE INNODB SOURCE TREE
-   (This code duplicaton should be fixed at some point!)
+   (This code duplication should be fixed at some point!)
 */
 
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */

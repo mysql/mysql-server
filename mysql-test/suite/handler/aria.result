@@ -1,56 +1,53 @@
-SET SESSION STORAGE_ENGINE = MyISAM;
+SET SESSION STORAGE_ENGINE = Aria;
 drop table if exists t1,t3,t4,t5;
-create table t1 (a int, b char(10), key a(a), key b(a,b));
+create table t1 (a int, b char(10), key a  (a), key b  (a,b));
 insert into t1 values
 (17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
-(14,"aaa"),(15,"bbb"),(16,"ccc"),(16,"xxx"),
+(14,"aaa"),(16,"ccc"),(16,"xxx"),
 (20,"ggg"),(21,"hhh"),(22,"iii");
 handler t1 open as t2;
-handler t2 read a=(SELECT 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1
-handler t2 read a first;
+handler t2 read b first;
 a	b
 14	aaa
-handler t2 read a next;
-a	b
-15	bbb
-handler t2 read a next;
+handler t2 read b next;
 a	b
 16	ccc
-handler t2 read a prev;
+handler t2 read b next;
 a	b
-15	bbb
-handler t2 read a last;
+16	xxx
+handler t2 read b prev;
+a	b
+16	ccc
+handler t2 read b last;
 a	b
 22	iii
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 21	hhh
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 20	ggg
-handler t2 read a first;
+handler t2 read b first;
 a	b
 14	aaa
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
-handler t2 read a last;
+handler t2 read b last;
 a	b
 22	iii
-handler t2 read a prev;
+handler t2 read b prev;
 a	b
 21	hhh
-handler t2 read a next;
+handler t2 read b next;
 a	b
 22	iii
-handler t2 read a next;
+handler t2 read b next;
 a	b
 handler t2 read a=(15);
 a	b
-15	bbb
-handler t2 read a=(16);
+handler t2 read a=(21);
 a	b
-16	ccc
+21	hhh
 handler t2 read a=(19,"fff");
 ERROR 42000: Too many key parts specified; max 1 parts allowed
 handler t2 read b=(19,"fff");
@@ -69,49 +66,93 @@ a	b
 handler t2 read a>=(11);
 a	b
 14	aaa
-handler t2 read a=(18);
+handler t2 read b=(18);
 a	b
 18	eee
-handler t2 read a>=(18);
+handler t2 read b>=(18);
 a	b
 18	eee
-handler t2 read a>(18);
+handler t2 read b>(18);
 a	b
 19	fff
-handler t2 read a<=(18);
+handler t2 read b<=(18);
 a	b
 18	eee
-handler t2 read a<(18);
+handler t2 read b<(18);
 a	b
 17	ddd
-handler t2 read a first limit 5;
+handler t2 read a=(15);
+a	b
+handler t2 read a>=(15) limit 2;
+a	b
+16	ccc
+16	xxx
+handler t2 read a>(15) limit 2;
+a	b
+16	ccc
+16	xxx
+handler t2 read a<=(15);
 a	b
 14	aaa
-15	bbb
+handler t2 read a<(15);
+a	b
+14	aaa
+handler t2 read a=(54);
+a	b
+handler t2 read a>=(54);
+a	b
+handler t2 read a>(54);
+a	b
+handler t2 read a<=(54);
+a	b
+22	iii
+handler t2 read a<(54);
+a	b
+22	iii
+handler t2 read a=(1);
+a	b
+handler t2 read a>=(1);
+a	b
+14	aaa
+handler t2 read a>(1);
+a	b
+14	aaa
+handler t2 read a<=(1);
+a	b
+handler t2 read a<(1);
+a	b
+handler t2 read b first limit 5;
+a	b
+14	aaa
 16	ccc
 16	xxx
 17	ddd
-handler t2 read a next  limit 3;
-a	b
 18	eee
+handler t2 read b next  limit 3;
+a	b
 19	fff
 19	yyy
-handler t2 read a prev  limit 10;
+20	ggg
+handler t2 read b prev  limit 10;
 a	b
+19	yyy
 19	fff
 18	eee
 17	ddd
 16	xxx
 16	ccc
-15	bbb
 14	aaa
-handler t2 read a>=(16) limit 4;
+handler t2 read b>=(16) limit 4;
 a	b
 16	ccc
 16	xxx
 17	ddd
 18	eee
-handler t2 read a>=(16) limit 2,2;
+handler t2 read b>=(16) limit 2,2;
+a	b
+17	ddd
+18	eee
+select * from t1 where a>=16 order by a,b limit 2,2;
 a	b
 17	ddd
 18	eee
@@ -120,10 +161,13 @@ a	b
 22	iii
 21	hhh
 20	ggg
-handler t2 read a=(19);
+handler t2 read b=(16) limit 1,3;
+a	b
+16	xxx
+handler t2 read b=(19);
 a	b
 19	fff
-handler t2 read a=(19) where b="yyy";
+handler t2 read b=(19) where b="yyy";
 a	b
 19	yyy
 handler t2 read first;
@@ -135,16 +179,14 @@ a	b
 handler t2 read next;
 a	b
 19	fff
-handler t2 read last;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 handler t2 close;
 handler t1 open;
-handler t1 read a next;
+handler t1 read b next;
 a	b
 14	aaa
-handler t1 read a next;
+handler t1 read b next;
 a	b
-15	bbb
+16	ccc
 handler t1 close;
 handler t1 open;
 handler t1 read a prev;
@@ -158,17 +200,138 @@ handler t1 open as t2;
 handler t2 read first;
 a	b
 17	ddd
-alter table t1 engine = MyISAM;
+alter table t1 engine = Aria;
 handler t2 read first;
 ERROR 42S02: Unknown table 't2' in HANDLER
+handler t1 open;
+handler t1 read a=(16) limit 1,3;
+a	b
+16	xxx
+flush tables;
+handler t1 read a=(16) limit 1,3;
+a	b
+16	xxx
+handler t1 close;
+handler t1 open;
+prepare stmt from 'handler t1 read a=(?) limit ?,?';
+set @a=16,@b=1,@c=100;
+execute stmt using @a,@b,@c;
+a	b
+16	xxx
+set @a=16,@b=2,@c=1;
+execute stmt using @a,@b,@c;
+a	b
+set @a=16,@b=0,@c=2;
+execute stmt using @a,@b,@c;
+a	b
+16	ccc
+16	xxx
+deallocate prepare stmt;
+prepare stmt from 'handler t1 read a next limit ?';
+handler t1 read a>=(11);
+a	b
+14	aaa
+set @a=3;
+execute stmt using @a;
+a	b
+16	ccc
+16	xxx
+17	ddd
+execute stmt using @a;
+a	b
+18	eee
+19	fff
+19	yyy
+execute stmt using @a;
+a	b
+20	ggg
+21	hhh
+22	iii
+deallocate prepare stmt;
+prepare stmt from 'handler t1 read b prev limit ?';
+execute stmt using @a;
+a	b
+22	iii
+21	hhh
+20	ggg
+execute stmt using @a;
+a	b
+19	yyy
+19	fff
+18	eee
+execute stmt using @a;
+a	b
+17	ddd
+16	xxx
+16	ccc
+execute stmt using @a;
+a	b
+14	aaa
+deallocate prepare stmt;
+prepare stmt from 'handler t1 read b=(?,?)';
+set @a=14, @b='aaa';
+execute stmt using @a,@b;
+a	b
+14	aaa
+set @a=14, @b='not found';
+execute stmt using @a,@b;
+a	b
+deallocate prepare stmt;
+prepare stmt from 'handler t1 read b=(1+?) limit 10';
+set @a=15;
+execute stmt using @a;
+a	b
+16	ccc
+16	xxx
+execute stmt using @a;
+a	b
+16	ccc
+16	xxx
+deallocate prepare stmt;
+prepare stmt from 'handler t1 read a>=(?) where a < ? limit 5';
+set @a=15, @b=20;
+execute stmt using @a,@b;
+a	b
+16	ccc
+16	xxx
+17	ddd
+18	eee
+19	fff
+execute stmt using @a,@b;
+a	b
+16	ccc
+16	xxx
+17	ddd
+18	eee
+19	fff
+deallocate prepare stmt;
+prepare stmt from 'handler t1 read a=(?)';
+set @a=16;
+execute stmt using @a;
+a	b
+16	ccc
+alter table t1 add c int;
+execute stmt using @a;
+ERROR 42S02: Unknown table 't1' in HANDLER
+deallocate prepare stmt;
+handler t1 close;
+ERROR 42S02: Unknown table 't1' in HANDLER
+handler t1 open;
+prepare stmt from 'handler t1 read a=(?)';
+flush tables;
+set @a=16;
+execute stmt using @a;
+ERROR HY000: Prepared statement needs to be re-prepared
+deallocate prepare stmt;
+handler t1 close;
 handler t1 open as t2;
 drop table t1;
-create table t1 (a int);
+create table t1 (a int not null);
 insert into t1 values (17);
 handler t2 read first;
 ERROR 42S02: Unknown table 't2' in HANDLER
 handler t1 open as t2;
-alter table t1 engine=MEMORY;
+alter table t1 engine=CSV;
 handler t2 read first;
 ERROR 42S02: Unknown table 't2' in HANDLER
 drop table t1;
@@ -191,7 +354,7 @@ handler t1 read first;
 a
 6
 drop table t1;
-create table t1(a int, index(a));
+create table t1(a int, index  (a));
 insert into t1 values (1), (2), (3);
 handler t1 open;
 handler t1 read a=(W);
@@ -217,7 +380,7 @@ Ok
 handler t close;
 use test;
 drop table t1;
-create table t1 ( a int, b int, INDEX a (a) );
+create table t1 ( a int, b int, INDEX a  (a) );
 insert into t1 values (1,2), (2,1);
 handler t1 open;
 handler t1 read a=(1) where b=2;
@@ -229,148 +392,6 @@ handler t1 read a=(1) where b=1;
 a	b
 handler t1 close;
 drop table t1;
-drop database if exists test_test;
-create database test_test;
-use test_test;
-create table t1(table_id char(20) primary key);
-insert into t1 values ('test_test.t1');
-insert into t1 values ('');
-handler t1 open;
-handler t1 read first limit 9;
-table_id
-test_test.t1
-
-create table t2(table_id char(20) primary key);
-insert into t2 values ('test_test.t2');
-insert into t2 values ('');
-handler t2 open;
-handler t2 read first limit 9;
-table_id
-test_test.t2
-
-use test;
-drop table if exists t1;
-create table t1(table_id char(20) primary key);
-insert into t1 values ('test.t1');
-insert into t1 values ('');
-handler t1 open;
-ERROR 42000: Not unique table/alias: 't1'
-use test;
-handler test.t1 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
-handler test_test.t1 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
-handler t1 read first limit 9;
-table_id
-test_test.t1
-
-handler test_test.t2 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
-handler t2 read first limit 9;
-table_id
-test_test.t2
-
-handler test_test.t1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
-handler t1 close;
-drop table test_test.t1;
-handler test_test.t2 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
-handler t2 close;
-drop table test_test.t2;
-drop database test_test;
-use test;
-handler test.t1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
-handler t1 close;
-ERROR 42S02: Unknown table 't1' in HANDLER
-drop table test.t1;
-drop database if exists test_test;
-drop table if exists t1;
-drop table if exists t2;
-drop table if exists t3;
-create database test_test;
-use test_test;
-create table t1 (c1 char(20));
-insert into t1 values ('test_test.t1');
-create table t3 (c1 char(20));
-insert into t3 values ('test_test.t3');
-handler t1 open;
-handler t1 read first limit 9;
-c1
-test_test.t1
-handler t1 open h1;
-handler h1 read first limit 9;
-c1
-test_test.t1
-use test;
-create table t1 (c1 char(20));
-create table t2 (c1 char(20));
-create table t3 (c1 char(20));
-insert into t1 values ('t1');
-insert into t2 values ('t2');
-insert into t3 values ('t3');
-handler t1 open;
-ERROR 42000: Not unique table/alias: 't1'
-handler t2 open t1;
-ERROR 42000: Not unique table/alias: 't1'
-handler t3 open t1;
-ERROR 42000: Not unique table/alias: 't1'
-handler t1 read first limit 9;
-c1
-test_test.t1
-handler test.t1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
-handler test.t1 open h1;
-ERROR 42000: Not unique table/alias: 'h1'
-handler test_test.t1 open h1;
-ERROR 42000: Not unique table/alias: 'h1'
-handler test_test.t3 open h3;
-handler test.t1 open h2;
-handler t1 read first limit 9;
-c1
-test_test.t1
-handler h1 read first limit 9;
-c1
-test_test.t1
-handler h2 read first limit 9;
-c1
-t1
-handler h3 read first limit 9;
-c1
-test_test.t3
-handler h2 read first limit 9;
-c1
-t1
-handler test.h1 close;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'close' at line 1
-handler t1 close;
-handler h1 close;
-handler h2 close;
-handler t1 read first limit 9;
-ERROR 42S02: Unknown table 't1' in HANDLER
-handler h1 read first limit 9;
-ERROR 42S02: Unknown table 'h1' in HANDLER
-handler h2 read first limit 9;
-ERROR 42S02: Unknown table 'h2' in HANDLER
-handler h3 read first limit 9;
-c1
-test_test.t3
-handler h3 read first limit 9;
-c1
-test_test.t3
-use test_test;
-handler h3 read first limit 9;
-c1
-test_test.t3
-handler test.h3 read first limit 9;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read first limit 9' at line 1
-handler h3 close;
-use test;
-drop table t3;
-drop table t2;
-drop table t1;
-drop database test_test;
 create table t1 (c1 char(20));
 insert into t1 values ("t1");
 handler t1 open as h1;
@@ -457,7 +478,7 @@ t1
 handler h1_3 read first limit 9;
 c1
 t1
-alter table t1 engine=MyISAM;
+alter table t1 engine=Aria;
 handler h1_1 read first limit 9;
 ERROR 42S02: Unknown table 'h1_1' in HANDLER
 handler h1_2 read first limit 9;
@@ -495,6 +516,11 @@ no1	no2
 HANDLER t1 READ `primary` PREV;
 no1	no2
 1	275
+HANDLER t1 READ `primary` = (1, 1000);
+no1	no2
+HANDLER t1 READ `primary` NEXT;
+no1	no2
+2	6
 DROP TABLE t1;
 create table t1 (c1 int);
 insert into t1 values (14397);
@@ -515,14 +541,12 @@ ERROR 42S02: Table 'test.t1' doesn't exist
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 't1'
-drop table if exists t1;
-create table t1 (a int) ENGINE=MEMORY;
+create table t1 (a int not null) ENGINE=CSV;
 --> client 2
 handler t1 open;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 --> client 1
 drop table t1;
-drop table if exists t1;
 create table t1 (a int);
 handler t1 open as t1_alias;
 handler t1_alias read a next;
@@ -535,50 +559,9 @@ handler t1_alias READ a next where inexistent > 0;
 ERROR 42S22: Unknown column 'inexistent' in 'field list'
 handler t1_alias close;
 drop table t1;
-drop table if exists t1,t2;
-create table t1 (c1 int);
-create table t2 (c1 int);
-insert into t1 values (1);
-insert into t2 values (2);
-connection: default
-handler t1 open;
-handler t1 read first;
-c1
-1
-connection: flush
-flush tables;;
-connection: default
-handler t2 open;
-handler t2 read first;
-c1
-2
-handler t1 read next;
-c1
-1
-handler t1 close;
-handler t2 close;
-drop table t1,t2;
-drop table if exists t1,t2;
-create table t1 (c1 int);
-connection: default
-handler t1 open;
-handler t1 read first;
-c1
-connection: flush
-rename table t1 to t2;;
-connection: default
-handler t2 open;
-handler t2 read first;
-c1
-handler t1 read next;
-ERROR 42S02: Table 'test.t1' doesn't exist
-handler t1 close;
-handler t2 close;
-drop table t2;
-drop table if exists t1;
-create temporary table t1 (a int, b char(1), key a(a), key b(a,b));
+create temporary table t1 (a int, b char(1), key a  (a), key b  (a,b));
 insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
-(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
+(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j"),(9,'k');
 select a,b from t1;
 a	b
 0	a
@@ -591,24 +574,25 @@ a	b
 7	h
 8	i
 9	j
+9	k
 handler t1 open as a1;
-handler a1 read a first;
-a	b
-0	a
-handler a1 read a next;
+handler a1 read a=(1);
 a	b
 1	b
 handler a1 read a next;
 a	b
 2	c
+handler a1 read a next;
+a	b
+3	d
 select a,b from t1;
 ERROR HY000: Can't reopen table: 'a1'
 handler a1 read a prev;
 a	b
-1	b
+2	c
 handler a1 read a prev;
 a	b
-0	a
+1	b
 handler a1 read a=(6) where b="g";
 a	b
 6	g
@@ -625,39 +609,28 @@ a	b
 7	h
 8	i
 9	j
+9	k
 handler t1 open as a2;
-handler a2 read a first;
-a	b
-0	a
-handler a2 read a last;
+handler a2 read b=(9);
 a	b
 9	j
-handler a2 read a prev;
+handler a2 read b next;
 a	b
+9	k
+handler a2 read b prev limit 2;
+a	b
+9	j
 8	i
+handler a2 read b last;
+a	b
+9	k
+handler a2 read b prev;
+a	b
+9	j
 handler a2 close;
 drop table t1;
-drop table if exists t1,t2;
 create table t1 (a int);
-handler t1 open as t1_alias;
-drop table t1;
-create table t1 (a int);
-handler t1 open as t1_alias;
-flush tables;
-drop table t1;
-create table t1 (a int);
-handler t1 open as t1_alias;
-handler t1_alias close;
-drop table t1;
-create table t1 (a int);
-handler t1 open as t1_alias;
-handler t1_alias read first;
-a
-drop table t1;
-handler t1_alias read next;
-ERROR 42S02: Unknown table 't1_alias' in HANDLER
-create table t1 (a int);
-create temporary table t2 (a int, key(a));
+create temporary table t2 (a int, key  (a));
 handler t1 open as a1;
 handler t2 open as a2;
 handler a2 read a first;
@@ -667,7 +640,7 @@ handler a2 read a next;
 ERROR 42S02: Unknown table 'a2' in HANDLER
 handler a1 close;
 ERROR 42S02: Unknown table 'a1' in HANDLER
-create table t1 (a int, key(a));
+create table t1 (a int, key  (a));
 create table t2 like t1;
 handler t1 open as a1;
 handler t2 open as a2;
@@ -680,7 +653,7 @@ handler a1 close;
 ERROR 42S02: Unknown table 'a1' in HANDLER
 handler a2 close;
 drop table t1, t2;
-create table t1 (a int, key(a));
+create table t1 (a int, key  (a));
 handler t1 open as a1;
 handler a1 read a first;
 a
@@ -688,7 +661,7 @@ rename table t1 to t2;
 handler a1 read a first;
 ERROR 42S02: Unknown table 'a1' in HANDLER
 drop table t2;
-create table t1 (a int, key(a));
+create table t1 (a int, key  (a));
 create table t2 like t1;
 handler t1 open as a1;
 handler t2 open as a2;
@@ -703,44 +676,19 @@ handler a1 close;
 ERROR 42S02: Unknown table 'a1' in HANDLER
 handler a2 close;
 drop table t1, t2;
-create table t1 (a int, b char(1), key a(a), key b(a,b));
-insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
-(5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j");
-handler t1 open;
-handler t1 read a first;
-a	b
-0	a
-handler t1 read a next;
-a	b
-1	b
-flush tables;
-handler t1 read a next;
-a	b
-0	a
-handler t1 read a next;
-a	b
-1	b
-flush tables with read lock;
-handler t1 read a next;
-a	b
-0	a
-unlock tables;
-drop table t1;
-handler t1 read a next;
-ERROR 42S02: Unknown table 't1' in HANDLER
-drop table if exists t1;
-create table t1 (a int);
-insert into t1 values (1);
-handler t1 open;
-alter table t1 engine=memory;
-handler t1 read a next;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-handler t1 close;
-drop table t1;
-USE information_schema;
-HANDLER COLUMNS OPEN;
-ERROR HY000: Incorrect usage of HANDLER OPEN and information_schema
-USE test;
+#
+# BUG#51877 - HANDLER interface causes invalid memory read
+#
+CREATE TABLE t1(a INT, KEY  (a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+a
+INSERT INTO t1 VALUES(1);
+HANDLER t1 READ a NEXT;
+a
+1
+HANDLER t1 CLOSE;
+DROP TABLE t1;
 #
 # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
 #
@@ -755,19 +703,6 @@ HANDLER t1 OPEN;
 TRUNCATE t1;
 HANDLER t1 READ FIRST;
 ERROR 42S02: Unknown table 't1' in HANDLER
-DROP TABLE t1;
-#
-# BUG#51877 - HANDLER interface causes invalid memory read
-#
-CREATE TABLE t1(a INT, KEY(a));
-HANDLER t1 OPEN;
-HANDLER t1 READ a FIRST;
-a
-INSERT INTO t1 VALUES(1);
-HANDLER t1 READ a NEXT;
-a
-1
-HANDLER t1 CLOSE;
 DROP TABLE t1;
 #
 # Bug #54007: assert in ha_myisam::index_next , HANDLER
@@ -821,12 +756,13 @@ HANDLER t1 READ b NEXT;
 a	b
 HANDLER t1 READ NEXT;
 a	b
+2	20
+HANDLER t1 READ NEXT;
+a	b
+1	10
+HANDLER t1 READ NEXT;
+a	b
 4	40
-HANDLER t1 READ NEXT;
-a	b
-3	30
-HANDLER t1 READ NEXT;
-a	b
 HANDLER t1 CLOSE;
 HANDLER t1 OPEN;
 HANDLER t1 READ FIRST;

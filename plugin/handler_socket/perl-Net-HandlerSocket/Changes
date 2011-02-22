@@ -1,0 +1,6 @@
+Revision history for Perl extension HandlerSocket.
+
+0.01  Wed Mar 31 11:50:23 2010
+	- original version; created by h2xs 1.23 with options
+		-A -n HandlerSocket
+

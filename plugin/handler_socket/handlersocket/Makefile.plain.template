@@ -1,0 +1,31 @@
+
+MYSQL_INC = HANDLERSOCKET_MYSQL_INC
+MYSQL_LIB = HANDLERSOCKET_MYSQL_LIB
+
+CXX = g++ -Wall -g -fno-rtti -fno-exceptions -fPIC -DPIC
+LIBS = $(MYSQL_LIB) -lhsclient -lpthread -lz
+CXXFLAGS = -I/usr/include/handlersocket $(MYSQL_INC)
+LDFLAGS =
+
+CXXFLAGS += -O3 -DNDEBUG
+
+HANDLERSOCKET_OBJS = database.o hstcpsvr.o hstcpsvr_worker.o
+
+all: handlersocket.so
+
+handlersocket.so: $(HANDLERSOCKET_OBJS) handlersocket.cpp
+	$(CXX) $(CXXFLAGS) -fno-strict-aliasing -shared $^ -o $@ $(LDFLAGS) \
+		-Wl,-soname -Wl,$@ $(LIBS)
+clean:
+	rm -f *.a *.so *.o
+
+LIBDIR = $(shell \
+  if [ -e /usr/lib64/mysql ]; then echo /usr/lib64; else echo /usr/lib; fi)
+
+install: handlersocket.so
+	sudo sh -c 'ulimit -c unlimited ; /etc/init.d/mysql stop ; \
+		cp handlersocket.so handlersocket.so.cpy && \
+		mv handlersocket.so.cpy \
+			$(LIBDIR)/mysql/plugin/handlersocket.so && \
+		/etc/init.d/mysql start'
+

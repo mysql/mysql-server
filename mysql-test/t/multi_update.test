@@ -498,9 +498,9 @@ send alter table t1 add column c int default 100 after a;
 connect (updater,localhost,root,,test);
 connection updater;
 # Wait till "alter table t1 ..." of session changer is in work.
-# = There is one session is in state "Locked".
+# = There is one session is in state "Table Lock".
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                     where state= 'Locked';
+                     where state= "Table Lock";
 --source include/wait_condition.inc
 send update t1, v1 set t1.b=t1.a+t1.b+v1.b where t1.a=v1.a;
 
@@ -509,9 +509,9 @@ connection locker;
 # - "alter table t1 ..." of session changer and
 # - "update t1, v1 ..." of session updater
 # are in work.
-# = There are two session is in state "Locked".
+# = There are two session is in state "Table Lock".
 let $wait_condition= select count(*)= 2 from information_schema.processlist
-                     where state= 'Locked';
+                     where state= "Table Lock";
 --source include/wait_condition.inc
 unlock tables;
 

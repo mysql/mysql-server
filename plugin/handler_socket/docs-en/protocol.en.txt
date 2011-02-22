@@ -1,0 +1,148 @@
+
+----------------------------------------------------------------------------
+The HandlerSocket protocol
+
+----------------------------------------------------------------------------
+Basic syntax
+
+- The HandlerSocket protocol is line-based. Each line ends with LF(0x0a).
+- Each line consists a concatenation of tokens separated by HT(0x09).
+- A token is either NULL or an encoded string. Note that you need to
+  distinguish NULL from an empty string, as most DBMs does so.
+- NULL is expressed as a single NUL(0x00).
+- An encoded string is a string with the following encoding rules.
+  	- Characters in the range [0x10 - 0xff] are not encoded.
+	- A character in the range [0x00 - 0x0f] is prefixed by 0x01 and
+	  shifted by 0x40. For example, 0x03 is encoded as 0x01 0x43.
+- Note that a string can be empty. A continuation of 0x09 0x09 means that
+  there is an empty string between them. A continuation of 0x09 0x0a means
+  that there is an empty string at the end of the line.
+
+----------------------------------------------------------------------------
+Request and Response
+
+- The HandlerSocket protocol is a simple request/response protocol. After a
+  connection is established, the client side sends a request, and then the
+  server side sends a response.
+- A request/response consists of a single line.
+- Requests can be pipelined; That is, you can send multiple requests (ie.
+  lines) at one time, and receive responses for them at one time.
+
+----------------------------------------------------------------------------
+'open_index' request
+
+The 'open_index' request has the following syntax.
+
+    P <indexid> <dbname> <tablename> <indexname> <columns>
+
+- <indexid> is a number in decimal.
+- <dbname>, <tablename>, and <indexname> are strings. To open the primary
+  key, use PRIMARY as <indexname>.
+- <columns> is a comma-separated list of column names.
+
+Once an 'open_index' request is issued, the HandlerSocket plugin opens the
+specified index and keep it open until the client connection is closed. Each
+open index is identified by <indexid>. If <indexid> is already open, the old
+open index is closed. You can open the same combination of <dbname>
+<tablename> <indexname> multple times, possibly with different <columns>.
+For efficiency, keep <indexid> small as far as possible.
+
+----------------------------------------------------------------------------
+Getting data
+
+The 'find' request has the following syntax.
+
+    <indexid> <op> <vlen> <v1> ... <vn> <limit> <offset>
+
+- <indexid> is a number. This number must be an <indexid> specified by a
+  'open_index' request executed previously on the same connection.
+- <op> specifies the comparison operation to use. The current version of
+  HandlerSocket supports '=', '>', '>=', '<', and '<='.
+- <vlen> indicates the length of the trailing parameters <v1> ... <vn>. This
+  must be smaller than or equal to the number of index columns specified by
+  specified by the corresponding 'open_index' request.
+- <v1> ... <vn> specify the index column values to fetch.
+- <limit> and <offset> are numbers. These parameters can be omitted. When
+  omitted, it works as if 1 and 0 are specified.
+
+----------------------------------------------------------------------------
+Updating/Deleting data
+
+The 'find_modify' request has the following syntax.
+
+    <indexid> <op> <vlen> <v1> ... <vn> <limit> <offset> <mop> <m1> ... <mk>
+
+- <mop> is either 'U' (update) or 'D' (delete).
+- <m1> ... <mk> specifies the column values to set. The length of <m1> ...
+  <mk> must be smaller than or equal to the length of <columns> specified by
+  the corresponding 'open_index' request. If <mop> is 'D', these parameters
+  are ignored.
+
+----------------------------------------------------------------------------
+Inserting data
+
+The 'insert' request has the following syntax.
+
+    <indexid> '+' <vlen> <v1> ... <vn>
+
+- <vlen> indicates the length of the trailing parameters <v1> ... <vn>. This
+  must be smaller than or equal to the length of <columns> specified by the
+  corresponding 'open_index' request.
+- <v1> ... <vn> specify the column values to set. For columns not in
+  <columns>, the default values for each column are set.
+
+----------------------------------------------------------------------------
+Response syntax
+
+HandlerSocket returns a response of the following syntax for each request.
+
+    <errorcode> <numcolumns> <r1> ... <rn>
+
+- <errorcode> indicates whether the request has successfully executed or not.
+  '0' means success. Non-zero means an error.
+- <numcolumns> indicates the number of columns of the result set.
+- <r1> ... <rn> is the result set. The length of <r1> ... <rn> is always a
+  multiple of <numcolumns>. It is possible that <r1> ... <rn> is empty.
+
+If <errorcode> is non-zero, <numcolumns> is always 1 and <r1> indicates a
+human-readable error message, though sometimes <r1> is not provided.
+
+----------------------------------------------------------------------------
+Response for 'open_index'
+
+If 'open_index' is succeeded, HandlerSocket returns a line of the following
+syntax.
+
+    0 1
+
+----------------------------------------------------------------------------
+Response for 'find'
+
+If 'find' is succeeded, HandlerSocket returns a line of the following
+syntax.
+
+   0 <numcolumns> <r1> ... <rn>
+
+- <numcolumns> always equals to the length of <columns> of the corresponding
+  'open_index' request.
+- <r1> ... <rn> is the result set. If N rows are found, the length of <r1>
+  ... <rn> becomes ( <numcolumns> * N ).
+
+----------------------------------------------------------------------------
+Response for 'find_modify'
+
+If 'find_modify' is succeeded, HandlerSocket returns a line of the following
+syntax.
+
+   0 1 <nummod>
+
+- <nummod> is the number of modified rows.
+
+----------------------------------------------------------------------------
+Response for 'insert'
+
+If 'insert' is succeeded, HanderSocket returns a line of the following
+syntax.
+
+   0 1
+

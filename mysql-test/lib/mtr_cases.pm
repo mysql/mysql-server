@@ -89,6 +89,20 @@ sub init_pattern {
 }
 
 
+sub testcase_sort_order {
+  my ($a, $b, $sort_criteria)= @_;
+  my $a_sort_criteria= $sort_criteria->{$a->fullname()};
+  my $b_sort_criteria= $sort_criteria->{$b->fullname()};
+  my $res= $a_sort_criteria cmp $b_sort_criteria;
+  return $res if $res;
+  # Run slow tests first, trying to avoid getting stuck at the end
+  # with a slow test in one worker and the other workers idle.
+  return -1 if $a->{'long_test'} && !$b->{'long_test'};
+  return 1 if !$a->{'long_test'} && $b->{'long_test'};
+
+  return $a->fullname() cmp $b->fullname();
+}
+
 ##############################################################################
 #
 #  Collect information about test cases to be run
@@ -177,9 +191,7 @@ sub collect_test_cases ($$$) {
       $sort_criteria{$tinfo->fullname()} = join(" ", @criteria);
     }
 
-    @$cases = sort {
-      $sort_criteria{$a->fullname()} . $a->fullname() cmp
-	$sort_criteria{$b->fullname()} . $b->fullname() } @$cases;
+    @$cases = sort { testcase_sort_order($a, $b, \%sort_criteria) } @$cases;
 
     # For debugging the sort-order
     # foreach my $tinfo (@$cases)
@@ -1065,6 +1077,7 @@ my @tags=
  ["include/have_example_plugin.inc", "example_plugin_test", 1],
  ["include/have_oqgraph_engine.inc", "oqgraph_test", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
+ ["include/long_test.inc", "long_test", 1],
 );
 
 

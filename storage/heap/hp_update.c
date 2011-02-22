@@ -21,7 +21,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
 {
   HP_KEYDEF *keydef, *end, *p_lastinx;
   uchar *pos;
-  my_bool auto_key_changed= 0;
+  my_bool auto_key_changed= 0, key_changed= 0;
   HP_SHARE *share= info->s;
   DBUG_ENTER("heap_update");
 
@@ -54,6 +54,8 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
 #endif
   if (auto_key_changed)
     heap_update_auto_increment(info, heap_new);
+  if (key_changed)
+    share->key_version++;
   DBUG_RETURN(0);
 
  err:

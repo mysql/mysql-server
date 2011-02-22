@@ -58,7 +58,7 @@ let $ID= `select connection_id()`;
 connection con2;
 --echo # Switched to connection: con2
 # wait for the other query to start executing
-let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID and STATE = "Locked";
+let $wait_condition= select 1 from INFORMATION_SCHEMA.PROCESSLIST where ID = $ID and STATE = "Table Lock";
 --source include/wait_condition.inc
 unlock tables;
 

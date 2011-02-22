@@ -22,6 +22,8 @@
 # any of the variables.
 #
 
+--source include/long_test.inc
+
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements
 

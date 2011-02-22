@@ -1943,3 +1943,4 @@ storage/pbxt/bin/xtstat
 libmysqld/sql_expression_cache.cc
 mysql-test/mtr_command
 scripts/convert-debug-for-diff
+plugin/handler_socket/client/hsclient

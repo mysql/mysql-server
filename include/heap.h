@@ -136,6 +136,8 @@ typedef struct st_heap_share
   ulong min_records,max_records;	/* Params to open */
   ulonglong data_length,index_length,max_table_size;
   uint key_stat_version;                /* version to indicate insert/delete */
+  uint key_version;                     /* Updated on key change */
+  uint file_version;                    /* Update on clear */
   uint records;				/* records */
   uint blength;				/* records rounded up to 2^n */
   uint deleted;				/* Deleted records in database */
@@ -173,6 +175,8 @@ typedef struct st_heap_info
   enum ha_rkey_function last_find_flag;
   TREE_ELEMENT *parents[MAX_TREE_HEIGHT+1];
   TREE_ELEMENT **last_pos;
+  uint key_version;                     /* Version at last read */
+  uint file_version;                    /* Version at scan */
   uint lastkey_len;
   my_bool implicit_emptied;
 #ifdef THREAD

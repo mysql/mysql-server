@@ -1911,6 +1911,24 @@ DELETE FROM t1;
 drop table t1;
 
 #
+# Test of problem where REPAIR finds old deleted rows.
+#
+
+create table t1 (a int not null primary key, b blob) engine=maria transactional=1;
+insert into t1 values(1,repeat('a',8000));
+insert into t1 values(2,repeat('b',8000));
+insert into t1 values(3,repeat('c',8000));
+flush tables;
+delete from t1 where a>1;
+--error 1062
+insert into t1 values(1,repeat('d',8000*3));
+flush tables;
+check table t1;
+# This failed by finding 2 extra rows.
+repair table t1 extended;
+drop table t1;
+
+#
 # End of test
 #
 # Set defaults back

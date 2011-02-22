@@ -1057,9 +1057,9 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *thd,
 
   /*
     When MERGE table is open, but not yet attached, other threads
-    could flush it, which means call mysql_lock_abort_for_thread()
+    could flush it, which means calling mysql_lock_abort_for_thread()
     on this threads TABLE. 'children_attached' is FALSE in this
-    situaton. Since the table is not locked, return no lock data.
+    situation. Since the table is not locked, return no lock data.
   */
   if (!this->file->children_attached)
     goto end; /* purecov: tested */

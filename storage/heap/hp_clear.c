@@ -40,6 +40,8 @@ void hp_clear(HP_SHARE *info)
   info->blength=1;
   info->changed=0;
   info->del_link=0;
+  info->key_version++;
+  info->file_version++;
   DBUG_VOID_RETURN;
 }
 
