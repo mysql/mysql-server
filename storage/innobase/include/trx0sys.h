@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
+#include "ut0bh.h"
 #include "read0types.h"
 #include "page0types.h"
 
@@ -220,13 +221,6 @@ Allocates a new transaction id.
 UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
-/*========================*/
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void);
 /*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
