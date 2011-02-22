@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,8 +68,9 @@ Creates the global purge system control structure and inits the history
 mutex. */
 UNIV_INTERN
 void
-trx_purge_sys_create(void);
-/*======================*/
+trx_purge_sys_create(
+/*=================*/
+	ib_bh_t*	ib_bh);	/*!< in/own: UNDO log min binary heap*/
 /********************************************************************//**
 Frees the global purge system control structure. */
 UNIV_INTERN
@@ -128,20 +129,20 @@ struct trx_purge_struct{
 	ulint		state;		/*!< Purge system state */
 	sess_t*		sess;		/*!< System session running the purge
 					query */
-	trx_t*		trx;		/*!< System transaction running the purge
+	trx_t*		trx;		/*!< System transaction running the
+					purge
 					query: this trx is not in the trx list
 					of the trx system and it never ends */
 	que_t*		query;		/*!< The query graph which will do the
 					parallelized purge operation */
-	rw_lock_t	latch;		/*!< The latch protecting the purge view.
-					A purge operation must acquire an
-					x-latch here for the instant at which
+	rw_lock_t	latch;		/*!< The latch protecting the purge
+					view.  A purge operation must acquire
+					an x-latch here for the instant at which
 					it changes the purge view: an undo
 					log operation can prevent this by
 					obtaining an s-latch here. */
 	read_view_t*	view;		/*!< The purge will not remove undo logs
 					which are >= this view (purge view) */
-	mutex_t		mutex;		/*!< Mutex protecting the fields below */
 	ulint		n_pages_handled;/*!< Approximate number of undo log
 					pages processed in purge */
 	ulint		handle_limit;	/*!< Target of how many pages to get
@@ -179,6 +180,11 @@ struct trx_purge_struct{
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
+	/*-----------------------------*/
+	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
+					rseg_queue_t::trx_no. It is protected
+					by the bh_mutex */
+	mutex_t		bh_mutex;	/*!< Mutex protecting ib_bh */
 };
 
 #define TRX_PURGE_ON		1	/* purge operation is running */
