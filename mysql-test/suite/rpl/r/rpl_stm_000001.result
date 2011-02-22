@@ -34,6 +34,7 @@ create table t1 (n int) engine=myisam;
 reset master;
 stop slave;
 reset slave;
+# Asserted this: We should have generated greater than 16 KB relay log
 lock tables t1 read;
 start slave;
 include/sync_slave_io_with_master.inc
@@ -52,7 +53,7 @@ Got one of the listed errors
 include/wait_for_slave_sql_error_and_skip.inc [errno=1053]
 select count(*) from t1;
 count(*)
-5000
+100
 drop table t1;
 create table t1 (n int);
 insert into t1 values(3456);
