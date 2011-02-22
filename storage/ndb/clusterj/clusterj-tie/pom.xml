@@ -21,7 +21,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-tie</artifactId>
   <packaging>bundle</packaging>
-  <version>7.1.10-SNAPSHOT</version>
+  <version>7.1.11-SNAPSHOT</version>
   <name>ClusterJ Tie</name>
   <description>The ndbj-tie implementation of ClusterJ storage spi</description>
   <build>
@@ -122,13 +122,13 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>7.1.10-SNAPSHOT</version>
+      <version>7.1.11-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-core</artifactId>
-      <version>7.1.10-SNAPSHOT</version>
+      <version>7.1.11-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -152,13 +152,13 @@
     <dependency>
     	<groupId>com.mysql.clusterj</groupId>
     	<artifactId>clusterj-test</artifactId>
-        <version>7.1.10-SNAPSHOT</version>
+        <version>7.1.11-SNAPSHOT</version>
     	<scope>test</scope>
     </dependency>
     <dependency>
       <groupId>ndbjtie</groupId>
       <artifactId>ndbjtie</artifactId>
-      <version>7.1.10-SNAPSHOT</version>
+      <version>7.1.11-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>   

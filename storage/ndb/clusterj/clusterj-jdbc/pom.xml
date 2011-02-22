@@ -1,3 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>clusterj</groupId>
@@ -14,18 +31,18 @@
   	<dependency>
   		<groupId>com.mysql.clusterj</groupId>
   		<artifactId>clusterj-core</artifactId>
-  		<version>7.1.10-SNAPSHOT</version>
+  		<version>7.1.11-SNAPSHOT</version>
   	</dependency>
   	<dependency>
   		<groupId>com.mysql.clusterj</groupId>
   		<artifactId>clusterj-tie</artifactId>
-  		<version>7.1.10-SNAPSHOT</version>
+  		<version>7.1.11-SNAPSHOT</version>
   		<scope>test</scope>
   	</dependency>
     <dependency>
       <groupId>ndbjtie</groupId>
       <artifactId>ndbjtie</artifactId>
-      <version>7.1.10-SNAPSHOT</version>
+      <version>7.1.11-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
   	<dependency>
@@ -42,7 +59,7 @@
     <dependency>
     	<groupId>com.mysql.clusterj</groupId>
     	<artifactId>clusterj-test</artifactId>
-        <version>7.1.10-SNAPSHOT</version>
+        <version>7.1.11-SNAPSHOT</version>
     	<scope>test</scope>
     </dependency>
   </dependencies>
