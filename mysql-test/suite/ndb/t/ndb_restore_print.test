@@ -1,3 +1,7 @@
+######################################################################
+# Test ndb_restore's print_data feature
+######################################################################
+
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
 
