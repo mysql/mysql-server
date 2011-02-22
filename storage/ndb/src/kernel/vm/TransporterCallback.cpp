@@ -46,6 +46,13 @@ SectionSegmentPool g_sectionSegmentPool;
 int ErrorSignalReceive= 0;
 int ErrorMaxSegmentsToSeize= 0;
 
+/**
+ * This variable controls if ErrorSignalReceive/ErrorMaxSegmentsToSeize
+ *   is active...This to make sure only received signals are affected
+ *   and not long signals sent inside node
+ */
+extern bool ErrorImportActive;
+
 struct ConnectionError
 {
   enum TransporterError err;
@@ -140,6 +147,7 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   bzero(secPtr, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
+  ErrorImportActive = true;
   switch(secCount){
   case 3:
     ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
@@ -148,6 +156,7 @@ TransporterCallbackKernel::deliver_signal(SignalHeader * const header,
   case 1:
     ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
   }
+  ErrorImportActive = false;
 
   /**
    * Check that we haven't received a too long signal
