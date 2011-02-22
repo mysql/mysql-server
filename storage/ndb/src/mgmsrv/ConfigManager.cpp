@@ -1340,12 +1340,25 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
     other_checksum = checksum;
   }
 
-  if (m_prepared_config)
+  if (m_prepared_config || m_config_change.m_new_config)
   {
     g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d while "
                          "config change in progress (m_prepared_config). "
                          "Returning incorrect state, causing it to be retried",
                          nodeId);
+    sendConfigCheckRef(ss, from, ConfigCheckRef::WrongState,
+                       generation, other_generation,
+                       m_config_state, CS_UNINITIALIZED);
+    return;
+  }
+
+  if (m_config_change.m_loaded_config && ss.getOwnNodeId() < nodeId)
+  {
+    g_eventLogger->debug("Got CONFIG_CHECK_REQ from node: %d while "
+                         "having a loaded config (and my node is lower: %d). "
+                         "Returning incorrect state, causing it to be retried",
+                         nodeId,
+                         ss.getOwnNodeId());
     sendConfigCheckRef(ss, from, ConfigCheckRef::WrongState,
                        generation, other_generation,
                        m_config_state, CS_UNINITIALIZED);
