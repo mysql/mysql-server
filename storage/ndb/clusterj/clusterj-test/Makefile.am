@@ -65,6 +65,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/LongIntStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongLongStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongvarbinaryPKTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/MaximumSessionsPerConnectionTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultiplePKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultithreadedFindTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultithreadedTest.java \
