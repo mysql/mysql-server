@@ -21,7 +21,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-core</artifactId>
   <packaging>bundle</packaging>
-  <version>7.1.10-SNAPSHOT</version>
+  <version>7.1.11-SNAPSHOT</version>
   <name>ClusterJ Core</name>
   <description>The core implementation of ClusterJ</description>
   <build>
@@ -88,7 +88,7 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>7.1.10-SNAPSHOT</version>
+      <version>7.1.11-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
