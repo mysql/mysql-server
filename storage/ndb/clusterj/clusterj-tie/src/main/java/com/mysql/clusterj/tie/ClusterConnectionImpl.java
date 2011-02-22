@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ import com.mysql.ndbjtie.ndbapi.Ndb;
 import com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
+import com.mysql.clusterj.ClusterJFatalInternalException;
 
 import com.mysql.clusterj.core.store.Db;
 
@@ -95,11 +96,13 @@ public class ClusterConnectionImpl
 
 
     public void connect(int connectRetries, int connectDelay, boolean verbose) {
+        checkConnection();
         int returnCode = clusterConnection.connect(connectRetries, connectDelay, verbose?1:0);
         handleError(returnCode, clusterConnection);
     }
 
     public Db createDb(String database, int maxTransactions) {
+        checkConnection();
         Ndb ndb = null;
         // synchronize because create is not guaranteed thread-safe
         synchronized(this) {
@@ -110,8 +113,15 @@ public class ClusterConnectionImpl
     }
 
     public void waitUntilReady(int connectTimeoutBefore, int connectTimeoutAfter) {
+        checkConnection();
         int returnCode = clusterConnection.wait_until_ready(connectTimeoutBefore, connectTimeoutAfter);
         handleError(returnCode, clusterConnection);
+    }
+
+    private void checkConnection() {
+        if (clusterConnection == null) {
+            throw new ClusterJFatalInternalException(local.message("ERR_Cluster_Connection_Must_Not_Be_Null"));
+        }
     }
 
     protected static void handleError(int returnCode, Ndb_cluster_connection clusterConnection) {
@@ -142,6 +152,13 @@ public class ClusterConnectionImpl
         int errorCode = clusterConnection.get_latest_error();
         String msg = local.message("ERR_NdbError", returnCode, errorCode, message);
         throw new ClusterJDatastoreException(msg);
+    }
+
+    public void close() {
+        if (clusterConnection != null) {
+            Ndb_cluster_connection.delete(clusterConnection);
+            clusterConnection = null;
+        }
     }
 
 }

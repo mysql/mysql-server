@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,14 @@ public interface Constants {
 
     /** The default value of the connection retries property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES = 4;
+
+    /** The name of the maximum sessions per connection property. This is the maximum number of sessions
+     * that can share the same ndb cluster connection.
+     */
+    static final String PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION = "com.mysql.clusterj.maximum.sessions.per.connection";
+
+    /** The default value of the maximum sessions per connection property */
+    static final int DEFAULT_PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION = Integer.MAX_VALUE;
 
     /** The name of the connection delay property. For details, see
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>

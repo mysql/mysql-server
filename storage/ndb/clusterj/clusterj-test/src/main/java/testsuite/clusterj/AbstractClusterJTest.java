@@ -115,13 +115,13 @@ public abstract class AbstractClusterJTest extends TestCase {
     }
 
     protected void createSessionFactory() {
-        loadProperties();
-        Properties modifiedProperties = modifyProperties();
-        if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
         if (sessionFactory == null) {
+            loadProperties();
+            Properties modifiedProperties = modifyProperties();
+            if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
             sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
+            loadSchema();
         }
-        loadSchema();
     }
 
     protected Properties modifyProperties() {

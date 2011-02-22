@@ -1,5 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
+   Copyright 2010, 2011, Sun Microsystems, Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -28,5 +28,7 @@ public interface ClusterConnection {
     public Db createDb(String database, int maxTransactions);
 
     public void waitUntilReady(int connectTimeoutBefore, int connectTimeoutAfter);
+
+    public void close();
 
 }
