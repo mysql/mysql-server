@@ -1,0 +1,11 @@
+######################################################################
+# Test restoring compressed backups
+######################################################################
+
+# enable compressed backup
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 13001 1" >> $NDB_TOOLS_OUTPUT
+
+--source suite/ndb/t/ndb_restore_misc.test
+
+# disable compressed backup
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 13001 0" >> $NDB_TOOLS_OUTPUT
