@@ -977,3 +977,8 @@ wait-timeout 28800
 
 To see what values a running MySQL server is using, type
 'mysqladmin variables' instead of 'mysqld --verbose --help'.
+
+stderr:
+[Note] Binlog end
+[Note] Shutting down plugin 'CSV'
+[Note] Shutting down plugin 'MyISAM'
