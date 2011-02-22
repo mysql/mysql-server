@@ -1,8 +1,6 @@
-#############################################################
-# Author: Guangbao
-# Date: 2007-11
-# Purpose: Basic Integer,Char and Binary type promotion test 
-##############################################################
+######################################################################
+# Test restoring backups with widening type conversions (promotion)
+######################################################################
 
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
