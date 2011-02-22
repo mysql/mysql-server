@@ -180,6 +180,7 @@ dupSection(SPC_ARG Uint32& copyFirstIVal, Uint32 srcFirstIVal)
   return true;
 }
 
+bool ErrorImportActive = false;
 extern int ErrorSignalReceive;
 extern int ErrorMaxSegmentsToSeize;
 
@@ -217,11 +218,14 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
   {
 #ifdef ERROR_INSERT
     /* Simulate running out of segments */
-    if ((ErrorSignalReceive == 1) && 
-        (ErrorMaxSegmentsToSeize == 0))
+    if (ErrorImportActive)
     {
-      ndbout_c("append exhausted on first segment");
-      return false;
+      if ((ErrorSignalReceive == 1) && 
+          (ErrorMaxSegmentsToSeize == 0))
+      {
+        ndbout_c("append exhausted on first segment");
+        return false;
+      }
     }
 #endif
     /* First data to be added to this section */
@@ -273,13 +277,16 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
 
 #ifdef ERROR_INSERT
     /* Simulate running out of segments */
-    if ((ErrorSignalReceive == 1) && 
-        (0 == remainSegs--))
+    if (ErrorImportActive)
     {
-      ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
-      firstPtr.p->m_lastSegment= prevPtr.i;
-      firstPtr.p->m_sz-= len;
-      return false;
+      if ((ErrorSignalReceive == 1) && 
+          (0 == remainSegs--))
+      {
+        ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
+        firstPtr.p->m_lastSegment= prevPtr.i;
+        firstPtr.p->m_sz-= len;
+        return false;
+      }
     }
 #endif
     bool result = g_sectionSegmentPool.seize(SPC_SEIZE_ARG currPtr);
@@ -313,11 +320,14 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
 
 #ifdef ERROR_INSERT
   /* Simulate running out of segments */
-  if ((ErrorSignalReceive == 1) &&
-      (ErrorMaxSegmentsToSeize == 0))
+  if (ErrorImportActive)
   {
-    ndbout_c("Import exhausted on first segment");
-    return false;
+    if ((ErrorSignalReceive == 1) &&
+        (ErrorMaxSegmentsToSeize == 0))
+    {
+      ndbout_c("Import exhausted on first segment");
+      return false;
+    }
   }
 #endif
 
@@ -346,15 +356,18 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
 
 #ifdef ERROR_INSERT
     /* Simulate running out of segments */
-    if ((ErrorSignalReceive == 1) &&
-        (0 == remainSegs--))
+    if (ErrorImportActive)
     {
-      ndbout_c("Import exhausted on segment %d", 
-               ErrorMaxSegmentsToSeize);
-      first.p->m_lastSegment= prevPtr.i;
-      first.p->m_sz-= len;
-      prevPtr.p->m_nextSegment = RNIL;
-      return false;
+      if ((ErrorSignalReceive == 1) &&
+          (0 == remainSegs--))
+      {
+        ndbout_c("Import exhausted on segment %d", 
+                 ErrorMaxSegmentsToSeize);
+        first.p->m_lastSegment= prevPtr.i;
+        first.p->m_sz-= len;
+        prevPtr.p->m_nextSegment = RNIL;
+        return false;
+      }
     }
 #endif
 
