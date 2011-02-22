@@ -1408,7 +1408,7 @@ trx_undo_lists_init(
 				page_no = mtr_read_ulint(rseg_header + TRX_RSEG_UNDO_SLOTS
 							 + i * TRX_RSEG_SLOT_SIZE,
 							 MLOG_4BYTES, &mtr);
-				if (page_no != FIL_NULL) {
+				if (page_no != 0 && page_no != FIL_NULL) {
 					srv_extra_undoslots = TRUE;
 					fprintf(stderr,
 "InnoDB: Error: innodb_extra_undoslots option is disabled, but it was enabled before.\n"

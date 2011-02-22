@@ -41,4 +41,8 @@ connection master;
 DROP TABLE IF EXISTS t;
 sync_slave_with_master;
 
-exec cat var/mysqld.2/mysqld-slow.log | grep InnoDB_IO_r_ops | wc -l;
+connection slave;
+FLUSH LOGS;
+--let grep_file = $MYSQLTEST_VARDIR/mysqld.2/mysqld-slow.log
+--let grep_pattern =  InnoDB_IO_r_ops
+--source include/grep.inc

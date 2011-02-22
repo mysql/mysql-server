@@ -1,0 +1,16 @@
+SET @old_slow_query_log_file=@@global.slow_query_log_file;
+SET GLOBAL slow_query_log=on;
+SET LOCAL profiling_server=on;
+SET LOCAL long_query_time=1;
+SET GLOBAL slow_query_log_file='MYSQLTEST_VARDIR/percona_bug643149_slow.log';;
+SELECT SLEEP(2);
+SLEEP(2)
+0
+# Time: X X:X:X
+# User@Host: root[root] @ localhost []
+# Thread_id: X Schema: test Last_errno: X Killed: X
+# Query_time: X.X Lock_time: X.X Rows_sent: X Rows_examined: X Rows_affected: X Rows_read: X
+# Bytes_sent: X Tmp_tables: X Tmp_disk_tables: X Tmp_table_sizes: X
+# Profile_starting: X.X Profile_starting_cpu: X.X Profile_checking_permissions: X.X Profile_checking_permissions_cpu: X.X Profile_Opening_tables: X.X Profile_Opening_tables_cpu: X.X Profile_init: X.X Profile_init_cpu: X.X Profile_optimizing: X.X Profile_optimizing_cpu: X.X Profile_executing: X.X Profile_executing_cpu: X.X Profile_User_sleep: X.X Profile_User_sleep_cpu: X.X Profile_end: X.X Profile_end_cpu: X.X Profile_query_end: X.X Profile_query_end_cpu: X.X Profile_freeing_items: X.X Profile_freeing_items_cpu: X.X Profile_logging_slow_query: X.X Profile_logging_slow_query_cpu: X.X 
+# Profile_total: X.X Profile_total_cpu: X.X 
+SET GLOBAL slow_query_log_file=@old_slow_query_log_file;

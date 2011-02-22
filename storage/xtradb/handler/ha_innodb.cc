@@ -149,6 +149,7 @@ static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
 static ulong innobase_page_size;
+static ulong innobase_log_block_size;
 
 static my_bool innobase_thread_concurrency_timer_based;
 static long long innobase_buffer_pool_size, innobase_log_file_size;
@@ -194,6 +195,7 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
+static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -2114,6 +2116,32 @@ innobase_init(
 		goto error;
 	}
 
+	srv_log_block_size = 0;
+	if (innobase_log_block_size != (1 << 9)) { /*!=512*/
+		uint	n_shift;
+
+		fprintf(stderr,
+			"InnoDB: Warning: innodb_log_block_size has been changed from default value 512. (###EXPERIMENTAL### operation)\n");
+		for (n_shift = 9; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
+			if (innobase_log_block_size == ((ulong)1 << n_shift)) {
+				srv_log_block_size = (1 << n_shift);
+				fprintf(stderr,
+					"InnoDB: The log block size is set to %lu.\n",
+					srv_log_block_size);
+				break;
+			}
+		}
+	} else {
+		srv_log_block_size = 512;
+	}
+
+	if (!srv_log_block_size) {
+		fprintf(stderr,
+			"InnoDB: Error: %lu is not valid value for innodb_log_block_size.\n",
+			innobase_log_block_size);
+		goto error;
+	}
+
 #ifndef MYSQL_SERVER
 	innodb_overwrite_relay_log_info = FALSE;
 #endif
@@ -2417,7 +2445,7 @@ innobase_change_buffering_inited_ok:
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
 
 	srv_read_ahead &= 3;
-	srv_adaptive_checkpoint %= 3;
+	srv_adaptive_checkpoint %= 4;
 
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
@@ -2426,6 +2454,7 @@ innobase_change_buffering_inited_ok:
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 	srv_use_checksums = (ibool) innobase_use_checksums;
 	srv_fast_checksum = (ibool) innobase_fast_checksum;
+	srv_buffer_pool_shm_checksum = (ibool) innobase_buffer_pool_shm_checksum;
 
 #ifdef HAVE_LARGE_PAGES
         if ((os_use_large_pages = (ibool) my_use_large_pages))
@@ -3871,6 +3900,7 @@ retry:
 	of length ref_length! */
 
 	if (!row_table_got_default_clust_index(ib_table)) {
+
 		prebuilt->clust_index_was_generated = FALSE;
 
 		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)) {
@@ -6672,6 +6702,33 @@ create_clustered_index_when_no_primary(
 }
 
 /*****************************************************************//**
+Return a display name for the row format
+@return row format name */
+
+const char *get_row_format_name(
+/*============================*/
+enum row_type row_format)		/*!< in: Row Format */
+{
+	switch (row_format) {
+	case ROW_TYPE_COMPACT:
+		return("COMPACT");
+	case ROW_TYPE_COMPRESSED:
+		return("COMPRESSED");
+	case ROW_TYPE_DYNAMIC:
+		return("DYNAMIC");
+	case ROW_TYPE_REDUNDANT:
+		return("REDUNDANT");
+	case ROW_TYPE_DEFAULT:
+		return("DEFAULT");
+	case ROW_TYPE_FIXED:
+		return("FIXED");
+	default:
+		break;
+	}
+	return("NOT USED");
+}
+
+/*****************************************************************//**
 Validates the create options. We may build on this function
 in future. For now, it checks two specifiers:
 KEY_BLOCK_SIZE and ROW_FORMAT
@@ -6686,9 +6743,9 @@ create_options_are_valid(
 					columns and indexes */
 	HA_CREATE_INFO*	create_info)	/*!< in: create info. */
 {
-	ibool 	kbs_specified	= FALSE;
+	ibool	kbs_specified	= FALSE;
 	ibool	ret		= TRUE;
-
+	enum row_type	row_type	= form->s->row_type;
 
 	ut_ad(thd != NULL);
 
@@ -6697,13 +6754,28 @@ create_options_are_valid(
 		return(TRUE);
 	}
 
+	/* Check for a valid Innodb ROW_FORMAT specifier. For example,
+	ROW_TYPE_FIXED can be sent to Innodb */
+	switch (row_type) {
+	case ROW_TYPE_COMPACT:
+	case ROW_TYPE_COMPRESSED:
+	case ROW_TYPE_DYNAMIC:
+	case ROW_TYPE_REDUNDANT:
+	case ROW_TYPE_DEFAULT:
+		break;
+	default:
+		push_warning(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: invalid ROW_FORMAT specifier.");
+		ret = FALSE;
+	}
+
 	ut_ad(form != NULL);
 	ut_ad(create_info != NULL);
 
-	/* First check if KEY_BLOCK_SIZE was specified. */
-	if (create_info->key_block_size
-	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
-
+	/* First check if a non-zero KEY_BLOCK_SIZE was specified. */
+	if (create_info->key_block_size) {
 		kbs_specified = TRUE;
 		switch (create_info->key_block_size) {
 		case 1:
@@ -6714,13 +6786,12 @@ create_options_are_valid(
 			/* Valid value. */
 			break;
 		default:
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_ILLEGAL_HA_CREATE_OPTION,
-					    "InnoDB: invalid"
-					    " KEY_BLOCK_SIZE = %lu."
-					    " Valid values are"
-					    " [1, 2, 4, 8, 16]",
-					    create_info->key_block_size);
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: invalid KEY_BLOCK_SIZE = %lu."
+				" Valid values are [1, 2, 4, 8, 16]",
+				create_info->key_block_size);
 			ret = FALSE;
 		}
 	}
@@ -6728,109 +6799,67 @@ create_options_are_valid(
 	/* If KEY_BLOCK_SIZE was specified, check for its
 	dependencies. */
 	if (kbs_specified && !srv_file_per_table) {
-		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			     ER_ILLEGAL_HA_CREATE_OPTION,
-			     "InnoDB: KEY_BLOCK_SIZE"
-			     " requires innodb_file_per_table.");
+		push_warning(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: KEY_BLOCK_SIZE"
+			" requires innodb_file_per_table.");
 		ret = FALSE;
 	}
 
 	if (kbs_specified && srv_file_format < DICT_TF_FORMAT_ZIP) {
-		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-			     ER_ILLEGAL_HA_CREATE_OPTION,
-			     "InnoDB: KEY_BLOCK_SIZE"
-			     " requires innodb_file_format >"
-			     " Antelope.");
+		push_warning(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: KEY_BLOCK_SIZE requires"
+			" innodb_file_format > Antelope.");
 		ret = FALSE;
 	}
 
-	/* Now check for ROW_FORMAT specifier. */
-	if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
-		switch (form->s->row_type) {
-			const char* row_format_name;
-		case ROW_TYPE_COMPRESSED:
-		case ROW_TYPE_DYNAMIC:
-			row_format_name
-				= form->s->row_type == ROW_TYPE_COMPRESSED
-				? "COMPRESSED"
-				: "DYNAMIC";
-
-			/* These two ROW_FORMATs require srv_file_per_table
-			and srv_file_format > Antelope */
-			if (!srv_file_per_table) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_per_table.",
-					row_format_name);
-					ret = FALSE;
-			}
-
-			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_format >"
-					" Antelope.",
-					row_format_name);
-					ret = FALSE;
-			}
-
-			/* Cannot specify KEY_BLOCK_SIZE with
-			ROW_FORMAT = DYNAMIC.
-			However, we do allow COMPRESSED to be
-			specified with KEY_BLOCK_SIZE. */
-			if (kbs_specified
-			    && form->s->row_type == ROW_TYPE_DYNAMIC) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: cannot specify"
-					" ROW_FORMAT = DYNAMIC with"
-					" KEY_BLOCK_SIZE.");
-					ret = FALSE;
-			}
-
-			break;
-
-		case ROW_TYPE_REDUNDANT:
-		case ROW_TYPE_COMPACT:
-		case ROW_TYPE_DEFAULT:
-			/* Default is COMPACT. */
-			row_format_name
-				= form->s->row_type == ROW_TYPE_REDUNDANT
-				? "REDUNDANT"
-				: "COMPACT";
-
-			/* Cannot specify KEY_BLOCK_SIZE with these
-			format specifiers. */
-			if (kbs_specified) {
-				push_warning_printf(
-					thd,
-					MYSQL_ERROR::WARN_LEVEL_WARN,
-					ER_ILLEGAL_HA_CREATE_OPTION,
-					"InnoDB: cannot specify"
-					" ROW_FORMAT = %s with"
-					" KEY_BLOCK_SIZE.",
-					row_format_name);
-					ret = FALSE;
-			}
-
-			break;
-
-		default:
-			push_warning(thd,
-				     MYSQL_ERROR::WARN_LEVEL_WARN,
-				     ER_ILLEGAL_HA_CREATE_OPTION,
-				     "InnoDB: invalid ROW_FORMAT specifier.");
-			ret = FALSE;
-
+	switch (row_type) {
+	case ROW_TYPE_COMPRESSED:
+	case ROW_TYPE_DYNAMIC:
+		/* These two ROW_FORMATs require srv_file_per_table
+		and srv_file_format > Antelope */
+		if (!srv_file_per_table) {
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s"
+				" requires innodb_file_per_table.",
+				get_row_format_name(row_type));
+				ret = FALSE;
 		}
+
+		if (srv_file_format < DICT_TF_FORMAT_ZIP) {
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_format > Antelope.",
+				get_row_format_name(row_type));
+				ret = FALSE;
+		}
+	default:
+		break;
+	}
+
+	switch (row_type) {
+	case ROW_TYPE_REDUNDANT:
+	case ROW_TYPE_COMPACT:
+	case ROW_TYPE_DYNAMIC:
+		/* KEY_BLOCK_SIZE is only allowed with Compressed or Default */
+		if (kbs_specified) {
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: cannot specify ROW_FORMAT = %s"
+				" with KEY_BLOCK_SIZE.",
+				get_row_format_name(row_type));
+				ret = FALSE;
+		}
+	default:
+		break;
 	}
 
 	return(ret);
@@ -6956,8 +6985,7 @@ ha_innobase::create(
 		goto cleanup;
 	}
 
-	if (create_info->key_block_size
-	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
+	if (create_info->key_block_size) {
 		/* Determine the page_zip.ssize corresponding to the
 		requested page size (key_block_size) in kilobytes. */
 
@@ -6978,38 +7006,39 @@ ha_innobase::create(
 		}
 
 		if (!srv_file_per_table) {
-			push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-				     ER_ILLEGAL_HA_CREATE_OPTION,
-				     "InnoDB: KEY_BLOCK_SIZE"
-				     " requires innodb_file_per_table.");
+			push_warning(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: KEY_BLOCK_SIZE"
+				" requires innodb_file_per_table.");
 			flags = 0;
 		}
 
 		if (file_format < DICT_TF_FORMAT_ZIP) {
-			push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-				     ER_ILLEGAL_HA_CREATE_OPTION,
-				     "InnoDB: KEY_BLOCK_SIZE"
-				     " requires innodb_file_format >"
-				     " Antelope.");
+			push_warning(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: KEY_BLOCK_SIZE requires"
+				" innodb_file_format > Antelope.");
 			flags = 0;
 		}
 
 		if (!flags) {
-			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-					    ER_ILLEGAL_HA_CREATE_OPTION,
-					    "InnoDB: ignoring"
-					    " KEY_BLOCK_SIZE=%lu.",
-					    create_info->key_block_size);
+			push_warning_printf(
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: ignoring"
+				" KEY_BLOCK_SIZE=%lu.",
+				create_info->key_block_size);
 		}
 	}
 
 	row_type = form->s->row_type;
 
 	if (flags) {
-		/* if KEY_BLOCK_SIZE was specified on this statement and
-		 ROW_FORMAT was not, automatically change ROW_FORMAT to COMPRESSED.*/
-		if (   (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)
-		    && !(create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
+		/* if ROW_FORMAT is set to default,
+		automatically change it to COMPRESSED.*/
+		if (row_type == ROW_TYPE_DEFAULT) {
 			row_type = ROW_TYPE_COMPRESSED;
 		} else if (row_type != ROW_TYPE_COMPRESSED) {
 			/* ROW_FORMAT other than COMPRESSED
@@ -7019,8 +7048,7 @@ ha_innobase::create(
 			such combinations can be obtained
 			with ALTER TABLE anyway. */
 			push_warning_printf(
-				thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
@@ -7045,33 +7073,24 @@ ha_innobase::create(
 	}
 
 	switch (row_type) {
-		const char* row_format_name;
 	case ROW_TYPE_REDUNDANT:
 		break;
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
-		row_format_name
-			= row_type == ROW_TYPE_COMPRESSED
-			? "COMPRESSED"
-			: "DYNAMIC";
-
 		if (!srv_file_per_table) {
 			push_warning_printf(
-				thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s"
-				" requires innodb_file_per_table.",
-				row_format_name);
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_per_table.",
+				get_row_format_name(row_type));
 		} else if (file_format < DICT_TF_FORMAT_ZIP) {
 			push_warning_printf(
-				thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
+				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
-				"InnoDB: ROW_FORMAT=%s"
-				" requires innodb_file_format >"
-				" Antelope.",
-				row_format_name);
+				"InnoDB: ROW_FORMAT=%s requires"
+				" innodb_file_format > Antelope.",
+				get_row_format_name(row_type));
 		} else {
 			flags |= DICT_TF_COMPACT
 				| (DICT_TF_FORMAT_ZIP
@@ -7083,10 +7102,10 @@ ha_innobase::create(
 	case ROW_TYPE_NOT_USED:
 	case ROW_TYPE_FIXED:
 	default:
-		push_warning(thd,
-			     MYSQL_ERROR::WARN_LEVEL_WARN,
-			     ER_ILLEGAL_HA_CREATE_OPTION,
-			     "InnoDB: assuming ROW_FORMAT=COMPACT.");
+		push_warning(
+			thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
 	case ROW_TYPE_COMPACT:
 		flags = DICT_TF_COMPACT;
@@ -7269,6 +7288,14 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_discard_tablespace_for_mysql(dict_table->name, trx);
 	} else {
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
+
+		/* in expanded import mode re-initialize auto_increment again */
+		if ((err == DB_SUCCESS) && srv_expand_import &&
+		    (table->found_next_number_field != NULL)) {
+			dict_table_autoinc_lock(dict_table);
+			innobase_initialize_autoinc();
+			dict_table_autoinc_unlock(dict_table);
+		}
 	}
 
 	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
@@ -7734,6 +7761,7 @@ ha_innobase::estimate_rows_upper_bound(void)
 	dict_index_t*	index;
 	ulonglong	estimate;
 	ulonglong	local_data_file_length;
+	ulint		stat_n_leaf_pages;
 
 	DBUG_ENTER("estimate_rows_upper_bound");
 
@@ -7753,10 +7781,12 @@ ha_innobase::estimate_rows_upper_bound(void)
 
 	index = dict_table_get_first_index(prebuilt->table);
 
-	ut_a(index->stat_n_leaf_pages > 0);
+	stat_n_leaf_pages = index->stat_n_leaf_pages;
+
+	ut_a(stat_n_leaf_pages > 0);
 
 	local_data_file_length =
-		((ulonglong) index->stat_n_leaf_pages) * UNIV_PAGE_SIZE;
+		((ulonglong) stat_n_leaf_pages) * UNIV_PAGE_SIZE;
 
 
 	/* Calculate a minimum length for a clustered index record and from
@@ -7959,13 +7989,12 @@ ha_innobase::info_low(
 	ib_table = prebuilt->table;
 
 	if (flag & HA_STATUS_TIME) {
-          if ((called_from_analyze || innobase_stats_on_metadata)
-		    && !share->ib_table->is_corrupt) {
+		if ((called_from_analyze || innobase_stats_on_metadata) && !share->ib_table->is_corrupt) {
 			/* In sql_show we call with this flag: update
 			then statistics so that they are up-to-date */
 
 			if (srv_use_sys_stats_table && !((ib_table->flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY)
-			    && thd_sql_command(user_thd) == SQLCOM_ANALYZE) {
+			    && called_from_analyze) {
 				/* If the indexes on the table don't have enough rows in SYS_STATS system table, */
 				/* they need to be created. */
 				dict_index_t*	index;
@@ -7987,7 +8016,8 @@ ha_innobase::info_low(
 			prebuilt->trx->op_info = "updating table statistics";
 
 			dict_update_statistics(ib_table,
-				(thd_sql_command(user_thd) == SQLCOM_ANALYZE)?TRUE:FALSE);
+					       FALSE /* update even if stats
+						     are initialized */, called_from_analyze);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}
@@ -8006,6 +8036,9 @@ ha_innobase::info_low(
 	}
 
 	if (flag & HA_STATUS_VARIABLE) {
+
+		dict_table_stats_lock(ib_table, RW_S_LATCH);
+
 		n_rows = ib_table->stat_n_rows;
 
 		/* Because we do not protect stat_n_rows by any mutex in a
@@ -8055,12 +8088,14 @@ ha_innobase::info_low(
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
 
+		dict_table_stats_unlock(ib_table, RW_S_LATCH);
+
 		/* Since fsp_get_available_space_in_free_extents() is
 		acquiring latches inside InnoDB, we do not call it if we
 		are asked by MySQL to avoid locking. Another reason to
 		avoid the call is that it uses quite a lot of CPU.
 		See Bug#38185. */
-		if (flag & HA_STATUS_NO_LOCK) {
+		if (flag & HA_STATUS_NO_LOCK || !srv_stats_update_need_lock) {
 			/* We do not update delete_length if no
 			locking is requested so the "old" value can
 			remain. delete_length is initialized to 0 in
@@ -8070,21 +8105,13 @@ ha_innobase::info_low(
 			/* Avoid accessing the tablespace if
 			innodb_crash_recovery is set to a high value. */
 			stats.delete_length = 0;
-		} else if (srv_stats_update_need_lock) {
+		} else {
+			ullint	avail_space;
 
-			/* lock the data dictionary to avoid races with
-			ibd_file_missing and tablespace_discarded */
-			row_mysql_lock_data_dictionary(prebuilt->trx);
+			avail_space = fsp_get_available_space_in_free_extents(
+				ib_table->space);
 
-			/* ib_table->space must be an existent tablespace */
-			if (!ib_table->ibd_file_missing
-			    && !ib_table->tablespace_discarded) {
-
-				stats.delete_length =
-					fsp_get_available_space_in_free_extents(
-						ib_table->space) * 1024;
-			} else {
-
+			if (avail_space == ULLINT_UNDEFINED) {
 				THD*	thd;
 
 				thd = ha_thd();
@@ -8101,9 +8128,9 @@ ha_innobase::info_low(
 					ib_table->name);
 
 				stats.delete_length = 0;
+			} else {
+				stats.delete_length = avail_space * 1024;
 			}
-
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
 		}
 
 		stats.check_time = 0;
@@ -8131,6 +8158,8 @@ ha_innobase::info_low(
 					ib_table->name, num_innodb_index,
 					table->s->keys);
 		}
+
+		dict_table_stats_lock(ib_table, RW_S_LATCH);
 
 		for (i = 0; i < table->s->keys; i++) {
 			ulong	j;
@@ -8169,8 +8198,6 @@ ha_innobase::info_low(
 					break;
 				}
 
-				dict_index_stat_mutex_enter(index);
-
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
 					rec_per_key = stats.records;
@@ -8178,8 +8205,6 @@ ha_innobase::info_low(
 					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
-
-				dict_index_stat_mutex_exit(index);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -8197,6 +8222,8 @@ ha_innobase::info_low(
 				  (ulong) rec_per_key;
 			}
 		}
+
+		dict_table_stats_unlock(ib_table, RW_S_LATCH);
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -11176,6 +11203,11 @@ static MYSQL_SYSVAR_ULONG(page_size, innobase_page_size,
   "###EXPERIMENTAL###: The universal page size of the database. Changing for created database is not supported. Use on your own risk!",
   NULL, NULL, (1 << 14), (1 << 12), (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
 
+static MYSQL_SYSVAR_ULONG(log_block_size, innobase_log_block_size,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "###EXPERIMENTAL###: The log block size of the transaction log file. Changing for created log file is not supported. Use on your own risk!",
+  NULL, NULL, (1 << 9)/*512*/, (1 << 9)/*512*/, (1 << UNIV_PAGE_SIZE_SHIFT_MAX), 0);
+
 static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
   PLUGIN_VAR_READONLY,
   "The common part for InnoDB table spaces.",
@@ -11394,6 +11426,16 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
+static MYSQL_SYSVAR_UINT(buffer_pool_shm_key, srv_buffer_pool_shm_key,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "[experimental] The key value of shared memory segment for the buffer pool. 0 (default) disables the feature.",
+  NULL, NULL, 0, 0, INT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(buffer_pool_shm_checksum, innobase_buffer_pool_shm_checksum,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Enable buffer_pool_shm checksum validation (enabled by default).",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
@@ -11604,17 +11646,19 @@ innodb_adaptive_checkpoint_update(
   void*        var_ptr,
   const void*  save)
 {
-  *(long *)var_ptr= (*(long *)save) % 3;
+  *(long *)var_ptr= (*(long *)save) % 4;
 }
 const char *adaptive_checkpoint_names[]=
 {
   "none", /* 0 */
   "reflex", /* 1 */
   "estimate", /* 2 */
+  "keep_average", /* 3 */
   /* For compatibility of the older patch */
-  "0", /* 3 ("none" + 3) */
-  "1", /* 4 ("reflex" + 3) */
-  "2", /* 5 ("estimate" + 3) */
+  "0", /* 4 ("none" + 3) */
+  "1", /* 5 ("reflex" + 3) */
+  "2", /* 6 ("estimate" + 3) */
+  "3", /* 7 ("keep_average" + 4) */
   NullS
 };
 TYPELIB adaptive_checkpoint_typelib=
@@ -11624,7 +11668,7 @@ TYPELIB adaptive_checkpoint_typelib=
 };
 static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing along modified age. (none, reflex, [estimate])",
+  "Enable/Disable flushing along modified age. (none, reflex, [estimate], keep_average)",
   NULL, innodb_adaptive_checkpoint_update, 2, &adaptive_checkpoint_typelib);
 
 static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
@@ -11663,9 +11707,12 @@ static	MYSQL_SYSVAR_ULINT(pass_corrupt_table, srv_pass_corrupt_table,
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(page_size),
+  MYSQL_SYSVAR(log_block_size),
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(buffer_pool_shm_key),
+  MYSQL_SYSVAR(buffer_pool_shm_checksum),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(fast_checksum),
   MYSQL_SYSVAR(commit_concurrency),

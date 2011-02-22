@@ -2265,7 +2265,7 @@ buf_LRU_file_restore(void)
 	ulint		req = 0;
 	ibool		terminated = FALSE;
 	ibool		ret = FALSE;
-	dump_record_t*	records= 0;
+	dump_record_t*	records = NULL;
 	ulint		size;
 	ulint		size_high;
 	ulint		length;

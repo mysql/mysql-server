@@ -2899,6 +2899,7 @@ recv_init_crash_recovery(void)
 /*==========================*/
 {
 	ut_a(!recv_needed_recovery);
+	ut_a(!srv_buffer_pool_shm_is_reused);
 
 	recv_needed_recovery = TRUE;
 
@@ -2956,6 +2957,7 @@ recv_recovery_from_checkpoint_start_func(
 	log_group_t*	max_cp_group;
 	log_group_t*	up_to_date_group;
 	ulint		max_cp_field;
+	ulint		log_hdr_log_block_size;
 	ib_uint64_t	checkpoint_lsn;
 	ib_uint64_t	checkpoint_no;
 	ib_uint64_t	old_scanned_lsn;
@@ -3055,6 +3057,20 @@ recv_recovery_from_checkpoint_start_func(
 		       max_cp_group->space_id, 0,
 		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
 		       log_hdr_buf, max_cp_group);
+	}
+
+	log_hdr_log_block_size
+		= mach_read_from_4(log_hdr_buf + LOG_FILE_OS_FILE_LOG_BLOCK_SIZE);
+	if (log_hdr_log_block_size == 0) {
+		/* 0 means default value */
+		log_hdr_log_block_size = 512;
+	}
+	if (log_hdr_log_block_size != srv_log_block_size) {
+		fprintf(stderr,
+			"InnoDB: Error: The block size of ib_logfile (%lu) "
+			"is not equal to innodb_log_block_size.\n",
+			log_hdr_log_block_size);
+		return(DB_ERROR);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE

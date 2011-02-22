@@ -1,0 +1,19 @@
+--source include/big_test.inc
+--source include/have_innodb.inc
+show variables like 'innodb_buffer_pool_shm%';
+
+#clean shutdown (restart_mysqld.inc is not clean if over 10 sec...)
+--write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+wait
+EOF
+shutdown_server 120;
+--append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+show variables like 'innodb_buffer_pool_shm%';
+--sleep 1
+--system ipcrm -M 123456

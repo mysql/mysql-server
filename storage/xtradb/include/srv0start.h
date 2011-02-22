@@ -131,4 +131,7 @@ extern	enum srv_shutdown_state	srv_shutdown_state;
 /** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL
 
+/** reserved for extra system tables */
+#define SRV_EXTRA_SYS_SPACE_FIRST_ID	0xFFFFFFE0UL
+
 #endif
