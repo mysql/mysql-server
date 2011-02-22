@@ -34,6 +34,8 @@
 #define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
 
 void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save);
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
+
 /*****************************************************************************
  *  Join cache module
 ******************************************************************************/
@@ -138,54 +140,6 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
   return len;
 }
 
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
-
-// /* 
-//   Get the next table whose records are stored in the join buffer of this cache
-//
-//   SYNOPSIS
-//     get_next_table()
-//       tab     the table for which the next table is to be returned
-//
-//   DESCRIPTION
-//     For a given table whose records are stored in this cache the function
-//     returns the next such table if there is any.
-//     The function takes into account that the tables whose records are
-//     are stored in the same cache now can interleave with tables from
-//     materialized semijoin subqueries.
-//
-//   TODO
-//     This function should be modified/simplified after the new code for
-//      materialized semijoins is merged.
-//
-//   RETURN
-//     The next join table whose records are stored in the buffer of this cache
-//     if such table exists, 0 - otherwise
-// */
-//
-// JOIN_TAB *JOIN_CACHE::get_next_table(JOIN_TAB *tab)
-// {
-//   
-//   if (++tab == join_tab)
-//     return NULL;
-//   if (join_tab->first_sjm_sibling)
-//     return tab;
-//   uint i= tab-join->join_tab;
-//   /*
-//   Temporary measure before MWL#90 refactorings are there: if 'tab' is at upper
-//   level (i.e. it's not inside an SJM nest), still include into the join buffer
-//   the tables from within SJM nest.  We might need the subquery's select list
-//   columns, because SJ-Materialization-Scan upacks data to those. 
-//
-//   while (sj_is_materialize_strategy(join->best_positions[i].sj_strategy) &&
-//          i < join->tables)
-//     i+= join->best_positions[i].n_sj_tables;
-//
-//   */
-//   return join->join_tab+i < join_tab ? join->join_tab+i : NULL; 
-// }
-
-
 /* 
   Determine different counters of fields associated with a record in the cache  
 
@@ -206,13 +160,7 @@ JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
 void JOIN_CACHE::calc_record_fields()
 {
   JOIN_TAB *tab;
-/**
-psergey-merge: was: 
-  JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                                (join_tab->first_sjm_sibling ?
-			         join_tab->first_sjm_sibling :
-			         join->join_tab+join->const_tables);
-**/
+
   if (prev_cache)
     tab= prev_cache->join_tab;
   else
@@ -235,17 +183,11 @@ psergey-merge: was:
     }
   }
   start_tab= tab;
-  /*
-  while (start_tab->bush_children && start_tab != join_tab)
-    start_tab++;
-  */
   if (start_tab->bush_children)
     start_tab= start_tab->bush_children->start;
 
   tab= start_tab;
 
-  //tables= join_tab-tab;
-  //tables= 0;
   fields= 0;
   blobs= 0;
   flag_fields= 0;
@@ -253,7 +195,6 @@ psergey-merge: was:
   data_field_ptr_count= 0;
   referenced_fields= 0;
 
-  //psergey-merge: for ( ; tab ; tab= get_next_table(tab))
   /*
     The following loop will get inside SJM nests, because data may be unpacked
     to sjm-inner tables.
@@ -267,7 +208,6 @@ psergey-merge: was:
     blobs+= tab->used_blobs;
 
     fields+= tab->check_rowid_field();
-    //tables++;
   }
   if ((with_match_flag= join_tab->use_match_flag()))
     flag_fields++;
@@ -313,14 +253,7 @@ void JOIN_CACHE::collect_info_on_key_args()
   cache= this;
   do
   {
-    /*
-      psergey-merge:
-        tab"=start_tab" is not a correct substitute for 
-        "cache->join_tab - cache->tables".
-    */
     for (tab= cache->start_tab; tab != cache->join_tab; tab= next_linear_tab(join, tab, FALSE))
-    //for (tab= cache->join_tab-cache->tables; tab ;
-    //     tab= cache->get_next_table(tab))
     { 
       uint key_args;
       bitmap_clear_all(&tab->table->tmp_set);
@@ -436,8 +369,6 @@ void JOIN_CACHE::create_flag_fields()
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-// // psergey-merge:  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
-  //for (tab= join_tab-tables; tab < join_tab; tab++)
   for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
   {
     TABLE *table= tab->table;
@@ -525,9 +456,6 @@ void JOIN_CACHE::create_key_arg_fields()
   while (ext_key_arg_cnt)
   {
     cache= cache->prev_cache;
-    //for (tab= cache->join_tab-cache->tables; tab;
-    //     tab= cache->get_next_table(tab))
-    //psergey-merge: ^ 
     for (tab= cache->start_tab; tab != cache->join_tab; 
          tab= next_linear_tab(join, tab, FALSE))
     { 
@@ -637,8 +565,6 @@ void JOIN_CACHE::create_remaining_fields()
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
   for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
-//psergey-merge:  for (tab= join_tab-tables; tab; tab= get_next_table(tab))
-  //for (tab= join_tab-tables; tab < join_tab; tab++)
   {
     MY_BITMAP *rem_field_set;
     TABLE *table= tab->table;
@@ -795,7 +721,6 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   if (!min_buff_size)
   {
     ulong len= 0;
-    //for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
     for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
       len+= tab->get_max_used_fieldlength();
     len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
@@ -849,7 +774,6 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
     ulong max_sz;
     ulong min_sz= get_min_join_buffer_size(); 
     ulong len= 0;
-    //for (JOIN_TAB *tab= join_tab-tables; tab < join_tab; tab++)
     for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
       len+= tab->get_used_fieldlength();
     len+= get_record_max_affix_length();
@@ -925,11 +849,8 @@ int JOIN_CACHE::alloc_buffer()
   set_if_bigger(max_records, 10);
   min_buff_size= get_min_join_buffer_size();
   buff_size= get_max_join_buffer_size(optimize_buff_size);
-//psergey-merge:  for (tab= join->join_tab+join->const_tables; tab <= join_tab; tab++)
-// for (tab= cache->join_tab-cache->tables; tab < cache->join_tab ; tab++)
-// (fixed)
-    for (tab= /*join->join_tab + join->const_tables*/ start_tab; tab!= join_tab; 
-         tab= next_linear_tab(join, tab, FALSE))
+
+  for (tab= start_tab; tab!= join_tab; tab= next_linear_tab(join, tab, FALSE))
   {
     cache= tab->cache;
     if (cache)

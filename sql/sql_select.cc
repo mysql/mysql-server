@@ -8201,12 +8201,6 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   join->return_tab= 0;
 
-  //psergey-merge: fixes with prev)tab?
-/*
--  if (cache_level == 0 || i == join->const_tables)
-+  if (cache_level == 0 || i == join->const_tables || !prev_tab)
-
-*/
   /*
     Don't use join cache if @@join_cache_level==0 or this table is the first
     one join suborder (either at top level or inside a bush)
@@ -8447,9 +8441,6 @@ restart:
     case JT_ALL:
       tab->used_join_cache_level= check_join_cache_usage(tab, options,
                                                          no_jbuf_after,
-                                                         //tab == last_sjm_table ?
-						         //  first_sjm_table :
-                                                         //  tab-1); 
                                                          prev_tab);
       tab->use_join_cache= test(tab->used_join_cache_level);
       /*
@@ -8510,10 +8501,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
-  //for (i= 0; i < join->const_tables; i++) //psergey-merge-todo: partial_join_cardinality for everything.
   for (tab= first_linear_tab(join, TRUE); 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE)) /// << psergey-merge2: is that ok???
+       tab= next_linear_tab(join, tab, TRUE))
   {
     tab->partial_join_cardinality= 1; 
   }
@@ -13815,19 +13805,6 @@ int rr_sequential_and_unpack(READ_RECORD *info)
   return error;
 }
 
-
-#if 0
-psergey-merge: todo:
-  else
-  {
-    if (sjm->is_sj_scan)
-    {
-      /* Reset the cursor for a new scan over the table */
-      if (sjm->table->file->ha_rnd_init(TRUE))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-    }
-  }
-#endif
 
 /*
   Fill the join buffer with partial records, retrieve all full  matches for them   
@@ -19579,7 +19556,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
               examined_rows= tab->records;
             else
               examined_rows= tab->table->file->stats.records;
-            //psergey-merge: examined_rows= (ha_rows)tab->records_read;
           }
         }
         else
