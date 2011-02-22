@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -93,7 +93,7 @@ extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
-extern mysql_pfs_key_t	purge_sys_mutex_key;
+extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -637,7 +637,6 @@ or row lock! */
 #define SYNC_TREE_NODE_NEW	892
 #define SYNC_TREE_NODE_FROM_HASH 891
 #define SYNC_TREE_NODE		890
-#define	SYNC_PURGE_SYS		810
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
 #define SYNC_RSEG		600
@@ -659,6 +658,7 @@ or row lock! */
 #define SYNC_REC_LOCK		299
 #define	SYNC_TRX_LOCK_HEAP	298
 #define SYNC_TRX_SYS_HEADER	290
+#define	SYNC_PURGE_QUEUE	200
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
