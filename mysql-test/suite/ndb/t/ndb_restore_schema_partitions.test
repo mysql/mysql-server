@@ -1,3 +1,7 @@
+######################################################################
+# Test restoring backups into partitioned tables
+######################################################################
+
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
 
