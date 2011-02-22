@@ -1,7 +1,5 @@
 ######################################################################
-# Author: Martin Zaun
-# Date: 2010-10
-# Purpose: Lossy conversion test for [var]char and [var]binary types
+# Test restoring backups with lossy conversions on [var]char|binary types
 ######################################################################
 
 -- source include/have_ndb.inc
