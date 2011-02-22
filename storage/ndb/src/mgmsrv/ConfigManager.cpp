@@ -903,6 +903,7 @@ void ConfigManager::set_config_change_state(ConfigChangeState::States state)
   {
     // Rebuild m_all_mgm so that each node in config is included
     // new mgm nodes might have been added
+    assert(m_config_change.m_error == ConfigChangeRef::OK);
     m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
   }
 
@@ -1113,7 +1114,7 @@ ConfigManager::sendConfigChangeConf(SignalSender& ss, BlockReference to) const
 
 
 void
-ConfigManager::startConfigChange(SignalSender& ss)
+ConfigManager::startConfigChange(SignalSender& ss, Uint32 ref)
 {
   if (m_config_state == CS_INITIAL)
   {
@@ -1126,7 +1127,7 @@ ConfigManager::startConfigChange(SignalSender& ss)
                         m_config_change.m_new_config->getGeneration());
   }
   m_config_change.m_contacted_nodes.clear();
-  m_config_change.m_client_ref = ss.getOwnRef();
+  m_config_change.m_client_ref = ref;
   if (sendConfigChangeImplReq(ss, m_config_change.m_new_config) <= 0)
   {
     g_eventLogger->error("Failed to start configuration change!");
@@ -1152,16 +1153,30 @@ ConfigManager::startAbortConfigChange(SignalSender& ss)
                                      MGM_CONFIG_MAN,
                                      GSN_CONFIG_CHANGE_IMPL_REQ,
                                      ConfigChangeImplReq::SignalLength);
-  if (m_waiting_for.isclear())
-    set_config_change_state(ConfigChangeState::IDLE);
-  else
-    set_config_change_state(ConfigChangeState::ABORTING);
 
   if (m_config_change.m_new_config)
   {
     delete m_config_change.m_new_config;
     m_config_change.m_new_config = 0;
   }
+
+  if (m_waiting_for.isclear())
+  {
+    /**
+     * Send CONFIG_CHANGE_IMPL_CONF (aborting) to self
+     */
+    m_waiting_for.set(ss.getOwnNodeId());
+    ConfigChangeImplConf* const conf =
+      CAST_PTR(ConfigChangeImplConf, ssig.getDataPtrSend());
+    conf->requestType = ConfigChangeImplReq::Abort;
+
+    ss.sendSignal(ss.getOwnNodeId(), ssig,
+                  MGM_CONFIG_MAN,
+                  GSN_CONFIG_CHANGE_IMPL_CONF,
+                  ConfigChangeImplConf::SignalLength);
+  }
+
+  set_config_change_state(ConfigChangeState::ABORTING);
 }
 
 int
@@ -1277,9 +1292,8 @@ ConfigManager::execCONFIG_CHANGE_REQ(SignalSender& ss, SimpleSignal* sig)
     return;
   }
 
-  m_config_change.m_client_ref = from;
   m_config_change.m_new_config = new_config;
-  startConfigChange(ss);
+  startConfigChange(ss, from);
 
   return;
 }
@@ -1812,7 +1826,7 @@ ConfigManager::run()
           Config* new_conf = m_config_change.m_initial_config;
           m_config_change.m_initial_config = 0;
           m_config_change.m_new_config = new_conf;
-          startConfigChange(ss);
+          startConfigChange(ss, ss.getOwnRef());
         }
         break;
 
@@ -1834,7 +1848,7 @@ ConfigManager::run()
             m_started.equal(m_all_mgm) &&   // All mgmd started
             m_checked.equal(m_started))     // All nodes checked
         {
-          startConfigChange(ss);
+          startConfigChange(ss, ss.getOwnRef());
         }
 
         break;
