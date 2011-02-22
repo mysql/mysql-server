@@ -1,7 +1,5 @@
 ######################################################################
-# Author: Martin Zaun
-# Date: 2011-01
-# Purpose: test of rewrite-database feature
+# Test restoring backups into renamed databases
 ######################################################################
 
 -- source include/have_ndb.inc
