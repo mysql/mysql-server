@@ -120,9 +120,37 @@ eval alter table t1 engine = $engine_type;
 handler t2 read first;
 
 handler t1 open;
-handler t1 read a=(16) limit 1,3;
+handler t1 read a=(20) limit 1,3;
 flush tables;
-handler t1 read a=(16) limit 1,3;
+handler t1 read a=(20) limit 1,3;
+handler t1 close;
+
+#
+# Search after end and before start of index
+#
+
+handler t1 open;
+handler t1 read a=(25);
+handler t1 read a next;
+handler t1 read a next;
+handler t1 read a next;
+handler t1 read a prev;
+handler t1 read a=(1000);
+handler t1 read a next;
+handler t1 read a prev;
+handler t1 read a=(1000);
+handler t1 read a prev;
+
+handler t1 read a=(14);
+handler t1 read a prev;
+handler t1 read a prev;
+handler t1 read a next;
+handler t1 read a=(1);
+handler t1 read a prev;
+handler t1 read a next;
+handler t1 read a=(1);
+handler t1 read a next;
+
 handler t1 close;
 
 #
@@ -131,16 +159,16 @@ handler t1 close;
 
 handler t1 open;
 prepare stmt from 'handler t1 read a=(?) limit ?,?';
-set @a=16,@b=1,@c=100;
+set @a=20,@b=1,@c=100;
 execute stmt using @a,@b,@c;
-set @a=16,@b=2,@c=1;
+set @a=20,@b=2,@c=1;
 execute stmt using @a,@b,@c;
-set @a=16,@b=0,@c=2;
+set @a=20,@b=0,@c=2;
 execute stmt using @a,@b,@c;
 deallocate prepare stmt;
 
 prepare stmt from 'handler t1 read a next limit ?';
-handler t1 read a>=(11);
+handler t1 read a>=(21);
 set @a=3;
 execute stmt using @a;
 execute stmt using @a;
@@ -168,13 +196,13 @@ execute stmt using @a;
 deallocate prepare stmt;
 
 prepare stmt from 'handler t1 read a>=(?) where a < ? limit 5';
-set @a=15, @b=20;
+set @a=17, @b=24;
 execute stmt using @a,@b;
 execute stmt using @a,@b;
 deallocate prepare stmt;
 
 prepare stmt from 'handler t1 read a=(?)';
-set @a=16;
+set @a=17;
 execute stmt using @a;
 alter table t1 add c int;
 --error 1109
@@ -186,7 +214,7 @@ handler t1 close;
 handler t1 open;
 prepare stmt from 'handler t1 read a=(?)';
 flush tables;
-set @a=16;
+set @a=17;
 --error ER_NEED_REPREPARE
 execute stmt using @a;
 deallocate prepare stmt;

@@ -32,7 +32,20 @@ int heap_rnext(HP_INFO *info, uchar *record)
   {
     heap_rb_param custom_arg;
 
-    if (info->last_pos)
+    /* If no active record and last was not deleted */
+    if (!(info->update & (HA_STATE_AKTIV | HA_STATE_NO_KEY |
+                          HA_STATE_DELETED)))
+    {
+      if (info->update & HA_STATE_NEXT_FOUND)
+        pos= 0;                            /* Can't search after last row */
+      else
+      {
+        /* Last was 'prev' before first record; search after first record */
+        pos= tree_search_edge(&keyinfo->rb_tree, info->parents,
+                              &info->last_pos, offsetof(TREE_ELEMENT, left));
+      }
+    }
+    else if (info->last_pos)
     {
       /*
         We enter this branch for non-DELETE queries after heap_rkey()

@@ -52,6 +52,7 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx)
     }
     else
     {
+      info->update= HA_STATE_NO_KEY;
       my_errno = HA_ERR_END_OF_FILE;
       DBUG_RETURN(my_errno);
     }
