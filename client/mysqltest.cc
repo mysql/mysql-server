@@ -7342,7 +7342,8 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
-  return mysql_query(mysql, query);
+  int ret= mysql_query(mysql, query);
+  DBUG_RETURN(ret);
 }
 
 
