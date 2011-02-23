@@ -75,7 +75,7 @@ ndbinfo_sql_SOURCES = ndbinfo_sql.cpp \
 ndbinfo_sql_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi
 
 # Build ndbinfo.sql by executing ndbinfo_sql
-ndbinfo.sql: $(ndbinfo_sql_SOURCES)
+ndbinfo.sql: $(ndbinfo_sql_SOURCES) ndbinfo_sql$(EXEEXT)
 	$(MAKE) $(AM_MAKEFLAGS) ndbinfo_sql$(EXEEXT)
 	./ndbinfo_sql$(EXEEXT) > $@-t
 	$(MV) $@-t $@
