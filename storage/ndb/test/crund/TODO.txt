@@ -1,7 +1,4 @@
 
-*** NDB question:
-    - why delete B0 performance  (index) different from A?
-
 *** check issues marked in ClusterjLoad against latest Cluster/J version
     - leaking connections ?
 
@@ -17,8 +14,6 @@
     result verifications across all operations and backends
 
 *** add configuration to run OpenJPA on Cluster/J
-
-*** run JpaLoad and ClusterjLoad as automated tests in Cluster/J
 
 *** integrate CRUND benchmark into ... suite
 
