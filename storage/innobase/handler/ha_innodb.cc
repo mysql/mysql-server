@@ -10975,7 +10975,7 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   NULL, NULL,
   20,			/* Default setting */
   1,			/* Minimum value */
-  10000, 0);		/* Maximum value */
+  5000, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
   PLUGIN_VAR_OPCMDARG,
