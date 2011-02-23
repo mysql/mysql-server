@@ -23,6 +23,7 @@ a
 include/wait_for_slave_sql_error.inc [errno=1062]
 Last_SQL_Error (expected "duplicate key" error)
 Could not execute Write_rows event on table test.t1; Duplicate entry '1' for key 'PRIMARY', Error_code: 1062; handler error HA_ERR_FOUND_DUPP_KEY; the event's master log master-bin.000001, end_log_pos END_LOG_POS
+call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
 SELECT * FROM t1;
 a
 1
@@ -49,6 +50,7 @@ SELECT * FROM t1;
 a
 [on slave]
 ---- Wait until slave stops with an error ----
+call mtr.add_suppression("Slave SQL.*Can.t find record in .t1., Error_code: 1032");
 include/wait_for_slave_sql_error.inc [errno=1032]
 Last_SQL_Error (expected "duplicate key" error)
 Could not execute Delete_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_KEY_NOT_FOUND; the event's master log master-bin.000001, end_log_pos END_LOG_POS
