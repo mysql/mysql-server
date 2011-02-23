@@ -30,6 +30,7 @@ libblocks_a_SOURCES = tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp\
   dbdict/Dbdict.cpp \
   dbdih/DbdihInit.cpp dbdih/DbdihMain.cpp \
   dblqh/DblqhInit.cpp dblqh/DblqhMain.cpp \
+  dbspj/DbspjInit.cpp dbspj/DbspjMain.cpp dbspj/DbspjProxy.cpp \
   dbtc/DbtcInit.cpp dbtc/DbtcMain.cpp \
   dbtup/DbtupExecQuery.cpp dbtup/DbtupBuffer.cpp \
   dbtup/DbtupRoutines.cpp dbtup/DbtupCommit.cpp \

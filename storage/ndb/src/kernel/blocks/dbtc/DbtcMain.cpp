@@ -2790,7 +2790,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
-  Uint8 Tqueue              = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
+  const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo);
+  const Uint8 Tqueue        = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
 
   if (Treorg)
   {
@@ -2809,6 +2810,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   regCachePtr->opExec   = TInterpretedFlag;
   regCachePtr->distributionKeyIndicator = TDistrKeyFlag;
   regCachePtr->m_no_disk_flag = TNoDiskFlag;
+  regCachePtr->viaSPJFlag = TViaSPJFlag;
   regCachePtr->m_op_queue = Tqueue;
 
   //-------------------------------------------------------------
@@ -3369,7 +3371,14 @@ void Dbtc::attrinfoDihReceivedLab(Signal* signal)
     jam();
     arrGuard(Tnode, MAX_NDB_NODES);
     Uint32 instanceKey = regTcPtr->lqhInstanceKey;
-    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    BlockReference lqhRef;
+    if(regCachePtr->viaSPJFlag){
+      //ndbout << "TC:Choosing SPJ." << endl;
+      lqhRef = numberToRef(DBSPJ, Tnode); // Only 1 instance
+    }else{
+      //ndbout << "TC:Choosing LQH." << endl;
+      lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
+    }
     packLqhkeyreq(signal, lqhRef);
   }
   else
@@ -4094,6 +4103,12 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
 void Dbtc::execLQHKEYCONF(Signal* signal) 
 {
   const LqhKeyConf * const lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
+#ifdef UNUSED
+  ndbout << "TC: Received LQHKEYCONF"
+         << " transId1=" << lqhKeyConf-> transId1
+         << " transId2=" << lqhKeyConf-> transId2
+	 << endl;
+#endif /*UNUSED*/
   UintR compare_transid1, compare_transid2;
   BlockReference tlastLqhBlockref;
   UintR tlastLqhConnect;
@@ -7695,7 +7710,21 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
 {
   ScanFragRecPtr ptr;
   c_scan_frag_pool.getPtr(ptr, TscanConPtr);
-  DEBUG(TscanConPtr << " timeOutFoundFragLab: scanFragState = "<< ptr.p->scanFragState);
+#ifdef VM_TRACE
+  {
+    ScanRecordPtr scanptr;
+    scanptr.i = ptr.p->scanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ApiConnectRecordPtr TlocalApiConnectptr;
+    TlocalApiConnectptr.i = scanptr.p->scanApiRec;
+    ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+
+    DEBUG("[ H'" << hex << TlocalApiConnectptr.p->transid[0]
+	<< " H'" << TlocalApiConnectptr.p->transid[1] << "] "
+        << TscanConPtr << " timeOutFoundFragLab: scanFragState = "
+        << ptr.p->scanFragState);
+  }
+#endif
 
   const Uint32 time_out_param= ctimeOutValue;
   const Uint32 old_time_out_param= c_abortRec.oldTimeOutValue;
@@ -10223,6 +10252,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->first_batch_size_rows = scanTabReq->first_batch_size;
   scanptr.p->batch_byte_size = scanTabReq->batch_byte_size;
   scanptr.p->batch_size_rows = noOprecPerFrag;
+  scanptr.p->m_scan_block_no = DBLQH;
 
   Uint32 tmp = 0;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
@@ -10233,13 +10263,20 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   ScanFragReq::setDescendingFlag(tmp, ScanTabReq::getDescendingFlag(ri));
   ScanFragReq::setTupScanFlag(tmp, ScanTabReq::getTupScanFlag(ri));
   ScanFragReq::setNoDiskFlag(tmp, ScanTabReq::getNoDiskFlag(ri));
-  
+  if (ScanTabReq::getViaSPJFlag(ri))
+  {
+    jam();
+    scanptr.p->m_scan_block_no = DBSPJ;
+  }
+
   scanptr.p->scanRequestInfo = tmp;
   scanptr.p->scanStoredProcId = scanTabReq->storedProcId;
   scanptr.p->scanState = ScanRecord::RUNNING;
   scanptr.p->m_queued_count = 0;
   scanptr.p->m_scan_cookie = RNIL;
   scanptr.p->m_close_scan_req = false;
+  scanptr.p->m_pass_all_confs =  ScanTabReq::getPassAllConfsFlag(ri);
+  scanptr.p->m_4word_conf = ScanTabReq::get4WordConf(ri);
 
   ScanFragList list(c_scan_frag_pool, 
 		    scanptr.p->m_running_scan_frags);
@@ -10744,7 +10781,14 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
    * the KeyInfo and AttrInfo sections when sending.
    */
   Uint32 instanceKey = conf->instanceKey;
-  scanFragptr.p->lqhBlockref = numberToRef(DBLQH, instanceKey, tnodeid);
+  scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
+                                           instanceKey, tnodeid);
+  if (scanptr.p->m_scan_block_no == DBSPJ)
+  {
+    // only 1 instance
+    scanFragptr.p->lqhBlockref = numberToRef(scanptr.p->m_scan_block_no,
+                                             tnodeid);
+  }
   scanFragptr.p->m_connectCount = getNodeInfo(tnodeid).m_connectCount;
 
   /* Determine whether this is the last scanFragReq
@@ -10948,9 +10992,15 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   }
 
   if(noCompletedOps == 0 && status != 0 && 
+     !scanptr.p->m_pass_all_confs &&
      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count < scanptr.p->scanNoFrag){
     /**
-     * Start on next fragment
+     * Start on next fragment. Don't do this if we scan via the SPJ block. In
+     * that case, dropping the last SCAN_TABCONF message for a fragment would
+     * mean dropping the 'nodeMask' (which is sent in ScanFragConf::total_len).
+     * This would confuse the API with respect to which pushed operations that
+     * would get new tuples in the next batch. If we use SPJ, we must thus
+     * send SCAN_TABCONF and let the API ask for the next batch.
      */
     scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 
     scanFragptr.p->startFragTimer(ctcTimer);
@@ -10982,6 +11032,22 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     run.remove(scanFragptr);
     queued.add(scanFragptr);
     scanptr.p->m_queued_count++;
+  }
+
+  if (status != 0 &&
+      scanptr.p->m_pass_all_confs &&
+      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count
+      < scanptr.p->scanNoFrag){
+    /**
+     * nodeMask(=total_len) should be zero since there will be no more
+     * rows from this fragment.
+     */
+    ndbrequire(total_len==0);
+    /**
+     * Now set it to one to tell the API that there may be more rows from
+     * the next fragment.
+     */
+    total_len  = 1;
   }
 
   scanFragptr.p->m_scan_frag_conf_status = status;
@@ -11542,7 +11608,17 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   jam();
   Uint32* ops = signal->getDataPtrSend()+4;
   Uint32 op_count = scanPtr.p->m_queued_count;
-  if(4 + 3 * op_count > 25){
+
+  Uint32 words_per_op = 4;
+  const Uint32 ref = apiConnectptr.p->ndbapiBlockref;
+  if (!scanPtr.p->m_4word_conf)
+  {
+    jam();
+    words_per_op = 3;
+  }
+
+  if (4 + words_per_op * op_count > 25)
+  {
     jam();
     ops += 21;
   }
@@ -11570,8 +11646,16 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
       
       * ops++ = curr.p->m_apiPtr;
       * ops++ = done ? RNIL : curr.i;
-      * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
-      
+      if (words_per_op == 4)
+      {
+        * ops++ = curr.p->m_ops;
+        * ops++ = curr.p->m_totalLen;
+      }
+      else
+      {
+        * ops++ = (curr.p->m_totalLen << 10) + curr.p->m_ops;
+      }
+
       queued.remove(curr); 
       if(!done){
 	delivered.add(curr);
@@ -11606,17 +11690,20 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     }
   }
   
-  if(4 + 3 * op_count > 25){
+  if (4 + words_per_op * op_count > 25)
+  {
     jam();
     LinearSectionPtr ptr[3];
     ptr[0].p = signal->getDataPtrSend()+25;
-    ptr[0].sz = 3 * op_count;
-    sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABCONF, signal, 
-	       ScanTabConf::SignalLength, JBB, ptr, 1);
-  } else {
+    ptr[0].sz = words_per_op * op_count;
+    sendSignal(ref, GSN_SCAN_TABCONF, signal,
+               ScanTabConf::SignalLength, JBB, ptr, 1);
+  }
+  else
+  {
     jam();
-    sendSignal(apiConnectptr.p->ndbapiBlockref, GSN_SCAN_TABCONF, signal, 
-	       ScanTabConf::SignalLength + 3 * op_count, JBB);
+    sendSignal(ref, GSN_SCAN_TABCONF, signal,
+	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
   }
   scanPtr.p->m_queued_count = 0;
 

@@ -38,6 +38,7 @@ INCLUDES += \
 	-I$(srcdir)/blocks/dbdict \
 	-I$(srcdir)/blocks/dbdih \
 	-I$(srcdir)/blocks/dblqh \
+	-I$(srcdir)/blocks/dbspj \
 	-I$(srcdir)/blocks/dbtc \
 	-I$(srcdir)/blocks/dbtup \
 	-I$(srcdir)/blocks/ndbfs \
