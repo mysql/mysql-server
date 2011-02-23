@@ -830,10 +830,10 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define strtok_r(A,B,C) strtok((A),(B))
 #endif
 
-/* This is from the old m-machine.h file */
-
-#if SIZEOF_LONG_LONG > 4
+#if SIZEOF_LONG_LONG >= 8
 #define HAVE_LONG_LONG 1
+#else
+#error WHAT? sizeof(long long) < 8 ???
 #endif
 
 /*
