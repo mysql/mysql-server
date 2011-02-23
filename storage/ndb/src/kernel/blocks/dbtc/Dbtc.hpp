@@ -900,6 +900,7 @@ public:
       /* Distribution information */
       // TODO : Consider placing this info into other records
       Uint8  distributionKeyIndicator;
+      Uint8  viaSPJFlag;        /* Send request via the SPJ block.*/
       UintR  distributionKey;
     /* End of fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
     
@@ -1236,12 +1237,22 @@ public:
       Uint16 batch_size_rows;
     };
     Uint32 batch_byte_size;
+    Uint32 m_scan_block_no;
 
     Uint32 scanRequestInfo; // ScanFrag format
 
     // Close is ordered
     bool m_close_scan_req;
-  };   
+    // All SCAN_FRAGCONS should be passed on to the API as SCAN_TABCONFS.
+    // This is needed to correctly propagate 'node masks' when scanning via the
+    // SPJ block.
+    bool m_pass_all_confs;
+
+    /**
+     * Send opcount/total len as different words
+     */
+    bool m_4word_conf;
+  };
   typedef Ptr<ScanRecord> ScanRecordPtr;
   
   /*************************************************************************>*/

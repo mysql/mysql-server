@@ -245,6 +245,7 @@ static Uint32 blocks[] =
   TSMAN_REF,
   PGMAN_REF,
   DBINFO_REF,
+  DBSPJ_REF,
   0
 };
 
