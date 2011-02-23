@@ -105,6 +105,22 @@
       </rules>
     </collation>
 
+    <!-- shift after using expansion -->
+    <collation name="utf8_5624_5" id="368" shift-after-method="expand">
+      <rules>
+        <!--
+           Put small basic Latin letters between 0 and 1.
+           Simple shift method would not work, because there is no
+           weight space between 0 and 1 in DUCET.
+           Also, to test it works with contractions, put some after 'z'.
+        -->
+        <reset>0</reset>
+        <pc>abcdefghijklmnopqrstuvwxyz</pc><p>aa</p><p>aaa</p>
+        <reset before="primary">1</reset>
+        <pc>ABCDEFGHIJKLMNOPQRSTUVWXYZ</pc><p>AA</p><p>AAA</p>
+      </rules>
+    </collation>
+
    <collation name="utf8_hugeid_ci" id="2047000000">
       <rules>
         <reset>a</reset>
