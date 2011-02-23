@@ -3826,6 +3826,7 @@ sub run_testcase ($$) {
       # Generate new config file from template
       $config= My::ConfigFactory->new_config
 	( {
+           testname        => $tinfo->{name},
 	   basedir         => $basedir,
 	   testdir         => $glob_mysql_test_dir,
 	   template_path   => $tinfo->{template_path},

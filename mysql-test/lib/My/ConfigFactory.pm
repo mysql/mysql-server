@@ -358,7 +358,7 @@ sub post_check_client_group {
 
     if (! defined $option){
       #print $config;
-      croak "Could not get value for '$name_from'";
+      croak "Could not get value for '$name_from' for test $self->{testname}";
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
@@ -446,7 +446,7 @@ sub resolve_at_variable {
 
   my $from_group= $config->group($group_name)
     or croak "There is no group named '$group_name' that ",
-      "can be used to resolve '$option_name'";
+      "can be used to resolve '$option_name' for test '$self->{testname}'";
 
   my $from= $from_group->value($option_name);
   $config->insert($group->name(), $option->name(), $from)
@@ -623,6 +623,7 @@ sub new_config {
 		   HOSTS        => $hosts,
 		   NEXT_HOST    => 0,
 		   SERVER_ID    => 1,
+                   testname     => $args->{testname},
 		  }, $class;
 
   # add auto-options
