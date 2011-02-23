@@ -40,6 +40,7 @@ const BlockName BlockNames[] = {
   ,{ "PGMAN", PGMAN }
   ,{ "RESTORE", RESTORE }
   ,{ "DBINFO", DBINFO }
+  ,{ "DBSPJ", DBSPJ }
 };
 
 const BlockNumber NO_OF_BLOCK_NAMES = sizeof(BlockNames) / sizeof(BlockName);

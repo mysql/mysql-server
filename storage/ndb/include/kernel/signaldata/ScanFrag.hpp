@@ -235,7 +235,7 @@ class ScanFragNextReq {
 				   Uint32 len, Uint16 receiverBlockNo);
 public:
   STATIC_CONST( SignalLength = 6 );
-  
+
 public:
   Uint32 senderData;
   Uint32 requestInfo; // 1 == close
@@ -243,11 +243,15 @@ public:
   Uint32 transId2;
   Uint32 batch_size_rows;
   Uint32 batch_size_bytes;
+  Uint32 variableData[1];
 
   STATIC_CONST( ZCLOSE = 1 );
 
-  Uint32 getCloseFlag(const Uint32&);
-  void setCloseFlag(Uint32&, Uint32);
+  static Uint32 getCloseFlag(const Uint32&);
+  static void setCloseFlag(Uint32&, Uint32);
+
+  static Uint32 getCorrFactorFlag(const Uint32&);
+  static void setCorrFactorFlag(Uint32&);
 };
 
 /**
@@ -482,6 +486,33 @@ void
 ScanFragReq::setCorrFactorFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setCorrFactorFlag");
   requestInfo |= (val << SF_CORR_FACTOR_SHIFT);
+}
+
+/**
+ * Request Info (SCAN_NEXTREQ)
+ *
+ * c = close                 - 1  Bit 0
+ * C = corr value flag       - 1  Bit 1
+ *
+ *           1111111111222222222233
+ * 01234567890123456789012345678901
+ * cC
+ */
+#define SFN_CLOSE_SHIFT 0
+#define SFN_CORR_SHIFT  1
+
+inline
+Uint32
+ScanFragNextReq::getCorrFactorFlag(const Uint32 & ri)
+{
+  return (ri >> SFN_CORR_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragNextReq::setCorrFactorFlag(Uint32 & ri)
+{
+  ri |= (1 << SFN_CORR_SHIFT);
 }
 
 #endif

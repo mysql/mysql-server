@@ -2937,7 +2937,8 @@ void Dblqh::noFreeRecordLab(Signal* signal,
   }
 
   if (LqhKeyReq::getDirtyFlag(reqInfo) && 
-      LqhKeyReq::getOperation(reqInfo) == ZREAD){ 
+      LqhKeyReq::getOperation(reqInfo) == ZREAD &&
+      !LqhKeyReq::getNormalProtocolFlag(reqInfo)){
     jam();
     /* Dirty read sends TCKEYREF direct to client, and nothing to TC */
     ndbrequire(LqhKeyReq::getApplicationAddressFlag(reqInfo));
@@ -3135,7 +3136,7 @@ void Dblqh::execLQHKEYREF(Signal* signal)
      *     not find an easy way to modify the code so that findTransaction
      *     is usable also for them
      */
-    if (findTransaction(transid1, transid2, tcOprec) != ZOK)
+    if (findTransaction(transid1, transid2, tcOprec, 0) != ZOK)
     {
       jam();
       warningReport(signal, 14);
@@ -3395,6 +3396,21 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal){
   {
     jam();
     memcpy(signal->theData, &regTcPtr.p->lqhKeyReqId, 8);
+    break;
+  }
+  case AttributeHeader::CORR_FACTOR64:
+  {
+    Uint32 add = 0;
+    ScanRecordPtr tmp;
+    tmp.i = regTcPtr.p->tcScanRec;
+    if (tmp.i != RNIL)
+    {
+      c_scanRecordPool.getPtr(tmp);
+      add = tmp.p->m_curr_batch_size_rows;
+    }
+
+    signal->theData[0] = regTcPtr.p->m_corrFactorLo + add;
+    signal->theData[1] = regTcPtr.p->m_corrFactorHi;
     break;
   }
   default:
@@ -3798,7 +3814,8 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   if(!packed)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
-    if(Thostptr.i == 0 || Thostptr.i == getOwnNodeId())
+    if (instance() == refToInstance(atcBlockref) &&
+        (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()))
     {
       /**
        * This EXECUTE_DIRECT is multi-thread safe, as we only get here
@@ -3826,7 +3843,7 @@ void Dblqh::execKEYINFO(Signal* signal)
   Uint32 transid1 = signal->theData[1];
   Uint32 transid2 = signal->theData[2];
   jamEntry();
-  if (findTransaction(transid1, transid2, tcOprec) != ZOK) {
+  if (findTransaction(transid1, transid2, tcOprec, 0) != ZOK) {
     jam();
     return;
   }//if
@@ -3933,7 +3950,7 @@ void Dblqh::execATTRINFO(Signal* signal)
   jamEntry();
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec) != ZOK) {
+                      tcOprec, 0) != ZOK) {
     jam();
     return;
   }//if
@@ -4098,7 +4115,8 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 /* ------         FIND TRANSACTION BY USING HASH TABLE               ------- */
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
-int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec) 
+int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec,
+                           Uint32 hi)
 {
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
@@ -4110,7 +4128,8 @@ int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec)
     ptrCheckGuard(locTcConnectptr, ttcConnectrecFileSize, regTcConnectionrec);
     if ((locTcConnectptr.p->transid[0] == Transid1) &&
         (locTcConnectptr.p->transid[1] == Transid2) &&
-        (locTcConnectptr.p->tcOprec == TcOprec)) {
+        (locTcConnectptr.p->tcOprec == TcOprec) &&
+        (locTcConnectptr.p->tcHashKeyHi == hi)) {
 /* FIRST PART OF TRANSACTION CORRECT */
 /* SECOND PART ALSO CORRECT */
 /* THE OPERATION RECORD POINTER IN TC WAS ALSO CORRECT */
@@ -4309,16 +4328,13 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   }
 
   sig0 = lqhKeyReq->clientConnectPtr;
-  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED(5031)) {
+  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5031)) {
     jamEntry();
     seizeTcrec();
   } else {
 /* ------------------------------------------------------------------------- */
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
-    if (ERROR_INSERTED(5031)) {
-      CLEAR_ERROR_INSERT_VALUE;
-    }
     releaseSections(handle);
     noFreeRecordLab(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
     return;
@@ -4339,6 +4355,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   Uint32 senderRef = regTcPtr->clientBlockref = signal->senderBlockRef();
   regTcPtr->clientConnectrec = sig0;
   regTcPtr->tcOprec = sig0;
+  regTcPtr->tcHashKeyHi = 0;
   regTcPtr->storedProcId = ZNIL;
   regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
   regTcPtr->m_flags= 0;
@@ -4509,6 +4526,17 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     nextPos++;
   }//if
 
+  Uint32 TanyValueFlag = LqhKeyReq::getCorrFactorFlag(Treqinfo);
+  if (isLongReq && TanyValueFlag == 1)
+  {
+    /**
+     * For short lqhkeyreq, ai-length in-signal is stored in same pos...
+     */
+    regTcPtr->m_corrFactorLo = lqhKeyReq->variableData[nextPos + 0];
+    regTcPtr->m_corrFactorHi = lqhKeyReq->variableData[nextPos + 1];
+    nextPos += 2;
+  }
+
   UintR TitcKeyLen = 0;
   Uint32 keyLenWithLQHReq = 0;
   UintR TreclenAiLqhkey   = 0;
@@ -4577,12 +4605,15 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->primKeyLen = TitcKeyLen;
 
   /* Only node restart copy allowed to send no KeyInfo */
-  if (( keyLenWithLQHReq == 0 ) &&
-      (! (LqhKeyReq::getNrCopyFlag(Treqinfo))))
+  if (unlikely(keyLenWithLQHReq == 0))
   {
-    LQHKEY_error(signal, 3);
-    return;
-  }//if
+    if (! (LqhKeyReq::getNrCopyFlag(Treqinfo)) &&
+        refToMain(senderRef) != DBSPJ)
+    {
+      LQHKEY_error(signal, 3);
+      return;
+    }//if
+  }
 
   sig0 = lqhKeyReq->variableData[nextPos + 0];
   sig1 = lqhKeyReq->variableData[nextPos + 1];
@@ -5596,7 +5627,8 @@ void Dblqh::handleUserUnlockRequest(Signal* signal)
    */
   if (unlikely( findTransaction(regTcPtr->transid[0], 
                                 regTcPtr->transid[1], 
-                                tcOpRecIndex) != ZOK)) 
+                                tcOpRecIndex,
+                                0) != ZOK))
   {
     jam();
     unlockError(signal, ZBAD_OP_REF);
@@ -7349,7 +7381,7 @@ void Dblqh::execCOMMITREQ(Signal* signal)
   }//if
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec) != ZOK) {
+                      tcOprec, 0) != ZOK) {
     warningReport(signal, 5);
     return;
   }//if
@@ -7505,7 +7537,7 @@ void Dblqh::execCOMPLETEREQ(Signal* signal)
   }//if
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec) != ZOK) {
+                      tcOprec, 0) != ZOK) {
     jam();
 /*---------------------------------------------------------*/
 /*       FOR SOME REASON THE COMPLETE PHASE STARTED AFTER  */
@@ -7793,6 +7825,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   Uint32 operation = regTcPtr.p->operation;
   Uint32 dirtyOp = regTcPtr.p->dirtyOp;
   Uint32 opSimple = regTcPtr.p->opSimple;
+  Uint32 normalProtocol = LqhKeyReq::getNormalProtocolFlag(regTcPtr.p->reqinfo);
+
   if (regTcPtr.p->activeCreat != Fragrecord::AC_IGNORED) {
     if (operation != ZREAD) {
       TupCommitReq * const tupCommitReq = 
@@ -7855,7 +7889,7 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
 	EXECUTE_DIRECT(acc, GSN_ACC_COMMITREQ, signal, 1);
       }
       
-      if (dirtyOp) 
+      if (dirtyOp && normalProtocol == 0)
       {
 	jam();
         /**
@@ -8171,7 +8205,7 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec) != ZOK) {
+                      tcOprec, 0) != ZOK) {
     jam();
 
     if(ERROR_INSERTED(5039) && 
@@ -8263,7 +8297,7 @@ void Dblqh::execABORTREQ(Signal* signal)
   }//if
   if (findTransaction(transid1,
                       transid2,
-                      tcOprec) != ZOK) {
+                      tcOprec, 0) != ZOK) {
     signal->theData[0] = reqPtr;
     signal->theData[2] = cownNodeid;
     signal->theData[3] = transid1;
@@ -8759,7 +8793,8 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
 
   remove_commit_marker(regTcPtr);
 
-  if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp)
+  if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp &&
+      !LqhKeyReq::getNormalProtocolFlag(regTcPtr->reqinfo))
   {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
@@ -8768,7 +8803,7 @@ void Dblqh::continueAfterLogAbortWriteLab(Signal* signal)
     tcKeyRef->transId[0] = regTcPtr->transid[0];
     tcKeyRef->transId[1] = regTcPtr->transid[1];
     tcKeyRef->errorCode = regTcPtr->errorCode;
-    sendTCKEYREF(signal, regTcPtr->applRef, regTcPtr->clientBlockref, 0);
+    sendTCKEYREF(signal, regTcPtr->applRef, regTcPtr->tcBlockref, 0);
     cleanUp(signal);
     return;
   }//if
@@ -9464,8 +9499,9 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 transid1 = nextReq->transId1;
   const Uint32 transid2 = nextReq->transId2;
   const Uint32 senderData = nextReq->senderData;
+  Uint32 hashHi = signal->getSendersBlockRef();
 
-  if (findTransaction(transid1, transid2, senderData) != ZOK){
+  if (findTransaction(transid1, transid2, senderData, hashHi) != ZOK){
     jam();
     DEBUG(senderData << 
 	  " Received SCAN_NEXTREQ in LQH with close flag when closed");
@@ -9492,15 +9528,16 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
       return;
     }
   }//if
-  if (ERROR_INSERTED(5025)){
-    // Delay signal if sender is NOT same node
-    if (refToNode(signal->senderBlockRef()) != cownNodeid) {
-      CLEAR_ERROR_INSERT_VALUE;
-      sendSignalWithDelay(cownref, GSN_SCAN_NEXTREQ, signal, 1000,
-			  signal->length());
-      return;
-    }
-  }//if
+  if (ERROR_INSERTED(5025))
+  {
+    /**
+     * This does not work as signal->getSendersBlockRef() is used
+     *   as "hashHi"...not having a real data-word for this is not optimal
+     *   but it will work...summary: disable this ERROR_INSERT
+     */
+    CLEAR_ERROR_INSERT_VALUE;
+  }
+
   if (ERROR_INSERTED(5030)){
     ndbout << "ERROR 5030" << endl;
     CLEAR_ERROR_INSERT_VALUE;
@@ -9510,6 +9547,15 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
 
   if(ERROR_INSERTED(5036)){
     return;
+  }
+
+  Uint32 pos = 0;
+  if (ScanFragNextReq::getCorrFactorFlag(nextReq->requestInfo))
+  {
+    jam();
+    Uint32 corrFactorLo = nextReq->variableData[pos++];
+    tcConnectptr.p->m_corrFactorLo &= 0xFFFF0000;
+    tcConnectptr.p->m_corrFactorLo |= corrFactorLo;
   }
 
   scanptr.i = tcConnectptr.p->tcScanRec;
@@ -9954,6 +10000,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   Uint32 senderData;
   Uint32 hashIndex;
   TcConnectionrecPtr nextHashptr;
+  Uint32 senderHi = signal->getSendersBlockRef();
 
   const Uint32 reqinfo = scanFragReq->requestInfo;
 
@@ -10004,7 +10051,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
     goto error_handler_early_1;
   }
   
-  if (cfirstfreeTcConrec != RNIL) {
+  if (cfirstfreeTcConrec != RNIL && !ERROR_INSERTED_CLEAR(5055)) {
     seizeTcrec();
     tcConnectptr.p->clientConnectrec = scanFragReq->senderData;
     tcConnectptr.p->clientBlockref = signal->senderBlockRef();
@@ -10059,7 +10106,8 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
              transid1,
              transid2,
              fragId,
-             ZNIL);
+             ZNIL,
+             senderHi);
   tcConnectptr.p->save1 = 0;
   tcConnectptr.p->primKeyLen = keyLen;
   tcConnectptr.p->applRef = scanFragReq->resultRef;
@@ -10072,6 +10120,15 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
      * these sections, usually via releaseOprec()
      */
     handle.clear();
+  }
+
+  if (ScanFragReq::getCorrFactorFlag(reqinfo))
+  {
+    /**
+     * Correlattion factor for SPJ
+     */
+    tcConnectptr.p->m_corrFactorLo = scanFragReq->variableData[0];
+    tcConnectptr.p->m_corrFactorHi = scanFragReq->variableData[1];
   }
 
   errorCode = initScanrec(scanFragReq, aiLen);
@@ -10410,8 +10467,10 @@ Dblqh::copyNextRange(Uint32 * dst, TcConnectionrec* tcPtrP)
     Uint32 firstWord;
     ndbrequire( keyInfoReader.getWord(&firstWord) );
     const Uint32 rangeLen= (firstWord >> 16) ? (firstWord >> 16) : totalLen;
-    tcPtrP->m_scan_curr_range_no= (firstWord & 0xFFF0) >> 4;
-    
+    Uint32 range_no = (firstWord & 0xFFF0) >> 4;
+    tcPtrP->m_scan_curr_range_no= range_no;
+    tcPtrP->m_corrFactorLo &= 0x0000FFFF;
+    tcPtrP->m_corrFactorLo |= (range_no << 16);
     firstWord &= 0xF; // Remove length+range num from first word
     
     /* Write range info to dst */
@@ -11344,7 +11403,8 @@ void Dblqh::initScanTc(const ScanFragReq* req,
                        Uint32 transid1,
                        Uint32 transid2,
                        Uint32 fragId,
-                       Uint32 nodeId) 
+                       Uint32 nodeId,
+                       Uint32 hashHi)
 {
   tcConnectptr.p->transid[0] = transid1;
   tcConnectptr.p->transid[1] = transid2;
@@ -11353,6 +11413,7 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   tcConnectptr.p->fragmentid = fragId;
   tcConnectptr.p->fragmentptr = fragptr.i;
   tcConnectptr.p->tcOprec = tcConnectptr.p->clientConnectrec;
+  tcConnectptr.p->tcHashKeyHi = hashHi;
   tcConnectptr.p->tcBlockref = tcConnectptr.p->clientBlockref;
   tcConnectptr.p->errorCode = 0;
   tcConnectptr.p->reclenAiLqhkey = 0;
@@ -11907,12 +11968,14 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
              0,
              (DBLQH << 20) + (cownNodeid << 8),
              fragId,
-             copyFragReq->nodeId);
+             copyFragReq->nodeId,
+             0);
   cactiveCopy[cnoActiveCopy] = fragptr.i;
   cnoActiveCopy++;
 
   tcConnectptr.p->copyCountWords = 0;
   tcConnectptr.p->tcOprec = tcConnectptr.i;
+  tcConnectptr.p->tcHashKeyHi = 0;
   tcConnectptr.p->schemaVersion = scanptr.p->scanSchemaVersion;
   tcConnectptr.p->savePointId = gci;
   tcConnectptr.p->applRef = 0;
@@ -18116,6 +18179,7 @@ void Dblqh::execLogRecord(Signal* signal)
   tcConnectptr.p->nextReplica = refToNode(ref);
   tcConnectptr.p->connectState = TcConnectionrec::LOG_CONNECTED;
   tcConnectptr.p->tcOprec = tcConnectptr.i;
+  tcConnectptr.p->tcHashKeyHi = 0;
   packLqhkeyreqLab(signal);
   return;
 }//Dblqh::execLogRecord()

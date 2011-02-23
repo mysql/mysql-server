@@ -2660,13 +2660,14 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   Uint32 TstartNode = signal->theData[0];
   Uint32 TsendNodeId_or_blockref = signal->theData[1];
 
-  Uint32 blocklist[6];
+  Uint32 blocklist[7];
   blocklist[0] = clocallqhblockref;
   blocklist[1] = clocaltcblockref;
   blocklist[2] = cdictblockref;
   blocklist[3] = numberToRef(BACKUP, getOwnNodeId());
   blocklist[4] = numberToRef(SUMA, getOwnNodeId());
-  blocklist[5] = 0;
+  blocklist[5] = numberToRef(DBSPJ, getOwnNodeId());
+  blocklist[6] = 0;
   
   for (Uint32 i = 0; blocklist[i] != 0; i++)
   {
