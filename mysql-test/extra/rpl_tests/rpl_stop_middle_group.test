@@ -23,6 +23,8 @@ insert into tm set a=null; # to simulate killed status on the slave
 commit;
 
 connection slave;
+call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
+call mtr.add_suppression("Slave SQL.*The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed.");
 
 # slave will catch the killed status but won't shut down immediately
 # only after the whole group has done (commit)

@@ -10,11 +10,14 @@ call mtr.add_suppression('Replication event checksum verification failed');
 # due to C failure simulation
 call mtr.add_suppression('Relay log write failure: could not queue event from master');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
+call mtr.add_suppression('Slave SQL: Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
 
 # A. read/write access to the global vars:
 # binlog_checksum master_verify_checksum slave_sql_verify_checksum
 
 connection master;
+
+call mtr.add_suppression('Master is configured to log replication events with checksum, but will not send such events to slaves that cannot process them');
 
 set @master_save_binlog_checksum= @@global.binlog_checksum;
 set @save_master_verify_checksum =  @@global.master_verify_checksum;
