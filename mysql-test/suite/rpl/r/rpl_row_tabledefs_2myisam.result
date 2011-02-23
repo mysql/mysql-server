@@ -117,6 +117,7 @@ a
 include/check_slave_is_running.inc
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: 1535");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
 Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4'
 INSERT INTO t9 VALUES (5);
