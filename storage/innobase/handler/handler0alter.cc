@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -857,10 +857,6 @@ ha_innobase::add_index(
 
 	ut_ad(error == DB_SUCCESS);
 
-	/* We will need to rebuild index translation table. Set
-	valid index entry count in the translation table to zero */
-	share->idx_trans_tbl.index_count = 0;
-
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
 	MySQL crashes while creating a new primary key inside
@@ -1004,12 +1000,20 @@ error:
 		}
 
 convert_error:
+		if (error == DB_SUCCESS) {
+			/* Build index is successful. We will need to
+			rebuild index translation table.  Reset the
+			index entry count in the translation table
+			to zero, so that translation table will be rebuilt */
+			share->idx_trans_tbl.index_count = 0;
+		}
+
 		error = convert_error_code_to_mysql(error,
 						    innodb_table->flags,
 						    user_thd);
 	}
 
-	ut_a(innodb_table->n_ref_count == 1);
+	ut_a(!new_primary || innodb_table->n_ref_count == 1);
 
 	mem_heap_free(heap);
 	trx_commit_for_mysql(trx);

@@ -32,6 +32,7 @@
   @{
 */
 
+/** Namespace, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants
 {
   static const uint FIRST_VIEW= 1;
@@ -44,6 +45,7 @@ struct PFS_instrument_view_constants
   static const uint LAST_VIEW= 6;
 };
 
+/** Namespace, internal views used within object summaries. */
 struct PFS_object_view_constants
 {
   static const uint FIRST_VIEW= 1;

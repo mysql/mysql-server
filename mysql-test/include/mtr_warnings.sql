@@ -188,9 +188,6 @@ INSERT INTO global_suppressions VALUES
  /*It will print a warning if a new UUID of server is generated.*/
  ("No existing UUID has been found, so we assume that this is the first time that this server has been started.*"),
 
- /* Test case for Bug#31590 in order_by.test produces the following error */
- ("Out of sort memory; increase server sort buffer size"),
-
  /* Special case for Bug #26402 in show_check.test
     - Question marks are not valid file name parts on Windows. Ignore
       this error message.

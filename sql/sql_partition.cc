@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This file is a container for general functionality related
@@ -1321,39 +1321,44 @@ void check_range_capable_PF(TABLE *table)
 }
 
 
-/*
-  Set up partition bitmap
+/**
+  Set up partition bitmaps
 
-  SYNOPSIS
-    set_up_partition_bitmap()
-    thd                  Thread object
-    part_info            Reference to partitioning data structure
+    @param thd           Thread object
+    @param part_info     Reference to partitioning data structure
 
-  RETURN VALUE
-    TRUE                 Memory allocation failure
-    FALSE                Success
+  @return Operation status
+    @retval TRUE         Memory allocation failure
+    @retval FALSE        Success
 
-  DESCRIPTION
-    Allocate memory for bitmap of the partitioned table
+    Allocate memory for bitmaps of the partitioned table
     and initialise it.
 */
 
-static bool set_up_partition_bitmap(THD *thd, partition_info *part_info)
+static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
 {
   uint32 *bitmap_buf;
   uint bitmap_bits= part_info->num_subparts? 
                      (part_info->num_subparts* part_info->num_parts):
                       part_info->num_parts;
   uint bitmap_bytes= bitmap_buffer_size(bitmap_bits);
-  DBUG_ENTER("set_up_partition_bitmap");
+  DBUG_ENTER("set_up_partition_bitmaps");
 
-  if (!(bitmap_buf= (uint32*)thd->alloc(bitmap_bytes)))
+  DBUG_ASSERT(!part_info->bitmaps_are_initialized);
+
+  /* Allocate for both read and lock_partitions */
+  if (!(bitmap_buf= (uint32*) alloc_root(&part_info->table->mem_root,
+                                         bitmap_bytes * 2)))
   {
-    mem_alloc_error(bitmap_bytes);
+    mem_alloc_error(bitmap_bytes * 2);
     DBUG_RETURN(TRUE);
   }
-  bitmap_init(&part_info->used_partitions, bitmap_buf, bitmap_bytes*8, FALSE);
-  bitmap_set_all(&part_info->used_partitions);
+  bitmap_init(&part_info->read_partitions, bitmap_buf, bitmap_bits, FALSE);
+  /* Use the second half of the allocated buffer for lock_partitions */
+  bitmap_init(&part_info->lock_partitions, bitmap_buf + (bitmap_bytes / 4),
+              bitmap_bits, FALSE);
+  part_info->bitmaps_are_initialized= TRUE;
+  part_info->set_partition_bitmaps(NULL);
   DBUG_RETURN(FALSE);
 }
 
@@ -1873,7 +1878,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       (table->s->db_type()->partition_flags() & HA_CAN_PARTITION_UNIQUE))) &&
                check_unique_keys(table)))
     goto end;
-  if (unlikely(set_up_partition_bitmap(thd, part_info)))
+  if (unlikely(set_up_partition_bitmaps(thd, part_info)))
     goto end;
   if (unlikely(part_info->set_up_charset_field_preps()))
   {
@@ -1889,6 +1894,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   set_up_partition_key_maps(table, part_info);
   set_up_partition_func_pointers(part_info);
   set_up_range_analysis_info(part_info);
+  table->file->set_part_info(part_info, FALSE);
   result= FALSE;
 end:
   thd->mark_used_columns= save_mark_used_columns;
@@ -2719,40 +2725,11 @@ static inline int part_val_int(Item *item_expr, longlong *result)
 
   We have a set of support functions for these 14 variants. There are 4
   variants of hash functions and there is a function for each. The KEY
-  partitioning uses the function calculate_key_value to calculate the hash
+  partitioning uses the function calculate_key_hash_value to calculate the hash
   value based on an array of fields. The linear hash variants uses the
   method get_part_id_from_linear_hash to get the partition id using the
   hash value and some parameters calculated from the number of partitions.
 */
-
-/*
-  Calculate hash value for KEY partitioning using an array of fields.
-
-  SYNOPSIS
-    calculate_key_value()
-    field_array             An array of the fields in KEY partitioning
-
-  RETURN VALUE
-    hash_value calculated
-
-  DESCRIPTION
-    Uses the hash function on the character set of the field. Integer and
-    floating point fields use the binary character set by default.
-*/
-
-static uint32 calculate_key_value(Field **field_array)
-{
-  ulong nr1= 1;
-  ulong nr2= 4;
-
-  do
-  {
-    Field *field= *field_array;
-    field->hash(&nr1, &nr2);
-  } while (*(++field_array));
-  return (uint32) nr1;
-}
-
 
 /*
   A simple support function to calculate part_id given local part and
@@ -2841,25 +2818,25 @@ static int get_part_id_linear_hash(partition_info *part_info,
 }
 
 
-/*
+/**
   Calculate part_id for (SUB)PARTITION BY KEY
 
-  SYNOPSIS
-    get_part_id_key()
-    field_array         Array of fields for PARTTION KEY
-    num_parts           Number of KEY partitions
+  @param file                Handler to storage engine
+  @param field_array         Array of fields for PARTTION KEY
+  @param num_parts           Number of KEY partitions
+  @param func_value[out]     Returns calculated hash value
 
-  RETURN VALUE
-    Calculated partition id
+  @return Calculated partition id
 */
 
 inline
-static uint32 get_part_id_key(Field **field_array,
+static uint32 get_part_id_key(handler *file,
+                              Field **field_array,
                               uint num_parts,
                               longlong *func_value)
 {
   DBUG_ENTER("get_part_id_key");
-  *func_value= calculate_key_value(field_array);
+  *func_value= file->calculate_key_hash_value(field_array);
   DBUG_RETURN((uint32) (*func_value % num_parts));
 }
 
@@ -2886,7 +2863,7 @@ static uint32 get_part_id_linear_key(partition_info *part_info,
 {
   DBUG_ENTER("get_part_id_linear_key");
 
-  *func_value= calculate_key_value(field_array);
+  *func_value= part_info->table->file->calculate_key_hash_value(field_array);
   DBUG_RETURN(get_part_id_from_linear_hash(*func_value,
                                            part_info->linear_hash_mask,
                                            num_parts));
@@ -3574,7 +3551,8 @@ int get_partition_id_key_nosub(partition_info *part_info,
                                 uint32 *part_id,
                                 longlong *func_value)
 {
-  *part_id= get_part_id_key(part_info->part_field_array,
+  *part_id= get_part_id_key(part_info->table->file,
+                            part_info->part_field_array,
                             part_info->num_parts, func_value);
   return 0;
 }
@@ -3664,7 +3642,8 @@ int get_partition_id_key_sub(partition_info *part_info,
                              uint32 *part_id)
 {
   longlong func_value;
-  *part_id= get_part_id_key(part_info->subpart_field_array,
+  *part_id= get_part_id_key(part_info->table->file,
+                            part_info->subpart_field_array,
                             part_info->num_subparts, &func_value);
   return FALSE;
 }
@@ -3997,7 +3976,7 @@ err:
 
   DESCRIPTION
     This function is called to prune the range of partitions to scan by
-    checking the used_partitions bitmap.
+    checking the read_partitions bitmap.
     If start_part > end_part at return it means no partition needs to be
     scanned. If start_part == end_part it always means a single partition
     needs to be scanned.
@@ -4014,7 +3993,7 @@ void prune_partition_set(const TABLE *table, part_id_range *part_spec)
   DBUG_ENTER("prune_partition_set");
   for (i= part_spec->start_part; i <= part_spec->end_part; i++)
   {
-    if (bitmap_is_set(&(part_info->used_partitions), i))
+    if (bitmap_is_set(&(part_info->read_partitions), i))
     {
       DBUG_PRINT("info", ("Partition %d is set", i));
       if (last_partition == -1)
@@ -4096,7 +4075,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
         */
         get_full_part_id_from_key(table,buf,key_info,key_spec,part_spec);
         /*
-          Check if range can be adjusted by looking in used_partitions
+          Check if range can be adjusted by looking in read_partitions
         */
         prune_partition_set(table, part_spec);
         DBUG_VOID_RETURN;
@@ -4148,7 +4127,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
           get_full_part_id_from_key(table,buf,key_info,key_spec,part_spec);
           clear_indicator_in_key_fields(key_info);
           /*
-            Check if range can be adjusted by looking in used_partitions
+            Check if range can be adjusted by looking in read_partitions
           */
           prune_partition_set(table, part_spec);
           DBUG_VOID_RETURN; 
@@ -4218,7 +4197,7 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
   if (found_part_field)
     clear_indicator_in_key_fields(key_info);
   /*
-    Check if range can be adjusted by looking in used_partitions
+    Check if range can be adjusted by looking in read_partitions
   */
   prune_partition_set(table, part_spec);
   DBUG_VOID_RETURN;
@@ -4366,7 +4345,8 @@ bool mysql_unpack_partition(THD *thd,
     *work_part_info_used= true;
   }
   table->part_info= part_info;
-  table->file->set_part_info(part_info);
+  part_info->table= table;
+  table->file->set_part_info(part_info, TRUE);
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
@@ -7166,20 +7146,19 @@ void mem_alloc_error(size_t size)
 }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-/*
-  Return comma-separated list of used partitions in the provided given string
+/**
+  Return comma-separated list of used partitions in the provided given string.
 
-  SYNOPSIS
-    make_used_partitions_str()
-      part_info  IN  Partitioning info
-      parts_str  OUT The string to fill
+    @param      part_info  Partitioning info
+    @param[out] parts_str  The string to fill
 
-  DESCRIPTION
-    Generate a list of used partitions (from bits in part_info->used_partitions
+    Generate a list of used partitions (from bits in part_info->read_partitions
     bitmap), asd store it into the provided String object.
     
-  NOTE
+    @note
     The produced string must not be longer then MAX_PARTITIONS * (1 + FN_LEN).
+    In case of UPDATE, only the partitions read is given, not the partitions
+    that was written or locked.
 */
 
 void make_used_partitions_str(partition_info *part_info, String *parts_str)
@@ -7197,7 +7176,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
       List_iterator<partition_element> it2(head_pe->subpartitions);
       while ((pe= it2++))
       {
-        if (bitmap_is_set(&part_info->used_partitions, partition_id))
+        if (bitmap_is_set(&part_info->read_partitions, partition_id))
         {
           if (parts_str->length())
             parts_str->append(',');
@@ -7217,7 +7196,7 @@ void make_used_partitions_str(partition_info *part_info, String *parts_str)
   {
     while ((pe= it++))
     {
-      if (bitmap_is_set(&part_info->used_partitions, partition_id))
+      if (bitmap_is_set(&part_info->read_partitions, partition_id))
       {
         if (parts_str->length())
           parts_str->append(',');

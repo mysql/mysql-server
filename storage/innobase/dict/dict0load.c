@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -173,9 +173,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	server_mutex_exit();
+	os_increment_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -210,11 +210,10 @@ dict_print(void)
 	mem_heap_free(heap);
 
 	/* Restore the fatal semaphore wait timeout */
-	server_mutex_enter();
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	server_mutex_exit();
+	os_decrement_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 }
-
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
@@ -1321,7 +1320,10 @@ ulint
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
-	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
+	mem_heap_t*	heap,	/*!< in: memory heap for temporary storage */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when
+				loading the index definition */
 {
 	dict_table_t*	sys_indexes;
 	dict_index_t*	sys_index;
@@ -1405,10 +1407,22 @@ dict_load_indexes(
 				"InnoDB: but the index tree has been freed!\n",
 				index->name, table->name);
 
+			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
+				/* If caller can tolerate this error,
+				we will continue to load the index and
+				let caller deal with this error. However
+				mark the index and table corrupted */
+				index->corrupted = TRUE;
+				table->corrupted = TRUE;
+				fprintf(stderr,
+					"InnoDB: Index is corrupt but forcing"
+					" load into data dictionary\n");
+			} else {
 corrupted:
-			dict_mem_index_free(index);
-			error = DB_CORRUPTION;
-			goto func_exit;
+				dict_mem_index_free(index);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
@@ -1551,7 +1565,7 @@ err_len:
 				"InnoDB: in InnoDB data dictionary"
 				" has unknown type %lx.\n",
 				(ulong) flags);
-			return(NULL);
+			return("incorrect flags in SYS_TABLES");
 		}
 	} else {
 		flags = 0;
@@ -1617,7 +1631,10 @@ dict_load_table(
 /*============*/
 	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
-	ibool		cached)	/*!< in: TRUE=add to cache, FALSE=do not */
+	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when loading
+				table and its indexes' definition */
 {
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
@@ -1732,7 +1749,7 @@ err_exit:
 
 	mem_heap_empty(heap);
 
-	err = dict_load_indexes(table, heap);
+	err = dict_load_indexes(table, heap, ignore_err);
 
 	/* Initialize table foreign_child value. Its value could be
 	changed when dict_load_foreigns() is called below */
@@ -1782,6 +1799,8 @@ err_exit:
 #endif /* 0 */
 	mem_heap_free(heap);
 
+	ut_ad(ignore_err != DICT_ERR_IGNORE_NONE || table->corrupted == FALSE);
+
 	return(table);
 }
 
@@ -1809,6 +1828,8 @@ dict_load_table_on_id(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
+	table = NULL;
+
 	/* NOTE that the operation of this function is protected by
 	the dictionary mutex, and therefore no deadlocks can occur
 	with other dictionary operations. */
@@ -1833,42 +1854,41 @@ dict_load_table_on_id(
 
 	btr_pcur_open_on_user_rec(sys_table_ids, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
+
+check_rec:
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur)
-	    || rec_get_deleted_flag(rec, 0)) {
-		/* Not found */
+	if (page_rec_is_user_rec(rec)) {
+		/*---------------------------------------------------*/
+		/* Now we have the record in the secondary index
+		containing the table ID and NAME */
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
+		field = rec_get_nth_field_old(rec, 0, &len);
+		ut_ad(len == 8);
 
-		return(NULL);
+		/* Check if the table id in record is the one searched for */
+		if (table_id == mach_read_from_8(field)) {
+			if (rec_get_deleted_flag(rec, 0)) {
+				/* Until purge has completed, there
+				may be delete-marked duplicate records
+				for the same SYS_TABLES.ID.
+				Due to Bug #60049, some delete-marked
+				records may survive the purge forever. */
+				if (btr_pcur_move_to_next(&pcur, &mtr)) {
+
+					goto check_rec;
+				}
+			} else {
+				/* Now we get the table name from the record */
+				field = rec_get_nth_field_old(rec, 1, &len);
+				/* Load the table definition to memory */
+				table = dict_load_table(
+					mem_heap_strdupl(
+						heap, (char*) field, len),
+					TRUE, DICT_ERR_IGNORE_NONE);
+			}
+		}
 	}
-
-	/*---------------------------------------------------*/
-	/* Now we have the record in the secondary index containing the
-	table ID and NAME */
-
-	rec = btr_pcur_get_rec(&pcur);
-	field = rec_get_nth_field_old(rec, 0, &len);
-	ut_ad(len == 8);
-
-	/* Check if the table id in record is the one searched for */
-	if (table_id != mach_read_from_8(field)) {
-
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-
-		return(NULL);
-	}
-
-	/* Now we get the table name from the record */
-	field = rec_get_nth_field_old(rec, 1, &len);
-	/* Load the table definition to memory */
-	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
-				TRUE);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1893,7 +1913,7 @@ dict_load_sys_table(
 
 	heap = mem_heap_create(1000);
 
-	dict_load_indexes(table, heap);
+	dict_load_indexes(table, heap, DICT_ERR_IGNORE_NONE);
 
 	mem_heap_free(heap);
 }

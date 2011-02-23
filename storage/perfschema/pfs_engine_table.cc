@@ -106,6 +106,7 @@ void PFS_engine_table_share::check_all_tables(THD *thd)
     (*current)->check_one_table(thd);
 }
 
+/** Error reporting for schema integrity checks. */
 class PFS_check_intact : public Table_check_intact
 {
 protected:
@@ -471,6 +472,7 @@ int PFS_engine_table::update_row_values(TABLE *,
   return HA_ERR_WRONG_COMMAND;
 }
 
+/** Implementation of internal ACL checks, for the performance schema. */
 class PFS_internal_schema_access : public ACL_internal_schema_access
 {
 public:

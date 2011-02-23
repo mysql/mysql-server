@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,6 +40,10 @@ truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;
 
+# Check the configuration is ok
+show variables like "performance_schema%";
+show status like "performance_schema%";
+
 echo "================== Step 1 ==================";
 execute dump_thread;
 execute dump_global;
@@ -57,6 +61,13 @@ connect (con1, localhost, user1, , );
 echo "================== con1 connected ==================";
 
 --connection default
+
+# Wait for the connect to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
+--source include/wait_condition.inc
 
 echo "================== Step 2 ==================";
 execute dump_thread;
@@ -114,6 +125,13 @@ echo "================== con2 connected ==================";
 
 --connection default
 
+# Wait for the connect to complete
+let $wait_condition=
+  select count(*) = 2 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
+--source include/wait_condition.inc
+
 echo "================== Step 4 ==================";
 execute dump_thread;
 execute dump_global;
@@ -166,6 +184,13 @@ echo "================== con3 connected ==================";
 
 --connection default
 
+# Wait for the connect to complete
+let $wait_condition=
+  select count(*) = 3 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
+--source include/wait_condition.inc
+
 echo "================== Step 6 ==================";
 execute dump_thread;
 execute dump_global;
@@ -217,6 +242,13 @@ connect (con4, localhost, user4, , );
 echo "================== con4 connected ==================";
 
 --connection default
+
+# Wait for the connect to complete
+let $wait_condition=
+  select count(*) = 4 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
+--source include/wait_condition.inc
 
 echo "================== Step 8 ==================";
 execute dump_thread;
@@ -318,7 +350,8 @@ execute dump_objects_summary;
 # Wait for the disconnect to complete
 let $wait_condition=
   select count(*) = 3 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
 --source include/wait_condition.inc
 
 echo "================== con1 disconnected ==================";
@@ -337,7 +370,8 @@ execute dump_objects_summary;
 # Wait for the disconnect to complete
 let $wait_condition=
   select count(*) = 2 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
 --source include/wait_condition.inc
 
 echo "================== con2 disconnected ==================";
@@ -356,7 +390,8 @@ execute dump_objects_summary;
 # Wait for the disconnect to complete
 let $wait_condition=
   select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
 --source include/wait_condition.inc
 
 echo "================== con3 disconnected ==================";
@@ -375,7 +410,8 @@ execute dump_objects_summary;
 # Wait for the disconnect to complete
 let $wait_condition=
   select count(*) = 0 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER
+  in ('user1', 'user2', 'user3', 'user4');
 --source include/wait_condition.inc
 
 echo "================== con4 disconnected ==================";

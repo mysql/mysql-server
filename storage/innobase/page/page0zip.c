@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1215,7 +1215,6 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
-	MONITOR_INC(MONITOR_PAGE_COMPRESS);
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1223,6 +1222,8 @@ page_zip_compress(
 
 		goto err_exit;
 	}
+
+	MONITOR_INC(MONITOR_PAGE_COMPRESS);
 
 	heap = mem_heap_create(page_zip_get_size(page_zip)
 			       + n_fields * (2 + sizeof *offsets)
@@ -3024,12 +3025,13 @@ err_exit:
 			= &page_zip_stat[page_zip->ssize - 1];
 		zip_stat->decompressed++;
 		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
-		MONITOR_INC(MONITOR_PAGE_DECOMPRESS);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
+
+	MONITOR_INC(MONITOR_PAGE_DECOMPRESS);
 
 	return(TRUE);
 }
@@ -4443,7 +4445,7 @@ page_zip_reorganize(
 	log_mode = mtr_set_log_mode(mtr, MTR_LOG_NONE);
 
 #ifndef UNIV_HOTBACKUP
-	temp_block = buf_block_alloc(buf_pool, 0);
+	temp_block = buf_block_alloc(buf_pool);
 	btr_search_drop_page_hash_index(block);
 	block->check_index_page_at_flush = TRUE;
 #else /* !UNIV_HOTBACKUP */
@@ -4454,6 +4456,8 @@ page_zip_reorganize(
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
+
+	btr_blob_dbg_remove(page, index, "zip_reorg");
 
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
@@ -4513,7 +4517,7 @@ page_zip_copy_recs(
 	mtr_t*			mtr)		/*!< in: mini-transaction */
 {
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains_page(mtr, (page_t*) src, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_ibuf(index));
 #ifdef UNIV_ZIP_DEBUG
 	/* The B-tree operations that call this function may set
@@ -4583,6 +4587,7 @@ page_zip_copy_recs(
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
+	btr_blob_dbg_add(page, index, "page_zip_copy_recs");
 
 	page_zip_compress_write_log(page_zip, page, index, mtr);
 }

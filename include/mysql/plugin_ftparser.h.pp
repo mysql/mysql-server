@@ -1,4 +1,5 @@
 #include "plugin.h"
+typedef void * MYSQL_PLUGIN;
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
@@ -52,6 +53,19 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
+#include <mysql/service_my_plugin_log.h>
+enum plugin_log_level
+{
+  MY_ERROR_LEVEL,
+  MY_WARNING_LEVEL,
+  MY_INFORMATION_LEVEL
+};
+extern struct my_plugin_log_service
+{
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...);
+} *my_plugin_log_service;
+int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
+                          const char *format, ...);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -88,8 +102,8 @@ struct st_mysql_plugin
   const char *author;
   const char *descr;
   int license;
-  int (*init)(void *);
-  int (*deinit)(void *);
+  int (*init)(MYSQL_PLUGIN);
+  int (*deinit)(MYSQL_PLUGIN);
   unsigned int version;
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;

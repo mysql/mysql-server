@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -361,6 +361,8 @@ struct dict_index_struct{
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
+	unsigned	corrupted:1;
+				/*!< TRUE if the index object is corrupted */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
@@ -381,6 +383,12 @@ struct dict_index_struct{
 				to calculate each of stat_n_diff_key_vals[],
 				e.g. stat_n_sample_sizes[3] pages were sampled
 				to get the number stat_n_diff_key_vals[3]. */
+	ib_uint64_t*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
@@ -394,6 +402,13 @@ struct dict_index_struct{
 				index, or 0 if the index existed
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+	mutex_t		blobs_mutex;
+				/*!< mutex protecting blobs */
+	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+				to first_blob_page_no; protected by
+				blobs_mutex; @see btr_blob_dbg_t */
+#endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
 /** Value of dict_index_struct::magic_n */
@@ -489,6 +504,8 @@ struct dict_table_struct{
 	unsigned	can_be_evicted:1;
 				/*!< TRUE if it's not an InnoDB system table
 				or a table that has no FK relationships */
+	unsigned	corrupted:1;
+				/*!< TRUE if table is corrupted */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string
@@ -616,14 +633,15 @@ struct dict_table_struct{
 				lock but there can be multiple waiters. */
 	const trx_t*	autoinc_trx;
 				/*!< The transaction that currently holds the
-				the AUTOINC lock on this table. */
+				the AUTOINC lock on this table.
+				Protected by lock_sys->mutex. */
 				/* @} */
 	/*----------------------*/
 	ulint		n_rec_locks;
 				/*!< Count of the number of record locks on
 				this table. We use this to determine whether
 				we can evict the table from the dictionary
-				cache. It is protected by the lock mutex. */
+				cache. It is protected by lock_sys->mutex. */
 	ulint		n_ref_count;
 				/*!< count of how many handles are opened
 				to this table; dropping of the table is
@@ -631,7 +649,8 @@ struct dict_table_struct{
 				MySQL does NOT itself check the number of
 				open handles at drop */
 	UT_LIST_BASE_NODE_T(lock_t)
-			locks; /*!< list of locks on the table */
+			locks; /*!< list of locks on the table; protected
+			       by lock_sys->mutex */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

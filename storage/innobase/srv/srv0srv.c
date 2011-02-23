@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -248,11 +248,19 @@ UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 /* the number of purge threads to use from the worker pool (currently 0 or 1).*/
 UNIV_INTERN ulong srv_n_purge_threads = 0;
 
-/* the number of UNDO log pages to purge in one batch */
+/* the number of pages to purge in one batch */
 UNIV_INTERN ulong srv_purge_batch_size = 20;
+
+/* the number of rollback segments to use */
+UNIV_INTERN ulong srv_rollback_segments = TRX_SYS_N_RSEGS;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
+
+/* Internal setting for "innodb_stats_method". Decides how InnoDB treats
+NULL value when collecting statistics. By default, it is set to
+SRV_STATS_NULLS_EQUAL(0), ie. all NULL value are treated equal */
+ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 
 /* here we count the amount of data written in total (in bytes) */
 UNIV_INTERN ulint srv_data_written = 0;
@@ -434,8 +442,10 @@ UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
 UNIV_INTERN mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
+# ifndef HAVE_ATOMIC_BUILTINS
 /* Key to register server_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	server_mutex_key;
+# endif /* !HAVE_ATOMIC_BUILTINS */
 /* Key to register srv_innodb_monitor_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 /* Key to register srv_monitor_file_mutex with performance schema */
@@ -448,6 +458,8 @@ UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /* Key to register srv_sys_t::tasks_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+/* Key to register srv_conc_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_conc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* Temporary file for innodb monitor output */
@@ -616,8 +628,10 @@ struct srv_sys_struct{
 						activity */
 };
 
-/*!< Mutex protecting the server global variables. */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
 UNIV_INTERN mutex_t	server_mutex;
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 static srv_sys_t*	srv_sys	= NULL;
 
@@ -908,7 +922,9 @@ srv_init(void)
 	ulint			i;
 	ulint			srv_sys_sz;
 
-	mutex_create(server_mutex_key, &server_mutex, SYNC_NO_ORDER_CHECK);
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
@@ -920,7 +936,7 @@ srv_init(void)
 	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
 	mutex_create(srv_sys_tasks_mutex_key,
-		     &srv_sys->tasks_mutex, SYNC_NO_ORDER_CHECK);
+		     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
@@ -946,7 +962,7 @@ srv_init(void)
 
 	/* Init the server concurrency restriction data structures */
 
-	os_fast_mutex_init(&srv_conc_mutex);
+	os_fast_mutex_init(srv_conc_mutex_key, &srv_conc_mutex);
 
 	UT_LIST_INIT(srv_conc_queue);
 
@@ -1038,16 +1054,14 @@ srv_conc_enter_innodb(
 
 	os_fast_mutex_lock(&srv_conc_mutex);
 retry:
-	if (trx->declared_to_be_inside_innodb) {
+	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
+		os_fast_mutex_unlock(&srv_conc_mutex);
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: trying to declare trx"
 		      " to enter InnoDB, but\n"
 		      "InnoDB: it already is declared.\n", stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 0);
-		rw_lock_s_unlock(&trx_sys->lock);
 		putc('\n', stderr);
-		os_fast_mutex_unlock(&srv_conc_mutex);
 
 		return;
 	}
@@ -1511,6 +1525,7 @@ srv_printf_innodb_monitor(
 		(long) srv_conc_n_threads,
 		(ulong) srv_conc_n_waiting_threads);
 
+	/* This is a dirty read, without holding trx_sys->read_view_mutex. */
 	fprintf(file, "%lu read views open inside InnoDB\n",
 		UT_LIST_GET_LEN(trx_sys->view_list));
 
@@ -1684,6 +1699,7 @@ srv_monitor_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_monitor_thread_key);
 #endif
+	srv_monitor_active = TRUE;
 
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = ut_time();
@@ -1693,12 +1709,6 @@ srv_monitor_thread(
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
 loop:
-	server_mutex_enter();
-
-	srv_monitor_active = TRUE;
-
-	server_mutex_exit();
-
 	/* Wake up every 5 seconds to see if we need to print
 	monitor information or if signalled at shutdown. */
 
@@ -1716,7 +1726,7 @@ loop:
 		if (srv_print_innodb_monitor) {
 			/* Reset mutex_skipped counter everytime
 			srv_print_innodb_monitor changes. This is to
-			ensure we will not be blocked by server_mutex
+			ensure we will not be blocked by lock_sys->mutex
 			for short duration information printing,
 			such as requested by sync_array_print_long_waits() */
 			if (!last_srv_print_monitor) {
@@ -1811,12 +1821,6 @@ loop:
 		goto loop;
 	}
 
-	server_mutex_enter();
-
-	srv_monitor_active = FALSE;
-
-	server_mutex_exit();
-
 	goto loop;
 
 exit_func:
@@ -1858,14 +1862,9 @@ srv_error_monitor_thread(
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_error_monitor_thread_key);
 #endif
-
-loop:
-	server_mutex_enter();
-
 	srv_error_monitor_active = TRUE;
 
-	server_mutex_exit();
-
+loop:
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
 
@@ -1935,11 +1934,7 @@ loop:
 		goto loop;
 	}
 
-	server_mutex_enter();
-
 	srv_error_monitor_active = FALSE;
-
-	server_mutex_exit();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
@@ -1997,8 +1992,6 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
-	server_mutex_enter();
-
 	if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
 	} else if (srv_lock_timeout_active) {
@@ -2006,8 +1999,6 @@ srv_any_background_threads_are_active(void)
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
 	}
-
-	server_mutex_exit();
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
@@ -2296,18 +2287,23 @@ void
 srv_master_do_active_tasks(void)
 /*============================*/
 {
-	ib_time_t cur_time = ut_time();
+	ib_time_t	cur_time = ut_time();
+	ullint		counter_time = ut_time_us(NULL);
 
 	/* First do the tasks that we are suppose to do at each
 	invocation of this function. */
 
 	++srv_main_active_loops;
 
+	MONITOR_INC(MONITOR_MASTER_ACTIVE_LOOPS);
+
 	/* ALTER TABLE in MySQL requires on Unix that the table handler
 	can drop tables lazily after there no longer are SELECT
 	queries to them. */
 	srv_main_thread_op_info = "doing background drop tables";
 	row_drop_tables_for_mysql_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND, counter_time);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2320,11 +2316,16 @@ srv_master_do_active_tasks(void)
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(5));
+	counter_time = ut_time_us(NULL);
+	ibuf_contract_in_background(FALSE);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
 	/* Flush logs if needed */
 	srv_main_thread_op_info = "flushing log";
 	srv_sync_log_buffer_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_LOG_FLUSH_MICROSECOND, counter_time);
 
 	/* Now see if various tasks that are performed at defined
 	intervals need to be performed. */
@@ -2334,6 +2335,8 @@ srv_master_do_active_tasks(void)
 	SRV_MASTER_MEM_VALIDATE_INTERVAL seconds */
 	if (cur_time % SRV_MASTER_MEM_VALIDATE_INTERVAL == 0) {
 		mem_validate_all_blocks();
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_MEM_VALIDATE_MICROSECOND, counter_time);
 	}
 #endif
 	if (srv_shutdown_state > 0) {
@@ -2344,6 +2347,8 @@ srv_master_do_active_tasks(void)
 	if (srv_n_purge_threads == 0
 	    && cur_time % SRV_MASTER_PURGE_INTERVAL == 0) {
 		srv_master_do_purge();
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_PURGE_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2353,6 +2358,8 @@ srv_master_do_active_tasks(void)
 	if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
 		srv_main_thread_op_info = "enforcing dict cache limit";
 		srv_master_evict_from_table_cache(50);
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2363,6 +2370,8 @@ srv_master_do_active_tasks(void)
 	if (cur_time % SRV_MASTER_CHECKPOINT_INTERVAL == 0) {
 		srv_main_thread_op_info = "making checkpoint";
 		log_checkpoint(TRUE, FALSE);
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_CHECKPOINT_MICROSECOND, counter_time);
 	}
 }
 
@@ -2379,13 +2388,22 @@ void
 srv_master_do_idle_tasks(void)
 /*==========================*/
 {
+	ullint	counter_time;
+
 	++srv_main_idle_loops;
+
+	MONITOR_INC(MONITOR_MASTER_IDLE_LOOPS);
+
 
 	/* ALTER TABLE in MySQL requires on Unix that the table handler
 	can drop tables lazily after there no longer are SELECT
 	queries to them. */
+	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing background drop tables";
 	row_drop_tables_for_mysql_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_BACKGROUND_DROP_TABLE_MICROSECOND,
+			 counter_time);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2397,8 +2415,11 @@ srv_master_do_idle_tasks(void)
 	log_free_check();
 
 	/* Do an ibuf merge */
+	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	ibuf_contract_in_background(TRUE);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
 	if (srv_shutdown_state > 0) {
 		return;
@@ -2406,13 +2427,19 @@ srv_master_do_idle_tasks(void)
 
 	srv_main_thread_op_info = "enforcing dict cache limit";
 	srv_master_evict_from_table_cache(100);
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_DICT_LRU_MICROSECOND, counter_time);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
+	MONITOR_INC_TIME_IN_MICRO_SECS(
+		MONITOR_SRV_LOG_FLUSH_MICROSECOND, counter_time);
 
 	/* Do a purge if we don't have a dedicated purge thread */
 	if (srv_n_purge_threads == 0) {
 		srv_master_do_purge();
+		MONITOR_INC_TIME_IN_MICRO_SECS(
+			MONITOR_SRV_PURGE_MICROSECOND, counter_time);
 	}
 
 	if (srv_shutdown_state > 0) {
@@ -2422,6 +2449,8 @@ srv_master_do_idle_tasks(void)
 	/* Make a new checkpoint */
 	srv_main_thread_op_info = "making checkpoint";
 	log_checkpoint(TRUE, FALSE);
+	MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
+				       counter_time);
 }
 
 /*********************************************************************//**
@@ -2470,7 +2499,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_for_n_pages(FALSE, PCT_IO(100));
+	n_bytes_merged = ibuf_contract_in_background(TRUE);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
@@ -2559,6 +2588,8 @@ loop:
 
 		srv_master_sleep();
 
+		MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
+
 		if (srv_check_activity(old_activity_count)) {
 			old_activity_count = srv_get_activity_count();
 			srv_master_do_active_tasks();
@@ -2611,7 +2642,7 @@ srv_task_execute(void)
 
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-	os_atomic_inc_ulint(&purge_sys->mutex, &purge_sys->n_executing, 1);
+	os_atomic_inc_ulint(&purge_sys->bh_mutex, &purge_sys->n_executing, 1);
 
 	mutex_enter(&srv_sys->tasks_mutex);
 
@@ -2631,10 +2662,10 @@ srv_task_execute(void)
 		que_run_threads(thr);
 
 		os_atomic_inc_ulint(
-			&purge_sys->mutex, &purge_sys->n_completed, 1);
+			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
 	}
 
-	os_atomic_dec_ulint(&purge_sys->mutex, &purge_sys->n_executing, 1);
+	os_atomic_dec_ulint(&purge_sys->bh_mutex, &purge_sys->n_executing, 1);
 
 	return(thr != NULL);
 }

@@ -897,7 +897,7 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         cze "M-Bálo paměti pro třídění. Zvyšte velikost třídícího bufferu"
         dan "Ikke mere sorteringshukommelse. Øg sorteringshukommelse (sort buffer size) for serveren"
         nla "Geen geheugen om te sorteren. Verhoog de server sort buffer size"
-        eng "Out of sort memory; increase server sort buffer size"
+        eng "Out of sort memory, consider increasing server sort buffer size"
         jps "Out of sort memory. sort buffer size が足りないようです.",
         est "Mälu sai sorteerimisel otsa. Suurenda MySQL-i sorteerimispuhvrit"
         fre "Manque de mémoire pour le tri. Augmentez-la."
@@ -907,10 +907,10 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         ita "Memoria per gli ordinamenti esaurita. Incrementare il 'sort_buffer' al demone"
         jpn "Out of sort memory. sort buffer size が足りないようです."
         kor "Out of sort memory. daemon sort buffer의 크기를 증가시키세요"
-        nor "Ikke mer sorteringsminne. Øk sorteringsminnet (sort buffer size) for tjenesten"
-        norwegian-ny "Ikkje meir sorteringsminne. Auk sorteringsminnet (sorteringsbffer storleik) for tenesten"
+        nor "Ikke mer sorteringsminne. Vurder å øke sorteringsminnet (sort buffer size) for tjenesten"
+        norwegian-ny "Ikkje meir sorteringsminne. Vurder å auke sorteringsminnet (sorteringsbuffer storleik) for tenesten"
         pol "Zbyt mało pamięci dla sortowania. Zwiększ wielko?ć bufora demona dla sortowania"
-        por "Sem memória para ordenação. Aumente tamanho do 'buffer' de ordenação"
+        por "Não há memória suficiente para ordenação. Considere aumentar o tamanho do retentor (buffer) de ordenação."
         rum "Out of memory pentru sortare. Largeste marimea buffer-ului pentru sortare in daemon (sort buffer size)"
         rus "Недостаточно памяти для сортировки. Увеличьте размер буфера сортировки на сервере"
         serbian "Nema memorije za sortiranje. Povećajte veličinu sort buffer-a MySQL server-u"
@@ -2494,10 +2494,10 @@ ER_TOO_BIG_SELECT 42000
         cze "Zadan-Bý SELECT by procházel příliš mnoho záznamů a trval velmi dlouho. Zkontrolujte tvar WHERE a je-li SELECT v pořádku, použijte SET SQL_BIG_SELECTS=1"
         dan "SELECT ville undersøge for mange poster og ville sandsynligvis tage meget lang tid. Undersøg WHERE delen og brug SET SQL_BIG_SELECTS=1 hvis udtrykket er korrekt"
         nla "Het SELECT-statement zou te veel records analyseren en dus veel tijd in beslagnemen. Kijk het WHERE-gedeelte van de query na en kies SET SQL_BIG_SELECTS=1 als het stament in orde is."
-        eng "The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay"
+        eng "The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET MAX_JOIN_SIZE=# if the SELECT is okay"
         est "SELECT lause peab läbi vaatama suure hulga kirjeid ja võtaks tõenäoliselt liiga kaua aega. Tasub kontrollida WHERE klauslit ja vajadusel kasutada käsku SET SQL_BIG_SELECTS=1"
         fre "SELECT va devoir examiner beaucoup d'enregistrements ce qui va prendre du temps. Vérifiez la clause WHERE et utilisez SET SQL_BIG_SELECTS=1 si SELECT se passe bien"
-        ger "Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange dauern. Bitte WHERE-Klausel überprüfen und gegebenenfalls SET SQL_BIG_SELECTS=1 oder SET SQL_MAX_JOIN_SIZE=# verwenden"
+        ger "Die Ausführung des SELECT würde zu viele Datensätze untersuchen und wahrscheinlich sehr lange dauern. Bitte WHERE-Klausel überprüfen und gegebenenfalls SET SQL_BIG_SELECTS=1 oder SET MAX_JOIN_SIZE=# verwenden"
         greek "Το SELECT θα εξετάσει μεγάλο αριθμό εγγραφών και πιθανώς θα καθυστερήσει. Παρακαλώ εξετάστε τις παραμέτρους του WHERE και χρησιμοποιείστε SET SQL_BIG_SELECTS=1 αν το SELECT είναι σωστό"
         hun "A SELECT tul sok rekordot fog megvizsgalni es nagyon sokaig fog tartani. Ellenorizze a WHERE-t es hasznalja a SET SQL_BIG_SELECTS=1 beallitast, ha a SELECT okay"
         ita "La SELECT dovrebbe esaminare troppi record e usare troppo tempo. Controllare la WHERE e usa SET SQL_BIG_SELECTS=1 se e` tutto a posto."
@@ -6418,8 +6418,8 @@ ER_TABLES_DIFFERENT_METADATA
   eng "Tables have different definitions"
   swe "Tabellerna har olika definitioner"
 ER_ROW_DOES_NOT_MATCH_PARTITION
-  eng "Found row that does not match the partition"
-  swe "Hittade rad som inte passar i partitionen"
+  eng "Found a row that does not match the partition"
+  swe "Hittade en rad som inte passar i partitionen"
 ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
 ER_WARN_INDEX_NOT_APPLICABLE
@@ -6452,5 +6452,38 @@ ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE
 
 ER_STMT_CACHE_FULL  
         eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
+
+ER_MULTI_UPDATE_KEY_CONFLICT
+  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
+
 ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX
   eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
+
+ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
+  eng "Can't update table '%-.192s' while '%-.192s' is being created."
+
+ER_PARTITION_CLAUSE_ON_NONPARTITIONED
+  eng "PARTITION () clause on non partitioned table"
+  swe "PARTITION () klausul för en icke partitionerad tabell"
+ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+  eng "Found a row not matching the given partition set"
+  swe "Hittade en rad som inte passar i någon given partition"
+ER_NO_SUCH_PARTITION 
+  cze "partion '%-.64s' neexistuje"
+  dan "partition '%-.64s' eksisterer ikke"
+  nla "partition '%-.64s' bestaat niet"
+  eng "partition '%-.64s' doesn't exist"
+  est "partition '%-.64s' ei eksisteeri"
+  fre "La partition '%-.64s' n'existe pas"
+  ger "Die partition '%-.64s' existiert nicht"
+  hun "A '%-.64s' partition nem letezik"
+  ita "La tabella particione '%-.64s' non esiste"
+  nor "Partition '%-.64s' doesn't exist"
+  norwegian-ny "Partition '%-.64s' doesn't exist"
+  pol "Partition '%-.64s' doesn't exist"
+  por "Particion '%-.64s' n�o existe"
+  rum "Partition '%-.64s' nu exista"
+  serbian "Partition '%-.64s' ne postoji"
+  slo "Partition '%-.64s' doesn't exist"
+  spa "Particion '%-.64s' no existe"
+  swe "Det finns ingen partition som heter '%-.64s'"

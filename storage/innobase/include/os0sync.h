@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -42,15 +42,26 @@ Created 9/6/1995 Heikki Tuuri
 /** Native event (slow)*/
 typedef HANDLE			os_native_event_t;
 /** Native mutex */
-typedef CRITICAL_SECTION	os_fast_mutex_t;
+typedef CRITICAL_SECTION	fast_mutex_t;
 /** Native condition variable. */
 typedef CONDITION_VARIABLE	os_cond_t;
 #else
 /** Native mutex */
-typedef pthread_mutex_t		os_fast_mutex_t;
+typedef pthread_mutex_t		fast_mutex_t;
 /** Native condition variable */
 typedef pthread_cond_t		os_cond_t;
 #endif
+
+/** Structure that includes Performance Schema Probe pfs_psi
+in the os_fast_mutex structure if UNIV_PFS_MUTEX is defined */
+typedef struct os_fast_mutex_struct {
+	fast_mutex_t		mutex;	/*!< os_fast_mutex */
+#ifdef UNIV_PFS_MUTEX
+	struct PSI_mutex*	pfs_psi;/*!< The performance schema
+					instrumentation hook */
+#endif
+} os_fast_mutex_t;
+
 
 /** Operating system event */
 typedef struct os_event_struct	os_event_struct_t;
@@ -235,34 +246,119 @@ ulint
 os_fast_mutex_trylock(
 /*==================*/
 	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
+
+/**********************************************************************
+Following os_fast_ mutex APIs would be performance schema instrumented:
+
+os_fast_mutex_init
+os_fast_mutex_lock
+os_fast_mutex_unlock
+os_fast_mutex_free
+
+These mutex APIs will point to corresponding wrapper functions that contain
+the performance schema instrumentation.
+
+NOTE! The following macro should be used in mutex operation, not the
+corresponding function. */
+
+#ifdef UNIV_PFS_MUTEX
+# define os_fast_mutex_init(K, M)			\
+	pfs_os_fast_mutex_init(K, M)
+
+# define os_fast_mutex_lock(M)				\
+	pfs_os_fast_mutex_lock(M, __FILE__, __LINE__)
+
+# define os_fast_mutex_unlock(M)	pfs_os_fast_mutex_unlock(M)
+
+# define os_fast_mutex_free(M)		pfs_os_fast_mutex_free(M)
+
+/*********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_init(), not directly
+this function!
+A wrapper function for os_fast_mutex_init_func(). Initializes an operating
+system fast mutex semaphore. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_init(
+/*===================*/
+	PSI_mutex_key		key,		/*!< in: Performance Schema
+						key */
+	os_fast_mutex_t*	fast_mutex);	/*!< out: fast mutex */
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_free(), not directly
+this function!
+Wrapper function for pfs_os_fast_mutex_free(). Also destroys the performance
+schema probes when freeing the mutex */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_free(
+/*===================*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in/out: mutex to free */
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_lock, not directly
+this function!
+Wrapper function of os_fast_mutex_lock. Acquires ownership of a fast mutex. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_lock(
+/*===================*/
+	os_fast_mutex_t*	fast_mutex,	/*!< in/out: mutex to acquire */
+	const char*		file_name,	/*!< in: file name where
+						 locked */
+	ulint			line);		/*!< in: line where locked */
+/**********************************************************//**
+NOTE! Please use the corresponding macro os_fast_mutex_unlock, not directly
+this function!
+Wrapper function of os_fast_mutex_unlock. Releases ownership of a fast mutex. */
+UNIV_INLINE
+void
+pfs_os_fast_mutex_unlock(
+/*=====================*/
+	os_fast_mutex_t*	fast_mutex);	/*!< in/out: mutex to release */
+
+#else /* UNIV_PFS_MUTEX */
+
+# define os_fast_mutex_init(K, M)			\
+	os_fast_mutex_init_func(&((os_fast_mutex_t*)(M))->mutex)
+
+# define os_fast_mutex_lock(M)				\
+	os_fast_mutex_lock_func(&((os_fast_mutex_t*)(M))->mutex)
+
+# define os_fast_mutex_unlock(M)			\
+	os_fast_mutex_unlock_func(&((os_fast_mutex_t*)(M))->mutex)
+
+# define os_fast_mutex_free(M)				\
+	os_fast_mutex_free_func(&((os_fast_mutex_t*)(M))->mutex)
+#endif /* UNIV_PFS_MUTEX */
+
 /**********************************************************//**
 Releases ownership of a fast mutex. */
 UNIV_INTERN
 void
-os_fast_mutex_unlock(
-/*=================*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to release */
+os_fast_mutex_unlock_func(
+/*======================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: mutex to release */
 /*********************************************************//**
 Initializes an operating system fast mutex semaphore. */
 UNIV_INTERN
 void
-os_fast_mutex_init(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: fast mutex */
+os_fast_mutex_init_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: fast mutex */
 /**********************************************************//**
 Acquires ownership of a fast mutex. */
 UNIV_INTERN
 void
-os_fast_mutex_lock(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
+os_fast_mutex_lock_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN
 void
-os_fast_mutex_free(
-/*===============*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to free */
+os_fast_mutex_free_func(
+/*====================*/
+	fast_mutex_t*		fast_mutex);	/*!< in: mutex to free */
 
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */
@@ -398,28 +494,66 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 #define HAVE_ATOMIC_BUILTINS
 
-/* On Windows, use Windows atomics / interlocked */
-# ifdef _WIN64
-#  define win_cmp_and_xchg InterlockedCompareExchange64
-#  define win_xchg_and_add InterlockedExchangeAdd64
-# else /* _WIN64 */
-#  define win_cmp_and_xchg InterlockedCompareExchange
-#  define win_xchg_and_add InterlockedExchangeAdd
-# endif
+/**********************************************************//**
+Atomic compare and exchange of signed integers (both 32 and 64 bit).
+@return value found before the exchange.
+If it is not equal to old_value the exchange did not happen. */
+UNIV_INLINE
+lint
+win_cmp_and_xchg_lint(
+/*==================*/
+	volatile lint*	ptr,		/*!< in/out: source/destination */
+	lint		new_val,	/*!< in: exchange value */
+	lint		old_val);	/*!< in: value to compare to */
+
+/**********************************************************//**
+Atomic addition of signed integers.
+@return Initial value of the variable pointed to by ptr */
+UNIV_INLINE
+lint
+win_xchg_and_add(
+/*=============*/
+	volatile lint*	ptr,	/*!< in/out: address of destination */
+	lint		val);	/*!< in: number to be added */
+
+/**********************************************************//**
+Atomic compare and exchange of unsigned integers.
+@return value found before the exchange.
+If it is not equal to old_value the exchange did not happen. */
+UNIV_INLINE
+ulint
+win_cmp_and_xchg_ulint(
+/*===================*/
+	volatile ulint*	ptr,		/*!< in/out: source/destination */
+	ulint		new_val,	/*!< in: exchange value */
+	ulint		old_val);	/*!< in: value to compare to */
+
+/**********************************************************//**
+Atomic compare and exchange of 32 bit unsigned integers.
+@return value found before the exchange.
+If it is not equal to old_value the exchange did not happen. */
+UNIV_INLINE
+DWORD
+win_cmp_and_xchg_dword(
+/*===================*/
+	volatile DWORD*	ptr,		/*!< in/out: source/destination */
+	DWORD		new_val,	/*!< in: exchange value */
+	DWORD		old_val);	/*!< in: value to compare to */
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
 # define os_compare_and_swap_ulint(ptr, old_val, new_val) \
-	(win_cmp_and_xchg(ptr, new_val, old_val) == old_val)
+	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
 
 # define os_compare_and_swap_lint(ptr, old_val, new_val) \
-	(win_cmp_and_xchg(ptr, new_val, old_val) == old_val)
+	(win_cmp_and_xchg_lint(ptr, new_val, old_val) == old_val)
 
 /* windows thread objects can always be passed to windows atomic functions */
 # define os_compare_and_swap_thread_id(ptr, old_val, new_val) \
-	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+	(win_cmp_and_xchg_dword(ptr, new_val, old_val) == old_val)
+
 # define INNODB_RW_LOCKS_USE_ATOMICS
 # define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use Windows interlocked functions"
@@ -432,17 +566,17 @@ amount of increment. */
 	(win_xchg_and_add(ptr, amount) + amount)
 
 # define os_atomic_increment_ulint(ptr, amount) \
-	((ulint) (win_xchg_and_add(ptr, amount) + amount))
+	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. There is no atomic substract function on Windows */
 
 # define os_atomic_decrement_lint(ptr, amount) \
-	(win_xchg_and_add(ptr, -(lint)amount) - amount)
+	(win_xchg_and_add(ptr, -(lint) amount) - amount)
 
 # define os_atomic_decrement_ulint(ptr, amount) \
-	((ulint) (win_xchg_and_add(ptr, -(lint)amount) - amount))
+	((ulint) (win_xchg_and_add((lint*) ptr, -(lint) amount) - amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.
@@ -476,7 +610,7 @@ for synchronization */
 	(void) os_atomic_increment_ulint(&counter, amount)
 
 #define os_decrement_counter_by_amount(mutex, counter, amount)	\
-	(void) os_atomic_increment_ulint(&counter, (-((long)(amount))))
+	(void) os_atomic_increment_ulint(&counter, (-((lint) amount)))
 #else
 #define os_increment_counter_by_amount(mutex, counter, amount)	\
 	do {							\

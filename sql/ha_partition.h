@@ -1,20 +1,20 @@
 #ifndef HA_PARTITION_INCLUDED
 #define HA_PARTITION_INCLUDED
 
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef __GNUC__
 #pragma interface				/* gcc class implementation */
@@ -164,9 +164,11 @@ private:
   ha_rows   m_bulk_inserted_rows;
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
+  /** keep track of locked partitions */
+  MY_BITMAP m_locked_partitions;
 public:
   handler *clone(MEM_ROOT *mem_root);
-  virtual void set_part_info(partition_info *part_info)
+  virtual void set_part_info(partition_info *part_info, bool early)
   {
      m_part_info= part_info;
      m_is_sub_partitioned= part_info->is_sub_partitioned();
@@ -243,11 +245,10 @@ private:
                             handler *file, const char *part_name,
                             partition_element *p_elem);
   /*
-    delete_table, rename_table and create uses very similar logic which
+    delete_table and rename_table uses very similar logic which
     is packed into this routine.
   */
-  uint del_ren_cre_table(const char *from, const char *to,
-                         TABLE *table_arg, HA_CREATE_INFO *create_info);
+  uint del_ren_table(const char *from, const char *to);
   /*
     One method to create the table_name.par file containing the names of the
     underlying partitions, their engine and the number of partitions.
@@ -261,9 +262,11 @@ private:
   int set_up_table_before_create(TABLE *table_arg,
                                  const char *partition_name_with_path,
                                  HA_CREATE_INFO *info,
-                                 uint part_id,
                                  partition_element *p_elem);
   partition_element *find_partition_element(uint part_id);
+  bool insert_partition_name_in_hash(const char *name, uint part_id,
+                                     bool is_subpart);
+  bool populate_partition_name_hash();
 
 public:
 
@@ -367,10 +370,13 @@ public:
   virtual bool is_fatal_error(int error, uint flags)
   {
     if (!handler::is_fatal_error(error, flags) ||
-        error == HA_ERR_NO_PARTITION_FOUND)
+        error == HA_ERR_NO_PARTITION_FOUND ||
+        error == HA_ERR_NOT_IN_LOCK_PARTITIONS)
       return FALSE;
     return TRUE;
   }
+
+
   /*
     -------------------------------------------------------------------------
     MODULE full table scan
@@ -598,6 +604,9 @@ public:
   */
   virtual uint8 table_cache_type();
   virtual ha_rows records();
+
+  /* Calculate hash value for PARTITION BY KEY tables. */
+  uint32 calculate_key_hash_value(Field **field_array);
 
   /*
     -------------------------------------------------------------------------

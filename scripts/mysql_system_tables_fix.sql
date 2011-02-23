@@ -255,6 +255,8 @@ ALTER TABLE slow_log
   MODIFY insert_id INTEGER NOT NULL,
   MODIFY server_id INTEGER UNSIGNED NOT NULL,
   MODIFY sql_text MEDIUMTEXT NOT NULL;
+ALTER TABLE slow_log
+  ADD COLUMN thread_id INTEGER NOT NULL AFTER sql_text;
 SET GLOBAL slow_query_log = @old_log_state;
 
 ALTER TABLE plugin

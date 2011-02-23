@@ -22,7 +22,8 @@ insert into t1 (b) select b from t2;
 insert into t2 (b) select b from t1;
 insert into t1 (b) select b from t2;
 drop table t2;
-create table t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="MYSQLTEST_VARDIR/tmp" index directory="MYSQLTEST_VARDIR/run";
+create table t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+engine=myisam data directory="MYSQLTEST_VARDIR/tmp" index directory="MYSQLTEST_VARDIR/run";
 insert into t9 select * from t1;
 check table t9;
 Table	Op	Msg_type	Msg_text
@@ -56,11 +57,17 @@ t9	CREATE TABLE `t9` (
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 create database mysqltest;
-create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="/this-dir-does-not-exist";
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+engine=myisam index directory="/this-dir-does-not-exist";
 Got one of the listed errors
-create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam index directory="MYSQLTEST_VARDIR/run";
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+engine=myisam index directory="not-hard-path";
+ERROR 42000: Incorrect table name 'not-hard-path'
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+engine=myisam index directory="MYSQLTEST_VARDIR/run";
 Got one of the listed errors
-create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) engine=myisam data directory="MYSQLTEST_VARDIR/tmp";
+create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+engine=myisam data directory="MYSQLTEST_VARDIR/tmp";
 Got one of the listed errors
 alter table t9 rename mysqltest.t9;
 select count(*) from mysqltest.t9;

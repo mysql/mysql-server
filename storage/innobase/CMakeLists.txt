@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,13 +30,11 @@ IF(UNIX)
       LINK_LIBRARIES(aio)
     ENDIF()
   ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP*")
-    ADD_DEFINITIONS("-DUNIV_HPUX -DUNIV_MUST_NOT_INLINE")
+    ADD_DEFINITIONS("-DUNIV_HPUX")
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "AIX")
-    ADD_DEFINITIONS("-DUNIV_AIX -DUNIX_MUST_NOT_INLINE")
+    ADD_DEFINITIONS("-DUNIV_AIX")
   ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
-  ELSE()
-   ADD_DEFINITIONS("-DUNIV_MUST_NOT_INLINE")
   ENDIF()
 ENDIF()
 

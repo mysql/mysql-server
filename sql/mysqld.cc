@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
@@ -681,6 +681,12 @@ static char *opt_bin_logname;
 int orig_argc;
 char **orig_argv;
 
+void set_remaining_args(int argc, char **argv)
+{
+  remaining_argc= argc;
+  remaining_argv= argv;
+}
+
 /*
   Since buffered_option_error_reporter is only used currently
   for parsing performance schema options, this code is not needed
@@ -1080,6 +1086,8 @@ static void close_connections(void)
     statements and inform their clients that the server is about to die.
   */
 
+  sql_print_information("Giving client threads a chance to die gracefully");
+
   THD *tmp;
   mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
 
@@ -1112,6 +1120,8 @@ static void close_connections(void)
   mysql_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
   Events::deinit();
+
+  sql_print_information("Shutting down slave threads");
   end_slave();
 
   if (thread_count)
@@ -1123,6 +1133,7 @@ static void close_connections(void)
     client on a blocking read call are aborted.
   */
 
+  sql_print_information("Forcefully disconnecting remaining clients");
   for (;;)
   {
     DBUG_PRINT("quit",("Locking LOCK_thread_count"));
@@ -1423,6 +1434,7 @@ void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
+  sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
   logger.cleanup_base();
@@ -2888,6 +2900,21 @@ sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
 
+#ifndef EMBEDDED_LIBRARY
+namespace {
+extern "C"
+int
+check_enough_stack_size()
+{
+  uchar stack_top;
+
+  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+                             &stack_top);
+}
+}
+#endif
+
+
 /**
   Initialize one of the global date/time format variables.
 
@@ -3024,7 +3051,6 @@ SHOW_VAR com_status_vars[]= {
   {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
   {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
   {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
-  {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
   {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
   {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
@@ -3108,7 +3134,7 @@ rpl_make_log_name(const char *opt,
 }
 
 
-static int init_common_variables()
+int init_common_variables()
 {
   char buff[FN_REFLEN];
   umask(((~my_umask) & 0666));
@@ -3117,12 +3143,6 @@ static int init_common_variables()
 
   max_system_variables.pseudo_thread_id= (ulong)~0;
   server_start_time= flush_status_time= my_time(0);
-  /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (server_start_time >= (time_t) MY_TIME_T_MAX)
-  {
-    sql_print_error("This MySQL server doesn't support dates later then 2038");
-    return 1;
-  }
 
   rpl_filter= new Rpl_filter;
   binlog_filter= new Rpl_filter;
@@ -3160,6 +3180,13 @@ static int init_common_variables()
     inited before MY_INIT(). So we do it here.
   */
   mysql_bin_log.init_pthread_objects();
+
+  /* TODO: remove this when my_time_t is 64 bit compatible */
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time))
+  {
+    sql_print_error("This MySQL server doesn't support dates later then 2038");
+    return 1;
+  }
 
   if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
@@ -3377,7 +3404,11 @@ static int init_common_variables()
   if (item_create_init())
     return 1;
   item_init();
-  my_regex_init(&my_charset_latin1);
+#ifndef EMBEDDED_LIBRARY
+  my_regex_init(&my_charset_latin1, check_enough_stack_size);
+#else
+  my_regex_init(&my_charset_latin1, NULL);
+#endif
   /*
     Process a comma-separated character set list and choose
     the first available character set. This is mostly for
@@ -5123,11 +5154,17 @@ static bool read_init_file(char *file_name)
   MYSQL_FILE *file;
   DBUG_ENTER("read_init_file");
   DBUG_PRINT("enter",("name: %s",file_name));
+
+  sql_print_information("Execution of init_file \'%s\' started.", file_name);
+
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
     DBUG_RETURN(TRUE);
   bootstrap(file);
   mysql_file_fclose(file, MYF(MY_WME));
+
+  sql_print_information("Execution of init_file \'%s\' ended.", file_name);
+
   DBUG_RETURN(FALSE);
 }
 
@@ -6672,6 +6709,7 @@ SHOW_VAR status_vars[]= {
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
   {"Handler_discover",         (char*) offsetof(STATUS_VAR, ha_discover_count), SHOW_LONG_STATUS},
+  {"Handler_external_lock",    (char*) offsetof(STATUS_VAR, ha_external_lock_count), SHOW_LONG_STATUS},
   {"Handler_mrr_init",         (char*) offsetof(STATUS_VAR, ha_multi_range_read_init_count),  SHOW_LONG_STATUS},
   {"Handler_prepare",          (char*) offsetof(STATUS_VAR, ha_prepare_count),  SHOW_LONG_STATUS},
   {"Handler_read_first",       (char*) offsetof(STATUS_VAR, ha_read_first_count), SHOW_LONG_STATUS},
@@ -6849,7 +6887,7 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)

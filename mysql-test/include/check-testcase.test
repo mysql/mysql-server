@@ -67,6 +67,8 @@ if ($tmp)
   --echo Slave_SQL_Running_State	
   --echo Master_Retry_Count	#
   --echo Master_Bind	
+  --echo Last_IO_Error_Timestamp	
+  --echo Last_SQL_Error_Timestamp	
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
