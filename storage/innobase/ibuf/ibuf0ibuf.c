@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -183,9 +183,6 @@ exclusively level 1 i/o. A dedicated i/o handler thread handles exclusively
 level 2 i/o. However, if an OS thread does the i/o handling for itself, i.e.,
 it uses synchronous aio, it can access any pages, as long as it obeys the
 access order rules. */
-
-/** Buffer pool size per the maximum insert buffer size */
-#define IBUF_POOL_SIZE_PER_MAX_SIZE	2
 
 /** Table name for the insert buffer. */
 #define IBUF_TABLE_NAME		"SYS_IBUF_TABLE"
@@ -520,12 +517,13 @@ ibuf_init_at_db_start(void)
 
 	memset(ibuf, 0, sizeof(*ibuf));
 
-	/* Note that also a pessimistic delete can sometimes make a B-tree
-	grow in size, as the references on the upper levels of the tree can
-	change */
-
-	ibuf->max_size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE
-		/ IBUF_POOL_SIZE_PER_MAX_SIZE;
+	/* At startup we intialize ibuf to have a maximum of
+	CHANGE_BUFFER_DEFAULT_SIZE in terms of percentage of the
+	buffer pool size. Once ibuf struct is initialized this
+	value is updated with the user supplied size by calling
+	ibuf_max_size_update(). */
+	ibuf->max_size = ((buf_pool_get_curr_size() / UNIV_PAGE_SIZE)
+			  * CHANGE_BUFFER_DEFAULT_SIZE) / 100;
 
 	mutex_create(ibuf_pessimistic_insert_mutex_key,
 		     &ibuf_pessimistic_insert_mutex,
@@ -598,6 +596,26 @@ ibuf_init_at_db_start(void)
 
 	ibuf->index = dict_table_get_first_index(table);
 }
+
+/*********************************************************************//**
+Updates the max_size value for ibuf. */
+UNIV_INTERN
+void
+ibuf_max_size_update(
+/*=================*/
+	ulint	new_val)	/*!< in: new value in terms of
+				percentage of the buffer pool size */
+{
+	ulint	new_size = ((buf_pool_get_curr_size() / UNIV_PAGE_SIZE)
+			    * new_val) / 100;
+	ibuf_enter();
+	mutex_enter(&ibuf_mutex);
+	ibuf->max_size = new_size;
+	mutex_exit(&ibuf_mutex);
+	ibuf_exit();
+}
+
+
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Initializes an ibuf bitmap page. */
@@ -2276,9 +2294,9 @@ ibuf_remove_free_page(void)
 	fseg_free_page(header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER,
 		       IBUF_SPACE_ID, page_no, &mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_reset_file_page_was_freed(IBUF_SPACE_ID, page_no);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 
 	ibuf_enter();
 
@@ -2322,9 +2340,9 @@ ibuf_remove_free_page(void)
 	ibuf_bitmap_page_set_bits(
 		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, FALSE, &mtr);
 
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	buf_page_set_file_page_was_freed(IBUF_SPACE_ID, page_no);
-#endif
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 	mtr_commit(&mtr);
 
 	ibuf_exit();
@@ -2585,23 +2603,6 @@ ibuf_contract_ext(
 
 	if (UNIV_UNLIKELY(ibuf->empty)
 	    && UNIV_LIKELY(!srv_shutdown_state)) {
-ibuf_is_empty:
-
-#if 0 /* TODO */
-		if (srv_shutdown_state) {
-			/* If the insert buffer becomes empty during
-			shutdown, note it in the system tablespace. */
-
-			trx_sys_set_ibuf_format(TRX_SYS_IBUF_EMPTY);
-		}
-
-		/* TO DO: call trx_sys_set_ibuf_format() at startup
-		and whenever ibuf_use is changed to allow buffered
-		delete-marking or deleting.  Never downgrade the
-		stamped format except when the insert buffer becomes
-		empty. */
-#endif
-
 		return(0);
 	}
 
@@ -2631,7 +2632,7 @@ ibuf_is_empty:
 		mtr_commit(&mtr);
 		btr_pcur_close(&pcur);
 
-		goto ibuf_is_empty;
+		return(0);
 	}
 
 	sum_sizes = ibuf_get_merge_page_nos(TRUE, btr_pcur_get_rec(&pcur),
@@ -2677,22 +2678,45 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract_for_n_pages(
-/*======================*/
-	ibool	sync,	/*!< in: TRUE if the caller wants to wait for the
-			issued read with the highest tablespace address
-			to complete */
-	ulint	n_pages)/*!< in: try to read at least this many pages to
-			the buffer pool and merge the ibuf contents to
-			them */
+ibuf_contract_in_background(
+/*========================*/
+	ibool	full)	/*!< in: TRUE if the caller wants to do a full
+			contract based on PCT_IO(100). If FALSE then
+			the size of contract batch is determined based
+			on the current size of the ibuf tree. */
 {
 	ulint	sum_bytes	= 0;
 	ulint	sum_pages	= 0;
 	ulint	n_bytes;
 	ulint	n_pag2;
+	ulint	n_pages;
+
+	if (full) {
+		/* Caller has requested a full batch */
+		n_pages = PCT_IO(100);
+	} else {
+
+		ibuf_enter();
+		mutex_enter(&ibuf_mutex);
+
+		/* By default we do a batch of 5% of the io_capacity */
+		n_pages = PCT_IO(5);
+
+		/* If the ibuf->size is more than half the max_size
+		then we make more agreesive contraction.
+		+1 is to avoid division by zero. */
+		if (ibuf->size > ibuf->max_size / 2) {
+			ulint diff = ibuf->size - ibuf->max_size / 2;
+			n_pages += PCT_IO((diff * 100)
+					   / (ibuf->max_size + 1));
+		}
+
+		mutex_exit(&ibuf_mutex);
+		ibuf_exit();
+	}
 
 	while (sum_pages < n_pages) {
-		n_bytes = ibuf_contract_ext(&n_pag2, sync);
+		n_bytes = ibuf_contract_ext(&n_pag2, FALSE);
 
 		if (n_bytes == 0) {
 			return(sum_bytes);
@@ -3412,12 +3436,14 @@ ibuf_insert_low(
 	do_merge = FALSE;
 
 	/* Perform dirty reads of ibuf->size and ibuf->max_size, to
-	reduce ibuf_mutex contention. ibuf->max_size remains constant
-	after ibuf_init_at_db_start(), but ibuf->size should be
-	protected by ibuf_mutex. Given that ibuf->size fits in a
-	machine word, this should be OK; at worst we are doing some
-	excessive ibuf_contract() or occasionally skipping a
-	ibuf_contract(). */
+	reduce ibuf_mutex contention. Given that ibuf->max_size and
+	ibuf->size fit in a machine word, this should be OK; at worst
+	we are doing some excessive ibuf_contract() or occasionally
+	skipping an ibuf_contract(). */
+	if (ibuf->max_size == 0) {
+		return(DB_STRONG_FAIL);
+	}
+
 	if (ibuf->size >= ibuf->max_size + IBUF_CONTRACT_DO_NOT_INSERT) {
 		/* Insert buffer is now too big, contract it but do not try
 		to insert */

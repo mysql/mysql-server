@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ public:
   enum Functype { UNKNOWN_FUNC,EQ_FUNC,EQUAL_FUNC,NE_FUNC,LT_FUNC,LE_FUNC,
 		  GE_FUNC,GT_FUNC,FT_FUNC,
 		  LIKE_FUNC,ISNULL_FUNC,ISNOTNULL_FUNC,
-		  COND_AND_FUNC, COND_OR_FUNC, COND_XOR_FUNC,
+		  COND_AND_FUNC, COND_OR_FUNC, XOR_FUNC,
                   BETWEEN, IN_FUNC, MULT_EQUAL_FUNC,
 		  INTERVAL_FUNC, ISNOTNULLTEST_FUNC,
 		  SP_EQUALS_FUNC, SP_DISJOINT_FUNC,SP_INTERSECTS_FUNC,

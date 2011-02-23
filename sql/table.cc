@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Some general useful functions */
@@ -202,6 +202,19 @@ static uchar *get_field_name(Field **buff, size_t *length,
   *length= (uint) strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
+
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  A function to return the partition name from a partition element
+*/
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                            my_bool not_used __attribute__((unused)))
+{
+  *length= part->length;
+  return part->partition_name;
+}
+#endif
 
 
 /*
@@ -1974,8 +1987,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
-    /* we should perform the fix_partition_func in either local or
-       caller's arena depending on work_part_info_used value
+    /*
+      We should perform the fix_partition_func in either local or
+      caller's arena depending on work_part_info_used value.
     */
     if (!work_part_info_used)
       tmp= fix_partition_func(thd, outparam, is_create_table);
@@ -2126,6 +2140,7 @@ int closefrm(register TABLE *table, bool free_share)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
+    /* Allocated through table->mem_root, freed below */
     free_items(table->part_info->item_free_list);
     table->part_info->item_free_list= 0;
     table->part_info= 0;

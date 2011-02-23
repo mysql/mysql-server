@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,11 +33,6 @@ typedef struct dict_index_struct	dict_index_t;
 typedef struct dict_table_struct	dict_table_t;
 typedef struct dict_foreign_struct	dict_foreign_t;
 
-/* A cluster object is a table object with the type field set to
-DICT_CLUSTERED */
-
-typedef dict_table_t			dict_cluster_t;
-
 typedef struct ind_node_struct		ind_node_t;
 typedef struct tab_node_struct		tab_node_t;
 
@@ -51,5 +46,19 @@ DICT_IBUF_ID_MIN plus the space id */
 
 typedef ib_id_t		table_id_t;
 typedef ib_id_t		index_id_t;
+
+/** Error to ignore when we load table dictionary into memory. However,
+the table and index will be marked as "corrupted", and caller will
+be responsible to deal with corrupted table or index.
+Note: please define the IGNORE_ERR_* as bits, so their value can
+be or-ed together */
+enum dict_err_ignore {
+        DICT_ERR_IGNORE_NONE = 0,        /*!< no error to ignore */
+        DICT_ERR_IGNORE_INDEX_ROOT = 1, /*!< ignore error if index root
+					page is FIL_NUL or incorrect value */
+        DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
+};
+
+typedef enum dict_err_ignore		dict_err_ignore_t;
 
 #endif

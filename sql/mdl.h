@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,41 @@ class THD;
 class MDL_context;
 class MDL_lock;
 class MDL_ticket;
+
+
+/**
+   An interface to separate the MDL module from the THD, and the rest of the
+   server code.
+ */
+
+class MDL_context_owner
+{
+public:
+  virtual ~MDL_context_owner() {}
+
+  /**
+     @see THD::enter_cond() and THD::exit_cond()
+   */
+  virtual const char* enter_cond(mysql_cond_t *cond, mysql_mutex_t* mutex,
+                                 const char* msg) = 0;
+  virtual void exit_cond(const char* old_msg) = 0;
+  /**
+     Has the owner thread been killed?
+   */
+  virtual int  is_killed() = 0;
+
+  /**
+     This one is only used for DEBUG_SYNC.
+     (Do not use it to peek/poke into other parts of THD.)
+   */
+  virtual THD* get_thd() = 0;
+
+  /**
+     @see THD::notify_shared_lock()
+   */
+  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+                                  bool needs_thr_lock_abort) = 0;
+};
 
 /**
   Type of metadata lock request.
@@ -593,7 +628,8 @@ public:
   bool set_status(enum_wait_status result_arg);
   enum_wait_status get_status();
   void reset_status();
-  enum_wait_status timed_wait(THD *thd, struct timespec *abs_timeout,
+  enum_wait_status timed_wait(MDL_context_owner *owner,
+                              struct timespec *abs_timeout,
                               bool signal_timeout, const char *wait_state_name);
 private:
   /**
@@ -672,7 +708,7 @@ public:
   void release_transactional_locks();
   void rollback_to_savepoint(const MDL_savepoint &mdl_savepoint);
 
-  inline THD *get_thd() const { return m_thd; }
+  MDL_context_owner *get_owner() { return m_owner; }
 
   /** @pre Only valid if we started waiting for lock. */
   inline uint get_deadlock_weight() const
@@ -685,7 +721,7 @@ public:
                     already has received some signal or closed
                     signal slot.
   */
-  void init(THD *thd_arg) { m_thd= thd_arg; }
+  void init(MDL_context_owner *arg) { m_owner= arg; }
 
   void set_needs_thr_lock_abort(bool needs_thr_lock_abort)
   {
@@ -765,7 +801,7 @@ private:
       involved schemas and global intention exclusive lock.
   */
   Ticket_list m_tickets[MDL_DURATION_END];
-  THD *m_thd;
+  MDL_context_owner *m_owner;
   /**
     TRUE -  if for this context we will break protocol and try to
             acquire table-level locks while having only S lock on
@@ -794,6 +830,7 @@ private:
    */
   MDL_wait_for_subgraph *m_waiting_for;
 private:
+  THD *get_thd() const { return m_owner->get_thd(); }
   MDL_ticket *find_ticket(MDL_request *mdl_req,
                           enum_mdl_duration *duration);
   void release_locks_stored_before(enum_mdl_duration duration, MDL_ticket *sentinel);
@@ -838,16 +875,6 @@ private:
 void mdl_init();
 void mdl_destroy();
 
-
-/*
-  Functions in the server's kernel used by metadata locking subsystem.
-*/
-
-extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
-                                                   bool needs_thr_lock_abort);
-extern "C" const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
-                                      mysql_mutex_t *mutex, const char *msg);
-extern "C" void thd_exit_cond(MYSQL_THD thd, const char *old_msg);
 
 #ifndef DBUG_OFF
 extern mysql_mutex_t LOCK_open;

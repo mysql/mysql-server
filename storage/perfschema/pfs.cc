@@ -903,19 +903,30 @@ static inline int mysql_mutex_lock(...)
   @ingroup Performance_schema_implementation
 */
 
+/** TIMED bit in the state flags bitfield. */
 #define STATE_FLAG_TIMED (1<<0)
+/** THREAD bit in the state flags bitfield. */
 #define STATE_FLAG_THREAD (1<<1)
+/** EVENT bit in the state flags bitfield. */
 #define STATE_FLAG_WAIT (1<<2)
 
 pthread_key(PFS_thread*, THR_PFS);
 bool THR_PFS_initialized= false;
 
+/**
+  Conversion map from PSI_mutex_operation to enum_operation_type.
+  Indexed by enum PSI_mutex_operation.
+*/
 static enum_operation_type mutex_operation_map[]=
 {
   OPERATION_TYPE_LOCK,
   OPERATION_TYPE_TRYLOCK
 };
 
+/**
+  Conversion map from PSI_rwlock_operation to enum_operation_type.
+  Indexed by enum PSI_rwlock_operation.
+*/
 static enum_operation_type rwlock_operation_map[]=
 {
   OPERATION_TYPE_READLOCK,
@@ -924,6 +935,10 @@ static enum_operation_type rwlock_operation_map[]=
   OPERATION_TYPE_TRYWRITELOCK
 };
 
+/**
+  Conversion map from PSI_cond_operation to enum_operation_type.
+  Indexed by enum PSI_cond_operation.
+*/
 static enum_operation_type cond_operation_map[]=
 {
   OPERATION_TYPE_WAIT,
@@ -1097,6 +1112,10 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
 
 C_MODE_START
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::register_mutex.
+*/
 static void register_mutex_v1(const char *category,
                               PSI_mutex_info_v1 *info,
                               int count)
@@ -1106,6 +1125,10 @@ static void register_mutex_v1(const char *category,
                    register_mutex_class)
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::register_rwlock.
+*/
 static void register_rwlock_v1(const char *category,
                                PSI_rwlock_info_v1 *info,
                                int count)
@@ -1115,6 +1138,10 @@ static void register_rwlock_v1(const char *category,
                    register_rwlock_class)
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::register_cond.
+*/
 static void register_cond_v1(const char *category,
                              PSI_cond_info_v1 *info,
                              int count)
@@ -1124,6 +1151,10 @@ static void register_cond_v1(const char *category,
                    register_cond_class)
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::register_thread.
+*/
 static void register_thread_v1(const char *category,
                                PSI_thread_info_v1 *info,
                                int count)
@@ -1133,6 +1164,10 @@ static void register_thread_v1(const char *category,
                    register_thread_class)
 }
 
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::register_file.
+*/
 static void register_file_v1(const char *category,
                              PSI_file_info_v1 *info,
                              int count)
@@ -1351,6 +1386,11 @@ static void create_file_v1(PSI_file_key key, const char *name, File file)
   file_handle_array[index]= pfs_file;
 }
 
+/**
+  Arguments given from a parent to a child thread, packaged in one structure.
+  This data is used when spawning a new instrumented thread.
+  @sa pfs_spawn_thread.
+*/
 struct PFS_spawn_thread_arg
 {
   PFS_thread *m_parent_thread;
@@ -1666,12 +1706,20 @@ static void set_thread_info_v1(const char* info, int info_len)
   }
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::set_thread.
+*/
 static void set_thread_v1(PSI_thread* thread)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
   my_pthread_setspecific_ptr(THR_PFS, pfs);
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::delete_current_thread.
+*/
 static void delete_current_thread_v1(void)
 {
   PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -1683,6 +1731,10 @@ static void delete_current_thread_v1(void)
   }
 }
 
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::delete_thread.
+*/
 static void delete_thread_v1(PSI_thread *thread)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
@@ -2611,6 +2663,10 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   return reinterpret_cast<PSI_socket_locker*> (state);
 }
 
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::unlock_mutex.
+*/
 static void unlock_mutex_v1(PSI_mutex *mutex)
 {
   PFS_mutex *pfs_mutex= reinterpret_cast<PFS_mutex*> (mutex);
@@ -2650,6 +2706,10 @@ static void unlock_mutex_v1(PSI_mutex *mutex)
 #endif
 }
 
+/**
+  Implementation of the rwlock instrumentation interface.
+  @sa PSI_v1::unlock_rwlock.
+*/
 static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 {
   PFS_rwlock *pfs_rwlock= reinterpret_cast<PFS_rwlock*> (rwlock);
@@ -2726,6 +2786,10 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 #endif
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::signal_cond.
+*/
 static void signal_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);
@@ -2734,6 +2798,10 @@ static void signal_cond_v1(PSI_cond* cond)
   pfs_cond->m_cond_stat.m_signal_count++;
 }
 
+/**
+  Implementation of the cond instrumentation interface.
+  @sa PSI_v1::broadcast_cond.
+*/
 static void broadcast_cond_v1(PSI_cond* cond)
 {
   PFS_cond *pfs_cond= reinterpret_cast<PFS_cond*> (cond);

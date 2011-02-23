@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "btr0sea.h"
 #include "os0proc.h"
 #include "trx0xa.h"
+#include "trx0purge.h"
 #include "ha_prototypes.h"
 #include "srv0mon.h"
 
@@ -50,7 +51,7 @@ Created 3/26/1996 Heikki Tuuri
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 
 /** Number of transactions currently allocated for MySQL: protected by
-the trx_sys_t::mutex */
+trx_sys->lock */
 UNIV_INTERN ulint		trx_n_mysql_transactions = 0;
 
 #ifdef UNIV_PFS_MUTEX
@@ -173,6 +174,7 @@ trx_allocate_for_mysql(void)
 
 	++trx_n_mysql_transactions;
 
+	ut_d(trx->in_mysql_trx_list = TRUE);
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	rw_lock_x_unlock(&trx_sys->lock);
@@ -207,14 +209,12 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	if (trx->declared_to_be_inside_innodb) {
+	if (UNIV_UNLIKELY(trx->declared_to_be_inside_innodb)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: Freeing a trx which is declared"
 		      " to be processing\n"
 		      "InnoDB: inside InnoDB.\n", stderr);
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		rw_lock_s_unlock(&trx_sys->lock);
 		putc('\n', stderr);
 
 		/* This is an error but not a fatal error. We must keep
@@ -222,8 +222,8 @@ trx_free(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-	if (trx->n_mysql_tables_in_use != 0
-	    || trx->mysql_n_tables_locked != 0) {
+	if (UNIV_UNLIKELY(trx->n_mysql_tables_in_use != 0
+			  || trx->mysql_n_tables_locked != 0)) {
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -232,11 +232,7 @@ trx_free(
 			"InnoDB: and trx->mysql_n_tables_locked is %lu.\n",
 			(ulong)trx->n_mysql_tables_in_use,
 			(ulong)trx->mysql_n_tables_locked);
-
-		rw_lock_s_lock(&trx_sys->lock);
 		trx_print(stderr, trx, 600);
-		rw_lock_s_unlock(&trx_sys->lock);
-
 		ut_print_buf(stderr, trx, sizeof(trx_t));
 		putc('\n', stderr);
 	}
@@ -311,6 +307,8 @@ trx_free_for_mysql(
 {
 	rw_lock_x_lock(&trx_sys->lock);
 
+	ut_ad(trx->in_mysql_trx_list);
+	ut_d(trx->in_mysql_trx_list = FALSE);
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
@@ -336,10 +334,15 @@ trx_list_insert_ordered(
 	trx_t*	trx2;
 
 	ut_a(srv_is_being_started);
+	ut_ad(!trx->in_trx_list);
+	ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+	ut_ad(trx->is_recovered);
 
 	for (trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx2 != NULL;
 	     trx2 = UT_LIST_GET_NEXT(trx_list, trx2)) {
+
+		ut_ad(trx2->in_trx_list);
 
 		if (trx->id >= trx2->id) {
 
@@ -360,6 +363,9 @@ trx_list_insert_ordered(
 	} else {
 		UT_LIST_ADD_LAST(trx_list, trx_sys->trx_list, trx);
 	}
+
+	ut_ad(!trx->in_trx_list);
+	ut_d(trx->in_trx_list = TRUE);
 }
 
 /****************************************************************//**
@@ -383,8 +389,8 @@ trx_resurrect_insert(
 	trx->insert_undo = undo;
 	trx->is_recovered = TRUE;
 
-	/* This is startup code, we don't need to protection of the
-	trx_sys_t::lock or the trx_t::mutex here. */
+	/* This is single-threaded startup code, we do not need the
+	protection of trx->mutex or trx_sys->lock here. */
 
 	if (undo->state != TRX_UNDO_ACTIVE) {
 
@@ -449,8 +455,8 @@ trx_resurrect_update_in_prepared_state(
 	trx_t*			trx,	/*!< in,out: transaction */
 	const trx_undo_t*	undo)	/*!< in: update UNDO record */
 {
-	/* This is startup code, we don't need to protection of the
-	trx_sys_t::lock or the trx_t::mutex here. */
+	/* This is single-threaded startup code, we do not need the
+	protection of trx->mutex or trx_sys->lock here. */
 
 	if (undo->state == TRX_UNDO_PREPARED) {
 		fprintf(stderr,
@@ -479,9 +485,9 @@ static
 void
 trx_resurrect_update(
 /*=================*/
-	trx_t*		trx,
-	trx_undo_t*	undo,
-	trx_rseg_t*	rseg)
+	trx_t*		trx,	/*!< in/out: transaction */
+	trx_undo_t*	undo,	/*!< in/out: update UNDO record */
+	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
 	trx->rseg = rseg;
 	trx->xid = undo->xid;
@@ -489,8 +495,8 @@ trx_resurrect_update(
 	trx->update_undo = undo;
 	trx->is_recovered = TRUE;
 
-	/* This is startup code, we don't need to protection of the
-	trx_sys_t::lock or the trx_t::mutex here. */
+	/* This is single-threaded startup code, we do not need the
+	protection of trx->mutex or trx_sys->lock here. */
 
 	if (undo->state != TRX_UNDO_ACTIVE) {
 		trx_resurrect_update_in_prepared_state(trx, undo);
@@ -542,7 +548,7 @@ trx_lists_init_at_db_start(void)
 	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_undo_t*	undo;
 		trx_rseg_t*	rseg;
-	       
+
 		rseg = trx_sys->rseg_array[i];
 
 		if (rseg == NULL) {
@@ -568,7 +574,9 @@ trx_lists_init_at_db_start(void)
 			ibool	trx_created;
 
 			/* Check the trx_sys->trx_list first. */
+			rw_lock_s_lock(&trx_sys->lock);
 			trx = trx_get_on_id(undo->trx_id);
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			if (trx == NULL) {
 				trx = trx_allocate_for_background();
@@ -579,7 +587,7 @@ trx_lists_init_at_db_start(void)
 
 			trx_resurrect_update(trx, undo, rseg);
 
-			if (trx_created == TRUE) {
+			if (trx_created) {
 				trx_list_insert_ordered(trx);
 			}
 		}
@@ -588,20 +596,29 @@ trx_lists_init_at_db_start(void)
 
 /******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
-Skips the SYSTEM rollback segment if another is available.
-@return	assigned rollback segment */
+@return	assigned rollback segment instance */
 UNIV_INLINE
 trx_rseg_t*
-trx_assign_rseg(void)
-/*=================*/
+trx_assign_rseg(
+/*============*/
+	ulint	max_undo_logs)	/*!< in: maximum number of UNDO logs to use */
 {
 	ulint		i;
 	trx_rseg_t*	rseg;
+	static ulint	latest_rseg = 0;
 
-	/* This breaks true round robin but that should be OK.
-	Our aim is to reduce the contention of the trx_sys_t::lock.  */
-	i = trx_sys->latest_rseg;
-	i %= TRX_SYS_N_RSEGS;
+	/* This breaks true round robin but that should be OK. */
+
+	ut_a(max_undo_logs > 0 && max_undo_logs <= TRX_SYS_N_RSEGS);
+
+	i = latest_rseg++;
+        i %= max_undo_logs;
+
+	/* Note: The assumtion here is that there can't be any gaps in
+	the array. Once we implement more flexible rollback segment
+	management this may not hold. The assertion checks for that case. */
+
+	ut_a(trx_sys->rseg_array[0] != NULL);
 
 	do {
 		rseg = trx_sys->rseg_array[i];
@@ -611,19 +628,11 @@ trx_assign_rseg(void)
 
 	} while (rseg == NULL);
 
-	rw_lock_x_lock(&trx_sys->lock);
-
-	trx_sys->latest_rseg = i % TRX_SYS_N_RSEGS;
-
-	ut_ad(trx_sys_validate_trx_list());
-
-	rw_lock_x_unlock(&trx_sys->lock);
-
 	return(rseg);
 }
 
 /****************************************************************//**
-Starts a new transaction it must not already be active. */
+Starts a transaction. */
 static
 void
 trx_start_low(
@@ -634,34 +643,189 @@ trx_start_low(
 
 	ut_ad(trx->rseg == NULL);
 
-	ut_ad(trx->state != TRX_STATE_ACTIVE);
+	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+	ut_ad(!trx->is_recovered);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
 	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
 	read_view_open_now: */
 
-	rseg = trx_assign_rseg();
+	rseg = trx_assign_rseg(srv_rollback_segments);
 
 	trx->no = IB_ULONGLONG_MAX;
 
 	trx->start_time = ut_time();
-
-	trx->state = TRX_STATE_ACTIVE;
 
 	ut_a(trx->rseg == NULL);
 	trx->rseg = rseg;
 
 	rw_lock_x_lock(&trx_sys->lock);
 
+	/* If this transaction came from trx_allocate_for_mysql(),
+	trx->in_mysql_trx_list would hold. In that case, the trx->state
+	change must be protected by the trx_sys->lock, so that
+	lock_print_info_all_transactions() will have a consistent view. */
+
+	trx->state = TRX_STATE_ACTIVE;
+
 	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
+	ut_ad(!trx->in_trx_list);
+	ut_d(trx->in_trx_list = TRUE);
 
 	ut_ad(trx_sys_validate_trx_list());
 
 	rw_lock_x_unlock(&trx_sys->lock);
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
+}
+
+/****************************************************************//**
+Set the transaction serialisation number. */
+static
+void
+trx_serialisation_number_get(
+/*=========================*/
+	trx_t*		trx)	/*!< in: transaction */
+{
+	trx_rseg_t*	rseg;
+
+	rseg = trx->rseg;
+
+	ut_ad(mutex_own(&rseg->mutex));
+
+	rw_lock_x_lock(&trx_sys->lock);
+
+	trx->no = trx_sys_get_new_trx_id();
+
+	/* If the rollack segment is not empty then the
+	new trx_t::no can't be less than any trx_t::no
+	already in the rollback segment. User threads only
+	produce events when a rollback segment is empty. */
+
+	if (rseg->last_page_no == FIL_NULL) {
+		void*		ptr;
+		rseg_queue_t	rseg_queue;
+
+		rseg_queue.rseg = rseg;
+		rseg_queue.trx_no = trx->no;
+
+		mutex_enter(&purge_sys->bh_mutex);
+
+		/* This is to reduce the pressure on the trx_sys_t::lock
+		though in reality it should make very little (read no)
+		difference because this code path is only taken when the
+		rbs is empty. */
+
+		rw_lock_x_unlock(&trx_sys->lock);
+
+		ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
+		ut_a(ptr);
+
+		mutex_exit(&purge_sys->bh_mutex);
+	} else {
+		rw_lock_x_unlock(&trx_sys->lock);
+	}
+}
+
+/****************************************************************//**
+Assign the transaction its history serialisation number and write the
+update UNDO log record to the assigned rollback segment.
+@return the LSN of the UNDO log write. */
+static
+ib_uint64_t
+trx_write_serialisation_history(
+/*============================*/
+	trx_t*		trx)	/*!< in: transaction */
+{
+
+	mtr_t		mtr;
+	trx_rseg_t*	rseg;
+
+	rseg = trx->rseg;
+
+	mtr_start(&mtr);
+
+	/* Change the undo log segment states from TRX_UNDO_ACTIVE
+	to some other state: these modifications to the file data
+	structure define the transaction as committed in the file
+	based domain, at the serialization point of the log sequence
+	number lsn obtained below. */
+
+	if (trx->update_undo != NULL) {
+		page_t*		undo_hdr_page;
+		trx_undo_t*	undo = trx->update_undo;
+
+		/* We have to hold the rseg mutex because update
+		log headers have to be put to the history list in the
+		(serialisation) order of the UNDO trx number. This is
+		required for the purge in-memory data structures too. */
+
+		mutex_enter(&rseg->mutex);
+
+		/* Assign the transaction serialisation number and also
+		update the purge min binary heap if this is the first
+		UNDO log being written to the assigned rollback segment. */
+
+		trx_serialisation_number_get(trx);
+
+		/* It is not necessary to obtain trx->undo_mutex here
+		because only a single OS thread is allowed to do the
+		transaction commit for this transaction. */
+
+		undo_hdr_page = trx_undo_set_state_at_finish(undo, &mtr);
+
+		trx_undo_update_cleanup(trx, undo_hdr_page, &mtr);
+	} else {
+		mutex_enter(&rseg->mutex);
+	}
+
+	if (trx->insert_undo != NULL) {
+		trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
+	}
+
+	mutex_exit(&rseg->mutex);
+
+	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
+
+	/* Update the latest MySQL binlog name and offset info
+	in trx sys header if MySQL binlogging is on or the database
+	server is a MySQL replication slave */
+
+	if (trx->mysql_log_file_name
+	    && trx->mysql_log_file_name[0] != '\0') {
+
+		trx_sys_update_mysql_binlog_offset(
+			trx->mysql_log_file_name,
+			trx->mysql_log_offset,
+			TRX_SYS_MYSQL_LOG_INFO, &mtr);
+
+		trx->mysql_log_file_name = NULL;
+	}
+
+	/* The following call commits the mini-transaction, making the
+	whole transaction committed in the file-based world, at this
+	log sequence number. The transaction becomes 'durable' when
+	we write the log to disk, but in the logical sense the commit
+	in the file-based data structures (undo logs etc.) happens
+	here.
+
+	NOTE that transaction numbers, which are assigned only to
+	transactions with an update undo log, do not necessarily come
+	in exactly the same order as commit lsn's, if the transactions
+	have different rollback segments. To get exactly the same
+	order we should hold the kernel mutex up to this point,
+	adding to the contention of the kernel mutex. However, if
+	a transaction T2 is able to see modifications made by
+	a transaction T1, T2 will always get a bigger transaction
+	number and a bigger commit lsn than T1. */
+
+	/*--------------*/
+	mtr_commit(&mtr);
+	/*--------------*/
+
+	return(mtr.end_lsn);
 }
 
 /****************************************************************//**
@@ -672,93 +836,39 @@ trx_commit(
 /*=======*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	mtr_t			mtr;
 	trx_named_savept_t*	savep;
 	ib_uint64_t		lsn = 0;
-	page_t*			update_hdr_page;
+
+	ut_ad(trx->in_trx_list);
+	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
-		trx_rseg_t*	rseg;
-
-		rseg = trx->rseg;
-
-		mtr_start(&mtr);
-
-		/* Change the undo log segment states from TRX_UNDO_ACTIVE
-		to some other state: these modifications to the file data
-		structure define the transaction as committed in the file
-		based world, at the serialization point of the log sequence
-		number lsn obtained below. */
-
-		mutex_enter(&rseg->mutex);
-
-		if (trx->insert_undo != NULL) {
-			trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
-		}
-
-		if (trx->update_undo != NULL) {
-
-			rw_lock_x_lock(&trx_sys->lock);
-
-			trx->no = trx_sys_get_new_trx_id();
-
-			rw_lock_x_unlock(&trx_sys->lock);
-
-			/* It is not necessary to obtain trx->undo_mutex here
-			because only a single OS thread is allowed to do the
-			transaction commit for this transaction. */
-
-			update_hdr_page = trx_undo_set_state_at_finish(
-				trx->update_undo, &mtr);
-
-			/* We have to do the cleanup for the update log while
-			holding the rseg mutex because update log headers
-			have to be put to the history list in the order of
-			the trx number. */
-
-			trx_undo_update_cleanup(trx, update_hdr_page, &mtr);
-		}
-
-		mutex_exit(&rseg->mutex);
-
-		/* Update the latest MySQL binlog name and offset info
-		in trx sys header if MySQL binlogging is on or the database
-		server is a MySQL replication slave */
-
-		if (trx->mysql_log_file_name
-		    && trx->mysql_log_file_name[0] != '\0') {
-			trx_sys_update_mysql_binlog_offset(
-				trx->mysql_log_file_name,
-				trx->mysql_log_offset,
-				TRX_SYS_MYSQL_LOG_INFO, &mtr);
-			trx->mysql_log_file_name = NULL;
-		}
-
-		/* The following call commits the mini-transaction, making the
-		whole transaction committed in the file-based world, at this
-		log sequence number. The transaction becomes 'durable' when
-		we write the log to disk, but in the logical sense the commit
-		in the file-based data structures (undo logs etc.) happens
-		here.
-
-		NOTE that transaction numbers, which are assigned only to
-		transactions with an update undo log, do not necessarily come
-		in exactly the same order as commit lsn's, if the transactions
-		have different rollback segments. To get exactly the same
-		order we should hold the trx sys mutex up to this point.
-		However, if a transaction T2 is able to see modifications
-		made by a transaction T1, T2 will always get a bigger
-		transaction number and a bigger commit lsn than T1. */
-
-		/*--------------*/
-		mtr_commit(&mtr);
-		/*--------------*/
-		lsn = mtr.end_lsn;
+		lsn = trx_write_serialisation_history(trx);
+	} else {
+		lsn = 0;
 	}
 
 	trx->must_flush_log_later = FALSE;
 
 	lock_trx_release_locks(trx);
+
+	/* Remove the transaction from the list of active transactions
+	now that it no longer holds any user locks. */
+
+	rw_lock_x_lock(&trx_sys->lock);
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
+	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	/* If this transaction came from trx_allocate_for_mysql(),
+	trx->in_mysql_trx_list would hold. In that case, the
+	trx->state change must be protected by trx_sys->lock, so that
+	lock_print_info_all_transactions() will have a consistent view. */
+
+	trx->state = TRX_STATE_NOT_STARTED;
+	ut_ad(trx_sys_validate_trx_list());
+	MONITOR_INC(MONITOR_TRX_COMMIT);
+	rw_lock_x_unlock(&trx_sys->lock);
 
 	if (trx->global_read_view != NULL) {
 		read_view_remove(trx->global_read_view);
@@ -843,22 +953,10 @@ trx_commit(
 
 	ut_ad(trx->lock.wait_thr == NULL);
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	trx->state = TRX_STATE_NOT_STARTED;
-
-	rw_lock_x_lock(&trx_sys->lock);
-
-	/* FIXME: We should remove the transaction from the active
-	list earlier rather than here. This should simplify rules
-	about the transaction's state. One we enter this function
-	there is no going back and I don't see why need to wait
-	till the end to remove it from the sys list. */
-
-	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
-
-	ut_ad(trx_sys_validate_trx_list());
-
-	rw_lock_x_unlock(&trx_sys->lock);
+	ut_ad(!trx->in_trx_list);
+	/* trx->in_mysql_trx_list would hold between
+	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
+	hold for recovered transactions or system transactions. */
 }
 
 /****************************************************************//**
@@ -871,6 +969,8 @@ trx_cleanup_at_db_startup(
 /*======================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
+	ut_ad(trx->is_recovered);
+
 	if (trx->insert_undo != NULL) {
 
 		trx_undo_insert_cleanup(trx);
@@ -882,11 +982,19 @@ trx_cleanup_at_db_startup(
 
 	rw_lock_x_lock(&trx_sys->lock);
 
-	trx->state = TRX_STATE_NOT_STARTED;
-
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+	ut_ad(trx->in_trx_list);
+	ut_d(trx->in_trx_list = FALSE);
 
 	rw_lock_x_unlock(&trx_sys->lock);
+
+	/* Change the transaction state without mutex protection, now
+	that it no longer is in the trx_list. Recovered transactions
+	are never placed in the mysql_trx_list. */
+	ut_ad(trx->is_recovered);
+	ut_ad(!trx->in_trx_list);
+	ut_ad(!trx->in_mysql_trx_list);
+	trx->state = TRX_STATE_NOT_STARTED;
 }
 
 /********************************************************************//**
@@ -923,26 +1031,38 @@ UNIV_INTERN
 void
 trx_commit_or_rollback_prepare(
 /*===========================*/
-	trx_t*		trx)		/*!< in: transaction */
+	trx_t*	trx)		/*!< in/out: transaction */
 {
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	/* We are reading trx->state without holding trx_sys->lock
+	here, because the commit or rollback should be invoked for a
+	running (or recovered prepared) transaction that is associated
+	with the current thread. */
 
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
 		trx_start_low(trx);
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_PREPARED:
+		/* If the trx is in a lock wait state, moves the waiting
+		query thread to the suspended state */
+
+		if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+
+			ut_a(trx->lock.wait_thr != NULL);
+			trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
+			trx->lock.wait_thr = NULL;
+
+			trx->lock.que_state = TRX_QUE_RUNNING;
+		}
+
+		ut_a(trx->lock.n_active_thrs == 1);
+		return;
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
 	}
 
-	/* If the trx is in a lock wait state, moves the waiting
-	query thread to the suspended state */
-
-	if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-
-		ut_a(trx->lock.wait_thr != NULL);
-		trx->lock.wait_thr->state = QUE_THR_SUSPENDED;
-		trx->lock.wait_thr = NULL;
-
-		trx->lock.que_state = TRX_QUE_RUNNING;
-	}
-
-	ut_a(trx->lock.n_active_thrs == 1);
+	ut_error;
 }
 
 /*********************************************************************//**
@@ -1021,7 +1141,7 @@ UNIV_INTERN
 ulint
 trx_commit_for_mysql(
 /*=================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	/* Because we do not do the commit by sending an Innobase
 	sig to the transaction, we must here make sure that trx has been
@@ -1029,19 +1149,33 @@ trx_commit_for_mysql(
 
 	ut_a(trx);
 
-	trx_start_if_not_started_xa(trx);
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
+		/* Update the info whether we should skip XA steps that eat
+		CPU time.
 
-	trx->op_info = "committing";
+		For the duration of the transaction trx->support_xa is
+		not reread from thd so any changes in the value take
+		effect in the next transaction. This is to avoid a
+		scenario where some undo log records generated by a
+		transaction contain XA information and other undo log
+		records, generated by the same transaction do not. */
+		trx->support_xa = thd_supports_xa(trx->mysql_thd);
 
-	trx_commit(trx);
-
-	MONITOR_INC(MONITOR_TRX_COMMIT);
-
-	MONITOR_DEC(MONITOR_TRX_ACTIVE);
-
-	trx->op_info = "";
-
-	return(DB_SUCCESS);
+		trx_start_low(trx);
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_PREPARED:
+		trx->op_info = "committing";
+		trx_commit(trx);
+		MONITOR_DEC(MONITOR_TRX_ACTIVE);
+		trx->op_info = "";
+		return(DB_SUCCESS);
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
+	}
+	ut_error;
+	return(DB_CORRUPTION);
 }
 
 /**********************************************************************//**
@@ -1101,70 +1235,89 @@ trx_mark_sql_stat_end(
 {
 	ut_a(trx);
 
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	switch (trx->state) {
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
+	case TRX_STATE_NOT_STARTED:
 		trx->undo_no = 0;
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+		trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+		return;
 	}
 
-	trx->last_sql_stat_start.least_undo_no = trx->undo_no;
+	ut_error;
 }
 
 /**********************************************************************//**
-Prints info about a transaction to the given file. Caller must not own
-the transaction mutex. */
+Prints info about a transaction.
+Caller must hold trx_sys->lock. */
 UNIV_INTERN
 void
-trx_print(
-/*======*/
-	FILE*	f,		/*!< in: output stream */
-	trx_t*	trx,		/*!< in: transaction */
-	ulint	max_query_len)	/*!< in: max query length to print, or 0 to
-				   use the default max length */
+trx_print_low(
+/*==========*/
+	FILE*		f,
+			/*!< in: output stream */
+	const trx_t*	trx,
+			/*!< in: transaction */
+	ulint		max_query_len,
+			/*!< in: max query length to print,
+			or 0 to use the default max length */
+	ulint		n_lock_rec,
+			/*!< in: lock_number_of_rows_locked(&trx->lock) */
+	ulint		n_lock_struct,
+			/*!< in: length of trx->lock.trx_locks */
+	ulint		heap_size)
+			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
 {
-	ibool	newline;
-	ulint	n_row_locks;
-	ulint	n_trx_locks;
+	ibool		newline;
+	const char*	op_info;
 
-	ut_ad(!trx_mutex_own(trx));
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, (ullint) trx->id);
 
+	/* trx->state cannot change from or to NOT_STARTED while we
+	are holding the trx_sys->lock. It may change from ACTIVE to
+	PREPARED or COMMITTED. */
 	switch (trx->state) {
 	case TRX_STATE_NOT_STARTED:
 		fputs(", not started", f);
-		break;
+		goto state_ok;
 	case TRX_STATE_ACTIVE:
 		fprintf(f, ", ACTIVE %lu sec",
 			(ulong)difftime(time(NULL), trx->start_time));
-		break;
+		goto state_ok;
 	case TRX_STATE_PREPARED:
 		fprintf(f, ", ACTIVE (PREPARED) %lu sec",
 			(ulong)difftime(time(NULL), trx->start_time));
-		break;
+		goto state_ok;
 	case TRX_STATE_COMMITTED_IN_MEMORY:
 		fputs(", COMMITTED IN MEMORY", f);
-		break;
-	default:
-		fprintf(f, " state %lu", (ulong) trx->state);
+		goto state_ok;
 	}
-
+	fprintf(f, ", state %lu", (ulong) trx->state);
+	ut_ad(0);
+state_ok:
 #ifdef UNIV_LINUX
 	fprintf(f, ", process no %lu", trx->mysql_process_no);
 #endif
 	fprintf(f, ", OS thread id %lu",
 		(ulong) os_thread_pf(trx->mysql_thread_id));
 
-	if (*trx->op_info) {
+	/* prevent a race condition */
+	op_info = trx->op_info;
+
+	if (*op_info) {
 		putc(' ', f);
-		fputs(trx->op_info, f);
+		fputs(op_info, f);
 	}
 
 	if (trx->is_recovered) {
 		fputs(" recovered trx", f);
-	}
-
-	if (trx->id == 0) {
-		fputs(" purge trx", f);
 	}
 
 	if (trx->declared_to_be_inside_innodb) {
@@ -1182,6 +1335,10 @@ trx_print(
 
 	newline = TRUE;
 
+	/* trx->lock.que_state of an ACTIVE transaction may change
+	while we are not holding trx->mutex. We perform a dirty read
+	for performance reasons. */
+
 	switch (trx->lock.que_state) {
 	case TRX_QUE_RUNNING:
 		newline = FALSE; break;
@@ -1195,27 +1352,14 @@ trx_print(
 		fprintf(f, "que state %lu ", (ulong) trx->lock.que_state);
 	}
 
-	trx_mutex_enter(trx);
-
-	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
-
-	if (n_trx_locks != 0
-	    || mem_heap_get_size(trx->lock.lock_heap) > 400) {
+	if (n_lock_struct > 0 || heap_size > 400) {
 		newline = TRUE;
 
-		n_row_locks = lock_number_of_rows_locked(trx);
-	} else {
-		n_row_locks = ULINT_UNDEFINED;
-	}
-
-	trx_mutex_exit(trx);
-
-	if (n_row_locks != ULINT_UNDEFINED) {
 		fprintf(f, "%lu lock struct(s), heap size %lu,"
 			" %lu row lock(s)",
-			(ulong) n_trx_locks,
-			(ulong) mem_heap_get_size(trx->lock.lock_heap),
-			(ulong) n_row_locks);
+			(ulong) n_lock_struct,
+			(ulong) heap_size,
+			(ulong) n_lock_rec);
 	}
 
 	if (trx->has_search_latch) {
@@ -1237,6 +1381,93 @@ trx_print(
 		innobase_mysql_print_thd(f, trx->mysql_thd, max_query_len);
 	}
 }
+
+/**********************************************************************//**
+Prints info about a transaction.
+The caller must hold lock_sys->mutex and trx_sys->lock.
+When possible, use trx_print() instead. */
+UNIV_INTERN
+void
+trx_print_latched(
+/*==============*/
+	FILE*		f,		/*!< in: output stream */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		max_query_len)	/*!< in: max query length to print,
+					or 0 to use the default max length */
+{
+	ut_ad(lock_mutex_own());
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	trx_print_low(f, trx, max_query_len,
+		      lock_number_of_rows_locked(&trx->lock),
+		      UT_LIST_GET_LEN(trx->lock.trx_locks),
+		      mem_heap_get_size(trx->lock.lock_heap));
+}
+
+/**********************************************************************//**
+Prints info about a transaction.
+Acquires and releases lock_sys->mutex and trx_sys->lock. */
+UNIV_INTERN
+void
+trx_print(
+/*======*/
+	FILE*		f,		/*!< in: output stream */
+	const trx_t*	trx,		/*!< in: transaction */
+	ulint		max_query_len)	/*!< in: max query length to print,
+					or 0 to use the default max length */
+{
+	ulint	n_lock_rec;
+	ulint	n_lock_struct;
+	ulint	heap_size;
+
+	lock_mutex_enter();
+	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
+	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	heap_size = mem_heap_get_size(trx->lock.lock_heap);
+	lock_mutex_exit();
+
+	rw_lock_s_lock(&trx_sys->lock);
+	trx_print_low(f, trx, max_query_len,
+		      n_lock_rec, n_lock_struct, heap_size);
+	rw_lock_s_unlock(&trx_sys->lock);
+}
+
+#ifdef UNIV_DEBUG
+/**********************************************************************//**
+Asserts that a transaction has been started.
+The caller must hold trx_sys->lock.
+@return TRUE if started */
+UNIV_INTERN
+ibool
+trx_assert_started(
+/*===============*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+# ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+# endif /* UNIV_SYNC_DEBUG */
+
+	/* trx->state cannot change from or to NOT_STARTED while we
+	are holding trx_sys->lock. It may change from ACTIVE to
+	PREPARED. Unless we are holding lock_sys->mutex, it may also
+	change to COMMITTED. */
+
+	switch (trx->state) {
+	case TRX_STATE_ACTIVE:
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		ut_ad(trx->in_trx_list);
+		return(TRUE);
+	case TRX_STATE_NOT_STARTED:
+		break;
+	}
+
+	ut_error;
+	return(FALSE);
+}
+#endif /* UNIV_DEBUG */
 
 /*******************************************************************//**
 Compares the "weight" (or size) of two transactions. Transactions that
@@ -1288,17 +1519,18 @@ static
 void
 trx_prepare(
 /*========*/
-	trx_t*	trx)	/*!< in: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx_rseg_t*	rseg;
-	ib_uint64_t	lsn		= 0;
+	ib_uint64_t	lsn;
 	mtr_t		mtr;
 
 	rseg = trx->rseg;
+	/* Only fresh user transactions can be prepared.
+	Recovered transactions cannot. */
+	ut_a(!trx->is_recovered);
 
 	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
-
-		trx_mutex_exit(trx);
 
 		mtr_start(&mtr);
 
@@ -1332,16 +1564,13 @@ trx_prepare(
 					world */
 		/*--------------*/
 		lsn = mtr.end_lsn;
-
-		trx_mutex_enter(trx);
+		ut_ad(lsn);
+	} else {
+		lsn = 0;
 	}
 
-	ut_ad(trx_mutex_own(trx));
-
-	/* Note: This state change is only covered by the trx_t::mutex and
-	not the trx_sys_t::lock. */
-
 	/*--------------------------------------*/
+	ut_a(trx->state == TRX_STATE_ACTIVE);
 	trx->state = TRX_STATE_PREPARED;
 	/*--------------------------------------*/
 
@@ -1362,8 +1591,6 @@ trx_prepare(
 
 		TODO: find out if MySQL holds some mutex when calling this.
 		That would spoil our group prepare algorithm. */
-
-		trx_mutex_exit(trx);
 
 		if (srv_flush_log_at_trx_commit == 0) {
 			/* Do nothing */
@@ -1387,31 +1614,24 @@ trx_prepare(
 		} else {
 			ut_error;
 		}
-
-		trx_mutex_enter(trx);
 	}
 }
 
 /**********************************************************************//**
-Does the transaction prepare for MySQL.
-@return	0 or error number */
+Does the transaction prepare for MySQL. */
 UNIV_INTERN
 void
 trx_prepare_for_mysql(
 /*==================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: trx handle */
 {
 	trx_start_if_not_started_xa(trx);
-
-	trx_mutex_enter(trx);
 
 	trx->op_info = "preparing";
 
 	trx_prepare(trx);
 
 	trx->op_info = "";
-
-	trx_mutex_exit(trx);
 }
 
 /**********************************************************************//**
@@ -1440,7 +1660,11 @@ trx_recover_for_mysql(
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		if (trx->state == TRX_STATE_PREPARED) {
+		/* trx->state cannot change from or to NOT_STARTED
+		while we are holding the trx_sys->lock. It may change
+		to PREPARED, but not if trx->is_recovered. It may also
+		change to COMMITTED. */
+		if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
 			xid_list[count] = trx->xid;
 
 			if (count == 0) {
@@ -1486,18 +1710,20 @@ trx_recover_for_mysql(
 /*******************************************************************//**
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state
-@return	trx or NULL */
+@return	trx or NULL; on match, the trx->xid will be invalidated;
+note that the trx may have been committed, unless the caller is
+holding lock_sys->mutex */
 UNIV_INTERN
 trx_t*
 trx_get_trx_by_xid(
 /*===============*/
-	const XID*	xid)	/*!< in: X/Open XA transaction identification */
+	const XID*	xid)	/*!< in: X/Open XA transaction identifier */
 {
 	trx_t*	trx;
 
 	if (xid == NULL) {
 
-		return (NULL);
+		return(NULL);
 	}
 
 	rw_lock_s_lock(&trx_sys->lock);
@@ -1511,17 +1737,18 @@ trx_get_trx_by_xid(
 		of gtrid_length+bqual_length bytes should be
 		the same */
 
-		if (xid->gtrid_length == trx->xid.gtrid_length
+		if (trx_state_eq(trx, TRX_STATE_PREPARED)
+		    && xid->gtrid_length == trx->xid.gtrid_length
 		    && xid->bqual_length == trx->xid.bqual_length
 		    && memcmp(xid->data, trx->xid.data,
 			      xid->gtrid_length + xid->bqual_length) == 0) {
+
+			/* Invalidate the XID, so that subsequent calls
+			will not find it. */
+			memset(&trx->xid, 0, sizeof(trx->xid));
+			trx->xid.formatID = -1;
 			break;
 		}
-	}
-
-	if (trx != NULL && trx->state != TRX_STATE_PREPARED) {
-
-		trx = NULL;
 	}
 
 	rw_lock_s_unlock(&trx_sys->lock);
@@ -1537,20 +1764,30 @@ trx_start_if_not_started_xa(
 /*========================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	ut_ad(trx->state != TRX_STATE_COMMITTED_IN_MEMORY);
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
 
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+		/* Update the info whether we should skip XA steps
+		that eat CPU time.
 
-		/* Update the info whether we should skip XA steps that eat
-		CPU time For the duration of the transaction trx->support_xa
-		is not reread from thd so any changes in the value take effect
-		in the next transaction. This is to avoid a scenario where some
-		undo generated by a transaction, has XA stuff, and other undo,
-		generated by the same transaction, doesn't. */
+		For the duration of the transaction trx->support_xa is
+		not reread from thd so any changes in the value take
+		effect in the next transaction. This is to avoid a
+		scenario where some undo generated by a transaction,
+		has XA stuff, and other undo, generated by the same
+		transaction, doesn't. */
 		trx->support_xa = thd_supports_xa(trx->mysql_thd);
 
 		trx_start_low(trx);
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+		return;
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
 	}
+
+	ut_error;
 }
 
 /*************************************************************//**
@@ -1561,11 +1798,17 @@ trx_start_if_not_started(
 /*=====================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	ut_ad(trx->state != TRX_STATE_COMMITTED_IN_MEMORY);
-
-	if (trx->state == TRX_STATE_NOT_STARTED) {
-
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
 		trx_start_low(trx);
+		/* fall through */
+	case TRX_STATE_ACTIVE:
+		return;
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
 	}
-}
 
+	ut_error;
+
+}

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -637,17 +637,21 @@ UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-	trx_t*	in_trx)	/*!< in: trx */
+	const trx_t*	in_trx)	/*!< in: transaction */
 {
-	trx_t*	trx;
+	const trx_t*	trx;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(trx_assert_started(in_trx));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		/* No op */
+		ut_ad(trx->in_trx_list);
 	}
 
 	return(trx != NULL);
@@ -664,7 +668,10 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -943,82 +950,6 @@ trx_sysf_create(
 }
 
 /*****************************************************************//**
-Creates and initializes the central memory structures for the transaction
-system. This is called when the database is started. */
-UNIV_INTERN
-void
-trx_sys_init_at_db_start(void)
-/*==========================*/
-{
-	trx_sysf_t*	sys_header;
-	ib_uint64_t	rows_to_undo	= 0;
-	const char*	unit		= "";
-	mtr_t		mtr;
-
-	mtr_start(&mtr);
-
-	sys_header = trx_sysf_get(&mtr);
-
-	trx_rseg_list_and_array_init(sys_header, &mtr);
-
-	/* VERY important: after the database is started, max_trx_id value is
-	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
-	trx_sys_get_new_trx_id will evaluate to TRUE when the function
-	is first time called, and the value for trx id will be written
-	to the disk-based header! Thus trx id values will not overlap when
-	the database is repeatedly started! */
-
-	trx_sys->max_trx_id = 2 * TRX_SYS_TRX_ID_WRITE_MARGIN
-		+ ut_uint64_align_up(mach_read_from_8(sys_header
-						   + TRX_SYS_TRX_ID_STORE),
-				     TRX_SYS_TRX_ID_WRITE_MARGIN);
-
-	UT_LIST_INIT(trx_sys->mysql_trx_list);
-
-	trx_dummy_sess = sess_open();
-
-	trx_lists_init_at_db_start();
-
-	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
-		trx_t*	trx;
-
-		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-
-		for (;;) {
-
-			if (trx->state != TRX_STATE_PREPARED) {
-				rows_to_undo += trx->undo_no;
-			}
-
-			trx = UT_LIST_GET_NEXT(trx_list, trx);
-
-			if (!trx) {
-				break;
-			}
-		}
-
-		if (rows_to_undo > 1000000000) {
-			unit = "M";
-			rows_to_undo = rows_to_undo / 1000000;
-		}
-
-		fprintf(stderr,
-			"InnoDB: %lu transaction(s) which must be"
-			" rolled back or cleaned up\n"
-			"InnoDB: in total %lu%s row operations to undo\n",
-			(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
-			(ulong) rows_to_undo, unit);
-
-		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
-			(ullint) trx_sys->max_trx_id);
-	}
-
-	UT_LIST_INIT(trx_sys->view_list);
-
-	mtr_commit(&mtr);
-}
-
-/*****************************************************************//**
 Compare two trx_rseg_t instances on last_trx_no. */
 static
 int
@@ -1044,7 +975,99 @@ trx_rseg_compare_last_trx_no(
 }
 
 /*****************************************************************//**
-Creates the trx_sys instance and initializes its mutex only. */
+Creates and initializes the central memory structures for the transaction
+system. This is called when the database is started.
+@return min binary heap of rsegs to purge */
+UNIV_INTERN
+ib_bh_t*
+trx_sys_init_at_db_start(void)
+/*==========================*/
+{
+	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
+	trx_sysf_t*	sys_header;
+	ib_uint64_t	rows_to_undo	= 0;
+	const char*	unit		= "";
+
+	/* We create the min binary heap here and pass ownership to
+	purge when we init the purge sub-system. Purge is responsible
+	for freeing the binary heap. */
+
+	ib_bh = ib_bh_create(
+		trx_rseg_compare_last_trx_no,
+		sizeof(rseg_queue_t), TRX_SYS_N_RSEGS);
+
+	mtr_start(&mtr);
+
+	sys_header = trx_sysf_get(&mtr);
+
+	trx_rseg_array_init(sys_header, ib_bh, &mtr);
+
+	/* VERY important: after the database is started, max_trx_id value is
+	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
+	trx_sys_get_new_trx_id will evaluate to TRUE when the function
+	is first time called, and the value for trx id will be written
+	to the disk-based header! Thus trx id values will not overlap when
+	the database is repeatedly started! */
+
+	trx_sys->max_trx_id = 2 * TRX_SYS_TRX_ID_WRITE_MARGIN
+		+ ut_uint64_align_up(mach_read_from_8(sys_header
+						   + TRX_SYS_TRX_ID_STORE),
+				     TRX_SYS_TRX_ID_WRITE_MARGIN);
+
+	UT_LIST_INIT(trx_sys->mysql_trx_list);
+
+	trx_dummy_sess = sess_open();
+
+	trx_lists_init_at_db_start();
+
+	/* This S lock is not strictly required, it is here only to satisfy
+	the debug code (assertions). We are still running in single threaded
+	bootstrap mode. */
+
+	rw_lock_s_lock(&trx_sys->lock);
+
+	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+		const trx_t*	trx;
+
+		for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+		     trx != NULL;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+			ut_ad(trx->is_recovered);
+
+			if (trx_state_eq(trx, TRX_STATE_ACTIVE)) {
+				rows_to_undo += trx->undo_no;
+			}
+		}
+
+		if (rows_to_undo > 1000000000) {
+			unit = "M";
+			rows_to_undo = rows_to_undo / 1000000;
+		}
+
+		fprintf(stderr,
+			"InnoDB: %lu transaction(s) which must be"
+			" rolled back or cleaned up\n"
+			"InnoDB: in total %lu%s row operations to undo\n",
+			(ulong) UT_LIST_GET_LEN(trx_sys->trx_list),
+			(ulong) rows_to_undo, unit);
+
+		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
+			(ullint) trx_sys->max_trx_id);
+	}
+
+	rw_lock_s_unlock(&trx_sys->lock);
+
+	UT_LIST_INIT(trx_sys->view_list);
+
+	mtr_commit(&mtr);
+
+	return(ib_bh);
+}
+
+/*****************************************************************//**
+Creates the trx_sys instance and initializes ib_bh, lock and
+read_view_mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void)
@@ -1053,10 +1076,6 @@ trx_sys_create(void)
 	ut_ad(trx_sys == NULL);
 
 	trx_sys = mem_zalloc(sizeof(*trx_sys));
-
-	trx_sys->ib_bh = ib_bh_create(
-		trx_rseg_compare_last_trx_no,
-	       	sizeof(rseg_queue_t), TRX_SYS_N_RSEGS * 128);
 
 	rw_lock_create(trx_sys_rw_lock_key, &trx_sys->lock, SYNC_TRX_SYS);
 
@@ -1622,7 +1641,7 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	rw_lock_s_lock(&trx_sys->lock);
+	mutex_enter(&trx_sys->read_view_mutex);
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1632,7 +1651,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
+	mutex_exit(&trx_sys->read_view_mutex);
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1687,8 +1706,6 @@ trx_sys_close(void)
 
 	rw_lock_free(&trx_sys->lock);
 
-	ib_bh_free(trx_sys->ib_bh);
-
 	mem_free(trx_sys);
 
 	trx_sys = NULL;
@@ -1726,13 +1743,16 @@ trx_sys_validate_trx_list(void)
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-	ut_ad(rw_lock_is_locked(&trx_sys->lock, RW_LOCK_EX)
-	      || rw_lock_is_locked(&trx_sys->lock, RW_LOCK_SHARED));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX)
+	      || rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
+		ut_ad(trx->in_trx_list);
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
 

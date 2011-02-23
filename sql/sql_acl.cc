@@ -7853,7 +7853,8 @@ public:
   Thd_charset_adapter(THD *thd_arg) : thd (thd_arg) {} 
   bool init_client_charset(uint cs_number)
   {
-    thd_init_client_charset(thd, cs_number);
+    if (thd_init_client_charset(thd, cs_number))
+      return true;
     thd->update_charset();
     return thd->is_error();
   }
@@ -8068,7 +8069,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   end= strmake(end, plugin_name(mpvio->plugin)->str,
                     plugin_name(mpvio->plugin)->length);
 
-  int res= my_net_write(mpvio->net, (uchar*) buff, (size_t) (end - buff)) ||
+  int res= my_net_write(mpvio->net, (uchar*) buff, (size_t) (end - buff + 1)) ||
            net_flush(mpvio->net);
   my_afree(buff);
   DBUG_RETURN (res);
@@ -8983,9 +8984,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio, uint connect_errors,
   mpvio->auth_info.host_or_ip= thd->security_ctx->host_or_ip;
   mpvio->auth_info.host_or_ip_length= 
     (unsigned int) strlen(thd->security_ctx->host_or_ip);
-  mpvio->auth_info.user_name= thd->security_ctx->user;
-  mpvio->auth_info.user_name_length= thd->security_ctx->user ? 
-    (unsigned int) strlen(thd->security_ctx->user) : 0;
+  mpvio->auth_info.user_name= NULL;
+  mpvio->auth_info.user_name_length= 0;
   mpvio->connect_errors= connect_errors;
   mpvio->status= MPVIO_EXT::FAILURE;
 

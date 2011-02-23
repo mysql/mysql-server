@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -181,28 +181,31 @@
   bits in alter_table_flags:
 */
 /*
-  These bits are set if different kinds of indexes can be created
-  off-line without re-create of the table (but with a table lock).
+  These bits are set if different kinds of indexes can be created or dropped
+  in-place without re-creating the table using a temporary table.
+  NO_READ_WRITE indicates that the handler needs concurrent reads and writes
+  of table data to be blocked.
   Partitioning needs both ADD and DROP to be supported by its underlying
   handlers, due to error handling, see bug#57778.
 */
-#define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
-#define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    (1L << 2) /*add unique w/lock*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   (1L << 3) /*drop uniq. w/lock*/
-#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        (1L << 4) /*add prim. w/lock*/
-#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       (1L << 5) /*drop prim. w/lock*/
+#define HA_INPLACE_ADD_INDEX_NO_READ_WRITE         (1L << 0)
+#define HA_INPLACE_DROP_INDEX_NO_READ_WRITE        (1L << 1)
+#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE  (1L << 2)
+#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE (1L << 3)
+#define HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE      (1L << 4)
+#define HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE     (1L << 5)
 /*
-  These are set if different kinds of indexes can be created on-line
-  (without a table lock). If a handler is capable of one or more of
-  these, it should also set the corresponding *_NO_WRITES bit(s).
+  These are set if different kinds of indexes can be created or dropped
+  in-place while still allowing concurrent reads (but not writes) of table
+  data. If a handler is capable of one or more of these, it should also set
+  the corresponding *_NO_READ_WRITE bit(s).
 */
-#define HA_ONLINE_ADD_INDEX                     (1L << 6) /*add index online*/
-#define HA_ONLINE_DROP_INDEX                    (1L << 7) /*drop index online*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX              (1L << 8) /*add unique online*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
-#define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
-#define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
+#define HA_INPLACE_ADD_INDEX_NO_WRITE              (1L << 6)
+#define HA_INPLACE_DROP_INDEX_NO_WRITE             (1L << 7)
+#define HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE       (1L << 8)
+#define HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE      (1L << 9)
+#define HA_INPLACE_ADD_PK_INDEX_NO_WRITE           (1L << 10)
+#define HA_INPLACE_DROP_PK_INDEX_NO_WRITE          (1L << 11)
 /*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
@@ -1442,7 +1445,6 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
-  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const Item *pushed_cond;
 
@@ -1511,15 +1513,19 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    implicit_emptied(0),
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL), m_lock_type(F_UNLCK)
-    {}
+    {
+      DBUG_PRINT("info",
+                 ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
+                  F_UNLCK, F_RDLCK, F_UNLCK));
+    }
   virtual ~handler(void)
   {
-    DBUG_ASSERT(locked == FALSE);
+    DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -1860,6 +1866,7 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
+      DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
       position(record);
       return ha_rnd_pos(record, ref);
     }
@@ -1884,6 +1891,8 @@ public:
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                           uint part_id);
+  virtual uint32 calculate_key_hash_value(Field **field_array)
+  { DBUG_ASSERT(0); return 0; }
   virtual int extra(enum ha_extra_function operation)
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
@@ -2021,7 +2030,7 @@ public:
     *no_parts= 0;
     return 0;
   }
-  virtual void set_part_info(partition_info *part_info) {return;}
+  virtual void set_part_info(partition_info *part_info, bool early) {return;}
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 

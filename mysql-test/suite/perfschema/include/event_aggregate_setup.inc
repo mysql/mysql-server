@@ -97,6 +97,9 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
                  'wait/synch/rwlock/sql/LOCK_grant',
                  'wait/io/file/sql/query_log');
 
+# Start from a known clean state, to avoid noise from previous tests
+flush tables;
+flush status;
 truncate performance_schema.events_waits_summary_by_thread_by_event_name;
 truncate performance_schema.events_waits_summary_global_by_event_name;
 truncate performance_schema.events_waits_history_long;

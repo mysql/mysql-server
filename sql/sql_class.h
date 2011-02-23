@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifndef SQL_CLASS_INCLUDED
@@ -553,6 +553,7 @@ typedef struct system_status_var
   ulong ha_discover_count;
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
+  ulong ha_external_lock_count;
 
   /* KEY_CACHE parts. These are copies of the original */
   ulong key_blocks_changed;
@@ -1475,7 +1476,8 @@ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 */
 
 class THD :public Statement,
-           public Open_tables_state
+           public Open_tables_state,
+           public MDL_context_owner
 {
 public:
   MDL_context mdl_context;
@@ -2232,7 +2234,11 @@ public:
   /* Debug Sync facility. See debug_sync.cc. */
   struct st_debug_sync_control *debug_sync_control;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
-  THD();
+
+  // We don't want to load/unload plugins for unit tests.
+  bool m_enable_plugins;
+
+  THD(bool enable_plugins= true);
   ~THD();
 
   void init(void);
@@ -2287,6 +2293,8 @@ public:
                    int errcode);
 #endif
 
+  // Begin implementation of MDL_context_owner interface.
+
   /*
     For enter_cond() / exit_cond() to work the mutex must be got before
     enter_cond(); this mutex is then released by exit_cond().
@@ -2318,6 +2326,39 @@ public:
     mysql_mutex_unlock(&mysys_var->mutex);
     return;
   }
+
+  virtual int is_killed() { return killed; }
+  virtual THD* get_thd() { return this; }
+
+  /**
+    A callback to the server internals that is used to address
+    special cases of the locking protocol.
+    Invoked when acquiring an exclusive lock, for each thread that
+    has a conflicting shared metadata lock.
+
+    This function:
+    - aborts waiting of the thread on a data lock, to make it notice
+      the pending exclusive lock and back off.
+    - if the thread is an INSERT DELAYED thread, sends it a KILL
+      signal to terminate it.
+
+    @note This function does not wait for the thread to give away its
+          locks. Waiting is done outside for all threads at once.
+
+    @param ctx_in_use           The MDL context owner (thread) to wake up.
+    @param needs_thr_lock_abort Indicates that to wake up thread
+                                this call needs to abort its waiting
+                                on table-level lock.
+
+    @retval  TRUE  if the thread was woken up
+    @retval  FALSE otherwise.
+   */
+  virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
+                                  bool needs_thr_lock_abort);
+
+  // End implementation of MDL_context_owner interface.
+
+
   inline time_t query_start() { query_start_used=1; return start_time; }
   inline void set_time()
   {
@@ -2354,7 +2395,7 @@ public:
   /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
   inline bool	is_valid_time() 
   { 
-    return (start_time < (time_t) MY_TIME_T_MAX); 
+    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }
@@ -3353,6 +3394,7 @@ public:
   {}
   void cleanup();
   bool send_data(List<Item> &items);
+private:
   bool cmp_real();
   bool cmp_int();
   bool cmp_decimal();

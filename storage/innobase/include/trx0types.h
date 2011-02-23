@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -56,6 +56,8 @@ enum trx_state_enum {
 /* @{ */
 /** Transaction */
 typedef struct trx_struct	trx_t;
+/** The locks and state of an active transaction */
+typedef struct trx_lock_struct	trx_lock_t;
 /** Transaction system */
 typedef struct trx_sys_struct	trx_sys_t;
 /** Doublewrite information */

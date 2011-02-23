@@ -346,7 +346,7 @@ void cleanup_table_share_hash(void)
 }
 
 /**
-  Get the hash pins for @table_share_hash.
+  Get the hash pins for @sa table_share_hash.
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
@@ -1098,7 +1098,7 @@ void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
   @param schema_name The table schema name
   @param schema_name_length The table schema name length
   @param table_name The table name
-  @parem table_name_length The table name length
+  @param table_name_length The table name length
 */
 void drop_table_share(PFS_thread *thread,
                       bool temporary,

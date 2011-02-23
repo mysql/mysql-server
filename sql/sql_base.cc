@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Basic functions needed by many modules */
@@ -4670,6 +4670,47 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/*
+  TODO: Move all this to prune_partitions() when implementing WL#4443.
+  Needs all items and conds fixed (as in first part in JOIN::optimize,
+  mysql_prepare_delete). Ensure that prune_partitions() is called for all
+  statements supported by WL#5217.
+
+  TODO: When adding support for FK in partitioned tables, update this function
+  so the referenced table get correct locking.
+*/
+static bool prune_partition_locks(TABLE_LIST *tables)
+{
+  TABLE_LIST *table;
+  DBUG_ENTER("prune_partition_locks");
+  for (table= tables; table; table= table->next_global)
+  {
+    /* Avoid to lock/start_stmt partitions not used in the statement. */
+    if (!table->placeholder())
+    {
+      if (table->table->part_info)
+      {
+        /*
+          Initialize and set partitions bitmaps, using table's mem_root,
+          destroyed in closefrm().
+        */
+        if (table->table->part_info->set_partition_bitmaps(table))
+          DBUG_RETURN(TRUE);
+      }
+      else if (table->partition_names && table->partition_names->elements)
+      {
+        /* Don't allow PARTITION () clause on a nonpartitioned table */
+        my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+    }
+  }
+  DBUG_RETURN(FALSE);
+}
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+
 /**
   Open all tables in list
 
@@ -4930,6 +4971,16 @@ restart:
       }
     }
   }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* TODO: move this to prune_partitions() when implementing WL#4443. */
+  /* Prune partitions to avoid unneccesary locks */
+  if (prune_partition_locks(*start))
+  {
+    error= TRUE;
+    goto err;
+  }
+#endif
 
 err:
   thd_proc_info(thd, 0);
@@ -6174,6 +6225,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 /*
   Find field by name in a base table or a view with temp table algorithm.
 
+  The caller is expected to check column-level privileges.
+
   SYNOPSIS
     find_field_in_table()
     thd				thread handler
@@ -6280,6 +6333,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
     - a list of Natural_join_column objects for NATURAL/USING joins.
     This procedure detects the type of the table reference 'table_list'
     and calls the corresponding search routine.
+
+    The routine checks column-level privieleges for the found field.
 
   RETURN
     0			field is not found
@@ -6556,8 +6611,16 @@ find_field_in_tables(THD *thd, Item_ident *item,
       when table_ref->field_translation != NULL.
       */
     if (table_ref->table && !table_ref->view)
+    {
       found= find_field_in_table(thd, table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* Check if there are sufficient access rights to the found field. */
+      if (found && check_privileges &&
+          check_column_grant_in_table_ref(thd, table_ref, name, length))
+        found= WRONG_GRANT;
+#endif
+    }
     else
       found= find_field_in_table_ref(thd, table_ref, name, length, item->name,
                                      NULL, NULL, ref, check_privileges,
@@ -8663,72 +8726,6 @@ void tdc_flush_unused_tables()
   while (unused_tables)
     free_cache_entry(unused_tables);
   mysql_mutex_unlock(&LOCK_open);
-}
-
-
-/**
-   A callback to the server internals that is used to address
-   special cases of the locking protocol.
-   Invoked when acquiring an exclusive lock, for each thread that
-   has a conflicting shared metadata lock.
-
-   This function:
-     - aborts waiting of the thread on a data lock, to make it notice
-       the pending exclusive lock and back off.
-     - if the thread is an INSERT DELAYED thread, sends it a KILL
-       signal to terminate it.
-
-   @note This function does not wait for the thread to give away its
-         locks. Waiting is done outside for all threads at once.
-
-   @param thd    Current thread context
-   @param in_use The thread to wake up
-   @param needs_thr_lock_abort Indicates that to wake up thread
-                               this call needs to abort its waiting
-                               on table-level lock.
-
-   @retval  TRUE  if the thread was woken up
-   @retval  FALSE otherwise.
-
-   @note It is one of two places where border between MDL and the
-         rest of the server is broken.
-*/
-
-bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
-                                            bool needs_thr_lock_abort)
-{
-  bool signalled= FALSE;
-  if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-      !in_use->killed)
-  {
-    in_use->killed= THD::KILL_CONNECTION;
-    mysql_mutex_lock(&in_use->mysys_var->mutex);
-    if (in_use->mysys_var->current_cond)
-      mysql_cond_broadcast(in_use->mysys_var->current_cond);
-    mysql_mutex_unlock(&in_use->mysys_var->mutex);
-    signalled= TRUE;
-  }
-
-  if (needs_thr_lock_abort)
-  {
-    mysql_mutex_lock(&in_use->LOCK_thd_data);
-    for (TABLE *thd_table= in_use->open_tables;
-         thd_table ;
-         thd_table= thd_table->next)
-    {
-      /*
-        Check for TABLE::needs_reopen() is needed since in some places we call
-        handler::close() for table instance (and set TABLE::db_stat to 0)
-        and do not remove such instances from the THD::open_tables
-        for some time, during which other thread can see those instances
-        (e.g. see partitioning code).
-      */
-      if (!thd_table->needs_reopen())
-        signalled|= mysql_lock_abort_for_thread(thd, thd_table);
-    }
-    mysql_mutex_unlock(&in_use->LOCK_thd_data);
-  }
-  return signalled;
 }
 
 

@@ -2267,6 +2267,7 @@ typedef struct st_mysql_client_plugin_AUTHENTICATION auth_plugin_t;
 static int client_mpvio_write_packet(struct st_plugin_vio*, const uchar*, int);
 static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
+static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
 
 static auth_plugin_t native_password_client_plugin=
 {
@@ -2300,10 +2301,27 @@ static auth_plugin_t old_password_client_plugin=
   old_password_auth_client
 };
 
+static auth_plugin_t clear_password_client_plugin=
+{
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+  "mysql_clear_password",
+  "Georgi Kodinov",
+  "Clear password authentication plugin",
+  {0,1,0},
+  "GPL",
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  clear_password_auth_client
+};
+
 struct st_mysql_client_plugin *mysql_client_builtins[]=
 {
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
+  (struct st_mysql_client_plugin *)&clear_password_client_plugin,
   0
 };
 
@@ -4228,11 +4246,31 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   if (mysql->options.charset_dir)
     charsets_dir= mysql->options.charset_dir;
 
+  if (!mysql->net.vio)
+  {
+    /* Initialize with automatic OS character set detection. */
+    mysql_options(mysql, MYSQL_SET_CHARSET_NAME, cs_name);
+    mysql_init_character_set(mysql);
+    /* 
+      In case of automatic OS character set detection
+      mysql_init_character_set changes mysql->options.charset_name
+      from "auto" to the real character set name.
+      Reset cs_name to the detected character set name, accordingly.
+    */
+    cs_name= mysql->options.charset_name;
+  }
+
   if (strlen(cs_name) < MY_CS_NAME_SIZE &&
      (cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))))
   {
     char buff[MY_CS_NAME_SIZE + 10];
     charsets_dir= save_csdir;
+    if (!mysql->net.vio)
+    {
+      /* If there is no connection yet we don't send "SET NAMES" query */
+      mysql->charset= cs;
+      return 0;
+    }
     /* Skip execution of "SET NAMES" for pre-4.1 servers */
     if (mysql_get_server_version(mysql) < 40100)
       return 0;
@@ -4354,3 +4392,20 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_RETURN(CR_OK);
 }
+
+/**
+  The main function of the mysql_clear_password authentication plugin.
+*/
+
+static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
+{
+  int res;
+
+  /* send password in clear text */
+  res= vio->write_packet(vio, (const unsigned char *) mysql->passwd, 
+						 strlen(mysql->passwd) + 1);
+
+  return res ? CR_ERROR : CR_OK;
+}
+
+

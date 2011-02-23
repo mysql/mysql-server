@@ -48,16 +48,11 @@ int my_rename(const char *from, const char *to, myf MyFlags)
                            MOVEFILE_REPLACE_EXISTING))
   {
     my_osmaperr(GetLastError());
-    my_errno= errno;
 #else
-#if defined(HAVE_RENAME)
   if (rename(from,to))
-#else
-  if (link(from, to) || unlink(from))
-#endif
   {
-    my_errno=errno;
 #endif
+    my_errno=errno;
     error = -1;
     if (MyFlags & (MY_FAE+MY_WME))
       my_error(EE_LINK, MYF(ME_BELL+ME_WAITTANG),from,to,my_errno);
