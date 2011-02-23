@@ -206,26 +206,26 @@ ERROR 42S02: Unknown table 't2' in HANDLER
 handler t1 open;
 handler t1 read a=(16) limit 1,3;
 a	b
-16	xxx
+16	ccc
 flush tables;
 handler t1 read a=(16) limit 1,3;
 a	b
-16	xxx
+16	ccc
 handler t1 close;
 handler t1 open;
 prepare stmt from 'handler t1 read a=(?) limit ?,?';
 set @a=16,@b=1,@c=100;
 execute stmt using @a,@b,@c;
 a	b
-16	xxx
+16	ccc
 set @a=16,@b=2,@c=1;
 execute stmt using @a,@b,@c;
 a	b
 set @a=16,@b=0,@c=2;
 execute stmt using @a,@b,@c;
 a	b
-16	ccc
 16	xxx
+16	ccc
 deallocate prepare stmt;
 prepare stmt from 'handler t1 read a next limit ?';
 handler t1 read a>=(11);
@@ -234,8 +234,8 @@ a	b
 set @a=3;
 execute stmt using @a;
 a	b
-16	ccc
 16	xxx
+16	ccc
 17	ddd
 execute stmt using @a;
 a	b
@@ -292,15 +292,15 @@ prepare stmt from 'handler t1 read a>=(?) where a < ? limit 5';
 set @a=15, @b=20;
 execute stmt using @a,@b;
 a	b
-16	ccc
 16	xxx
+16	ccc
 17	ddd
 18	eee
 19	fff
 execute stmt using @a,@b;
 a	b
-16	ccc
 16	xxx
+16	ccc
 17	ddd
 18	eee
 19	fff
@@ -309,7 +309,7 @@ prepare stmt from 'handler t1 read a=(?)';
 set @a=16;
 execute stmt using @a;
 a	b
-16	ccc
+16	xxx
 alter table t1 add c int;
 execute stmt using @a;
 ERROR 42S02: Unknown table 't1' in HANDLER
@@ -687,7 +687,7 @@ INSERT INTO t1 VALUES(1);
 HANDLER t1 READ a NEXT;
 HANDLER t1 CLOSE;
 DROP TABLE t1;
-CREATE TABLE t1(a INT, b INT, KEY(a), KEY b using btree (b), KEY ab using btree(a, b));
+CREATE TABLE t1(a INT, b INT, KEY(a), KEY b using btree (b), KEY ab using btree(a, b)) engine=memory;
 INSERT INTO t1 VALUES (2, 20), (2,20), (1, 10), (4, 40), (3, 30), (5,50), (6,50);
 HANDLER t1 OPEN;
 HANDLER t1 READ a>=(2) limit 3;
@@ -730,7 +730,7 @@ HANDLER t1 READ b FIRST LIMIT 2;
 a	b
 1	10
 2	20
-HANDLER t1 READ b LAST LIMIT 2;
+HANDLER t1 READ ab LAST LIMIT 2;
 a	b
 6	50
 5	50

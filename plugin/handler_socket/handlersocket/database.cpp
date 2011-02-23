@@ -246,7 +246,7 @@ wait_server_to_start(THD *thd, volatile int& shutdown_flag)
   DBG_SHUT(fprintf(stderr, "HNDSOCK wsts\n"));
   pthread_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started) {
-    timespec abstime = { };
+    timespec abstime;
     set_timespec(abstime, 1);
     pthread_cond_timedwait(&COND_server_started, &LOCK_server_started,
       &abstime);
@@ -287,8 +287,7 @@ dbcontext::init_thread(const void *stack_bottom, volatile int& shutdown_flag)
       thd->thread_stack, sizeof(THD), of));
     thd->store_globals();
     thd->system_thread = static_cast<enum_thread_type>(1<<30UL);
-    const NET v = { 0 };
-    thd->net = v;
+    memset(&thd->net, 0, sizeof(thd->net));
     if (for_write_flag) {
       #if MYSQL_VERSION_ID >= 50505
       thd->variables.option_bits |= OPTION_BIN_LOG;

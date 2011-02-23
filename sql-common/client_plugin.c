@@ -50,7 +50,8 @@ struct st_client_plugin_int {
 static my_bool initialized= 0;
 static MEM_ROOT mem_root;
 
-static const char *plugin_declarations_sym= "_mysql_client_plugin_declaration_";
+#define plugin_declarations_sym "_mysql_client_plugin_declaration_"
+
 static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS]=
 {
   0, /* these two are taken by Connector/C */

@@ -139,7 +139,7 @@ lock table t1 read;
 update t1 set i= 10;
 select * from t1;
 Timeout in wait_condition.inc for select count(*) = 1 from information_schema.processlist
-where state = "Locked" and info = "select * from t1"
+where state = "Table Lock" and info = "select * from t1"
 kill query ID;
 i
 ERROR 70100: Query execution was interrupted

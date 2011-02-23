@@ -1481,7 +1481,7 @@ next:
     subdir=0;
     while (ctlp < end && *ctlp != ',')
       ctlp++;
-    len=ctlp-start;
+    len= (int) (ctlp-start);
     if (start[len-1] == '/')
     {
       len--;
@@ -1544,7 +1544,7 @@ static struct link *ListCopy(struct link *orig)
 {
   struct link *new_malloc;
   struct link *head;
-  int len;
+  size_t len;
 
   head= NULL;
   while (orig != NULL)
@@ -1999,7 +1999,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
   {
     if (end)
     {
-      int len=end-name;
+      int len= (int) (end-name);
       memcpy(cs->stack->name, name, len);
       cs->stack->name[len]=0;
     }

@@ -14,7 +14,7 @@ let $key_type=using btree;
 connect (con1,localhost,root,,);
 connection default;
 
-CREATE TABLE t1(a INT, b INT, KEY(a), KEY b using btree (b), KEY ab using btree(a, b));
+CREATE TABLE t1(a INT, b INT, KEY(a), KEY b using btree (b), KEY ab using btree(a, b)) engine=memory;
 
 INSERT INTO t1 VALUES (2, 20), (2,20), (1, 10), (4, 40), (3, 30), (5,50), (6,50);
 
@@ -35,7 +35,7 @@ HANDLER t1 READ a FIRST;
 --error ER_ILLEGAL_HA
 HANDLER t1 READ a LAST;
 HANDLER t1 READ b FIRST LIMIT 2;
-HANDLER t1 READ b LAST LIMIT 2; 
+HANDLER t1 READ ab LAST LIMIT 2; 
 
 # Table scan
 HANDLER t1 READ FIRST LIMIT 10;

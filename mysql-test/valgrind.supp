@@ -546,6 +546,21 @@
    fun:_dl_signal_error
 }
 
+{
+   dlsym memory loss from plugin version 2
+   Memcheck:Leak
+   fun:malloc
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/ld-*.so
+   obj:/lib*/libc-*.so)
+   obj:/lib*/libdl-*.so)
+   obj:/lib*/ld-*.so)
+   obj:/lib*/libdl-*.so)
+   fun:dlsym
+   fun:plugin_dl_add
+}
+
 #
 # Reading wrong addresses on SuSe Linux 10.3 32 bit
 #
