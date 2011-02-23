@@ -1076,8 +1076,9 @@ init_again:
 			"InnoDB: Logical offset (blocks)         : %ld (%#lx)\n",
 				(byte*)chunk->mem + shm_info->frame_offset,
 				chunk->blocks[0].frame, frame,
-				phys_offset, phys_offset, logi_offset, logi_offset,
-				blocks_offset, blocks_offset);
+				phys_offset, phys_offset,
+                                (long) logi_offset, (long) logi_offset,
+				(long) blocks_offset, (long) blocks_offset);
 		} else {
 			fprintf(stderr,
 			"InnoDB: Buffer pool in the shared memory segment can be used as it is.\n");

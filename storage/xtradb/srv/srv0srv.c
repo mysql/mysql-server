@@ -3083,8 +3083,8 @@ retry_flush_batch:
 					blocks_sum += blocks_num;
 				}
 
-				n_flush = blocks_sum * (lsn - lsn_old) / log_sys->max_modified_age_async;
-				if (flushed_blocks_sum > n_pages_flushed_prev) {
+				n_flush = (lint) (blocks_sum * (lsn - lsn_old) / log_sys->max_modified_age_async);
+				if ((ulint) flushed_blocks_sum > n_pages_flushed_prev) {
 					n_flush -= (flushed_blocks_sum - n_pages_flushed_prev);
 				}
 
