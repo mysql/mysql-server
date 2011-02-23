@@ -88,6 +88,7 @@ struct my_cs_file_section_st
 #define _CS_UCA_VERSION                 100
 #define _CS_CL_SUPPRESS_CONTRACTIONS    101
 #define _CS_CL_OPTIMIZE                 102
+#define _CS_CL_SHIFT_AFTER_METHOD       103
 
 
 /* Collation Settings */
@@ -187,6 +188,7 @@ static struct my_cs_file_section_st sec[] =
   {_CS_UCA_VERSION,              "charsets/charset/collation/version"},
   {_CS_CL_SUPPRESS_CONTRACTIONS, "charsets/charset/collation/suppress_contractions"},
   {_CS_CL_OPTIMIZE,              "charsets/charset/collation/optimize"},
+  {_CS_CL_SHIFT_AFTER_METHOD,    "charsets/charset/collation/shift-after-method"},
 
   /* Collation Settings */
   {_CS_ST_SETTINGS,              "charsets/charset/collation/settings"},
@@ -644,6 +646,10 @@ static int cs_value(MY_XML_PARSER *st,const char *attr, size_t len)
 
   case _CS_CL_OPTIMIZE:
     rc= tailoring_append(st, "[optimize %.*s]", len, attr);
+    break;
+
+  case _CS_CL_SHIFT_AFTER_METHOD:
+    rc= tailoring_append(st, "[shift-after-method %.*s]", len, attr);
     break;
 
   /* Collation Settings */
