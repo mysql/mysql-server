@@ -591,7 +591,7 @@ NdbEventOperationImpl::execute_nolock()
   bool schemaTrans = false;
   if (m_ndb->theEventBuffer->m_total_buckets == TOTAL_BUCKETS_INIT)
   {
-    int res = myDict->beginSchemaTrans();
+    int res = NdbDictionaryImpl::getImpl(* myDict).beginSchemaTrans(false);
     if (res != 0)
     {
       switch(myDict->getNdbError().code){
