@@ -9,10 +9,10 @@ connection slave;
 source include/have_innodb.inc;
 
 # Add suppression for expected warning(s) in slaves error log
-call mtr.add_suppression("Slave: Can't find record in 't.' Error_code: 1032");
-call mtr.add_suppression("Slave: Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
-call mtr.add_suppression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
-
+call mtr.add_suppression("Can.t find record in .t[12].* Error_code: 1032");
+call mtr.add_suppression("Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
+call mtr.add_suppression("Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
+call mtr.add_suppression("Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
 
 # bug#31609 Not all RBR slave errors reported as errors
 # bug#31552 Replication breaks when deleting rows from out-of-sync table

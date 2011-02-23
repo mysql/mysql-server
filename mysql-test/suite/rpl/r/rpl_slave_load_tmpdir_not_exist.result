@@ -1,6 +1,7 @@
 include/master-slave.inc
 [connection master]
 START SLAVE;
+call mtr.add_suppression("Slave SQL.*Unable to use slave.s temporary directory.* Error_code: 12");
 include/wait_for_slave_sql_error.inc [errno=12]
 include/stop_slave_io.inc
 RESET SLAVE;
