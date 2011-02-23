@@ -5108,18 +5108,35 @@ optimize_straight_join(JOIN *join, table_map join_tables)
                      record_count, read_time);
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
+#ifdef MCP_BUG59326
     read_time+=    join->positions[idx].read_time;
+#else
+    read_time+=    join->positions[idx].read_time
+                   + record_count / (double) TIME_FOR_COMPARE;
+#endif
     join_tables&= ~(s->table->map);
     ++idx;
   }
 
+#ifdef MCP_BUG59326
   read_time+= record_count / (double) TIME_FOR_COMPARE;
+#endif
   if (join->sort_by_table &&
       join->sort_by_table != join->positions[join->const_tables].table->table)
     read_time+= record_count;  // We have to make a temp table
   memcpy((uchar*) join->best_positions, (uchar*) join->positions,
          sizeof(POSITION)*idx);
+#ifdef MCP_BUG59326
   join->best_read= read_time;
+#else
+  /**
+   * If many plans have identical cost, which one will be used
+   * depends on how compiler optimizes floating-point calculations.
+   * this fix adds repeatability to the optimizer.
+   * (Similar code in best_extension_by_li...)
+   */
+  join->best_read= read_time - 0.001;
+#endif
 }
 
 
@@ -5275,12 +5292,28 @@ greedy_search(JOIN      *join,
     while (pos && best_table != pos)
       pos= join->best_ref[++best_idx];
     DBUG_ASSERT((pos != NULL)); // should always find 'best_table'
+#ifdef MCP_BUG59326
     /* move 'best_table' at the first free position in the array of joins */
     swap_variables(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
+#else
+    /*
+      Maintain '#rows-sorted' order of 'best_ref[]':
+       - Shift 'best_ref[]' to make first position free. 
+       - Insert 'best_table' at the first free position in the array of joins.
+    */
+    memmove(join->best_ref + idx + 1, join->best_ref + idx,
+            sizeof(JOIN_TAB*) * (best_idx - idx));
+    join->best_ref[idx]= best_table;
+#endif
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
+#ifdef MCP_BUG59326
     read_time+=    join->positions[idx].read_time;
+#else
+    read_time+=    join->positions[idx].read_time
+                   + record_count / (double) TIME_FOR_COMPARE;
+#endif
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -5432,16 +5465,33 @@ best_extension_by_limited_search(JOIN      *join,
      'join' is a partial plan with lower cost than the best plan so far,
      so continue expanding it further with the tables in 'remaining_tables'.
   */
-  JOIN_TAB *s;
   double best_record_count= DBL_MAX;
   double best_read_time=    DBL_MAX;
 
   DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, read_time,
                                 "part_plan"););
 
+  JOIN_TAB *s;
+#ifndef MCP_BUG59326
+  JOIN_TAB *saved_refs[MAX_TABLES];
+  // Save 'best_ref[]' as we has to restore before return.
+  memcpy(saved_refs, join->best_ref + idx, 
+         sizeof(JOIN_TAB*) * (join->tables - idx));
+#endif
+
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     table_map real_table_bit= s->table->map;
+
+#ifndef MCP_BUG59326
+    /*
+      Don't move swap inside conditional code: All items should
+      be uncond. swapped to maintain '#rows-ordered' best_ref[].
+      This is critical for early pruning of bad plans.
+    */
+    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+#endif
+
     if ((remaining_tables & real_table_bit) && 
         !(remaining_tables & s->dependent) && 
         (!idx || !check_interleaving_with_nj(s)))
@@ -5453,6 +5503,7 @@ best_extension_by_limited_search(JOIN      *join,
                        record_count, read_time);
       /* Compute the cost of extending the plan with 's' */
       current_record_count= record_count * join->positions[idx].records_read;
+#ifdef MCP_BUG59326
       current_read_time=    read_time + join->positions[idx].read_time;
 
       /* Expand only partial plans with lower cost than the best QEP so far */
@@ -5466,6 +5517,20 @@ best_extension_by_limited_search(JOIN      *join,
                                         current_record_count / 
                                         (double) TIME_FOR_COMPARE),
                                        "prune_by_cost"););
+#else
+      current_read_time=    read_time
+                            + join->positions[idx].read_time
+                            + current_record_count / (double) TIME_FOR_COMPARE;
+
+      /* Expand only partial plans with lower cost than the best QEP so far */
+      if (current_read_time >= join->best_read)
+      {
+        DBUG_EXECUTE("opt", print_plan(join, idx+1,
+                                       current_record_count,
+                                       read_time,
+                                       current_read_time,
+                                       "prune_by_cost"););
+#endif
         restore_prev_nj_state(s);
         continue;
       }
@@ -5504,8 +5569,11 @@ best_extension_by_limited_search(JOIN      *join,
       }
 
       if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) )
-      { /* Recursively expand the current partial plan */
+      {
+#ifdef MCP_BUG59326
         swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+#endif
+        /* Explore more best extensions of plan */
         if (best_extension_by_limited_search(join,
                                              remaining_tables & ~real_table_bit,
                                              idx + 1,
@@ -5514,20 +5582,28 @@ best_extension_by_limited_search(JOIN      *join,
                                              search_depth - 1,
                                              prune_level))
           DBUG_RETURN(TRUE);
+#ifdef MCP_BUG59326
         swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+#endif
       }
       else
       { /*
           'join' is either the best partial QEP with 'search_depth' relations,
           or the best complete QEP so far, whichever is smaller.
         */
+#ifdef MCP_BUG59326
         current_read_time+= current_record_count / (double) TIME_FOR_COMPARE;
+#endif
         if (join->sort_by_table &&
             join->sort_by_table !=
             join->positions[join->const_tables].table->table)
           /* We have to make a temp table */
           current_read_time+= current_record_count;
+#ifdef MCP_BUG59326
         if ((search_depth == 1) || (current_read_time < join->best_read))
+#else
+        if (current_read_time < join->best_read)
+#endif
         {
           memcpy((uchar*) join->best_positions, (uchar*) join->positions,
                  sizeof(POSITION) * (idx + 1));
@@ -5542,6 +5618,11 @@ best_extension_by_limited_search(JOIN      *join,
       restore_prev_nj_state(s);
     }
   }
+
+#ifndef MCP_BUG59326
+  // Restore previous #rows sorted best_ref[]
+  memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
+#endif
   DBUG_RETURN(FALSE);
 }
 

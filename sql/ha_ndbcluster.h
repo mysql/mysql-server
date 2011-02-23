@@ -421,7 +421,6 @@ class ha_ndbcluster: public handler
 
   int get_pushability() const;
 
-  int ha_initialise();
 #ifndef NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
   void column_bitmaps_signal(uint sig_type);
 #endif

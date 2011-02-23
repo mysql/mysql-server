@@ -3605,14 +3605,16 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
        * on timing
        */
       if ((execError != 0) &&
-          (execError != 874))
+          (execError != 874) && 
+          (execError != 4002))
       {
+        ndbout_c("%u incorrect error code: %u", __LINE__, execError);
         ERR(trans->getNdbError());
         trans->close();
         delete[] buff;
         return NDBT_FAILED;
       }
-      
+
       /* nextResult will always fail */  
       CHECK(-1 == scan->nextResult());
       
@@ -3632,6 +3634,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
         }
         else
         {
+          ndbout_c("%u incorrect error code: %u", __LINE__, execError);
           ERR(scan->getNdbError());
           trans->close();
           delete[] buff;
