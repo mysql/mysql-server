@@ -1,7 +1,5 @@
 ######################################################################
-# Author: Martin Zaun
-# Date: 2010-10
-# Purpose: Right-padding preservation test for char and binary types
+# Test restoring backups with preserving padding in char/bin conversions
 ######################################################################
 
 -- source include/have_ndb.inc

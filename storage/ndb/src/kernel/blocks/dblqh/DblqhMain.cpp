@@ -16772,7 +16772,18 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
     lcpPtr.i = 0;
     ptrAss(lcpPtr, lcpRecord);
     lcpPtr.p->m_outstanding = 1;
-    
+
+    if (cstartType == NodeState::ST_INITIAL_NODE_RESTART)
+    {
+      jam();
+      /**
+       * Skip lgman undo...
+       */
+      signal->theData[0] = LGMAN_REF;
+      sendSignal(reference(), GSN_START_RECCONF, signal, 1, JBB);
+      return;
+    }
+
     if (!isNdbMtLqh())
     {
       jam();

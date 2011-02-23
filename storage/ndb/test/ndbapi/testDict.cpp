@@ -7186,7 +7186,8 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
 
   const NdbDictionary::Table * org = pDic->getTable(tab.getName());
   NdbDictionary::Table altered = * org;
-  altered.setFragmentCount(org->getFragmentCount() + 2);
+  altered.setFragmentCount(org->getFragmentCount() +
+                           restarter.getNumDbNodes());
 
   if (pDic->beginSchemaTrans())
   {

@@ -51,13 +51,11 @@ from t1 as x1
 join t1 as x2 on x1.d > x2.a + 1000 
 join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	16	100.00	
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	Child of pushed join@1
 1	SIMPLE	x2	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where; Using join buffer
-1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	
 Warnings:
 Note	1644	Can't push table 'x2' as child, 'type' must be a 'ref' access
-Note	1644	Cannot push table 'x3' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
-Note	1644	Cannot push table 'x3' as child of 'x2', since it referes to column 'x1.c' which will be stored in a join buffer.
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x3`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`d` > (`test`.`x2`.`a` + 1000)))
 select count(*) 
 from t1 as x1 
@@ -4202,10 +4200,10 @@ explain extended select count(*) from
 left outer join t1 as z on z.u = x.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 3 pushed join@1
+1	SIMPLE	z	eq_ref	ix2	ix2	4	test.x.a	1	100.00	Child of pushed join@1
 1	SIMPLE	y	ref	ix1	ix1	5	test.x.a	2	100.00	Child of pushed join@1; Using where
-1	SIMPLE	z	eq_ref	ix2	ix2	4	test.y.b	1	100.00	Child of pushed join@1
 Warnings:
-Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x` join `test`.`t1` `y` left join `test`.`t1` `z` on(((`test`.`y`.`b` = `test`.`x`.`a`) and (`test`.`z`.`u` = `test`.`x`.`a`))) where (`test`.`y`.`b` = `test`.`x`.`a`)
+Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x` join `test`.`t1` `y` left join `test`.`t1` `z` on(((`test`.`z`.`u` = `test`.`x`.`a`) and (`test`.`y`.`b` = `test`.`x`.`a`))) where (`test`.`y`.`b` = `test`.`x`.`a`)
 select count(*) from 
 (t1 as x join t1 as y on y.b = x.a)
 left outer join t1 as z on z.u = x.a;
@@ -4852,32 +4850,32 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	226
+LOCAL_TABLE_SCANS_SENT	230
 PRUNED_RANGE_SCANS_RECEIVED	17
 RANGE_SCANS_RECEIVED	718
-READS_NOT_FOUND	404
-READS_RECEIVED	61
-SCAN_ROWS_RETURNED	78712
-TABLE_SCANS_RECEIVED	226
+READS_NOT_FOUND	409
+READS_RECEIVED	49
+SCAN_ROWS_RETURNED	78755
+TABLE_SCANS_RECEIVED	230
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-28877
+28879
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
-2681
+2677
 pruned_scan_count
 8
 sorted_scan_count
 9
 pushed_queries_defined
-354
+356
 pushed_queries_dropped
 11
 pushed_queries_executed
-537
+527
 set ndb_join_pushdown = @save_ndb_join_pushdown;

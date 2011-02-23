@@ -230,8 +230,6 @@ int ndbcluster_log_schema_op(THD *thd,
 int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                           const char *type_str,
                           const char * dbname, const char * tabname);
-int ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share,
-                                  const char *type_str);
 int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
                                  const char * db, const char * tabname);
