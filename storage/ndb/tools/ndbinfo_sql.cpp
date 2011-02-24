@@ -23,7 +23,8 @@
 static char* opt_ndbinfo_db = (char*)"ndbinfo";
 static char* opt_table_prefix = (char*)"ndb$";
 
-static struct my_option
+static
+struct my_option
 my_long_options[] =
 {
   { "database", 'd',

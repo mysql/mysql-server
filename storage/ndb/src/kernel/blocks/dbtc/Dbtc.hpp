@@ -900,7 +900,7 @@ public:
       /* Distribution information */
       // TODO : Consider placing this info into other records
       Uint8  distributionKeyIndicator;
-      Uint8  viaSPJFlag;        /* Send request via the SPJ block.*/ 
+      Uint8  viaSPJFlag;        /* Send request via the SPJ block.*/
       UintR  distributionKey;
     /* End of fields used by TCKEYREQ/TCINDXREQ/SCANTABREQ */
     

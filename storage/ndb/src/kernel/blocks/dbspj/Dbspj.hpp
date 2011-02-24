@@ -1,17 +1,19 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DBSPJ_H
 #define DBSPJ_H
@@ -83,7 +85,7 @@ private:
   void execREAD_NODESCONF(Signal*);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
-  void execDBINFO_SCANREQ(Signal* signal); 
+  void execDBINFO_SCANREQ(Signal* signal);
   void execCONTINUEB(Signal*);
   void execNODE_FAILREP(Signal*);
   void execINCL_NODEREQ(Signal*);
@@ -107,17 +109,17 @@ public:
   {
     Uint32 m_page_id;
     Uint16 m_page_pos;
-    union 
+    union
     {
       Uint16 unused;
       Uint16 m_allocator;
     };
 
-    void copyto_link(Uint32 * dst) const { 
+    void copyto_link(Uint32 * dst) const {
       dst[0] = m_page_id; dst[1] = m_page_pos;
     }
-    void assign_from_link(const Uint32 * src) { 
-      m_page_id = src[0]; 
+    void assign_from_link(const Uint32 * src) {
+      m_page_id = src[0];
       m_page_pos = src[1];
     }
 
@@ -198,7 +200,7 @@ public:
     void init() { m_first_row_page_id = RNIL;}
     bool isNull() const { return m_first_row_page_id == RNIL; }
   };
-  
+
   struct RowMap
   {
     /**
@@ -224,10 +226,10 @@ public:
     /**
      * functions for manipulating *content* of map
      */
-    void clear(Uint32 * ptr)  { 
+    void clear(Uint32 * ptr)  {
       memset(ptr, 0xFF, MAP_SIZE_PER_REF_16 * m_size * sizeof(Uint16));
     }
-    void store(Uint32 * _ptr, Uint32 pos, RowRef ref) { 
+    void store(Uint32 * _ptr, Uint32 pos, RowRef ref) {
       Uint16 * ptr = (Uint16*)_ptr;
       ptr += MAP_SIZE_PER_REF_16 * pos;
       ref.copyto_map(ptr);
@@ -316,7 +318,7 @@ public:
 
   typedef Tup_varsize_page Var_page;
 
-  struct RowBuffer 
+  struct RowBuffer
   {
     RowBuffer() { stack_init(); }
     DLFifoList<RowPage>::Head m_page_list;
@@ -405,7 +407,7 @@ public:
      */
     void (Dbspj::*m_parent_row)(Signal*,Ptr<Request>,Ptr<TreeNode>,
                                 const RowPtr&);
-    
+
     /**
      * This function is called on the *child* by the *parent* when *parent*
      *   has completed a batch
@@ -478,9 +480,9 @@ public:
       SFH_WAIT_CLOSE   = 4
     };
 
-    void init(Uint32 fid) { 
-      m_ref = 0; 
-      m_fragId = fid; 
+    void init(Uint32 fid) {
+      m_ref = 0;
+      m_fragId = fid;
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
       reset_ranges();
@@ -496,7 +498,7 @@ public:
       // m_rangePtrI is explicitly managed...in code
       m_range_builder.m_range_cnt = m_range_builder.m_range_size = 0;
     }
-    struct RangeBuilder 
+    struct RangeBuilder
     {
       Uint16 m_range_size;
       Uint16 m_range_cnt; // too set bounds info correctly
@@ -521,7 +523,7 @@ public:
     Uint32 m_scanCookie;
     Uint32 m_fragCount;
     ScanFragHandle_list::HeadPOD m_fragments; // ScanFrag states
-    union 
+    union
     {
       PatternStore::HeadPOD m_prunePattern;
       Uint32 m_constPrunePtrI;
@@ -709,9 +711,9 @@ public:
 
     struct {
       Uint32 m_ref;              // dst for signal
-      /** Each tuple has a 16-bit id that is unique within that operation, 
-       * batch and SPJ block instance. The upper half word of m_correlation 
-       * is the id of the parent tuple, and the lower half word is the 
+      /** Each tuple has a 16-bit id that is unique within that operation,
+       * batch and SPJ block instance. The upper half word of m_correlation
+       * is the id of the parent tuple, and the lower half word is the
        * id of the current tuple.*/
       Uint32 m_correlation;
       Uint32 m_keyInfoPtrI;      // keyInfoSection
@@ -733,7 +735,7 @@ public:
 
   typedef SLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
   TreeNodeCursor_list;
-  typedef LocalSLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr> 
+  typedef LocalSLListImpl<TreeNode_pool, TreeNode, TreeNode_cursor_ptr>
   Local_TreeNodeCursor_list;
 
   /**
@@ -842,25 +844,25 @@ private:
 
     /**
      * No of lookup operations which did not return a row (LQHKEYREF).
-     * (Most likely due to non matching key, or predicate 
+     * (Most likely due to non matching key, or predicate
      * filter which evalueted  to 'false').
      */
     CI_READS_NOT_FOUND = 3,
 
     /**
-     * This is the number of incomming queries where the root operation is a 
+     * This is the number of incomming queries where the root operation is a
      * fragment scan and this is a "direct scan" that does not go via an index.
      */
     CI_TABLE_SCANS_RECEIVED = 4,
 
     /**
-     * This is the number of "direct" fragment scans (i.e. no via an ordered 
+     * This is the number of "direct" fragment scans (i.e. no via an ordered
      * index)sent to the local LQH block.
      */
     CI_LOCAL_TABLE_SCANS_SENT = 5,
 
     /**
-     * This is the number of incomming queries where the root operation is a 
+     * This is the number of incomming queries where the root operation is a
      * fragment scan which scans the fragment via an ordered index..
      */
     CI_RANGE_SCANS_RECEIVED = 6,
@@ -876,7 +878,7 @@ private:
      * remote LQH block.
      */
     CI_REMOTE_RANGE_SCANS_SENT = 8,
-    
+
     /**
      * No of scan batches (on range or full table) returned to ndbapi
      */
@@ -893,12 +895,12 @@ private:
     CI_PRUNED_RANGE_SCANS_RECEIVED = 11,
 
     /**
-     * No of "const" prunable index scans that has been received 
+     * No of "const" prunable index scans that has been received
      * i.e index-scan only access 1 partition
      */
     CI_CONST_PRUNED_RANGE_SCANS_RECEIVED = 12,
 
-    CI_END = 13 // End marker - not a valid counter id. 
+    CI_END = 13 // End marker - not a valid counter id.
   };
 
   /**
