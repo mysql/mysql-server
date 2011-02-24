@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -246,7 +246,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			trx/trx0sys.c trx/trx0trx.c trx/trx0undo.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0list.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c
-			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c)
+			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c ut/ut0bh.c)
 
 IF(WITH_INNODB)
   # Legacy option

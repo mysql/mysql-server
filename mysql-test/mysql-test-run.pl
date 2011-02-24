@@ -1579,12 +1579,6 @@ sub command_line_setup {
     $debug_d= "d,query,info,error,enter,exit";
   }
 
-  if ($opt_debug && $opt_debug ne "1")
-  {
-    $debug_d= "d,$opt_debug";
-    $debug_d= "d,query,info,error,enter,exit" if $opt_debug eq "std";
-  }
-
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -2041,7 +2035,7 @@ sub read_plugin_defs($)
 
   # Need to check if we will be running mysqld-debug
   if ($opt_debug_server) {
-    $running_debug= 1 if find_mysqld($basedir) =~ /-debug$/;
+    $running_debug= 1 if find_mysqld($basedir) =~ /mysqld-debug/;
   }
 
   while (<PLUGDEF>) {
@@ -2185,6 +2179,7 @@ sub environment_setup {
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
+  $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
   

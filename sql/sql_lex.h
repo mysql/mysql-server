@@ -162,7 +162,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_OPEN_TABLES,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
-  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
+  SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_DO,
   SQLCOM_SHOW_WARNS, SQLCOM_EMPTY_QUERY, SQLCOM_SHOW_ERRORS,
   SQLCOM_SHOW_STORAGE_ENGINES, SQLCOM_SHOW_PRIVILEGES,
   SQLCOM_HELP, SQLCOM_CREATE_USER, SQLCOM_DROP_USER, SQLCOM_RENAME_USER,
@@ -269,8 +269,7 @@ typedef struct st_lex_server_options
 
 
 /**
-  Structure to hold parameters for CHANGE MASTER or START/STOP SLAVE
-  or SHOW NEW MASTER.
+  Structure to hold parameters for CHANGE MASTER, START SLAVE, and STOP SLAVE.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,
