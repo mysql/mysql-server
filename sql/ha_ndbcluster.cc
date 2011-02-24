@@ -7819,7 +7819,7 @@ static int create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(8000);
+    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
     col.setStripeSize(ndb_blob_striping() ? 4 : 0);
     break;
   // Other types

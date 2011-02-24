@@ -338,6 +338,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   
   switch (tSignalNumber){
   case GSN_TCKEYCONF:
+  case GSN_TCINDXCONF:
     {
       tFirstDataPtr = int2void(tFirstData);
       if (tFirstDataPtr == 0) goto InvalidSignal;
@@ -833,30 +834,6 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
        */
       return;
     }
-  }
-  case GSN_TCINDXCONF:{
-    tFirstDataPtr = int2void(tFirstData);
-    if (tFirstDataPtr == 0) goto InvalidSignal;
-
-    const TcIndxConf * const indxConf = (TcIndxConf *)tDataPtr;
-    const BlockReference aTCRef = aSignal->theSendersBlockRef;
-    tCon = void2con(tFirstDataPtr);
-    if ((tCon->checkMagicNumber() == 0) &&
-	(tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
-      tReturnCode = tCon->receiveTCINDXCONF(indxConf, tLen);
-      if (tReturnCode != -1) { 
-	completedTransaction(tCon);
-      }//if
-    }//if
-    
-    if(TcIndxConf::getMarkerFlag(indxConf->confInfo)){
-      NdbTransaction::sendTC_COMMIT_ACK(theImpl,
-                                        theCommitAckSignal,
-                                        indxConf->transId1, 
-                                        indxConf->transId2,
-                                        aTCRef);
-    }
-    return;
   }
   case GSN_TCINDXREF:{
     tFirstDataPtr = int2void(tFirstData);
