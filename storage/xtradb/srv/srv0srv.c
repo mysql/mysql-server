@@ -2742,6 +2742,8 @@ loop:
 
 	n_ios_very_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
 		+ buf_pool->stat.n_pages_written;
+        n_pages_flushed= 0;
+
 	mutex_enter(&kernel_mutex);
 
 	/* Store the user activity counter at the start of this loop */

@@ -1634,16 +1634,16 @@ sub set_build_thread_ports($) {
   $ENV{MTR_BUILD_THREAD}= $build_thread;
 
   # Calculate baseport
-  $baseport= $build_thread * 10 + 10000;
-  if ( $baseport < 5001 or $baseport + 9 >= 32767 )
+  $baseport= $build_thread * 20 + 10000;
+  if ( $baseport < 5001 or $baseport + 19 >= 32767 )
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
-              "($baseport - $baseport + 9)");
+              "($baseport - $baseport + 19)");
   }
 
   mtr_report("Using MTR_BUILD_THREAD $build_thread,",
-	     "with reserved ports $baseport..".($baseport+9));
+	     "with reserved ports $baseport..".($baseport+19));
 
 }
 

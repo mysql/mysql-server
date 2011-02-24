@@ -67,7 +67,7 @@
 #define MAX_COLUMNS            256
 #define MAX_EMBEDDED_SERVER_ARGS 64
 #define MAX_DELIMITER_LENGTH 16
-#define DEFAULT_MAX_CONN       128
+#define DEFAULT_MAX_CONN        64
 
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
@@ -133,6 +133,7 @@ static char TMPDIR[FN_REFLEN];
 static char global_subst_from[200];
 static char global_subst_to[200];
 static char *global_subst= NULL;
+static MEM_ROOT require_file_root;
 
 /* Block stack */
 enum block_cmd {
@@ -242,7 +243,7 @@ HASH var_hash;
 
 struct st_connection
 {
-  MYSQL mysql;
+  MYSQL *mysql;
   /* Used when creating views and sp, to avoid implicit commit */
   MYSQL* util_mysql;
   char *name;
@@ -459,7 +460,7 @@ struct st_command
   int first_word_len, query_len;
   my_bool abort_on_error, used_replace;
   struct st_expected_errors expected_errors;
-  char require_file[FN_REFLEN];
+  char *require_file;
   enum enum_commands type;
 };
 
@@ -747,8 +748,11 @@ pthread_handler_t send_one_query(void *arg)
 {
   struct st_connection *cn= (struct st_connection*)arg;
 
+  if (!cn->mysql)
+    return 0;
+
   mysql_thread_init();
-  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+  VOID(mysql_send_query(cn->mysql, cn->cur_query, cn->cur_query_len));
 
   mysql_thread_end();
   pthread_mutex_lock(&cn->mutex);
@@ -762,8 +766,11 @@ pthread_handler_t send_one_query(void *arg)
 static int do_send_query(struct st_connection *cn, const char *q, int q_len,
                          int flags)
 {
+  if (!cn->mysql)
+    die("Trying to send a query without a connection");
+
   if (flags & QUERY_REAP_FLAG)
-    return mysql_send_query(&cn->mysql, q, q_len);
+    return mysql_send_query(cn->mysql, q, q_len);
 
   if (pthread_mutex_init(&cn->mutex, NULL) ||
       pthread_cond_init(&cn->cond, NULL))
@@ -800,7 +807,7 @@ static void wait_query_thread_end(struct st_connection *con)
 
 #else /*EMBEDDED_LIBRARY*/
 
-#define do_send_query(cn,q,q_len,flags) mysql_send_query(&cn->mysql, q, q_len)
+#define do_send_query(cn,q,q_len,flags) mysql_send_query(cn->mysql, q, q_len)
 
 #endif /*EMBEDDED_LIBRARY*/
 
@@ -1149,7 +1156,8 @@ void close_connections()
     if (next_con->stmt)
       mysql_stmt_close(next_con->stmt);
     next_con->stmt= 0;
-    mysql_close(&next_con->mysql);
+    mysql_close(next_con->mysql);
+    next_con->mysql= 0;
     if (next_con->util_mysql)
       mysql_close(next_con->util_mysql);
     my_free(next_con->name, MYF(MY_ALLOW_ZERO_PTR));
@@ -1220,25 +1228,23 @@ void free_used_memory()
   free_all_replace();
   my_free(opt_pass,MYF(MY_ALLOW_ZERO_PTR));
   free_defaults(default_argv);
+  free_root(&require_file_root, MYF(0));
   free_re();
 #ifdef __WIN__
   free_tmp_sh_file();
   free_win_path_patterns();
 #endif
-
-  /* Only call mysql_server_end if mysql_server_init has been called */
-  if (server_initialized)
-    mysql_server_end();
-
-  /* Don't use DBUG after mysql_server_end() */
-  DBUG_VIOLATION_HELPER_LEAVE;
-  return;
+  DBUG_VOID_RETURN;
 }
 
 
 static void cleanup_and_exit(int exit_code)
 {
   free_used_memory();
+
+  /* Only call mysql_server_end if mysql_server_init has been called */
+  if (server_initialized)
+    mysql_server_end();
   my_end(my_end_arg);
 
   if (!silent) {
@@ -1302,7 +1308,7 @@ void die(const char *fmt, ...)
     been produced prior to the error
   */
   if (cur_con && !cur_con->pending)
-    show_warnings_before_error(&cur_con->mysql);
+    show_warnings_before_error(cur_con->mysql);
 
   cleanup_and_exit(1);
 }
@@ -1352,6 +1358,8 @@ void verbose_msg(const char *fmt, ...)
 {
   va_list args;
   DBUG_ENTER("verbose_msg");
+  DBUG_PRINT("enter", ("format: %s", fmt));
+
   if (!verbose)
     DBUG_VOID_RETURN;
 
@@ -2231,7 +2239,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 		      *query_end : query + strlen(query));
   MYSQL_RES *res;
   MYSQL_ROW row;
-  MYSQL* mysql = &cur_con->mysql;
+  MYSQL* mysql = cur_con->mysql;
   DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
   LINT_INIT(res);
@@ -2320,7 +2328,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   long row_no;
   int col_no= -1;
   MYSQL_RES* res;
-  MYSQL* mysql= &cur_con->mysql;
+  MYSQL* mysql= cur_con->mysql;
 
   static DYNAMIC_STRING ds_query;
   static DYNAMIC_STRING ds_col;
@@ -3752,7 +3760,7 @@ void do_send_quit(struct st_command *command)
   if (!(con= find_connection_by_name(name)))
     die("connection '%s' not found in connection pool", name);
 
-  simple_command(&con->mysql,COM_QUIT,0,0,1);
+  simple_command(con->mysql,COM_QUIT,0,0,1);
 
   DBUG_VOID_RETURN;
 }
@@ -3776,7 +3784,7 @@ void do_send_quit(struct st_command *command)
 
 void do_change_user(struct st_command *command)
 {
-  MYSQL *mysql = &cur_con->mysql;
+  MYSQL *mysql = cur_con->mysql;
   /* static keyword to make the NetWare compiler happy. */
   static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
   const struct command_arg change_user_args[] = {
@@ -3971,7 +3979,7 @@ int do_echo(struct st_command *command)
 void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
 {
   static int SLAVE_POLL_INTERVAL= 300000;
-  MYSQL* mysql = &cur_con->mysql;
+  MYSQL* mysql = cur_con->mysql;
   for (;;)
   {
     MYSQL_RES *UNINIT_VAR(res);
@@ -4001,7 +4009,7 @@ void do_sync_with_master2(struct st_command *command, long offset)
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  MYSQL *mysql= &cur_con->mysql;
+  MYSQL *mysql= cur_con->mysql;
   char query_buf[FN_REFLEN+128];
   int timeout= 300; /* seconds */
 
@@ -4091,7 +4099,7 @@ int do_save_master_pos()
 {
   MYSQL_RES *res;
   MYSQL_ROW row;
-  MYSQL *mysql = &cur_con->mysql;
+  MYSQL *mysql = cur_con->mysql;
   const char *query;
   int rpl_parse;
   DBUG_ENTER("do_save_master_pos");
@@ -4317,22 +4325,22 @@ void do_let(struct st_command *command)
 int do_rpl_probe(struct st_command *command __attribute__((unused)))
 {
   DBUG_ENTER("do_rpl_probe");
-  if (mysql_rpl_probe(&cur_con->mysql))
-    die("Failed in mysql_rpl_probe(): '%s'", mysql_error(&cur_con->mysql));
+  if (mysql_rpl_probe(cur_con->mysql))
+    die("Failed in mysql_rpl_probe(): '%s'", mysql_error(cur_con->mysql));
   DBUG_RETURN(0);
 }
 
 
 int do_enable_rpl_parse(struct st_command *command __attribute__((unused)))
 {
-  mysql_enable_rpl_parse(&cur_con->mysql);
+  mysql_enable_rpl_parse(cur_con->mysql);
   return 0;
 }
 
 
 int do_disable_rpl_parse(struct st_command *command __attribute__((unused)))
 {
-  mysql_disable_rpl_parse(&cur_con->mysql);
+  mysql_disable_rpl_parse(cur_con->mysql);
   return 0;
 }
 
@@ -4508,7 +4516,7 @@ void do_shutdown_server(struct st_command *command)
 {
   int timeout=60, pid;
   DYNAMIC_STRING ds_pidfile_name;
-  MYSQL* mysql = &cur_con->mysql;
+  MYSQL* mysql = cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
     {"timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"}
@@ -4849,7 +4857,7 @@ void set_current_connection(struct st_connection *con)
   cur_con= con;
   /* Update $mysql_get_server_version to that of current connection */
   var_set_int("$mysql_get_server_version",
-              mysql_get_server_version(&con->mysql));
+              mysql_get_server_version(con->mysql));
   /* Update $CURRENT_CONNECTION to the name of the current connection */
   var_set_string("$CURRENT_CONNECTION", con->name);
 }
@@ -4922,10 +4930,10 @@ void do_close_connection(struct st_command *command)
 #ifndef EMBEDDED_LIBRARY
   if (command->type == Q_DIRTY_CLOSE)
   {
-    if (con->mysql.net.vio)
+    if (con->mysql->net.vio)
     {
-      vio_delete(con->mysql.net.vio);
-      con->mysql.net.vio = 0;
+      vio_delete(con->mysql->net.vio);
+      con->mysql->net.vio = 0;
     }
   }
 #else
@@ -4940,14 +4948,15 @@ void do_close_connection(struct st_command *command)
     mysql_stmt_close(con->stmt);
   con->stmt= 0;
 
-  mysql_close(&con->mysql);
+  mysql_close(con->mysql);
+  con->mysql= 0;
 
   if (con->util_mysql)
     mysql_close(con->util_mysql);
   con->util_mysql= 0;
   con->pending= FALSE;
   
-  my_free(con->name, MYF(0));
+  my_free(con->name, MYF(MY_ALLOW_ZERO_PTR));
 
   /*
     When the connection is closed set name to "-closed_connection-"
@@ -5301,24 +5310,26 @@ void do_connect(struct st_command *command)
     if (!(con_slot= find_connection_by_name("-closed_connection-")))
       die("Connection limit exhausted, you can have max %d connections",
           opt_max_connections);
+    my_free(con_slot->name, MYF(0));
+    con_slot->name= 0;
   }
 
 #ifdef EMBEDDED_LIBRARY
   con_slot->query_done= 1;
   con_slot->has_thread= FALSE;
 #endif
-  if (!mysql_init(&con_slot->mysql))
+  if (!(con_slot->mysql= mysql_init(0)))
     die("Failed on mysql_init()");
   if (opt_compress || con_compress)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
-  mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
+  mysql_options(con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(con_slot->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(con_slot->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
   if (opt_connect_timeout >= 0)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
+    mysql_options(con_slot->mysql, MYSQL_OPT_CONNECT_TIMEOUT,
                   &opt_connect_timeout);
 
 #ifdef HAVE_OPENSSL
@@ -5329,12 +5340,12 @@ void do_connect(struct st_command *command)
   if (con_ssl)
   {
 #ifdef HAVE_OPENSSL
-    mysql_ssl_set(&con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(con_slot->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(con_slot->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
 #endif
@@ -5348,7 +5359,7 @@ void do_connect(struct st_command *command)
   }
 
   if (opt_protocol)
-    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+    mysql_options(con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
 #ifdef HAVE_SMEM
   if (con_shm)
@@ -5356,12 +5367,12 @@ void do_connect(struct st_command *command)
     uint protocol= MYSQL_PROTOCOL_MEMORY;
     if (!ds_shm.length)
       die("Missing shared memory base name");
-    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
-    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+    mysql_options(con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME, ds_shm.str);
+    mysql_options(con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
   }
   else if (shared_memory_base_name)
   {
-    mysql_options(&con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
+    mysql_options(con_slot->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
   }
 #endif
@@ -5374,7 +5385,7 @@ void do_connect(struct st_command *command)
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
-  if (connect_n_handle_errors(command, &con_slot->mysql,
+  if (connect_n_handle_errors(command, con_slot->mysql,
                               ds_host.str,ds_user.str,
                               ds_password.str, ds_database.str,
                               con_port, ds_sock.str))
@@ -6087,7 +6098,7 @@ static struct my_option my_long_options[] =
   {"max-connections", OPT_MAX_CONNECTIONS,
    "Max number of open connections to server",
    &opt_max_connections, &opt_max_connections, 0,
-   GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
+   GET_INT, REQUIRED_ARG, DEFAULT_MAX_CONN, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
@@ -6239,6 +6250,7 @@ get_one_option(int optid, const struct my_option *opt,
 #ifndef DBUG_OFF
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
     debug_check_flag= 1;
+    debug_info_flag= 1;
 #endif
     break;
   case 'r':
@@ -6354,7 +6366,7 @@ int parse_args(int argc, char **argv)
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
-    my_end_arg= MY_CHECK_ERROR;
+    my_end_arg|= MY_CHECK_ERROR;
 
   if (global_subst != NULL)
   {
@@ -6855,11 +6867,21 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
                       DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings)
 {
   MYSQL_RES *res= 0;
-  MYSQL *mysql= &cn->mysql;
+  MYSQL *mysql= cn->mysql;
   int err= 0, counter= 0;
   DBUG_ENTER("run_query_normal");
   DBUG_PRINT("enter",("flags: %d", flags));
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
+
+  if (!mysql)
+  {
+    /* Emulate old behaviour of sending something on a closed connection */
+    handle_error(command, 2006, "MySQL server has gone away",
+                 "000000", ds);
+    cn->pending= FALSE;
+    var_set_errno(2006);
+    DBUG_VOID_RETURN;
+  }
 
   if (flags & QUERY_SEND_FLAG)
   {
@@ -7060,7 +7082,7 @@ void handle_error(struct st_command *command,
 
   DBUG_ENTER("handle_error");
 
-  if (command->require_file[0])
+  if (command->require_file)
   {
     /*
       The query after a "--require" failed. This is fine as long the server
@@ -7444,7 +7466,7 @@ int util_query(MYSQL* org_mysql, const char* query){
 
 void run_query(struct st_connection *cn, struct st_command *command, int flags)
 {
-  MYSQL *mysql= &cn->mysql;
+  MYSQL *mysql= cn->mysql;
   DYNAMIC_STRING *ds;
   DYNAMIC_STRING *save_ds= NULL;
   DYNAMIC_STRING ds_result;
@@ -7487,7 +7509,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
     Create a temporary dynamic string to contain the output from
     this query.
   */
-  if (command->require_file[0])
+  if (command->require_file)
   {
     init_dynamic_string(&ds_result, "", 1024, 1024);
     ds= &ds_result;
@@ -7645,7 +7667,7 @@ void run_query(struct st_connection *cn, struct st_command *command, int flags)
 	  mysql_errno(mysql), mysql_error(mysql));
   }
 
-  if (command->require_file[0])
+  if (command->require_file)
   {
     /* A result file was specified for _this_ query
        and the output should be checked against an already
@@ -7987,6 +8009,7 @@ int main(int argc, char **argv)
   char save_file[FN_REFLEN];
   bool empty_result= FALSE;
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
 
   save_file[0]= 0;
   TMPDIR[0]= 0;
@@ -8018,8 +8041,8 @@ int main(int argc, char **argv)
 
   my_init_dynamic_array(&q_lines, sizeof(struct st_command*), 1024, 1024);
 
-  if (hash_init(&var_hash, charset_info,
-                1024, 0, 0, get_var_key, var_free, MYF(0)))
+  if (hash_init2(&var_hash, 64, charset_info,
+                 128, 0, 0, get_var_key, var_free, MYF(0)))
     die("Variable hash initialization failed");
 
   var_set_string("MYSQL_SERVER_VERSION", MYSQL_SERVER_VERSION);
@@ -8046,6 +8069,7 @@ int main(int argc, char **argv)
 #endif
 
   init_dynamic_string(&ds_res, "", 2048, 2048);
+  init_alloc_root(&require_file_root, 1024, 1024);
 
   parse_args(argc, argv);
 
@@ -8102,30 +8126,30 @@ int main(int argc, char **argv)
     ps_protocol_enabled= 1;
 
   st_connection *con= connections;
-  if (!( mysql_init(&con->mysql)))
+  if (! (con->mysql= mysql_init(0)))
     die("Failed in mysql_init()");
   if (opt_compress)
-    mysql_options(&con->mysql,MYSQL_OPT_COMPRESS,NullS);
-  mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME,
+    mysql_options(con->mysql,MYSQL_OPT_COMPRESS,NullS);
+  mysql_options(con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
+  mysql_options(con->mysql, MYSQL_SET_CHARSET_NAME,
                 charset_info->csname);
   if (opt_charsets_dir)
-    mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
+    mysql_options(con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
 
   if (opt_protocol)
-    mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+    mysql_options(con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 
 #ifdef HAVE_OPENSSL
 
   if (opt_use_ssl)
   {
-    mysql_ssl_set(&con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+    mysql_ssl_set(con->mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
 #if MYSQL_VERSION_ID >= 50000
     /* Turn on ssl_verify_server_cert only if host is "localhost" */
     opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
-    mysql_options(&con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+    mysql_options(con->mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
                   &opt_ssl_verify_server_cert);
 #endif
   }
@@ -8133,13 +8157,13 @@ int main(int argc, char **argv)
 
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
-    mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+    mysql_options(con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
 
   if (!(con->name = my_strdup("default", MYF(MY_WME))))
     die("Out of memory");
 
-  safe_connect(&con->mysql, con->name, opt_host, opt_user, opt_pass,
+  safe_connect(con->mysql, con->name, opt_host, opt_user, opt_pass,
                opt_db, opt_port, unix_sock);
 
   /* Use all time until exit if no explicit 'start_timer' */
@@ -8367,7 +8391,9 @@ int main(int argc, char **argv)
 
 	if (save_file[0])
 	{
-	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
+          if (!(command->require_file= strdup_root(&require_file_root,
+                                                   save_file)))
+            die("out of memory for require_file");
 	  save_file[0]= 0;
 	}
 	run_query(cur_con, command, flags);
@@ -8436,11 +8462,11 @@ int main(int argc, char **argv)
         command->last_argument= command->end;
 	break;
       case Q_PING:
-        handle_command_error(command, mysql_ping(&cur_con->mysql), -1);
+        handle_command_error(command, mysql_ping(cur_con->mysql), -1);
         break;
       case Q_SEND_SHUTDOWN:
         handle_command_error(command,
-                             mysql_shutdown(&cur_con->mysql,
+                             mysql_shutdown(cur_con->mysql,
                                             SHUTDOWN_DEFAULT), -1);
         break;
       case Q_SHUTDOWN_SERVER:
@@ -8470,10 +8496,10 @@ int main(int argc, char **argv)
         ps_protocol_enabled= ps_protocol;
         break;
       case Q_DISABLE_RECONNECT:
-        set_reconnect(&cur_con->mysql, 0);
+        set_reconnect(cur_con->mysql, 0);
         break;
       case Q_ENABLE_RECONNECT:
-        set_reconnect(&cur_con->mysql, 1);
+        set_reconnect(cur_con->mysql, 1);
         /* Close any open statements - no reconnect, need new prepare */
         close_statements();
         break;

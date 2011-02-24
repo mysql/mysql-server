@@ -1590,6 +1590,7 @@ mysql_init(MYSQL *mysql)
   */
   mysql->reconnect= 0;
 
+  DBUG_PRINT("mysql",("mysql: 0x%lx", (long) mysql));
   return mysql;
 }
 
@@ -2776,6 +2777,8 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
 void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
+  DBUG_PRINT("enter", ("mysql: 0x%lx", (long) mysql));
+
   if (mysql)					/* Some simple safety */
   {
     /* If connection is still up, send a QUIT message */

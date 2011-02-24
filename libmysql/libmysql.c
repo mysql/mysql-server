@@ -211,11 +211,19 @@ void STDCALL mysql_server_end()
   {
     my_end(0);
   }
+#ifdef NOT_NEEDED
+  /*
+    The following is not needed as if the program explicitely called
+    my_init() then we can assume it will also call my_end().
+    The reason to not also do it here is in that case we can't get
+    statistics from my_end() to debug log.
+  */
   else
   {
     free_charsets();
     mysql_thread_end();
   }
+#endif
 
   mysql_client_init= org_my_init_done= 0;
 #ifdef EMBEDDED_SERVER
