@@ -478,8 +478,8 @@ sync_array_cell_print(
 	fprintf(file,
 		"--Thread %lu has waited at %s line %lu"
 		" for %.2f seconds the semaphore:\n",
-		(ulong) os_thread_pf(cell->thread), cell->file,
-		(ulong) cell->line,
+		(ulong) os_thread_pf(cell->thread),
+		innobase_basename(cell->file), (ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
@@ -493,7 +493,8 @@ sync_array_cell_print(
 			"Last time reserved in file %s line %lu, "
 #endif /* UNIV_SYNC_DEBUG */
 			"waiters flag %lu\n",
-			(void*) mutex, mutex->cfile_name, (ulong) mutex->cline,
+			(void*) mutex, innobase_basename(mutex->cfile_name),
+			(ulong) mutex->cline,
 			(ulong) mutex->lock_word,
 #ifdef UNIV_SYNC_DEBUG
 			mutex->file_name, (ulong) mutex->line,
@@ -512,7 +513,7 @@ sync_array_cell_print(
 
 		fprintf(file,
 			" RW-latch at %p created in file %s line %lu\n",
-			(void*) rwlock, rwlock->cfile_name,
+			(void*) rwlock, innobase_basename(rwlock->cfile_name),
 			(ulong) rwlock->cline);
 		writer = rw_lock_get_writer(rwlock);
 		if (writer != RW_LOCK_NOT_LOCKED) {
@@ -533,7 +534,7 @@ sync_array_cell_print(
 			(ulong) rw_lock_get_reader_count(rwlock),
 			(ulong) rwlock->waiters,
 			rwlock->lock_word,
-			rwlock->last_s_file_name,
+			innobase_basename(rwlock->last_s_file_name),
 			(ulong) rwlock->last_s_line,
 			rwlock->last_x_file_name,
 			(ulong) rwlock->last_x_line);
