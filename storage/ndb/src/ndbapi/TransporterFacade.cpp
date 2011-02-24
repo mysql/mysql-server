@@ -1539,6 +1539,7 @@ TransporterFacade::start_poll(trp_client* clnt)
 void
 TransporterFacade::do_poll(trp_client* clnt, Uint32 wait_time)
 {
+  clnt->m_poll.m_waiting = true;
   assert(clnt->m_poll.m_locked == true);
   trp_client* owner = m_poll_owner;
   if (owner != NULL && owner != clnt)
@@ -1552,9 +1553,11 @@ TransporterFacade::do_poll(trp_client* clnt, Uint32 wait_time)
       queue if it hasn't happened already. It is usually already out of the
       queue but at time-out it could be that the object is still there.
     */
+    assert(clnt->m_poll.m_poll_owner == false);
     add_to_poll_queue(clnt);
-    clnt->cond_wait(wait_time, theMutexPtr); // release/reacquire mutex
-    if (clnt != m_poll_owner)
+    NdbCondition_WaitTimeout(clnt->m_poll.m_condition, theMutexPtr,
+                             wait_time);
+    if (clnt != m_poll_owner && clnt->m_poll.m_waiting)
     {
       remove_from_poll_queue(clnt);
     }
@@ -1574,8 +1577,23 @@ TransporterFacade::do_poll(trp_client* clnt, Uint32 wait_time)
 }
 
 void
+TransporterFacade::wakeup(trp_client* clnt)
+{
+  if (clnt->m_poll.m_waiting)
+  {
+    clnt->m_poll.m_waiting = false;
+    if (m_poll_owner != clnt)
+    {
+      remove_from_poll_queue(clnt);
+      NdbCondition_Signal(clnt->m_poll.m_condition);
+    }
+  }
+}
+
+void
 TransporterFacade::complete_poll(trp_client* clnt)
 {
+  clnt->m_poll.m_waiting = false;
   if (!clnt->m_poll.m_locked)
   {
     assert(clnt->m_poll.m_poll_owner == false);
@@ -1603,7 +1621,9 @@ TransporterFacade::complete_poll(trp_client* clnt)
   if (new_owner)
   {
     assert(new_owner->m_poll.m_poll_owner == false);
-    new_owner->cond_signal();
+    assert(new_owner->m_poll.m_locked == true);
+    assert(new_owner->m_poll.m_waiting == true);
+    NdbCondition_Signal(new_owner->m_poll.m_condition);
     new_owner->m_poll.m_poll_owner = true;
   }
   clnt->m_poll.m_locked = false;
