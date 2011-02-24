@@ -1,5 +1,4 @@
 /***************************************************************************//**
-
 Copyright (c) 2011, Oracle Corpn. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -17,21 +16,14 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 *****************************************************************************/
 
 /******************************************************************//**
-@file include/ut0bh.h
-Binary min-heap interface.
+@file include/ut0bh.ic
+Binary min-heap implementation.
 
-Created 2010-05-28 by Sunny Bains
+Created 2011-01-15 by Sunny Bains
 *******************************************************/
 
-#ifndef INNOBASE_UT0BH_H
-#define INNOBASE_UT0BH_H
-
-#include "univ.i"
-
-/** Comparison function for objects in the binary heap. */
-typedef int (*ib_bh_cmp_t)(const void* p1, const void* p2);
-
-typedef struct ib_bh_struct ib_bh_t;
+#include "ut0bh.h"
+#include "ut0mem.h"	/* For ut_memcpy() */
 
 /**********************************************************************//**
 Get the number of elements in the binary heap.
@@ -40,7 +32,10 @@ UNIV_INLINE
 ulint
 ib_bh_size(
 /*=======*/
-	const ib_bh_t*	ib_bh);			/*!< in: instance */
+	const ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh->n_elems);
+}
 
 /**********************************************************************//**
 Test if binary heap is empty.
@@ -49,7 +44,10 @@ UNIV_INLINE
 ibool
 ib_bh_is_empty(
 /*===========*/
-	const ib_bh_t*	ib_bh);			/*!< in: instance */
+	const ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh_size(ib_bh) == 0);
+}
 
 /**********************************************************************//**
 Test if binary heap is full.
@@ -58,7 +56,10 @@ UNIV_INLINE
 ibool
 ib_bh_is_full(
 /*===========*/
-	const ib_bh_t*	ib_bh);			/*!< in: instance */
+	const ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh_size(ib_bh) >= ib_bh->max_elems);
+}
 
 /**********************************************************************//**
 Get a pointer to the element.
@@ -68,7 +69,14 @@ void*
 ib_bh_get(
 /*=======*/
 	ib_bh_t*	ib_bh,			/*!< in: instance */
-	ulint		i);			/*!< in: index */
+	ulint		i)			/*!< in: index */
+{
+	byte*		ptr = (byte*) (ib_bh + 1);
+
+	ut_a(i < ib_bh_size(ib_bh));
+
+	return(ptr + (ib_bh->sizeof_elem * i));
+}
 
 /**********************************************************************//**
 Copy an element to the binary heap.
@@ -79,7 +87,14 @@ ib_bh_set(
 /*======*/
 	ib_bh_t*	ib_bh,			/*!< in/out: instance */
 	ulint		i,			/*!< in: index */
-	const void*	elem);			/*!< in: element to add */
+	const void*	elem)			/*!< in: element to add */
+{
+	void*		ptr = ib_bh_get(ib_bh, i);
+
+	ut_memcpy(ptr, elem, ib_bh->sizeof_elem);
+
+	return(ptr);
+}
 
 /**********************************************************************//**
 Return the first element from the binary heap.
@@ -88,7 +103,10 @@ UNIV_INLINE
 void*
 ib_bh_first(
 /*========*/
-	ib_bh_t*	ib_bh);			/*!< in: instance */
+	ib_bh_t*	ib_bh)			/*!< in: instance */
+{
+	return(ib_bh_is_empty(ib_bh) ? NULL : ib_bh_get(ib_bh, 0));
+}
 
 /**********************************************************************//**
 Return the last element from the binary heap.
@@ -97,56 +115,11 @@ UNIV_INLINE
 void*
 ib_bh_last(
 /*========*/
-	ib_bh_t*	ib_bh);			/*!< in/out: instance */
+	ib_bh_t*	ib_bh)			/*!< in/out: instance */
+{
+	return(ib_bh_is_empty(ib_bh)
+		? NULL
+		: ib_bh_get(ib_bh, ib_bh_size(ib_bh) - 1));
+}
 
-/**********************************************************************//**
-Create a binary heap.
-@return a new binary heap */
-UNIV_INTERN
-ib_bh_t*
-ib_bh_create(
-/*=========*/
-	ib_bh_cmp_t	compare,		/*!< in: comparator */
-	ulint		sizeof_elem,		/*!< in: size of one element */
-	ulint		max_elems);		/*!< in: max elements allowed */
 
-/**********************************************************************//**
-Free a binary heap.
-@return a new binary heap */
-UNIV_INTERN
-void
-ib_bh_free(
-/*=======*/
-	ib_bh_t*	ib_bh);			/*!< in,own: instance */
-
-/**********************************************************************//**
-Add an element to the binary heap. Note: The element is copied.
-@return pointer to added element or NULL if full. */
-UNIV_INTERN
-void*
-ib_bh_push(
-/*=======*/
-	ib_bh_t*	ib_bh,			/*!< in/out: instance */
-	const void*	elem);			/*!< in: element to add */
-
-/**********************************************************************//**
-Remove the first element from the binary heap. */
-UNIV_INTERN
-void
-ib_bh_pop(
-/*======*/
-	ib_bh_t*	ib_bh);			/*!< in/out: instance */
-
-/** Binary heap data structure */
-struct ib_bh_struct {
-	ulint		max_elems;		/*!< max elements allowed */
-	ulint		n_elems;		/*!< current size */
-	ulint		sizeof_elem;		/*!< sizeof element */
-	ib_bh_cmp_t	compare;		/*!< comparator */
-};
-
-#ifndef UNIV_NONINL
-#include "ut0bh.ic"
-#endif
-
-#endif /* INNOBASE_UT0BH_H */
