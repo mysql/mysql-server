@@ -2700,6 +2700,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
+  case HA_ERR_RECORD_DELETED:
   case HA_ERR_END_OF_FILE:
     textno=ER_KEY_NOT_FOUND;
     break;

@@ -1472,4 +1472,4 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
   DBUG_RETURN(0);
 }
 
-#endif /* HAVE_NDBCLUSTER_DB */
+#endif

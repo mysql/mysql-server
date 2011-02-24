@@ -2640,7 +2640,7 @@ Item_func_if::fix_length_and_dec()
   if (null1)
   {
     cached_result_type= arg2_type;
-    collation.set(args[2]->collation.collation);
+    collation.set(args[2]->collation);
     cached_field_type= args[2]->field_type();
     max_length= args[2]->max_length;
     return;
@@ -2649,7 +2649,7 @@ Item_func_if::fix_length_and_dec()
   if (null2)
   {
     cached_result_type= arg1_type;
-    collation.set(args[1]->collation.collation);
+    collation.set(args[1]->collation);
     cached_field_type= args[1]->field_type();
     max_length= args[1]->max_length;
     return;
