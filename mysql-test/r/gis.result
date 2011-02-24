@@ -1035,6 +1035,10 @@ NULL
 NULL
 drop table t1;
 End of 5.1 tests
+CREATE TABLE t0 (a BINARY(32) NOT NULL);
+CREATE SPATIAL INDEX i on t0 (a);
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+INSERT INTO t0 VALUES (1);
 CREATE TABLE t1(
 col0 BINARY NOT NULL,
 col2 TIMESTAMP,
@@ -1063,5 +1067,4 @@ col2 LINESTRING,
 SPATIAL INDEX i1 (col1, col2)
 );
 ERROR HY000: Incorrect arguments to SPATIAL INDEX
-DROP TABLE t1;
-DROP TABLE t2;
+DROP TABLE t0, t1, t2;
