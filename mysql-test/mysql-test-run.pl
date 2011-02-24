@@ -5677,6 +5677,7 @@ sub run_ctest() {
   chdir ($bindir) or die ("Could not chdir to $bindir");
   my $tinfo;
   my $no_ctest= (IS_WINDOWS) ? 256 : -1;
+  my $ctest_vs= "";
 
   # Just ignore if not configured/built to run ctest
   if (! -f "CTestTestfile.cmake") {
@@ -5684,9 +5685,12 @@ sub run_ctest() {
     return;
   }
 
+  # Add vs-config option on Windows if needed
+  $ctest_vs= "-C $opt_vs_config" if IS_WINDOWS && $opt_vs_config;
+
   # Also silently ignore if we don't have ctest and didn't insist
   # Now, run ctest and collect output
-  my $ctest_out= `ctest 2>&1`;
+  my $ctest_out= `ctest $ctest_vs 2>&1`;
   if ($? == $no_ctest && $opt_ctest == -1) {
     chdir($olddir);
     return;
