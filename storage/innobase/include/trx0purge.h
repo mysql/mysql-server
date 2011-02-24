@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,7 +70,8 @@ UNIV_INTERN
 void
 trx_purge_sys_create(
 /*=================*/
-	ulint	n_purge_threads);	/*!< in: number of purge threads */
+	ulint		n_purge_threads,/*!< in: number of purge threads */
+	ib_bh_t*	ib_bh);		/*!< in/own: UNDO log min binary heap*/
 /********************************************************************//**
 Frees the global purge system control structure. */
 UNIV_INTERN
@@ -140,9 +141,10 @@ struct trx_purge_struct{
 					worker threads */
 	ulint		n_completed;	/*!< Count of total tasks completed */
 
-	mutex_t		mutex;		/*!< Mutex protecting the fields
-					below */
-	/*-----------------------------*/
+	/*------------------------------*/
+	/* The following two fields form the 'purge pointer' which advances
+	during a purge, and which is used in history list truncation */
+
 	purge_iter_t	iter;		/* Limit up to which we have read and
 					parsed the UNDO log records.  Not
 					necessarily purged from the indexes.
@@ -173,6 +175,11 @@ struct trx_purge_struct{
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
+	/*-----------------------------*/
+	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
+					rseg_queue_t::trx_no. It is protected
+					by the bh_mutex */
+	mutex_t		bh_mutex;	/*!< Mutex protecting ib_bh */
 };
 
 /** Info required to purge a record */
@@ -182,19 +189,6 @@ struct trx_purge_rec_struct {
 };
 
 typedef struct trx_purge_rec_struct trx_purge_rec_t;
-
-/** Test if purge mutex is owned. */
-#define purge_mutex_own() mutex_own(&purge_sys->mutex)
-
-/** Acquire the flush list mutex. */
-#define purge_mutex_enter() do {		\
-	mutex_enter(&purge_sys->mutex);		\
-} while (0)
-
-/** Release the purge mutex. */
-# define purge_mutex_exit() do {	\
-	mutex_exit(&purge_sys->mutex);	\
-} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0purge.ic"
