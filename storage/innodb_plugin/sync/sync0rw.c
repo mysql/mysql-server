@@ -260,6 +260,9 @@ rw_lock_create_func(
 	contains garbage at initialization and cannot be used for
 	recursive x-locking. */
 	lock->recursive = FALSE;
+	/* Silence Valgrind when UNIV_DEBUG_VALGRIND is not enabled. */
+	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
+	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
