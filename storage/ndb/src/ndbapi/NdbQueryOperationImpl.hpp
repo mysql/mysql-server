@@ -37,6 +37,57 @@ class NdbReceiver;
 class NdbOut;
 class NdbRootFragment;
 
+/**
+ * This class simplifies the task of allocating memory for many instances
+ * of the same type at once and then constructing them later.
+ */
+class NdbBulkAllocator
+{
+public:
+  /**
+   * @param[in] objSize Size (in bytes) of each object.
+   */
+  explicit NdbBulkAllocator(size_t objSize);
+  ~NdbBulkAllocator()
+  { reset(); };
+
+  /**
+   * Allocate memory for a number of objects from the heap.
+   * @param[in] maxObjs The maximal number of objects this instance should
+   * accomodate.
+   * @return 0 or possible error code.
+   */
+  int init(Uint32 maxObjs);
+
+  /** Release allocated memory to heap and reset *this to initial state.*/
+  void reset();
+
+  /**
+   * Get an area large enough to hold 'noOfObjs' objects.
+   * @return The memory area.
+   */
+  void* allocObjMem(Uint32 noOfObjs);
+private:
+  /** An end marker for checking for buffer overrun.*/
+  static const char endMarker = -15;
+
+  /** Size of each object (in bytes).*/
+  const size_t m_objSize;
+
+  /** The number of objects this instance can accomodate.*/
+  Uint32 m_maxObjs;
+
+  /** The allocated memory area.*/
+  char* m_buffer;
+
+  /** The number of object areas allocated so far.*/
+  Uint32 m_nextObjNo;
+
+  // No copying.
+  NdbBulkAllocator(const NdbBulkAllocator&);
+  NdbBulkAllocator& operator= (const NdbBulkAllocator&);
+};
+
 /** This class is the internal implementation of the interface defined by
  * NdbQuery. This class should thus not be visible to the application 
  * programmer. @see NdbQuery.*/
@@ -194,6 +245,9 @@ public:
   Uint32 getRootFragCount() const
   { return m_rootFragCount; }
 
+  NdbBulkAllocator& getTupleSetAlloc()
+  { return m_tupleSetAlloc; }
+
 private:
   /** Possible return values from NdbQueryImpl::awaitMoreResults. 
    * A subset of the integer values also matches those returned
@@ -218,15 +272,18 @@ private:
    */
   class SharedFragStack{
   public:
+    // For calculating need for dynamically allocated memory.
+    static const Uint32 pointersPerFragment = 2;
+
     explicit SharedFragStack();
 
-    ~SharedFragStack() {
-      delete[] m_array;
-    }
-
-    // Prepare internal datastructures.
-    // Return 0 if ok, else errorcode
-    int prepare(int capacity);
+    /** 
+     * Prepare internal datastructures.
+     * param[in] allocator For allocating arrays of pointers.
+     * param[in] capacity Max no of root fragments.
+     * @return 0 if ok, else errorcode
+     */
+    int prepare(NdbBulkAllocator& allocator, int capacity);
 
     NdbRootFragment* pop() { 
       return m_current>=0 ? m_array[m_current--] : NULL;
@@ -260,14 +317,23 @@ private:
 
   class OrderedFragSet{
   public:
+    // For calculating need for dynamically allocated memory.
+    static const Uint32 pointersPerFragment = 1;
+
     explicit OrderedFragSet();
 
     ~OrderedFragSet(); 
 
-    // Prepare internal datastructures.
-    // Return 0 if ok, else errorcode
-    int prepare(NdbQueryOptions::ScanOrdering ordering, 
-                int size, 
+    /** 
+     * Prepare internal datastructures.
+     * param[in] allocator For allocating arrays of pointers.
+     * param[in] ordering Possible scan ordering.
+     * param[in] capacity Max no of root fragments.
+     * @return 0 if ok, else errorcode
+     */
+    int prepare(NdbBulkAllocator& allocator,
+                NdbQueryOptions::ScanOrdering ordering, 
+                int capacity,  
                 const NdbRecord* keyRecord,
                 const NdbRecord* resultRecord);
 
@@ -444,6 +510,21 @@ private:
    * fragment that should be scanned.*/
   Uint32 m_pruneHashVal;
 
+  /** Allocator for NdbQueryOperationImpl objects.*/
+  NdbBulkAllocator m_operationAlloc;
+
+  /** Allocator for NdbResultStream::TupleSet objects.*/
+  NdbBulkAllocator m_tupleSetAlloc;
+
+  /** Allocator for NdbResultStream objects.*/
+  NdbBulkAllocator m_resultStreamAlloc;
+
+  /** Allocator for pointers.*/
+  NdbBulkAllocator m_pointerAlloc;
+
+  /** Allocator for result row buffers.*/
+  NdbBulkAllocator m_rowBufferAlloc;
+
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(
              NdbTransaction& trans,
@@ -495,6 +576,13 @@ private:
    *  @return: 'true' if its time to resume appl. threads
    */ 
   bool handleBatchComplete(Uint32 rootFragNo);
+
+  NdbBulkAllocator& getPointerAlloc()
+  { return m_pointerAlloc; }
+  
+  NdbBulkAllocator& getRowBufferAlloc()
+  { return m_rowBufferAlloc; }
+
 }; // class NdbQueryImpl
 
 
@@ -660,13 +748,12 @@ private:
   /** Buffer size allocated for *each* ResultStream/Receiver when 
    *  fetching results.*/
   Uint32 m_bufferSize;
-  /** Internally allocated temp. buffer for *all* m_resultStreams[]
-   *  when receiving a batch. (m_bufferSize x #ResultStreams) */
-  char* m_batchBuffer;
+  /** Used for checking if buffer overrun occurred. */
+  Uint32* m_batchOverflowCheck;
   /** User specified buffer for final storage of result.*/
   char* m_resultBuffer;
   /** User specified pointer to application pointer that should be 
-   * set to point to the current row inside m_batchBuffer
+   * set to point to the current row inside a receiver buffer
    * @see NdbQueryOperationImpl::setResultRowRef */
   const char** m_resultRef;
   /** True if this operation gave no result for the current row.*/
@@ -695,6 +782,9 @@ private:
    */
   Uint32 m_parallelism;
   
+  /** Size of each result row (in bytes).*/
+  mutable Uint32 m_rowSize;
+
   explicit NdbQueryOperationImpl(NdbQueryImpl& queryImpl, 
                                  const NdbQueryOperationDefImpl& def);
   ~NdbQueryOperationImpl();
@@ -771,6 +861,7 @@ private:
   bool diskInUserProjection() const
   { return m_diskInUserProjection; }
 
+  Uint32 getRowSize() const;
 }; // class NdbQueryOperationImpl
 
 
