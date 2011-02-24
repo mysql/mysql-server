@@ -5680,8 +5680,8 @@ sub run_ctest() {
     return;
   }
 
-  # Add vs-config option on Windows if needed
-  $ctest_vs= "-C $opt_vs_config" if IS_WINDOWS && $opt_vs_config;
+  # Add vs-config option if needed
+  $ctest_vs= "-C $opt_vs_config" if $opt_vs_config;
 
   # Also silently ignore if we don't have ctest and didn't insist
   # Now, run ctest and collect output
