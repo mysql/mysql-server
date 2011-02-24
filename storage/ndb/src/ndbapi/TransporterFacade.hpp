@@ -149,6 +149,7 @@ public:
   void start_poll(trp_client*);
   void do_poll(trp_client* clnt, Uint32 wait_time);
   void complete_poll(trp_client*);
+  void wakeup(trp_client*);
 
   void external_poll(Uint32 wait_time);
 
