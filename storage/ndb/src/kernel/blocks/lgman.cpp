@@ -981,19 +981,15 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
     }
   }
 
-  if(2*pages > requested)
+  if(pages)
   {
-    // less than half allocated
+    /* Could not allocate all of the requested memory.
+     * So release that already allocated.
+     */
     free_logbuffer_memory(ptr);
     return false;
   }
   
-  if(pages != 0)
-  {
-    warningEvent("Allocated %d pages for log buffer space, logfile_group: %d"
-		 " , requested %d pages", 
-		 (requested-pages), ptr.p->m_logfile_group_id, requested);
-  }
 #if defined VM_TRACE || defined ERROR_INSERT
   ndbout << "DD lgman: fg id:" << ptr.p->m_logfile_group_id << " undo buffer pages/bytes:" << (requested-pages) << "/" << (requested-pages)*File_formats::NDB_PAGE_SIZE << endl;
 #endif
