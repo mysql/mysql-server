@@ -20,48 +20,6 @@
 #include <signaldata/TcKeyReq.hpp>
 #include <BlockNumbers.h>
 
-
-bool
-printTCINDXCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
-  
-  if (receiverBlockNo == API_PACKED) {
-    fprintf(output, "Signal data: ");
-    Uint32 i = 0;
-    while (i < len)
-      fprintf(output, "H\'%.8x ", theData[i++]);
-    fprintf(output,"\n");
-  }
-  else {
-    const TcIndxConf * const sig = (TcIndxConf *) theData;
-    
-    fprintf(output, "Signal data: ");
-    Uint32 i = 0;
-    Uint32 confInfo = sig->confInfo;
-    Uint32 noOfOp = TcIndxConf::getNoOfOperations(confInfo);
-    while (i < len)
-      fprintf(output, "H\'%.8x ", theData[i++]);
-    fprintf(output,"\n");
-    fprintf(output, "apiConnectPtr: H'%.8x, gci: %u/%u, transId:(H'%.8x, H'%.8x)\n",
-	    sig->apiConnectPtr,
-            sig->gci_hi, *(Uint32*)&sig->operations[noOfOp],
-            sig->transId1, sig->transId2);
-    
-    fprintf(output, "noOfOperations: %u, commitFlag: %s, markerFlag: %s\n", 
-	    noOfOp,
-	    (TcIndxConf::getCommitFlag(confInfo) == 0)?"false":"true",
-	    (TcIndxConf::getMarkerFlag(confInfo) == 0)?"false":"true");
-    fprintf(output, "Operations:\n");
-    for(i = 0; i < noOfOp; i++) {
-      fprintf(output,
-	      "apiOperationPtr: H'%.8x, attrInfoLen: %u\n",
-	      sig->operations[i].apiOperationPtr,
-	      sig->operations[i].attrInfoLen);
-    }
-  }
-
-  return true;
-}
-
 bool
 printTCINDXREF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){
   
