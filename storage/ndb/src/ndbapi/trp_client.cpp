@@ -21,6 +21,7 @@
 trp_client::trp_client()
   : m_blockNo(~Uint32(0)), m_facade(0)
 {
+  m_poll.m_waiting = false;
   m_poll.m_locked = false;
   m_poll.m_poll_owner = false;
   m_poll.m_next = 0;
@@ -98,22 +99,6 @@ void
 trp_client::complete_poll()
 {
   m_facade->complete_poll(this);
-}
-
-void
-trp_client::cond_signal()
-{
-  assert(m_poll.m_locked);
-  assert(m_poll.m_poll_owner == false);
-  NdbCondition_Signal(m_poll.m_condition);
-}
-
-void
-trp_client::cond_wait(Uint32 timeout, NdbMutex* mutexPtr)
-{
-  assert(m_poll.m_locked);
-  assert(m_poll.m_poll_owner == false);
-  NdbCondition_WaitTimeout(m_poll.m_condition, mutexPtr, (int)timeout);
 }
 
 void

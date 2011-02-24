@@ -84,23 +84,12 @@ private:
   {
     bool m_locked;
     bool m_poll_owner;
+    bool m_waiting;
     trp_client *m_prev;
     trp_client *m_next;
     NdbCondition * m_condition;
   } m_poll;
-  void cond_wait(Uint32 timeout, NdbMutex*);
-  void cond_signal();
 };
-
-inline
-void
-trp_client::wakeup()
-{
-  if (m_poll.m_locked == true && m_poll.m_poll_owner == false)
-    cond_signal();
-  else if (m_poll.m_poll_owner)
-    assert(m_poll.m_locked);
-}
 
 class PollGuard
 {
@@ -136,6 +125,13 @@ trp_client::unlock()
   assert(m_poll.m_locked == true);
   m_poll.m_locked = false;
   NdbMutex_Unlock(m_facade->theMutexPtr);
+}
+
+inline
+void
+trp_client::wakeup()
+{
+  m_facade->wakeup(this);
 }
 
 inline
