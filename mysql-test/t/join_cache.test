@@ -438,6 +438,7 @@ SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.P
        Country.Population > 10000000;
 
 
+--replace_column 9 #
 EXPLAIN
 SELECT Country.Name, Country.Population, City.Name, City.Population 
   FROM Country LEFT JOIN City

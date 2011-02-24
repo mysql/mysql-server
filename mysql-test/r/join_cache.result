@@ -1209,8 +1209,8 @@ FROM Country LEFT JOIN City
 ON City.Country=Country.Code AND City.Population > 5000000
 WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	Country	range	Name	Name	52	NULL	17	Using index condition; Using where; Using MRR
-1	SIMPLE	City	hash_range	Population,Country	#hash#Country:Population	3:4	world.Country.Code	31	Using where; Using MRR; Using join buffer (flat, BNLH join)
+1	SIMPLE	Country	range	Name	Name	52	NULL	#	Using index condition; Using where; Using MRR
+1	SIMPLE	City	hash_range	Population,Country	#hash#Country:Population	3:4	world.Country.Code	#	Using where; Using MRR; Using join buffer (flat, BNLH join)
 SELECT Country.Name, Country.Population, City.Name, City.Population 
 FROM Country LEFT JOIN City
 ON City.Country=Country.Code AND City.Population > 5000000
