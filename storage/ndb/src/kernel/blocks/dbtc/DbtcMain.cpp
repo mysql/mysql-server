@@ -2790,7 +2790,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   Uint8 TNoDiskFlag         = TcKeyReq::getNoDiskFlag(Treqinfo);
   Uint8 TexecuteFlag        = TexecFlag;
   Uint8 Treorg              = TcKeyReq::getReorgFlag(Treqinfo);
-  const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo); 
+  const Uint8 TViaSPJFlag   = TcKeyReq::getViaSPJFlag(Treqinfo);
   const Uint8 Tqueue        = TcKeyReq::getQueueOnRedoProblemFlag(Treqinfo);
 
   if (Treorg)
@@ -4104,7 +4104,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 {
   const LqhKeyConf * const lqhKeyConf = (LqhKeyConf *)signal->getDataPtr();
 #ifdef UNUSED
-  ndbout << "TC: Received LQHKEYCONF" 
+  ndbout << "TC: Received LQHKEYCONF"
          << " transId1=" << lqhKeyConf-> transId1
          << " transId2=" << lqhKeyConf-> transId2
 	 << endl;
@@ -11034,9 +11034,9 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
     scanptr.p->m_queued_count++;
   }
 
-  if (status != 0 && 
+  if (status != 0 &&
       scanptr.p->m_pass_all_confs &&
-      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count 
+      scanptr.p->scanNextFragId+scanptr.p->m_booked_fragments_count
       < scanptr.p->scanNoFrag){
     /**
      * nodeMask(=total_len) should be zero since there will be no more
@@ -11044,7 +11044,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
      */
     ndbrequire(total_len==0);
     /**
-     * Now set it to one to tell the API that there may be more rows from 
+     * Now set it to one to tell the API that there may be more rows from
      * the next fragment.
      */
     total_len  = 1;
@@ -11696,13 +11696,13 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
     LinearSectionPtr ptr[3];
     ptr[0].p = signal->getDataPtrSend()+25;
     ptr[0].sz = words_per_op * op_count;
-    sendSignal(ref, GSN_SCAN_TABCONF, signal, 
+    sendSignal(ref, GSN_SCAN_TABCONF, signal,
                ScanTabConf::SignalLength, JBB, ptr, 1);
   }
-  else 
+  else
   {
     jam();
-    sendSignal(ref, GSN_SCAN_TABCONF, signal, 
+    sendSignal(ref, GSN_SCAN_TABCONF, signal,
 	       ScanTabConf::SignalLength + words_per_op * op_count, JBB);
   }
   scanPtr.p->m_queued_count = 0;

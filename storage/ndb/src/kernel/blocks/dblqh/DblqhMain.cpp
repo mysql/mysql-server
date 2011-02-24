@@ -3814,7 +3814,7 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
   if(!packed)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
-    if (instance() == refToInstance(atcBlockref) && 
+    if (instance() == refToInstance(atcBlockref) &&
         (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()))
     {
       /**
@@ -4116,7 +4116,7 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 /*                                                                           */
 /* ------------------------------------------------------------------------- */
 int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec,
-                           Uint32 hi) 
+                           Uint32 hi)
 {
   TcConnectionrec *regTcConnectionrec = tcConnectionrec;
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
@@ -5628,7 +5628,7 @@ void Dblqh::handleUserUnlockRequest(Signal* signal)
   if (unlikely( findTransaction(regTcPtr->transid[0], 
                                 regTcPtr->transid[1], 
                                 tcOpRecIndex,
-                                0) != ZOK)) 
+                                0) != ZOK))
   {
     jam();
     unlockError(signal, ZBAD_OP_REF);
@@ -11404,7 +11404,7 @@ void Dblqh::initScanTc(const ScanFragReq* req,
                        Uint32 transid2,
                        Uint32 fragId,
                        Uint32 nodeId,
-                       Uint32 hashHi) 
+                       Uint32 hashHi)
 {
   tcConnectptr.p->transid[0] = transid1;
   tcConnectptr.p->transid[1] = transid2;
