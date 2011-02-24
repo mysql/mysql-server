@@ -146,6 +146,50 @@ SELECT City.Name, Country.Name, CountryLanguage.Language
         CountryLanguage.Percentage > 50 AND
         LENGTH(Language) < LENGTH(City.Name) - 2;
 
+
+SELECT Country.Name, Country.Population, City.Name, City.Population 
+  FROM Country LEFT JOIN City
+       ON City.Country=Country.Code AND City.Population > 5000000
+   WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+SELECT Country.Name, Country.Population, City.Name, City.Population
+  FROM Country LEFT JOIN City 
+       ON City.Country=Country.Code AND
+          (City.Population > 5000000 OR City.Name LIKE 'Za%')
+  WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+CREATE INDEX City_Population ON City(Population);
+CREATE INDEX City_Name ON City(Name);
+
+ANALYZE TABLE City;
+
+EXPLAIN
+SELECT Country.Name, Country.Population, City.Name, City.Population 
+  FROM Country LEFT JOIN City
+       ON City.Country=Country.Code AND City.Population > 5000000
+   WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+SELECT Country.Name, Country.Population, City.Name, City.Population 
+  FROM Country LEFT JOIN City
+       ON City.Country=Country.Code AND City.Population > 5000000
+   WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+EXPLAIN
+SELECT Country.Name, Country.Population, City.Name, City.Population
+  FROM Country LEFT JOIN City 
+       ON City.Country=Country.Code AND
+          (City.Population > 5000000 OR City.Name LIKE 'Za%')
+  WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+SELECT Country.Name, Country.Population, City.Name, City.Population
+  FROM Country LEFT JOIN City 
+       ON City.Country=Country.Code AND
+          (City.Population > 5000000 OR City.Name LIKE 'Za%')
+  WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+DROP INDEX City_Population ON City;
+DROP INDEX City_Name ON City;
+
 set join_cache_level=default;
 
 set join_buffer_size=256;
@@ -393,6 +437,34 @@ SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.P
   WHERE 
        Country.Population > 10000000;
 
+
+EXPLAIN
+SELECT Country.Name, Country.Population, City.Name, City.Population 
+  FROM Country LEFT JOIN City
+       ON City.Country=Country.Code AND City.Population > 5000000
+   WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+SELECT Country.Name, Country.Population, City.Name, City.Population 
+  FROM Country LEFT JOIN City
+       ON City.Country=Country.Code AND City.Population > 5000000
+   WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+CREATE INDEX City_Name ON City(Name);
+
+EXPLAIN
+SELECT Country.Name, Country.Population, City.Name, City.Population
+  FROM Country LEFT JOIN City 
+       ON City.Country=Country.Code AND
+          (City.Population > 5000000 OR City.Name LIKE 'Za%')
+  WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+SELECT Country.Name, Country.Population, City.Name, City.Population
+  FROM Country LEFT JOIN City 
+       ON City.Country=Country.Code AND
+          (City.Population > 5000000 OR City.Name LIKE 'Za%')
+  WHERE Country.Name LIKE 'C%' AND Country.Population > 10000000;
+
+DROP INDEX City_Name ON City;
 
 show variables like 'join_buffer_size';
 set join_cache_level=5;

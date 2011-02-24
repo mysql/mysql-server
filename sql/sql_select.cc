@@ -42,8 +42,8 @@
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
 			      "ref_or_null","unique_subquery","index_subquery",
-                              "index_merge","hash"
-};
+                              "index_merge", "hash_ALL", "hash_range",
+                              "hash_index", "hash_index_merge" };
 
 const char *copy_to_tmp_table= "Copying to tmp table";
 
@@ -5055,19 +5055,20 @@ best_access_path(JOIN      *join,
     /* Estimate the cost of  the hash join access to the table */
     ha_rows rnd_records= matching_candidates_in_table(s, found_constraint);
 
-    tmp= s->table->file->scan_time();
+    tmp= s->quick ? s->quick->read_time : s->table->file->scan_time();
+    tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
+
     /* We read the table as many times as join buffer becomes full. */
     tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
                           record_count /
                           (double) thd->variables.join_buff_size));
-    tmp+= (s->records - rnd_records)/(double) TIME_FOR_COMPARE;
     best_time= tmp + 
                (record_count*join_sel) / TIME_FOR_COMPARE * rnd_records;
     best= tmp;
     records= rows2double(rnd_records);
     best_key= hj_start_key;
     best_ref_depends_map= 0;
-    best_uses_jbuf= test(!disable_jbuf);
+    best_uses_jbuf= TRUE;
    }
 
   /*
@@ -6458,7 +6459,7 @@ static bool create_hj_key_for_table(JOIN *join, JOIN_TAB *join_tab,
   keyinfo->key_length=0;
   keyinfo->algorithm= HA_KEY_ALG_UNDEF;
   keyinfo->flags= HA_GENERATED_KEY;
-  keyinfo->name= (char *) "hj_key";
+  keyinfo->name= (char *) "$hj";
   keyinfo->rec_per_key= (ulong*) thd->calloc(sizeof(ulong)*key_parts);
   if (!keyinfo->rec_per_key)
     DBUG_RETURN(TRUE);
@@ -7136,6 +7137,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     table_map current_map;
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
+      bool is_hj;
       tab= join->join_tab+i;
       /*
         first_inner is the X in queries like:
@@ -7195,9 +7197,20 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       /* Add conditions added by add_not_null_conds(). */
       if (tab->select_cond)
         add_cond_and_fix(&tmp, tab->select_cond);
+
+      is_hj= (tab->type == JT_REF || tab->type == JT_EQ_REF) &&
+             (join->allowed_join_cache_types & JOIN_CACHE_HASHED_BIT) &&
+	     ((join->max_allowed_join_cache_level+1)/2 == 2 ||
+              ((join->max_allowed_join_cache_level+1)/2 > 2 &&
+	       is_hash_join_key_no(tab->ref.key))) &&
+              (!tab->emb_sj_nest ||                     
+               join->allowed_semijoin_with_cache) && 
+              (!(tab->table->map & join->outer_join) ||
+               join->allowed_outer_join_with_cache);
+
       if (cond && !tmp && tab->quick)
       {						// Outer join
-        if (tab->type != JT_ALL)
+        if (tab->type != JT_ALL && !is_hj)
         {
           /*
             Don't use the quick method
@@ -7275,9 +7288,10 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	{
 	  /* Use quick key read if it's a constant and it's not used
 	     with key reading */
-	  if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
-	      && tab->type != JT_FT && (tab->type != JT_REF ||
-               (uint) tab->ref.key == tab->quick->index))
+	  if ((tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
+	       && tab->type != JT_FT &&
+               (tab->type != JT_REF ||
+                (uint) tab->ref.key == tab->quick->index)) || is_hj)
 	  {
 	    sel->quick=tab->quick;		// Use value from get_quick_...
 	    sel->quick_keys.clear_all();
@@ -8260,6 +8274,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
     if (jcl)
        tab[-1].next_select=sub_select_cache;
+
+    if (tab->cache && tab->cache->get_join_alg() == JOIN_CACHE::BNLH_JOIN_ALG)
+      tab->type= JT_HASH;
       
     switch (tab->type) {
     case JT_SYSTEM:				// Only happens with left join 
@@ -8273,7 +8290,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         table->key_read=1;
         table->file->extra(HA_EXTRA_KEYREAD);
       }
-      else if ((!jcl || jcl > 4) && !tab->is_ref_for_hash_join()) 
+      else if (!jcl || jcl > 4) 
         push_index_cond(tab, tab->ref.key);
         break;
     case JT_EQ_REF:
@@ -8285,7 +8302,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	table->key_read=1;
 	table->file->extra(HA_EXTRA_KEYREAD);
       }
-      else if ((!jcl || jcl > 4) && !tab->is_ref_for_hash_join()) 
+      else if (!jcl || jcl > 4) 
         push_index_cond(tab, tab->ref.key);
       break;
     case JT_REF_OR_NULL:
@@ -8300,10 +8317,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
         table->enable_keyread();
-      else if ((!jcl || jcl > 4) &&!tab->is_ref_for_hash_join())
+      else if (!jcl || jcl > 4)
         push_index_cond(tab, tab->ref.key);
       break;
     case JT_ALL:
+    case JT_HASH:
       /*
 	If previous table use cache
         If the incoming data set is already sorted don't use cache.
@@ -8377,7 +8395,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	    */
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
-	    tab->type=JT_NEXT;		// Read with index_first / index_next
+            /* Read with index_first / index_next */
+	    tab->type= tab->type == JT_ALL ? JT_NEXT : JT_HASH_NEXT;		
 	  }
 	}
         if (tab->select && tab->select->quick &&
@@ -8417,6 +8436,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         if (sort_by_tab->type == JT_NEXT)
         {
           sort_by_tab->type= JT_ALL;
+          sort_by_tab->read_first_record= join_init_read_record;
+        }
+        else if (sort_by_tab->type == JT_HASH_NEXT)
+        {
+          sort_by_tab->type= JT_HASH;
           sort_by_tab->read_first_record= join_init_read_record;
         }
       }
@@ -19045,7 +19069,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       TABLE *table=tab->table;
       TABLE_LIST *table_list= tab->table->pos_in_table_list;
       char buff[512]; 
-      char buff1[512], buff2[512], buff3[512];
+      char buff1[512], buff2[512], buff3[512], buff4[512];
       char keylen_str_buf[64];
       my_bool key_read;
       String extra(buff, sizeof(buff),cs);
@@ -19053,10 +19077,17 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       String tmp1(buff1,sizeof(buff1),cs);
       String tmp2(buff2,sizeof(buff2),cs);
       String tmp3(buff3,sizeof(buff3),cs);
+      String tmp4(buff4,sizeof(buff4),cs);
+      char hash_key_prefix[]= "#hash#";
+      KEY *key_info= 0;
+      uint key_len= 0;
+      bool is_hj= tab->type == JT_HASH || tab->type ==JT_HASH_NEXT;
+
       extra.length(0);
       tmp1.length(0);
       tmp2.length(0);
       tmp3.length(0);
+      tmp4.length(0);
       quick_type= -1;
 
       /* Don't show eliminated tables */
@@ -19152,20 +19183,18 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         goto loop_end;
       }
 
-      if (tab->type == JT_ALL && tab->select && tab->select->quick)
+      if ((tab->type == JT_ALL || tab->type == JT_HASH) &&
+           tab->select && tab->select->quick)
       {
         quick_type= tab->select->quick->get_type();
         if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
             (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
-          tab->type = JT_INDEX_MERGE;
+          tab->type= tab->type == JT_ALL ? JT_INDEX_MERGE : JT_HASH_INDEX_MERGE;
         else
-	  tab->type = JT_RANGE;
+	  tab->type= tab->type == JT_ALL ? JT_RANGE : JT_HASH_RANGE;
       }
-
-      if (tab->cache && tab->cache->get_join_alg() == JOIN_CACHE::BNLH_JOIN_ALG)
-        tab->type= JT_HASH;
 
       /* table */
       if (table->derived_select_number)
@@ -19228,45 +19257,66 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	item_list.push_back(item_null);
 
       /* Build "key", "key_len", and "ref" values and add them to item_list */
-      if (tab->ref.key_parts)
+      if (tab->type == JT_NEXT)
       {
-	KEY *key_info= tab->get_keyinfo_by_key_no(tab->ref.key);
+	key_info= table->key_info+tab->index;
+        key_len= key_info->key_length;
+      }
+      else if (tab->ref.key_parts)
+      {
+	key_info= tab->get_keyinfo_by_key_no(tab->ref.key);
+        key_len= tab->ref.key_length;
+      }
+      if (key_info)
+      {
         register uint length;
-	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name),
-					    system_charset_info));
-        length= (longlong10_to_str(tab->ref.key_length, keylen_str_buf, 10) - 
+        if (is_hj)
+          tmp2.append(hash_key_prefix, strlen(hash_key_prefix), cs);
+        tmp2.append(key_info->name,  strlen(key_info->name), cs);
+        length= (longlong10_to_str(key_len, keylen_str_buf, 10) - 
                  keylen_str_buf);
-        item_list.push_back(new Item_string(keylen_str_buf, length,
-                                            system_charset_info));
-	for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
+        tmp3.append(keylen_str_buf, length, cs);
+        if (tab->ref.key_parts)
 	{
-	  if (tmp2.length())
-	    tmp2.append(',');
-	  tmp2.append((*ref)->name(), strlen((*ref)->name()),
-		      system_charset_info);
-	}
-	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
+	  for (store_key **ref=tab->ref.key_copy ; *ref ; ref++)
+	  {
+	    if (tmp4.length())
+	      tmp4.append(',');
+	    tmp4.append((*ref)->name(), strlen((*ref)->name()), cs);
+          }
+        }
       }
-      else if (tab->type == JT_NEXT)
+      if (is_hj && tab->type != JT_HASH)
       {
-	KEY *key_info=table->key_info+ tab->index;
+        tmp2.append(':');
+        tmp3.append(':');
+      }
+      if (tab->type == JT_HASH_NEXT)
+      {
         register uint length;
-	item_list.push_back(new Item_string(key_info->name,
-					    strlen(key_info->name),cs));
-        length= (longlong10_to_str(key_info->key_length, keylen_str_buf, 10) - 
+	key_info= table->key_info+tab->index;
+        key_len= key_info->key_length;
+        tmp2.append(key_info->name,  strlen(key_info->name), cs);
+        length= (longlong10_to_str(key_len, keylen_str_buf, 10) - 
                  keylen_str_buf);
-        item_list.push_back(new Item_string(keylen_str_buf, 
-                                            length,
-                                            system_charset_info));
-	item_list.push_back(item_null);
-      }
-      else if (tab->select && tab->select->quick)
-      {
+        tmp3.append(keylen_str_buf, length, cs);
+      }         
+      if (tab->select && tab->select->quick)
         tab->select->quick->add_keys_and_lengths(&tmp2, &tmp3);
-	item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
-	item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
-	item_list.push_back(item_null);
+      if (key_info || (tab->select && tab->select->quick))
+      {
+        if (tmp2.length())
+          item_list.push_back(new Item_string(tmp2.ptr(),tmp2.length(),cs));
+        else
+          item_list.push_back(item_null);
+        if (tmp3.length())
+          item_list.push_back(new Item_string(tmp3.ptr(),tmp3.length(),cs));
+        else
+          item_list.push_back(item_null);
+        if (key_info && tab->type != JT_NEXT)
+          item_list.push_back(new Item_string(tmp4.ptr(),tmp4.length(),cs));
+        else
+          item_list.push_back(item_null);
       }
       else
       {
@@ -19314,8 +19364,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         ha_rows examined_rows;
         if (tab->select && tab->select->quick)
           examined_rows= tab->select->quick->records;
-        else if (tab->type == JT_NEXT || tab->type == JT_ALL ||
-                 tab->type == JT_HASH)
+        else if (tab->type == JT_NEXT || tab->type == JT_ALL || is_hj)
         {
           if (tab->limit)
             examined_rows= tab->limit;
