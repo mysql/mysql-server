@@ -43,6 +43,7 @@ Created 9/5/1995 Heikki Tuuri
 #ifdef UNIV_SYNC_DEBUG
 # include "srv0start.h" /* srv_is_being_started */
 #endif /* UNIV_SYNC_DEBUG */
+#include "ha_prototypes.h"
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
