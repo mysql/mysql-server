@@ -225,7 +225,7 @@ walk_up_n_right:
   RANGE_SEQ_ENTRY *cur= &seq->stack[seq->i];
   uint min_key_length= cur->min_key - seq->param->min_key;
   
-  range->ptr= (char*)(int)(key_tree->part);
+  range->ptr= (char*)(intptr)(key_tree->part);
   if (cur->min_key_flag & GEOM_FLAG)
   {
     range->range_flag= cur->min_key_flag;

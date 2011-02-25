@@ -195,7 +195,7 @@ execute stmt using @a;
 execute stmt using @a;
 deallocate prepare stmt;
 
-prepare stmt from 'handler t1 read a>=(?) where a < ? limit 5';
+prepare stmt from 'handler t1 read b>=(?) where a < ? limit 5';
 set @a=17, @b=24;
 execute stmt using @a,@b;
 execute stmt using @a,@b;

@@ -3313,7 +3313,7 @@ skip_info:
 				}
 
 				if (page_is_corrupt) {
-					fprintf(stderr, " [errp:%lld]", offset / UNIV_PAGE_SIZE);
+                                  fprintf(stderr, " [errp:%lld]", (longlong) (offset / UNIV_PAGE_SIZE));
 
 					/* cannot treat corrupt page */
 					goto skip_write;
