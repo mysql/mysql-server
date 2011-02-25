@@ -5310,7 +5310,7 @@ sub start_servers($) {
   for (all_servers()) {
     next unless $_->{WAIT} and started($_);
     if ($_->{WAIT}->($_)) {
-      $tinfo->{comment}= "Failed to start ".$_->name();
+      $tinfo->{comment}= "Failed to start ".$_->name() . "\n";
       return 1;
     }
   }

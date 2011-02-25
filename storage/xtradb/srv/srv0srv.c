@@ -2723,6 +2723,7 @@ srv_master_thread(
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
 
+        memset(&prev_flush_info, 0, sizeof(prev_flush_info));
 	mutex_enter(&kernel_mutex);
 
 	srv_table_reserve_slot(SRV_MASTER);

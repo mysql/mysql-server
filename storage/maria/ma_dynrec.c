@@ -2053,6 +2053,10 @@ uint _ma_get_block_info(MARIA_HA *handler, MARIA_BLOCK_INFO *info, File file,
   }
 
 err:
-  _ma_set_fatal_error(handler->s, HA_ERR_WRONG_IN_RECORD);
+  if (!handler->in_check_table)
+  {
+    /* We may be scanning the table for new rows; Don't give an error */
+    _ma_set_fatal_error(handler->s, HA_ERR_WRONG_IN_RECORD);
+  }
   return BLOCK_ERROR;
 }

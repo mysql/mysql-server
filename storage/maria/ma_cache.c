@@ -98,7 +98,12 @@ my_bool _ma_read_cache(MARIA_HA *handler, IO_CACHE *info, uchar *buff,
                ("Error %d reading next-multi-part block (Got %d bytes)",
                 my_errno, (int) read_length));
     if (!my_errno || my_errno == HA_ERR_FILE_TOO_SHORT)
-      _ma_set_fatal_error(handler->s, HA_ERR_WRONG_IN_RECORD);
+    {
+      if (!handler->in_check_table)
+        _ma_set_fatal_error(handler->s, HA_ERR_WRONG_IN_RECORD);
+      else
+        my_errno= HA_ERR_WRONG_IN_RECORD;
+    }
     DBUG_RETURN(1);
   }
   bzero(buff+read_length,MARIA_BLOCK_INFO_HEADER_LENGTH - in_buff_length -

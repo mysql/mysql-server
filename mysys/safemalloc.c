@@ -125,7 +125,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   uchar *data;
   DBUG_ENTER("_mymalloc");
   DBUG_PRINT("enter",("Size: %lu  Total alloc: %lu", (ulong) size,
-                      sf_malloc_cur_memory));
+                      (ulong) sf_malloc_cur_memory));
 
   if (!sf_malloc_quick)
     (void) _sanity (filename, lineno);
@@ -317,7 +317,7 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   sf_malloc_cur_memory-= irem->datasize;
   sf_malloc_count--;
   pthread_mutex_unlock(&THR_LOCK_malloc);
-  DBUG_PRINT("info", ("bytes freed: %ld", irem->datasize));
+  DBUG_PRINT("info", ("bytes freed: %ld", (ulong) irem->datasize));
 
 #ifndef HAVE_valgrind
   /* Mark this data as free'ed */
