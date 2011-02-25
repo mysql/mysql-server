@@ -4,6 +4,8 @@ update performance_schema.setup_instruments set enabled = 'NO';
 update performance_schema.setup_consumers set enabled = 'NO';
 truncate table performance_schema.file_summary_by_event_name;
 truncate table performance_schema.file_summary_by_instance;
+truncate table performance_schema.socket_summary_by_event_name;
+truncate table performance_schema.socket_summary_by_instance;
 truncate table performance_schema.events_waits_summary_global_by_event_name;
 truncate table performance_schema.events_waits_summary_by_instance;
 truncate table performance_schema.events_waits_summary_by_thread_by_event_name;
@@ -29,6 +31,20 @@ EVENT_NAME	COUNT_READ	SUM(i.COUNT_READ)
 SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
 FROM performance_schema.file_summary_by_event_name AS e
 JOIN performance_schema.file_summary_by_instance AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
+OR @dump_all;
+EVENT_NAME	COUNT_WRITE	SUM(i.COUNT_WRITE)
+SELECT EVENT_NAME, e.COUNT_READ, SUM(i.COUNT_READ)
+FROM performance_schema.socket_summary_by_event_name AS e
+JOIN performance_schema.socket_summary_by_instance AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_READ <> SUM(i.COUNT_READ))
+OR @dump_all;
+EVENT_NAME	COUNT_READ	SUM(i.COUNT_READ)
+SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
+FROM performance_schema.socket_summary_by_event_name AS e
+JOIN performance_schema.socket_summary_by_instance AS i USING (EVENT_NAME)
 GROUP BY EVENT_NAME
 HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
 OR @dump_all;
@@ -79,6 +95,7 @@ GROUP BY EVENT_NAME
 HAVING (e.SUM_TIMER_WAIT < SUM(t.SUM_TIMER_WAIT))
 OR @dump_all;
 EVENT_NAME	SUM_TIMER_WAIT	SUM(t.SUM_TIMER_WAIT)
+wait/io/file/sql/binlog	0	711327816
 SELECT EVENT_NAME, e.MIN_TIMER_WAIT, MIN(t.MIN_TIMER_WAIT)
 FROM performance_schema.events_waits_summary_global_by_event_name AS e
 JOIN performance_schema.events_waits_summary_by_thread_by_event_name AS t
@@ -96,6 +113,7 @@ GROUP BY EVENT_NAME
 HAVING (e.MAX_TIMER_WAIT < MAX(t.MAX_TIMER_WAIT))
 OR @dump_all;
 EVENT_NAME	MAX_TIMER_WAIT	MAX(t.MAX_TIMER_WAIT)
+wait/io/file/sql/binlog	0	281475828
 update performance_schema.setup_consumers set enabled = 'YES';
 update performance_schema.setup_instruments
 set enabled = 'YES', timed = 'YES';
