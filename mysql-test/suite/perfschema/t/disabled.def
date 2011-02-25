@@ -45,7 +45,7 @@ start_server_no_table_inst              : WL#4896 Perfschema NET IO - temporary
 start_server_nothing                    : WL#4896 Perfschema NET IO - temporary
 start_server_no_thread_class            : WL#4896 Perfschema NET IO - temporary
 start_server_no_thread_inst             : WL#4896 Perfschema NET IO - temporary
-aggregate                               : WL#4896 Perfschema NET IO - temporary
+#aggregate                               : WL#4896 Perfschema NET IO - temporary
 csv_table_io                            : WL#4896 Perfschema NET IO - temporary
 indexed_table_io                        : WL#4896 Perfschema NET IO - temporary
 start_server_on                         : WL#4896 Perfschema NET IO - temporary

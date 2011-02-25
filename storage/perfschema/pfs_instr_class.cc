@@ -1197,5 +1197,15 @@ void reset_file_class_io(void)
     pfs->m_file_stat.m_io_stat.reset();
 }
 
+/** Reset the io statistics per socket class. */
+void reset_socket_class_io(void)
+{
+  PFS_socket_class *pfs= socket_class_array;
+  PFS_socket_class *pfs_last= socket_class_array + socket_class_max;
+
+  for ( ; pfs < pfs_last; pfs++)
+    pfs->m_socket_stat.m_io_stat.reset();
+}
+
 /** @} */
 

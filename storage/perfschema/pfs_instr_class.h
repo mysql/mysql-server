@@ -379,6 +379,7 @@ extern ulong table_share_lost;
 extern PFS_table_share *table_share_array;
 
 void reset_file_class_io();
+void reset_socket_class_io();
 
 /** @} */
 #endif

@@ -486,7 +486,7 @@ table_socket_summary_by_instance::m_share=
   &pfs_readonly_acl,
   &table_socket_summary_by_instance::create,
   NULL, /* write_row */
-  NULL, /* delete_all_rows */
+  table_socket_summary_by_instance::delete_all_rows,
   NULL, /* get_row_count */
   1000, /* records */ // TBD: Check this
   sizeof(PFS_simple_index),
@@ -504,6 +504,12 @@ table_socket_summary_by_instance::table_socket_summary_by_instance()
   : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
+
+int table_socket_summary_by_instance::delete_all_rows(void)
+{
+  reset_socket_instance_io();
+  return 0;
+}
 
 void table_socket_summary_by_instance::reset_position(void)
 {
