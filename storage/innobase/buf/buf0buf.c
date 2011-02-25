@@ -2533,16 +2533,19 @@ buf_block_align_instance(
 	/* TODO: protect buf_pool->chunks with a mutex (it will
 	currently remain constant after buf_pool_init()) */
 	for (chunk = buf_pool->chunks, i = buf_pool->n_chunks; i--; chunk++) {
-		lint	offs = ptr - chunk->blocks->frame;
+		ulint	offs;
 
-		if (UNIV_UNLIKELY(offs < 0)) {
+		if (UNIV_UNLIKELY(ptr < chunk->blocks->frame)) {
 
 			continue;
 		}
+		/* else */
+
+		offs = ptr - chunk->blocks->frame;
 
 		offs >>= UNIV_PAGE_SIZE_SHIFT;
 
-		if (UNIV_LIKELY((ulint) offs < chunk->size)) {
+		if (UNIV_LIKELY(offs < chunk->size)) {
 			buf_block_t*	block = &chunk->blocks[offs];
 
 			/* The function buf_chunk_init() invokes
