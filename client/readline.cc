@@ -47,6 +47,7 @@ char *batch_readline(LINE_BUFFER *line_buff, bool *truncated)
   char *pos;
   ulong out_length;
   DBUG_ASSERT(truncated != NULL);
+  LINT_INIT(out_length);
 
   if (!(pos=intern_read_line(line_buff,&out_length, truncated)))
     return 0;

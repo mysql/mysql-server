@@ -1899,6 +1899,7 @@ static int find_uniq_filename(char *name)
   size_t		buf_length, length;
   char			*start, *end;
   DBUG_ENTER("find_uniq_filename");
+  LINT_INIT(number);
 
   length= dirname_part(buff, name, &buf_length);
   start=  name + length;
