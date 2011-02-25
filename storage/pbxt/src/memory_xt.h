@@ -29,8 +29,21 @@
 
 struct XTThread;
 
-#ifdef DEBUG
-#define DEBUG_MEMORY
+#if (defined DEBUG)
+/*
+	Disable PBXT debug malloc on Windows, as it is not properly aligned.
+	malloc() alignment requiremebt on x64 is documented as 16 bytes. PBXT debug
+	malloc is only 8 bytes aligned. Improper alignment will lead to a crash if
+	e.g SSE instructions access heap memory.
+
+	This might be general problem , however crashes were seen so far only
+	on Windows (crash during setjmp() on memory allocated with pbxt debug malloc).
+	
+	Besides, on Windows there is already a debug malloc by C runtime.
+*/
+#ifndef _WIN32
+	#define DEBUG_MEMORY
+#endif
 #endif
 
 #ifdef DEBUG_MEMORY
