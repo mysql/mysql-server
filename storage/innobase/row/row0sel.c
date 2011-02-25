@@ -2662,8 +2662,18 @@ row_sel_field_store_in_mysql_format_func(
 		ut_ad(templ->mysql_col_len >= len);
 		ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
+		/* If field_no equals to templ->icp_rec_field_no,
+		we are examining a row pointed by "icp_rec_field_no".
+		There is possibility that icp_rec_field_no refers to
+		a field in a secondary index while templ->rec_field_no
+		points to field in a primary index. The length
+		should still be equal, unless the field pointed
+		by icp_rec_field_no has a prefix */
 		ut_ad(templ->mbmaxlen > templ->mbminlen
-		      || templ->mysql_col_len == len);
+		      || templ->mysql_col_len == len
+		      || (field_no == templ->icp_rec_field_no
+			  && field->prefix_len > 0));
+
 		/* The following assertion would fail for old tables
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
