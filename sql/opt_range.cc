@@ -11857,7 +11857,8 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       Find the range tree for the current keypart. We assume that
       index_range_tree points to the leftmost keypart in the index.
     */
-    for (cur_range= index_range_tree; cur_range;
+    for (cur_range= index_range_tree; 
+         cur_range && cur_range->type == SEL_ARG::KEY_RANGE;
          cur_range= cur_range->next_key_part)
     {
       if (cur_range->field->eq(cur_part->field))
