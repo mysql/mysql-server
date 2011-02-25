@@ -407,7 +407,8 @@ lock_loop:
 			" cfile %s cline %lu rnds %lu\n",
 			(ulong) os_thread_pf(os_thread_get_curr_id()),
 			(void*) lock,
-			lock->cfile_name, (ulong) lock->cline, (ulong) i);
+			innobase_basename(lock->cfile_name),
+			(ulong) lock->cline, (ulong) i);
 	}
 
 	/* We try once again to obtain the lock */
@@ -442,7 +443,8 @@ lock_loop:
 				"Thread %lu OS wait rw-s-lock at %p"
 				" cfile %s cline %lu\n",
 				os_thread_pf(os_thread_get_curr_id()),
-				(void*) lock, lock->cfile_name,
+				(void*) lock,
+				innobase_basename(lock->cfile_name),
 				(ulong) lock->cline);
 		}
 
@@ -664,7 +666,8 @@ lock_loop:
 			"Thread %lu spin wait rw-x-lock at %p"
 			" cfile %s cline %lu rnds %lu\n",
 			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
-			lock->cfile_name, (ulong) lock->cline, (ulong) i);
+			innobase_basename(lock->cfile_name),
+			(ulong) lock->cline, (ulong) i);
 	}
 
 	sync_array_reserve_cell(sync_primary_wait_array,
@@ -687,7 +690,8 @@ lock_loop:
 			"Thread %lu OS wait for rw-x-lock at %p"
 			" cfile %s cline %lu\n",
 			os_thread_pf(os_thread_get_curr_id()), (void*) lock,
-			lock->cfile_name, (ulong) lock->cline);
+			innobase_basename(lock->cfile_name),
+			(ulong) lock->cline);
 	}
 
 	/* these stats may not be accurate */
