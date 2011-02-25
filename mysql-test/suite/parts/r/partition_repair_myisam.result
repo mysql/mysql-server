@@ -270,7 +270,7 @@ PARTITIONS 7;
 SELECT COUNT(*) FROM t1_will_crash;
 COUNT(*)
 33
-SELECT (b % 7) AS partition, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
+SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
 partition	rows
 0	2
 1	5
@@ -279,7 +279,7 @@ partition	rows
 4	4
 5	4
 6	8
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partition, b, a;
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash ORDER BY `partition`, b, a;
 partition	b	a	length(c)
 0	0	 lost	64
 0	7	z lost	64
@@ -342,7 +342,7 @@ test.t1_will_crash	repair	status	OK
 SELECT COUNT(*) FROM t1_will_crash;
 COUNT(*)
 29
-SELECT (b % 7) AS partition, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
+SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
 partition	rows
 1	4
 2	5
@@ -350,7 +350,7 @@ partition	rows
 4	4
 5	4
 6	7
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partition, b, a;
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash ORDER BY `partition`, b, a;
 partition	b	a	length(c)
 1	1	abc	64
 1	8	tuw	64
@@ -426,9 +426,9 @@ Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	info	Delete link points outside datafile at 340
 test.t1_will_crash	repair	info	Delete link points outside datafile at 340
 test.t1_will_crash	repair	status	OK
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash
 WHERE (b % 7) = 6
-ORDER BY partition, b, a;
+ORDER BY `partition`, b, a;
 partition	b	a	length(c)
 6	6	jkl	64
 6	13	ooo	64
@@ -445,18 +445,18 @@ FLUSH TABLES;
 # table, depending if one reads via index or direct on datafile.
 # Since crash when reuse of deleted row space, CHECK MEDIUM or EXTENDED
 # is required (MEDIUM is default) to verify correct behavior!
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash
 WHERE (b % 7) = 6
-ORDER BY partition, b, a;
+ORDER BY `partition`, b, a;
 partition	b	a	length(c)
 6	6	jkl	64
 6	13	ooo	64
 6	34	6 row 2	64
 6	83	 	64
 6	97	zzzzzZzzzzz	64
-SELECT (b % 7) AS partition, b, a FROM (SELECT b,a FROM t1_will_crash) q
+SELECT (b % 7) AS `partition`, b, a FROM (SELECT b,a FROM t1_will_crash) q
 WHERE (b % 7) = 6
-ORDER BY partition, b, a;
+ORDER BY `partition`, b, a;
 partition	b	a
 6	6	jkl
 6	13	ooo
@@ -479,7 +479,7 @@ test.t1_will_crash	repair	status	OK
 SELECT COUNT(*) FROM t1_will_crash;
 COUNT(*)
 29
-SELECT (b % 7) AS partition, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
+SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
 partition	rows
 1	4
 2	4
@@ -487,7 +487,7 @@ partition	rows
 4	4
 5	4
 6	8
-SELECT (b % 7) AS partition, b, a, length(c) FROM t1_will_crash ORDER BY partition, b, a;
+SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash ORDER BY `partition`, b, a;
 partition	b	a	length(c)
 1	1	abc	64
 1	8	tuw	64

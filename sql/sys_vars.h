@@ -842,6 +842,35 @@ public:
 };
 
 /**
+  The class for @test_flags (core_file for now).
+  It's derived from Sys_var_mybool.
+
+  Class specific constructor arguments:
+    Caller need not pass in a variable as we make up the value on the
+    fly, that is, we derive it from the global test_flags bit vector.
+
+  Backing store: my_bool
+*/
+class Sys_var_test_flag: public Sys_var_mybool
+{
+private:
+  my_bool test_flag_value;
+  uint    test_flag_mask;
+public:
+  Sys_var_test_flag(const char *name_arg, const char *comment, uint mask)
+  : Sys_var_mybool(name_arg, comment, READ_ONLY GLOBAL_VAR(test_flag_value),
+          NO_CMD_LINE, DEFAULT(FALSE))
+  {
+    test_flag_mask= mask;
+  }
+  uchar *global_value_ptr(THD *thd, LEX_STRING *base)
+  {
+    test_flag_value= ((test_flags & test_flag_mask) > 0);
+    return (uchar*) &test_flag_value;
+  }
+};
+
+/**
   The class for the @max_user_connections.
   It's derived from Sys_var_uint, but non-standard session value
   requires a new class.
