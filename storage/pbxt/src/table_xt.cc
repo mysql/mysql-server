@@ -1755,6 +1755,8 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name, xtBool drop
 			tab_close_mapped_files(self, tab);
 
 			tab_delete_table_files(self, tab_name, tab_id);
+                        /* Remove table from "repair-pending" */
+                        xt_tab_table_repaired(tab);
 
 			ASSERT(xt_get_self() == self);
 			if ((te_ptr = (XTTableEntryPtr) xt_sl_find(self, db->db_table_by_id, &tab_id))) {
