@@ -354,7 +354,7 @@ static void scanscan_range (void) {
         r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag);
         if (r != 0) {
             assert(r == DB_NOTFOUND);
-            printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, k);
+            //printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, k);
             goto makekey;
         }
 
