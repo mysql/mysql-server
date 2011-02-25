@@ -20929,6 +20929,18 @@ my_coll_rule_reset(MY_COLL_RULE *r)
 }
 
 
+/*
+  Shift methods:
+  Simple: "&B < C" : weight('C') = weight('B') + 1
+  Expand: weght('C') =  { weight('B'), weight(last_non_ignorable) + 1 }
+*/
+typedef enum
+{
+  my_shift_method_simple= 0,
+  my_shift_method_expand
+} my_coll_shift_method;
+
+
 typedef struct my_coll_rules_st
 {
   uint version;              /* Unicode version, e.g. 400 or 520  */
@@ -20937,6 +20949,7 @@ typedef struct my_coll_rules_st
   size_t mrules;             /* Number of allocated rules         */
   MY_COLL_RULE *rule;        /* Rule array                        */
   MY_CHARSET_LOADER *loader;
+  my_coll_shift_method shift_after_method;
 } MY_COLL_RULES;
 
 
@@ -21204,6 +21217,14 @@ my_coll_parser_scan_setting(MY_COLL_RULE_PARSER *p)
     rules->version= 520;
     rules->uca= &my_uca_v520;
   }
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[shift-after-method expand]")))
+  {
+    rules->shift_after_method= my_shift_method_expand;
+  }
+  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[shift-after-method simple]")))
+  {
+    rules->shift_after_method= my_shift_method_simple;
+  }
   else
   {
     return 0;
@@ -21415,7 +21436,8 @@ my_coll_parser_scan_reset_sequence(MY_COLL_RULE_PARSER *p)
       return 0;
   }
 
-  if (p->rule.before_level == 1) /* Apply "before primary" option  */
+  if (p->rules->shift_after_method == my_shift_method_expand ||
+      p->rule.before_level == 1) /* Apply "before primary" option  */
   {
     /*
       Suppose we have this rule:  &B[before primary] < C
@@ -21435,6 +21457,10 @@ my_coll_parser_scan_reset_sequence(MY_COLL_RULE_PARSER *p)
 
       We'll compose weight for C as: [BBBB-1][MMMM+1]
       where [MMMM] is weight for "last_non_ignorable".
+      
+      We also do the same trick for "reset after" if the collation
+      option says so. E.g. for the rules "&B < C", weight for
+      C will be calculated as: [BBBB][MMMM+1]
 
       At this point we only need to store codepoints
       'B' and 'last_non_ignorable'. Actual weights for 'C'
@@ -21924,7 +21950,27 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
       if (r->before_level == 1) /* Apply "&[before primary]" */
       {
         if (nweights >= 2)
+        {
           to[nweights - 2]--; /* Reset before */
+          if (rules.shift_after_method == my_shift_method_expand)
+          {
+            /*
+              Special case. Don't let characters shifted after X
+              and before next(X) intermix to each other.
+              
+              For example:
+              "[shift-after-method expand] &0 < a &[before primary]1 < A".
+              I.e. we reorder 'a' after '0', and then 'A' before '1'.
+              'a' must be sorted before 'A'.
+              
+              Note, there are no real collations in CLDR which shift
+              after and before two neighbourgh characters. We need this
+              just in case. Reserving 4096 (0x1000) weights for such
+              cases is perfectly enough.
+            */
+            to[nweights - 1]+= 0x1000;
+          }
+        }
         else
         {
           my_snprintf(loader->error, sizeof(loader->error),

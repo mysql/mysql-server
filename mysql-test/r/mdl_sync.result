@@ -2293,13 +2293,18 @@ set global log_output=@save_log_output;
 #
 drop tables if exists t1, t2;
 create table t1 (i int);
+insert into t1 values(1);
 # Let us check that we won't deadlock if during filling
 # of I_S table we encounter conflicting metadata lock
 # which owner is in its turn waiting for our connection.
 lock tables t1 read;
-# Switching to connection 'con46044'.
+# Switching to connection 'con46044_2'.
 # Sending:
-create table t2 select * from t1 for update;;
+update t1 set i = 2;
+# Switching to connection 'con46044'.
+# Waiting until UPDATE t1 SET ... is blocked.
+# Sending:
+create table t2 select * from t1;;
 # Switching to connection 'default'.
 # Waiting until CREATE TABLE ... SELECT ... is blocked.
 # First let us check that SHOW FIELDS/DESCRIBE doesn't
@@ -2329,6 +2334,7 @@ unlock tables;
 # Switching to connection 'con46044'.
 # Reaping CREATE TABLE ... SELECT ... .
 drop table t2;
+# Reaping UPDATE t1 statement
 #
 # Let us also check that queries to I_S wait for conflicting metadata
 # locks to go away instead of skipping table with a warning in cases
@@ -2338,9 +2344,13 @@ drop table t2;
 # We check same three queries to I_S in this new situation.
 # Switching to connection 'con46044_2'.
 lock tables t1 read;
-# Switching to connection 'con46044'.
+# Switching to connection 'con46044_3'.
 # Sending:
-create table t2 select * from t1 for update;;
+update t1 set i = 3;
+# Switching to connection 'con46044'.
+# Waiting until UPDATE t1 SET ... is blocked.
+# Sending:
+create table t2 select * from t1;;
 # Switching to connection 'default'.
 # Waiting until CREATE TABLE ... SELECT ... is blocked.
 # Let us check that SHOW FIELDS/DESCRIBE gets blocked.
@@ -2356,11 +2366,16 @@ unlock tables;
 Field	Type	Null	Key	Default	Extra
 i	int(11)	YES		NULL	
 drop table t2;
+# Reaping UPDATE t1 statement
 # Switching to connection 'con46044_2'.
 lock tables t1 read;
-# Switching to connection 'con46044'.
+# Switching to connection 'con46044_3'.
 # Sending:
-create table t2 select * from t1 for update;;
+update t1 set i = 4;
+# Switching to connection 'con46044'.
+# Waiting until UPDATE t1 SET ... is blocked.
+# Sending:
+create table t2 select * from t1;;
 # Switching to connection 'default'.
 # Waiting until CREATE TABLE ... SELECT ... is blocked.
 # Check that I_S query which reads only .FRMs gets blocked.
@@ -2376,11 +2391,16 @@ unlock tables;
 column_name
 i
 drop table t2;
+# Reaping UPDATE t1 statement
 # Switching to connection 'con46044_2'.
 lock tables t1 read;
-# Switching to connection 'con46044'.
+# Switching to connection 'con46044_3'.
 # Sending:
-create table t2 select * from t1 for update;;
+update t1 set i = 5;
+# Switching to connection 'con46044'.
+# Waiting until UPDATE t1 SET ... is blocked.
+# Sending:
+create table t2 select * from t1;;
 # Switching to connection 'default'.
 # Waiting until CREATE TABLE ... SELECT ... is blocked.
 # Finally, check that I_S query which does full-blown table open
@@ -2397,6 +2417,7 @@ unlock tables;
 table_name	table_type	auto_increment	table_comment
 t2	BASE TABLE	NULL	
 drop table t2;
+# Reaping UPDATE t1 statement
 # Switching to connection 'default'.
 # Clean-up.
 drop table t1;

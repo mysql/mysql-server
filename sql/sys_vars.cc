@@ -415,6 +415,9 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static Sys_var_test_flag Sys_core_file(
+       "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
+
 static Sys_var_enum Sys_binlog_format(
        "binlog_format", "What form of binary logging the master will "
        "use: either ROW for row-based binary logging, STATEMENT "
@@ -1576,7 +1579,7 @@ static Sys_var_proxy_user Sys_proxy_user(
        "proxy_user", "The proxy user account name used when logging in",
        IN_SYSTEM_CHARSET);
 
-static Sys_var_external_user Sys_exterenal_user(
+static Sys_var_external_user Sys_external_user(
        "external_user", "The external user account used when logging in",
        IN_SYSTEM_CHARSET);
 
