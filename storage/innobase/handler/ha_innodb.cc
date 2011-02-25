@@ -44,6 +44,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysql/plugin.h>
 #include <mysql/innodb_priv.h>
 #include <mysql/psi/psi.h>
+#include <my_sys.h>
 
 /** @file ha_innodb.cc */
 
@@ -1322,6 +1323,20 @@ innobase_wildcasecmp(
 	const char*	b)	/*!< in: wildcard string to compare */
 {
 	return(wild_case_compare(system_charset_info, a, b));
+}
+
+/******************************************************************//**
+Strip dir name from a full path name and return only the file name
+@return file name or "null" if no file name */
+extern "C" UNIV_INTERN
+const char*
+innobase_basename(
+/*==============*/
+	const char*	path_name)	/*!< in: full path name */
+{
+	const char*	name = base_name(path_name);
+
+	return((name) ? name : "null");
 }
 
 /******************************************************************//**
@@ -9749,7 +9764,8 @@ innodb_mutex_show_status(
 			if (mutex->count_using > 0) {
 				buf1len= my_snprintf(buf1, sizeof(buf1),
 					"%s:%s",
-					mutex->cmutex_name, mutex->cfile_name);
+					mutex->cmutex_name,
+					innobase_basename(mutex->cfile_name));
 				buf2len= my_snprintf(buf2, sizeof(buf2),
 					"count=%lu, spin_waits=%lu,"
 					" spin_rounds=%lu, "
@@ -9779,7 +9795,8 @@ innodb_mutex_show_status(
 		}
 #else /* UNIV_DEBUG */
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     mutex->cfile_name, (ulong) mutex->cline);
+				     innobase_basename(mutex->cfile_name),
+				     (ulong) mutex->cline);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     (ulong) mutex->count_os_wait);
 
@@ -9795,7 +9812,8 @@ innodb_mutex_show_status(
 	if (block_mutex) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 					     "combined %s:%lu",
-					     block_mutex->cfile_name,
+					     innobase_basename(
+						block_mutex->cfile_name),
 					     (ulong) block_mutex->cline);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
@@ -9826,7 +9844,8 @@ innodb_mutex_show_status(
 		}
 
 		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
-				     lock->cfile_name, (ulong) lock->cline);
+				     innobase_basename(lock->cfile_name),
+				     (ulong) lock->cline);
 		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
 				      (ulong) lock->count_os_wait);
 
@@ -9841,7 +9860,8 @@ innodb_mutex_show_status(
 	if (block_lock) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 					     "combined %s:%lu",
-					     block_lock->cfile_name,
+					     innobase_basename(
+						block_lock->cfile_name),
 					     (ulong) block_lock->cline);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
