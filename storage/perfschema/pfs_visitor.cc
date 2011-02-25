@@ -524,7 +524,6 @@ PFS_instance_socket_io_stat_visitor::~PFS_instance_socket_io_stat_visitor()
 
 void PFS_instance_socket_io_stat_visitor::visit_socket_class(PFS_socket_class *pfs) 
 {
-  uint index= pfs->m_event_name_index;
   m_socket_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 }
 
