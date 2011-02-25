@@ -64,12 +64,16 @@ sub fix_pidfile {
 
 sub fix_port {
   my ($self, $config, $group_name, $group)= @_;
-  return $self->{PORT}++;
+  my $hostname= $group->value('#host');
+  return $self->{HOSTS}->{$hostname}++;
 }
 
 sub fix_host {
   my ($self)= @_;
-  'localhost'
+  # Get next host from HOSTS array
+  my @hosts= keys(%{$self->{HOSTS}});;
+  my $host_no= $self->{NEXT_HOST}++ % @hosts;
+  return $hosts[$host_no];
 }
 
 sub is_unique {
@@ -145,7 +149,6 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
-  #return "$::opt_vardir/std_data";
   my $testdir= $self->get_testdir($group);
   return "$testdir/std_data";
 }
@@ -234,7 +237,7 @@ if (IS_WINDOWS)
 sub fix_ndb_mgmd_port {
   my ($self, $config, $group_name, $group)= @_;
   my $hostname= $group->value('HostName');
-  return $self->{PORT}++;
+  return $self->{HOSTS}->{$hostname}++;
 }
 
 
@@ -355,7 +358,7 @@ sub post_check_client_group {
 
     if (! defined $option){
       #print $config;
-      croak "Could not get value for '$name_from'";
+      croak "Could not get value for '$name_from' for test $self->{testname}";
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
@@ -433,24 +436,20 @@ sub post_check_embedded_group {
 
 sub resolve_at_variable {
   my ($self, $config, $group, $option)= @_;
-  local $_ = $option->value();
-  my ($res, $after);
 
-  while (m/(.*?)\@((?:\w+\.)+)(#?[-\w]+)/g) {
-    my ($before, $group_name, $option_name)= ($1, $2, $3);
-    $after = $';
-    chop($group_name);
+  # Split the options value on last .
+  my @parts= split(/\./, $option->value());
+  my $option_name= pop(@parts);
+  my $group_name=  join('.', @parts);
 
-    my $from_group= $config->group($group_name)
-      or croak "There is no group named '$group_name' that ",
-        "can be used to resolve '$option_name'";
+  $group_name =~ s/^\@//; # Remove at
 
-    my $value= $from_group->value($option_name);
-    $res .= $before.$value;
-  }
-  $res .= $after;
+  my $from_group= $config->group($group_name)
+    or croak "There is no group named '$group_name' that ",
+      "can be used to resolve '$option_name' for test '$self->{testname}'";
 
-  $config->insert($group->name(), $option->name(), $res)
+  my $from= $from_group->value($option_name);
+  $config->insert($group->name(), $option->name(), $from)
 }
 
 
@@ -462,7 +461,7 @@ sub post_fix_resolve_at_variables {
       next unless defined $option->value();
 
       $self->resolve_at_variable($config, $group, $option)
-	if ($option->value() =~ /\@/);
+	if ($option->value() =~ /^\@/);
     }
   }
 }
@@ -604,13 +603,27 @@ sub new_config {
     croak "you must pass '$required'" unless defined $args->{$required};
   }
 
+  # Fill in hosts/port hash
+  my $hosts= {};
+  my $baseport= $args->{baseport};
+  $args->{hosts}= [ 'localhost' ] unless exists($args->{hosts});
+  foreach my $host ( @{$args->{hosts}} ) {
+     $hosts->{$host}= $baseport;
+  }
+
   # Open the config template
   my $config= My::Config->new($args->{'template_path'});
+  my $extra_template_path= $args->{'extra_template_path'};
+  if ($extra_template_path){
+    $config->append(My::Config->new($extra_template_path));
+  }
   my $self= bless {
 		   CONFIG       => $config,
 		   ARGS         => $args,
-		   PORT         => $args->{baseport},
+		   HOSTS        => $hosts,
+		   NEXT_HOST    => 0,
 		   SERVER_ID    => 1,
+                   testname     => $args->{testname},
 		  }, $class;
 
   # add auto-options

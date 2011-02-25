@@ -8,3 +8,4 @@
 -- source include/ndb_master-slave.inc
 let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_commit_after_flush.test
+--source include/rpl_end.inc

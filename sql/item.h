@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -995,11 +995,11 @@ public:
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
   /*
-    Check if an expression value depends on the current timezone. Used by
-    partitioning code to reject timezone-dependent expressions in a
-    (sub)partitioning function.
+    Check if an expression value has allowed arguments, like DATE/DATETIME
+    for date functions. Also used by partitioning code to reject
+    timezone-dependent expressions in a (sub)partitioning function.
   */
-  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return FALSE;
   }
@@ -3032,11 +3032,10 @@ class Item_cache: public Item_basic_constant
 protected:
   Item *example;
   table_map used_table_map;
-  /*
-    Field that this object will get value from. This is set/used by 
+  /**
+    Field that this object will get value from. This is used by 
     index-based subquery engines to detect and remove the equality injected 
     by IN->EXISTS transformation.
-    For all other uses of Item_cache, cached_field doesn't matter.
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
@@ -3093,6 +3092,14 @@ public:
   {
     return this == item;
   }
+
+  /** 
+    If this item caches a field value, return pointer to underlying field.
+
+    @return Pointer to field, or NULL if this is not a cache for a field value.
+  */
+  Field* field() { return cached_field; }
+
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
 };

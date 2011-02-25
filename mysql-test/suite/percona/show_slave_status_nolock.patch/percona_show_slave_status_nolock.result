@@ -1,0 +1,21 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t;
+CREATE TABLE t(id INT);
+INSERT INTO t SELECT SLEEP(10);
+STOP SLAVE;
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+master	count(*)
+master	1
+slave	count(*)
+slave	0
+SHOW SLAVE STATUS NOLOCK;
+START SLAVE;
+slave	count(*)
+slave	1
+DROP TABLE t;

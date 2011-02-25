@@ -9,3 +9,4 @@
 --exec echo Running mgmapi_logevent
 --exec $NDB_EXAMPLES_DIR/mgmapi_logevent/mgmapi_logevent "$NDB_CONNECTSTRING" "$NDB_CONNECTSTRING_SLAVE" 1 >> $NDB_EXAMPLES_OUTPUT
 
+--source include/rpl_end.inc

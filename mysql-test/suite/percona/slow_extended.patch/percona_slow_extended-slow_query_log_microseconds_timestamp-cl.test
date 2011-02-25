@@ -1,0 +1,1 @@
+show global variables like 'slow_query_log_microseconds_timestamp';

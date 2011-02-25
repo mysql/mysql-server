@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1199,7 +1200,11 @@ int ha_commit_trans(THD *thd, bool all)
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
     DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
     if (cookie)
-      tc_log->unlog(cookie, xid);
+      if(tc_log->unlog(cookie, xid))
+      {
+        error= 2;
+        goto end;
+      }
     DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
     if (rw_trans)
@@ -2182,7 +2187,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   computes the lowest number
   - strictly greater than "nr"
   - of the form: auto_increment_offset + N * auto_increment_increment
-
+  If overflow happened then return MAX_ULONGLONG value as an
+  indication of overflow.
   In most cases increment= offset= 1, in which case we get:
   @verbatim 1,2,3,4,5,... @endverbatim
     If increment=10 and offset=5 and previous number is 1, we get:
@@ -2191,13 +2197,23 @@ int handler::read_first_row(uchar * buf, uint primary_key)
 inline ulonglong
 compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 {
+  const ulonglong save_nr= nr;
+
   if (variables->auto_increment_increment == 1)
-    return (nr+1); // optimization of the formula below
-  nr= (((nr+ variables->auto_increment_increment -
-         variables->auto_increment_offset)) /
-       (ulonglong) variables->auto_increment_increment);
-  return (nr* (ulonglong) variables->auto_increment_increment +
-          variables->auto_increment_offset);
+    nr= nr + 1; // optimization of the formula below
+  else
+  {
+    nr= (((nr+ variables->auto_increment_increment -
+           variables->auto_increment_offset)) /
+         (ulonglong) variables->auto_increment_increment);
+    nr= (nr* (ulonglong) variables->auto_increment_increment +
+         variables->auto_increment_offset);
+  }
+
+  if (unlikely(nr <= save_nr))
+    return ULONGLONG_MAX;
+
+  return nr;
 }
 
 
@@ -2408,7 +2424,7 @@ int handler::update_auto_increment()
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);
-      if (nr == ~(ulonglong) 0)
+      if (nr == ULONGLONG_MAX)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
       /*
@@ -2438,6 +2454,9 @@ int handler::update_auto_increment()
       DBUG_PRINT("info",("auto_increment: special not-first-in-index"));
     }
   }
+
+  if (unlikely(nr == ULONGLONG_MAX))
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
@@ -4693,6 +4712,7 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  pushed_cond= NULL;
   DBUG_RETURN(reset());
 }
 

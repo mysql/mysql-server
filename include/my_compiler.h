@@ -1,7 +1,7 @@
 #ifndef MY_COMPILER_INCLUDED
 #define MY_COMPILER_INCLUDED
 
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,11 @@
 /**
   Generic (compiler-independent) features.
 */
+
+#ifndef MY_GNUC_PREREQ
+# define MY_GNUC_PREREQ(maj, min) (0)
+#endif
+
 #ifndef MY_ALIGNOF
 # ifdef __cplusplus
     template<typename type> struct my_alignof_helper { char m1; type m2; };

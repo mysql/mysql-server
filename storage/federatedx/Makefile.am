@@ -21,23 +21,19 @@ EXTRA_LTLIBRARIES =	libfederatedx.la libfederatedx_common.la libfederatedx_embed
 pkgplugin_LTLIBRARIES =	@plugin_federatedx_shared_target@
 ha_federatedx_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_federatedx_la_CXXFLAGS=	-shared $(AM_CXXFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-ha_federatedx_la_CFLAGS =	-shared $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 
 
 noinst_LTLIBRARIES =	@plugin_federatedx_static_target@ @plugin_federatedx_embedded_static_target@
 libfederatedx_common_la_CXXFLAGS =	$(AM_CXXFLAGS)
-libfederatedx_common_la_CFLAGS =	$(AM_CFLAGS)
 libfederatedx_common_la_SOURCES=	federatedx_txn.cc \
 			        federatedx_io.cc federatedx_io_null.cc \
 			        federatedx_io_mysql.cc
 
-libfederatedx_la_CXXFLAGS =	$(AM_CFLAGS)
-libfederatedx_la_CFLAGS =	$(AM_CFLAGS)
+libfederatedx_la_CXXFLAGS =	$(AM_CXXFLAGS)
 libfederatedx_la_LIBADD =	libfederatedx_common.la
 libfederatedx_la_SOURCES=	ha_federatedx.cc
 
-libfederatedx_embedded_la_CXXFLAGS =	$(AM_CFLAGS) @plugin_embedded_defs@
-libfederatedx_embedded_la_CFLAGS =	$(AM_CFLAGS) @plugin_embedded_defs@
+libfederatedx_embedded_la_CXXFLAGS =	$(AM_CXXCFLAGS) @plugin_embedded_defs@
 libfederatedx_embedded_la_LDFLAGS =	$(AM_LDFLAGS)
 libfederatedx_embedded_la_LIBADD =	libfederatedx_common.la
 libfederatedx_embedded_la_SOURCES=	ha_federatedx.cc

@@ -44,9 +44,9 @@ int main(int argc, char **argv)
   uint warnings_count;
   MY_INIT(argv[0]);
 
+  maria_data_root= (char *)".";
   load_defaults("my", load_default_groups, &argc, &argv);
   default_argv= argv;
-  maria_data_root= (char *)".";
   get_options(&argc, &argv);
 
   maria_in_recovery= TRUE;
@@ -195,7 +195,7 @@ static struct my_option my_long_options[] =
   { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
     "will not be applied", &opt_end_lsn, &opt_end_lsn,
     0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
-  {"maria-log-dir-path", 'l',
+  {"maria-log-dir-path", 'h',
     "Path to the directory where to store transactional log",
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},

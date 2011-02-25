@@ -137,7 +137,6 @@ public:
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   bool mark_as_eliminated_processor(uchar *arg);
   bool enumerate_field_refs_processor(uchar *arg);
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
 
   /**
     Get the SELECT_LEX structure associated with this Item.

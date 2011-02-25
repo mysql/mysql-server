@@ -131,3 +131,4 @@ sync_slave_with_master;
 SET global max_relay_log_size= @my_max_relay_log_size;
 
 --echo End of 5.1 tests
+--source include/rpl_end.inc

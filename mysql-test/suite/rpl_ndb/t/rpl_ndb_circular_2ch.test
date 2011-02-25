@@ -75,9 +75,7 @@ let $wait_condition= SELECT COUNT(*)=40 FROM t1 WHERE c = 1;
 
 # Check data
 --echo Check data on both clusters 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
-
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 --echo *** Transaction testing ***
@@ -116,9 +114,7 @@ let $wait_condition= SELECT COUNT(*)=400 FROM t1 WHERE c = 2;
 --source include/wait_condition.inc
 
 --echo Check data on both clusters 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
-
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 # Start transaction and then roll back
@@ -155,18 +151,17 @@ let $wait_condition= SELECT COUNT(*)=200 FROM t1 WHERE c = 3;
 --source include/wait_condition.inc
 
 --echo Check data on both clusters 
-let $diff_table_1=master:test.t1;
-let $diff_table_2=slave:test.t1;
-
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
 # Clean up
 --connection master
-DROP TABLE t1;
---connection slave
---disable_warnings
 DROP TABLE IF EXISTS t1;
---enable_warnings
+--connection slave
+# Wait until table is dropped on slave.
+--let $query= SELECT COUNT(*) FROM t1
+--source include/wait_for_query_to_fail.inc
 --echo
 
 # End of test 5.1
+--source include/rpl_end.inc

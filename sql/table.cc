@@ -2217,13 +2217,17 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERROR+ME_WAITTANG;          // Write fatals error to log
   DBUG_ENTER("open_table_error");
 
   switch (error) {
   case 7:
   case 1:
-    if (db_errno == ENOENT)
+    /*
+      Test if file didn't exists. We have to also test for EINVAL as this
+      may happen on windows when opening a file with a not legal file name
+    */
+    if (db_errno == ENOENT || db_errno == EINVAL)
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
     else
     {

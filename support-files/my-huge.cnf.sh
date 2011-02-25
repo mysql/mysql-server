@@ -1,13 +1,15 @@
-# Example MySQL config file for very large systems.
+# Example MariaDB config file for very large systems.
 #
 # This is for a large system with memory of 1G-2G where the system runs mainly
-# MySQL.
+# MariaDB.
 #
-# You can copy this file to
-# /etc/my.cnf to set global options,
-# mysql-data-dir/my.cnf to set server-specific options (in this
-# installation this directory is @localstatedir@) or
-# ~/.my.cnf to set user-specific options.
+# MariaDB programs look for option files in a set of
+# locations which depend on the deployment platform.
+# You can copy this option file to one of those
+# locations. For information about these locations, do:
+# 'my_print_defaults --help' and see what is printed under
+# Default options are read from the following files in the given order:
+# More information at: http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
@@ -37,6 +39,9 @@ thread_cache_size = 8
 query_cache_size = 32M
 # Try number of CPU's*2 for thread_concurrency
 thread_concurrency = 8
+
+# Point the following paths to a dedicated disk
+#tmpdir		= /tmp/
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,
 # if all processes that need to connect to mysqld run on the same host.
@@ -113,14 +118,10 @@ server-id	= 1
 # binary logging format - mixed recommended 
 #binlog_format=mixed
 
-# Point the following paths to different dedicated disks
-#tmpdir		= /tmp/		
-#log-update 	= /path-to-dedicated-directory/hostname
-
 # Uncomment the following if you are using InnoDB tables
-#innodb_data_home_dir = @localstatedir@/
+#innodb_data_home_dir = @localstatedir@
 #innodb_data_file_path = ibdata1:2000M;ibdata2:10M:autoextend
-#innodb_log_group_home_dir = @localstatedir@/
+o#innodb_log_group_home_dir = @localstatedir@
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 384M

@@ -54,3 +54,6 @@ sync_slave_with_master;
 connection master;
 drop table t1,t2,t3;
 sync_slave_with_master;
+
+# End of tests
+--source include/rpl_end.inc

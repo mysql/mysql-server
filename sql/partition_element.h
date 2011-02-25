@@ -93,6 +93,7 @@ public:
     data_file_name(part_elem->data_file_name),
     index_file_name(part_elem->index_file_name),
     engine_type(part_elem->engine_type),
+    connect_string(part_elem->connect_string),
     part_state(part_elem->part_state),
     nodegroup_id(part_elem->nodegroup_id),
     has_null_value(FALSE)

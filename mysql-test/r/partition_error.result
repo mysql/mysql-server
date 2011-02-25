@@ -1,5 +1,643 @@
 drop table if exists t1;
 #
+# Bug#54483: valgrind errors when making warnings for multiline inserts
+#            into partition
+#
+CREATE TABLE t1 (a VARBINARY(10))
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a CHAR(10))
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIMESTAMP)
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+INSERT INTO t1 VALUES ('test'),('a'),('5');
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'a' at row 3
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+INSERT INTO t1 VALUES ('test'),('a'),('5');
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1264	Out of range value for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'a' at row 3
+DROP TABLE t1;
+CREATE TABLE t1 (a TIME)
+PARTITION BY RANGE (DAYOFWEEK(a))
+(PARTITION a1 VALUES LESS THAN (60));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+SHOW WARNINGS;
+Level	Code	Message
+Error	1486	Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (TO_DAYS(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (TO_DAYS(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (TO_DAYS(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (TO_DAYS(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (TO_DAYS(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (DAYOFMONTH(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (DAYOFMONTH(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (DAYOFMONTH(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (DAYOFMONTH(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (DAYOFMONTH(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (MONTH(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (MONTH(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (MONTH(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (MONTH(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (MONTH(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (DAYOFYEAR(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (DAYOFYEAR(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (DAYOFYEAR(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (DAYOFYEAR(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (DAYOFYEAR(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (HOUR(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (HOUR(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (HOUR(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (HOUR(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (HOUR(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (MINUTE(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (MINUTE(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (MINUTE(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (MINUTE(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (MINUTE(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (QUARTER(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (QUARTER(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (QUARTER(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (QUARTER(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (QUARTER(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (SECOND(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (SECOND(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (SECOND(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (SECOND(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (SECOND(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (YEARWEEK(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (YEARWEEK(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (YEARWEEK(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (YEARWEEK(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (YEARWEEK(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (WEEKDAY(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (WEEKDAY(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (WEEKDAY(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (WEEKDAY(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (WEEKDAY(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+# TO_SECONDS() is added in 5.5.
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (TO_SECONDS(a));
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (TIME_TO_SEC(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (TIME_TO_SEC(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (TIME_TO_SEC(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (TIME_TO_SEC(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (TIME_TO_SEC(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (FROM_DAYS(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (FROM_DAYS(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (FROM_DAYS(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (TO_DAYS(FROM_DAYS(a)));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (FROM_DAYS(a));
+ERROR HY000: The PARTITION function returns the wrong type
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (TO_DAYS(FROM_DAYS(a)));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (FROM_DAYS(a));
+ERROR HY000: The PARTITION function returns the wrong type
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (MICROSECOND(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (MICROSECOND(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (MICROSECOND(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (MICROSECOND(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (MICROSECOND(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+# Bug#57071
+CREATE TABLE t1
+(`date` date,
+`extracted_week` int,
+`yearweek` int,
+`week` int,
+`default_week_format` int)
+PARTITION BY LIST (EXTRACT(WEEK FROM date) % 3)
+(PARTITION p0 VALUES IN (0),
+PARTITION p1 VALUES IN (1),
+PARTITION p2 VALUES IN (2));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1
+(`date` date,
+`extracted_week` int,
+`yearweek` int,
+`week` int,
+`default_week_format` int);
+SET @old_default_week_format := @@default_week_format;
+SET default_week_format = 0;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 1;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 2;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 3;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 4;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 5;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 6;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SET default_week_format = 7;
+INSERT INTO t1 VALUES ('2000-01-01', EXTRACT(WEEK FROM '2000-01-01'), YEARWEEK('2000-01-01'), WEEK('2000-01-01'), @@default_week_format);
+SELECT * FROM t1;
+date	extracted_week	yearweek	week	default_week_format
+2000-01-01	0	199952	0	0
+2000-01-01	0	199952	0	1
+2000-01-01	52	199952	52	2
+2000-01-01	52	199952	52	3
+2000-01-01	0	199952	0	4
+2000-01-01	0	199952	0	5
+2000-01-01	52	199952	52	6
+2000-01-01	52	199952	52	7
+SET default_week_format = @old_default_week_format;
+DROP TABLE t1;
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(YEAR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(YEAR FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(YEAR FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(YEAR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(YEAR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(YEAR_MONTH FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(YEAR_MONTH FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(YEAR_MONTH FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(YEAR_MONTH FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(YEAR_MONTH FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(QUARTER FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(QUARTER FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(QUARTER FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(QUARTER FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(QUARTER FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(MONTH FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(MONTH FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(MONTH FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(MONTH FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(MONTH FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+# EXTRACT(WEEK...) is disallowed, see bug#57071.
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(WEEK FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(WEEK FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(WEEK FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(WEEK FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(WEEK FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(DAY FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(DAY FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(DAY FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(DAY FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(DAY FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(DAY_HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(DAY_HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(DAY_HOUR FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(DAY_HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(DAY_HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(DAY_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(DAY_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(DAY_MINUTE FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(DAY_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(DAY_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(DAY_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(DAY_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(DAY_SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(DAY_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(DAY_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(HOUR FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(HOUR FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(HOUR FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(HOUR_MINUTE FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(HOUR_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(HOUR_MINUTE FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(HOUR_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(HOUR_MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(HOUR_SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(HOUR_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(HOUR_SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(HOUR_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(HOUR_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(MINUTE FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(MINUTE FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(MINUTE FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(MINUTE_SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(MINUTE_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(MINUTE_SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(MINUTE_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(MINUTE_SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(SECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(SECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(DAY_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(DAY_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(DAY_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(DAY_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(DAY_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(HOUR_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(MINUTE_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(MINUTE_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(MINUTE_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(MINUTE_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(MINUTE_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (EXTRACT(SECOND_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (EXTRACT(SECOND_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (EXTRACT(SECOND_MICROSECOND FROM a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (EXTRACT(SECOND_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (EXTRACT(SECOND_MICROSECOND FROM a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME, b DATE)
+PARTITION BY HASH (DATEDIFF(a, b));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATE, b DATETIME)
+PARTITION BY HASH (DATEDIFF(a, b));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATETIME, b DATE)
+PARTITION BY HASH (DATEDIFF(a, b));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE, b VARCHAR(10))
+PARTITION BY HASH (DATEDIFF(a, b));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT, b DATETIME)
+PARTITION BY HASH (DATEDIFF(a, b));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a TIME)
+PARTITION BY HASH (TIME_TO_SEC(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a DATE)
+PARTITION BY HASH (TIME_TO_SEC(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a DATETIME)
+PARTITION BY HASH (TIME_TO_SEC(a));
+DROP TABLE t1;
+CREATE TABLE t1 (a VARCHAR(10))
+PARTITION BY HASH (TIME_TO_SEC(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (TIME_TO_SEC(a));
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
+#
 # Bug#49161: Out of memory; restart server and try again (needed 2 bytes)
 #
 CREATE TABLE t1 (a INT) PARTITION BY HASH (a);

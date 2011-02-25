@@ -17,3 +17,5 @@ main.mysqlhotcopy_archive: bug#54129 2010-06-04 Horst
 main.events_time_zone    : Test is not predictable as it depends on precise timing.
 main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
+log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists
+read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists

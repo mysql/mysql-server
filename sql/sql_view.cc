@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -545,7 +545,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   /* prepare select to resolve all fields */
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
   if (unit->prepare(thd, 0, 0))
   {
     /*
@@ -1257,6 +1257,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
+    Security_context *security_ctx;
 
     /*
       Check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
@@ -1398,25 +1399,38 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (table->view_suid)
     {
       /*
-        Prepare a security context to check underlying objects of the view
+        For suid views prepare a security context for checking underlying
+        objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
             thd->stmt_arena->alloc(sizeof(Security_context))))
         goto err;
-      /* Assign the context to the tables referenced in the view */
-      if (view_tables)
-      {
-        DBUG_ASSERT(view_tables_tail);
-        for (tbl= view_tables; tbl != view_tables_tail->next_global;
-             tbl= tbl->next_global)
-          tbl->security_ctx= table->view_sctx;
-      }
-      /* assign security context to SELECT name resolution contexts of view */
-      for(SELECT_LEX *sl= lex->all_selects_list;
-          sl;
-          sl= sl->next_select_in_list())
-        sl->context.security_ctx= table->view_sctx;
+      security_ctx= table->view_sctx;
     }
+    else
+    {
+      /*
+        For non-suid views inherit security context from view's table list.
+        This allows properly handle situation when non-suid view is used
+        from within suid view.
+      */
+      security_ctx= table->security_ctx;
+    }
+
+    /* Assign the context to the tables referenced in the view */
+    if (view_tables)
+    {
+      DBUG_ASSERT(view_tables_tail);
+      for (tbl= view_tables; tbl != view_tables_tail->next_global;
+           tbl= tbl->next_global)
+        tbl->security_ctx= security_ctx;
+    }
+
+    /* assign security context to SELECT name resolution contexts of view */
+    for(SELECT_LEX *sl= lex->all_selects_list;
+        sl;
+        sl= sl->next_select_in_list())
+      sl->context.security_ctx= security_ctx;
 
     /*
       Setup an error processor to hide error messages issued by stored

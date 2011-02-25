@@ -1,15 +1,16 @@
 --source include/have_ndb.inc
---source include/ndb_master-slave.inc
 
 # set up circular replication
+--let $rpl_topology= 1->2->1
+--source include/rpl_init.inc
 
---connection slave
-RESET MASTER;
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
 
---connection master
---replace_result $SLAVE_MYPORT SLAVE_PORT
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
-START SLAVE;
+--let $rpl_connection_name= slave
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
 
 
 # create the table on the "slave"
@@ -51,3 +52,6 @@ STOP SLAVE;
 --connection master
 DROP TABLE t1;
 -- sync_slave_with_master
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

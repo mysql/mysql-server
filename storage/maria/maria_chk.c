@@ -38,6 +38,7 @@ static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "maria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir, *opt_log_dir;
+static const char *default_log_dir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
   int error;
   MY_INIT(argv[0]);
 
-  opt_log_dir= maria_data_root= (char *)".";
+  default_log_dir= opt_log_dir= maria_data_root= (char *)".";
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
@@ -207,7 +208,7 @@ enum options_mc {
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
   OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN,
   OPT_REQUIRE_CONTROL_FILE, OPT_IGNORE_CONTROL_FILE,
-  OPT_LOG_DIR, OPT_DATADIR, OPT_WARNING_FOR_WRONG_TRANSID
+  OPT_LOG_DIR, OPT_WARNING_FOR_WRONG_TRANSID
 };
 
 static struct my_option my_long_options[] =
@@ -277,7 +278,7 @@ static struct my_option my_long_options[] =
    &check_param.keys_in_use,
    &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
-  {"datadir", OPT_DATADIR,
+  {"datadir", 'h',
    "Path for control file (and logs if --logdir not used).",
    &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -928,6 +929,11 @@ static void get_options(register int *argc,register char ***argv)
                                              MYF(MY_WME))))
       exit(1);
 
+  if (maria_data_root != default_log_dir && opt_log_dir == default_log_dir)
+  {
+    /* --datadir was used and --log-dir was not. Set log-dir to datadir */
+    opt_log_dir= maria_data_root;
+  }
   return;
 } /* get options */
 
