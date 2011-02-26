@@ -2424,7 +2424,7 @@ sub setup_vardir() {
     $plugindir="$opt_vardir/plugins";
     unshift (@opt_extra_mysqld_opt, "--plugin-dir=$plugindir");
     mkpath($plugindir);
-    if (IS_WINDOWS)
+    if (IS_WINDOWS && !$opt_embedded_server)
     {
       for (<../storage/*$opt_vs_config/*.dll>,
            <../plugin/*$opt_vs_config/*.dll>,
