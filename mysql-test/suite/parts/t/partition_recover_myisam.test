@@ -24,7 +24,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash.MYI
 --copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1_will_crash.MYI
 # Embedded server doesn't chdir to data directory
---replace_regex /Table '.*\/data\/test\/t1_will_crash/Table '.\/test\/t1_will_crash/
+--replace_regex /Table '.*t1_will_crash/Table 't1_will_crash/
 --enable_prepare_warnings
 SELECT * FROM t1_will_crash;
 --disable_prepare_warnings
@@ -41,7 +41,7 @@ FLUSH TABLES;
 --remove_file $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 --copy_file std_data/corrupt_t1#P#p1.MYI $MYSQLD_DATADIR/test/t1_will_crash#P#p1.MYI
 # Embedded server doesn't chdir to data directory
---replace_regex /Table '.*\/data\/test\/t1_will_crash/Table '.\/test\/t1_will_crash/
+--replace_regex /Table '.*t1_will_crash/Table 't1_will_crash/
 --enable_prepare_warnings
 SELECT * FROM t1_will_crash;
 --disable_prepare_warnings

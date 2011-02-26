@@ -621,7 +621,7 @@ _rl_output_some_chars (string, count)
      const char *string;
      int count;
 {
-  if (fwrite (string, 1, count, _rl_out_stream) != count)
+  if (fwrite (string, 1, count, _rl_out_stream) != (size_t)count)
     fprintf(stderr, "Write failed\n");
 }
 
