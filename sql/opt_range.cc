@@ -11864,7 +11864,7 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       if (cur_range->field->eq(cur_part->field))
         break;
     }
-    if (!cur_range)
+    if (!cur_range || cur_range->type != SEL_ARG::KEY_RANGE)
     {
       if (min_max_arg_part)
         return FALSE; /* The current keypart has no range predicates at all. */

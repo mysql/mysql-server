@@ -3871,7 +3871,8 @@ bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
 {
   DBUG_ENTER("bka_skip_index_tuple");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
-  DBUG_RETURN(cache->skip_index_tuple(range_info));
+  bool res= cache->skip_index_tuple(range_info);
+  DBUG_RETURN(res);
 }
 
 
