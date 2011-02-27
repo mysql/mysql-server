@@ -3,6 +3,10 @@
 #
 
 --source include/big_test.inc
+# The test would allocate and initialize 5GB of memory
+# if compiled with debug. It can take a lot of time
+# of for paging/swapping.
+--source include/not_debug.inc
 
 #
 # Bug#27322 failure to allocate transaction_prealloc_size causes crash
