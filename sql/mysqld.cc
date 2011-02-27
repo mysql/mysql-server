@@ -7413,7 +7413,8 @@ thread is in the relay logs.",
    "index_condition_pushdown, firstmatch, loosescan, materialization, "
    "semijoin, partial_match_rowid_merge, partial_match_table_scan, "
    "subquery_cache, outer_join_with_cache, semijoin_with_cache, "
-   "join_cache_incremental, join_cache_hashed, join_cache_bka"
+   "join_cache_incremental, join_cache_hashed, join_cache_bka, "
+   "optimize_join_buffer_size"
 #ifndef DBUG_OFF
    ", table_elimination"
 #endif 

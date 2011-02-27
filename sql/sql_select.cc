@@ -4031,6 +4031,7 @@ add_keyuse(DYNAMIC_ARRAY *keyuse_array, KEY_FIELD *key_field,
   }
   keyuse.used_tables= key_field->val->used_tables();
   keyuse.optimize= key_field->optimize & KEY_OPTIMIZE_REF_OR_NULL;
+  keyuse.ref_table_rows= 0;
   keyuse.null_rejecting= key_field->null_rejecting;
   keyuse.cond_guard= key_field->cond_guard;
   keyuse.sj_pred_no= key_field->sj_pred_no;
