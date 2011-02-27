@@ -8,12 +8,14 @@
 --loose-performance_schema_max_cond_classes=0
 --loose-performance_schema_max_file_classes=0
 --loose-performance_schema_max_thread_classes=0
+--loose-performance_schema_max_socket_classes=0
 
 --loose-performance_schema_max_mutex_instances=0
 --loose-performance_schema_max_rwlock_instances=0
 --loose-performance_schema_max_cond_instances=0
 --loose-performance_schema_max_file_instances=0
 --loose-performance_schema_max_thread_instances=0
+--loose-performance_schema_max_socket_instances=0
 
 --loose-performance_schema_max_table_instances=0
 --loose-performance_schema_max_file_handles=0
