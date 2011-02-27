@@ -17,11 +17,5 @@ update t2 set test_name= replace(test_name, "table_lock_waits_summary_", "tlws_"
 delete from t2 where t2.test_name in (select t1.test_name from t1);
 select test_name as `MISSING DDL/DML TESTS` from t2;
 MISSING DDL/DML TESTS
-ddl_socket_instances.test
-ddl_socket_summary_by_event_name.test
-ddl_socket_summary_by_instance.test
-dml_socket_instances.test
-dml_socket_summary_by_event_name.test
-dml_socket_summary_by_instance.test
 drop table t1;
 drop table t2;
