@@ -11367,7 +11367,7 @@ mysql_declare_plugin(innobase)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
   innobase_hton_name,
-  "Innobase Oy",
+  plugin_author,
   "Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
