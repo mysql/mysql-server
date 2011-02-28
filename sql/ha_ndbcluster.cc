@@ -11256,7 +11256,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
         if (eq_fraction >= 1.0)        // Exact match -> 1 row
           DBUG_RETURN(1);
 
-        rows = (Uint64)((double)table_rows / pow(table_rows, eq_fraction));
+        rows = (Uint64)((double)table_rows / pow((double)table_rows, eq_fraction));
         if (rows > (table_rows/50))    // EQ-range: Max 2% of rows
           rows= (table_rows/50);
 
