@@ -231,14 +231,18 @@ void print_keyuse(KEYUSE *keyuse)
   char buff[256];
   char buf2[64]; 
   const char *fieldname;
+  JOIN_TAB *join_tab= keyuse->table->reginfo.join_tab;
+  KEY *key_info= join_tab->get_keyinfo_by_key_no(keyuse->key);
   String str(buff,(uint32) sizeof(buff), system_charset_info);
   str.length(0);
   keyuse->val->print(&str, QT_ORDINARY);
   str.append('\0');
-  if (keyuse->keypart == FT_KEYPART)
+  if (keyuse->is_for_hash_join())
+    fieldname= keyuse->table->field[keyuse->keypart]->field_name;
+  else if (keyuse->keypart == FT_KEYPART)
     fieldname= "FT_KEYPART";
   else
-    fieldname= keyuse->table->key_info[keyuse->key].key_part[keyuse->keypart].field->field_name;
+    fieldname= key_info->key_part[keyuse->keypart].field->field_name;
   longlong2str(keyuse->used_tables, buf2, 16, 0); 
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, "KEYUSE: %s.%s=%s  optimize: %u  used_tables: %s "
