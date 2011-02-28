@@ -24,6 +24,8 @@ but is included in mem0mem.* !
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
+#include "ha_prototypes.h"
+
 #ifdef UNIV_MEM_DEBUG
 # ifndef UNIV_HOTBACKUP
 /* The mutex which protects in the debug version the hash table
