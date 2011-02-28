@@ -855,7 +855,7 @@ _rl_read_init_file (filename, include_level)
 {
   register int i;
   char *buffer, *openname, *line, *end;
-  size_t file_size;
+  size_t file_size = 0;
 
   current_readline_init_file = filename;
   current_readline_init_include_level = include_level;

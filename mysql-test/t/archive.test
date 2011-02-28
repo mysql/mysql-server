@@ -5,6 +5,8 @@
 -- source include/have_archive.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
 
+call mtr.add_suppression("Table 't1' is marked as crashed and should be repaired");
+
 --disable_warnings
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings

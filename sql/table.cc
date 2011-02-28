@@ -2084,7 +2084,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr, **vfield_ptr;
-  bool save_view_prepare_mode= thd->lex->view_prepare_mode;
+  uint8 save_context_analysis_only= thd->lex->context_analysis_only;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
@@ -2092,7 +2092,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   /* Parsing of partitioning information from .frm needs thd->lex set up. */
   DBUG_ASSERT(thd->lex->is_lex_started);
 
-  thd->lex->view_prepare_mode= FALSE; // not a view
+  thd->lex->context_analysis_only= 0; // not a view
 
   error= 1;
   bzero((char*) outparam, sizeof(*outparam));
@@ -2422,7 +2422,7 @@ partititon_err:
                                HA_HAS_OWN_BINLOGGING);
   thd->status_var.opened_tables++;
 
-  thd->lex->view_prepare_mode= save_view_prepare_mode;
+  thd->lex->context_analysis_only= save_context_analysis_only;
   DBUG_RETURN (0);
 
  err:
@@ -2435,7 +2435,7 @@ partititon_err:
 #endif
   outparam->file= 0;				// For easier error checking
   outparam->db_stat=0;
-  thd->lex->view_prepare_mode= save_view_prepare_mode;
+  thd->lex->context_analysis_only= save_context_analysis_only;
   free_root(&outparam->mem_root, MYF(0));       // Safe to call on bzero'd root
   outparam->alias.free();
   DBUG_RETURN (error);
@@ -2674,13 +2674,17 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
 {
   int err_no;
   char buff[FN_REFLEN];
-  myf errortype= ME_ERROR+ME_WAITTANG;
+  myf errortype= ME_ERROR+ME_WAITTANG;          // Write fatals error to log
   DBUG_ENTER("open_table_error");
 
   switch (error) {
   case 7:
   case 1:
-    if (db_errno == ENOENT)
+    /*
+      Test if file didn't exists. We have to also test for EINVAL as this
+      may happen on windows when opening a file with a not legal file name
+    */
+    if (db_errno == ENOENT || db_errno == EINVAL)
       my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
     else
     {

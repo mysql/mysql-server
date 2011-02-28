@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (C) 2005-2006 MySQL AB
-#
+# Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -143,7 +143,7 @@ sub collect_test_cases ($$$) {
       {
 	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
-	if ( $test->{name} =~ /.*\.$tname/ )
+	if ( $test->{name} =~ /^$sname.*\.$tname$/ )
 	{
 	  $found= 1;
 	  last;
@@ -183,12 +183,21 @@ sub collect_test_cases ($$$) {
       # Append the criteria for sorting, in order of importance.
       #
       push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "A" : "B"));
+      push(@criteria, $tinfo->{template_path});
       # Group test with equal options together.
       # Ending with "~" makes empty sort later than filled
       my $opts= $tinfo->{'master_opt'} ? $tinfo->{'master_opt'} : [];
       push(@criteria, join("!", sort @{$opts}) . "~");
+      # Add slave opts if any
+      if ($tinfo->{'slave_opt'})
+      {
+	push(@criteria, join("!", sort @{$tinfo->{'slave_opt'}}));
+      }
+      # This sorts tests with force-restart *before* identical tests
+      push(@criteria, $tinfo->{force_restart} ? "force-restart" : "no-restart");
 
-      $sort_criteria{$tinfo->fullname()} = join(" ", @criteria);
+      $tinfo->{criteria}= join(" ", @criteria);
+      $sort_criteria{$tinfo->fullname()} = $tinfo->{criteria};
     }
 
     @$cases = sort { testcase_sort_order($a, $b, \%sort_criteria) } @$cases;
@@ -196,9 +205,10 @@ sub collect_test_cases ($$$) {
     # For debugging the sort-order
     # foreach my $tinfo (@$cases)
     # {
-    #   print $sort_criteria{$tinfo->fullname()}," -> \t",$tinfo->fullname(),"\n";
+    #   my $tname= $tinfo->{name} . ' ' . $tinfo->{combination};
+    #   my $crit= $tinfo->{criteria};
+    #   print("$tname\n\t$crit\n");
     # }
-
   }
 
   if (defined $print_testcases){
@@ -902,7 +912,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'big-test' option";
+    $tinfo->{'comment'}= "Test needs --big-test";
     return $tinfo
   }
 
@@ -927,7 +937,7 @@ sub collect_one_test_case {
     {
       # All ndb test's should be skipped
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
+      $tinfo->{'comment'}= "No ndbcluster";
       return $tinfo;
     }
   }
@@ -948,7 +958,7 @@ sub collect_one_test_case {
     if ( $skip_rpl )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
+      $tinfo->{'comment'}= "No replication tests";
       return $tinfo;
     }
   }

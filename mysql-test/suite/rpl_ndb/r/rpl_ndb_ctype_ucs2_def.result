@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 show variables like 'collation_server';
 Variable_name	Value
 collation_server	ucs2_unicode_ci
@@ -25,3 +21,4 @@ nid	nom	prenom
 1	XYZ1	ABC1
 ==== clean up ====
 DROP TABLE t1;
+include/rpl_end.inc

@@ -672,6 +672,9 @@ extern log_t*	log_sys;
 					when mysqld is first time started
 					on the restored database, it can
 					print helpful info for the user */
+#define LOG_FILE_OS_FILE_LOG_BLOCK_SIZE 64
+					/* extend to record log_block_size
+					of XtraDB. 0 means default 512 */
 #define	LOG_FILE_ARCH_COMPLETED	OS_FILE_LOG_BLOCK_SIZE
 					/* this 4-byte field is TRUE when
 					the writing of an archived log file

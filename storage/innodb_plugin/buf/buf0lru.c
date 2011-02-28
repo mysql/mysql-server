@@ -1942,6 +1942,7 @@ buf_LRU_stat_update(void)
 /*=====================*/
 {
 	buf_LRU_stat_t*	item;
+	buf_LRU_stat_t	cur_stat;
 
 	/* If we haven't started eviction yet then don't update stats. */
 	if (buf_pool->freed_page_clock == 0) {
@@ -1955,12 +1956,19 @@ buf_LRU_stat_update(void)
 	buf_LRU_stat_arr_ind++;
 	buf_LRU_stat_arr_ind %= BUF_LRU_STAT_N_INTERVAL;
 
-	/* Add the current value and subtract the obsolete entry. */
-	buf_LRU_stat_sum.io += buf_LRU_stat_cur.io - item->io;
-	buf_LRU_stat_sum.unzip += buf_LRU_stat_cur.unzip - item->unzip;
+	/* Add the current value and subtract the obsolete entry.
+	Since buf_LRU_stat_cur is not protected by any mutex,
+	it can be changing between adding to buf_LRU_stat_sum
+	and copying to item. Assign it to local variables to make
+	sure the same value assign to the buf_LRU_stat_sum
+	and item */
+	cur_stat = buf_LRU_stat_cur;
+
+	buf_LRU_stat_sum.io += cur_stat.io - item->io;
+	buf_LRU_stat_sum.unzip += cur_stat.unzip - item->unzip;
 
 	/* Put current entry in the array. */
-	memcpy(item, &buf_LRU_stat_cur, sizeof *item);
+	memcpy(item, &cur_stat, sizeof *item);
 
 	buf_pool_mutex_exit();
 

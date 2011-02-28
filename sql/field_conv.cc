@@ -783,10 +783,12 @@ int field_conv(Field *to,Field *from)
          ((Field_varstring*)from)->length_bytes ==
           ((Field_varstring*)to)->length_bytes))
     {						// Identical fields
-#ifdef HAVE_valgrind
-      /* This may happen if one does 'UPDATE ... SET x=x' */
+      /*
+        This may happen if one does 'UPDATE ... SET x=x'
+        The test is here mostly for valgrind, but can also be relevant
+        if memcpy() is implemented with prefetch-write
+       */
       if (to->ptr != from->ptr)
-#endif
         memcpy(to->ptr,from->ptr,to->pack_length());
       return 0;
     }

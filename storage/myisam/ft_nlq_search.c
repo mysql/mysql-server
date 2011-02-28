@@ -79,7 +79,6 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 #else
 #error
 #endif
-
   DBUG_ENTER("walk_and_match");
 
   word->weight=LWS_FOR_QUERY;

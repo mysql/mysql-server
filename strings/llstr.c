@@ -24,8 +24,7 @@
 */
 
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 char *llstr(longlong value,char *buff)
 {

@@ -574,7 +574,7 @@ handle_new_error:
 		      "InnoDB: If the mysqld server crashes"
 		      " after the startup or when\n"
 		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html"
 		      " for help.\n", stderr);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
@@ -875,7 +875,8 @@ row_update_statistics_if_needed(
 	if (counter > 2000000000
 	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
-		dict_update_statistics(table, TRUE);
+		dict_update_statistics(table, FALSE /* update even if stats
+						    are initialized */, TRUE);
 	}
 }
 
@@ -3014,7 +3015,8 @@ next_rec:
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table, TRUE);
+	dict_update_statistics(table, FALSE /* update even if stats are
+					    initialized */, TRUE);
 
 	trx_commit_for_mysql(trx);
 

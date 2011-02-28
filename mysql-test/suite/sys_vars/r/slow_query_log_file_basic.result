@@ -1,4 +1,4 @@
-SET @start_value = @@global.slow_query_log_file;
+slowtest.log
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.slow_query_log_file = DEFAULT;
 SELECT RIGHT(@@global.slow_query_log_file,15);
@@ -14,4 +14,4 @@ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='slow_query_log_file';
 @@global.slow_query_log_file = VARIABLE_VALUE
 1
-SET @@global.slow_query_log_file= @start_value;
+SET @@global.slow_query_log_file= 'slowtest.log';

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)) ENGINE = 'NDB'  ;
 SELECT * FROM t1;
 C1	C2
@@ -422,11 +418,7 @@ a	b	c
 **** Test for BUG#31552 ****
 **** On Master ****
 DELETE FROM t1;
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/rpl_reset.inc
 **** On Master ****
 INSERT INTO t1 VALUES ('K','K'), ('L','L'), ('M','M');
 **** On Master ****
@@ -436,7 +428,7 @@ DELETE FROM t1;
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 set @@global.slave_exec_mode= default;
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 SELECT COUNT(*) FROM t1 ORDER BY c1,c2;
 COUNT(*)	0
 **** Test for BUG#37076 ****
@@ -478,50 +470,44 @@ j INT NOT NULL) ENGINE = 'NDB'  ;
 [expecting slave to replicate correctly]
 INSERT INTO t1 VALUES (1, "", 1);
 INSERT INTO t1 VALUES (2, repeat(_utf8'a', 16), 2);
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 [expecting slave to replicate correctly]
 INSERT INTO t2 VALUES (1, "", 1);
 INSERT INTO t2 VALUES (2, repeat(_utf8'a', 16), 2);
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t2, slave:t2]
 [expecting slave to stop]
 INSERT INTO t3 VALUES (1, "", 1);
 INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
-Last_SQL_Error = Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.
-RESET MASTER;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.'
+include/rpl_reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t4 VALUES (1, "", 1);
 INSERT INTO t4 VALUES (2, repeat(_utf8'a', 128), 2);
-Comparing tables master:test.t4 and slave:test.t4
+include/diff_tables.inc [master:t4, slave:t4]
 [expecting slave to stop]
 INSERT INTO t5 VALUES (1, "", 1);
 INSERT INTO t5 VALUES (2, repeat(_utf8'a', 255), 2);
-Last_SQL_Error = Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.
-RESET MASTER;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t5 on slave has size 49. Master's column size should be <= the slave's column size.'
+include/rpl_reset.inc
 [expecting slave to stop]
 INSERT INTO t6 VALUES (1, "", 1);
 INSERT INTO t6 VALUES (2, repeat(_utf8'a', 255), 2);
-Last_SQL_Error = Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.
-RESET MASTER;
-STOP SLAVE;
-RESET SLAVE;
-START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 1 size mismatch - master has size 765, test.t6 on slave has size 385. Master's column size should be <= the slave's column size.'
+include/rpl_reset.inc
 [expecting slave to replicate correctly]
 INSERT INTO t7 VALUES (1, "", 1);
 INSERT INTO t7 VALUES (2, repeat(_utf8'a', 255), 2);
-Comparing tables master:test.t7 and slave:test.t7
+include/diff_tables.inc [master:t7, slave:t7]
 drop table t1, t2, t3, t4, t5, t6, t7;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE='NDB' ;
 INSERT INTO t1 VALUES (1), (2), (3);
 UPDATE t1 SET a = 10;
 ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
 INSERT INTO t1 VALUES (4);
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (
@@ -575,7 +561,7 @@ ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
 DELETE FROM t2 WHERE `pk` < 7 LIMIT 1;
 UPDATE t1 SET `int_key` = 4 ORDER BY `pk` LIMIT 6;
 *** results: t2 must be consistent ****
-Comparing tables master:test.t2 and master:test.t2
+include/diff_tables.inc [master:t2, master:t2]
 DROP TABLE t1, t2;
 EOF OF TESTS
 CREATE TABLE t1 (a int) ENGINE='NDB' ;
@@ -591,7 +577,7 @@ UPDATE t1 SET a = 9 WHERE a < 3;
 INSERT INTO t1 ( a ) VALUES ( 3 );
 UPDATE t1 SET a = 0 WHERE a < 4;
 UPDATE t1 SET a = 8 WHERE a < 5;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
 CREATE TABLE t1 (a bit) ENGINE='NDB' ;
 INSERT IGNORE INTO t1 VALUES (NULL);
@@ -633,5 +619,6 @@ DELETE FROM t1 WHERE a < 3 LIMIT 0;
 UPDATE t1 SET a = 8 WHERE a = 5 LIMIT 2;
 INSERT INTO t1 ( a ) VALUES ( 1 );
 UPDATE t1 SET a = 9 WHERE a < 5 LIMIT 3;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
+include/rpl_end.inc

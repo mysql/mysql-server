@@ -274,7 +274,10 @@ void bitmap_set_prefix(MY_BITMAP *map, uint prefix_size)
     memset(m, 0xff, prefix_bytes);
   m+= prefix_bytes;
   if ((prefix_bits= prefix_size & 7))
+  {
     *m++= (1 << prefix_bits)-1;
+    prefix_bytes++;
+  }
   if ((d= no_bytes_in_map(map)-prefix_bytes))
     bzero(m, d);
 }

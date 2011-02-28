@@ -116,3 +116,4 @@ drop table t1;
 
 # End cleanup
 sync_slave_with_master;
+--source include/rpl_end.inc

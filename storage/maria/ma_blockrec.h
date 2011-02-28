@@ -78,6 +78,10 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 #define ROW_FLAG_EXTENTS                128
 #define ROW_FLAG_ALL			(1+2+4+8+128)
 
+/* Size for buffer to hold information about bitmap */
+#define MAX_BITMAP_INFO_LENGTH ((MARIA_MAX_KEY_BLOCK_LENGTH*8/3)*(61*11/60)+10)
+
+
 /******** Variables that affects how data pages are utilized ********/
 
 /* Minium size of tail segment */
@@ -181,6 +185,8 @@ TRANSLOG_ADDRESS
 maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 
 /* ma_bitmap.c */
+extern const char *bits_to_txt[];
+
 my_bool _ma_bitmap_init(MARIA_SHARE *share, File file);
 my_bool _ma_bitmap_end(MARIA_SHARE *share);
 my_bool _ma_bitmap_flush(MARIA_SHARE *share);
@@ -206,8 +212,7 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *new_row,
                                   MARIA_BITMAP_BLOCKS *result_blocks);
 my_bool _ma_check_bitmap_data(MARIA_HA *info,
                               enum en_page_type page_type,
-                              pgcache_page_no_t page,
-                              uint empty_space, uint *bitmap_pattern);
+                              uint empty_space, uint bitmap_pattern);
 my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        enum en_page_type page_type,
                                        pgcache_page_no_t page,
@@ -225,6 +230,10 @@ void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
                       pgcache_page_no_t page);
 #endif
+void _ma_get_bitmap_description(MARIA_FILE_BITMAP *bitmap,
+                                uchar *bitmap_data,
+                                pgcache_page_no_t page,
+                                char *out);
 
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,

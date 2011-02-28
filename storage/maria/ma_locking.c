@@ -80,9 +80,8 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
       {
 	if (end_io_cache(&info->rec_cache))
 	{
-	  error=my_errno;
-          maria_print_error(info->s, HA_ERR_CRASHED);
-	  maria_mark_crashed(info);
+	  error= my_errno;
+          _ma_set_fatal_error(share, error);
 	}
       }
       if (!count)
@@ -129,10 +128,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 	  else
 	    share->not_flushed=1;
 	  if (error)
-          {
-            maria_print_error(info->s, HA_ERR_CRASHED);
-	    maria_mark_crashed(info);
-          }
+            _ma_set_fatal_error(share, error);
 	}
       }
       info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -390,12 +386,39 @@ int _ma_test_if_changed(register MARIA_HA *info)
 #define _MA_ALREADY_MARKED_FILE_CHANGED                                 \
   ((share->state.changed & STATE_CHANGED) && share->global_changed)
 
-int _ma_mark_file_changed(MARIA_HA *info)
+int _ma_mark_file_changed(register MARIA_SHARE *share)
+{
+  if (!share->base.born_transactional)
+  {
+    if (!_MA_ALREADY_MARKED_FILE_CHANGED)
+      return _ma_mark_file_changed_now(share);
+  }
+  else
+  {
+    /*
+      For transactional tables, the table is marked changed when the first page
+      is written. Here we just mark the state to be updated so that caller
+      can do 'anaylze table' and find that is has changed before any pages
+      are written.
+    */
+    if (! test_all_bits(share->state.changed,
+                        (STATE_CHANGED | STATE_NOT_ANALYZED |
+                         STATE_NOT_OPTIMIZED_KEYS)))
+    {
+      pthread_mutex_lock(&share->intern_lock);    
+      share->state.changed|=(STATE_CHANGED | STATE_NOT_ANALYZED |
+                             STATE_NOT_OPTIMIZED_KEYS);
+      pthread_mutex_unlock(&share->intern_lock);    
+    }
+  }
+  return 0;
+}
+
+int _ma_mark_file_changed_now(register MARIA_SHARE *share)
 {
   uchar buff[3];
-  register MARIA_SHARE *share= info->s;
   int error= 1;
-  DBUG_ENTER("_ma_mark_file_changed");
+  DBUG_ENTER("_ma_mark_file_changed_now");
 
   if (_MA_ALREADY_MARKED_FILE_CHANGED)
     DBUG_RETURN(0);
@@ -406,7 +429,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
 			   STATE_NOT_OPTIMIZED_KEYS);
     if (!share->global_changed)
     {
-      share->global_changed=1;
+      share->changed= share->global_changed= 1;
       share->state.open_count++;
     }
     /*
@@ -434,7 +457,7 @@ int _ma_mark_file_changed(MARIA_HA *info)
         !(share->state.changed & STATE_NOT_MOVABLE))
     {
       /* Lock table to current installation */
-      if (_ma_set_uuid(info, 0) ||
+      if (_ma_set_uuid(share, 0) ||
           (share->state.create_rename_lsn == LSN_NEEDS_NEW_STATE_LSNS &&
            _ma_update_state_lsns_sub(share, LSN_IMPOSSIBLE,
                                      trnman_get_min_trid(),
@@ -476,22 +499,31 @@ my_bool _ma_check_if_zero(uchar *pos, size_t length)
   call.  In these context the following code should be safe!
  */
 
-int _ma_decrement_open_count(MARIA_HA *info)
+int _ma_decrement_open_count(MARIA_HA *info, my_bool lock_tables)
 {
   uchar buff[2];
   register MARIA_SHARE *share= info->s;
   int lock_error=0,write_error=0;
+  DBUG_ENTER("_ma_decrement_open_count");
+
   if (share->global_changed)
   {
     uint old_lock=info->lock_type;
     share->global_changed=0;
-    lock_error= my_disable_locking ? 0 : maria_lock_database(info, F_WRLCK);
+    lock_error= (my_disable_locking || ! lock_tables ? 0 :
+                 maria_lock_database(info, F_WRLCK));
     /* Its not fatal even if we couldn't get the lock ! */
     if (share->state.open_count > 0)
     {
       share->state.open_count--;
       share->changed= 1;                        /* We have to update state */
-      if (!share->temporary)
+      /*
+        For temporary tables that will just be deleted, we don't have
+        to decrement state. For transactional tables the state will be
+        updated in maria_close().
+      */
+
+      if (!share->temporary && !share->now_transactional)
       {
         mi_int2store(buff,share->state.open_count);
         write_error= (int) my_pwrite(share->kfile.file, buff, sizeof(buff),
@@ -500,10 +532,10 @@ int _ma_decrement_open_count(MARIA_HA *info)
                                      MYF(MY_NABP));
       }
     }
-    if (!lock_error && !my_disable_locking)
+    if (!lock_error && !my_disable_locking && lock_tables)
       lock_error=maria_lock_database(info,old_lock);
   }
-  return test(lock_error || write_error);
+  DBUG_RETURN(test(lock_error || write_error));
 }
 
 
@@ -528,17 +560,40 @@ void _ma_mark_file_crashed(MARIA_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
+/*
+  Handle a fatal error
+
+  - Mark the table as crashed
+  - Print an error message, if we had not issued an error message before
+    that the table had been crashed.
+  - set my_errno to error
+  - If 'maria_assert_if_crashed_table is set, then assert.
+*/
+
+void _ma_set_fatal_error(MARIA_SHARE *share, int error)
+{
+  DBUG_PRINT("error", ("error: %d", error));
+  maria_mark_crashed_share(share);
+  if (!(share->state.changed & STATE_CRASHED_PRINTED))
+  {
+    share->state.changed|= STATE_CRASHED_PRINTED;
+    maria_print_error(share, error);
+  }
+  my_errno= error;
+  DBUG_ASSERT(!maria_assert_if_crashed_table);
+}
+
 
 /**
    @brief Set uuid of for a Maria file
 
    @fn _ma_set_uuid()
-   @param info		Maria handler
+   @param share		Maria share
    @param reset_uuid    Instead of setting file to maria_uuid, set it to
 			0 to mark it as movable
 */
 
-my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid)
+my_bool _ma_set_uuid(MARIA_SHARE *share, my_bool reset_uuid)
 {
   uchar buff[MY_UUID_SIZE], *uuid;
 
@@ -548,7 +603,7 @@ my_bool _ma_set_uuid(MARIA_HA *info, my_bool reset_uuid)
     bzero(buff, sizeof(buff));
     uuid= buff;
   }
-  return (my_bool) my_pwrite(info->s->kfile.file, uuid, MY_UUID_SIZE,
-                             mi_uint2korr(info->s->state.header.base_pos),
+  return (my_bool) my_pwrite(share->kfile.file, uuid, MY_UUID_SIZE,
+                             mi_uint2korr(share->state.header.base_pos),
                              MYF(MY_NABP));
 }

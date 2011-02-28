@@ -52,8 +52,8 @@ const char * NEAR globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d)",
   "Can't change permissions of the file '%s' (Errcode: %d)",
+  "Can't seek in file '%s' (Errcode: %d)"
   "Can't change mode for file '%s' to 0x%lx (Error: %d)",
-  "Can't do seek on file '%s' (Errcode: %d)",
   "Warning: Can't copy ownership for file '%s' (Error: %d)"
 };
 
@@ -98,8 +98,8 @@ void init_glob_errs()
   EE(EE_CHANGE_OWNERSHIP)   = "Can't change ownership of the file '%s' (Errcode: %d)";
   EE(EE_CHANGE_PERMISSIONS) = "Can't change permissions of the file '%s' (Errcode: %d)";
   EE(EE_CANT_CHMOD)    = "Can't change mode for file '%s' to 0x%lx (Error: %d)";
-  EE(EE_CANT_SEEK)     = "Can't do seek on file '%s' (Errcode: %d)";
   EE(EE_CANT_COPY_OWNERSHIP)= "Warning: Can't copy ownership for file '%s' (Error: %d)";
+  EE(EE_CANT_SEEK)     = "Can't seek in file '%s' (Errcode: %d)";
 }
 #endif
 

@@ -1,20 +1,22 @@
-# Example MySQL config file for medium systems.
+# Example MariaDB config file for medium systems.
 #
-# This is for a system with little memory (32M - 64M) where MySQL plays
-# an important part, or systems up to 128M where MySQL is used together with
+# This is for a system with little memory (32M - 64M) where MariaDB plays
+# an important part, or systems up to 128M where MariaDB is used together with
 # other programs (such as a web server)
 #
-# You can copy this file to
-# /etc/my.cnf to set global options,
-# mysql-data-dir/my.cnf to set server-specific options (in this
-# installation this directory is @localstatedir@) or
-# ~/.my.cnf to set user-specific options.
+# MariaDB programs look for option files in a set of
+# locations which depend on the deployment platform.
+# You can copy this option file to one of those
+# locations. For information about these locations, do:
+# 'my_print_defaults --help' and see what is printed under
+# Default options are read from the following files in the given order:
+# More information at: http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
 # with the "--help" option.
 
-# The following options will be passed to all MySQL clients
+# The following options will be passed to all MariaDB clients
 [client]
 #password	= your_password
 port		= @MYSQL_TCP_PORT@
@@ -22,7 +24,7 @@ socket		= @MYSQL_UNIX_ADDR@
 
 # Here follows entries for some specific programs
 
-# The MySQL server
+# The MariaDB server
 [mysqld]
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
@@ -35,6 +37,9 @@ net_buffer_length = 8K
 read_buffer_size = 256K
 read_rnd_buffer_size = 512K
 myisam_sort_buffer_size = 8M
+
+# Point the following paths to different dedicated disks
+#tmpdir		= /tmp/
 
 # Don't listen on a TCP/IP port at all. This can be a security enhancement,
 # if all processes that need to connect to mysqld run on the same host.
@@ -111,14 +116,10 @@ server-id	= 1
 # binary logging - not required for slaves, but recommended
 #log-bin=mysql-bin
 
-# Point the following paths to different dedicated disks
-#tmpdir		= /tmp/		
-#log-update 	= /path-to-dedicated-directory/hostname
-
 # Uncomment the following if you are using InnoDB tables
-#innodb_data_home_dir = @localstatedir@/
+#innodb_data_home_dir = @localstatedir@
 #innodb_data_file_path = ibdata1:10M:autoextend
-#innodb_log_group_home_dir = @localstatedir@/
+#innodb_log_group_home_dir = @localstatedir@
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 16M

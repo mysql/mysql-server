@@ -126,7 +126,7 @@ extern  void _db_flush_();
 #define DBUG_END()  _db_end_ ()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
-#define DBUG_ASSERT(A) assert(A)
+#define DBUG_ASSERT(A) do { _db_flush_(); assert(A); } while(0)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
@@ -157,7 +157,8 @@ extern  void _db_flush_();
 #ifdef __WIN__
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
-#define DBUG_SUICIDE() (_db_flush_(), kill(getpid(), SIGKILL), pause())
+extern void _db_suicide_();
+#define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
 #endif
 
 #else						/* No debugger */

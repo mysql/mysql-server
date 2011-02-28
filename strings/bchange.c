@@ -23,8 +23,7 @@
     src in a buffer with tot_length bytes.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 void bchange(register uchar *dst, size_t old_length, register const uchar *src,
 	     size_t new_length, size_t tot_length)

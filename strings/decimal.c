@@ -99,11 +99,10 @@
       implementation-defined.
 */
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <m_ctype.h>
 #include <myisampack.h>
 #include <my_sys.h> /* for my_alloca */
-#include <m_string.h>
 #include <decimal.h>
 
 /*

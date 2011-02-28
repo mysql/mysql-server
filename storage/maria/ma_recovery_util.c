@@ -59,9 +59,11 @@ void tprint(FILE *trace_file __attribute__ ((unused)),
   va_list args;
 #ifndef DBUG_OFF
   {
-    char buff[1024];
+    char buff[1024], *end;
     va_start(args, format);
     vsnprintf(buff, sizeof(buff)-1, format, args);
+    if (*(end= strend(buff)) == '\n')
+      *end= 0;                                  /* Don't print end \n */
     DBUG_PRINT("info", ("%s", buff));
     va_end(args);
   }

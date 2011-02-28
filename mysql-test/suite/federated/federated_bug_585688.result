@@ -1,0 +1,26 @@
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+#
+# Bug #585688: maridb crashes in federatedx code
+#
+CREATE TABLE federated.t1(a TEXT);
+INSERT INTO federated.t1 VALUES('abc'), ('gh'), ('f'), ('ijk'), ('de');
+flush tables;
+CREATE TABLE federated.t1(a TEXT) ENGINE=FEDERATED
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
+flush tables;
+describe federated.t1;
+Field	Type	Null	Key	Default	Extra
+a	text	YES		NULL	
+show table status from federated;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	FEDERATED	10	Dynamic	5	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+show table status from federated;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	FEDERATED	10	Dynamic	5	20	X	X	X	X	X	X	X	X	latin1_swedish_ci	NULL		
+DROP TABLE federated.t1;
+DROP TABLE federated.t1;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;

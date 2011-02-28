@@ -32,6 +32,7 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 --connection master
 
 disconnect master;
+--echo [on master1]
 --connection master1
 
 # waiting DROP TEMPORARY TABLE event to be written into binlog
@@ -47,7 +48,10 @@ SHOW STATUS LIKE "Slave_open_temp_tables";
 --echo ==== Clean up ====
 
 --echo [on master]
---connection master1
+--let $rpl_connection_name= master
+--let $rpl_server_number= 1
+--source include/rpl_connect.inc
+--connection master
 DROP TABLE t1;
 
 --echo [on slave]
@@ -89,8 +93,7 @@ sync_slave_with_master;
 #    10. in the end the slave should not have open temp tables.
 #  
 
-connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection master
 
 # action: setup environment
@@ -191,11 +194,13 @@ COMMIT;
 
 source include/show_binlog_events.inc;
 
+--sync_slave_with_master
+
 --echo # Compare the base table.
-let diff_table= test.t1;
-source include/rpl_diff_tables.inc;
+--let $diff_tables= master:t1, slave:t1
+--source include/diff_tables.inc
 
 --echo
 connection master;
 DROP TABLE t1;
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

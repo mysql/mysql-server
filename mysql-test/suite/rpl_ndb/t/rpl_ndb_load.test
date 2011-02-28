@@ -64,3 +64,4 @@ CREATE TABLE SERVER
 #
 --exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/DbCreate >> $NDB_TOOLS_OUTPUT
 --exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/DbAsyncGenerator  >> $NDB_TOOLS_OUTPUT
+--source include/rpl_end.inc

@@ -20,3 +20,4 @@ set binlog_format=statement;
 # Embedded server doesn't support binlogging
 --source include/rpl_udf.inc
 
+--source include/rpl_end.inc

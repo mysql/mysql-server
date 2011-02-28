@@ -142,7 +142,7 @@ ADD_CUSTOM_TARGET(
                 ${PROJECT_SOURCE_DIR}/sql/message.rc
                 ${PROJECT_SOURCE_DIR}/sql/lex_hash.h)
 
-ADD_DEPENDENCIES(mysqld GenServerSource)
+ADD_DEPENDENCIES(sql GenServerSource)
 
 # Remove the auto-generated files as part of 'Clean Solution'
 SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES 

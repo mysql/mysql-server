@@ -122,6 +122,7 @@ extern "C" {
 #define CANT_DELETE_OPEN_FILES 1
 
 #define FN_LIBCHAR '\\'
+#define FN_DIRSEP  "/\\"              /* Valid directory separators */
 #define FN_ROOTDIR "\\"
 #define FN_DEVCHAR ':'
 

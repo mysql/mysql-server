@@ -20,6 +20,10 @@ save_CPPFLAGS="$CPPFLAGS"
 save_LIBS="$LIBS"
 CPPFLAGS="$ZLIB_INCLUDES $CPPFLAGS"
 LIBS="$LIBS $ZLIB_LIBS"
+case "$with_mysqld_ldflags " in
+  *"-all-static "*)
+  CPPFLAGS="$CPPFLAGS -static"  
+esac
 if test X"$with_server" = Xno
 then
   zlibsym=zlibVersion

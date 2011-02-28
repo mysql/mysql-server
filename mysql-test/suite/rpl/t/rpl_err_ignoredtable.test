@@ -62,3 +62,6 @@ DROP TABLE test.t4;
 sync_slave_with_master;
 # End of 4.1 tests
 # Adding comment for force manual merge 5.0 -> wl1012. delete me if needed
+
+
+--source include/rpl_end.inc

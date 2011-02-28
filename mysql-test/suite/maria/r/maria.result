@@ -2640,3 +2640,29 @@ repair table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 drop table t1;
+create table t1 (a int, b int, key (a), key(b));
+alter table t1 disable keys;
+insert into t1 values(1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1),(11,1),(12,1),(13,1);
+alter table t1 enable keys;
+select count(*) from t1;
+count(*)
+13
+drop table t1;
+create table t1 (a int not null, b int, primary key (a), key(b));
+alter table t1 disable keys;
+insert into t1 values(1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1),(11,1),(12,1),(13,1);
+alter table t1 enable keys;
+select count(*) from t1;
+count(*)
+13
+drop table t1;
+create table t1 (a int not null, b int, primary key (a), key(b));
+lock tables t1 write;
+alter table t1 disable keys;
+insert into t1 values(1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,1),(11,1),(12,1),(13,1);
+alter table t1 enable keys;
+unlock tables;
+select count(*) from t1;
+count(*)
+13
+drop table t1;
