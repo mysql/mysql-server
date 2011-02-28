@@ -131,7 +131,8 @@ public:
   */
   struct st_table *table;		// Pointer for table
   struct st_table *orig_table;		// Pointer to original table
-  const char	**table_name, *field_name;
+  const char * const *table_name;
+  const char *field_name;
   /** reference to the list of options or NULL */
   engine_option_value *option_list;
   void *option_struct;                  /* structure with parsed options */
@@ -551,10 +552,14 @@ public:
     return (op_result == E_DEC_OVERFLOW);
   }
   int warn_if_overflow(int op_result);
+  void set_table_name(String *alias)
+  {
+    table_name= &alias->Ptr;
+  }
   void init(TABLE *table_arg)
   {
     orig_table= table= table_arg;
-    table_name= &table_arg->alias;
+    set_table_name(&table_arg->alias);
   }
 
   /* maximum possible display length */

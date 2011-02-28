@@ -1274,8 +1274,13 @@ public:
   void make_unique();
   double val_real()
   {
-    String *res;  res=val_str(&str_value);
-    return res ? my_atof(res->c_ptr()) : 0.0;
+    int error;
+    const char *end;
+    String *res;
+    if (!(res= val_str(&str_value)))
+      return 0.0;
+    end= res->ptr() + res->length();
+    return (my_strtod(res->ptr(), (char**) &end, &error));
   }
   longlong val_int()
   {

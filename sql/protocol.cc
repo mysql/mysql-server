@@ -632,6 +632,9 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
   uint count= 0;
 #endif
 
+  /* We have to reallocate it here as a stored procedure may have reset it */
+  (void) local_packet->alloc(thd->variables.net_buffer_length);
+
   while ((item=it++))
   {
     char *pos;

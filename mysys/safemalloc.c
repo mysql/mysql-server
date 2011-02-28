@@ -224,6 +224,8 @@ void *_myrealloc(register void *ptr, register size_t size,
   struct st_irem *irem;
   char *data;
   DBUG_ENTER("_myrealloc");
+  DBUG_PRINT("my",("ptr: 0x%lx  size: %lu  my_flags: %d", (long) ptr,
+                   (ulong) size, MyFlags));
 
   if (!ptr && (MyFlags & MY_ALLOW_ZERO_PTR))
     DBUG_RETURN(_mymalloc(size, filename, lineno, MyFlags));
@@ -245,6 +247,8 @@ void *_myrealloc(register void *ptr, register size_t size,
     (void) fflush(stderr);
     DBUG_RETURN((uchar*) NULL);
   }
+  DBUG_PRINT("my", ("old_size: %lu  -> new_size: %lu",
+                    (ulong) irem->datasize, (ulong) size));
 
   if ((data= _mymalloc(size,filename,lineno,MyFlags))) /* Allocate new area */
   {

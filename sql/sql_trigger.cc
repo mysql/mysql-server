@@ -802,7 +802,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
 
   stmt_query->append(stmt_definition.str, stmt_definition.length);
 
-  trg_def->str= stmt_query->c_ptr();
+  trg_def->str= stmt_query->c_ptr_safe();
   trg_def->length= stmt_query->length();
 
   /* Create trigger definition file. */
@@ -1039,10 +1039,7 @@ void Table_triggers_list::set_table(TABLE *new_table)
 {
   trigger_table= new_table;
   for (Field **field= new_table->triggers->record1_field ; *field ; field++)
-  {
-    (*field)->table= (*field)->orig_table= new_table;
-    (*field)->table_name= &new_table->alias;
-  }
+    (*field)->init(new_table);
 }
 
 

@@ -6157,9 +6157,10 @@ static void add_not_null_conds(JOIN *join)
           */
           if (notnull->fix_fields(join->thd, &notnull))
             DBUG_VOID_RETURN;
-          DBUG_EXECUTE("where",print_where(notnull,
-                                           referred_tab->table->alias,
-                                           QT_ORDINARY););
+          DBUG_EXECUTE("where",
+                       print_where(notnull,
+                                   referred_tab->table->alias.c_ptr(),
+                                   QT_ORDINARY););
           add_cond_and_fix(&referred_tab->select_cond, notnull);
         }
       }
@@ -6418,7 +6419,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
       if (tmp || !cond || tab->type == JT_REF)
       {
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(tmp,tab->table->alias.c_ptr(),
+                                 QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
                                        thd->memdup((uchar*) select,
                                                    sizeof(*select)));
@@ -6458,7 +6461,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond= sel->cond= NULL;
 
 	sel->head=tab->table;
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(tmp,tab->table->alias.c_ptr(),
+                                 QT_ORDINARY););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
@@ -10178,7 +10183,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   thd->mem_root= &table->mem_root;
 
   table->field=reg_field;
-  table->alias= table_alias;
+  table->alias.set(table_alias, strlen(table_alias), table_alias_charset);
+
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->map=1;
@@ -10544,7 +10550,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count=(null_count+7) & ~7;		// move to next byte
 
     // fix table name in field entry
-    field->table_name= &table->alias;
+    field->set_table_name(&table->alias);
   }
 
   param->copy_field_end=copy;
@@ -11268,7 +11274,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   MEM_ROOT own_root= entry->mem_root;
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
-  DBUG_PRINT("enter",("table: %s",entry->alias));
+  DBUG_PRINT("enter",("table: %s",entry->alias.c_ptr()));
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "removing tmp table");
@@ -16026,6 +16032,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
+          str.extra_allocation(1024);
 	  item->print(&str, QT_ORDINARY);
 	  item_field->name= sql_strmake(str.ptr(),str.length());
 	}
