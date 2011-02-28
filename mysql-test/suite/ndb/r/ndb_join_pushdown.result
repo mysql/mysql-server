@@ -46,18 +46,20 @@ a	b	c	d	a	b	c	d
 4	3	1	2	3	1	1	2
 4	4	4	4	4	4	4	4
 explain extended 
-select count(*) 
+select straight_join count(*) 
 from t1 as x1 
 join t1 as x2 on x1.d > x2.a + 1000 
 join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	Child of pushed join@1
+1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	16	100.00	
 1	SIMPLE	x2	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where; Using join buffer
+1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	
 Warnings:
 Note	1644	Can't push table 'x2' as child, 'type' must be a 'ref' access
-Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x3`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`d` > (`test`.`x2`.`a` + 1000)))
-select count(*) 
+Note	1644	Cannot push table 'x3' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
+Note	1644	Cannot push table 'x3' as child of 'x2', since it referes to column 'x1.c' which will be stored in a join buffer.
+Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x3`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`d` > (`test`.`x2`.`a` + 1000)))
+select straight_join count(*) 
 from t1 as x1 
 join t1 as x2 on x1.d > x2.a + 1000 
 join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
@@ -69,7 +71,7 @@ join t1 as x2 on x1.a=1 and x1.c=x2.a and x1.d=x2.b
 join t1 as x3 
 join t1 as x4 where x4.a=x3.c and x4.b=x1.d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x1	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	Child of pushed join@1
 1	SIMPLE	x3	ALL	NULL	NULL	NULL	NULL	16	100.00	Using join buffer
 1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	8	test.x3.c,test.x1.d	1	100.00	
@@ -779,7 +781,7 @@ straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
 straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b
 where t1.a=1 and t1.d=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d` = 1)
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d` = 1)
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	100.00	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	100.00	Child of pushed join@1; Using where
 Warnings:
@@ -928,7 +930,7 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.a > 2 and t1.d = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`d` = 3) and (`test`.`t1`.`a` > 2))
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`d` = 3) and (`test`.`t1`.`a` > 2))
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t1`.`d` = 3) and (`test`.`t2`.`b` = 3) and (`test`.`t1`.`a` > 2))
@@ -1013,7 +1015,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	100.00	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	10	100.00	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	3	100.00	
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
 Warnings:
 Note	1003	select '1' AS `a`,'1' AS `b`,'1' AS `c`,'1' AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`a` = '1') and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
@@ -1034,7 +1036,7 @@ left join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t1.a = 1 and t1.b = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	const	PRIMARY	PRIMARY	8	const,const	1	100.00	
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	10	100.00	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	3	100.00	
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
 Warnings:
 Note	1003	select '1' AS `a`,'1' AS `b`,'1' AS `c`,'1' AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = '1')) left join `test`.`t1` `t3` on(((`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))) where 1
@@ -1055,7 +1057,7 @@ from t1 as t2
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
 where t2.a = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 1))
@@ -1412,7 +1414,7 @@ select * from t1 x, t1 y where
 x.a <= 2 and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`a` <= 2)
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`a` <= 2)
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`b`) and (`test`.`y`.`a` = `test`.`x`.`d`) and (`test`.`x`.`a` <= 2))
@@ -1432,7 +1434,7 @@ select * from t1 x, t1 y where
 (x.a <= 2 or x.a > 3) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	20	80.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`x`.`a` <= 2) or (`test`.`x`.`a` > 3))
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`x`.`a` <= 2) or (`test`.`x`.`a` > 3))
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`b`) and (`test`.`y`.`a` = `test`.`x`.`d`) and ((`test`.`x`.`a` <= 2) or (`test`.`x`.`a` > 3)))
@@ -1455,7 +1457,7 @@ select * from t1 x, t1 y where
 (x.a >= 2 or x.a < 3) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	20	80.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`x`.`a` >= 2) or (`test`.`x`.`a` < 3))
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`x`.`a` >= 2) or (`test`.`x`.`a` < 3))
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`b`) and (`test`.`y`.`a` = `test`.`x`.`d`) and ((`test`.`x`.`a` >= 2) or (`test`.`x`.`a` < 3)))
@@ -1482,7 +1484,7 @@ select * from t1 x, t1 y where
 (x.a <= 2 or x.a in (0,5,4)) and
 y.a=x.d and y.b=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	50	32.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`x`.`a` <= 2) or (`test`.`x`.`a` in (0,5,4)))
+1	SIMPLE	x	range	PRIMARY	PRIMARY	4	NULL	15	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`x`.`a` <= 2) or (`test`.`x`.`a` in (0,5,4)))
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d,test.x.b	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`b`) and (`test`.`y`.`a` = `test`.`x`.`d`) and ((`test`.`x`.`a` <= 2) or (`test`.`x`.`a` in (0,5,4))))
@@ -1839,7 +1841,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4
 group by t2.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	10	100.00	Using where; Using filesort
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	3	100.00	Using where; Using filesort
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
 Warnings:
 Note	1644	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
@@ -2118,7 +2120,7 @@ a3	b3	c3	d3	a3	b3	c3	d3
 explain extended
 select * from t3 x, t3 y where x.d3>=31 and y.d3=x.b3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	10	30.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`d3` >= 31)
+1	SIMPLE	x	range	t3_d3	t3_d3	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`d3` >= 31)
 1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.b3	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`d3` = `test`.`x`.`b3`) and (`test`.`x`.`d3` >= 31))
@@ -2234,7 +2236,7 @@ left outer join t3 as t2 on t2.d3 = t1.a3
 left outer join t3 as t3 on t3.a3 = t2.d3
 where t1.d3 >= 47;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	d3	d3	5	NULL	10	40.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` >= 47)
+1	SIMPLE	t1	range	d3	d3	5	NULL	3	100.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` >= 47)
 1	SIMPLE	t2	ref	d3	d3	5	test.t1.a3	1	100.00	Child of pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.d3	1	100.00	Child of pushed join@1
 Warnings:
@@ -2269,7 +2271,7 @@ left outer join t3 as t2 on t2.d3 = t1.a3
 left outer join t3 as t3 on t3.a3 = t2.d3
 where t1.d3 is not null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	d3	d3	5	NULL	10	40.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` is not null)
+1	SIMPLE	t1	range	d3	d3	5	NULL	3	100.00	Parent of 3 pushed join@1; Using where with pushed condition: (`test`.`t1`.`d3` is not null)
 1	SIMPLE	t2	ref	d3	d3	5	test.t1.a3	1	100.00	Child of pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.d3	1	100.00	Child of pushed join@1
 Warnings:
@@ -2854,7 +2856,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3="63";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = '63'))
@@ -2870,7 +2872,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2886,7 +2888,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2902,7 +2904,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	6	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2918,7 +2920,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2934,7 +2936,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2950,7 +2952,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2966,7 +2968,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = (60 + 3)) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2982,7 +2984,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 63) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -2998,7 +3000,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=(60+3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 63) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3014,7 +3016,7 @@ insert into t3 values (0x3f, 0, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 1) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3030,7 +3032,7 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = 3.0)
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 3.0))
@@ -3046,7 +3048,7 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	test.x.d3,const	1	100.00	Child of pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = 3.0)
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 3.0))
@@ -3062,7 +3064,7 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 3.14))
@@ -3078,7 +3080,7 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 3.14))
@@ -3094,7 +3096,7 @@ insert into t3 values (0x3f, 0x1f, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=63;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	9	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 63))
@@ -3110,7 +3112,7 @@ insert into t3 values (0x3f, 0.50, 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3=3.14;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	10	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 3.14) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3126,7 +3128,7 @@ insert into t3 values (0x3f, '2000-02-29', 3, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = '2000-02-28') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3142,7 +3144,7 @@ insert into t3 values (0x3f, '2000-02-29 12:59:59', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='2000-02-28 23:59';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = '2000-02-28 23:59') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3158,7 +3160,7 @@ insert into t3 values (0x3f, '12:59:59', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='23:59';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	7	test.x.d3,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 235900))
@@ -3174,7 +3176,7 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = 'Dole')
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3190,7 +3192,7 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = 'Dole')
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3206,7 +3208,7 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	100.00	Child of pushed join@1; Using where with pushed condition: (`test`.`y`.`b3` = 'Dole')
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3222,7 +3224,7 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3237,7 +3239,7 @@ insert into t3 values (0x3f, 'Doffen', 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
@@ -3280,7 +3282,7 @@ Dole	47	2	47	Dole	47	2	47
 explain extended
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`a3` = 'Dole')
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x`.`a3` = 'Dole')
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of pushed join@1; Using where with pushed condition: (`test`.`y`.`a3` = 'Dole')
 Warnings:
 Note	1003	select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole'))
@@ -3655,7 +3657,7 @@ insert into t1(a,b,c,d) values (12, 12, 13, 13);
 create index i1 on t1(c,a);
 explain extended select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ref	PRIMARY,i1	i1	8	const,const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t1	ref	PRIMARY,i1	i1	8	const,const	3	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.d,test.t1.d	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`d`) and (`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t1`.`a` = 11) and (`test`.`t1`.`c` = 12))
@@ -3668,7 +3670,7 @@ pruned_scan_count
 create index i2 on t1(a,b);
 explain extended select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` = 11) and (`test`.`t1`.`b` < 13))
+1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` = 11) and (`test`.`t1`.`b` < 13))
 1	SIMPLE	t2	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` = 11) and (`test`.`t1`.`b` < 13))
@@ -3679,7 +3681,7 @@ pruned_scan_count
 1
 explain extended select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,i2	i2	4	NULL	10	30.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` >= 12) and (`test`.`t1`.`a` <= 12))
+1	SIMPLE	t1	range	PRIMARY,i2	i2	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` >= 12) and (`test`.`t1`.`a` <= 12))
 1	SIMPLE	t2	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` >= 12) and (`test`.`t1`.`a` <= 12))
@@ -3690,7 +3692,7 @@ pruned_scan_count
 1
 explain extended select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,i2	i2	4	NULL	10	30.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` >= 11) and (`test`.`t1`.`a` <= 12))
+1	SIMPLE	t1	range	PRIMARY,i2	i2	4	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` >= 11) and (`test`.`t1`.`a` <= 12))
 1	SIMPLE	t2	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` >= 11) and (`test`.`t1`.`a` <= 12))
@@ -3701,7 +3703,7 @@ pruned_scan_count
 0
 explain extended select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	20	15.00	Parent of 2 pushed join@1; Using where with pushed condition: (((`test`.`t1`.`a` = 10) or (`test`.`t1`.`a` = 12)) and (`test`.`t1`.`b` < 13))
+1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	6	50.00	Parent of 2 pushed join@1; Using where with pushed condition: (((`test`.`t1`.`a` = 10) or (`test`.`t1`.`a` = 12)) and (`test`.`t1`.`b` < 13))
 1	SIMPLE	t2	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and ((`test`.`t1`.`a` = 10) or (`test`.`t1`.`a` = 12)) and (`test`.`t1`.`b` < 13))
@@ -3712,7 +3714,7 @@ pruned_scan_count
 0
 explain extended select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	20	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` = 10) and ((`test`.`t1`.`b` < 11) or (`test`.`t1`.`b` > 11)))
+1	SIMPLE	t1	range	PRIMARY,i2	i2	8	NULL	6	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` = 10) and ((`test`.`t1`.`b` < 11) or (`test`.`t1`.`b` > 11)))
 1	SIMPLE	t2	eq_ref	PRIMARY,i2	PRIMARY	8	test.t1.c,test.t1.c	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`a` = 10) and ((`test`.`t1`.`b` < 11) or (`test`.`t1`.`b` > 11)))
@@ -3742,7 +3744,7 @@ insert into t2(a,b,c,d,e,f) values (7, 8, 9, 1, 2, 3);
 create index i2_1 on t2(d, a, b, e);
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY,i2_1	i2_1	12	const,const,const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY,i2_1	i2_1	12	const,const,const	3	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	12	const,test.x.e,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t2` `x` join `test`.`t2` `y` where ((`test`.`y`.`c` = 3) and (`test`.`y`.`b` = `test`.`x`.`e`) and (`test`.`x`.`b` = 2) and (`test`.`x`.`a` = 1) and (`test`.`x`.`d` = 1) and (`test`.`y`.`a` = 1))
@@ -3755,7 +3757,7 @@ pruned_scan_count
 create index i2_3 on t2(a, d, b, e);
 explain extended select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY,i2_3	i2_3	12	const,const,const	10	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x	ref	PRIMARY,i2_3	i2_3	12	const,const,const	3	100.00	Parent of 2 pushed join@1
 1	SIMPLE	y	eq_ref	PRIMARY,i2_3	PRIMARY	12	const,test.x.e,const	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select count(0) AS `count(*)` from `test`.`t2` `x` join `test`.`t2` `y` where ((`test`.`y`.`c` = 3) and (`test`.`y`.`b` = `test`.`x`.`e`) and (`test`.`x`.`b` = 2) and (`test`.`x`.`a` = 1) and (`test`.`x`.`d` = 1) and (`test`.`y`.`a` = 1))
@@ -4195,16 +4197,16 @@ count(*)
 update t1 set b=b-10;
 update t1 set u=u+100;
 set ndb_join_pushdown=on;
-explain extended select count(*) from 
+explain extended select straight_join count(*) from 
 (t1 as x join t1 as y on y.b = x.a)
 left outer join t1 as z on z.u = x.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	13	100.00	Parent of 3 pushed join@1
-1	SIMPLE	z	eq_ref	ix2	ix2	4	test.x.a	1	100.00	Child of pushed join@1
 1	SIMPLE	y	ref	ix1	ix1	5	test.x.a	2	100.00	Child of pushed join@1; Using where
+1	SIMPLE	z	eq_ref	ix2	ix2	4	test.y.b	1	100.00	Child of pushed join@1
 Warnings:
-Note	1003	select count(0) AS `count(*)` from `test`.`t1` `x` join `test`.`t1` `y` left join `test`.`t1` `z` on(((`test`.`z`.`u` = `test`.`x`.`a`) and (`test`.`y`.`b` = `test`.`x`.`a`))) where (`test`.`y`.`b` = `test`.`x`.`a`)
-select count(*) from 
+Note	1003	select straight_join count(0) AS `count(*)` from `test`.`t1` `x` join `test`.`t1` `y` left join `test`.`t1` `z` on(((`test`.`y`.`b` = `test`.`x`.`a`) and (`test`.`z`.`u` = `test`.`x`.`a`))) where (`test`.`y`.`b` = `test`.`x`.`a`)
+select straight_join count(*) from 
 (t1 as x join t1 as y on y.b = x.a)
 left outer join t1 as z on z.u = x.a;
 count(*)
@@ -4562,7 +4564,7 @@ pk	a	b
 2	20	20
 explain extended select * from t1 as x1, t1 as x2 where x1.a=x2.b and x1.b = 3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	ref	ix1	ix1	5	const	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x1`.`b` = 3)
+1	SIMPLE	x1	ref	ix1	ix1	5	const	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`x1`.`b` = 3)
 1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of pushed join@1; Using where
 Warnings:
 Note	1003	select `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`test`.`x1`.`b` = 3) and (`test`.`x2`.`b` = `test`.`x1`.`a`))
@@ -4584,7 +4586,7 @@ on table1.a =  table4.pk
 where  table2.pk != 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	ALL	NULL	NULL	NULL	NULL	6	33.33	Using temporary
-1	SIMPLE	table2	range	PRIMARY	PRIMARY	4	NULL	20	30.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`table2`.`pk` <> 6); Distinct; Using join buffer
+1	SIMPLE	table2	range	PRIMARY	PRIMARY	4	NULL	6	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`table2`.`pk` <> 6); Distinct; Using join buffer
 1	SIMPLE	table3	eq_ref	PRIMARY	PRIMARY	4	test.table2.pk	1	100.00	Child of pushed join@1; Distinct
 1	SIMPLE	table4	eq_ref	PRIMARY	PRIMARY	4	test.table1.a	1	100.00	Using where; Distinct
 Warnings:
@@ -4609,7 +4611,7 @@ insert into t values(0,0);
 explain extended
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	0	NULL	10	20.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` < 8) or (`test`.`t1`.`a` >= 8))
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	0	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition: ((`test`.`t1`.`a` < 8) or (`test`.`t1`.`a` >= 8))
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`t1`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t` `t1` join `test`.`t` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and ((`test`.`t1`.`a` < 8) or (`test`.`t1`.`a` >= 8)))
@@ -4625,7 +4627,7 @@ on t1.pk2 = t2.pk1
 where t1.pk1 != 6
 order by t1.pk1 DESC;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	20	10.00	Using where with pushed condition: (`test`.`t1`.`pk1` <> 6)
+1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	4	50.00	Using where with pushed condition: (`test`.`t1`.`pk1` <> 6)
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.pk2	1	100.00	
 Warnings:
 Note	1644	Push of table 't2' as scan-child with ordered indexscan-root 't1' not implemented
@@ -4732,7 +4734,7 @@ insert into t1  values ('aaa', 1, 'aaa', 1);
 explain extended
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	q1	ref	PRIMARY	PRIMARY	18	const	10	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`q1`.`a` = 'aaa')
+1	SIMPLE	q1	ref	PRIMARY	PRIMARY	18	const	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition: (`test`.`q1`.`a` = 'aaa')
 1	SIMPLE	q2	ref	PRIMARY	PRIMARY	18	test.q1.c	1	100.00	Child of pushed join@1
 Warnings:
 Note	1003	select `test`.`q1`.`a` AS `a`,`test`.`q1`.`b` AS `b`,`test`.`q1`.`c` AS `c`,`test`.`q1`.`d` AS `d`,`test`.`q2`.`a` AS `a`,`test`.`q2`.`b` AS `b`,`test`.`q2`.`c` AS `c`,`test`.`q2`.`d` AS `d` from `test`.`t1` `q1` join `test`.`t1` `q2` where ((`test`.`q2`.`a` = `test`.`q1`.`c`) and (`test`.`q1`.`a` = 'aaa'))
@@ -4850,20 +4852,20 @@ and spj_counts_at_end.counter_name <> 'LOCAL_READS_SENT'
        and spj_counts_at_end.counter_name <> 'SCAN_BATCHES_RETURNED';
 counter_name	spj_counts_at_end.val - spj_counts_at_startup.val
 CONST_PRUNED_RANGE_SCANS_RECEIVED	6
-LOCAL_TABLE_SCANS_SENT	230
+LOCAL_TABLE_SCANS_SENT	228
 PRUNED_RANGE_SCANS_RECEIVED	17
 RANGE_SCANS_RECEIVED	718
-READS_NOT_FOUND	409
+READS_NOT_FOUND	404
 READS_RECEIVED	49
-SCAN_ROWS_RETURNED	78755
-TABLE_SCANS_RECEIVED	230
+SCAN_ROWS_RETURNED	78728
+TABLE_SCANS_RECEIVED	228
 select sum(spj_counts_at_end.val - spj_counts_at_startup.val) as 'LOCAL+REMOTE READS_SENT'
        from spj_counts_at_end, spj_counts_at_startup 
 where spj_counts_at_end.counter_name = spj_counts_at_startup.counter_name
 and (spj_counts_at_end.counter_name = 'LOCAL_READS_SENT'
        or spj_counts_at_end.counter_name = 'REMOTE_READS_SENT');
 LOCAL+REMOTE READS_SENT
-28879
+28863
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
 scan_count
@@ -4873,9 +4875,9 @@ pruned_scan_count
 sorted_scan_count
 9
 pushed_queries_defined
-356
+354
 pushed_queries_dropped
 11
 pushed_queries_executed
-527
+526
 set ndb_join_pushdown = @save_ndb_join_pushdown;

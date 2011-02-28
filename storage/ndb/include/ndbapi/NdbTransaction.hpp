@@ -985,7 +985,6 @@ private:
   int  receiveTCROLLBACKCONF(const NdbApiSignal* anApiSignal);
   int  receiveTCROLLBACKREF(const NdbApiSignal* anApiSignal);
   int  receiveTCROLLBACKREP(const NdbApiSignal* anApiSignal);
-  int  receiveTCINDXCONF(const class TcIndxConf *, Uint32 aDataLength);
   int  receiveTCINDXREF(const NdbApiSignal*);
   int  receiveSCAN_TABREF(const NdbApiSignal*);
   int  receiveSCAN_TABCONF(const NdbApiSignal*, const Uint32*, Uint32 len);
