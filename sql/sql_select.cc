@@ -1056,6 +1056,7 @@ JOIN::optimize()
   */
   for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables; tab++)
   {
+    uint key_copy_index=0;
     for (uint i=0; i < tab->ref.key_parts; i++)
     {
       
@@ -1071,13 +1072,14 @@ JOIN::optimize()
       {
         *ref_item_ptr= ref_item;
         Item *item= ref_item->real_item();
-        store_key *key_copy= tab->ref.key_copy[i];
+        store_key *key_copy= tab->ref.key_copy[key_copy_index];
         if (key_copy->type() == store_key::FIELD_STORE_KEY)
 	{
           store_key_field *field_copy= ((store_key_field *)key_copy);
           field_copy->change_source_field((Item_field *) item);
         }
       }
+      key_copy_index++;
     }
   }   
 
