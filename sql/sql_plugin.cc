@@ -303,7 +303,7 @@ static const char *item_val_str(struct st_mysql_value *value,
     Lets be nice and create a temporary string since the
     buffer was too small
   */
-  return current_thd->strmake(res->c_ptr_quick(), res->length());
+  return current_thd->strmake(res->ptr(), res->length());
 }
 
 

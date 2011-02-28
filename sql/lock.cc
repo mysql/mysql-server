@@ -903,7 +903,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       *write_lock_used=table;
       if (table->db_stat & HA_READ_ONLY)
       {
-	my_error(ER_OPEN_AS_READONLY,MYF(0),table->alias);
+	my_error(ER_OPEN_AS_READONLY,MYF(0),table->alias.c_ptr());
         /* Clear the lock type of the lock data that are stored already. */
         sql_lock->lock_count= (uint) (locks - sql_lock->locks);
         reset_lock_data(sql_lock);

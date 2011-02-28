@@ -568,7 +568,7 @@ append_query_string(CHARSET_INFO *csinfo,
   if (to->reserve(orig_len + from->length()*2+3))
     return 1;
 
-  beg= to->c_ptr_quick() + to->length();
+  beg= (char*) to->ptr() + to->length();
   ptr= beg;
   if (csinfo->escape_with_backslash_is_dangerous)
     ptr= str_to_hex(ptr, from->ptr(), from->length());

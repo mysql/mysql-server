@@ -720,7 +720,7 @@ struct st_table {
   Table_triggers_list *triggers;
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   ORDER		*group;
-  const char	*alias;            	  /* alias or table name */
+  String	alias;            	  /* alias or table name */
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 

@@ -480,7 +480,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       }
       /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
          will be written into the binary log as the definer for the SQL thread. */
-      ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      ret= write_bin_log(thd, TRUE, log_query.ptr(), log_query.length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
@@ -779,7 +779,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   protocol->store(et->name.str, et->name.length, system_charset_info);
   protocol->store(sql_mode.str, sql_mode.length, system_charset_info);
   protocol->store(tz_name->ptr(), tz_name->length(), system_charset_info);
-  protocol->store(show_str.c_ptr(), show_str.length(),
+  protocol->store(show_str.ptr(), show_str.length(),
                   et->creation_ctx->get_client_cs());
   protocol->store(et->creation_ctx->get_client_cs()->csname,
                   strlen(et->creation_ctx->get_client_cs()->csname),
