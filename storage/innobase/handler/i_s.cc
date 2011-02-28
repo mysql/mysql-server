@@ -52,8 +52,6 @@ extern "C" {
 #include "page0zip.h"
 }
 
-static const char plugin_author[] = "Oracle Corporation";
-
 /** structure associates a name string with a file page type and/or buffer
 page state. */
 struct buffer_page_desc_str_struct{
@@ -1158,7 +1156,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
@@ -2356,7 +2354,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_metrics =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Oracle and/or its affiliates."),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
