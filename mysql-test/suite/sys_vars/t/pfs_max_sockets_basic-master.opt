@@ -1,1 +1,1 @@
---loose-enable-performance-schema --loose-performance-schema-max-sockets=123
+--loose-enable-performance-schema --loose-performance-schema-max-socket-instances=123
