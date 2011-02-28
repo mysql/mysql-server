@@ -35,6 +35,7 @@
 #include "bounded_queue.h"
 #include "filesort_utils.h"
 #include "sql_select.h"
+#include "debug_sync.h"
 
 #ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template class Bounded_queue<uchar, uchar>;
@@ -164,6 +165,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
 
   MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
+  DEBUG_SYNC(thd, "filesort_start");
 
   /*
    Release InnoDB's adaptive hash index latch (if holding) before
@@ -357,12 +359,13 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   if (error)
   {
-    DBUG_ASSERT(thd->is_error());
+    int kill_errno= thd->killed_errno();
+    DBUG_ASSERT(thd->is_error() || kill_errno);
     my_printf_error(ER_FILSORT_ABORT,
                     "%s: %s",
                     MYF(ME_ERROR + ME_WAITTANG),
                     ER_THD(thd, ER_FILSORT_ABORT),
-                    thd->stmt_da->message());
+                    kill_errno ? ER(kill_errno) : thd->stmt_da->message());
                     
     if (global_system_variables.log_warnings > 1)
     {
