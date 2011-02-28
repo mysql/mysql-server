@@ -59,11 +59,11 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
 # Check that we do not push an operation if this prevents us from using
 # 'join buffer'.
 explain extended 
-select count(*) 
+select straight_join count(*) 
 from t1 as x1 
 join t1 as x2 on x1.d > x2.a + 1000 
 join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
-select count(*) 
+select straight_join count(*) 
 from t1 as x1 
 join t1 as x2 on x1.d > x2.a + 1000 
 join t1 as x3 on x1.c=x3.a and x1.d=x3.b;
@@ -2726,10 +2726,10 @@ update t1 set b=b-10;
 update t1 set u=u+100;
 
 set ndb_join_pushdown=on;
-explain extended select count(*) from 
+explain extended select straight_join count(*) from 
   (t1 as x join t1 as y on y.b = x.a)
  left outer join t1 as z on z.u = x.a;
-select count(*) from 
+select straight_join count(*) from 
   (t1 as x join t1 as y on y.b = x.a)
  left outer join t1 as z on z.u = x.a;
 
