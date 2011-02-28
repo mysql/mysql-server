@@ -3436,6 +3436,8 @@ row_search_idx_cond_check(
 		return(ICP_MATCH);
 	}
 
+	MONITOR_INC(MONITOR_ICP_ATTEMPTS);
+
 	/* Convert to MySQL format those fields that are needed for
 	evaluating the index condition. */
 
@@ -3472,12 +3474,16 @@ row_search_idx_cond_check(
 				    mysql_rec, prebuilt, rec, FALSE,
 				    prebuilt->index, offsets)) {
 				ut_ad(dict_index_is_clust(prebuilt->index));
-				result = ICP_NO_MATCH;
+				return(ICP_NO_MATCH);
 			}
 		}
-		/* fall through */
+		MONITOR_INC(MONITOR_ICP_MATCH);
+		return(result);
 	case ICP_NO_MATCH:
+		MONITOR_INC(MONITOR_ICP_NO_MATCH);
+		return(result);
 	case ICP_OUT_OF_RANGE:
+		MONITOR_INC(MONITOR_ICP_OUT_OF_RANGE);
 		return(result);
 	}
 
