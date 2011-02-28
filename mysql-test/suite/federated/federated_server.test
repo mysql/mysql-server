@@ -66,7 +66,7 @@ eval create server 'server_two' foreign data wrapper 'mysql' options
   OWNER 'root');
 
 --replace_result $SLAVE_MYPORT SLAVE_PORT
-eval select * from mysql.servers;
+eval select * from mysql.servers order by db;
 
 DROP TABLE IF EXISTS federated.old;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
@@ -151,7 +151,7 @@ drop table federated.t1;
 
 drop server 'server_one';
 drop server 'server_two';
-select * from mysql.servers;
+select * from mysql.servers order by db;
 
 connection slave;
 drop table first_db.t1;

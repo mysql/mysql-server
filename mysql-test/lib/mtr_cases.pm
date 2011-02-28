@@ -91,14 +91,15 @@ sub init_pattern {
 
 sub testcase_sort_order {
   my ($a, $b, $sort_criteria)= @_;
-  my $a_sort_criteria= $sort_criteria->{$a->fullname()};
-  my $b_sort_criteria= $sort_criteria->{$b->fullname()};
-  my $res= $a_sort_criteria cmp $b_sort_criteria;
-  return $res if $res;
   # Run slow tests first, trying to avoid getting stuck at the end
   # with a slow test in one worker and the other workers idle.
   return -1 if $a->{'long_test'} && !$b->{'long_test'};
   return 1 if !$a->{'long_test'} && $b->{'long_test'};
+
+  my $a_sort_criteria= $sort_criteria->{$a->fullname()};
+  my $b_sort_criteria= $sort_criteria->{$b->fullname()};
+  my $res= $a_sort_criteria cmp $b_sort_criteria;
+  return $res if $res;
 
   return $a->fullname() cmp $b->fullname();
 }
@@ -914,6 +915,11 @@ sub collect_one_test_case {
     $tinfo->{'skip'}= 1;
     $tinfo->{'comment'}= "Test needs --big-test";
     return $tinfo
+  }
+  if ( $tinfo->{'big_test'} )
+  {
+    # All 'big_test' takes a long time to run
+    $tinfo->{'long_test'}= 1;
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )

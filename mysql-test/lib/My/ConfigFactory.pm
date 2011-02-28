@@ -627,7 +627,7 @@ sub new_config {
 		  }, $class;
 
   # add auto-options
-  $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
+  # $config->insert('OPT', 'port'   => sub { fix_port($self, $config) });
   $config->insert('OPT', 'vardir' => sub { $self->{ARGS}->{vardir} });
 
   {
