@@ -47,7 +47,7 @@ extern "C" {
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 }
 
-static const char plugin_author[] = "Innobase Oy";
+static const char plugin_author[] = "Oracle Corporation";
 
 #define OK(expr)		\
 	if ((expr) != 0) {	\
