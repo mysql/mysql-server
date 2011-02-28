@@ -1068,7 +1068,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(author, "Innobase Oy"),
+	STRUCT_FLD(author, plugin_author),
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
