@@ -2140,7 +2140,7 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
   }
 
   if ((rc= join_tab_execution_startup(join_tab)) < 0)
-    goto finish;
+    goto finish2;
 
   /* Prepare to retrieve all records of the joined table */
   if ((error= join_tab_scan->open()))
@@ -2187,6 +2187,7 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
 finish: 
   if (error)                 
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
+finish2:    
   join_tab_scan->close();
   return rc;
 }
