@@ -21,6 +21,9 @@ ADD_CONVENIENCE_LIBRARY(regex ${REGEX_SOURCES})
 ADD_EXECUTABLE(re main.c split.c debug.c)
 TARGET_LINK_LIBRARIES(re regex strings mysys)
 
-ADD_TEST(regex1 re     -i${CMAKE_CURRENT_SOURCE_DIR}/tests)
-ADD_TEST(regex2 re -el -i${CMAKE_CURRENT_SOURCE_DIR}/tests)
-ADD_TEST(regex3 re -er -i${CMAKE_CURRENT_SOURCE_DIR}/tests)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/tests
+               ${CMAKE_CURRENT_BINARY_DIR}/re_tests COPYONLY)
+
+ADD_TEST(regex1 re     -i${CMAKE_CURRENT_BINARY_DIR}/re_tests)
+ADD_TEST(regex2 re -el -i${CMAKE_CURRENT_BINARY_DIR}/re_tests)
+ADD_TEST(regex3 re -er -i${CMAKE_CURRENT_BINARY_DIR}/re_tests)
