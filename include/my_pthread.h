@@ -806,8 +806,7 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 typedef ulong my_thread_id;
 
 extern my_bool my_thread_global_init(void);
-extern my_bool my_thread_basic_global_init(void);
-extern void my_thread_basic_global_reinit(void);
+extern void my_thread_global_reinit(void);
 extern void my_thread_global_end(void);
 extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
