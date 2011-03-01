@@ -55,17 +55,13 @@ MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
 
 
-/*
-  Init my_sys functions and my_sys variabels
+/**
+  Initialize my_sys functions, resources and variables
 
-  SYNOPSIS
-    my_init()
-
-  RETURN
-    0  ok
-    1  Couldn't initialize environment
+  @return Initialization result
+    @retval 0 Success
+    @retval 1 Error. Couldn't initialize environment
 */
-
 my_bool my_init(void)
 {
   char *str;
