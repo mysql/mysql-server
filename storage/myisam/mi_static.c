@@ -41,6 +41,7 @@ my_off_t myisam_max_temp_length= MAX_FILE_SIZE;
 ulong    myisam_bulk_insert_tree_size=8192*1024;
 ulong    myisam_data_pointer_size=4;
 ulonglong    myisam_mmap_size= SIZE_T_MAX, myisam_mmap_used= 0;
+my_bool (*mi_killed)(MI_INFO *)= mi_killed_standalone;
 
 static int always_valid(const char *filename __attribute__((unused)))
 {

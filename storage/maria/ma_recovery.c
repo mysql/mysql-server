@@ -28,6 +28,7 @@
 #include "trnman.h"
 #include "ma_key_recover.h"
 #include "ma_recovery_util.h"
+#include "hash.h"
 
 struct st_trn_for_recovery /* used only in the REDO phase */
 {
@@ -58,6 +59,7 @@ static ulonglong now; /**< for tracking execution time of phases */
 static int (*save_error_handler_hook)(uint, const char *,myf);
 static uint recovery_warnings; /**< count of warnings */
 static uint recovery_found_crashed_tables;
+HASH tables_to_redo;                          /* For maria_read_log */
 
 #define prototype_redo_exec_hook(R)                                          \
   static int exec_REDO_LOGREC_ ## R(const TRANSLOG_HEADER_BUFFER *rec)
@@ -183,6 +185,21 @@ static void print_preamble()
   ma_message_no_user(ME_JUST_INFO, "starting recovery");
 }
 
+
+static my_bool table_is_part_of_recovery_set(LEX_STRING *file_name)
+{
+  uint offset =0;
+  if (!tables_to_redo.records)
+    return 1;                                   /* Default, recover table */
+
+  /* Skip base directory */
+  if (file_name->str[0] == '.' &&
+      (file_name->str[1] == '/' || file_name->str[1] == '\\'))
+    offset= 2;
+  /* Only recover if table is in hash */
+  return my_hash_search(&tables_to_redo, (uchar*) file_name->str + offset,
+                        file_name->length - offset) != 0;
+}
 
 /**
    @brief Recovers from the last checkpoint.
@@ -1643,8 +1660,8 @@ prototype_redo_exec_hook(REDO_FREE_BLOCKS)
   }
 
   buff= log_record_buffer.str;
-  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn,
-                                 buff + FILEID_STORE_SIZE))
+  if (_ma_apply_redo_free_blocks(info, current_group_end_lsn, rec->lsn,
+                                 buff))
     goto end;
   error= 0;
 end:
@@ -3015,10 +3032,11 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
     page= page_korr(rec->header + FILEID_STORE_SIZE);
     llstr(page, llbuf);
     break;
+  case LOGREC_REDO_FREE_BLOCKS:
     /*
-      For REDO_FREE_BLOCKS, no need to look at dirty pages list: it does not
-      read data pages, only reads/modifies bitmap page(s) which is cheap.
+      We are checking against the dirty pages in _ma_apply_redo_free_blocks()
     */
+    break;
   default:
     break;
   }
@@ -3036,6 +3054,12 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   share= info->s;
   tprint(tracef, ", '%s'", share->open_file_name.str);
   DBUG_ASSERT(in_redo_phase);
+  if (!table_is_part_of_recovery_set(&share->open_file_name))
+  {
+    tprint(tracef, ", skipped by user\n");
+    return NULL;
+  }
+
   if (cmp_translog_addr(rec->lsn, share->lsn_of_file_id) <= 0)
   {
     /*
@@ -3069,7 +3093,6 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
       REDO_INSERT_ROW_BLOBS will consult list by itself, as it covers several
       pages.
     */
-    tprint(tracef, " page %s", llbuf);
     if (_ma_redo_not_needed_for_page(sid, rec->lsn, page,
                                      index_page_redo_entry))
       return NULL;
@@ -3106,6 +3129,13 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
   }
   share= info->s;
   tprint(tracef, ", '%s'", share->open_file_name.str);
+
+  if (!table_is_part_of_recovery_set(&share->open_file_name))
+  {
+    tprint(tracef, ", skipped by user\n");
+    return NULL;
+  }
+
   if (cmp_translog_addr(rec->lsn, share->lsn_of_file_id) <= 0)
   {
     tprint(tracef, ", table's LOGREC_FILE_ID has LSN (%lu,0x%lx) more recent"

@@ -1,0 +1,87 @@
+
+-----------------------------------------------------------------
+HandlerSocketプラグインのビルド方法(RPMを使わない方法)
+
+以下のようにしてconfigureを実行します。
+
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
+
+ここで--with-mysql-sourceにはMySQLのソースコードのトップディレク
+トリを指定します。--with-mysql-bindirにはインストール済みのMySQL
+のmysql_configコマンドが有るディレクトリを指定します。
+その後以下のようにビルド・インストールします。
+
+  $ make
+  $ sudo make install
+
+-----------------------------------------------------------------
+クライアントライブラリのビルド方法(RPMを使わない方法)
+
+クライアントライブラリをビルドする際には、MySQLのソースコードは
+必要ありません。またMySQLがインストールされている必要もありません。
+
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make
+  $ sudo make install
+  $ cd perl-Net-HandlerSocket
+  $ perl Makefile.PL
+  $ make
+  $ sudo make install
+
+-----------------------------------------------------------------
+ビルド方法(RPM)
+
+以下のように実行すれば、rpmパッケージがビルド＆インストールされま
+す。
+
+(MySQLサーバ側、HandlerSocketプラグインをインストールする)
+  $ ./autogen.sh
+  $ ./configure --with-mysql-source=/work/mysql-5.1.50 --with-mysql-bindir=/work/mysql-5.1.50-linux-x86_64-glibc23/bin  --with-mysql-plugindir=/work/mysql-5.1.50-linux-x86_64-glibc23/lib/plugin
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
+  $ make rpm_c
+  $ sudo rpm -U dist/RPMS/*/handlersocket*.rpm
+
+(クライアント側、クライアントライブラリをインストールする)
+  $ ./autogen.sh
+  $ ./configure --disable-handlersocket-server
+  $ make rpm_cli
+  $ sudo rpm -U dist/RPMS/*/libhsclient*.rpm
+  $ make rpm_perl
+  $ sudo rpm -U dist/RPMS/*/perl-Net-HandlerSocket*.rpm
+
+-----------------------------------------------------------------
+起動
+
+mysqlを起動した状態で、mysqlの設定ファイル(my.cnf等)に以下の内容を
+追加します。
+
+  [mysqld]
+  handlersocket_port = 9998
+      # handlersocketが接続を受け付けるポート(参照系リクエスト用)
+  handlersocket_port_wr = 9999
+      # handlersocketが接続を受け付けるポート(更新系リクエスト用)
+  handlersocket_address =
+      # handlersocketがバインドするアドレス(空のままでOK)
+  handlersocket_verbose = 0
+      # デバッグ用
+  handlersocket_timeout = 300
+      # 通信タイムアウト(秒)
+  handlersocket_threads = 16
+      # handlersocketのワーカースレッド数
+  thread_concurrency = 128
+      # handlersocketが幾つかのスレッドを占有するため、大きめの
+      # 値を指定してください
+  open_files_limit = 65535
+      # ソケットを大量に開けるようにするため、大きめの値を指定し
+      # てください
+
+以下のクエリを実行します。
+
+  mysql> install plugin handlersocket soname 'handlersocket.so';
+  Query OK, 0 rows affected (0.06 sec)
+
+以上でhandlersocketへクライアントからアクセスできるようになります。
+

@@ -4404,8 +4404,8 @@ bool Ordered_key::alloc_keys_buffers()
 {
   DBUG_ASSERT(key_buff_elements > 0);
 
-  if (!(key_buff= (rownum_t*) my_malloc(key_buff_elements * sizeof(rownum_t),
-                                        MYF(MY_WME))))
+  if (!(key_buff= (rownum_t*) my_malloc((size_t)(key_buff_elements * 
+    sizeof(rownum_t)), MYF(MY_WME))))
     return TRUE;
 
   /*
@@ -4414,7 +4414,7 @@ bool Ordered_key::alloc_keys_buffers()
     lookup offset.
   */
   /* Notice that max_null_row is max array index, we need count, so +1. */
-  if (bitmap_init(&null_key, NULL, max_null_row + 1, FALSE))
+  if (bitmap_init(&null_key, NULL, (uint)(max_null_row + 1), FALSE))
     return TRUE;
 
   cur_key_idx= HA_POS_ERROR;
@@ -4478,7 +4478,7 @@ Ordered_key::cmp_keys_by_row_data_and_rownum(Ordered_key *key,
 
 void Ordered_key::sort_keys()
 {
-  my_qsort2(key_buff, key_buff_elements, sizeof(rownum_t),
+  my_qsort2(key_buff, (size_t) key_buff_elements, sizeof(rownum_t),
             (qsort2_cmp) &cmp_keys_by_row_data_and_rownum, (void*) this);
   /* Invalidate the current row position. */
   cur_key_idx= HA_POS_ERROR;
@@ -4794,8 +4794,8 @@ subselect_rowid_merge_engine::init(MY_BITMAP *non_null_key_parts,
   */
   if (!(merge_keys= (Ordered_key**) thd->alloc(keys_count *
                                                sizeof(Ordered_key*))) ||
-      !(row_num_to_rowid= (uchar*) my_malloc(row_count * rowid_length *
-                                             sizeof(uchar), MYF(MY_WME))))
+      !(row_num_to_rowid= (uchar*) my_malloc((size_t)(row_count * rowid_length),
+        MYF(MY_WME))))
     return TRUE;
 
   /* Create the only non-NULL key if there is any. */

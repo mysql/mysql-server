@@ -378,6 +378,7 @@ void *tree_search_key(TREE *tree, const void *key,
       case HA_READ_KEY_EXACT:
       case HA_READ_KEY_OR_NEXT:
       case HA_READ_BEFORE_KEY:
+      case HA_READ_KEY_OR_PREV:
 	last_equal_element= parents;
 	cmp= 1;
 	break;
@@ -420,6 +421,9 @@ void *tree_search_key(TREE *tree, const void *key,
     break;
   case HA_READ_BEFORE_KEY:
     *last_pos= last_right_step_parent;
+    break;
+  case HA_READ_KEY_OR_PREV:
+    *last_pos= last_equal_element ? last_equal_element : last_right_step_parent;
     break;
   default:
     return NULL;

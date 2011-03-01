@@ -235,7 +235,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
 uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            uint page_type,
                                            const uchar *header);
-uint _ma_apply_redo_free_blocks(MARIA_HA *info, LSN lsn,
+uint _ma_apply_redo_free_blocks(MARIA_HA *info, LSN lsn, LSN rec_lsn,
                                 const uchar *header);
 uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
                                       const uchar *header);

@@ -768,7 +768,7 @@ public:
   Server_side_cursor *cursor;
 
   inline char *query() { return query_string.str; }
-  inline uint32 query_length() { return query_string.length; }
+  inline uint32 query_length() { return (uint32)query_string.length; }
   void set_query_inner(char *query_arg, uint32 query_length_arg);
 
   /**
@@ -1944,7 +1944,7 @@ public:
   bool       slave_thread, one_shot_set;
   /* tells if current statement should binlog row-based(1) or stmt-based(0) */
   bool       current_stmt_binlog_row_based;
-  bool	     locked, some_tables_deleted;
+  bool	     some_tables_deleted;
   bool       last_cuted_field;
   bool	     no_errors, password;
   bool       extra_port;                        /* If extra connection */
@@ -3315,15 +3315,15 @@ public:
   bool get(TABLE *table);
   
   /* Cost of searching for an element in the tree */
-  inline static double get_search_cost(uint tree_elems, uint compare_factor)
+  inline static double get_search_cost(ulonglong tree_elems, uint compare_factor)
   {
     return log((double) tree_elems) / (compare_factor * M_LN2);
   }  
 
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size,
+  static double get_use_cost(uint *buffer, size_t nkeys, uint key_size,
                              ulonglong max_in_memory_size, uint compare_factor,
                              bool intersect_fl, bool *in_memory);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size,
+  inline static int get_cost_calc_buff_size(size_t nkeys, uint key_size,
                                             ulonglong max_in_memory_size)
   {
     register ulonglong max_elems_in_tree=

@@ -126,7 +126,7 @@ static pthread_mutex_t commit_cond_m;
 static bool innodb_inited = 0;
 
 C_MODE_START
-static int index_cond_func_innodb(void *arg);
+static xtradb_icp_result_t index_cond_func_innodb(void *arg);
 C_MODE_END
 
 
@@ -853,6 +853,9 @@ convert_error_code_to_mysql(
 	case DB_RECORD_NOT_FOUND:
 		return(HA_ERR_NO_ACTIVE_RECORD);
 
+        case DB_SEARCH_ABORTED_BY_USER:
+                return(HA_ERR_ABORTED_BY_USER);
+
 	case DB_DEADLOCK:
 		/* Since we rolled back the whole transaction, we must
 		tell it also to MySQL so that MySQL knows to empty the
@@ -1477,7 +1480,7 @@ UNIV_INTERN
 ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg),
   int_table_flags(HA_REC_NOT_IN_SEQ |
-		  HA_NULL_IN_KEY |
+		  HA_NULL_IN_KEY | HA_CAN_VIRTUAL_COLUMNS |
 		  HA_CAN_INDEX_BLOBS |
 		  HA_CAN_SQL_HANDLER |
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
@@ -12082,6 +12085,14 @@ ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 }
 
 
+/* 
+  A helper function used only in index_cond_func_innodb
+*/
+
+bool ha_innobase::is_thd_killed()
+{ 
+  return thd_killed(user_thd);
+}
 
 /**
  * Index Condition Pushdown interface implementation
@@ -12094,15 +12105,18 @@ C_MODE_START
   See note on ICP_RESULT for return values description.
 */
 
-static int index_cond_func_innodb(void *arg)
+static xtradb_icp_result_t index_cond_func_innodb(void *arg)
 {
   ha_innobase *h= (ha_innobase*)arg;
+  if (h->is_thd_killed())
+    return XTRADB_ICP_ABORTED_BY_USER;
+
   if (h->end_range)
   {
     if (h->compare_key2(h->end_range) > 0)
-      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
+      return XTRADB_ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return h->pushed_idx_cond->val_int()? ICP_MATCH : ICP_NO_MATCH;
+  return h->pushed_idx_cond->val_int()? XTRADB_ICP_MATCH : XTRADB_ICP_NO_MATCH;
 }
 
 C_MODE_END

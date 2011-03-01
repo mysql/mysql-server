@@ -228,7 +228,7 @@ static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        "The size of the buffer used for index blocks for Aria tables. "
        "Increase this to get better index handling (for all reads and "
        "multiple writes) to as much as you can afford.", 0, 0,
-       KEY_CACHE_SIZE, 0, ~(ulong) 0, 1);
+       KEY_CACHE_SIZE, 8192*16L, ~(ulong) 0, 1);
 
 static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
        PLUGIN_VAR_RQCMDARG,
@@ -758,7 +758,7 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 
 static int maria_create_trn_for_mysql(MARIA_HA *info)
 {
-  THD *thd= (THD*) info->external_ptr;
+  THD *thd= ((TABLE*) info->external_ref)->in_use;
   TRN *trn= THD_TRN;
   DBUG_ENTER("maria_create_trn_for_mysql");
 
@@ -797,6 +797,11 @@ static int maria_create_trn_for_mysql(MARIA_HA *info)
   DBUG_RETURN(0);
 }
 
+my_bool ma_killed_in_mariadb(MARIA_HA *info)
+{
+  return (((TABLE*) (info->external_ref))->in_use->killed != 0);
+}
+
 } /* extern "C" */
 
 /**
@@ -821,7 +826,7 @@ int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
                 HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                 HA_FILE_BASED | HA_CAN_GEOMETRY | CANNOT_ROLLBACK_FLAG |
-                HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
+                HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS | HA_CAN_VIRTUAL_COLUMNS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
 can_enable_indexes(1), bulk_insert_single_undo(BULK_INSERT_NONE)
 {}
@@ -1013,6 +1018,8 @@ int ha_maria::open(const char *name, int mode, uint test_if_locked)
     return (my_errno ? my_errno : -1);
 
   file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
+  /* Set external_ref, mainly for temporary tables */
+  file->external_ref= (void*) table;            // For ma_killed()
 
   if (test_if_locked & (HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_TMP_TABLE))
     VOID(maria_extra(file, HA_EXTRA_NO_WAIT_LOCK, 0));
@@ -1071,8 +1078,6 @@ int ha_maria::close(void)
 
 int ha_maria::write_row(uchar * buf)
 {
-  ha_statistic_increment(&SSV::ha_write_count);
-
   /* If we have a timestamp column, update it to the current time */
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
@@ -2079,6 +2084,7 @@ bool ha_maria::check_and_repair(THD *thd)
   DBUG_ENTER("ha_maria::check_and_repair");
 
   check_opt.init();
+  check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
 
   error= 1;
   if ((file->s->state.changed &
@@ -2099,7 +2105,6 @@ bool ha_maria::check_and_repair(THD *thd)
     DBUG_RETURN(error);
 
   error= 0;
-  check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
   // Don't use quick if deleted rows
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
@@ -2150,7 +2155,6 @@ bool ha_maria::is_crashed() const
 int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 {
   CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("UPDATE in WRITE CONCURRENT");
-  ha_statistic_increment(&SSV::ha_update_count);
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
   return maria_update(file, old_data, new_data);
@@ -2160,7 +2164,6 @@ int ha_maria::update_row(const uchar * old_data, uchar * new_data)
 int ha_maria::delete_row(const uchar * buf)
 {
   CHECK_UNTIL_WE_FULLY_IMPLEMENTED_VERSIONING("DELETE in WRITE CONCURRENT");
-  ha_statistic_increment(&SSV::ha_delete_count);
   return maria_delete(file, buf);
 }
 
@@ -2184,7 +2187,6 @@ int ha_maria::index_read_map(uchar * buf, const uchar * key,
 			     enum ha_rkey_function find_flag)
 {
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_key_count);
   int error= maria_rkey(file, buf, active_index, key, keypart_map, find_flag);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2195,7 +2197,6 @@ int ha_maria::index_read_idx_map(uchar * buf, uint index, const uchar * key,
 				 key_part_map keypart_map,
 				 enum ha_rkey_function find_flag)
 {
-  ha_statistic_increment(&SSV::ha_read_key_count);
   int error= maria_rkey(file, buf, index, key, keypart_map, find_flag);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2207,7 +2208,6 @@ int ha_maria::index_read_last_map(uchar * buf, const uchar * key,
 {
   DBUG_ENTER("ha_maria::index_read_last_map");
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_key_count);
   int error= maria_rkey(file, buf, active_index, key, keypart_map,
                         HA_READ_PREFIX_LAST);
   table->status= error ? STATUS_NOT_FOUND : 0;
@@ -2218,7 +2218,6 @@ int ha_maria::index_read_last_map(uchar * buf, const uchar * key,
 int ha_maria::index_next(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_next_count);
   int error= maria_rnext(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2228,7 +2227,6 @@ int ha_maria::index_next(uchar * buf)
 int ha_maria::index_prev(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_prev_count);
   int error= maria_rprev(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2238,7 +2236,6 @@ int ha_maria::index_prev(uchar * buf)
 int ha_maria::index_first(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_first_count);
   int error= maria_rfirst(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2248,7 +2245,6 @@ int ha_maria::index_first(uchar * buf)
 int ha_maria::index_last(uchar * buf)
 {
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_last_count);
   int error= maria_rlast(file, buf, active_index);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2261,7 +2257,6 @@ int ha_maria::index_next_same(uchar * buf,
 {
   int error;
   DBUG_ASSERT(inited == INDEX);
-  ha_statistic_increment(&SSV::ha_read_next_count);
   /*
     TODO: Delete this loop in Maria 1.5 as versioning will ensure this never
     happens
@@ -2313,7 +2308,6 @@ int ha_maria::rnd_end()
 
 int ha_maria::rnd_next(uchar *buf)
 {
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
   int error= maria_scan(file, buf);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2335,7 +2329,6 @@ int ha_maria::restart_rnd_next(uchar *buf)
 
 int ha_maria::rnd_pos(uchar *buf, uchar *pos)
 {
-  ha_statistic_increment(&SSV::ha_read_rnd_count);
   int error= maria_rrnd(file, buf, my_get_ptr(pos, ref_length));
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
@@ -2525,6 +2518,7 @@ void ha_maria::drop_table(const char *name)
 int ha_maria::external_lock(THD *thd, int lock_type)
 {
   DBUG_ENTER("ha_maria::external_lock");
+  file->external_ref= (void*) table;            // For ma_killed()
   /*
     We don't test now_transactional because it may vary between lock/unlock
     and thus confuse our reference counting.
@@ -2543,8 +2537,6 @@ int ha_maria::external_lock(THD *thd, int lock_type)
     /* Transactional table */
     if (lock_type != F_UNLCK)
     {
-      file->external_ptr= thd;                  // For maria_register_trn()
-
       if (!file->s->lock_key_trees)             // If we don't use versioning
       {
         /*
@@ -3361,6 +3353,9 @@ static int ha_maria_init(void *p)
   maria_hton->panic= maria_hton_panic;
   maria_hton->commit= maria_commit;
   maria_hton->rollback= maria_rollback;
+#ifdef MARIA_CANNOT_ROLLBACK
+  maria_hton->commit= 0;
+#endif
   maria_hton->flush_logs= maria_flush_logs;
   maria_hton->show_status= maria_show_status;
   /* TODO: decide if we support Maria being used for log tables */
@@ -3392,6 +3387,9 @@ static int ha_maria_init(void *p)
 #endif
   if (res)
     maria_hton= 0;
+
+  ma_killed= ma_killed_in_mariadb;
+
   return res ? HA_ERR_INITIALIZATION : 0;
 }
 

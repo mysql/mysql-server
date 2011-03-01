@@ -363,7 +363,7 @@ public:
 
   void qs_append(const char *str)
   {
-    qs_append(str, strlen(str));
+    qs_append(str, (uint32)strlen(str));
   }
   void qs_append(const char *str, uint32 len);
   void qs_append(double d);

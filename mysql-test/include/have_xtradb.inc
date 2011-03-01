@@ -1,4 +1,5 @@
-disable_query_log;
---require r/true.require
-SELECT (plugin_description LIKE '%xtradb%') AS `TRUE` FROM information_schema.plugins WHERE LOWER(plugin_name) = 'innodb' AND LOWER(plugin_status) = 'active';
-enable_query_log;
+if (!`SELECT count(*) FROM information_schema.plugins WHERE
+      plugin_name = 'innodb' AND plugin_status = 'active' AND
+      plugin_description LIKE '%xtradb%'`){
+  skip Need XtraDB engine;
+}

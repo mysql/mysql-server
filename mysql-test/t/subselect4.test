@@ -619,3 +619,24 @@ select a,
 from t1 A;  
 drop table t1, t2;
 
+
+--echo #
+--echo # BUG#723822: Crash in get_constant_key_infix with EXISTS ( SELECT .. DISTINCT )
+--echo #
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1)) ;
+INSERT INTO t1 VALUES ('8','c'),('5','f');
+
+ALTER TABLE t1 ADD KEY (f3,f1);
+
+CREATE TABLE t2 ( f4 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+
+SELECT * FROM t2
+WHERE EXISTS (
+        SELECT DISTINCT f3
+        FROM t1
+        WHERE f3 <= t2.f4
+);
+
+drop table t1,t2;
+

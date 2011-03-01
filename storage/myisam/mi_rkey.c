@@ -88,6 +88,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
       my_errno=HA_ERR_CRASHED;
       if (share->concurrent_insert)
         rw_unlock(&share->key_root_lock[inx]);
+      fast_mi_writeinfo(info);
       goto err;
     }
     break;
@@ -131,7 +132,10 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
                              info->lastkey_length,
                              myisam_readnext_vec[search_flag],
                              info->s->state.key_root[inx]))
+        {
+          info->lastpos= HA_OFFSET_ERROR;
           break;
+        }
         /*
           Check that the found key does still match the search.
           _mi_search_next() delivers the next key regardless of its
@@ -145,13 +149,22 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
           info->lastpos= HA_OFFSET_ERROR;
           break;
         }
+        /*
+          If we are at the last key on the key page, allow writers to
+          access the index.
+        */
+        if (info->int_keypos >= info->int_maxpos &&
+            mi_yield_and_check_if_killed(info, inx))
+        {
+          /* Aborted by user */
+          buf= 0;                               /* Fast abort */
+        }
       }
       if (res == ICP_OUT_OF_RANGE)
       {
-        info->lastpos= HA_OFFSET_ERROR;
-        if (share->concurrent_insert)
-          rw_unlock(&share->key_root_lock[inx]);
-        DBUG_RETURN((my_errno= HA_ERR_KEY_NOT_FOUND));
+        /* Change error from HA_ERR_END_OF_FILE */
+        DBUG_ASSERT(info->lastpos == HA_OFFSET_ERROR);
+        my_errno= HA_ERR_KEY_NOT_FOUND;
       }
       /*
         Error if no row found within the data file. (Bug #29838)
@@ -164,29 +177,43 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
         my_errno= HA_ERR_KEY_NOT_FOUND;
       }
     }
+    else
+    {
+      DBUG_ASSERT(info->lastpos= HA_OFFSET_ERROR);
+    }
   }
   if (share->concurrent_insert)
     rw_unlock(&share->key_root_lock[inx]);
 
-  /* Calculate length of the found key;  Used by mi_rnext_same */
-  if ((keyinfo->flag & HA_VAR_LENGTH_KEY) && last_used_keyseg &&
-      info->lastpos != HA_OFFSET_ERROR)
-    info->last_rkey_length= _mi_keylength_part(keyinfo, info->lastkey,
-					       last_used_keyseg);
-  else
-    info->last_rkey_length= pack_key_length;
+  info->last_rkey_length= pack_key_length;
 
-  /* Check if we don't want to have record back, only error message */
-  if (!buf)
-    DBUG_RETURN(info->lastpos == HA_OFFSET_ERROR ? my_errno : 0);
-
-  if (!(*info->read_record)(info,info->lastpos,buf))
+  if (info->lastpos == HA_OFFSET_ERROR)			/* No such record */
   {
-    info->update|= HA_STATE_AKTIV;		/* Record is read */
-    DBUG_RETURN(0);
+    fast_mi_writeinfo(info);
+    if (!buf)
+      DBUG_RETURN(my_errno);
   }
+  else
+  {
+    /* Calculate length of the found key;  Used by mi_rnext_same */
+    if ((keyinfo->flag & HA_VAR_LENGTH_KEY) && last_used_keyseg)
+      info->last_rkey_length= _mi_keylength_part(keyinfo, info->lastkey,
+                                                 last_used_keyseg);
 
-  info->lastpos = HA_OFFSET_ERROR;		/* Didn't find key */
+    /* Check if we don't want to have record back, only error message */
+    if (!buf)
+    {
+      fast_mi_writeinfo(info);
+      DBUG_RETURN(0);
+    }
+    if (!(*info->read_record)(info,info->lastpos,buf))
+    {
+      info->update|= HA_STATE_AKTIV;		/* Record is read */
+      DBUG_RETURN(0);
+    }
+    DBUG_PRINT("error", ("Didn't find row. Error %d", my_errno));
+    info->lastpos= HA_OFFSET_ERROR;		/* Didn't find row */
+  }
 
   /* Store last used key as a base for read next */
   memcpy(info->lastkey,key_buff,pack_key_length);
@@ -199,3 +226,36 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
 err:
   DBUG_RETURN(my_errno);
 } /* _mi_rkey */
+
+
+/*
+  Yield to possible other writers during a index scan.
+  Check also if we got killed by the user and if yes, return
+  HA_ERR_LOCK_WAIT_TIMEOUT
+
+  return  0  ok
+  return  1  Query has been requested to be killed
+*/
+
+my_bool mi_yield_and_check_if_killed(MI_INFO *info, int inx)
+{
+  MYISAM_SHARE *share;
+  if (mi_killed(info))
+  {
+    /* purecov: begin tested */
+    info->lastpos= HA_OFFSET_ERROR;
+    /* Set error that we where aborted by kill from application */
+    my_errno= HA_ERR_ABORTED_BY_USER;
+    return 1;
+  /* purecov: end */
+
+  }
+
+  if ((share= info->s)->concurrent_insert)
+  {
+    /* Give writers a chance to access index */
+    rw_unlock(&share->key_root_lock[inx]);
+    rw_rdlock(&share->key_root_lock[inx]);
+  }
+  return 0;
+}

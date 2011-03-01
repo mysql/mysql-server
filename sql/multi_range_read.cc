@@ -316,6 +316,8 @@ int Mrr_simple_index_reader::get_next(char **range_info)
         !file->mrr_funcs.skip_index_tuple(file->mrr_iter, curr_range->ptr))
       break;
   }
+  if (res && res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
+    file->print_error(res, MYF(0));             // Fatal error
   return res;
 }
 
@@ -333,7 +335,7 @@ int Mrr_simple_index_reader::get_next(char **range_info)
 
   @retval 0                   OK, next record was successfully read
   @retval HA_ERR_END_OF_FILE  End of records
-  @retval Other               Some other error
+  @retval Other               Some other error; Error is printed
 */
 
 int Mrr_ordered_index_reader::get_next(char **range_info)
@@ -349,7 +351,7 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
       {
         if ((res != HA_ERR_KEY_NOT_FOUND && res != HA_ERR_END_OF_FILE))
           DBUG_RETURN(res); /* Some fatal error */
-        
+
         if (key_buffer->is_empty())
         {
           DBUG_RETURN(HA_ERR_END_OF_FILE);
@@ -902,7 +904,7 @@ error:
   close_second_handler();
    /* Safety, not really needed but: */
   strategy= NULL;
-  DBUG_RETURN(1);
+  DBUG_RETURN(res);
 
 use_default_impl:
   DBUG_ASSERT(primary_file->inited == handler::INDEX);
@@ -1125,8 +1127,8 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
 
   if (bytes_for_rowids < (ptrdiff_t)rowid_buf_elem_size + 1)
   {
-    ptrdiff_t add= rowid_buf_elem_size + 1 - bytes_for_rowids;
-    bytes_for_rowids= rowid_buf_elem_size + 1;
+    ptrdiff_t add= (ptrdiff_t)(rowid_buf_elem_size + 1 - bytes_for_rowids);
+    bytes_for_rowids= (ptrdiff_t)rowid_buf_elem_size + 1;
     bytes_for_keys -= add;
   }
 
@@ -1136,7 +1138,7 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
   key_buffer->set_buffer_space(rowid_buffer_end, full_buf_end); 
 
   if (!key_buffer->have_space_for(key_buff_elem_size) ||
-      !rowid_buffer.have_space_for(rowid_buf_elem_size))
+      !rowid_buffer.have_space_for((size_t)rowid_buf_elem_size))
     return TRUE; /* Failed to provide minimum space for one of the buffers */
 
   return FALSE;

@@ -1215,7 +1215,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   QUEUE queue;
   qsort2_cmp cmp;
   void *first_cmp_arg;
-  element_count dupl_count;
+  element_count dupl_count= 0;
   uchar *src;
   THD::killed_state not_killable;
   uchar *unique_buff= param->unique_buff;

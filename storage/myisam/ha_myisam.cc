@@ -538,6 +538,13 @@ void mi_check_print_warning(HA_CHECK *param, const char *fmt,...)
   va_end(args);
 }
 
+/* Return 1 if user have requested query to be killed */
+
+my_bool mi_killed_in_mariadb(MI_INFO *info)
+{
+  return (((TABLE*) (info->external_ref))->in_use->killed != 0);
+}
+
 }
 
 
@@ -545,6 +552,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
   :handler(hton, table_arg), file(0),
   int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                   HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+                  HA_CAN_VIRTUAL_COLUMNS |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
@@ -699,6 +707,8 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked)
     return (my_errno ? my_errno : -1);
 
   file->s->chst_invalidator= query_cache_invalidate_by_MyISAM_filename_ref;
+  /* Set external_ref, mainly for temporary tables */
+  file->external_ref= (void*) table;            // For mi_killed()
 
   if (!table->s->tmp_table) /* No need to perform a check for tmp table */
   {
@@ -1971,6 +1981,7 @@ int ha_myisam::delete_table(const char *name)
 
 int ha_myisam::external_lock(THD *thd, int lock_type)
 {
+  file->external_ref= (void*) table;            // For mi_killed()
   return mi_lock_database(file, !table->s->tmp_table ?
 			  lock_type : ((lock_type == F_UNLCK) ?
 				       F_UNLCK : F_EXTRA_LCK));
@@ -2219,6 +2230,7 @@ static int myisam_init(void *p)
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  mi_killed= mi_killed_in_mariadb;
   return 0;
 }
 

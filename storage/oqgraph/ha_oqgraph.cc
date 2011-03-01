@@ -766,7 +766,7 @@ int ha_oqgraph::fill_record(byte *record, const open_query::row &row)
   if (row.weight_indicator)
   {
     field[3]->set_notnull();
-    field[3]->store((double) row.weight, 0);
+    field[3]->store((double) row.weight);
   }
 
   if (row.seq_indicator)

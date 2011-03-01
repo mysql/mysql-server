@@ -689,3 +689,21 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	DEPENDENT SUBQUERY	X	ALL	NULL	NULL	NULL	NULL	10	
 2	DEPENDENT SUBQUERY	B	ALL	a,b	NULL	NULL	NULL	1000	Range checked for each record (index map: 0x3)
 drop table t1, t2;
+#
+# BUG#723822: Crash in get_constant_key_infix with EXISTS ( SELECT .. DISTINCT )
+#
+CREATE TABLE t1 ( f1 int(11), f3 varchar(1)) ;
+INSERT INTO t1 VALUES ('8','c'),('5','f');
+ALTER TABLE t1 ADD KEY (f3,f1);
+CREATE TABLE t2 ( f4 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+SELECT * FROM t2
+WHERE EXISTS (
+SELECT DISTINCT f3
+FROM t1
+WHERE f3 <= t2.f4
+);
+f4
+f
+d
+drop table t1,t2;

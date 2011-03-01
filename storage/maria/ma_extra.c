@@ -50,7 +50,7 @@ int maria_extra(MARIA_HA *info, enum ha_extra_function function,
 
   switch (function) {
   case HA_EXTRA_RESET_STATE:		/* Reset state (don't free buffers) */
-    info->lastinx= 0;			/* Use first index as def */
+    info->lastinx= ~0;			/* Detect index changes */
     info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
     info->page_changed= 1;
 					/* Next/prev gives first/last */
@@ -553,7 +553,7 @@ int maria_reset(MARIA_HA *info)
 #endif
   info->opt_flag&= ~(KEY_READ_USED | REMEMBER_OLD_POS);
   info->quick_mode= 0;
-  info->lastinx= 0;			/* Use first index as def */
+  info->lastinx= ~0;			/* detect index changes */
   info->last_search_keypage= info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->page_changed= 1;
   info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
@@ -633,5 +633,11 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   maria_print_error(info->s, HA_ERR_CRASHED);
   maria_mark_crashed(info);
   return 1;
+}
+
+
+my_bool ma_killed_standalone(MARIA_HA *info __attribute__((unused)))
+{
+  return 0;
 }
 

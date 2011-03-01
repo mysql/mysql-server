@@ -28,7 +28,7 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
 {
   int error,changed;
   uint flag;
-  ICP_RESULT res= 0;
+  ICP_RESULT icp_res= ICP_MATCH;
   uint update_mask= HA_STATE_NEXT_FOUND;
   DBUG_ENTER("mi_rnext");
 
@@ -102,8 +102,19 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
     while ((info->s->concurrent_insert &&
             info->lastpos >= info->state->data_file_length) ||
            (info->index_cond_func &&
-           (res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
+           (icp_res= mi_check_index_cond(info, inx, buf)) == ICP_NO_MATCH))
     {
+      /*
+        If we are at the last key on the key page, allow writers to
+        access the index.
+      */
+      if (info->int_keypos >= info->int_maxpos &&
+          mi_yield_and_check_if_killed(info, inx))
+      {
+        error= 1;
+        break;
+      }
+
       /* 
          Skip rows that are either inserted by other threads since
          we got a lock or do not match pushed index conditions
@@ -115,13 +126,6 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
                                   info->s->state.key_root[inx])))
         break;
     }
-    if (!error && res == ICP_OUT_OF_RANGE)
-    {
-      if (info->s->concurrent_insert)
-        rw_unlock(&info->s->key_root_lock[inx]);
-      info->lastpos= HA_OFFSET_ERROR;
-      DBUG_RETURN(my_errno= HA_ERR_END_OF_FILE);
-    }
   }
   
   if (info->s->concurrent_insert)
@@ -131,13 +135,15 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->update|= update_mask;
 
-  if (error)
+  if (error || icp_res != ICP_MATCH)
   {
+    fast_mi_writeinfo(info);
     if (my_errno == HA_ERR_KEY_NOT_FOUND)
       my_errno=HA_ERR_END_OF_FILE;
   }
   else if (!buf)
   {
+    fast_mi_writeinfo(info);
     DBUG_RETURN(info->lastpos==HA_OFFSET_ERROR ? my_errno : 0);
   }
   else if (!(*info->read_record)(info,info->lastpos,buf))

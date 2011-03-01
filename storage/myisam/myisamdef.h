@@ -25,6 +25,10 @@
 #include <my_no_pthread.h>
 #endif
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #if defined(my_write) && !defined(MAP_TO_USE_RAID)
 /* undef map from my_nosys; We need test-if-disk full */
 #undef my_write
@@ -248,6 +252,7 @@ struct st_myisam_info
   DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit */
+  void *external_ref;			/* For MariaDB TABLE */
   char *filename;                       /* parameter to open filename */
   uchar *buff,                          /* Temp area for key */
    *lastkey, *lastkey2;                 /* Last used search key */
@@ -433,6 +438,7 @@ extern uint NEAR myisam_read_vec[], NEAR myisam_readnext_vec[];
 extern uint myisam_quick_table_bits;
 extern File myisam_log_file;
 extern ulong myisam_pid;
+extern my_bool (*mi_killed)(MI_INFO *);
 
 /* This is used by _mi_calc_xxx_key_length och _mi_store_key */
 
@@ -593,6 +599,8 @@ extern ulonglong mi_safe_mul(ulonglong a, ulonglong b);
 extern int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
                          const uchar *oldrec, const uchar *newrec,
                          my_off_t pos);
+extern my_bool mi_yield_and_check_if_killed(MI_INFO *info, int inx);
+extern my_bool mi_killed_standalone(MI_INFO *);
 
 struct st_sort_info;
 
@@ -651,9 +659,7 @@ enum myisam_log_commands
 #define fast_mi_writeinfo(INFO) if (!(INFO)->s->tot_locks) (void) _mi_writeinfo((INFO),0)
 #define fast_mi_readinfo(INFO) ((INFO)->lock_type == F_UNLCK) && _mi_readinfo((INFO),F_RDLCK,1)
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
+
  extern uint _mi_get_block_info(MI_BLOCK_INFO *, File, my_off_t);
 extern uint _mi_rec_pack(MI_INFO *info, uchar *to, const uchar *from);
 extern uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
@@ -729,7 +735,7 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
 int mi_munmap_file(MI_INFO *info);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 
-int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
+ICP_RESULT mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
     /* Functions needed by mi_check */
 int killed_ptr(HA_CHECK *param);
 void mi_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...));

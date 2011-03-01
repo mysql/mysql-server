@@ -4,7 +4,10 @@ path=`dirname $0`
 . "$path/SETUP.sh"
 
 extra_flags="$pentium64_cflags $fast_cflags"
-extra_configs="$pentium_configs $static_link"
+# On CentOS/Fedora Core 10 amd64, there is system libz.so but not
+# libz.a, so need to use bundled zlib when building static
+# binary. Hence we use --with-zlib-dir=bundled
+extra_configs="$pentium_configs $static_link --with-zlib-dir=bundled"
 CC="$CC --pipe"
 strip=yes
 

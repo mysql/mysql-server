@@ -727,6 +727,10 @@ void my_init_time(void)
   my_time.hour=		(uint) l_time->tm_hour;
   my_time.minute=	(uint) l_time->tm_min;
   my_time.second=	(uint) l_time->tm_sec;
+  my_time.neg=          0;
+  my_time.second_part=  0;
+  my_time.time_type=    MYSQL_TIMESTAMP_DATETIME;
+
   my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
 }
 

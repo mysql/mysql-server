@@ -492,7 +492,6 @@ struct st_maria_handler
 {
   MARIA_SHARE *s;			/* Shared between open:s */
   struct st_ma_transaction *trn;        /* Pointer to active transaction */
-  void *external_ptr;           	/* Pointer to THD in mysql */
   MARIA_STATUS_INFO *state, state_save;
   MARIA_STATUS_INFO *state_start;       /* State at start of transaction */
   MARIA_ROW cur_row;                    /* The active row that we just read */
@@ -509,6 +508,7 @@ struct st_maria_handler
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
+  void *external_ref;			/* For MariaDB TABLE */
   uchar *buff;				/* page buffer */
   uchar *keyread_buff;                   /* Buffer for last key read */
   uchar *lastkey_buff;			/* Last used search key */
@@ -574,6 +574,7 @@ struct st_maria_handler
   my_bool was_locked;			/* Was locked in panic */
   my_bool append_insert_at_end;		/* Set if concurrent insert */
   my_bool quick_mode;
+  my_bool in_check_table;                /* We are running check tables */
   /* Marker if key_del_changed */
   /* If info->keyread_buff can't be used for rnext */
   my_bool page_changed;
@@ -813,6 +814,7 @@ extern my_bool maria_inited, maria_in_ha_maria, maria_recovery_changed_data;
 extern my_bool maria_recovery_verbose;
 extern HASH maria_stored_state;
 extern int (*maria_create_trn_hook)(MARIA_HA *);
+extern my_bool (*ma_killed)(MARIA_HA *);
 
 /* This is used by _ma_calc_xxx_key_length och _ma_store_key */
 typedef struct st_maria_s_param
@@ -1281,4 +1283,8 @@ extern my_bool maria_flush_log_for_page_none(uchar *page,
 extern PAGECACHE *maria_log_pagecache;
 extern void ma_set_index_cond_func(MARIA_HA *info, index_cond_func_t func,
                                    void *func_arg);
-int ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);
+ICP_RESULT ma_check_index_cond(register MARIA_HA *info, uint keynr, uchar *record);
+
+extern my_bool ma_yield_and_check_if_killed(MARIA_HA *info, int inx);
+extern my_bool ma_killed_standalone(MARIA_HA *);
+

@@ -53,18 +53,22 @@ SELECT COUNT(*) FROM City WHERE Population > 7000000;
 # we can get either an index intersection retrieval over key1 and key2
 # or a range index scan for one of these indexes
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City WHERE
   Name LIKE 'C%' AND Population > 1000000; 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City WHERE
   Name LIKE 'M%' AND Population > 1500000; 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE Name LIKE 'M%' AND Population > 300000;
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City
   WHERE Name LIKE 'M%' AND Population > 7000000;
@@ -122,14 +126,17 @@ SELECT COUNT(*) FROM City WHERE Country LIKE 'B%';
 # over(key1,key2), over(key1,key3) and over(key2,key3)
 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City
   WHERE Name BETWEEN 'M' AND 'N' AND Population > 1000000 AND Country LIKE 'C%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE Name BETWEEN 'G' AND 'K' AND Population > 500000 AND Country LIKE 'C%';
@@ -189,23 +196,28 @@ SELECT COUNT(*) FROM City WHERE Country BETWEEN 'S' AND 'Z';
 # tested instance the table City. 
 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City
   WHERE ID BETWEEN 501 AND 1000 AND Population > 700000 AND Country LIKE 'C%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City
   WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE ID BETWEEN 2001 AND 2500 AND Population > 300000 AND Country LIKE 'H%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE ID BETWEEN 3701 AND 4000 AND Population > 1000000
         AND Country BETWEEN 'S' AND 'Z';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
@@ -263,28 +275,34 @@ SET SESSION sort_buffer_size = 2048;
 # may be different if sort_buffer_size is set to a small value
 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City WHERE
   Name LIKE 'C%' AND Population > 1000000; 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City WHERE
   Name LIKE 'M%' AND Population > 1500000; 
 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE  Name BETWEEN 'G' AND 'J' AND Population > 1000000 AND Country LIKE 'B%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE  Name BETWEEN 'G' AND 'J' AND Population > 500000 AND Country LIKE 'C%';
 
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City
   WHERE ID BETWEEN 1 AND 500 AND Population > 1000000 AND Country LIKE 'A%';
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE ID BETWEEN 3001 AND 4000 AND Population > 600000
@@ -338,14 +356,17 @@ ANALYZE TABLE City;
 # index intersection, even in the cases when we have a ref access
 # for this component
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE Country LIKE 'M%' AND Population > 1000000;
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE Country='CHN' AND Population > 1500000;
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM City 
   WHERE Country='CHN' AND Population > 1500000 AND Name LIKE 'C%';
@@ -407,6 +428,7 @@ INSERT INTO t1 VALUES
   (991,'z',0), (992,'M',1), (993,'u',2), (994,'r',2), (995,'b',4),
   (996,'A',2), (997,'u',0), (998,'a',0), (999,'j',2), (1,'I',2);
 
+--replace_column 9 #
 EXPLAIN
 SELECT * FROM t1
 WHERE (f1 < 535  OR  f1 > 985) AND ( f4='r' OR f4 LIKE 'a%' ) ;

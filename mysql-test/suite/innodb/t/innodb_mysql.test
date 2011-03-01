@@ -840,6 +840,17 @@ CREATE INDEX b ON t1(a,b,c,d);
 
 DROP TABLE t1;
 
+--echo #
+--echo # ALTER TABLE IGNORE didn't ignore duplicates for unique add index
+--echo #
+
+create table t1 (a int primary key, b int) engine = innodb;
+insert into t1 values (1,1),(2,1);
+alter ignore table t1 add unique `main` (b);
+drop table t1;
+
+--echo #
+
 --echo End of 5.1 tests
 
 --echo #
