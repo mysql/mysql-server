@@ -231,11 +231,6 @@ my_bool my_thread_global_init(void)
   install_sigabrt_handler();
 #endif
 
-//  if (my_thread_init())
-//  {
-//    my_thread_global_end();			/* Clean up */
-//    return 1;
-//  }
   return 0;
 }
 
