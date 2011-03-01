@@ -134,7 +134,6 @@ valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
 debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG"
-debug_cflags="$debug_cflags -DFORCE_INIT_OF_VARS -Wuninitialized"
 debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC"
 error_inject="--with-error-inject "
 #
@@ -208,6 +207,23 @@ fi
 if test -z "$CXX" ; then
   CXX=g++
 fi
+
+
+#
+# Set -Wuninitialized to debug flags for gcc 4.4 and above
+# because it is allowed there without -O
+#
+if test `$CC -v 2>&1 | tail -1 | sed 's/ .*$//'` = 'gcc' ; then
+  GCCVERSION=`cc -v 2>&1 | tail -1 | sed 's/^\w\w* \w\w* //' | sed 's/ .*$//'`
+  GCCV1=`echo $GCCVERSION | sed 's/\..*$//'`
+  GCCV2=`echo $GCCVERSION | sed 's/[0-9][0-9]*\.//'|sed 's/\..*$//'`
+  if test '(' "$GCCV1" -gt '4' ')' -o \
+    '(' '(' "$GCCV1" -eq '4' ')' -a '(' "$GCCV2" -ge '4' ')' ')'
+  then
+    debug_cflags="$debug_cflags -DFORCE_INIT_OF_VARS -Wuninitialized"
+  fi
+fi
+
 
 # If ccache (a compiler cache which reduces build time)
 # (http://samba.org/ccache) is installed, use it.
