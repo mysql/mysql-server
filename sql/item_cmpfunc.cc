@@ -30,9 +30,6 @@
 #include "sql_select.h"
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
-static longlong
-get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null);
 
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
@@ -138,10 +135,10 @@ static int cmp_row_type(Item* item1, Item* item2)
 static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
   uint i;
-  type[0]= items[0]->result_type();
+  type[0]= items[0]->cmp_type();
   for (i= 1 ; i < nitems ; i++)
   {
-    type[0]= item_cmp_type(type[0], items[i]->result_type());
+    type[0]= item_cmp_type(type[0], items[i]->cmp_type());
     /*
       When aggregating types of two row expressions we have to check
       that they have the same cardinality and that each component
@@ -488,48 +485,27 @@ void Item_bool_func2::fix_length_and_dec()
     
   args[0]->cmp_context= args[1]->cmp_context=
     item_cmp_type(args[0]->result_type(), args[1]->result_type());
-  // Make a special case of compare with fields to get nicer DATE comparisons
 
-  if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
-  {
-    set_cmp_func();
-    return;
-  }
+  /*
+    Make a special case of compare with fields to get nicer comparisons
+    of numbers with constant string.
+    This directly contradicts the manual (number and a string should
+    be compared as doubles), but seems to provide more
+    "intuitive" behavior in some cases (but less intuitive in others).
 
+    But disable conversion in case of LIKE function.
+  */
   thd= current_thd;
-  if (!thd->is_context_analysis_only())
+  if (functype() != LIKE_FUNC && !thd->is_context_analysis_only())
   {
-    if (args[0]->real_item()->type() == FIELD_ITEM)
+    int field;
+    if (args[field= 0]->real_item()->type() == FIELD_ITEM ||
+        args[field= 1]->real_item()->type() == FIELD_ITEM)
     {
-      Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_datetime() &&
-            args[1]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[1]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT);		// Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          return;
-        }
-      }
-    }
-    if (args[1]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[1]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_datetime() &&
-            args[0]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[0]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT); // Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          return;
-        }
-      }
+      Item_field *field_item= (Item_field*) (args[field]->real_item());
+      if (field_item->cmp_type() == INT_RESULT &&
+          convert_constant_item(thd, field_item, &args[!field]))
+        args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
     }
   }
   set_cmp_func();
@@ -543,6 +519,8 @@ int Arg_comparator::set_compare_func(Item_result_field *item, Item_result type)
                          [is_owner_equal_func()];
 
   switch (type) {
+  case TIME_RESULT:
+    break;
   case ROW_RESULT:
   {
     uint n= (*a)->cols();
@@ -669,16 +647,17 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   bool value;
   int error;
   enum_mysql_timestamp_type timestamp_type;
+  int flags= TIME_FUZZY_DATE | MODE_INVALID_DATES;
+
+  flags|= thd->variables.sql_mode & (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
+
+  if (warn_type == MYSQL_TIMESTAMP_TIME)
+    flags|= TIME_TIME_ONLY;
 
   timestamp_type= 
-    str_to_datetime(str->ptr(), str->length(), l_time,
-                    (TIME_FUZZY_DATE | MODE_INVALID_DATES |
-                     (thd->variables.sql_mode &
-                      (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE))),
-                    &error);
+    str_to_datetime(str->ptr(), str->length(), l_time, flags, &error);
 
-  if (timestamp_type == MYSQL_TIMESTAMP_DATETIME || 
-      timestamp_type == MYSQL_TIMESTAMP_DATE)
+  if (timestamp_type > MYSQL_TIMESTAMP_ERROR)
     /*
       Do not return yet, we may still want to throw a "trailing garbage"
       warning.
@@ -726,164 +705,7 @@ static ulonglong get_date_from_str(THD *thd, String *str,
 
   if (*error_arg)
     return 0;
-  return TIME_to_ulonglong_datetime(&l_time);
-}
-
-
-/*
-  Check whether compare_datetime() can be used to compare items.
-
-  SYNOPSIS
-    Arg_comparator::can_compare_as_dates()
-    a, b          [in]  items to be compared
-    const_value   [out] converted value of the string constant, if any
-
-  DESCRIPTION
-    Check several cases when the DATE/DATETIME comparator should be used.
-    The following cases are checked:
-      1. Both a and b is a DATE/DATETIME field/function returning string or
-         int result.
-      2. Only a or b is a DATE/DATETIME field/function returning string or
-         int result and the other item (b or a) is an item with string result.
-         If the second item is a constant one then it's checked to be
-         convertible to the DATE/DATETIME type. If the constant can't be
-         converted to a DATE/DATETIME then the compare_datetime() comparator
-         isn't used and the warning about wrong DATE/DATETIME value is issued.
-      In all other cases (date-[int|real|decimal]/[int|real|decimal]-date)
-      the comparison is handled by other comparators.
-    If the datetime comparator can be used and one the operands of the
-    comparison is a string constant that was successfully converted to a
-    DATE/DATETIME type then the result of the conversion is returned in the
-    const_value if it is provided.  If there is no constant or
-    compare_datetime() isn't applicable then the *const_value remains
-    unchanged.
-
-  RETURN
-    the found type of date comparison
-*/
-
-enum Arg_comparator::enum_date_cmp_type
-Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
-{
-  enum enum_date_cmp_type cmp_type= CMP_DATE_DFLT;
-  Item *str_arg= 0, *date_arg= 0;
-
-  if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
-    return CMP_DATE_DFLT;
-
-  if (a->is_datetime())
-  {
-    if (b->is_datetime())
-      cmp_type= CMP_DATE_WITH_DATE;
-    else if (b->result_type() == STRING_RESULT)
-    {
-      cmp_type= CMP_DATE_WITH_STR;
-      date_arg= a;
-      str_arg= b;
-    }
-  }
-  else if (b->is_datetime() && a->result_type() == STRING_RESULT)
-  {
-    cmp_type= CMP_STR_WITH_DATE;
-    date_arg= b;
-    str_arg= a;
-  }
-
-  if (cmp_type != CMP_DATE_DFLT)
-  {
-    THD *thd= current_thd;
-    /*
-      Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-      for the current thread but it still may change during the execution.
-      Don't use cache while in the context analysis mode only (i.e. for 
-      EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
-      cases and can cause problems. For example evaluating subqueries can 
-      confuse storage engines since in context analysis mode tables 
-      aren't locked.
-    */
-    if (!thd->is_context_analysis_only() &&
-        cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
-        (str_arg->type() != Item::FUNC_ITEM ||
-        ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
-    {
-      ulonglong value;
-      bool error;
-      String tmp, *str_val= 0;
-      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
-                              MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
-
-      str_val= str_arg->val_str(&tmp);
-      if (str_arg->null_value)
-        return CMP_DATE_DFLT;
-      value= get_date_from_str(thd, str_val, t_type, date_arg->name, &error);
-      if (error)
-        return CMP_DATE_DFLT;
-      if (const_value)
-        *const_value= value;
-    }
-  }
-  return cmp_type;
-}
-
-
-/*
-  Retrieves correct TIME value from the given item.
-
-  SYNOPSIS
-    get_time_value()
-    thd                 thread handle
-    item_arg   [in/out] item to retrieve TIME value from
-    cache_arg  [in/out] pointer to place to store the cache item to
-    warn_item  [in]     unused
-    is_null    [out]    TRUE <=> the item_arg is null
-
-  DESCRIPTION
-    Retrieves the correct TIME value from given item for comparison by the
-    compare_datetime() function.
-    If item's result can be compared as longlong then its int value is used
-    and a value returned by get_time function is used otherwise.
-    If an item is a constant one then its value is cached and it isn't
-    get parsed again. An Item_cache_int object is used for for cached values.
-    It seamlessly substitutes the original item.  The cache item is marked as
-    non-constant to prevent re-caching it again.
-
-  RETURN
-    obtained value
-*/
-
-longlong
-get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null)
-{
-  longlong value;
-  Item *item= **item_arg;
-  MYSQL_TIME ltime;
-
-  if (item->result_as_longlong())
-  {
-    value= item->val_int();
-    *is_null= item->null_value;
-  }
-  else
-  {
-    *is_null= item->get_time(&ltime);
-    value= !*is_null ? (longlong) TIME_to_ulonglong_datetime(&ltime) : 0;
-  }
-  /*
-    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-    for the current thread but it still may change during the execution.
-  */
-  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
-      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
-  {
-    Item_cache_int *cache= new Item_cache_int();
-    /* Mark the cache as non-const to prevent re-caching. */
-    cache->set_used_tables(1);
-    cache->store(item, value);
-    *cache_arg= cache;
-    *item_arg= cache_arg;
-  }
-  return value;
+  return pack_time(&l_time);
 }
 
 
@@ -891,65 +713,15 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
-  enum enum_date_cmp_type cmp_type;
-  ulonglong const_value= (ulonglong)-1;
   thd= current_thd;
   owner= owner_arg;
   set_null= set_null && owner_arg;
   a= a1;
   b= a2;
-  thd= current_thd;
 
-  if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
-  {
-    a_type= (*a)->field_type();
-    b_type= (*b)->field_type();
-    a_cache= 0;
-    b_cache= 0;
-
-    if (const_value != (ulonglong)-1)
-    {
-      /*
-        cache_converted_constant can't be used here because it can't
-        correctly convert a DATETIME value from string to int representation.
-      */
-      Item_cache_int *cache= new Item_cache_int();
-      /* Mark the cache as non-const to prevent re-caching. */
-      cache->set_used_tables(1);
-      if (!(*a)->is_datetime())
-      {
-        cache->store((*a), const_value);
-        a_cache= cache;
-        a= (Item **)&a_cache;
-      }
-      else
-      {
-        cache->store((*b), const_value);
-        b_cache= cache;
-        b= (Item **)&b_cache;
-      }
-    }
-    is_nulls_eq= is_owner_equal_func();
-    func= &Arg_comparator::compare_datetime;
-    get_value_a_func= &get_datetime_value;
-    get_value_b_func= &get_datetime_value;
-    return 0;
-  }
-  else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
-           (*b)->field_type() == MYSQL_TYPE_TIME)
-  {
-    /* Compare TIME values as integers. */
-    a_cache= 0;
-    b_cache= 0;
-    is_nulls_eq= is_owner_equal_func();
-    func= &Arg_comparator::compare_datetime;
-    get_value_a_func= &get_time_value;
-    get_value_b_func= &get_time_value;
-    return 0;
-  }
-  else if (type == STRING_RESULT &&
-           (*a)->result_type() == STRING_RESULT &&
-           (*b)->result_type() == STRING_RESULT)
+  if (type == STRING_RESULT &&
+      (*a)->result_type() == STRING_RESULT &&
+      (*b)->result_type() == STRING_RESULT)
   {
     DTCollation coll;
     coll.set((*a)->collation.collation);
@@ -957,53 +729,16 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                b, 1, MY_COLL_CMP_CONV, 1))
       return 1;
   }
-  else if (try_year_cmp_func(type))
-    return 0;
+  if (type == INT_RESULT &&
+      (*a)->field_type() == MYSQL_TYPE_YEAR &&
+      (*b)->field_type() == MYSQL_TYPE_YEAR)
+    type= TIME_RESULT;
 
   a= cache_converted_constant(thd, a, &a_cache, type);
   b= cache_converted_constant(thd, b, &b_cache, type);
   return set_compare_func(owner_arg, type);
 }
 
-
-/*
-  Helper function to call from Arg_comparator::set_cmp_func()
-*/
-
-bool Arg_comparator::try_year_cmp_func(Item_result type)
-{
-  if (type == ROW_RESULT)
-    return FALSE;
-
-  bool a_is_year= (*a)->field_type() == MYSQL_TYPE_YEAR;
-  bool b_is_year= (*b)->field_type() == MYSQL_TYPE_YEAR;
-
-  if (!a_is_year && !b_is_year)
-    return FALSE;
-
-  if (a_is_year && b_is_year)
-  {
-    get_value_a_func= &get_year_value;
-    get_value_b_func= &get_year_value;
-  }
-  else if (a_is_year && (*b)->is_datetime())
-  {
-    get_value_a_func= &get_year_value;
-    get_value_b_func= &get_datetime_value;
-  }
-  else if (b_is_year && (*a)->is_datetime())
-  {
-    get_value_b_func= &get_year_value;
-    get_value_a_func= &get_datetime_value;
-  }
-  else
-    return FALSE;
-
-  is_nulls_eq= is_owner_equal_func();
-  func= &Arg_comparator::compare_datetime;
-
-  return TRUE;
-}
 
 /**
   Convert and cache a constant.
@@ -1026,9 +761,14 @@ Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item **cache_item,
                                                 Item_result type)
 {
-  /* Don't need cache if doing context analysis only. */
+  /*
+    Don't need cache if doing context analysis only.
+    Also, get_datetime_value creates Item_cache internally.
+    Unless fixed, we should not do it here.
+  */
   if (!thd_arg->is_context_analysis_only() &&
-      (*value)->const_item() && type != (*value)->result_type())
+      (*value)->const_item() && type != (*value)->result_type() &&
+      type != TIME_RESULT)
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
     cache->setup(*value);
@@ -1046,14 +786,9 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   owner= owner_arg;
   a= a1;
   b= b1;
-  a_type= (*a)->field_type();
-  b_type= (*b)->field_type();
   a_cache= 0;
   b_cache= 0;
-  is_nulls_eq= FALSE;
-  func= &Arg_comparator::compare_datetime;
-  get_value_a_func= &get_datetime_value;
-  get_value_b_func= &get_datetime_value;
+  func= comparator_matrix[TIME_RESULT][is_owner_equal_func()];
 }
 
 
@@ -1071,143 +806,117 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   DESCRIPTION
     Retrieves the correct DATETIME value from given item for comparison by the
     compare_datetime() function.
-    If item's result can be compared as longlong then its int value is used
-    and its string value is used otherwise. Strings are always parsed and
-    converted to int values by the get_date_from_str() function.
-    This allows us to compare correctly string dates with missed insignificant
-    zeros. If an item is a constant one then its value is cached and it isn't
-    get parsed again. An Item_cache_int object is used for caching values. It
-    seamlessly substitutes the original item.  The cache item is marked as
-    non-constant to prevent re-caching it again.  In order to compare
-    correctly DATE and DATETIME items the result of the former are treated as
-    a DATETIME with zero time (00:00:00).
+
+    If the value should be compared as time (TIME_RESULT), it's retrieved as
+    MYSQL_TIME. Otherwise it's read as a number/string and converted to time.
+    Constant items are cached, so the convertion is only done once for them.
+
+    Note the f_type behavior: if the item can be compared as time, then
+    f_type is this item's field_type(). Otherwise it's field_type() of
+    warn_item (which is the other operand of the comparison operator).
+    This logic provides correct string/number to date/time conversion
+    depending on the other operand (when comparing a string with a date, it's
+    parsed as a date, when comparing a string with a time it's parsed as a time)
 
   RETURN
-    obtained value
+    MYSQL_TIME value, packed in a longlong, suitable for comparison.
 */
 
 longlong
 get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                    Item *warn_item, bool *is_null)
 {
-  longlong value= 0;
-  String buf, *str= 0;
+  longlong UNINIT_VAR(value);
   Item *item= **item_arg;
+  enum_field_types f_type= warn_item->field_type();
+  timestamp_type t_type=
+    f_type == MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE :
+    f_type == MYSQL_TYPE_TIME ? MYSQL_TIMESTAMP_TIME :
+                                MYSQL_TIMESTAMP_DATETIME;
 
-  if (item->result_as_longlong())
-  {
+  switch (item->cmp_type()) {
+  case TIME_RESULT:
+    /* if it's our Item_cache_int, as created below, we simply use the value */
+    if (item->result_type() == INT_RESULT)
+      value= item->val_int();
+    else
+    {
+      MYSQL_TIME buf;
+      item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES);
+      value= pack_time(&buf);
+      f_type= item->field_type(); // for Item_cache_int below.
+    }
+    break;
+  case INT_RESULT:
     value= item->val_int();
-    *is_null= item->null_value;
-    enum_field_types f_type= item->field_type();
-    /*
-      Item_date_add_interval may return MYSQL_TYPE_STRING as the result
-      field type. To detect that the DATE value has been returned we
-      compare it with 100000000L - any DATE value should be less than it.
-      Don't shift cached DATETIME values up for the second time.
-    */
-    if (f_type == MYSQL_TYPE_DATE ||
-        (f_type != MYSQL_TYPE_DATETIME && value < 100000000L))
-      value*= 1000000L;
+
+    if (item->field_type() == MYSQL_TYPE_YEAR)
+    {
+      Item *real_item= item->real_item();
+      if (!(real_item->type() == Item::FIELD_ITEM &&
+            ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
+            ((Item_field *)real_item)->field->field_length == 4))
+      {
+        if (value < 70)
+          value+= 100;
+        if (value <= 1900)
+          value+= 1900;
+      }
+      value*= 13ULL * 32ULL * 24ULL * 60ULL * 60ULL * 1000000ULL;
+    }
+    else
+    {
+      MYSQL_TIME buf;
+      int was_cut;
+
+      if (number_to_datetime(value, &buf, TIME_INVALID_DATES|TIME_FUZZY_DATE,
+                             &was_cut) == -1)
+      {
+        const Lazy_string_num str(value);
+        make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                     &str, t_type, warn_item->name);
+        value= 0;
+      }
+      else
+        value= pack_time(&buf);
+    }
+    break;
+  case STRING_RESULT:
+  case DECIMAL_RESULT:
+  case REAL_RESULT:
+    {
+      char strbuf[MAX_DATETIME_FULL_WIDTH];
+      String buf(strbuf, sizeof(strbuf), &my_charset_bin), *str;
+      if ((str= item->val_str(&buf)))
+      {
+        /*
+          Convert strings to the integer DATE/DATETIME representation.
+          Even if both dates provided in strings we can't compare them directly as
+          strings as there is no warranty that they are correct and do not miss
+          some insignificant zeros.
+        */
+        bool error;
+        value= (longlong) get_date_from_str(thd, str, t_type, warn_item->name, &error);
+        /*
+          If str did not contain a valid date according to the current
+          SQL_MODE, get_date_from_str() has already thrown a warning,
+          and we don't want to throw NULL on invalid date (see 5.2.6
+          "SQL modes" in the manual), so we're done here.
+        */
+      }
+      break;
+    }
+  default: DBUG_ASSERT(0);
   }
-  else
-  {
-    str= item->val_str(&buf);
-    *is_null= item->null_value;
-  }
-  if (*is_null)
+  if ((*is_null= item->null_value))
     return ~(ulonglong) 0;
-  /*
-    Convert strings to the integer DATE/DATETIME representation.
-    Even if both dates provided in strings we can't compare them directly as
-    strings as there is no warranty that they are correct and do not miss
-    some insignificant zeros.
-  */
-  if (str)
+  if (cache_arg && item->const_item() && item->type() != Item::CACHE_ITEM)
   {
-    bool error;
-    enum_field_types f_type= warn_item->field_type();
-    timestamp_type t_type= f_type ==
-      MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME;
-    value= (longlong) get_date_from_str(thd, str, t_type, warn_item->name, &error);
-    /*
-      If str did not contain a valid date according to the current
-      SQL_MODE, get_date_from_str() has already thrown a warning,
-      and we don't want to throw NULL on invalid date (see 5.2.6
-      "SQL modes" in the manual), so we're done here.
-    */
-  }
-  /*
-    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-    for the current thread but it still may change during the execution.
-  */
-  if (item->const_item() && cache_arg && (item->type() != Item::FUNC_ITEM ||
-      ((Item_func*)item)->functype() != Item_func::GUSERVAR_FUNC))
-  {
-    Item_cache_int *cache= new Item_cache_int(MYSQL_TYPE_DATETIME);
-    /* Mark the cache as non-const to prevent re-caching. */
-    cache->set_used_tables(1);
+    Item_cache_int *cache= new Item_cache_int(f_type);
     cache->store(item, value);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }
-  return value;
-}
-
-
-/*
-  Retrieves YEAR value of 19XX-00-00 00:00:00 form from given item.
-
-  SYNOPSIS
-    get_year_value()
-    thd                 thread handle
-    item_arg   [in/out] item to retrieve YEAR value from
-    cache_arg  [in/out] pointer to place to store the caching item to
-    warn_item  [in]     item for issuing the conversion warning
-    is_null    [out]    TRUE <=> the item_arg is null
-
-  DESCRIPTION
-    Retrieves the YEAR value of 19XX form from given item for comparison by the
-    compare_datetime() function.
-    Converts year to DATETIME of form YYYY-00-00 00:00:00 for the compatibility
-    with the get_datetime_value function result.
-
-  RETURN
-    obtained value
-*/
-
-static longlong
-get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null)
-{
-  longlong value= 0;
-  Item *item= **item_arg;
-
-  value= item->val_int();
-  *is_null= item->null_value;
-  if (*is_null)
-    return ~(ulonglong) 0;
-
-  /*
-    Coerce value to the 19XX form in order to correctly compare
-    YEAR(2) & YEAR(4) types.
-    Here we are converting all item values but YEAR(4) fields since
-      1) YEAR(4) already has a regular YYYY form and
-      2) we don't want to convert zero/bad YEAR(4) values to the
-         value of 2000.
-  */
-  Item *real_item= item->real_item();
-  if (!(real_item->type() == Item::FIELD_ITEM &&
-        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
-        ((Item_field *)real_item)->field->field_length == 4))
-  {
-    if (value < 70)
-      value+= 100;
-    if (value <= 1900)
-      value+= 1900;
-  }
-  /* Convert year to DATETIME of form YYYY-00-00 00:00:00 (YYYY0000000000). */
-  value*= 10000000000LL;
-
   return value;
 }
 
@@ -1224,18 +933,9 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
     with help of the get_datetime_value() function.
 
   RETURN
-    If is_nulls_eq is TRUE:
-       1    if items are equal or both are null
-       0    otherwise
-    If is_nulls_eq is FALSE:
       -1   a < b or at least one item is null
        0   a == b
        1   a > b
-    See the table:
-    is_nulls_eq | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
-    a_is_null   | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
-    b_is_null   | 1 | 1 | 0 | 0 | 1 | 1 | 0 | 0 |
-    result      | 1 | 0 | 0 |0/1|-1 |-1 |-1 |-1/0/1|
 */
 
 int Arg_comparator::compare_datetime()
@@ -1243,34 +943,43 @@ int Arg_comparator::compare_datetime()
   bool a_is_null, b_is_null;
   longlong a_value, b_value;
 
+  if (set_null)
+    owner->null_value= 1;
+
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value= (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null);
-  if (!is_nulls_eq && a_is_null)
-  {
-    if (set_null)
-      owner->null_value= 1;
+  a_value= get_datetime_value(thd, &a, &a_cache, *b, &a_is_null);
+  if (a_is_null)
     return -1;
-  }
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value= (*get_value_b_func)(thd, &b, &b_cache, *a, &b_is_null);
-  if (a_is_null || b_is_null)
-  {
-    if (set_null)
-      owner->null_value= is_nulls_eq ? 0 : 1;
-    return is_nulls_eq ? (a_is_null == b_is_null) : -1;
-  }
+  b_value= get_datetime_value(thd, &b, &b_cache, *a, &b_is_null);
+  if (b_is_null)
+    return -1;
 
   /* Here we have two not-NULL values. */
   if (set_null)
     owner->null_value= 0;
 
   /* Compare values. */
-  if (is_nulls_eq)
-    return (a_value == b_value);
-  return a_value < b_value ? -1 : (a_value > b_value ? 1 : 0);
+  return a_value < b_value ? -1 : a_value > b_value ? 1 : 0;
 }
 
+int Arg_comparator::compare_e_datetime()
+{
+  bool a_is_null, b_is_null;
+  longlong a_value, b_value;
+
+  if (set_null)
+    owner->null_value= 0;
+
+  /* Get DATE/DATETIME/TIME value of the 'a' item. */
+  a_value= get_datetime_value(thd, &a, &a_cache, *b, &a_is_null);
+
+  /* Get DATE/DATETIME/TIME value of the 'b' item. */
+  b_value= get_datetime_value(thd, &b, &b_cache, *a, &b_is_null);
+  return a_is_null || b_is_null ? a_is_null == b_is_null
+                                : a_value == b_value;
+}
 
 int Arg_comparator::compare_string()
 {
@@ -2247,9 +1956,7 @@ void Item_func_between::fix_length_and_dec()
 {
   max_length= 1;
   int i;
-  bool datetime_found= FALSE;
-  int time_items_found= 0;
-  compare_as_dates= TRUE;
+  compare_as_dates= 0;
   THD *thd= current_thd;
 
   /*
@@ -2265,43 +1972,33 @@ void Item_func_between::fix_length_and_dec()
    return;
 
   /*
-    Detect the comparison of DATE/DATETIME items.
-    At least one of items should be a DATE/DATETIME item and other items
-    should return the STRING result.
+    When comparing as date/time, we need to convert non-temporal values
+    (e.g.  strings) to MYSQL_TIME. get_datetime_value() doees it
+    automatically when one of the operands is a date/time.  But here we
+    may need to compare two strings as dates (str1 BETWEEN str2 AND date).
+    For this to work, we need to know what date/time type we compare
+    strings as.
   */
-  if (cmp_type == STRING_RESULT)
+  if (cmp_type ==  TIME_RESULT)
   {
     for (i= 0; i < 3; i++)
     {
-      if (args[i]->is_datetime())
+      if (args[i]->cmp_type() == TIME_RESULT)
       {
-        datetime_found= TRUE;
+        if (args[i]->field_type() != MYSQL_TYPE_TIME ||
+            (args[i]->field_type() == MYSQL_TYPE_TIME && compare_as_dates==0))
+            compare_as_dates= args[i];
         continue;
       }
-      if (args[i]->field_type() == MYSQL_TYPE_TIME &&
-          args[i]->result_as_longlong())
-        time_items_found++;
     }
   }
-  if (!datetime_found)
-    compare_as_dates= FALSE;
 
-  if (compare_as_dates)
-  {
-    ge_cmp.set_datetime_cmp_func(this, args, args + 1);
-    le_cmp.set_datetime_cmp_func(this, args, args + 2);
-  }
-  else if (time_items_found == 3)
-  {
-    /* Compare TIME items as integers. */
-    cmp_type= INT_RESULT;
-  }
-  else if (args[0]->real_item()->type() == FIELD_ITEM &&
-           thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
-           thd->lex->sql_command != SQLCOM_SHOW_CREATE)
+  /* See the comment about the similar block in Item_bool_func2 */
+  if (args[0]->real_item()->type() == FIELD_ITEM &&
+      !thd->is_context_analysis_only())
   {
     Item_field *field_item= (Item_field*) (args[0]->real_item());
-    if (field_item->field->can_be_compared_as_longlong())
+    if (field_item->cmp_type() == INT_RESULT)
     {
       /*
         The following can't be recoded with || as convert_constant_item
@@ -2319,27 +2016,46 @@ void Item_func_between::fix_length_and_dec()
 longlong Item_func_between::val_int()
 {						// ANSI BETWEEN
   DBUG_ASSERT(fixed == 1);
-  if (compare_as_dates)
+
+  switch (cmp_type) {
+  case TIME_RESULT:
   {
-    int ge_res, le_res;
+    THD *thd= current_thd;
+    longlong value, a, b;
+    Item *cache, **ptr;
+    bool value_is_null, a_is_null, b_is_null;
 
-    ge_res= ge_cmp.compare();
-    if ((null_value= args[0]->null_value))
+    ptr= &args[0];
+    value= get_datetime_value(thd, &ptr, &cache, compare_as_dates,
+                              &value_is_null);
+    if (ptr != &args[0])
+      thd->change_item_tree(&args[0], *ptr);
+
+    if ((null_value= value_is_null))
       return 0;
-    le_res= le_cmp.compare();
 
-    if (!args[1]->null_value && !args[2]->null_value)
-      return (longlong) ((ge_res >= 0 && le_res <=0) != negated);
-    else if (args[1]->null_value)
-    {
-      null_value= le_res > 0;			// not null if false range.
-    }
+    ptr= &args[1];
+    a= get_datetime_value(thd, &ptr, &cache, compare_as_dates, &a_is_null);
+    if (ptr != &args[1])
+      thd->change_item_tree(&args[1], *ptr);
+
+    ptr= &args[2];
+    b= get_datetime_value(thd, &ptr, &cache, compare_as_dates, &b_is_null);
+    if (ptr != &args[2])
+      thd->change_item_tree(&args[2], *ptr);
+
+    if (!a_is_null && !b_is_null)
+      return (longlong) ((value >= a && value <= b) != negated);
+    if (a_is_null && b_is_null)
+      null_value=1;
+    else if (a_is_null)
+      null_value= value <= b;			// not null if false range.
     else
-    {
-      null_value= ge_res < 0;
-    }
+      null_value= value >= a;
+    break;
   }
-  else if (cmp_type == STRING_RESULT)
+
+  case STRING_RESULT:
   {
     String *value,*a,*b;
     value=args[0]->val_str(&value0);
@@ -2363,8 +2079,9 @@ longlong Item_func_between::val_int()
       // Set to not null if false range.
       null_value= sortcmp(value,a,cmp_collation.collation) >= 0;
     }
+    break;
   }
-  else if (cmp_type == INT_RESULT)
+  case INT_RESULT:
   {
     longlong value=args[0]->val_int(), a, b;
     if ((null_value=args[0]->null_value))
@@ -2383,8 +2100,9 @@ longlong Item_func_between::val_int()
     {
       null_value= value >= a;
     }
+    break;
   }
-  else if (cmp_type == DECIMAL_RESULT)
+  case DECIMAL_RESULT:
   {
     my_decimal dec_buf, *dec= args[0]->val_decimal(&dec_buf),
                a_buf, *a_dec, b_buf, *b_dec;
@@ -2401,8 +2119,9 @@ longlong Item_func_between::val_int()
       null_value= (my_decimal_cmp(dec, b_dec) <= 0);
     else
       null_value= (my_decimal_cmp(dec, a_dec) >= 0);
+    break;
   }
-  else
+  case REAL_RESULT:
   {
     double value= args[0]->val_real(),a,b;
     if ((null_value=args[0]->null_value))
@@ -2421,6 +2140,12 @@ longlong Item_func_between::val_int()
     {
       null_value= value >= a;
     }
+    break;
+  }
+  default:
+    DBUG_ASSERT(0);
+    null_value= 1;
+    return 0;
   }
   return (longlong) (!null_value && negated);
 }
@@ -3890,7 +3615,7 @@ void Item_func_in::fix_length_and_dec()
             skip_column= TRUE;
             break;
           }
-          else if (itm->is_datetime())
+          else if (itm->cmp_type() == TIME_RESULT)
           {
             datetime_found= TRUE;
             /*
@@ -3946,14 +3671,14 @@ void Item_func_in::fix_length_and_dec()
         So we must check here if the column on the left and all the constant 
         values on the right can be compared as integers and adjust the 
         comparison type accordingly.
+
+        See the comment about the similar block in Item_bool_func2
       */  
       if (args[0]->real_item()->type() == FIELD_ITEM &&
-          thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
-          thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
-          cmp_type != INT_RESULT)
+          !thd->is_context_analysis_only() && cmp_type != INT_RESULT)
       {
         Item_field *field_item= (Item_field*) (args[0]->real_item());
-        if (field_item->field->can_be_compared_as_longlong())
+        if (field_item->cmp_type() == INT_RESULT)
         {
           bool all_converted= TRUE;
           for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
@@ -5359,7 +5084,7 @@ Item_equal::Item_equal(Item *c, Item_field *f)
   const_item_cache= 0;
   fields.push_back(f);
   const_item= c;
-  compare_as_dates= f->is_datetime();
+  compare_as_dates= f->cmp_type() == TIME_RESULT;
 }
 
 
@@ -5406,7 +5131,7 @@ void Item_equal::add(Item *c, Item_field *f)
   {
     DBUG_ASSERT(f);
     const_item= c;
-    compare_as_dates= f->is_datetime();
+    compare_as_dates= f->cmp_type() == TIME_RESULT;
     return;
   }
   compare_const(c);

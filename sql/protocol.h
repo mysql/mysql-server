@@ -89,9 +89,9 @@ public:
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs)=0;
   virtual bool store(float from, uint32 decimals, String *buffer)=0;
   virtual bool store(double from, uint32 decimals, String *buffer)=0;
-  virtual bool store(MYSQL_TIME *time)=0;
+  virtual bool store(MYSQL_TIME *time, int decimals)=0;
   virtual bool store_date(MYSQL_TIME *time)=0;
-  virtual bool store_time(MYSQL_TIME *time)=0;
+  virtual bool store_time(MYSQL_TIME *time, int decimals)=0;
   virtual bool store(Field *field)=0;
 #ifdef EMBEDDED_LIBRARY
   int begin_dataset();
@@ -128,9 +128,9 @@ public:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);
@@ -163,9 +163,9 @@ public:
   virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
   		     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time);
+  virtual bool store(MYSQL_TIME *time, int decimals);
   virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time);
+  virtual bool store_time(MYSQL_TIME *time, int decimals);
   virtual bool store(float nr, uint32 decimals, String *buffer);
   virtual bool store(double from, uint32 decimals, String *buffer);
   virtual bool store(Field *field);

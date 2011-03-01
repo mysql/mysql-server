@@ -928,7 +928,7 @@ Event_queue_element::compute_next_execution_time()
     goto ret;
   }
 
-  time_now= (my_time_t) current_thd->query_start();
+  time_now= current_thd->query_start();
 
   DBUG_PRINT("info",("NOW: [%lu]", (ulong) time_now));
 
@@ -1131,7 +1131,7 @@ err:
 void
 Event_queue_element::mark_last_executed(THD *thd)
 {
-  last_executed= (my_time_t) thd->query_start();
+  last_executed= thd->query_start();
   last_executed_changed= TRUE;
 
   execution_count++;
@@ -1191,7 +1191,7 @@ append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
   */
   MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
-  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff));
+  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff, 0));
   buf->append(STRING_WITH_LEN("'"));
 }
 

@@ -111,7 +111,7 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
 void
 Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
 {
-  if (ltime_utc >= (my_time_t) thd->query_start())
+  if (ltime_utc >= thd->query_start())
     return;
 
   /*

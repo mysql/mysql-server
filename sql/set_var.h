@@ -667,8 +667,12 @@ public:
   void set_default(THD *thd, enum_var_type type);
   bool check_type(enum_var_type type)    { return type == OPT_GLOBAL; }
   bool check_default(enum_var_type type) { return 0; }
-  SHOW_TYPE show_type() { return SHOW_LONG; }
+  SHOW_TYPE show_type() { return SHOW_DOUBLE; }
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  virtual bool check_update_type(Item_result type)
+  {
+    return type != INT_RESULT && type != REAL_RESULT && type != DECIMAL_RESULT;
+  }
 };
 
 

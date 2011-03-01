@@ -63,8 +63,8 @@ def	test	t9	t9	c11	c11	246	9	6	Y	0	4	63
 def	test	t9	t9	c12	c12	246	10	6	Y	0	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
-def	test	t9	t9	c15	c15	7	19	19	N	9441	0	63
-def	test	t9	t9	c16	c16	11	8	8	Y	128	0	63
+def	test	t9	t9	c15	c15	7	19	19	N	9377	0	63
+def	test	t9	t9	c16	c16	11	9	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63
 def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
@@ -2745,46 +2745,212 @@ c12	-9999.9999
 execute my_delete ;
 test_sequence
 -- insert into string columns --
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 20, '20', '20', '20', '20', '20', '20', '20', '20', '20', '20', '20' ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= '21' ;
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 21, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+prepare stmt1 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 22, '22', '22', '22', '22', '22', '22', '22', '22', '22', '22', '22' )" ;
+execute stmt1 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= '23';
+prepare stmt2 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values 
+  ( 23, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 30, CAST('30' as binary), CAST('30' as binary), CAST('30' as binary),
+CAST('30' as binary), CAST('30' as binary), CAST('30' as binary),
+CAST('30' as binary), CAST('30' as binary), CAST('30' as binary),
+CAST('30' as binary), CAST('30' as binary) ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= '31' ;
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 31, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+prepare stmt1 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 32, CAST('32' as binary), CAST('32' as binary), CAST('32' as binary),
+  CAST('32' as binary), CAST('32' as binary), CAST('32' as binary),
+  CAST('32' as binary), CAST('32' as binary), CAST('32' as binary),
+  CAST('32' as binary), CAST('32' as binary) )" ;
+execute stmt1 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= CAST('33' as binary);
+prepare stmt2 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values 
+  ( 33, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 41 ;
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 41, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+prepare stmt1 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42 )" ;
+execute stmt1 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 43;
+prepare stmt2 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values 
+  ( 43, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 50, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 51.0 ;
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 51, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+prepare stmt1 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 52, 52.0, 52.0, 52.0, 52.0, 52.0, 52.0, 52.0, 52.0, 52.0, 52.0, 52.0 )" ;
+execute stmt1 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 53.0;
+prepare stmt2 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values 
+  ( 53, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 54, 5.4e+1, 5.4e+1, 5.4e+1, 5.4e+1, 5.4e+1, 5.4e+1, 5.4e+1, 5.4e+1,
+5.4e+1, 5.4e+1, 5.4e+1 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 5.5e+1 ;
+insert into t9 
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 55, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+prepare stmt1 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 56, 5.6e+1, 5.6e+1, 5.6e+1, 5.6e+1, 5.6e+1, 5.6e+1, 5.6e+1, 5.6e+1,
+    5.6e+1, 5.6e+1, 5.6e+1 )" ;
+execute stmt1 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 5.7e+1;
+prepare stmt2 from "insert into t9 
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values 
+  ( 57, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, 
+@arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Warning	1265	Data truncated for column 'c20' at row 1
+set @arg00= 'abc' ;
+set @arg00= NULL ;
+insert into t9
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 60, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL ) ;
+insert into t9
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 61, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00 ) ;
+prepare stmt1 from "insert into t9
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 62, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL )" ;
+execute stmt1 ;
+prepare stmt2 from "insert into t9
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 63, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00, @arg00 ;
+set @arg00= 2 ;
+set @arg00= NULL ;
+insert into t9
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 71, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00 ) ;
+prepare stmt2 from "insert into t9
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 73, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00, @arg00 ;
+set @arg00= 8 ;
+set @arg00= NULL ;
+insert into t9
+( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+( 81, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00 ) ;
+prepare stmt2 from "insert into t9
+  ( c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30 )
+values
+  ( 83, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00, @arg00, @arg00,
+@arg00, @arg00, @arg00, @arg00 ;
 select c1, c20, c21, c22, c23, c24, c25, c26, c27, c28, c29, c30
 from t9 where c1 >= 20
 order by c1 ;
@@ -2943,70 +3109,200 @@ true
 delete from t9 ;
 test_sequence
 -- insert into date/time columns --
+set @arg00= '1991-01-01 01:01:01' ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 20, '1991-01-01 01:01:01', '1991-01-01 01:01:01', '1991-01-01 01:01:01',
+'1991-01-01 01:01:01', '1991-01-01 01:01:01') ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 21, @arg00, @arg00, @arg00, @arg00, @arg00) ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+prepare stmt1 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 22, '1991-01-01 01:01:01', '1991-01-01 01:01:01', '1991-01-01 01:01:01',
+        '1991-01-01 01:01:01', '1991-01-01 01:01:01')" ;
+execute stmt1 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 23, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 30, CAST('1991-01-01 01:01:01' as datetime), 
+CAST('1991-01-01 01:01:01' as datetime),
+CAST('1991-01-01 01:01:01' as datetime),
+CAST('1991-01-01 01:01:01' as datetime),
+CAST('1991-01-01 01:01:01' as datetime)) ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 31, @arg00, @arg00, @arg00, @arg00, @arg00) ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+prepare stmt1 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 32, CAST('1991-01-01 01:01:01' as datetime),
+        CAST('1991-01-01 01:01:01' as datetime),
+        CAST('1991-01-01 01:01:01' as datetime),
+        CAST('1991-01-01 01:01:01' as datetime),
+        CAST('1991-01-01 01:01:01' as datetime))" ;
+execute stmt1 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 33, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
+set @arg00= 2000000000 ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 40, 2000000000, 2000000000, 2000000000, 2000000000, 2000000000 ) ;
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 41, @arg00, @arg00, @arg00, @arg00, @arg00) ;
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
+prepare stmt1 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 42, 2000000000, 2000000000, 2000000000, 2000000000, 2000000000 )" ;
+execute stmt1 ;
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 43, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value for column 'c16' at row 1
-Warning	1264	Out of range value for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value for column 'c16' at row 1
-Warning	1264	Out of range value for column 'c17' at row 1
-Warnings:
-Warning	1265	Data truncated for column 'c15' at row 1
-Warning	1264	Out of range value for column 'c16' at row 1
-Warning	1264	Out of range value for column 'c17' at row 1
+set @arg00= 1.0e+10 ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 50, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10 ) ;
 Warnings:
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 51, @arg00, @arg00, @arg00, @arg00, @arg00) ;
+Warnings:
+Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
+prepare stmt1 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 52, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10, 1.0e+10 )" ;
+execute stmt1 ;
+Warnings:
+Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 53, ?, ?, ?, ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
+Warnings:
+Warning	1265	Data truncated for column 'c15' at row 1
+Warning	1264	Out of range value for column 'c16' at row 1
+Warning	1264	Out of range value for column 'c17' at row 1
+set @arg00= 'abc' ;
+set @arg00= NULL ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 60, NULL, NULL, '1991-01-01 01:01:01',
+NULL, NULL) ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 61, @arg00, @arg00, '1991-01-01 01:01:01', @arg00, @arg00) ;
+prepare stmt1 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 62, NULL, NULL, '1991-01-01 01:01:01',
+        NULL, NULL)" ;
+execute stmt1 ;
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 63, ?, ?, '1991-01-01 01:01:01', ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00 ;
+set @arg00= 8 ;
+set @arg00= NULL ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 71, @arg00, @arg00, '1991-01-01 01:01:01', @arg00, @arg00) ;
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 73, ?, ?, '1991-01-01 01:01:01', ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00 ;
+set @arg00= 8.0 ;
+set @arg00= NULL ;
+insert into t9
+( c1, c13, c14, c15, c16, c17 )
+values
+( 81, @arg00, @arg00, '1991-01-01 01:01:01', @arg00, @arg00) ;
+prepare stmt2 from "insert into t9
+  ( c1, c13, c14, c15, c16, c17 )
+values
+  ( 83, ?, ?, '1991-01-01 01:01:01', ?, ? )" ;
+execute stmt2 using @arg00, @arg00, @arg00, @arg00 ;
 select c1, c13, c14, c15, c16, c17 from t9 order by c1 ;
 c1	c13	c14	c15	c16	c17
 20	1991-01-01	1991-01-01 01:01:01	1991-01-01 01:01:01	01:01:01	1991
@@ -3038,25 +3334,25 @@ test_sequence
 set @arg00= '1991-01-01 01:01:01' ;
 select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 01:01:01' and
-c15= '1991-01-01 01:01:01' and c16= '1991-01-01 01:01:01' and
+c15= '1991-01-01 01:01:01' and
 c17= '1991-01-01 01:01:01' ;
 found
 true
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00
 and c17= @arg00 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
 where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 01:01:01' and
-  c15= '1991-01-01 01:01:01' and c16= '1991-01-01 01:01:01' and
+  c15= '1991-01-01 01:01:01' and
   c17= '1991-01-01 01:01:01'" ;
 execute stmt1 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= ?" ;
-execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
+where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c17= ?" ;
+execute stmt1 using @arg00, @arg00, @arg00, @arg00 ;
 found
 true
 set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
@@ -3064,12 +3360,11 @@ select 'true' as found from t9
 where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
 c14= CAST('1991-01-01 01:01:01' as datetime) and
 c15= CAST('1991-01-01 01:01:01' as datetime) and
-c16= CAST('1991-01-01 01:01:01' as datetime) and
 c17= CAST('1991-01-01 01:01:01' as datetime) ;
 found
 true
 select 'true' as found from t9 
-where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00 and c16= @arg00
+where c1= 20 and c13= CAST(@arg00 AS DATE) and c14= @arg00 and c15= @arg00
 and c17= @arg00 ;
 found
 true
@@ -3077,14 +3372,43 @@ prepare stmt1 from "select 'true' as found from t9
 where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
   c14= CAST('1991-01-01 01:01:01' as datetime) and
   c15= CAST('1991-01-01 01:01:01' as datetime) and
-  c16= CAST('1991-01-01 01:01:01' as datetime) and
   c17= CAST('1991-01-01 01:01:01' as datetime)" ;
 execute stmt1 ;
 found
 true
 prepare stmt1 from "select 'true' as found from t9 
-where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= ?" ;
-execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
+where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c17= ?" ;
+execute stmt1 using @arg00, @arg00, @arg00, @arg00 ;
+found
+true
+set @arg00= '01:01:01' ;
+select 'true' as found from t9 where c1= 20  and c16= '01:01:01' ;
+found
+true
+select 'true' as found from t9 where c1= 20 and c16= @arg00 ;
+found
+true
+prepare stmt1 from "select 'true' as found from t9 where c1= 20 and c16= '01:01:01'" ;
+execute stmt1 ;
+found
+true
+prepare stmt1 from "select 'true' as found from t9 where c1= 20 and c16= ?" ;
+execute stmt1 using @arg00 ;
+found
+true
+set @arg00= CAST('01:01:01' as time) ;
+select 'true' as found from t9 where c1= 20 and c16= CAST('01:01:01' as time) ;
+found
+true
+select 'true' as found from t9 where c1= 20 and c16= @arg00 ;
+found
+true
+prepare stmt1 from "select 'true' as found from t9 where c1= 20 and c16= CAST('01:01:01' as time)" ;
+execute stmt1 ;
+found
+true
+prepare stmt1 from "select 'true' as found from t9 where c1= 20 and c16= ?" ;
+execute stmt1 using @arg00 ;
 found
 true
 set @arg00= 1991 ;

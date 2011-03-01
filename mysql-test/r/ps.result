@@ -3040,3 +3040,18 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
+prepare stmt from "select date('2010-10-10') between '2010-09-09' and ?";
+set @a='2010-11-11';
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+1
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+1
+set @a='2010-08-08';
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+0
+execute stmt using @a;
+date('2010-10-10') between '2010-09-09' and ?
+0

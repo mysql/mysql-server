@@ -392,12 +392,13 @@ bool opt_large_files= sizeof(my_off_t) > 4;
 */
 static my_bool opt_help= 0, opt_verbose= 0;
 
-arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
+arg_cmp_func Arg_comparator::comparator_matrix[6][2] =
 {{&Arg_comparator::compare_string,     &Arg_comparator::compare_e_string},
  {&Arg_comparator::compare_real,       &Arg_comparator::compare_e_real},
  {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
- {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
+ {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal},
+ {&Arg_comparator::compare_datetime,   &Arg_comparator::compare_e_datetime}};
 
 const char *log_output_names[] = { "NONE", "FILE", "TABLE", NullS};
 static const unsigned int log_output_names_len[]= { 4, 4, 5, 0 };

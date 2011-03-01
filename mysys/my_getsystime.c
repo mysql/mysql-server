@@ -13,9 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* get time since epoc in 100 nanosec units */
-/* thus to get the current time we should use the system function
-   with the highest possible resolution */
 
 /* 
    TODO: in functions my_micro_time() and my_micro_time_and_time() there
@@ -27,7 +24,24 @@
 
 #ifdef __NETWARE__
 #include <nks/time.h>
+#elif defined(__WIN__)
+static ulonglong query_performance_frequency, query_performance_offset;
+#elif defined(HAVE_GETHRTIME)
+static ulonglong gethrtime_offset;
 #endif
+
+/*
+  get time since epoc in 100 nanosec units
+
+  NOTE:
+  Thus to get the current time we should use the system function
+  with the highest possible resolution
+
+  The value is not subject to resetting or drifting by way of adjtime() or
+  settimeofday(), and thus it is *NOT* appropriate for getting the current
+  timestamp. It can be used for calculating time intervals, though.
+  And it's good enough for UUID.
+*/
 
 ulonglong my_getsystime()
 {
@@ -35,6 +49,8 @@ ulonglong my_getsystime()
   struct timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
   return (ulonglong)tp.tv_sec*10000000+(ulonglong)tp.tv_nsec/100;
+#elif defined(HAVE_GETHRTIME)
+  return gethrtime()/100-gethrtime_offset;
 #elif defined(__WIN__)
   LARGE_INTEGER t_cnt;
   if (query_performance_frequency)
@@ -57,169 +73,70 @@ ulonglong my_getsystime()
 #endif
 }
 
+/* Return current time in microseconds since epoch */
+
+my_hrtime_t my_hrtime()
+{
+  my_hrtime_t hrtime;
+#if defined(__WIN__)
+  ulonglong newtime;
+  GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  hrtime.val= newtime/10;
+#elif defined(HAVE_GETHRTIME)
+  struct timeval t;
+  /*
+    The following loop is here because gettimeofday may fail on some systems
+  */
+  while (gettimeofday(&t, NULL) != 0)
+  {}
+  hrtime.val= t.tv_sec*1000000 + t.tv_usec;
+#else
+  hrtime.val= my_getsystime()/10;
+#endif
+  return hrtime;
+}
 
 /*
-  Return current time
+  This function is basically equivalent to
 
-  SYNOPSIS
-    my_time()
-    flags	If MY_WME is set, write error if time call fails
+     *interval= my_getsystime()/10;
+     *timestamp= my_time();
 
+   but it avoids calling OS time functions twice, if possible.
 */
-
-time_t my_time(myf flags __attribute__((unused)))
+void my_diff_and_hrtime(my_timediff_t *interval, my_hrtime_t *timestamp)
 {
-  time_t t;
-#ifdef HAVE_GETHRTIME
-  (void) my_micro_time_and_time(&t);
-  return t;
+  interval->val= my_getsystime() / 10;
+#if defined(__WIN__) || defined(HAVE_GETHRTIME)
+  timestamp->val= my_hrtime();
 #else
-  /* The following loop is here beacuse time() may fail on some systems */
-  while ((t= time(0)) == (time_t) -1)
-  {
-    if (flags & MY_WME)
-      fprintf(stderr, "%s: Warning: time() call failed\n", my_progname);
-  }
-  return t;
+  timestamp->val= interval->val;
 #endif
 }
 
-
-/*
-  Return time in micro seconds
-
-  SYNOPSIS
-    my_micro_time()
-
-  NOTES
-    This function is to be used to measure performance in micro seconds.
-    As it's not defined whats the start time for the clock, this function
-    us only useful to measure time between two moments.
-
-    For windows platforms we need the frequency value of the CUP. This is
-    initalized in my_init.c through QueryPerformanceFrequency().
-
-    If Windows platform doesn't support QueryPerformanceFrequency() we will
-    obtain the time via GetClockCount, which only supports milliseconds.
-
-  RETURN
-    Value in microseconds from some undefined point in time
-*/
-
-ulonglong my_micro_time()
+void my_time_init()
 {
-#if defined(__WIN__)
-  ulonglong newtime;
-  GetSystemTimeAsFileTime((FILETIME*)&newtime);
-  return (newtime/10);
-#elif defined(HAVE_GETHRTIME)
-  return gethrtime()/1000;
-#else
-  ulonglong newtime;
-  struct timeval t;
-  /*
-    The following loop is here because gettimeofday may fail on some systems
-  */
-  while (gettimeofday(&t, NULL) != 0)
-  {}
-  newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
-  return newtime;
-#endif  /* defined(__WIN__) */
-}
-
-
-/*
-  Return time in seconds and timer in microseconds (not different start!)
-
-  SYNOPSIS
-    my_micro_time_and_time()
-    time_arg		Will be set to seconds since epoch (00:00:00 UTC,
-                        January 1, 1970)
-
-  NOTES
-    This function is to be useful when we need both the time and microtime.
-    For example in MySQL this is used to get the query time start of a query
-    and to measure the time of a query (for the slow query log)
-
-  IMPLEMENTATION
-    Value of time is as in time() call.
-    Value of microtime is same as my_micro_time(), which may be totally
-    unrealated to time()
-
-  RETURN
-    Value in microseconds from some undefined point in time
-*/
-
-#define DELTA_FOR_SECONDS LL(500000000)  /* Half a second */
-
-ulonglong my_micro_time_and_time(time_t *time_arg)
-{
-#if defined(__WIN__)
-  ulonglong newtime;
-  GetSystemTimeAsFileTime((FILETIME*)&newtime);
-  *time_arg= (time_t) ((newtime - OFFSET_TO_EPOCH) / 10000000);
-  return (newtime/10);
-#elif defined(HAVE_GETHRTIME)
-  /*
-    Solaris has a very slow time() call. We optimize this by using the very
-    fast gethrtime() call and only calling time() every 1/2 second
-  */
-  static hrtime_t prev_gethrtime= 0;
-  static time_t cur_time= 0;
-  hrtime_t cur_gethrtime;
-
-  pthread_mutex_lock(&THR_LOCK_time);
-  cur_gethrtime= gethrtime();
-  if ((cur_gethrtime - prev_gethrtime) > DELTA_FOR_SECONDS)
+#ifdef __WIN__
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+  FILETIME ft;
+  LARGE_INTEGER li, t_cnt;
+  DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+  if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
+    query_performance_frequency= 0;
+  else
   {
-    cur_time= time(0);
-    prev_gethrtime= cur_gethrtime;
+    GetSystemTimeAsFileTime(&ft);
+    li.LowPart=  ft.dwLowDateTime;
+    li.HighPart= ft.dwHighDateTime;
+    query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+    QueryPerformanceCounter(&t_cnt);
+    query_performance_offset-= (t_cnt.QuadPart /
+                                query_performance_frequency * 10000000 +
+                                t_cnt.QuadPart %
+                                query_performance_frequency * 10000000 /
+                                query_performance_frequency);
   }
-  *time_arg= cur_time;
-  pthread_mutex_unlock(&THR_LOCK_time);
-  return cur_gethrtime/1000;
-#else
-  ulonglong newtime;
-  struct timeval t;
-  /*
-    The following loop is here because gettimeofday may fail on some systems
-  */
-  while (gettimeofday(&t, NULL) != 0)
-  {}
-  *time_arg= t.tv_sec;
-  newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
-  return newtime;
-#endif  /* defined(__WIN__) */
-}
-
-
-/*
-  Returns current time
-
-  SYNOPSIS
-    my_time_possible_from_micro()
-    microtime		Value from very recent my_micro_time()
-
-  NOTES
-    This function returns the current time. The microtime argument is only used
-    if my_micro_time() uses a function that can safely be converted to the
-    current time.
-
-  RETURN
-    current time
-*/
-
-time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
-{
-#if defined(__WIN__)
-  time_t t;
-  while ((t= time(0)) == (time_t) -1)
-  {}
-  return t;
 #elif defined(HAVE_GETHRTIME)
-  return my_time(0);                            /* Cached time */
-#else
-  return (time_t) (microtime / 1000000);
-#endif  /* defined(__WIN__) */
+  gethrtime_offset= gethrtime();
+#endif
 }
-

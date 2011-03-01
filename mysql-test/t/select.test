@@ -3513,7 +3513,7 @@ DROP VIEW v1;
 select str_to_date('2007-10-09','%Y-%m-%d') between '2007/10/01 00:00:00 GMT'
                                                 and '2007/10/20 00:00:00 GMT';
 select str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6';
-select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
+select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/20 00:00:00 GMT-6';
 
 # We have all we need -- and trailing garbage:
 # (leaving out a leading zero in first example to prove it's a

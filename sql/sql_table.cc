@@ -34,26 +34,16 @@ const char *primary_key_name="PRIMARY";
 
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
-static int copy_data_between_tables(TABLE *from,TABLE *to,
-                                    List<Create_field> &create, bool ignore,
-				    uint order_num, ORDER *order,
-				    ha_rows *copied,ha_rows *deleted,
-                                    enum enum_enable_or_disable keys_onoff,
-                                    bool error_if_not_empty);
+static int copy_data_between_tables(TABLE *,TABLE *, List<Create_field> &, bool,
+				    uint, ORDER *, ha_rows *,ha_rows *,
+                                    enum enum_enable_or_disable, bool);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
-static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
-                           Alter_info *alter_info,
-                           bool tmp_table,
-                           uint *db_options,
-                           handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count);
-static bool
-mysql_prepare_alter_table(THD *thd, TABLE *table,
-                          HA_CREATE_INFO *create_info,
-                          Alter_info *alter_info);
+static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
+                           bool, uint *, handler *, KEY **, uint *, int);
+static bool mysql_prepare_alter_table(THD *, TABLE *, HA_CREATE_INFO *,
+                                      Alter_info *);
 
 #ifndef DBUG_OFF
 

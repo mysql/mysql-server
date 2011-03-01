@@ -41,7 +41,7 @@ INSERT INTO t1 VALUES('0000-00-00');
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 INSERT IGNORE INTO t1 VALUES('0000-00-00');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1264	Out of range value for column 'col1' at row 1
 INSERT INTO t1 VALUES ('2004-0-30');
 INSERT INTO t1 VALUES ('2004-2-30');
 ERROR 22007: Incorrect date value: '2004-2-30' for column 'col1' at row 1
@@ -51,7 +51,7 @@ set @@sql_mode='ansi,traditional';
 INSERT IGNORE INTO t1 VALUES('2004-02-29'),('2004-13-15'),('0000-00-00');
 Warnings:
 Warning	1265	Data truncated for column 'col1' at row 2
-Warning	1265	Data truncated for column 'col1' at row 3
+Warning	1264	Out of range value for column 'col1' at row 3
 select * from t1;
 col1
 2004-01-01
@@ -1155,12 +1155,12 @@ set sql_mode='traditional';
 create table t1 (col1 date);
 insert ignore into t1 values ('0000-00-00');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1264	Out of range value for column 'col1' at row 1
 insert into t1 select * from t1;
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'col1' at row 1
 insert ignore into t1 values ('0000-00-00');
 Warnings:
-Warning	1265	Data truncated for column 'col1' at row 1
+Warning	1264	Out of range value for column 'col1' at row 1
 insert ignore into t1 (col1) values (cast('0000-00-00' as date));
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-00'

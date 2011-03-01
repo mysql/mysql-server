@@ -1,0 +1,147 @@
+drop table if exists t1, t2, t3;
+create table t1 (a time(7));
+ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
+create table t1 (a time(3));
+insert t1 values ('2010-12-11 01:02:03.4567');
+insert t1 values (20101211010203.45678);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+insert t1 values (20101211030405.789e0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+insert t1 values (99991231235959e1);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t1;
+a
+01:02:03.456
+838:59:59.999
+838:59:59.999
+838:59:59.999
+select truncate(a, 6) from t1;
+truncate(a, 6)
+10203.456000
+8385959.999000
+8385959.999000
+8385959.999000
+select a DIV 1 from t1;
+a DIV 1
+10203
+8385959
+8385959
+8385959
+select group_concat(distinct a) from t1;
+group_concat(distinct a)
+01:02:03.456,838:59:59.999
+alter table t1 engine=innodb;
+select * from t1;
+a
+01:02:03.456
+838:59:59.999
+838:59:59.999
+838:59:59.999
+drop table t1;
+create table t1 (a time(4)) engine=innodb;
+insert t1 values ('2010-12-11 01:02:03.456789');
+select * from t1;
+a
+01:02:03.4567
+select extract(microsecond from a + interval 100 microsecond) from t1 where a>'2010-11-12 01:02:03.456';
+extract(microsecond from a + interval 100 microsecond)
+select a from t1 where a>'2010-11-12 01:02:03.456' group by a;
+a
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` time(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show columns from t1;
+Field	Type	Null	Key	Default	Extra
+a	time(4)	YES		NULL	
+select table_name, column_name, column_default, is_nullable, data_type, character_maximum_length, character_octet_length, numeric_precision, numeric_scale, datetime_precision, character_set_name, collation_name, column_type, column_key, extra from information_schema.columns where table_name='t1';
+table_name	t1
+column_name	a
+column_default	NULL
+is_nullable	YES
+data_type	time
+character_maximum_length	NULL
+character_octet_length	NULL
+numeric_precision	NULL
+numeric_scale	NULL
+datetime_precision	4
+character_set_name	NULL
+collation_name	NULL
+column_type	time(4)
+column_key	
+extra	
+select a, a+interval 9876543 microsecond from t1;
+a	a+interval 9876543 microsecond
+01:02:03.4567	01:02:13.333243
+update t1 set a=a+interval 9876543 microsecond;
+select * from t1;
+a
+01:02:13.3332
+insert t1 select a + interval 2 year from t1;
+select * from t1;
+a
+01:02:13.3332
+01:02:13.3332
+delete from t1 where a < 20110101;
+select * from t1;
+a
+create table t2 select * from t1;
+create table t3 like t1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` time(4) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` time(4) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1, t2, t3;
+create table t1 (a time(6), b time(6));
+create procedure foo(x time, y time(4)) insert into t1 values (x, y);
+call foo('2010-02-03 4:5:6.789123', '2010-02-03 4:5:6.789123');
+select * from t1;
+a	b
+04:05:06.000000	04:05:06.789100
+create procedure bar(a int, c time(5))
+begin
+declare b time(4);
+set b = c + interval a microsecond;
+insert t1 values (b, c + interval a microsecond);
+end|
+call bar(1111111, '2011-01-02 3:4:5.123456');
+select * from t1;
+a	b
+04:05:06.000000	04:05:06.789100
+03:04:06.234500	03:04:06.234561
+drop procedure foo;
+drop procedure bar;
+create function xyz(s char(20)) returns time(4)
+return addtime('2010-10-10 10:10:10.101010', s);
+select xyz('1:1:1.010101');
+xyz('1:1:1.010101')
+11:11:11.1111
+drop function xyz;
+create view v1 as select * from t1 group by a,b;
+select * from v1;
+a	b
+03:04:06.234500	03:04:06.234561
+04:05:06.000000	04:05:06.789100
+show columns from v1;
+Field	Type	Null	Key	Default	Extra
+a	time(6)	YES		NULL	
+b	time(6)	YES		NULL	
+create table t2 select * from v1;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` time(6) DEFAULT NULL,
+  `b` time(6) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop view v1;
+drop table t1, t2;

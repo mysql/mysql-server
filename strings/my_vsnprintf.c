@@ -194,8 +194,8 @@ static void my_printf(const char * fmt, ...)
   va_start(ar, fmt);
   buf[sizeof(buf)-1]=OVERRUN_SENTRY;
   n = my_vsnprintf(buf, sizeof(buf)-1,fmt, ar);
-  printf(buf);
-  printf("n=%d, strlen=%d\n", n, strlen(buf));
+  printf("%s", buf);
+  printf("n=%d, strlen=%d\n", n, (int)strlen(buf));
   if ((uchar) buf[sizeof(buf)-1] != OVERRUN_SENTRY)
   {
     fprintf(stderr, "Buffer overrun\n");

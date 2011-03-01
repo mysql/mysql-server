@@ -569,7 +569,8 @@ public:
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
-  virtual Item_result cast_to_int_type() const { return result_type(); }
+  virtual Item_result cmp_type() const;
+  virtual Item_result cast_to_int_type() const { return cmp_type(); }
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
@@ -801,6 +802,7 @@ public:
   }
 
   void print_item_w_name(String *, enum_query_type query_type);
+  void print_value(String *);
   virtual void update_used_tables() {}
   virtual void split_sum_func(THD *thd, Item **ref_pointer_array,
                               List<Item> &fields) {}
@@ -808,7 +810,7 @@ public:
   void split_sum_func2(THD *thd, Item **ref_pointer_array, List<Item> &fields,
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
-  virtual bool get_time(MYSQL_TIME *ltime);
+  bool get_time(MYSQL_TIME *ltime);
   virtual bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   { return get_date(ltime,fuzzydate); }
   /*
@@ -1037,15 +1039,6 @@ public:
   {
     return 0;
   }
-  /*
-    result_as_longlong() must return TRUE for Items representing DATE/TIME
-    functions and DATE/TIME table fields.
-    Those Items have result_type()==STRING_RESULT (and not INT_RESULT), but
-    their values should be compared as integers (because the integer
-    representation is more precise than the string one).
-  */
-  virtual bool result_as_longlong() { return FALSE; }
-  bool is_datetime();
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
@@ -1514,7 +1507,6 @@ public:
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   bool get_date_result(MYSQL_TIME *ltime,uint fuzzydate);
-  bool get_time(MYSQL_TIME *ltime);
   bool is_null() { return field->is_null(); }
   void update_null_value();
   Item *get_tmp_table_item(THD *thd);
@@ -1523,10 +1515,6 @@ public:
   bool register_field_in_read_map(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   void cleanup();
-  bool result_as_longlong()
-  {
-    return field->can_be_compared_as_longlong();
-  }
   Item_equal *find_item_equal(COND_EQUAL *cond_equal);
   bool subst_argument_checker(uchar **arg);
   Item *equal_fields_propagator(uchar *arg);
@@ -1671,6 +1659,7 @@ public:
   Item_param(uint pos_in_query_arg);
 
   enum Item_result result_type () const { return item_result_type; }
+  enum Item_result cast_to_int_type() const { return item_result_type; }
   enum Type type() const { return item_type; }
   enum_field_types field_type() const { return param_type; }
 
@@ -1678,7 +1667,6 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String*);
-  bool get_time(MYSQL_TIME *tm);
   bool get_date(MYSQL_TIME *tm, uint fuzzydate);
   int  save_in_field(Field *field, bool no_conversions);
 
@@ -1777,17 +1765,29 @@ class Item_uint :public Item_int
 {
 public:
   Item_uint(const char *str_arg, uint length);
-  Item_uint(ulonglong i) :Item_int((ulonglong) i, 10) {}
+  Item_uint(ulonglong i) :Item_int(i, 10) {}
   Item_uint(const char *str_arg, longlong i, uint length);
   double val_real()
     { DBUG_ASSERT(fixed == 1); return ulonglong2double((ulonglong)value); }
   String *val_str(String*);
   Item *clone_item() { return new Item_uint(name, value, max_length); }
-  int save_in_field(Field *field, bool no_conversions);
   virtual void print(String *str, enum_query_type query_type);
   Item_num *neg ();
   uint decimal_precision() const { return max_length; }
   bool check_partition_func_processor(uchar *bool_arg) { return FALSE;}
+};
+
+
+class Item_datetime :public Item_int
+{
+protected:
+  MYSQL_TIME ltime;
+public:
+  Item_datetime() :Item_int(0) { unsigned_flag=0; }
+  int save_in_field(Field *field, bool no_conversions);
+  longlong val_int();
+  double val_real() { return val_int(); }
+  void set(longlong packed);
 };
 
 
@@ -2071,8 +2071,9 @@ class Item_return_date_time :public Item_partition_func_safe_string
 {
   enum_field_types date_time_field_type;
 public:
-  Item_return_date_time(const char *name_arg, enum_field_types field_type_arg)
-    :Item_partition_func_safe_string(name_arg, 0, &my_charset_bin),
+  Item_return_date_time(const char *name_arg, uint length_arg,
+                        enum_field_types field_type_arg)
+    :Item_partition_func_safe_string(name_arg, length_arg, &my_charset_bin),
      date_time_field_type(field_type_arg)
   { }
   enum_field_types field_type() const { return date_time_field_type; }
@@ -2286,10 +2287,6 @@ public:
            (this->*processor)(arg);
   }
   virtual void print(String *str, enum_query_type query_type);
-  bool result_as_longlong()
-  {
-    return (*ref)->result_as_longlong();
-  }
   void cleanup();
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
@@ -2322,12 +2319,6 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
-  bool get_time(MYSQL_TIME *ltime)
-  {
-    DBUG_ASSERT(fixed);
-    return (*ref)->get_time(ltime);
-  }
-
 };
 
 
@@ -3031,7 +3022,7 @@ class Item_cache_int: public Item_cache
 protected:
   longlong value;
 public:
-  Item_cache_int(): Item_cache(),
+  Item_cache_int(): Item_cache(MYSQL_TYPE_LONGLONG),
     value(0) {}
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
@@ -3043,7 +3034,6 @@ public:
   String* val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
-  bool result_as_longlong() { return TRUE; }
   bool cache_value();
 };
 
@@ -3052,7 +3042,7 @@ class Item_cache_real: public Item_cache
 {
   double value;
 public:
-  Item_cache_real(): Item_cache(),
+  Item_cache_real(): Item_cache(MYSQL_TYPE_DOUBLE),
     value(0) {}
 
   double val_real();
@@ -3069,7 +3059,7 @@ class Item_cache_decimal: public Item_cache
 protected:
   my_decimal decimal_value;
 public:
-  Item_cache_decimal(): Item_cache() {}
+  Item_cache_decimal(): Item_cache(MYSQL_TYPE_NEWDECIMAL) {}
 
   double val_real();
   longlong val_int();

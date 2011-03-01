@@ -1,0 +1,4 @@
+
+let type=time;
+--source include/type_hrtime.inc
+

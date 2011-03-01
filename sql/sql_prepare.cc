@@ -487,8 +487,7 @@ static void set_param_time(Item_param *param, uchar **pos, ulong len)
   }
   else
     set_zero_time(&tm, MYSQL_TIMESTAMP_TIME);
-  param->set_time(&tm, MYSQL_TIMESTAMP_TIME,
-                  MAX_TIME_WIDTH * MY_CHARSET_BIN_MB_MAXLEN);
+  param->set_time(&tm, MYSQL_TIMESTAMP_TIME, MAX_TIME_FULL_WIDTH);
   *pos+= length;
 }
 

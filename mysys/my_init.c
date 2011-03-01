@@ -101,6 +101,7 @@ my_bool my_init(void)
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
     if (!home_dir)
     {					/* Don't initialize twice */
+      my_time_init();
       my_win_init();
       if ((home_dir=getenv("HOME")) != 0)
 	home_dir=intern_filename(home_dir_buff,home_dir);
@@ -242,7 +243,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
 #ifdef __WIN__
 
-
 /*
   my_parameter_handler
   
@@ -315,54 +315,6 @@ static void my_win_init(void)
 #endif
 
   _tzset();
-
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-  /* The following is used by time functions */
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-#define MS 10000000
-  {
-    FILETIME ft;
-    LARGE_INTEGER li, t_cnt;
-    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
-    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
-      query_performance_frequency= 0;
-    else
-    {
-      GetSystemTimeAsFileTime(&ft);
-      li.LowPart=  ft.dwLowDateTime;
-      li.HighPart= ft.dwHighDateTime;
-      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-      QueryPerformanceCounter(&t_cnt);
-      query_performance_offset-= (t_cnt.QuadPart /
-                                  query_performance_frequency * MS +
-                                  t_cnt.QuadPart %
-                                  query_performance_frequency * MS /
-                                  query_performance_frequency);
-    }
-  }
 
   {
     /*

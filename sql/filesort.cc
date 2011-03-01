@@ -842,25 +842,26 @@ static void make_sortkey(register SORTPARAM *param,
         break;
       }
       case INT_RESULT:
+      case TIME_RESULT:
 	{
-          longlong value= item->val_int_result();
+          longlong value;
+          if (sort_field->result_type == INT_RESULT)
+            value= item->val_int_result();
+          else
+          {
+            MYSQL_TIME buf;
+            item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES);
+            value= pack_time(&buf);
+          }
           if (maybe_null)
           {
-	    *to++=1;				/* purecov: inspected */
             if (item->null_value)
             {
-              if (maybe_null)
-                bzero((char*) to-1,sort_field->length+1);
-              else
-              {
-                DBUG_PRINT("warning",
-                           ("Got null on something that shouldn't be null"));
-                bzero((char*) to,sort_field->length);
-              }
+              bzero((char*) to++, sort_field->length+1);
               break;
             }
+	    *to++=1;				/* purecov: inspected */
           }
-#if SIZEOF_LONG_LONG > 4
 	  to[7]= (uchar) value;
 	  to[6]= (uchar) (value >> 8);
 	  to[5]= (uchar) (value >> 16);
@@ -872,15 +873,6 @@ static void make_sortkey(register SORTPARAM *param,
             to[0]= (uchar) (value >> 56);
           else
             to[0]= (uchar) (value >> 56) ^ 128;	/* Reverse signbit */
-#else
-	  to[3]= (uchar) value;
-	  to[2]= (uchar) (value >> 8);
-	  to[1]= (uchar) (value >> 16);
-          if (item->unsigned_flag)                    /* Fix sign */
-            to[0]= (uchar) (value >> 24);
-          else
-            to[0]= (uchar) (value >> 24) ^ 128;	/* Reverse signbit */
-#endif
 	  break;
 	}
       case DECIMAL_RESULT:
@@ -890,8 +882,7 @@ static void make_sortkey(register SORTPARAM *param,
           {
             if (item->null_value)
             { 
-              bzero((char*)to, sort_field->length+1);
-              to++;
+              bzero((char*) to++, sort_field->length+1);
               break;
             }
             *to++=1;
@@ -1462,9 +1453,7 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
     }
     else
     {
-      sortorder->result_type= sortorder->item->result_type();
-      if (sortorder->item->result_as_longlong())
-        sortorder->result_type= INT_RESULT;
+      sortorder->result_type= sortorder->item->cmp_type();
       switch (sortorder->result_type) {
       case STRING_RESULT:
 	sortorder->length=sortorder->item->max_length;
@@ -1482,12 +1471,9 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
           sortorder->length+= sortorder->suffix_length;
         }
 	break;
+      case TIME_RESULT:
       case INT_RESULT:
-#if SIZEOF_LONG_LONG > 4
 	sortorder->length=8;			// Size of intern longlong
-#else
-	sortorder->length=4;
-#endif
 	break;
       case DECIMAL_RESULT:
         sortorder->length=
@@ -1562,6 +1548,7 @@ get_addon_fields(THD *thd, Field **ptabfield, uint sortlength, uint *plength)
     Actually we need only the fields referred in the
     result set. And for some of them it makes sense to use 
     the values directly from sorted fields.
+    But beware the case when item->cmp_type() != item->result_type()
   */
   *plength= 0;
 

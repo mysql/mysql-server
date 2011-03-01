@@ -1,0 +1,7 @@
+--source include/have_binlog_format_mixed_or_statement.inc
+
+--source suite/rpl/include/hrtime.inc
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000001
+

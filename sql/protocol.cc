@@ -994,13 +994,7 @@ bool Protocol_text::store(Field *field)
 }
 
 
-/**
-  @todo
-    Second_part format ("%06") needs to change when 
-    we support 0-6 decimals for time.
-*/
-
-bool Protocol_text::store(MYSQL_TIME *tm)
+bool Protocol_text::store(MYSQL_TIME *tm, int decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
@@ -1008,14 +1002,8 @@ bool Protocol_text::store(MYSQL_TIME *tm)
 	      field_types[field_pos] == MYSQL_TYPE_TIMESTAMP);
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  length= sprintf(buff, "%04d-%02d-%02d %02d:%02d:%02d",
-                  (int) tm->year, (int) tm->month,
-                  (int) tm->day, (int) tm->hour,
-                  (int) tm->minute, (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_datetime_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1033,27 +1021,15 @@ bool Protocol_text::store_date(MYSQL_TIME *tm)
 }
 
 
-/**
-  @todo 
-    Second_part format ("%06") needs to change when 
-    we support 0-6 decimals for time.
-*/
-
-bool Protocol_text::store_time(MYSQL_TIME *tm)
+bool Protocol_text::store_time(MYSQL_TIME *tm, int decimals)
 {
 #ifndef DBUG_OFF
   DBUG_ASSERT(field_types == 0 ||
 	      field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
 #endif
-  char buff[40];
-  uint length;
-  uint day= (tm->year || tm->month) ? 0 : tm->day;
-  length= sprintf(buff, "%s%02ld:%02d:%02d", tm->neg ? "-" : "",
-                  (long) day*24L+(long) tm->hour, (int) tm->minute,
-                  (int) tm->second);
-  if (tm->second_part)
-    length+= sprintf(buff+length, ".%06d", (int) tm->second_part);
+  char buff[MAX_DATE_STRING_REP_LENGTH];
+  uint length= my_time_to_str(tm, buff, decimals);
   return net_store_data((uchar*) buff, length);
 }
 
@@ -1210,7 +1186,7 @@ bool Protocol_binary::store(Field *field)
 }
 
 
-bool Protocol_binary::store(MYSQL_TIME *tm)
+bool Protocol_binary::store(MYSQL_TIME *tm, int decimals)
 {
   char buff[12],*pos;
   uint length;
@@ -1223,6 +1199,10 @@ bool Protocol_binary::store(MYSQL_TIME *tm)
   pos[4]= (uchar) tm->hour;
   pos[5]= (uchar) tm->minute;
   pos[6]= (uchar) tm->second;
+  DBUG_ASSERT(decimals == AUTO_SEC_PART_DIGITS ||
+              (decimals >= 0 && decimals <= MAX_SEC_PART_DIGITS));
+  if (decimals != AUTO_SEC_PART_DIGITS)
+    tm->second_part= sec_part_truncate(tm->second_part, decimals);
   int4store(pos+7, tm->second_part);
   if (tm->second_part)
     length=11;
@@ -1240,11 +1220,11 @@ bool Protocol_binary::store_date(MYSQL_TIME *tm)
 {
   tm->hour= tm->minute= tm->second=0;
   tm->second_part= 0;
-  return Protocol_binary::store(tm);
+  return Protocol_binary::store(tm, 0);
 }
 
 
-bool Protocol_binary::store_time(MYSQL_TIME *tm)
+bool Protocol_binary::store_time(MYSQL_TIME *tm, int decimals)
 {
   char buff[13], *pos;
   uint length;
@@ -1253,7 +1233,6 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm)
   pos[0]= tm->neg ? 1 : 0;
   if (tm->hour >= 24)
   {
-    /* Fix if we come from Item::send */
     uint days= tm->hour/24;
     tm->hour-= days*24;
     tm->day+= days;
@@ -1262,6 +1241,10 @@ bool Protocol_binary::store_time(MYSQL_TIME *tm)
   pos[5]= (uchar) tm->hour;
   pos[6]= (uchar) tm->minute;
   pos[7]= (uchar) tm->second;
+  DBUG_ASSERT(decimals == AUTO_SEC_PART_DIGITS ||
+              (decimals >= 0 && decimals <= MAX_SEC_PART_DIGITS));
+  if (decimals != AUTO_SEC_PART_DIGITS)
+    tm->second_part= sec_part_truncate(tm->second_part, decimals);
   int4store(pos+8, tm->second_part);
   if (tm->second_part)
     length=12;

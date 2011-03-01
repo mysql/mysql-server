@@ -49,19 +49,7 @@ static void reset_start_time_for_sp(THD *thd)
     constant during the execution of those.
   */
   if (!thd->in_sub_stmt)
-  {
-    /*
-      First investigate if there is a cached time stamp
-    */
-    if (thd->user_time)
-    {
-      thd->start_time= thd->user_time;
-    }
-    else
-    {
-      my_micro_time_and_time(&thd->start_time);
-    }
-  }
+    thd->set_time();
 }
 
 Item_result

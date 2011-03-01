@@ -102,7 +102,7 @@ struct rand_struct {
   double max_value_dbl;
 };
 enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT};
+                  DECIMAL_RESULT, TIME_RESULT};
 typedef struct st_udf_args
 {
   unsigned int arg_count;

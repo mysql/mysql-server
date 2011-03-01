@@ -3102,3 +3102,15 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests.
+
+#
+# restoring of the Item tree in BETWEEN with dates
+#
+prepare stmt from "select date('2010-10-10') between '2010-09-09' and ?";
+set @a='2010-11-11';
+execute stmt using @a;
+execute stmt using @a;
+set @a='2010-08-08';
+execute stmt using @a;
+execute stmt using @a;
+

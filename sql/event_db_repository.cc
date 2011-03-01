@@ -231,6 +231,9 @@ mysql_event_fill_row(THD *thd,
   rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
   rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
 
+  if (!is_update)
+    rs|= fields[ET_FIELD_CREATED]->set_time();
+
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
     always during CREATE EVENT.
@@ -317,7 +320,7 @@ mysql_event_fill_row(THD *thd,
     */
   }
 
-  ((Field_timestamp *)fields[ET_FIELD_MODIFIED])->set_time();
+  rs|= fields[ET_FIELD_MODIFIED]->set_time();
 
   if (et->comment.str)
   {
@@ -670,8 +673,6 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     my_error(ER_TOO_LONG_BODY, MYF(0), parse_data->name.str);
     goto end;
   }
-
-  ((Field_timestamp *)table->field[ET_FIELD_CREATED])->set_time();
 
   /*
     mysql_event_fill_row() calls my_error() in case of error so no need to

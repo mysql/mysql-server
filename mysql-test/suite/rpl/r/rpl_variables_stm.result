@@ -486,8 +486,8 @@ id	num	text
 52	NULL	latin7
 53	NULL	latin7_estonian_cs
 54	NULL	latin7
-55	NULL	47114711
-56	NULL	47124712
+55	NULL	47114711.000000
+56	NULL	47124712.000000
 57	NULL	1616
 58	NULL	1717
 Comparing tables master:test.tstmt and master:test.tproc

@@ -940,8 +940,7 @@ longlong Item_func_signed::val_int()
   longlong value;
   int error;
 
-  if (args[0]->cast_to_int_type() != STRING_RESULT ||
-      args[0]->result_as_longlong())
+  if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -982,8 +981,7 @@ longlong Item_func_unsigned::val_int()
       value= 0;
     return value;
   }
-  else if (args[0]->cast_to_int_type() != STRING_RESULT ||
-           args[0]->result_as_longlong())
+  else if (args[0]->cast_to_int_type() != STRING_RESULT)
   {
     value= args[0]->val_int();
     null_value= args[0]->null_value; 
@@ -2220,7 +2218,6 @@ double Item_func_units::val_real()
 void Item_func_min_max::fix_length_and_dec()
 {
   int max_int_part=0;
-  bool datetime_found= FALSE;
   decimals=0;
   max_length=0;
   maybe_null=0;
@@ -2234,21 +2231,17 @@ void Item_func_min_max::fix_length_and_dec()
     if (args[i]->maybe_null)
       maybe_null=1;
     cmp_type=item_cmp_type(cmp_type,args[i]->result_type());
-    if (args[i]->result_type() != ROW_RESULT && args[i]->is_datetime())
+    if (args[i]->cmp_type() == TIME_RESULT)
     {
-      datetime_found= TRUE;
-      if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
-        datetime_item= args[i];
+      if (!compare_as_dates || args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        compare_as_dates= args[i];
     }
   }
   if (cmp_type == STRING_RESULT)
   {
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
-    if (datetime_found)
-    {
+    if (compare_as_dates)
       thd= current_thd;
-      compare_as_dates= TRUE;
-    }
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
@@ -2256,7 +2249,11 @@ void Item_func_min_max::fix_length_and_dec()
                                                              unsigned_flag);
   else if (cmp_type == REAL_RESULT)
     max_length= float_length(decimals);
-  cached_field_type= agg_field_type(args, arg_count);
+
+  if (compare_as_dates)
+    cached_field_type= compare_as_dates->field_type();
+  else
+    cached_field_type= agg_field_type(args, arg_count);
 }
 
 
@@ -2265,52 +2262,45 @@ void Item_func_min_max::fix_length_and_dec()
 
   SYNOPSIS
     cmp_datetimes()
-    value [out]   found least/greatest DATE/DATETIME value
 
   DESCRIPTION
     Compare item arguments as DATETIME values and return the index of the
     least/greatest argument in the arguments array.
-    The correct integer DATE/DATETIME value of the found argument is
+    The correct DATE/DATETIME value of the found argument is
     stored to the value pointer, if latter is provided.
 
   RETURN
-   0	If one of arguments is NULL or there was a execution error
-   #	index of the least/greatest argument
+   1	If one of arguments is NULL or there was a execution error
+   0    Otherwise
 */
 
-uint Item_func_min_max::cmp_datetimes(ulonglong *value)
+bool Item_func_min_max::cmp_datetimes(MYSQL_TIME *ltime)
 {
   longlong UNINIT_VAR(min_max);
-  uint min_max_idx= 0;
 
   for (uint i=0; i < arg_count ; i++)
   {
     Item **arg= args + i;
     bool is_null;
-    longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    longlong res= get_datetime_value(thd, &arg, 0, compare_as_dates, &is_null);
 
     /* Check if we need to stop (because of error or KILL)  and stop the loop */
     if (thd->is_error())
     {
       null_value= 1;
-      return 0;
+      return 1;
     }
 
     if ((null_value= args[i]->null_value))
-      return 0;
+      return 1;
     if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
-    {
       min_max= res;
-      min_max_idx= i;
-    }
   }
-  if (value)
-  {
-    *value= min_max;
-    if (datetime_item->field_type() == MYSQL_TYPE_DATE)
-      *value/= 1000000L;
-  }
-  return min_max_idx;
+  unpack_time(min_max, ltime);
+  if (compare_as_dates->field_type() == MYSQL_TYPE_DATE)
+    ltime->time_type= MYSQL_TIMESTAMP_DATE;
+
+  return 0;
 }
 
 
@@ -2319,19 +2309,14 @@ String *Item_func_min_max::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (compare_as_dates)
   {
-    String *str_res;
-    uint min_max_idx= cmp_datetimes(NULL);
-    if (null_value)
+    MYSQL_TIME ltime;
+    if (cmp_datetimes(&ltime))
       return 0;
-    str_res= args[min_max_idx]->val_str(str);
-    if (args[min_max_idx]->null_value)
-    {
-      // check if the call to val_str() above returns a NULL value
-      null_value= 1;
-      return NULL;
-    }
-    str_res->set_charset(collation.collation);
-    return str_res;
+
+    char buf[MAX_DATE_STRING_REP_LENGTH];
+    int len= my_TIME_to_str(&ltime, buf, decimals);
+    str->copy(buf, len, collation.collation);
+    return str;
   }
   switch (cmp_type) {
   case INT_RESULT:
@@ -2398,9 +2383,11 @@ double Item_func_min_max::val_real()
   double value=0.0;
   if (compare_as_dates)
   {
-    ulonglong result= 0;
-    (void)cmp_datetimes(&result);
-    return (double)result;
+    MYSQL_TIME ltime;
+    if (cmp_datetimes(&ltime))
+      return 0;
+
+    return TIME_to_double(&ltime);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2425,9 +2412,11 @@ longlong Item_func_min_max::val_int()
   longlong value=0;
   if (compare_as_dates)
   {
-    ulonglong result= 0;
-    (void)cmp_datetimes(&result);
-    return (longlong)result;
+    MYSQL_TIME ltime;
+    if (cmp_datetimes(&ltime))
+      return 0;
+
+    return TIME_to_ulonglong(&ltime);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2453,10 +2442,11 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 
   if (compare_as_dates)
   {
-    ulonglong value= 0;
-    (void)cmp_datetimes(&value);
-    ulonglong2decimal(value, dec);
-    return dec;
+    MYSQL_TIME ltime;
+    if (cmp_datetimes(&ltime))
+      return 0;
+
+    return date2my_decimal(&ltime, dec);
   }
   for (uint i=0; i < arg_count ; i++)
   {
@@ -3979,7 +3969,7 @@ double user_var_entry::val_real(my_bool *null_value)
   }
   case STRING_RESULT:
     return my_atof(value);                      // This is null terminated
-  case ROW_RESULT:
+  default:
     DBUG_ASSERT(1);				// Impossible
     break;
   }
@@ -4010,7 +4000,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     int error;
     return my_strtoll10(value, (char**) 0, &error);// String is null terminated
   }
-  case ROW_RESULT:
+  default:
     DBUG_ASSERT(1);				// Impossible
     break;
   }
@@ -4042,7 +4032,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
       str= 0;					// EOM error
-  case ROW_RESULT:
+  default:
     DBUG_ASSERT(1);				// Impossible
     break;
   }
@@ -4069,7 +4059,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
   case STRING_RESULT:
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
     break;
-  case ROW_RESULT:
+  default:
     DBUG_ASSERT(1);				// Impossible
     break;
   }

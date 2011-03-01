@@ -699,6 +699,62 @@ typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 #include "sql_string.h"
+
+/*
+  to unify the code that differs only in the argument passed to the
+  error message (string vs. number)
+
+  We pass this container around, and only convert the number
+  to a string when necessary.
+*/
+class Lazy_string
+{
+public:
+  Lazy_string() {}
+  virtual ~Lazy_string() {}
+  virtual void copy(String *str) const = 0;
+};
+
+class Lazy_string_str : public Lazy_string
+{
+  const char *str;
+  size_t len;
+public:
+  Lazy_string_str(const char *str_arg, size_t len_arg)
+    : Lazy_string(), str(str_arg), len(len_arg) {}
+  void copy(String *dst) const { dst->copy(str, len, system_charset_info); }
+};
+
+class Lazy_string_num : public Lazy_string
+{
+  longlong num;
+public:
+  Lazy_string_num(longlong num_arg) : Lazy_string(), num(num_arg) {}
+  void copy(String *dst) const { dst->set(num, &my_charset_bin); }
+};
+
+class Lazy_string_dbl: public Lazy_string
+{
+  double num;
+public:
+  Lazy_string_dbl(double num_arg) : Lazy_string(), num(num_arg) {}
+  void copy(String *dst) const
+  { dst->set_real(num, NOT_FIXED_DEC, &my_charset_bin); }
+};
+
+class Lazy_string_time : public Lazy_string
+{
+  const MYSQL_TIME *ltime;
+public:
+  Lazy_string_time(const MYSQL_TIME *ltime_arg)
+    : Lazy_string(), ltime(ltime_arg) {}
+  void copy(String *dst) const {
+    dst->alloc(MAX_DATETIME_FULL_WIDTH);
+    dst->length((uint) my_TIME_to_str(ltime, (char*) dst->ptr(), AUTO_SEC_PART_DIGITS));
+    dst->set_charset(&my_charset_bin);
+  }
+};
+
 #include "sql_list.h"
 #include "sql_map.h"
 #include "my_decimal.h"
@@ -2157,16 +2213,24 @@ ulong convert_month_to_period(ulong month);
 void get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *not_exist);
-bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
                                          MYSQL_TIME *l_time, uint flags);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
 
 void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
-                                  const char *str_val,
-				  uint str_length, timestamp_type time_type,
+                                  const Lazy_string *str_val,
+                                  timestamp_type time_type,
                                   const char *field_name);
+
+static inline void make_truncated_value_warning(THD *thd,
+                MYSQL_ERROR::enum_warning_level level, const char *str_val,
+                uint str_length, timestamp_type time_type,
+                const char *field_name)
+{
+  const Lazy_string_str str(str_val, str_length);
+  make_truncated_value_warning(thd, level, &str, time_type, field_name);
+}
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval);
 bool calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign,

@@ -5044,6 +5044,14 @@ find_qualified_function_builder(THD *thd)
   return & Create_sp_func::s_singleton;
 }
 
+static inline const char* item_name(Item *a, String *str)
+{
+  if (a->name)
+    return a->name;
+  str->length(0);
+  a->print(str, QT_ORDINARY);
+  return str->c_ptr_safe();
+}
 
 Item *
 create_func_cast(THD *thd, Item *a, Cast_target cast_type,
@@ -5051,6 +5059,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  CHARSET_INFO *cs)
 {
   Item *UNINIT_VAR(res);
+  char buff[1024];
+  String buf(buff, sizeof(buff), system_charset_info);
 
   switch (cast_type) {
   case ITEM_CAST_BINARY:
@@ -5066,11 +5076,29 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     res= new (thd->mem_root) Item_date_typecast(a);
     break;
   case ITEM_CAST_TIME:
-    res= new (thd->mem_root) Item_time_typecast(a);
-    break;
   case ITEM_CAST_DATETIME:
-    res= new (thd->mem_root) Item_datetime_typecast(a);
+  {
+    uint len;
+    if (c_len)
+    {
+      errno= 0;
+      len= strtoul(c_len, NULL, 10);
+      if (errno != 0 || len > MAX_DATETIME_PRECISION)
+      {
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), len,
+                 item_name(a, &buf), MAX_DATETIME_PRECISION);
+        return NULL;
+      }
+    }
+    else
+      len= NOT_FIXED_DEC;
+
+    if (cast_type == ITEM_CAST_TIME)
+      res= new (thd->mem_root) Item_time_typecast(a, len);
+    else
+      res= new (thd->mem_root) Item_datetime_typecast(a, len);
     break;
+  }
   case ITEM_CAST_DECIMAL:
   {
     ulong len= 0;
@@ -5083,8 +5111,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_len, NULL, 10);
       if (errno != 0)
       {
-        my_error(ER_TOO_BIG_PRECISION, MYF(0), c_len, a->name,
-                 DECIMAL_MAX_PRECISION);
+        my_error(ER_TOO_BIG_PRECISION, MYF(0), decoded_size,
+                 item_name(a, &buf), DECIMAL_MAX_PRECISION);
         return NULL;
       }
       len= decoded_size;
@@ -5097,8 +5125,8 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_dec, NULL, 10);
       if ((errno != 0) || (decoded_size > UINT_MAX))
       {
-        my_error(ER_TOO_BIG_SCALE, MYF(0), c_dec, a->name,
-                 DECIMAL_MAX_SCALE);
+        my_error(ER_TOO_BIG_SCALE, MYF(0), decoded_size,
+                 item_name(a, &buf), DECIMAL_MAX_SCALE);
         return NULL;
       }
       dec= decoded_size;
@@ -5111,13 +5139,13 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
     }
     if (len > DECIMAL_MAX_PRECISION)
     {
-      my_error(ER_TOO_BIG_PRECISION, MYF(0), len, a->name,
-               DECIMAL_MAX_PRECISION);
+      my_error(ER_TOO_BIG_PRECISION, MYF(0), len,
+               item_name(a, &buf), DECIMAL_MAX_PRECISION);
       return 0;
     }
     if (dec > DECIMAL_MAX_SCALE)
     {
-      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, a->name,
+      my_error(ER_TOO_BIG_SCALE, MYF(0), dec, item_name(a, &buf),
                DECIMAL_MAX_SCALE);
       return 0;
     }
@@ -5135,7 +5163,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       decoded_size= strtoul(c_len, NULL, 10);
       if ((errno != 0) || (decoded_size > MAX_FIELD_BLOBLENGTH))
       {
-        my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
+       my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
         return NULL;
       }
       len= (int) decoded_size;

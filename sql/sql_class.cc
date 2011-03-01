@@ -602,7 +602,7 @@ THD::THD()
               /* statement id */ 0),
    Open_tables_state(refresh_version), rli_fake(0),
    lock_id(&main_lock_id),
-   user_time(0), in_sub_stmt(0),
+   in_sub_stmt(0),
    sql_log_bin_toplevel(false),
    binlog_table_maps(0), binlog_flags(0UL),
    table_map_for_update(0),
@@ -641,7 +641,7 @@ THD::THD()
   main_security_ctx.init();
   security_ctx= &main_security_ctx;
   locked=some_tables_deleted=no_errors=password= 0;
-  query_start_used= 0;
+  query_start_used= query_start_sec_part_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -658,7 +658,7 @@ THD::THD()
 #endif
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
-  start_time=(time_t) 0;
+  user_time.val= start_time= start_time_sec_part= 0;
   start_utime= prior_thr_create_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
@@ -2338,7 +2338,7 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
       case DECIMAL_RESULT:
         op= &select_max_min_finder_subselect::cmp_decimal;
         break;
-      case ROW_RESULT:
+      default:
         // This case should never be choosen
 	DBUG_ASSERT(0);
 	op= 0;

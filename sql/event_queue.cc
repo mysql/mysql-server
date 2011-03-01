@@ -513,9 +513,10 @@ Event_queue::empty_queue()
 */
 
 void
-Event_queue::dbug_dump_queue(time_t now)
+Event_queue::dbug_dump_queue(my_time_t when)
 {
 #ifndef DBUG_OFF
+  my_time_t now= when;
   Event_queue_element *et;
   uint i;
   DBUG_ENTER("Event_queue::dbug_dump_queue");
@@ -592,14 +593,13 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     thd->set_current_time(); /* Get current time */
 
     next_activation_at= top->execute_at;
-    if (next_activation_at > thd->query_start())
+    if (next_activation_at >thd->query_start())
     {
       /*
         Not yet time for top event, wait on condition with
         time or until signaled. Release LOCK_queue while waiting.
       */
-      struct timespec top_time;
-      set_timespec(top_time, next_activation_at - thd->query_start());
+      struct timespec top_time= { next_activation_at, 0 };
       cond_wait(thd, &top_time, queue_wait_msg, SCHED_FUNC, __LINE__);
 
       continue;

@@ -461,6 +461,34 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
 }
 
 
+void Item::print_value(String *str)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String *ptr, tmp(buff,sizeof(buff),str->charset());
+  ptr= val_str(&tmp);
+  if (!ptr)
+    str->append("NULL");
+  else
+  {
+    switch (result_type())
+    {
+      default:
+        DBUG_ASSERT(0);
+      case STRING_RESULT:
+        str->append('\'');
+        str->append(*ptr);
+        str->append('\'');
+        break;
+      case DECIMAL_RESULT:
+      case REAL_RESULT:
+      case INT_RESULT:
+        str->append(*ptr);
+        break;
+    }
+  }
+}
+
+
 void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
@@ -503,6 +531,45 @@ void Item::rename(char *new_name)
   name= new_name;
 }
 
+Item_result Item::cmp_type() const
+{
+  switch(field_type()) {
+  case MYSQL_TYPE_DECIMAL:
+  case MYSQL_TYPE_NEWDECIMAL:
+                           return DECIMAL_RESULT;
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_BIT:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+                           return INT_RESULT;
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+                           return REAL_RESULT;
+  case MYSQL_TYPE_NULL:
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_GEOMETRY:
+                           return STRING_RESULT;
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_NEWDATE:
+                           return TIME_RESULT;
+  };
+  DBUG_ASSERT(0);
+  return (Item_result)-1;
+}
 
 /**
   Traverse item tree possibly transforming it (replacing items).
@@ -915,13 +982,15 @@ bool Item_string::eq(const Item *item, bool binary_cmp) const
 
 bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 {
-  if (result_type() == STRING_RESULT)
+  if (field_type() == MYSQL_TYPE_TIME)
+    fuzzydate|= TIME_TIME_ONLY;
+  if (result_type() == STRING_RESULT || fuzzydate & TIME_TIME_ONLY)
   {
     char buff[40];
     String tmp(buff,sizeof(buff), &my_charset_bin),*res;
     if (!(res=val_str(&tmp)) ||
-        str_to_datetime_with_warn(res->ptr(), res->length(),
-                                  ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
+        str_to_datetime_with_warn(res->ptr(), res->length(), ltime,
+                                  fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
       goto err;
   }
   else
@@ -946,22 +1015,14 @@ err:
 }
 
 /**
-  Get time of first argument.\
+  Get time of first argument.
 
   As a extra convenience the time structure is reset on error!
 */
 
 bool Item::get_time(MYSQL_TIME *ltime)
 {
-  char buff[40];
-  String tmp(buff,sizeof(buff),&my_charset_bin),*res;
-  if (!(res=val_str(&tmp)) ||
-      str_to_time_with_warn(res->ptr(), res->length(), ltime))
-  {
-    bzero((char*) ltime,sizeof(*ltime));
-    return 1;
-  }
-  return 0;
+  return get_date(ltime, TIME_TIME_ONLY);
 }
 
 CHARSET_INFO *Item::default_charset()
@@ -987,6 +1048,7 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   ulong sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
+  thd->variables.sql_mode|= MODE_INVALID_DATES;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   res= save_in_field(field, no_conversions);
   thd->count_cuted_fields= tmp;
@@ -2085,16 +2147,6 @@ bool Item_field::get_date_result(MYSQL_TIME *ltime,uint fuzzydate)
   return 0;
 }
 
-bool Item_field::get_time(MYSQL_TIME *ltime)
-{
-  if ((null_value=field->is_null()) || field->get_time(ltime))
-  {
-    bzero((char*) ltime,sizeof(*ltime));
-    return 1;
-  }
-  return 0;
-}
-
 double Item_field::val_result()
 {
   if ((null_value=result_field->is_null()))
@@ -2698,13 +2750,16 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   value.time= *tm;
   value.time.time_type= time_type;
 
+  decimals= value.time.second_part > 0 ? MAX_SEC_PART_DIGITS : 0;
+
   if (value.time.year > 9999 || value.time.month > 12 ||
       value.time.day > 31 ||
       (time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23) ||
-      value.time.minute > 59 || value.time.second > 59)
+      value.time.minute > 59 || value.time.second > 59 ||
+      value.time.second_part >= MAX_SEC_PART_VALUE)
   {
     char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(&value.time, buff);
+    uint length= my_TIME_to_str(&value.time, buff, decimals);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  buff, length, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
@@ -2713,7 +2768,6 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   state= TIME_VALUE;
   maybe_null= 0;
   max_length= max_length_arg;
-  decimals= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2790,10 +2844,12 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
     case REAL_RESULT:
       set_double(*(double*)entry->value);
       item_type= Item::REAL_ITEM;
+      param_type= MYSQL_TYPE_DOUBLE;
       break;
     case INT_RESULT:
       set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
+      param_type= MYSQL_TYPE_LONGLONG;
       break;
     case STRING_RESULT:
     {
@@ -2816,6 +2872,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
         charset of connection, so we have to set it later.
       */
       item_type= Item::STRING_ITEM;
+      param_type= MYSQL_TYPE_VARCHAR;
 
       if (set_str((const char *)entry->value, entry->length))
         DBUG_RETURN(1);
@@ -2831,6 +2888,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
         my_decimal_precision_to_length_no_truncation(ent_value->precision(),
                                                      decimals, unsigned_flag);
       item_type= Item::DECIMAL_ITEM;
+      param_type= MYSQL_TYPE_NEWDECIMAL;
       break;
     }
     default:
@@ -2908,21 +2966,6 @@ int Item_param::save_in_field(Field *field, bool no_conversions)
     DBUG_ASSERT(0);
   }
   return 1;
-}
-
-
-bool Item_param::get_time(MYSQL_TIME *res)
-{
-  if (state == TIME_VALUE)
-  {
-    *res= value.time;
-    return 0;
-  }
-  /*
-    If parameter value isn't supplied assertion will fire in val_str()
-    which is called from Item::get_time().
-  */
-  return Item::get_time(res);
 }
 
 
@@ -3055,7 +3098,8 @@ String *Item_param::val_str(String* str)
   {
     if (str->reserve(MAX_DATE_STRING_REP_LENGTH))
       break;
-    str->length((uint) my_TIME_to_str(&value.time, (char*) str->ptr()));
+    str->length((uint) my_TIME_to_str(&value.time, (char*) str->ptr(),
+                decimals));
     str->set_charset(&my_charset_bin);
     return str;
   }
@@ -3107,7 +3151,7 @@ const String *Item_param::query_val_str(String* str) const
       buf= str->c_ptr_quick();
       ptr= buf;
       *ptr++= '\'';
-      ptr+= (uint) my_TIME_to_str(&value.time, ptr);
+      ptr+= (uint) my_TIME_to_str(&value.time, ptr, decimals);
       *ptr++= '\'';
       str->length((uint32) (ptr - buf));
       break;
@@ -3387,8 +3431,7 @@ void Item_copy_int::copy()
   null_value=item->null_value;
 }
 
-static int save_int_value_in_field (Field *field, longlong nr, 
-                                    bool null_value, bool unsigned_flag);
+static int save_int_value_in_field (Field *, longlong, bool, bool);
 
 int Item_copy_int::save_in_field(Field *field, bool no_conversions)
 {
@@ -4651,12 +4694,7 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     item= this;
   else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
   {
-    /*
-      We don't need to zero-fill timestamp columns here because they will be 
-      first converted to a string (in date/time format) and compared as such if
-      compared with another string.
-    */
-    if (item && field->type() != FIELD_TYPE_TIMESTAMP && cmp_context != INT_RESULT)
+    if (item && (cmp_context == STRING_RESULT || cmp_context == (Item_result)-1))
       convert_zerofill_number_to_string(&item, (Field_num *)field);
     else
       item= this;
@@ -4779,21 +4817,6 @@ enum_field_types Item::field_type() const
     DBUG_ASSERT(0);
     return MYSQL_TYPE_VARCHAR;
   }
-}
-
-
-bool Item::is_datetime()
-{
-  switch (field_type())
-  {
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_TIMESTAMP:
-      return TRUE;
-    default:
-      break;
-  }
-  return FALSE;
 }
 
 
@@ -4973,16 +4996,19 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     break;
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    field= new Field_newdate(maybe_null, name, &my_charset_bin);
+    field= new Field_newdate(0, null_ptr, 0, Field::NONE, name, &my_charset_bin);
     break;
   case MYSQL_TYPE_TIME:
-    field= new Field_time(maybe_null, name, &my_charset_bin);
+    field= new_Field_time(0, null_ptr, 0, Field::NONE, name,
+                              decimals, &my_charset_bin);
     break;
   case MYSQL_TYPE_TIMESTAMP:
-    field= new Field_timestamp(maybe_null, name, &my_charset_bin);
+    field= new_Field_timestamp(0, null_ptr, 0,
+                               Field::NONE, name, 0, decimals, &my_charset_bin);
     break;
   case MYSQL_TYPE_DATETIME:
-    field= new Field_datetime(maybe_null, name, &my_charset_bin);
+    field= new_Field_datetime(0, null_ptr, 0, Field::NONE, name,
+                              decimals, &my_charset_bin);
     break;
   case MYSQL_TYPE_YEAR:
     field= new Field_year((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
@@ -5197,12 +5223,6 @@ int Item_string::save_in_field(Field *field, bool no_conversions)
 }
 
 
-int Item_uint::save_in_field(Field *field, bool no_conversions)
-{
-  /* Item_int::save_in_field handles both signed and unsigned. */
-  return Item_int::save_in_field(field, no_conversions);
-}
-
 static int save_int_value_in_field (Field *field, longlong nr, 
                                     bool null_value, bool unsigned_flag)
 {
@@ -5218,6 +5238,22 @@ int Item_int::save_in_field(Field *field, bool no_conversions)
   return save_int_value_in_field (field, val_int(), null_value, unsigned_flag);
 }
 
+
+void Item_datetime::set(longlong packed)
+{
+  unpack_time(packed, &ltime);
+}
+
+int Item_datetime::save_in_field(Field *field, bool no_conversions)
+{
+  field->set_notnull();
+  return field->store_time(&ltime, ltime.time_type);
+}
+
+longlong Item_datetime::val_int()
+{
+  return TIME_to_ulonglong(&ltime);
+}
 
 int Item_decimal::save_in_field(Field *field, bool no_conversions)
 {
@@ -5643,7 +5679,7 @@ bool Item::send(Protocol *protocol, String *buffer)
       if (f_type == MYSQL_TYPE_DATE)
 	return protocol->store_date(&tm);
       else
-	result= protocol->store(&tm);
+	result= protocol->store(&tm, decimals);
     }
     break;
   }
@@ -5652,7 +5688,7 @@ bool Item::send(Protocol *protocol, String *buffer)
     MYSQL_TIME tm;
     get_time(&tm);
     if (!null_value)
-      result= protocol->store_time(&tm);
+      result= protocol->store_time(&tm, decimals);
     break;
   }
   }
@@ -5733,17 +5769,7 @@ void Item_field::print(String *str, enum_query_type query_type)
 {
   if (field && field->table->const_table)
   {
-    char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),str->charset());
-    field->val_str(&tmp);
-    if (field->is_null())
-      str->append("NULL");
-    else
-    {
-      str->append('\'');
-      str->append(tmp);
-      str->append('\'');
-    }
+    print_value(str);
     return;
   }
   Item_ident::print(str, query_type);
@@ -6839,6 +6865,8 @@ Item_result item_cmp_type(Item_result a,Item_result b)
     return INT_RESULT;
   else if (a == ROW_RESULT || b == ROW_RESULT)
     return ROW_RESULT;
+  else if (a == TIME_RESULT || b == TIME_RESULT)
+    return TIME_RESULT;
   if ((a == INT_RESULT || a == DECIMAL_RESULT) &&
       (b == INT_RESULT || b == DECIMAL_RESULT))
     return DECIMAL_RESULT;
@@ -6952,6 +6980,9 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   @note We only use this on the range optimizer/partition pruning,
         because in some cases we can't store the value in the field
         without some precision/character loss.
+
+  @todo rewrite it to use Arg_comparator (currently it's a simplified and
+        incomplete version of it)
 */
 
 int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
@@ -7009,6 +7040,21 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     field_val= field->val_decimal(&field_buf);
     return my_decimal_cmp(item_val, field_val);
   }
+  if (field->cmp_type() == TIME_RESULT)
+  {
+      MYSQL_TIME field_time, item_time;
+      if (field->type() == MYSQL_TYPE_TIME)
+      {
+        field->get_time(&field_time);
+        item->get_time(&item_time);
+      }
+      else
+      {
+        field->get_date(&field_time, TIME_FUZZY_DATE | TIME_INVALID_DATES);
+        item->get_date(&item_time, TIME_FUZZY_DATE | TIME_INVALID_DATES);
+      }
+      return my_time_compare(&field_time, &item_time);
+  }
   double result= item->val_real();
   if (item->null_value)
     return 0;
@@ -7048,6 +7094,8 @@ Item_cache* Item_cache::get_cache(const Item *item, const Item_result type)
     return new Item_cache_str(item);
   case ROW_RESULT:
     return new Item_cache_row();
+  case TIME_RESULT:
+    return new Item_cache_int(MYSQL_TYPE_DATETIME);
   default:
     // should never be in real life
     DBUG_ASSERT(0);
@@ -7065,6 +7113,11 @@ void Item_cache::store(Item *item)
 
 void Item_cache::print(String *str, enum_query_type query_type)
 {
+  if (value_cached)
+  {
+    print_value(str);
+    return;
+  }
   str->append(STRING_WITH_LEN("<cache>("));
   if (example)
     example->print(str, query_type);
@@ -7100,7 +7153,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!value_cached && !cache_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 
@@ -7466,7 +7519,7 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
   case FIELD_ITEM:
   {
     /*
-      Item_fields::field_type ask Field_type() but sometimes field return
+      Item_field::field_type ask Field_type() but sometimes field return
       a different type, like for enum/set, so we need to ask real type.
     */
     Field *field= ((Item_field *) item)->field;

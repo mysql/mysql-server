@@ -436,8 +436,7 @@ bool Log_to_csv_event_handler::
 
   DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
 
-  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
-                                                        event_time);
+  ((Field_timestamp*) table->field[0])->store_TIME((my_time_t) event_time, 0);
 
   /* do a write */
   if (table->field[1]->store(user_host, user_host_len, client_cs) ||
@@ -579,8 +578,7 @@ bool Log_to_csv_event_handler::
 
   /* store the time and user values */
   DBUG_ASSERT(table->field[0]->type() == MYSQL_TYPE_TIMESTAMP);
-  ((Field_timestamp*) table->field[0])->store_timestamp((my_time_t)
-                                                        current_time);
+  ((Field_timestamp*) table->field[0])->store_TIME((my_time_t) current_time, 0);
   if (table->field[1]->store(user_host, user_host_len, client_cs))
     goto err;
 
@@ -992,15 +990,16 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
                              sctx->ip ? sctx->ip : "", "]", NullS) -
                     user_host_buff);
 
-    current_time= my_time_possible_from_micro(current_utime);
     if (thd->start_utime)
     {
       query_utime= (current_utime - thd->start_utime);
       lock_utime=  (thd->utime_after_lock - thd->start_utime);
+      current_time= thd->start_time + query_utime/1000000;
     }
     else
     {
       query_utime= lock_utime= 0;
+      current_time= my_time(0);
     }
 
     if (!query)
@@ -1011,7 +1010,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
-      error= (*current_handler++)->log_slow(thd, current_time, thd->start_time,
+      error= (*current_handler++)->log_slow(thd, current_time,
+                                            thd->start_time,
                                             user_host_buff, user_host_len,
                                             query_utime, lock_utime, is_command,
                                             query, query_length) || error;

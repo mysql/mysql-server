@@ -757,25 +757,21 @@ class Item_func_min_max :public Item_func
   Item_result cmp_type;
   String tmp_value;
   int cmp_sign;
-  /* TRUE <=> arguments should be compared in the DATETIME context. */
-  bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */
-  Item *datetime_item;
+  Item *compare_as_dates;
   THD *thd;
 protected:
   enum_field_types cached_field_type;
 public:
   Item_func_min_max(List<Item> &list,int cmp_sign_arg) :Item_func(list),
-    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE),
-    datetime_item(0) {}
+    cmp_type(INT_RESULT), cmp_sign(cmp_sign_arg), compare_as_dates(FALSE) {}
   double val_real();
   longlong val_int();
   String *val_str(String *);
   my_decimal *val_decimal(my_decimal *);
   void fix_length_and_dec();
   enum Item_result result_type () const { return cmp_type; }
-  bool result_as_longlong() { return compare_as_dates; };
-  uint cmp_datetimes(ulonglong *value);
+  bool cmp_datetimes(MYSQL_TIME *ltime);
   enum_field_types field_type() const { return cached_field_type; }
 };
 

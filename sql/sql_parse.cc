@@ -1001,18 +1001,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
-  {
-    /*
-     If the time has got past 2038 we need to shut this server down
-     We do this by making sure every command is a shutdown and we 
-     have enough privileges to shut the server down
-
-     TODO: remove this when we have full 64 bit my_time_t support
-    */
-    thd->security_ctx->master_access|= SHUTDOWN_ACL;
-    command= COM_SHUTDOWN;
-  }
 
   VOID(pthread_mutex_lock(&LOCK_thread_count));
   thd->query_id= global_query_id;
@@ -1518,10 +1506,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       packet[0].
     */
     enum mysql_enum_shutdown_level level;
-    if (!thd->is_valid_time())
-      level= SHUTDOWN_DEFAULT;
-    else
-      level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
+    level= (enum mysql_enum_shutdown_level) (uchar) packet[0];
     if (level == SHUTDOWN_DEFAULT)
       level= SHUTDOWN_WAIT_ALL_BUFFERS; // soon default will be configurable
     else if (level != SHUTDOWN_WAIT_ALL_BUFFERS)
@@ -5767,6 +5752,7 @@ void mysql_reset_thd_for_next_command(THD *thd)
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
   thd->query_start_used= 0;
+  thd->query_start_sec_part_used= 0;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the
@@ -6217,17 +6203,6 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   {
     my_error(ER_INVALID_ON_UPDATE, MYF(0), field_name->str);
     DBUG_RETURN(1);
-  }
-
-  if (type == MYSQL_TYPE_TIMESTAMP && length)
-  {
-    /* Display widths are no longer supported for TIMSTAMP as of MySQL 4.1.
-       In other words, for declarations such as TIMESTAMP(2), TIMESTAMP(4),
-       and so on, the display width is ignored.
-    */
-    char buf[32];
-    my_snprintf(buf, sizeof(buf), "TIMESTAMP(%s)", length);
-    WARN_DEPRECATED(thd, "6.0", buf, "'TIMESTAMP'");
   }
 
   if (!(new_field= new Create_field()) ||

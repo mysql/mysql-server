@@ -265,6 +265,7 @@ struct sql_ex_info
                                    1 + 2          /* type, charset_database_number */ + \
                                    1 + 8          /* type, table_map_for_update */ + \
                                    1 + 4          /* type, master_data_written */ + \
+                                   1 + 3          /* type, sec_part of NOW() */ + \
                                    1 + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -335,6 +336,8 @@ struct sql_ex_info
 #define Q_MASTER_DATA_WRITTEN_CODE 10
 
 #define Q_INVOKER 11
+
+#define Q_HRNOW 128
 
 /* Intvar event post-header */
 
@@ -889,7 +892,8 @@ public:
     execution time, which guarantees good replication (otherwise, we
     could have a query and its event with different timestamps).
   */
-  time_t when;
+  my_time_t when;
+  ulong     when_sec_part;
   /* The number of seconds the query took to run on the master. */
   ulong exec_time;
   /* Number of bytes written by write() function */
@@ -1000,16 +1004,27 @@ public:
   { return 0; }
   virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
   { return 0; }
-  inline time_t get_time()
+  inline my_time_t get_time()
   {
     THD *tmp_thd;
     if (when)
       return when;
     if (thd)
-      return thd->start_time;
+    {
+      when= thd->start_time;
+      when_sec_part= thd->start_time_sec_part;
+      return when;
+    }
     if ((tmp_thd= current_thd))
-      return tmp_thd->start_time;
-    return my_time(0);
+    {
+      when= tmp_thd->start_time;
+      when_sec_part= tmp_thd->start_time_sec_part;
+      return when;
+    }
+    my_hrtime_t hrtime= my_hrtime();
+    when= hrtime_to_time(hrtime);
+    when_sec_part= hrtime_sec_part(hrtime);
+    return when;
   }
 #endif
   virtual Log_event_type get_type_code() = 0;

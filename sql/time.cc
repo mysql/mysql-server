@@ -236,7 +236,8 @@ str_to_datetime_with_warn(const char *str, uint length, MYSQL_TIME *l_time,
                            &was_cut);
   if (was_cut || ts_type <= MYSQL_TIMESTAMP_ERROR)
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 str, length, ts_type,  NullS);
+                                 str, length, flags & TIME_TIME_ONLY ?
+                                 MYSQL_TIMESTAMP_TIME : ts_type, NullS);
   return ts_type;
 }
 
@@ -273,25 +274,6 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
 
   /* If we are here we have range error. */
   return(0);
-}
-
-
-/*
-  Convert a time string to a MYSQL_TIME struct and produce a warning
-  if string was cut during conversion.
-
-  NOTE
-    See str_to_time() for more info.
-*/
-bool
-str_to_time_with_warn(const char *str, uint length, MYSQL_TIME *l_time)
-{
-  int warning;
-  bool ret_val= str_to_time(str, length, l_time, &warning);
-  if (ret_val || warning)
-    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 str, length, MYSQL_TIMESTAMP_TIME, NullS);
-  return ret_val;
 }
 
 
@@ -687,15 +669,13 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
     context)
     This functions don't check that given MYSQL_TIME structure members are
     in valid range. If they are not, return value won't reflect any 
-    valid date either. Additionally, make_time doesn't take into
-    account time->day member: it's assumed that days have been converted
-    to hours already.
+    valid date either.
 ****************************************************************************/
 
 void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str)
 {
-  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr());
+  uint length= (uint) my_time_to_str(l_time, (char*) str->ptr(), 0);
   str->length(length);
   str->set_charset(&my_charset_bin);
 }
@@ -713,15 +693,15 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
                    const MYSQL_TIME *l_time, String *str)
 {
-  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr());
+  uint length= (uint) my_datetime_to_str(l_time, (char*) str->ptr(), 0);
   str->length(length);
   str->set_charset(&my_charset_bin);
 }
 
 
 void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
-                                  const char *str_val,
-				  uint str_length, timestamp_type time_type,
+                                  const Lazy_string *sval,
+                                  timestamp_type time_type,
                                   const char *field_name)
 {
   char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -729,8 +709,7 @@ void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level leve
   CHARSET_INFO *cs= &my_charset_latin1;
   char buff[128];
   String str(buff,(uint32) sizeof(buff), system_charset_info);
-  str.copy(str_val, str_length, system_charset_info);
-  str[str_length]= 0;               // Ensure we have end 0 for snprintf
+  sval->copy(&str);
 
   switch (time_type) {
     case MYSQL_TIMESTAMP_DATE: 
@@ -765,14 +744,16 @@ void make_truncated_value_warning(THD *thd, MYSQL_ERROR::enum_warning_level leve
 
 /* Daynumber from year 0 to 9999-12-31 */
 #define MAX_DAY_NUMBER 3652424L
+#define COMBINE(X)                                                      \
+               (((((X)->day * 24LL + (X)->hour) * 60LL +                \
+                   (X)->minute) * 60LL + (X)->second)*1000000LL +       \
+                   (X)->second_part)
 
 bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL interval)
 {
   long period, sign;
 
-  ltime->neg= 0;
-
-  sign= (interval.neg ? -1 : 1);
+  sign= (interval.neg == ltime->neg ? 1 : -1);
 
   switch (int_type) {
   case INTERVAL_SECOND:
@@ -789,35 +770,29 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
   case INTERVAL_DAY_SECOND:
   case INTERVAL_DAY_MINUTE:
   case INTERVAL_DAY_HOUR:
+  case INTERVAL_DAY:
   {
-    longlong sec, days, daynr, microseconds, extra_sec;
-    ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
-    microseconds= ltime->second_part + sign*interval.second_part;
-    extra_sec= microseconds/1000000L;
-    microseconds= microseconds%1000000L;
+    longlong usec, daynr;
+    my_bool neg= ltime->neg;
+    enum enum_mysql_timestamp_type time_type= ltime->time_type;
 
-    sec=((ltime->day-1)*3600*24L+ltime->hour*3600+ltime->minute*60+
-	 ltime->second +
-	 sign* (longlong) (interval.day*3600*24L +
-                           interval.hour*LL(3600)+interval.minute*LL(60)+
-                           interval.second))+ extra_sec;
-    if (microseconds < 0)
-    {
-      microseconds+= LL(1000000);
-      sec--;
-    }
-    days= sec/(3600*LL(24));
-    sec-= days*3600*LL(24);
-    if (sec < 0)
-    {
-      days--;
-      sec+= 3600*LL(24);
-    }
-    ltime->second_part= (uint) microseconds;
-    ltime->second= (uint) (sec % 60);
-    ltime->minute= (uint) (sec/60 % 60);
-    ltime->hour=   (uint) (sec/3600);
-    daynr= calc_daynr(ltime->year,ltime->month,1) + days;
+    if (ltime->time_type != MYSQL_TIMESTAMP_TIME)
+      ltime->day+= calc_daynr(ltime->year, ltime->month, 1) - 1;
+
+    usec= COMBINE(ltime) + sign*COMBINE(&interval);
+
+    unpack_time(usec, ltime);
+    ltime->time_type= time_type;
+    ltime->neg^= neg;
+
+    if (time_type == MYSQL_TIMESTAMP_TIME)
+      break;
+
+    if (int_type != INTERVAL_DAY)
+      ltime->time_type= MYSQL_TIMESTAMP_DATETIME; // Return full date
+
+    daynr= ltime->day + 32*(ltime->month + 13*ltime->year);
+
     /* Day number from year 0 to 9999-12-31 */
     if ((ulonglong) daynr > MAX_DAY_NUMBER)
       goto invalid_date;
@@ -825,7 +800,6 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
                         &ltime->day);
     break;
   }
-  case INTERVAL_DAY:
   case INTERVAL_WEEK:
     period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
              sign * (long) interval.day);
@@ -969,17 +943,12 @@ calc_time_diff(MYSQL_TIME *l_time1, MYSQL_TIME *l_time2, int l_sign, longlong *s
 
 int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
 {
-  ulonglong a_t= TIME_to_ulonglong_datetime(a);
-  ulonglong b_t= TIME_to_ulonglong_datetime(b);
+  ulonglong a_t= pack_time(a);
+  ulonglong b_t= pack_time(b);
 
   if (a_t < b_t)
     return -1;
   if (a_t > b_t)
-    return 1;
-
-  if (a->second_part < b->second_part)
-    return -1;
-  if (a->second_part > b->second_part)
     return 1;
 
   return 0;

@@ -860,3 +860,29 @@ SELECT COUNT(*) FROM t1 GROUP BY TIME_TO_SEC(a);
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+select time(' 1 02:03:04') + interval 9 microsecond;
+select time(' 1 02:03:04') - interval 9 microsecond;
+select time('-1 02:03:04') + interval 9 microsecond;
+select time('-1 02:03:04') - interval 9 microsecond;
+select time(' 1 02:03:04') + interval '4:4:4' hour_second;
+select time(' 1 02:03:04') - interval '4:4:4' hour_second;
+select time('-1 02:03:04') + interval '4:4:4' hour_second;
+select time('-1 02:03:04') - interval '4:4:4' hour_second;
+select time(' 1 02:03:04') + interval 2 day;
+select time(' 1 02:03:04') - interval 2 day;
+select time('-1 02:03:04') + interval 2 day;
+select time('-1 02:03:04') - interval 2 day;
+
+# specially constructed queries to reach obscure places in the code
+# not touched by the more "normal" queries (and to increase the coverage)
+select cast('131415.123e0' as time);
+select cast('2010-01-02 03:04:05' as datetime) between null and '2010-01-02 03:04:04';
+select least(time('1:2:3'), '01:02:04', null) div 1;
+select truncate(least(time('1:2:3'), '01:02:04', null), 6);
+select cast(least(time('1:2:3'), '01:02:04', null) as decimal(3,1));
+select unix_timestamp(null);
+select truncate(date('2010-40-10'), 6);
+select extract(month from '2010-40-50');
+select subtime('0000-00-10 10:10:10', '30 10:00:00');
+

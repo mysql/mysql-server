@@ -1393,7 +1393,6 @@ public:
   */
   const char *where;
 
-  double tmp_double_value;                    /* Used in set_var.cc */
   ulong client_capabilities;		/* What the client supports */
   ulong max_client_packet_length;
 
@@ -1417,7 +1416,9 @@ public:
   uint32     file_id;			// for LOAD DATA INFILE
   /* remote (peer) port */
   uint16 peer_port;
-  time_t     start_time, user_time;
+  my_time_t     start_time;             // start_time and its sec_part 
+  ulong         start_time_sec_part;    // are almost always used separately
+  my_hrtime_t   user_time;
   // track down slow pthread_create
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
@@ -1836,6 +1837,7 @@ public:
   */
   bool       is_fatal_sub_stmt_error;
   bool	     query_start_used, rand_used, time_zone_used;
+  bool       query_start_sec_part_used;
   /* for IS NULL => = last_insert_id() fix in remove_eq_conds() */
   bool       substitute_null_with_insert_id;
   bool	     in_lock_tables;
@@ -1881,6 +1883,7 @@ public:
     long      long_value;
     ulong     ulong_value;
     ulonglong ulonglong_value;
+    double    double_value;
   } sys_var_tmp;
   
   struct {
@@ -2016,27 +2019,44 @@ public:
     proc_info = old_msg;
     pthread_mutex_unlock(&mysys_var->mutex);
   }
-  inline time_t query_start() { query_start_used=1; return start_time; }
+  inline my_time_t query_start() { query_start_used=1; return start_time; }
+  inline ulong query_start_sec_part()
+  { query_start_sec_part_used=1; return start_time_sec_part; }
   inline void set_time()
   {
-    if (user_time)
+    if (user_time.val)
     {
-      start_time= user_time;
+      start_time= hrtime_to_time(user_time);
+      start_time_sec_part= hrtime_sec_part(user_time);
       start_utime= utime_after_lock= my_micro_time();
     }
     else
-      start_utime= utime_after_lock= my_micro_time_and_time(&start_time);
+    {
+      my_hrtime_t hrtime;
+      my_timediff_t timediff;
+      my_micro_and_hrtime(&timediff, &hrtime);
+      start_time= hrtime_to_time(hrtime);
+      start_time_sec_part= hrtime_sec_part(hrtime);
+      utime_after_lock= start_utime= timediff.val;
+    }
   }
-  inline void	set_current_time()    { start_time= my_time(MY_WME); }
-  inline void	set_time(time_t t)
+  inline void	set_current_time()
   {
-    start_time= user_time= t;
+    my_hrtime_t hrtime= my_hrtime();
+    start_time= hrtime_to_time(hrtime);
+    start_time_sec_part= hrtime_sec_part(hrtime);
+  }
+  inline void	set_time(my_hrtime_t t)
+  {
+    user_time= t;
+    start_time= hrtime_to_time(user_time);
+    start_time_sec_part= hrtime_sec_part(user_time);
     start_utime= utime_after_lock= my_micro_time();
   }
-  /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
-  inline bool	is_valid_time() 
-  { 
-    return (start_time < (time_t) MY_TIME_T_MAX); 
+  inline void	set_time(my_time_t t, ulong sec_part)
+  {
+    my_hrtime_t hrtime= { hrtime_from_time(t) + sec_part };
+    set_time(hrtime);
   }
   void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
   ulonglong current_utime()  { return my_micro_time(); }

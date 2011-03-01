@@ -72,10 +72,13 @@
 #define MAX_BIT_FIELD_LENGTH    64      /* Max length in bits for bit fields */
 
 #define MAX_DATE_WIDTH		10	/* YYYY-MM-DD */
-#define MAX_TIME_WIDTH		23	/* -DDDDDD HH:MM:SS.###### */
+#define MIN_TIME_WIDTH           9      /* HHH:MM:SS */
+#define MAX_TIME_WIDTH          16      /* -DDDDDD HH:MM:SS */
+#define MAX_TIME_FULL_WIDTH     23      /* -DDDDDD HH:MM:SS.###### */
 #define MAX_DATETIME_FULL_WIDTH 29	/* YYYY-MM-DD HH:MM:SS.###### AM */
 #define MAX_DATETIME_WIDTH	19	/* YYYY-MM-DD HH:MM:SS */
 #define MAX_DATETIME_COMPRESSED_WIDTH 14  /* YYYYMMDDHHMMSS */
+#define MAX_DATETIME_PRECISION  6
 
 #define MAX_TABLES	(sizeof(table_map)*8-3)	/* Max tables in join */
 #define PARAM_TABLE_BIT	(((table_map) 1) << (sizeof(table_map)*8-3))

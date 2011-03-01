@@ -55,6 +55,7 @@ typedef long my_time_t;
 /* Flags to str_to_datetime */
 #define TIME_FUZZY_DATE		1
 #define TIME_DATETIME_ONLY	2
+#define TIME_TIME_ONLY	        4
 /* Must be same as MODE_NO_ZERO_IN_DATE */
 #define TIME_NO_ZERO_IN_DATE    (65536L*2*2*2*2*2*2*2)
 /* Must be same as MODE_NO_ZERO_DATE */
@@ -68,8 +69,9 @@ typedef long my_time_t;
 #define TIME_MAX_HOUR 838
 #define TIME_MAX_MINUTE 59
 #define TIME_MAX_SECOND 59
+#define TIME_MAX_SECOND_PART 999999
 #define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + \
-                        TIME_MAX_SECOND)
+                        TIME_MAX_SECOND + TIME_MAX_SECOND_PART/1e6)
 #define TIME_MAX_VALUE_SECONDS (TIME_MAX_HOUR * 3600L + \
                                 TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
@@ -80,14 +82,15 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
                 uint flags, int *was_cut);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
                             uint flags, int *was_cut);
+int number_to_time(double nr, MYSQL_TIME *ltime, int *was_cut);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong(const MYSQL_TIME *);
+double TIME_to_double(const MYSQL_TIME *my_time);
 
-
-my_bool str_to_time(const char *str,uint length, MYSQL_TIME *l_time,
-                    int *warning);
+longlong pack_time(MYSQL_TIME *my_time);
+MYSQL_TIME *unpack_time(longlong packed, MYSQL_TIME *my_time);
 
 int check_time_range(struct st_mysql_time *, int *warning);
 
@@ -136,11 +139,27 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
   sent using binary protocol fit in this buffer.
 */
 #define MAX_DATE_STRING_REP_LENGTH 30
+#define MAX_SEC_PART_VALUE  999999
+#define MAX_SEC_PART_DIGITS 6
+#define AUTO_SEC_PART_DIGITS 31 /* same as NOT_FIXED_DEC */
 
-int my_time_to_str(const MYSQL_TIME *l_time, char *to);
+int my_time_to_str(const MYSQL_TIME *l_time, char *to, int digits);
 int my_date_to_str(const MYSQL_TIME *l_time, char *to);
-int my_datetime_to_str(const MYSQL_TIME *l_time, char *to);
-int my_TIME_to_str(const MYSQL_TIME *l_time, char *to);
+int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, int digits);
+int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, int digits);
+
+static inline longlong sec_part_shift(longlong second_part, int digits)
+{
+  return second_part / log_10_int[MAX_SEC_PART_DIGITS - digits];
+}
+static inline longlong sec_part_unshift(longlong second_part, int digits)
+{
+  return second_part * log_10_int[MAX_SEC_PART_DIGITS - digits];
+}
+static inline ulong sec_part_truncate(ulong second_part, int digits)
+{
+  return second_part - second_part % log_10_int[MAX_SEC_PART_DIGITS - digits];
+}
 
 /* 
   Available interval types used in any statement.

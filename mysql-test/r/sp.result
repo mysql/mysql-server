@@ -6484,7 +6484,7 @@ DROP TABLE t1;
 
 CALL p1('text');
 Warnings:
-Warning	1264	Out of range value for column 'v' at row 1
+Warning	1265	Data truncated for column 'v' at row 1
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

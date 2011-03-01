@@ -1174,11 +1174,7 @@ void Relay_log_info::stmt_done(my_off_t event_master_log_pos,
       is that value may take some time to display in
       Seconds_Behind_Master - not critical).
     */
-#ifndef DBUG_OFF
-    if (!(event_creation_time == 0 && debug_not_change_ts_if_art_event > 0))
-#else
-      if (event_creation_time != 0)
-#endif
+    if (!(event_creation_time == 0 IF_DBUG(&& debug_not_change_ts_if_art_event > 0)))
         last_master_timestamp= event_creation_time;
   }
 }

@@ -100,3 +100,9 @@ SELECT TIMESTAMP(f1,'1') FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+create table t1 (a time);
+insert t1 values (-131415);
+select * from t1;
+drop table t1;
+

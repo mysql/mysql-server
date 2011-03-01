@@ -33,32 +33,22 @@ class Arg_comparator: public Sql_alloc
   Item **a, **b;
   arg_cmp_func func;
   Item_result_field *owner;
+  bool set_null;                   // TRUE <=> set owner->null_value
   Arg_comparator *comparators;   // used only for compare_row()
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
   THD *thd;
-  enum_field_types a_type, b_type; // Types of a and b items
   Item *a_cache, *b_cache;         // Cached values of a and b items
-  bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
-  bool set_null;                   // TRUE <=> set owner->null_value
                                    //   when one of arguments is NULL.
-  enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
-                            CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
-  longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               Item *warn_item, bool *is_null);
-  longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               Item *warn_item, bool *is_null);
-  bool try_year_cmp_func(Item_result type);
 public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
-    get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
-    a_cache(0), b_cache(0), set_null(TRUE),
-    get_value_a_func(0), get_value_b_func(0) {};
+  Arg_comparator():  set_null(TRUE), comparators(0), thd(0),
+    a_cache(0), b_cache(0) {};
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2),  set_null(TRUE),
+    comparators(0), thd(0), a_cache(0), b_cache(0) {};
 
   int set_compare_func(Item_result_field *owner, Item_result type);
   inline int set_compare_func(Item_result_field *owner_arg)
@@ -75,8 +65,8 @@ public:
   {
     set_null= set_null_arg;
     return set_cmp_func(owner_arg, a1, a2,
-                        item_cmp_type((*a1)->result_type(),
-                                      (*a2)->result_type()));
+                        item_cmp_type((*a1)->cmp_type(),
+                                      (*a2)->cmp_type()));
   }
   inline int compare() { return (this->*func)(); }
 
@@ -99,14 +89,12 @@ public:
   int compare_real_fixed();
   int compare_e_real_fixed();
   int compare_datetime();        // compare args[0] & args[1] as DATETIMEs
-
-  static enum enum_date_cmp_type can_compare_as_dates(Item *a, Item *b,
-                                                      ulonglong *const_val_arg);
+  int compare_e_datetime();
 
   Item** cache_converted_constant(THD *thd, Item **value, Item **cache,
                                   Item_result type);
   void set_datetime_cmp_func(Item_result_field *owner_arg, Item **a1, Item **b1);
-  static arg_cmp_func comparator_matrix [5][2];
+  static arg_cmp_func comparator_matrix [6][2];
   inline bool is_owner_equal_func()
   {
     return (owner->type() == Item::FUNC_ITEM &&
@@ -614,9 +602,7 @@ public:
   Item_result cmp_type;
   String value0,value1,value2;
   /* TRUE <=> arguments will be compared as dates. */
-  bool compare_as_dates;
-  /* Comparators used for DATE/DATETIME comparison. */
-  Arg_comparator ge_cmp, le_cmp;
+  Item *compare_as_dates;
   Item_func_between(Item *a, Item *b, Item *c)
     :Item_func_opt_neg(a, b, c), compare_as_dates(FALSE) {}
   longlong val_int();
@@ -894,6 +880,16 @@ public:
      lval_cache(0) {};
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
+  Item* create_item()
+  { 
+    return new Item_datetime();
+  }
+  void value_to_item(uint pos, Item *item)
+  {
+    packed_longlong *val= reinterpret_cast<packed_longlong*>(base)+pos;
+    Item_datetime *dt= reinterpret_cast<Item_datetime*>(item);
+    dt->set(val->val);
+  }
   friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
 };
 

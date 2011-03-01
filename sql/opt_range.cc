@@ -692,10 +692,7 @@ static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
 QUICK_RANGE_SELECT *get_quick_select(PARAM *param,uint index,
                                      SEL_ARG *key_tree,
                                      MEM_ROOT *alloc = NULL);
-static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
-                                       bool index_read_must_be_used,
-                                       bool update_tbl_stats,
-                                       double read_time);
+static TRP_RANGE *get_key_scans_params(PARAM *, SEL_TREE *, bool, bool, double);
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                           double read_time,
@@ -713,11 +710,9 @@ static double get_index_only_read_time(const PARAM* param, ha_rows records,
                                        int keynr);
 
 #ifndef DBUG_OFF
-static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
-                           const char *msg);
-static void print_ror_scans_arr(TABLE *table, const char *msg,
-                                struct st_ror_scan_info **start,
-                                struct st_ror_scan_info **end);
+static void print_sel_tree(PARAM *, SEL_TREE *, key_map *, const char *);
+static void print_ror_scans_arr(TABLE *, const char *, struct st_ror_scan_info **,
+                                struct st_ror_scan_info **);
 static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg);
 #endif
 
@@ -5656,7 +5651,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  ulong orig_sql_mode;
   int err;
   DBUG_ENTER("get_mm_leaf");
 
@@ -5824,16 +5818,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     We can't always use indexes when comparing a string index to a number
     cmp_type() is checked to allow compare of dates to numbers
   */
-  if (field->result_type() == STRING_RESULT &&
-      value->result_type() != STRING_RESULT &&
-      field->cmp_type() != value->result_type())
+  if (field->cmp_type() == STRING_RESULT && value->cmp_type() != STRING_RESULT)
     goto end;
-  /* For comparison purposes allow invalid dates like 2000-01-32 */
-  orig_sql_mode= field->table->in_use->variables.sql_mode;
-  if (value->real_item()->type() == Item::STRING_ITEM &&
-      (field->type() == MYSQL_TYPE_DATE ||
-       field->type() == MYSQL_TYPE_DATETIME))
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
   err= value->save_in_field_no_warnings(field, 1);
   if (err > 0)
   {
@@ -5845,7 +5831,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       {
         tree= new (alloc) SEL_ARG(field, 0, 0);
         tree->type= SEL_ARG::IMPOSSIBLE;
-        field->table->in_use->variables.sql_mode= orig_sql_mode;
         goto end;
       }
       else
@@ -5879,10 +5864,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
           */
         }
         else
-        {
-          field->table->in_use->variables.sql_mode= orig_sql_mode;
           goto end;
-        }
       }
     }
 
@@ -5905,12 +5887,10 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   }
   else if (err < 0)
   {
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
     /* This happens when we try to insert a NULL field in a not null column */
     tree= &null_element;                        // cmp with NULL is never TRUE
     goto end;
   }
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   /*
     Any sargable predicate except "<=>" involving NULL as a constant is always

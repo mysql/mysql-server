@@ -8,20 +8,20 @@ period_add("9602",-12)	period_diff(199505,"9404")
 199502	13
 select now()-now(),weekday(curdate())-weekday(now()),unix_timestamp()-unix_timestamp(now());
 now()-now()	weekday(curdate())-weekday(now())	unix_timestamp()-unix_timestamp(now())
-0.000000	0	0
+0	0	0
 select from_unixtime(unix_timestamp("1994-03-02 10:11:12")),from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s"),from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0;
 from_unixtime(unix_timestamp("1994-03-02 10:11:12"))	from_unixtime(unix_timestamp("1994-03-02 10:11:12"),"%Y-%m-%d %h:%i:%s")	from_unixtime(unix_timestamp("1994-03-02 10:11:12"))+0
-1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112.000000
+1994-03-02 10:11:12	1994-03-02 10:11:12	19940302101112
 select sec_to_time(9001),sec_to_time(9001)+0,time_to_sec("15:12:22"),
 sec_to_time(time_to_sec("0:30:47")/6.21);
 sec_to_time(9001)	sec_to_time(9001)+0	time_to_sec("15:12:22")	sec_to_time(time_to_sec("0:30:47")/6.21)
-02:30:01	23001.000000	54742	00:04:57
+02:30:01	23001	54742	00:04:57.423510
 select sec_to_time(time_to_sec('-838:59:59'));
 sec_to_time(time_to_sec('-838:59:59'))
 -838:59:59
 select now()-curdate()*1000000-curtime();
 now()-curdate()*1000000-curtime()
-0.000000
+0
 select strcmp(current_timestamp(),concat(current_date()," ",current_time()));
 strcmp(current_timestamp(),concat(current_date()," ",current_time()))
 0
@@ -798,9 +798,7 @@ TIMESTAMPDIFF(year,'2006-01-10 14:30:28','2008-01-10 14:30:29')
 2
 select date_add(time,INTERVAL 1 SECOND) from t1;
 date_add(time,INTERVAL 1 SECOND)
-NULL
-Warnings:
-Warning	1264	Out of range value for column 'time' at row 1
+06:07:09
 drop table t1;
 select last_day('2000-02-05') as f1, last_day('2002-12-31') as f2,
 last_day('2003-03-32') as f3, last_day('2003-04-01') as f4,
@@ -941,10 +939,10 @@ sec_to_time(1) + 0, from_unixtime(1) + 0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `now() - now()` double(23,6) NOT NULL DEFAULT '0.000000',
-  `curtime() - curtime()` double(23,6) NOT NULL DEFAULT '0.000000',
-  `sec_to_time(1) + 0` double(23,6) DEFAULT NULL,
-  `from_unixtime(1) + 0` double(23,6) DEFAULT NULL
+  `now() - now()` double(17,0) NOT NULL DEFAULT '0',
+  `curtime() - curtime()` double(17,0) NOT NULL DEFAULT '0',
+  `sec_to_time(1) + 0` double(17,0) DEFAULT NULL,
+  `from_unixtime(1) + 0` double(17,0) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 SELECT SEC_TO_TIME(3300000);
@@ -954,7 +952,7 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '3300000'
 SELECT SEC_TO_TIME(3300000)+0;
 SEC_TO_TIME(3300000)+0
-8385959.000000
+8385959
 Warnings:
 Warning	1292	Truncated incorrect time value: '3300000'
 SELECT SEC_TO_TIME(3600 * 4294967296);
@@ -964,31 +962,31 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '15461882265600'
 SELECT TIME_TO_SEC('916:40:00');
 TIME_TO_SEC('916:40:00')
-3020399
+3020399.999999
 Warnings:
 Warning	1292	Truncated incorrect time value: '916:40:00'
 SELECT ADDTIME('500:00:00', '416:40:00');
 ADDTIME('500:00:00', '416:40:00')
-838:59:59
+838:59:59.999999
 Warnings:
 Warning	1292	Truncated incorrect time value: '916:40:00'
 SELECT ADDTIME('916:40:00', '416:40:00');
 ADDTIME('916:40:00', '416:40:00')
-838:59:59
+838:59:59.999999
 Warnings:
 Warning	1292	Truncated incorrect time value: '916:40:00'
-Warning	1292	Truncated incorrect time value: '1255:39:59'
+Warning	1292	Truncated incorrect time value: '1255:39:59.999999'
 SELECT SUBTIME('916:40:00', '416:40:00');
 SUBTIME('916:40:00', '416:40:00')
-422:19:59
+422:19:59.999999
 Warnings:
 Warning	1292	Truncated incorrect time value: '916:40:00'
 SELECT SUBTIME('-916:40:00', '416:40:00');
 SUBTIME('-916:40:00', '416:40:00')
--838:59:59
+-838:59:59.999999
 Warnings:
 Warning	1292	Truncated incorrect time value: '-916:40:00'
-Warning	1292	Truncated incorrect time value: '-1255:39:59'
+Warning	1292	Truncated incorrect time value: '-1255:39:59.999999'
 SELECT MAKETIME(916,0,0);
 MAKETIME(916,0,0)
 838:59:59
@@ -1033,7 +1031,7 @@ SELECT SEC_TO_TIME(CAST(-1 AS UNSIGNED));
 SEC_TO_TIME(CAST(-1 AS UNSIGNED))
 838:59:59
 Warnings:
-Warning	1292	Truncated incorrect time value: '18446744073709551615'
+Warning	1292	Truncated incorrect time value: '18446744073709551616'
 SET NAMES latin1;
 SET character_set_results = NULL;
 SHOW VARIABLES LIKE 'character_set_results';
@@ -1218,6 +1216,8 @@ set time_zone= @@global.time_zone;
 select str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE;
 str_to_date('10:00 PM', '%h:%i %p') + INTERVAL 10 MINUTE
 NULL
+Warnings:
+Error	1411	Incorrect datetime value: '10:00 PM' for function str_to_date
 create table t1 (field DATE);
 insert into t1 values ('2006-11-06');
 select * from t1 where field < '2006-11-06 04:08:36.0';
@@ -1358,3 +1358,72 @@ Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 DROP TABLE t1;
 End of 5.1 tests
+select time(' 1 02:03:04') + interval 9 microsecond;
+time(' 1 02:03:04') + interval 9 microsecond
+26:03:04.000009
+select time(' 1 02:03:04') - interval 9 microsecond;
+time(' 1 02:03:04') - interval 9 microsecond
+26:03:03.999991
+select time('-1 02:03:04') + interval 9 microsecond;
+time('-1 02:03:04') + interval 9 microsecond
+-26:03:03.999991
+select time('-1 02:03:04') - interval 9 microsecond;
+time('-1 02:03:04') - interval 9 microsecond
+-26:03:04.000009
+select time(' 1 02:03:04') + interval '4:4:4' hour_second;
+time(' 1 02:03:04') + interval '4:4:4' hour_second
+30:07:08
+select time(' 1 02:03:04') - interval '4:4:4' hour_second;
+time(' 1 02:03:04') - interval '4:4:4' hour_second
+21:59:00
+select time('-1 02:03:04') + interval '4:4:4' hour_second;
+time('-1 02:03:04') + interval '4:4:4' hour_second
+-21:59:00
+select time('-1 02:03:04') - interval '4:4:4' hour_second;
+time('-1 02:03:04') - interval '4:4:4' hour_second
+-30:07:08
+select time(' 1 02:03:04') + interval 2 day;
+time(' 1 02:03:04') + interval 2 day
+74:03:04
+select time(' 1 02:03:04') - interval 2 day;
+time(' 1 02:03:04') - interval 2 day
+-21:56:56
+select time('-1 02:03:04') + interval 2 day;
+time('-1 02:03:04') + interval 2 day
+21:56:56
+select time('-1 02:03:04') - interval 2 day;
+time('-1 02:03:04') - interval 2 day
+-74:03:04
+select cast('131415.123e0' as time);
+cast('131415.123e0' as time)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '131415.123e0'
+select cast('2010-01-02 03:04:05' as datetime) between null and '2010-01-02 03:04:04';
+cast('2010-01-02 03:04:05' as datetime) between null and '2010-01-02 03:04:04'
+0
+select least(time('1:2:3'), '01:02:04', null) div 1;
+least(time('1:2:3'), '01:02:04', null) div 1
+NULL
+select truncate(least(time('1:2:3'), '01:02:04', null), 6);
+truncate(least(time('1:2:3'), '01:02:04', null), 6)
+NULL
+select cast(least(time('1:2:3'), '01:02:04', null) as decimal(3,1));
+cast(least(time('1:2:3'), '01:02:04', null) as decimal(3,1))
+NULL
+select unix_timestamp(null);
+unix_timestamp(null)
+NULL
+select truncate(date('2010-40-10'), 6);
+truncate(date('2010-40-10'), 6)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2010-40-10'
+select extract(month from '2010-40-50');
+extract(month from '2010-40-50')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2010-40-50'
+select subtime('0000-00-10 10:10:10', '30 10:00:00');
+subtime('0000-00-10 10:10:10', '30 10:00:00')
+NULL

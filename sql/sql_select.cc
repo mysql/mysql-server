@@ -3342,12 +3342,8 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         (*sargables)->arg_value= value;
         (*sargables)->num_values= num_values;
       }
-      /*
-	We can't always use indexes when comparing a string index to a
-	number. cmp_type() is checked to allow compare of dates to numbers.
-        eq_func is NEVER true when num_values > 1
-       */
-      if (!eq_func)
+
+      if (!eq_func) // eq_func is NEVER true when num_values > 1
       {
         /* 
           Additional optimization: if we're processing
@@ -3368,23 +3364,17 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
         eq_func= TRUE;
       }
 
-      if (field->result_type() == STRING_RESULT)
+      /*
+	We can't use indexes when comparing a string index to a
+	number or two strings if the effective collation
+        of the operation differ from the field collation.
+       */
+      if (field->cmp_type() == STRING_RESULT)
       {
-        if ((*value)->result_type() != STRING_RESULT)
-        {
-          if (field->cmp_type() != (*value)->result_type())
+        if ((*value)->cmp_type() != STRING_RESULT)
             return;
-        }
-        else
-        {
-          /*
-            We can't use indexes if the effective collation
-            of the operation differ from the field collation.
-          */
-          if (field->cmp_type() == STRING_RESULT &&
-              ((Field_str*)field)->charset() != cond->compare_collation())
-            return;
-        }
+        if (((Field_str*)field)->charset() != cond->compare_collation())
+          return;
       }
     }
   }
@@ -9455,7 +9445,7 @@ test_if_equality_guarantees_uniqueness(Item *l, Item *r)
 {
   return r->const_item() &&
     /* elements must be compared as dates */
-     (Arg_comparator::can_compare_as_dates(l, r, 0) ||
+     (l->cmp_type() == TIME_RESULT ||
       /* or of the same result type */
       (r->result_type() == l->result_type() &&
        /* and must have the same collation if compared as strings */
@@ -9640,15 +9630,12 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
   
-    enum enum_field_types type;
     /*
       DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
       To preserve type they needed to be handled separately.
     */
-    if ((type= item->field_type()) == MYSQL_TYPE_DATETIME ||
-        type == MYSQL_TYPE_TIME || type == MYSQL_TYPE_DATE ||
-        type == MYSQL_TYPE_NEWDATE ||
-        type == MYSQL_TYPE_TIMESTAMP || type == MYSQL_TYPE_GEOMETRY)
+    if (item->cmp_type() == TIME_RESULT ||
+        item->field_type() == MYSQL_TYPE_GEOMETRY)
       new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 

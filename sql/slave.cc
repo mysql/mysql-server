@@ -2152,7 +2152,11 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   thd->set_time();                            // time the query
   thd->lex->current_select= 0;
   if (!ev->when)
-    ev->when= my_time(0);
+  {
+    my_hrtime_t hrtime= my_hrtime();
+    ev->when= hrtime_to_time(hrtime);
+    ev->when_sec_part= hrtime_sec_part(hrtime);
+  }
   ev->thd = thd; // because up to this point, ev->thd == 0
 
   int reason= ev->shall_skip(rli);

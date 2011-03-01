@@ -310,7 +310,7 @@ insert into t2 values (1, 21),(2, 12),(3, 23);
 select * from t1;
 select * from t1 where b = (select b from t2 where t1.a = t2.a);
 -- error ER_UPDATE_TABLE_USED
-delete from t1 where b = (select b from t1);
+delete from t1 where b in (select b from t1);
 -- error ER_SUBQUERY_NO_1_ROW
 delete from t1 where b = (select b from t2);
 delete from t1 where b = (select b from t2 where t1.a = t2.a);
