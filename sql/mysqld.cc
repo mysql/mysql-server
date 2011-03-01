@@ -1289,11 +1289,14 @@ static void __cdecl kill_server(int sig_ptr)
   /*    
    Send event to smem_event_connect_request for aborting    
    */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
-	  DBUG_PRINT("error",
-		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+  if (opt_enable_shared_memory)
+  {
+    if (!SetEvent(smem_event_connect_request))    
+    {      
+      DBUG_PRINT("error",
+                 ("Got error: %ld from SetEvent of smem_event_connect_request",
+                  GetLastError()));    
+    }
   }
 #endif  
   
@@ -4467,11 +4470,14 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-  if (my_basic_init())
+#ifndef _WIN32
+  // For windows, my_init() is called from the win specific mysqld_main
+  if (my_init())                 // init my_sys library & pthreads
   {
-    fprintf(stderr, "my_basic_init() failed.");
+    fprintf(stderr, "my_init() failed.");
     return 1;
   }
+#endif
 
   orig_argc= argc;
   orig_argv= argv;
@@ -4571,11 +4577,10 @@ int mysqld_main(int argc, char **argv)
       recreate objects which were initialised early,
       so that they are instrumented as well.
     */
-    my_thread_basic_global_reinit();
+    my_thread_global_reinit();
   }
 #endif /* HAVE_PSI_INTERFACE */
 
-  my_init();                                   // init my_sys library & pthreads
   init_error_log_mutex();
 
   /* Set signal used to kill MySQL */
@@ -5012,6 +5017,12 @@ int mysqld_main(int argc, char **argv)
 
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
+
+  if (my_init())
+  {
+    fprintf(stderr, "my_init() failed.");
+    return 1;
+  }
 
   if (Service.GetOS())	/* true NT family */
   {
