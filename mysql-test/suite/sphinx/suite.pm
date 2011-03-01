@@ -29,9 +29,8 @@ return "No SphinxSE" unless $ENV{HA_SPHINX_SO} or
 
 {
   local $_ = `"$exe_sphinx_searchd" --help`;
-  print "tool: $exe_sphinx_searchd\n";
+  mtr_verbose("tool: $exe_sphinx_searchd\n$_");
   my $ver = sprintf "%04d.%04d.%04d", (/([0-9]+)\.([0-9]+)\.([0-9]+)/);
-  print $ver;
   if ($ver eq "0000.0000.0000")
   {
      $ver = sprintf "%04d.%04d", (/([0-9]+)\.([0-9]+)-(alpha|beta|gamma|RC)/);
