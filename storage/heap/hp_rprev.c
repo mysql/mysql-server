@@ -32,7 +32,20 @@ int heap_rprev(HP_INFO *info, uchar *record)
   {
     heap_rb_param custom_arg;
 
-    if (info->last_pos)
+    /* If no active record and last was not deleted */
+    if (!(info->update & (HA_STATE_AKTIV | HA_STATE_NO_KEY |
+                          HA_STATE_DELETED)))
+    {
+      if (info->update & HA_STATE_PREV_FOUND)
+        pos= 0;                            /* Can't search before first row */
+      else
+      {
+        /* Last was 'next' after last record; search after last record */
+        pos= tree_search_edge(&keyinfo->rb_tree, info->parents,
+                              &info->last_pos, offsetof(TREE_ELEMENT, right));
+      }
+    }
+    else if (info->last_pos)
       pos = tree_search_next(&keyinfo->rb_tree, &info->last_pos,
                              offsetof(TREE_ELEMENT, right),
                              offsetof(TREE_ELEMENT, left));

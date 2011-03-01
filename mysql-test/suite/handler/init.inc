@@ -30,4 +30,4 @@ eval create table t1 (a int, b char(10), key a $key_type (a), key b $key_type (a
 insert into t1 values
 (17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
 (14,"aaa"),(16,"ccc"),(16,"xxx"),
-(20,"ggg"),(21,"hhh"),(22,"iii");
+(20,"ggg"),(21,"hhh"),(22,"iii"),(23,"xxx"),(24,"xxx"),(25,"xxx");

@@ -12091,7 +12091,7 @@ ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 
 bool ha_innobase::is_thd_killed()
 { 
-  return test(user_thd->killed);
+  return thd_killed(user_thd);
 }
 
 /**
@@ -12109,7 +12109,7 @@ static xtradb_icp_result_t index_cond_func_innodb(void *arg)
 {
   ha_innobase *h= (ha_innobase*)arg;
   if (h->is_thd_killed())
-    return XTRADB_ICP_ERROR;
+    return XTRADB_ICP_ABORTED_BY_USER;
 
   if (h->end_range)
   {

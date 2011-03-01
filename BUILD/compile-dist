@@ -28,7 +28,7 @@ fi
 # Default to gcc for CC and CXX
 if test -z "$CXX" ; then
   export CXX
-  CXX=gcc
+  CXX=g++
   # Set some required compile options
   if test -z "$CXXFLAGS" ; then
     export CXXFLAGS

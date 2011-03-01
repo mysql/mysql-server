@@ -1036,9 +1036,9 @@ explain select t21.* from t21,t22 where t21.a = t22.a and
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary; Using filesort; Start temporary
-1	PRIMARY	t12	hash	NULL	hj_key	4	test.t11.a	8	Using where; Using join buffer (flat, BNLH join)
-1	PRIMARY	t21	hash	NULL	hj_key	4	test.t11.a	26	Using where; Using join buffer (incremental, BNLH join)
-1	PRIMARY	t22	hash	NULL	hj_key	4	test.t11.a	26	Using where; End temporary; Using join buffer (incremental, BNLH join)
+1	PRIMARY	t12	hash_ALL	NULL	#hash#$hj	4	test.t11.a	8	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	t21	hash_ALL	NULL	#hash#$hj	4	test.t11.a	26	Using where; Using join buffer (incremental, BNLH join)
+1	PRIMARY	t22	hash_ALL	NULL	#hash#$hj	4	test.t11.a	26	Using where; End temporary; Using join buffer (incremental, BNLH join)
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -1052,7 +1052,7 @@ select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) a
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	2	
 2	DEPENDENT SUBQUERY	Y	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-2	DEPENDENT SUBQUERY	Z	hash	NULL	hj_key	5	test.Y.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
+2	DEPENDENT SUBQUERY	Z	hash_ALL	NULL	#hash#$hj	5	test.Y.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 subq
 NULL
@@ -1155,7 +1155,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (incremental, BNL join)
 1	PRIMARY	C	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (incremental, BNL join)
-1	PRIMARY	D	hash	NULL	hj_key	5	test.E.a	10	Using where; End temporary; Using join buffer (incremental, BNLH join)
+1	PRIMARY	D	hash_ALL	NULL	#hash#$hj	5	test.E.a	10	Using where; End temporary; Using join buffer (incremental, BNLH join)
 flush status;
 select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 count(*)
@@ -1192,11 +1192,11 @@ insert into t3 values (1),(2);
 explain select * from t2 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t1	hash	NULL	hj_key	4	test.t2.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	4	test.t2.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
 explain select * from t2 where a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t2	hash	NULL	hj_key	5	test.t2.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t2	hash_ALL	NULL	#hash#$hj	5	test.t2.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
 explain select * from t2 where a in (select a from t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start temporary
@@ -1211,7 +1211,7 @@ insert into t1 values (1),(2);
 explain select * from t1 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t1	hash	NULL	hj_key	6	test.t1.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	6	test.t1.a	2	Using where; End temporary; Using join buffer (flat, BNLH join)
 drop table t1;
 set @@optimizer_switch=@save_optimizer_switch;
 create table t1 (a int);
@@ -1282,13 +1282,13 @@ set @@optimizer_switch='firstmatch=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where; Start temporary
-1	PRIMARY	t2	hash	NULL	hj_key	10	test.t1.a,test.t1.b	100	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t2	hash_ALL	NULL	#hash#$hj	10	test.t1.a,test.t1.b	100	Using where; End temporary; Using join buffer (flat, BNLH join)
 set @save_optimizer_search_depth=@@optimizer_search_depth;
 set @@optimizer_search_depth=63;
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where; Start temporary
-1	PRIMARY	t2	hash	NULL	hj_key	10	test.t1.a,test.t1.b	100	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t2	hash_ALL	NULL	#hash#$hj	10	test.t1.a,test.t1.b	100	Using where; End temporary; Using join buffer (flat, BNLH join)
 set @@optimizer_search_depth=@save_optimizer_search_depth;
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t0, t1, t2;
@@ -1299,7 +1299,7 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t1	hash	NULL	hj_key	3	test.t0.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	3	test.t0.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
 select * from t0 where a in (select a from t1);
 a
 10.24
@@ -1312,7 +1312,7 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
-1	PRIMARY	t1	hash	NULL	hj_key	4	test.t0.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
+1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	4	test.t0.a	4	Using where; End temporary; Using join buffer (flat, BNLH join)
 select * from t0 where a in (select a from t1);
 a
 2008-01-01
@@ -1326,9 +1326,9 @@ insert into t2 select * from t2;
 explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
-1	PRIMARY	X	hash	NULL	hj_key	5	test.t1.a	6	Using where; Using join buffer (flat, BNLH join)
-1	PRIMARY	Y	hash	NULL	hj_key	5	test.t1.b	6	Using where; Using join buffer (incremental, BNLH join)
-1	PRIMARY	Z	hash	NULL	hj_key	5	test.t1.c	6	Using where; End temporary; Using join buffer (incremental, BNLH join)
+1	PRIMARY	X	hash_ALL	NULL	#hash#$hj	5	test.t1.a	6	Using where; Using join buffer (flat, BNLH join)
+1	PRIMARY	Y	hash_ALL	NULL	#hash#$hj	5	test.t1.b	6	Using where; Using join buffer (incremental, BNLH join)
+1	PRIMARY	Z	hash_ALL	NULL	#hash#$hj	5	test.t1.c	6	Using where; End temporary; Using join buffer (incremental, BNLH join)
 drop table t0,t1,t2;
 
 BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307

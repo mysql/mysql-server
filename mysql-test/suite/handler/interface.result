@@ -6,7 +6,7 @@ create table t1 (a int, b char(10), key a  (a), key b  (a,b));
 insert into t1 values
 (17,"ddd"),(18,"eee"),(19,"fff"),(19,"yyy"),
 (14,"aaa"),(16,"ccc"),(16,"xxx"),
-(20,"ggg"),(21,"hhh"),(22,"iii");
+(20,"ggg"),(21,"hhh"),(22,"iii"),(23,"xxx"),(24,"xxx"),(25,"xxx");
 handler t1 open;
 handler t1 read a=(SELECT 1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1)' at line 1

@@ -2196,7 +2196,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		must_read;
 	ulint		retries = 0;
-	mutex_t*	block_mutex;
+	mutex_t*	block_mutex= NULL;
 	trx_t*          trx = NULL;
 	ulint           sec;
 	ulint           ms;
