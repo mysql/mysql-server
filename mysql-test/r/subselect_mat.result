@@ -1412,3 +1412,26 @@ SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
 pk
 2
 DROP TABLE t1, t2;
+#
+# BUG#724228: Wrong result with materialization=on and three aggregates in maria-5.3-mwl90
+#
+CREATE TABLE t1 ( f2 int(11)) ;
+INSERT IGNORE INTO t1 VALUES ('7'),('9'),('7'),('4'),('2'),('6'),('8'),('5'),('6'),('188'),('2'),('1'),('1'),('0'),('9'),('4');
+CREATE TABLE t2 ( f1 int(11), f2 int(11)) ENGINE=MyISAM;
+INSERT IGNORE INTO t2 VALUES ('1','1');
+CREATE TABLE t3 ( f1 int(11), f2 int(11), f3 int(11), PRIMARY KEY (f1)) ;
+INSERT IGNORE INTO t3 VALUES ('16','6','1'),('18','3','4'),('19',NULL,'9'),('20','0','6'),('41','2','0'),('42','2','5'),('43','9','6'),('44','7','4'),('45','1','4'),('46','222','238'),('47','3','6'),('48','6','6'),('49',NULL,'1'),('50','5','1');
+SET @_save_join_cache_level = @@join_cache_level;
+SET @_save_optimizer_switch = @@optimizer_switch;
+SET join_cache_level = 1;
+SET optimizer_switch='materialization=on';
+SELECT f1 FROM t3
+WHERE 
+f1 NOT IN (SELECT MAX(f2) FROM t1) AND 
+f3 IN (SELECT MIN(f1) FROM t2) AND 
+f1 IN (SELECT COUNT(f2) FROM t1);
+f1
+16
+SET @@join_cache_level = @_save_join_cache_level;
+SET @@optimizer_switch = @_save_optimizer_switch;
+drop table t1, t2, t3;
