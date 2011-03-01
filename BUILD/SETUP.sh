@@ -214,7 +214,8 @@ fi
 # because it is allowed there without -O
 #
 if test `$CC -v 2>&1 | tail -1 | sed 's/ .*$//'` = 'gcc' ; then
-  GCCVERSION=`cc -v 2>&1 | tail -1 | sed 's/^\w\w* \w\w* //' | sed 's/ .*$//'`
+  GCCVERSION=`$CC -v 2>&1 | tail -1 | \
+    sed 's/^[a-zA-Z][a-zA-Z]* [a-zA-Z][a-zA-Z]* //' | sed 's/ .*$//'`
   GCCV1=`echo $GCCVERSION | sed 's/\..*$//'`
   GCCV2=`echo $GCCVERSION | sed 's/[0-9][0-9]*\.//'|sed 's/\..*$//'`
   if test '(' "$GCCV1" -gt '4' ')' -o \
