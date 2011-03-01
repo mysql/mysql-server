@@ -29,8 +29,18 @@ return "No SphinxSE" unless $ENV{HA_SPHINX_SO} or
 
 {
   local $_ = `"$exe_sphinx_searchd" --help`;
+  print "tool: $exe_sphinx_searchd\n";
   my $ver = sprintf "%04d.%04d.%04d", (/([0-9]+)\.([0-9]+)\.([0-9]+)/);
-  return "Sphinx 0.9.9 or later is needed" unless $ver ge '0000.0009.0009';
+  print $ver;
+  if ($ver eq "0000.0000.0000")
+  {
+     $ver = sprintf "%04d.%04d", (/([0-9]+)\.([0-9]+)-(alpha|beta|gamma|RC)/);
+     return "Sphinx 0.9.9 or later is needed" unless $ver ge '0001.0010';
+  }
+  else
+  {
+    return "Sphinx 0.9.9 or later is needed" unless $ver ge '0000.0009.0009';
+  }
 }
 
 ############# action methods ######################

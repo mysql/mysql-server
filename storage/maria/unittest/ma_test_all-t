@@ -497,10 +497,10 @@ sub run_tests_on_clrs
 
   my @t= ($NEW_TEST,
           "$maria_exe_path/ma_test2$suffix -h$tmpdir -s -L -K -W -P -M -T -c -b -t2 -A1",
-          "cp $tmpdir/maria_log_control $tmpdir/maria_log_control.backup",
+          "cp $tmpdir/aria_log_control $tmpdir/aria_log_control.backup",
           "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
           "$maria_exe_path/aria_chk$suffix -h$tmpdir -s -e $tmpdir/test2",
-          "mv $tmpdir/maria_log_control.backup $tmpdir/maria_log_control",
+          "mv $tmpdir/aria_log_control.backup $tmpdir/aria_log_control",
           "rm $tmpdir/test2.MA?",
           "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
           "$maria_exe_path/aria_chk$suffix -h$tmpdir -s -e $tmpdir/test2",
