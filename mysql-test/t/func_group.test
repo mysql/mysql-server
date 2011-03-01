@@ -1120,6 +1120,9 @@ INSERT INTO t1 VALUES (1,'c'),(2,NULL);
 INSERT INTO t2 VALUES (3,'m'),(4,NULL);
 INSERT INTO t3 VALUES (1,'n');
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=on,in_to_exists=off,semijoin=off';
+
 --echo
 --echo #
 --echo # 1) Test that subquery materialization is setup for query with
@@ -1167,10 +1170,6 @@ FROM t2);
 --echo # 3) Test that subquery materialization is setup for query with
 --echo #    premature optimize() exit due to "Select tables optimized away"
 --echo #
---echo # NOTE: The result of this query is actually wrong; it should be NULL
---echo # See BUG#47762. Even so, the test case is still needed to test
---echo # that the HAVING subquery does not crash the server
---echo # 
 SELECT MIN(pk)
 FROM t1
 WHERE pk=NULL
@@ -1228,6 +1227,8 @@ WHERE t1.pk IN (SELECT 1 from t3 where pk>10)
 HAVING ('m') IN ( 
 SELECT v
 FROM t2);
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 --echo #
 --echo # Cleanup for BUG#46680
