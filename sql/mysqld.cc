@@ -3122,6 +3122,18 @@ static int init_common_variables()
   */
   global_system_variables.time_zone= my_tz_SYSTEM;
 
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Complete the mysql_bin_log initialization.
+    Instrumentation keys are known only after the performance schema initialization,
+    and can not be set in the MYSQL_BIN_LOG constructor (called before main()).
+  */
+  mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
+                             key_BINLOG_update_cond,
+                             key_file_binlog,
+                             key_file_binlog_index);
+#endif
+
   /*
     Init mutexes for the global MYSQL_BIN_LOG objects.
     As safe_mutex depends on what MY_INIT() does, we can't init the mutexes of
@@ -7690,6 +7702,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_PARTITION_LOCK_auto_inc;
+PSI_mutex_key key_RELAYLOG_LOCK_index;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7706,6 +7719,7 @@ static PSI_mutex_info all_server_mutexes[]=
 
   { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
   { &key_BINLOG_LOCK_prep_xids, "MYSQL_BIN_LOG::LOCK_prep_xids", 0},
+  { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -7773,6 +7787,7 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_relay_log_info_start_cond, key_relay_log_info_stop_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
+PSI_cond_key key_RELAYLOG_update_cond;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -7786,6 +7801,7 @@ static PSI_cond_info all_server_conds[]=
 #endif /* HAVE_MMAP */
   { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_rpl_status, "COND_rpl_status", PSI_FLAG_GLOBAL},
@@ -7849,6 +7865,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
 PSI_file_key key_file_query_log, key_file_slow_log;
+PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
 static PSI_file_info all_server_files[]=
 {
@@ -7857,6 +7874,8 @@ static PSI_file_info all_server_files[]=
 #endif /* HAVE_MMAP */
   { &key_file_binlog, "binlog", 0},
   { &key_file_binlog_index, "binlog_index", 0},
+  { &key_file_relaylog, "relaylog", 0},
+  { &key_file_relaylog_index, "relaylog_index", 0},
   { &key_file_casetest, "casetest", 0},
   { &key_file_dbopt, "dbopt", 0},
   { &key_file_des_key_file, "des_key_file", 0},
