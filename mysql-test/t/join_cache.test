@@ -3100,21 +3100,3 @@ DROP TABLE t1,t2;
 
 # this must be the last command in the file
 set @@optimizer_switch=@save_optimizer_switch;
-
---echo #
---echo # Bug #725050: print keyuse info when  hash join is used 
---echo #
-
-create table t1 (a int, b int);
-insert into t1 values (2,2), (1,1);
-create table t2 (a int);
-insert into t2 values (2), (3);
-
-set session join_cache_level=3;
-set @@debug = 'd:t:O,/tmp/trace.out';
-
-explain select t1.b from t1,t2 where t1.b=t2.a;
-select t1.b from t1,t2 where t1.b=t2.a;
-
-set session join_cache_level=default;
-drop table t1,t2;
