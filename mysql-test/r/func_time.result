@@ -136,7 +136,7 @@ dayname("1962-03-03")	dayname("1962-03-03")+0
 Saturday	5
 select monthname("1972-03-04"),monthname("1972-03-04")+0;
 monthname("1972-03-04")	monthname("1972-03-04")+0
-March	3
+March	0
 select time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T');
 time_format(19980131000000,'%H|%I|%k|%l|%i|%p|%r|%S|%T')
 00|12|0|12|00|AM|12:00:00 AM|00|00:00:00
@@ -1273,6 +1273,24 @@ date_add('1000-01-01 00:00:00', interval '1.03:02:01.05' day_microsecond)
 select date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond);
 date_add('1000-01-01 00:00:00', interval '1.02' day_microsecond)
 1000-01-01 00:00:01.020000
+#
+# Bug #52315 part 2 : utc_date() crashes when system time > year 2037
+#
+SET TIMESTAMP=-147490000;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483648;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483646;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=2147483647;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=0;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=-1;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=1;
+SELECT UTC_TIMESTAMP();
+SET TIMESTAMP=0;
 End of 5.0 tests
 select date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND);
 date_sub("0050-01-01 00:00:01",INTERVAL 2 SECOND)
@@ -1349,4 +1367,12 @@ NULL
 SELECT SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR);
 SUBDATE(STR_TO_DATE(NULL,0), INTERVAL 1 HOUR)
 NULL
+#
+# BUG#59895 - setting storage engine to null segfaults mysqld
+#
+SELECT MONTHNAME(0), MONTHNAME(0) IS NULL, MONTHNAME(0) + 1;
+MONTHNAME(0)	MONTHNAME(0) IS NULL	MONTHNAME(0) + 1
+NULL	1	NULL
+SET storage_engine=NULL;
+ERROR 42000: Variable 'storage_engine' can't be set to the value of 'NULL'
 #

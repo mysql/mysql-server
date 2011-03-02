@@ -1502,4 +1502,146 @@ WHERE 7;
 col_datetime_key
 NULL
 DROP TABLE BB;
+#
+# Bug#58490: Incorrect result in multi level OUTER JOIN
+# in combination with IS NULL
+#
+CREATE TABLE t1 (i INT NOT NULL);
+INSERT INTO t1 VALUES (0),    (2),(3),(4);
+CREATE TABLE t2 (i INT NOT NULL);
+INSERT INTO t2 VALUES (0),(1),    (3),(4);
+CREATE TABLE t3 (i INT NOT NULL);
+INSERT INTO t3 VALUES (0),(1),(2),    (4);
+CREATE TABLE t4 (i INT NOT NULL);
+INSERT INTO t4 VALUES (0),(1),(2),(3)   ;
+SELECT * FROM
+t1 LEFT JOIN
+( t2 LEFT JOIN
+( t3 LEFT JOIN
+t4
+ON t4.i = t3.i
+)
+ON t3.i = t2.i
+)
+ON t2.i = t1.i
+;
+i	i	i	i
+0	0	0	0
+2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
+SELECT * FROM
+t1 LEFT JOIN
+( t2 LEFT JOIN
+( t3 LEFT JOIN
+t4
+ON t4.i = t3.i
+)
+ON t3.i = t2.i
+)
+ON t2.i = t1.i
+WHERE t4.i IS NULL;
+i	i	i	i
+2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
+SELECT * FROM
+t1 LEFT JOIN
+( ( t2 LEFT JOIN
+t3
+ON t3.i = t2.i
+)
+)
+ON t2.i = t1.i
+WHERE t3.i IS NULL;
+i	i	i
+2	NULL	NULL
+3	3	NULL
+SELECT * FROM
+t1 LEFT JOIN
+( ( t2 LEFT JOIN
+t3
+ON t3.i = t2.i
+)
+JOIN t4
+ON t4.i=t2.i
+)
+ON t2.i = t1.i
+WHERE t3.i IS NULL;
+i	i	i	i
+2	NULL	NULL	NULL
+3	3	NULL	3
+4	NULL	NULL	NULL
+SELECT * FROM
+t1 LEFT JOIN
+( ( t2 LEFT JOIN
+t3
+ON t3.i = t2.i
+)
+JOIN (t4 AS t4a JOIN t4 AS t4b ON t4a.i=t4b.i)
+ON t4a.i=t2.i
+)
+ON t2.i = t1.i
+WHERE t3.i IS NULL;
+i	i	i	i	i
+2	NULL	NULL	NULL	NULL
+3	3	NULL	3	3
+4	NULL	NULL	NULL	NULL
+SELECT * FROM
+t1 LEFT JOIN
+( ( t2 LEFT JOIN
+t3
+ON t3.i = t2.i
+)
+JOIN (t4 AS t4a, t4 AS t4b)
+ON t4a.i=t2.i
+)
+ON t2.i = t1.i
+WHERE t3.i IS NULL;
+i	i	i	i	i
+2	NULL	NULL	NULL	NULL
+3	3	NULL	3	0
+3	3	NULL	3	1
+3	3	NULL	3	2
+3	3	NULL	3	3
+4	NULL	NULL	NULL	NULL
+DROP TABLE t1,t2,t3,t4;
+#
+# Bug#49322(Duplicate): Server is adding extra NULL row
+# on processing a WHERE clause
+#
+CREATE TABLE h (pk INT NOT NULL, col_int_key INT);
+INSERT INTO h VALUES (1,NULL),(4,2),(5,2),(3,4),(2,8);
+CREATE TABLE m (pk INT NOT NULL, col_int_key INT);
+INSERT INTO m VALUES (1,2),(2,7),(3,5),(4,7),(5,5),(6,NULL),(7,NULL),(8,9);
+CREATE TABLE k (pk INT NOT NULL, col_int_key INT);
+INSERT INTO k VALUES (1,9),(2,2),(3,5),(4,2),(5,7),(6,0),(7,5);
+SELECT TABLE1.pk FROM k TABLE1
+RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
+RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key;
+pk
+2
+4
+2
+4
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+SELECT TABLE1.pk FROM k TABLE1
+RIGHT JOIN h TABLE2 ON TABLE1.col_int_key=TABLE2.col_int_key
+RIGHT JOIN m TABLE4 ON TABLE2.col_int_key=TABLE4.col_int_key
+WHERE TABLE1.pk IS NULL;
+pk
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+DROP TABLE h,m,k;
 End of 5.1 tests

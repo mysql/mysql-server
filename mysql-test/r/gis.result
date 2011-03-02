@@ -960,6 +960,18 @@ COUNT(*)
 2
 DROP TABLE t1, t2;
 End of 5.0 tests
+#
+# Test for bug #58650 "Failing assertion: primary_key_no == -1 ||
+#                      primary_key_no == 0".
+#
+drop table if exists t1;
+# The minimal test case.
+create table t1 (a int not null, b linestring not null, unique key b (b(12)), unique key a (a));
+drop table t1;
+# The original test case.
+create table t1 (a int not null, b linestring not null, unique key b (b(12)));
+create unique index a on t1(a);
+drop table t1;
 create table `t1` (`col002` point)engine=myisam;
 insert into t1 values (),(),();
 select min(`col002`) from t1 union select `col002` from t1;
@@ -1021,6 +1033,14 @@ select * from (select polygon(t1.a) as p from t1 order by t1.a) d;
 p
 NULL
 NULL
+drop table t1;
+#
+# Test for bug #59888 "debug assertion when attempt to create spatial index
+#                      on char > 31 bytes".
+#
+create table t1(a char(32) not null) engine=myisam;
+create spatial index i on t1 (a);
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
 drop table t1;
 End of 5.1 tests
 CREATE TABLE t1(
