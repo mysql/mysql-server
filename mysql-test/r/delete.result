@@ -524,3 +524,26 @@ DELETE v2 FROM v2;
 ERROR HY000: Can not delete from join view 'test.v2'
 DROP VIEW v2, v1;
 DROP TABLE t1, t2;
+#
+# Bug#58709 assert in mysql_execute_command
+#
+DROP TABLE IF EXISTS t2, t1;
+DROP PROCEDURE IF EXISTS p1;
+CREATE TABLE t1 (i INT PRIMARY KEY) engine=InnoDB;
+CREATE TABLE t2 (i INT, FOREIGN KEY (i) REFERENCES t1 (i) ON DELETE NO ACTION) engine=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+DELETE IGNORE FROM t1 WHERE i = 1;
+Warnings:
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+CREATE PROCEDURE p1() DELETE IGNORE FROM t1 WHERE i = 1;
+CALL p1();
+Warnings:
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+PREPARE stm FROM 'CALL p1()';
+EXECUTE stm;
+Warnings:
+Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+DEALLOCATE PREPARE stm;
+DROP TABLE t2, t1;
+DROP PROCEDURE p1;

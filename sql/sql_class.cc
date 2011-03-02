@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA */
 
 
 /*****************************************************************************
@@ -498,7 +498,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
-THD::THD()
+THD::THD(bool enable_plugins)
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
@@ -527,6 +527,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+   m_enable_plugins(enable_plugins),
    main_warning_info(0)
 {
   ulong tmp;
@@ -928,7 +929,7 @@ extern "C"   THD *_current_thd_noinline(void)
 void THD::init(void)
 {
   mysql_mutex_lock(&LOCK_global_system_variables);
-  plugin_thdvar_init(this);
+  plugin_thdvar_init(this, m_enable_plugins);
   /*
     variables= global_system_variables above has reset
     variables.pseudo_thread_id to 0. We need to correct it here to
@@ -1102,7 +1103,8 @@ THD::~THD()
   mdl_context.destroy();
   ha_close_connection(this);
   mysql_audit_release(this);
-  plugin_thdvar_cleanup(this);
+  if (m_enable_plugins)
+    plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
@@ -1455,6 +1457,11 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+  /* reset replication info structure */
+  if (lex && lex->mi.repl_ignore_server_ids.buffer) 
+  {
+    delete_dynamic(&lex->mi.repl_ignore_server_ids);
+  }
 }
 
 
@@ -2555,26 +2562,24 @@ bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       val1 > val2);
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     val1 < val2);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
 bool select_max_min_finder_subselect::cmp_decimal()
@@ -2582,13 +2587,14 @@ bool select_max_min_finder_subselect::cmp_decimal()
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       my_decimal_cmp(cvalue, mvalue) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     my_decimal_cmp(cvalue,mvalue) < 0);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) 
+      ? (my_decimal_cmp(cvalue,mvalue) > 0)
+      : (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
 bool select_max_min_finder_subselect::cmp_str()
@@ -2601,13 +2607,14 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
-  if (fmax)
-    return (cache->null_value && !maxmin->null_value) ||
-      (!cache->null_value && !maxmin->null_value &&
-       sortcmp(val1, val2, cache->collation.collation) > 0) ;
-  return (maxmin->null_value && !cache->null_value) ||
-    (!cache->null_value && !maxmin->null_value &&
-     sortcmp(val1, val2, cache->collation.collation) < 0);
+  if (cache->null_value)
+    return false;
+  else if (maxmin->null_value)
+    return true;
+  else 
+    return (fmax) 
+      ? (sortcmp(val1, val2, cache->collation.collation) > 0)
+      : (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 bool select_exists_subselect::send_data(List<Item> &items)

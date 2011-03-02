@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software 
+   Foundation, Inc.,  51 Franklin Street, Fifth Floor, Boston, 
+   MA 02110-1301 USA */
 
 
 /* A lexical scanner on a temporary buffer with a yacc interface */
@@ -2013,12 +2014,13 @@ bool st_select_lex_node::inc_in_sum_expr()           { return 1; }
 uint st_select_lex_node::get_in_sum_expr()           { return 0; }
 TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
 List<Item>* st_select_lex_node::get_item_list()      { return 0; }
-TABLE_LIST *st_select_lex_node::add_table_to_list (THD *thd, Table_ident *table,
+TABLE_LIST *st_select_lex_node::add_table_to_list(THD *thd, Table_ident *table,
 						  LEX_STRING *alias,
 						  ulong table_join_options,
 						  thr_lock_type flags,
                                                   enum_mdl_type mdl_type,
 						  List<Index_hint> *hints,
+                                                  List<String> *partition_names,
                                                   LEX_STRING *option)
 {
   return 0;
@@ -2366,6 +2368,7 @@ LEX::LEX()
                          plugins_static_buffer,
                          INITIAL_LEX_PLUGIN_LIST_SIZE, 
                          INITIAL_LEX_PLUGIN_LIST_SIZE);
+  memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
 }
 
