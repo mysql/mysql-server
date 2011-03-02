@@ -881,7 +881,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       */
       query_cache_invalidate3(thd, table_list, 1);
     }
-    if ((changed && error <= 0) ||
+    if (error <= 0 ||
         thd->transaction.stmt.modified_non_trans_table ||
         was_insert_delayed)
     {
