@@ -6,7 +6,6 @@ binlog.binlog_multi_engine               # joro : NDB tests marked as experiment
 funcs_1.charset_collation_1              # depends on compile-time decisions
 
 main.func_math @freebsd                  # Bug#43020 2010-05-04 alik main.func_math fails on FreeBSD in PB2
-main.gis                                 # Bug#52208 2010-11-24 alik gis fails on some platforms (Solaris, HP-UX, Linux)
 main.gis-rtree @freebsd                  # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
@@ -15,14 +14,17 @@ main.sp @solaris                         # Bug#47791 2010-01-20 alik Several tes
 main.type_float @freebsd                 # Bug#38965 2010-05-04 alik test cases gis-rtree, type_float, type_newdecimal fail in embedded server
 main.wait_timeout @solaris               # Bug#51244 2010-04-26 alik wait_timeout fails on OpenSolaris
 
-rpl.rpl_heartbeat_basic                  # BUG#54820 2010-06-26 alik rpl.rpl_heartbeat_basic fails sporadically again
-rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430                  # Bug#46029
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 sys_vars.plugin_dir_basic                     # Bug#52223 2010-11-24 alik Test "plugin_dir_basic" does not support RPM build (test) directory structure
 sys_vars.slow_query_log_func @solaris         # Bug#54819 2010-06-26 alik sys_vars.slow_query_log_func fails sporadically on Solaris 10
 sys_vars.wait_timeout_func                    # Bug#41255 2010-04-26 alik wait_timeout_func fails
+sys_vars.sys_vars # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_enabled_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_timeout_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_trace_level_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+sys_vars.rpl_semi_sync_master_wait_no_slave_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
 
 # BUG #59055 : All ndb tests should be removed from the repository
 # Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests

@@ -9,7 +9,7 @@ change master to master_log_pos=MASTER_LOG_POS;
 Read_Master_Log_Pos = '75'
 start slave;
 include/wait_for_slave_io_error.inc [errno=1236]
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'binlog truncated in the middle of event''
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master''
 include/stop_slave_sql.inc
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB

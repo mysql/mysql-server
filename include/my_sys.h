@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,7 +104,7 @@ typedef struct my_aio_result {
 #define ME_HOLDTANG	8	/* Don't delete last keys */
 #define ME_WAITTOT	16	/* Wait for errtime secs of for a action */
 #define ME_WAITTANG	32	/* Wait for a user action  */
-#define ME_NOREFRESH	64	/* Dont refresh screen */
+#define ME_NOREFRESH	64	/* Write the error message to error log */
 #define ME_NOINPUT	128	/* Dont use the input libary */
 #define ME_COLOUR1	((1 << ME_HIGHBYTE))	/* Possibly error-colours */
 #define ME_COLOUR2	((2 << ME_HIGHBYTE))
@@ -641,7 +641,6 @@ extern int my_error_register(const char** (*get_errmsgs) (),
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
-extern my_bool my_basic_init(void);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);

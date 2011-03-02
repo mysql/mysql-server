@@ -776,7 +776,7 @@ int set_var_password::update(THD *thd)
 int set_var_collation_client::check(THD *thd)
 {
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (character_set_client->mbminlen > 1)
+  if (!is_supported_parser_charset(character_set_client))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
              character_set_client->csname);

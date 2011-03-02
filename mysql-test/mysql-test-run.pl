@@ -191,6 +191,7 @@ my $opt_view_protocol;
 our $opt_debug;
 my $debug_d= "d";
 my $opt_debug_common;
+our $opt_debug_server;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
 
@@ -979,6 +980,7 @@ sub command_line_setup {
              # Debugging
              'debug'                    => \$opt_debug,
              'debug-common'             => \$opt_debug_common,
+             'debug-server'             => \$opt_debug_server,
              'gdb'                      => \$opt_gdb,
              'client-gdb'               => \$opt_client_gdb,
              'manual-gdb'               => \$opt_manual_gdb,
@@ -1134,6 +1136,9 @@ sub command_line_setup {
                                     "$basedir/share/charsets");
 
   ($auth_plugin)= find_plugin("auth_test_plugin", "plugin/auth");
+
+  # --debug[-common] implies we run debug server
+  $opt_debug_server= 1 if $opt_debug || $opt_debug_common;
 
   if (using_extern())
   {
@@ -1555,12 +1560,6 @@ sub command_line_setup {
     $debug_d= "d,query,info,error,enter,exit";
   }
 
-  if ($opt_debug && $opt_debug ne "1")
-  {
-    $debug_d= "d,$opt_debug";
-    $debug_d= "d,query,info,error,enter,exit" if $opt_debug eq "std";
-  }
-
   mtr_report("Checking supported features...");
 
   check_ndbcluster_support(\%mysqld_variables);
@@ -1787,7 +1786,7 @@ sub find_mysqld {
   my @mysqld_names= ("mysqld", "mysqld-max-nt", "mysqld-max",
 		     "mysqld-nt");
 
-  if ( $opt_debug ){
+  if ( $opt_debug_server ){
     # Put mysqld-debug first in the list of binaries to look for
     mtr_verbose("Adding mysqld-debug first in list of binaries to look for");
     unshift(@mysqld_names, "mysqld-debug");
@@ -1884,9 +1883,12 @@ sub executable_setup () {
 sub client_debug_arg($$) {
   my ($args, $client_name)= @_;
 
+  # Workaround for Bug #50627: drop any debug opt
+  return if $client_name =~ /^mysqlbinlog/;
+
   if ( $opt_debug ) {
     mtr_add_arg($args,
-		"--debug=$debug_d:t:A,%s/log/%s.trace",
+		"--loose-debug=$debug_d:t:A,%s/log/%s.trace",
 		$path_vardir_trace, $client_name)
   }
 }
@@ -2013,8 +2015,8 @@ sub read_plugin_defs($)
     or mtr_error("Can't read plugin defintions file $defs_file");
 
   # Need to check if we will be running mysqld-debug
-  if ($opt_debug) {
-    $running_debug= 1 if find_mysqld($basedir) =~ /-debug$/;
+  if ($opt_debug_server) {
+    $running_debug= 1 if find_mysqld($basedir) =~ /mysqld-debug/;
   }
 
   while (<PLUGDEF>) {
@@ -2158,8 +2160,19 @@ sub environment_setup {
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
+  $ENV{'MYSQL_BINDIR'}=       "$bindir";
   $ENV{'MYSQL_SHAREDIR'}=     $path_language;
   $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
+  
+  if (IS_WINDOWS)
+  {
+    $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
+  }
+  else
+  {
+    $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
+  }
+    
 
   # ----------------------------------------------------
   # Setup env for NDB
@@ -2513,9 +2526,9 @@ sub check_debug_support ($) {
     #mtr_report(" - binaries are not debug compiled");
     $debug_compiled_binaries= 0;
 
-    if ( $opt_debug )
+    if ( $opt_debug_server )
     {
-      mtr_error("Can't use --debug, binaries does not support it");
+      mtr_error("Can't use --debug[-server], binary does not support it");
     }
     return;
   }
@@ -5757,6 +5770,8 @@ Options for debugging the product
   debug                 Dump trace output for all servers and client programs
   debug-common          Same as debug, but sets 'd' debug flags to
                         "query,info,error,enter,exit"
+  debug-server          Use debug version of server, but without turning on
+                        tracing
   debugger=NAME         Start mysqld in the selected debugger
   gdb                   Start the mysqld(s) in gdb
   manual-debug          Let user manually start mysqld in debugger, before

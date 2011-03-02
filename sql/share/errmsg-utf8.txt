@@ -897,7 +897,7 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         cze "M-Bálo paměti pro třídění. Zvyšte velikost třídícího bufferu"
         dan "Ikke mere sorteringshukommelse. Øg sorteringshukommelse (sort buffer size) for serveren"
         nla "Geen geheugen om te sorteren. Verhoog de server sort buffer size"
-        eng "Out of sort memory; increase server sort buffer size"
+        eng "Out of sort memory, consider increasing server sort buffer size"
         jps "Out of sort memory. sort buffer size が足りないようです.",
         est "Mälu sai sorteerimisel otsa. Suurenda MySQL-i sorteerimispuhvrit"
         fre "Manque de mémoire pour le tri. Augmentez-la."
@@ -907,10 +907,10 @@ ER_OUT_OF_SORTMEMORY HY001 S1001
         ita "Memoria per gli ordinamenti esaurita. Incrementare il 'sort_buffer' al demone"
         jpn "Out of sort memory. sort buffer size が足りないようです."
         kor "Out of sort memory. daemon sort buffer의 크기를 증가시키세요"
-        nor "Ikke mer sorteringsminne. Øk sorteringsminnet (sort buffer size) for tjenesten"
-        norwegian-ny "Ikkje meir sorteringsminne. Auk sorteringsminnet (sorteringsbffer storleik) for tenesten"
+        nor "Ikke mer sorteringsminne. Vurder å øke sorteringsminnet (sort buffer size) for tjenesten"
+        norwegian-ny "Ikkje meir sorteringsminne. Vurder å auke sorteringsminnet (sorteringsbuffer storleik) for tenesten"
         pol "Zbyt mało pamięci dla sortowania. Zwiększ wielko?ć bufora demona dla sortowania"
-        por "Sem memória para ordenação. Aumente tamanho do 'buffer' de ordenação"
+        por "Não há memória suficiente para ordenação. Considere aumentar o tamanho do retentor (buffer) de ordenação."
         rum "Out of memory pentru sortare. Largeste marimea buffer-ului pentru sortare in daemon (sort buffer size)"
         rus "Недостаточно памяти для сортировки. Увеличьте размер буфера сортировки на сервере"
         serbian "Nema memorije za sortiranje. Povećajte veličinu sort buffer-a MySQL server-u"
@@ -6394,3 +6394,6 @@ ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
 
 ER_STMT_CACHE_FULL  
         eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"
+
+ER_MULTI_UPDATE_KEY_CONFLICT
+  eng "Primary key/partition key update is not allowed since the table is updated both as '%-.192s' and '%-.192s'."
