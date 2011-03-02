@@ -59,7 +59,7 @@ main(void)
 
     /* Decode */
     dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));
-    dst_len= base64_decode(str, strlen(str), dst, NULL);
+    dst_len= base64_decode(str, strlen(str), dst, NULL, 0);
     ok(dst_len == src_len, "Comparing lengths");
 
     cmp= memcmp(src, dst, src_len);

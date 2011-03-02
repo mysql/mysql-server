@@ -40,4 +40,11 @@ int check_user(THD *thd, enum enum_server_command command,
 	       const char *passwd, uint passwd_len, const char *db,
 	       bool check_count);
 
+bool login_connection(THD *thd);
+void prepare_new_connection_state(THD* thd);
+void end_connection(THD *thd);
+int get_or_create_user_conn(THD *thd, const char *user,
+                            const char *host, const USER_RESOURCES *mqh);
+int check_for_max_user_connections(THD *thd, USER_CONN *uc);
+
 #endif /* SQL_CONNECT_INCLUDED */

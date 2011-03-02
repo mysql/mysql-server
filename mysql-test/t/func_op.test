@@ -28,6 +28,7 @@ create table t1(a int);
 create table t2(a int, b int);
 insert into t1 values (1), (2), (3);
 insert into t2 values (1, 7), (3, 7);
+--sorted_result
 select t1.a, t2.a, t2.b, bit_count(t2.b) from t1 left join t2 on t1.a=t2.a;
 drop table t1, t2;
 

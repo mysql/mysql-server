@@ -1,0 +1,36 @@
+-- source include/master-slave.inc
+-- source include/have_binlog_format_row.inc
+-- source include/have_innodb.inc
+
+#
+#  BUG#53643: assert in Field_new_decimal::store_value on slave server
+#
+
+CREATE TABLE t0 ( col1 INT NOT NULL, col2 INT ) ENGINE=InnoDB;
+INSERT INTO t0 (col1,col2) VALUES (4,7),(4,8);
+
+-- sync_slave_with_master
+-- connection master
+
+CREATE TABLE t1 (col3 DECIMAL(35,0) DEFAULT NULL, 
+                 col1 INT NOT NULL, 
+                 col2 INT NOT NULL DEFAULT '0', 
+                 PRIMARY KEY (col1)) 
+  ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+
+SET SESSION BINLOG_ROW_IMAGE = minimal;
+
+# This statement would lead to an assert on slave
+REPLACE INTO t1 ( col1,col2) SELECT col1,col2 FROM t0;
+
+-- sync_slave_with_master
+-- connection master
+
+-- let $diff_tables= master:t0, slave:t0
+-- source include/diff_tables.inc
+
+-- let $diff_tables= master:t1, slave:t1
+-- source include/diff_tables.inc
+
+DROP TABLE t0, t1;
+--source include/rpl_end.inc

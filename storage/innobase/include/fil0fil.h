@@ -142,6 +142,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_BLOB	10	/*!< Uncompressed BLOB page */
 #define FIL_PAGE_TYPE_ZBLOB	11	/*!< First compressed BLOB page */
 #define FIL_PAGE_TYPE_ZBLOB2	12	/*!< Subsequent compressed BLOB page */
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_ZBLOB2
+					/*!< Last page type */
 /* @} */
 
 /** Space types @{ */
@@ -719,6 +721,14 @@ fil_page_get_type(
 /*==============*/
 	const byte*	page);	/*!< in: file page */
 
+/*******************************************************************//**
+Returns TRUE if a single-table tablespace is being deleted.
+@return TRUE if being deleted */
+UNIV_INTERN
+ibool
+fil_tablespace_is_being_deleted(
+/*============================*/
+	ulint		id);	/*!< in: space id */
 
 typedef	struct fil_space_struct	fil_space_t;
 

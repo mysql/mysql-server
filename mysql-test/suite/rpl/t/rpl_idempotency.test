@@ -34,10 +34,7 @@ SELECT * FROM t2 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+--source include/check_slave_no_error.inc
 
 # An insert of a row that already exists. Since we are replacing the
 # row if it already exists, the most apropriate representation is
@@ -50,10 +47,7 @@ INSERT IGNORE INTO t1 VALUES (-2);
 SELECT * FROM t1 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+--source include/check_slave_no_error.inc
 
 
 # BUG#19958: RBR idempotency issue for UPDATE and DELETE
@@ -78,13 +72,12 @@ SELECT * FROM t2 ORDER BY a;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
-let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
-disable_query_log;
-eval SELECT "$last_error" AS Last_SQL_Error;
-enable_query_log;
+--source include/check_slave_no_error.inc
 
 connection master;
 DROP TABLE t1, t2;
 sync_slave_with_master;
 
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
+
+--source include/rpl_end.inc

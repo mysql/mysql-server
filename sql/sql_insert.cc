@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,9 +75,11 @@
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "sql_audit.h"
+#include "debug_sync.h"
 
 #ifndef EMBEDDED_LIBRARY
-static bool delayed_get_table(THD *thd, TABLE_LIST *table_list);
+static bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
+                              TABLE_LIST *table_list);
 static int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
                          LEX_STRING query, bool ignore, bool log_on);
 static void end_delayed_insert(THD *thd);
@@ -419,8 +421,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
 
 static
 void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
-                       enum_duplicates duplic,
-                       bool is_multi_insert)
+                       enum_duplicates duplic)
 {
   if (duplic == DUP_UPDATE ||
       (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT))
@@ -469,10 +470,9 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
       return;
     }
 
-    bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG ||
-                  ! (thd->security_ctx->master_access & SUPER_ACL));
+    bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG);
     if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT &&
-        log_on && mysql_bin_log.is_open() && is_multi_insert)
+        log_on && mysql_bin_log.is_open())
     {
       /*
         Statement-based binary logging does not work in this case, because:
@@ -529,32 +529,28 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
 static
 bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 {
+  MDL_request protection_request;
   DBUG_ENTER("open_and_lock_for_insert_delayed");
 
 #ifndef EMBEDDED_LIBRARY
-  if (thd->locked_tables_mode && thd->global_read_lock.is_acquired())
-  {
-    /*
-      If this connection has the global read lock, the handler thread
-      will not be able to lock the table. It will wait for the global
-      read lock to go away, but this will never happen since the
-      connection thread will be stuck waiting for the handler thread
-      to open and lock the table.
-      If we are not in locked tables mode, INSERT will seek protection
-      against the global read lock (and fail), thus we will only get
-      to this point in locked tables mode.
-    */
-    my_error(ER_CANT_UPDATE_WITH_READLOCK, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-
   /*
     In order for the deadlock detector to be able to find any deadlocks
-    caused by the handler thread locking this table, we take the metadata
-    lock inside the connection thread. If this goes ok, the ticket is cloned
-    and added to the list of granted locks held by the handler thread.
+    caused by the handler thread waiting for GRL or this table, we acquire
+    protection against GRL (global IX metadata lock) and metadata lock on
+    table to being inserted into inside the connection thread.
+    If this goes ok, the tickets are cloned and added to the list of granted
+    locks held by the handler thread.
   */
-  MDL_ticket *mdl_savepoint= thd->mdl_context.mdl_savepoint();
+  if (thd->global_read_lock.can_acquire_protection())
+    DBUG_RETURN(TRUE);
+
+  protection_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                          MDL_STATEMENT);
+
+  if (thd->mdl_context.acquire_lock(&protection_request,
+                                    thd->variables.lock_wait_timeout))
+    DBUG_RETURN(TRUE);
+
   if (thd->mdl_context.acquire_lock(&table_list->mdl_request,
                                     thd->variables.lock_wait_timeout))
     /*
@@ -563,17 +559,8 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     */
     DBUG_RETURN(TRUE);
 
-  /*
-    If a lock was acquired above, we should release it after delayed_get_table()
-    has cloned the ticket for the handler thread. Note that acquire_lock() can
-    succeed because of a lock already held by the connection. In this case we
-    should not release it here.
-  */
-  MDL_ticket *table_ticket = mdl_savepoint == thd->mdl_context.mdl_savepoint() ?
-    NULL: thd->mdl_context.mdl_savepoint();
-
   bool error= FALSE;
-  if (delayed_get_table(thd, table_list))
+  if (delayed_get_table(thd, &protection_request, table_list))
     error= TRUE;
   else if (table_list->table)
   {
@@ -597,12 +584,18 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
     }
   }
 
-  if (table_ticket)
-    thd->mdl_context.release_lock(table_ticket);
   /*
-    Clone_ticket() in delayed_get_table() causes TABLE_LIST::MDL_REQUEST::ticket
-    to be overwritten with the cloned ticket. Reset the ticket here in case
-    we end up having to use normal insert.
+    We can't release protection against GRL and metadata lock on the table
+    being inserted into here. These locks might be required, for example,
+    because this INSERT DELAYED calls functions which may try to update
+    this or another tables (updating the same table is of course illegal,
+    but such an attempt can be discovered only later during statement
+    execution).
+  */
+
+  /*
+    Reset the ticket in case we end up having to use normal insert and
+    therefore will reopen the table and reacquire the metadata lock.
   */
   table_list->mdl_request.ticket= NULL;
 
@@ -620,6 +613,30 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
   */
   table_list->lock_type= TL_WRITE;
   DBUG_RETURN(open_and_lock_tables(thd, table_list, TRUE, 0));
+}
+
+
+/**
+  Create a new query string for removing DELAYED keyword for
+  multi INSERT DEALAYED statement.
+
+  @param[in] thd                 Thread handler
+  @param[in] buf                 Query string
+
+  @return
+             0           ok
+             1           error
+*/
+static int
+create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
+{
+  /* Make a copy of thd->query() and then remove the "DELAYED" keyword */
+  if (buf->append(thd->query()) ||
+      buf->replace(thd->lex->keyword_delayed_begin_offset,
+                   thd->lex->keyword_delayed_end_offset -
+                   thd->lex->keyword_delayed_begin_offset, 0))
+    return 1;
+  return 0;
 }
 
 
@@ -659,8 +676,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-bin).
   */
-  bool log_on= ((thd->variables.option_bits & OPTION_BIN_LOG) ||
-                (!(thd->security_ctx->master_access & SUPER_ACL)));
+  bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG);
 #endif
   thr_lock_type lock_type;
   Item *unused_conds= 0;
@@ -670,8 +686,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     Upgrade lock type if the requested lock is incompatible with
     the current connection mode or table operation.
   */
-  upgrade_lock_type(thd, &table_list->lock_type, duplic,
-                    values_list.elements > 1);
+  upgrade_lock_type(thd, &table_list->lock_type, duplic);
 
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
@@ -781,7 +796,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
+      rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
     goto abort;
 #endif
 
@@ -906,7 +921,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (lock_type == TL_WRITE_DELAYED)
     {
       LEX_STRING const st_query = { query, thd->query_length() };
+      DEBUG_SYNC(thd, "before_write_delayed");
       error=write_delayed(thd, table, duplic, st_query, ignore, log_on);
+      DEBUG_SYNC(thd, "after_write_delayed");
       query=0;
     }
     else
@@ -1002,13 +1019,28 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	such case the flag is ignored for constructing binlog event.
 	*/
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-	if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			      thd->query(), thd->query_length(),
-			      transactional_table, FALSE, FALSE,
-                              errcode))
+        if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
         {
+          /* Binlog INSERT DELAYED as INSERT without DELAYED. */
+          String log_query;
+          if (create_insert_stmt_from_insert_delayed(thd, &log_query))
+          {
+            sql_print_error("Event Error: An error occurred while creating query string"
+                            "for INSERT DELAYED stmt, before writing it into binary log.");
+
+            error= 1;
+          }
+          else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                                     log_query.c_ptr(), log_query.length(),
+                                     transactional_table, FALSE, FALSE,
+                                     errcode))
+            error= 1;
+        }
+        else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+			           thd->query(), thd->query_length(),
+			           transactional_table, FALSE, FALSE,
+                                   errcode))
 	  error= 1;
-	}
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
@@ -1285,7 +1317,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           TABLE *table, List<Item> &fields, List_item *values,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
-                          COND **where, bool select_insert,
+                          Item **where, bool select_insert,
                           bool check_fields, bool abort_on_warning)
 {
   SELECT_LEX *select_lex= &thd->lex->select_lex;
@@ -1584,9 +1616,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           table->file->adjust_next_insert_id_after_explicit_value(
             table->next_number_field->val_int());
         info->touched++;
-        if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ &&
-             !bitmap_is_subset(table->write_set, table->read_set)) ||
-            compare_record(table))
+        if (!records_are_comparable(table) || compare_records(table))
         {
           if ((error=table->file->ha_update_row(table->record[1],
                                                 table->record[0])) &&
@@ -1798,10 +1828,11 @@ public:
   char *record;
   enum_duplicates dup;
   time_t start_time;
-  ulong sql_mode;
+  sql_mode_t sql_mode;
   bool auto_increment_field_not_null;
-  bool query_start_used, ignore, log_query;
+  bool query_start_used, ignore, log_query, binlog_rows_query_log_events;
   bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
+  MY_BITMAP write_set;
   ulonglong first_successful_insert_id_in_prev_stmt;
   ulonglong forced_insert_id;
   ulong auto_increment_increment;
@@ -1813,12 +1844,16 @@ public:
   delayed_row(LEX_STRING const query_arg, enum_duplicates dup_arg,
               bool ignore_arg, bool log_query_arg)
     : record(0), dup(dup_arg), ignore(ignore_arg), log_query(log_query_arg),
+      binlog_rows_query_log_events(FALSE),
       forced_insert_id(0), query(query_arg), time_zone(0)
-    {}
+    {
+      write_set.bitmap= NULL;
+    }
   ~delayed_row()
   {
     my_free(query.str);
     my_free(record);
+    my_free(write_set.bitmap);
   }
 };
 
@@ -1839,38 +1874,42 @@ public:
   mysql_cond_t cond, cond_client;
   volatile uint tables_in_use,stacked_inserts;
   volatile bool status;
+  /**
+    When the handler thread starts, it clones a metadata lock ticket
+    which protects against GRL and ticket for the table to be inserted.
+    This is done to allow the deadlock detector to detect deadlocks
+    resulting from these locks.
+    Before this is done, the connection thread cannot safely exit
+    without causing problems for clone_ticket().
+    Once handler_thread_initialized has been set, it is safe for the
+    connection thread to exit.
+    Access to handler_thread_initialized is protected by di->mutex.
+  */
+  bool handler_thread_initialized;
   COPY_INFO info;
   I_List<delayed_row> rows;
   ulong group_count;
   TABLE_LIST table_list;			// Argument
+  /**
+    Request for IX metadata lock protecting against GRL which is
+    passed from connection thread to the handler thread.
+  */
+  MDL_request grl_protection;
 
   Delayed_insert()
-    :locks_in_memory(0),
-     table(0),tables_in_use(0),stacked_inserts(0), status(0), group_count(0)
+    :locks_in_memory(0), table(0),tables_in_use(0),stacked_inserts(0),
+     status(0), handler_thread_initialized(FALSE), group_count(0)
   {
     DBUG_ENTER("Delayed_insert constructor");
-    thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
+    thd.security_ctx->user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
+    strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
+            USERNAME_LENGTH);
     thd.current_tablenr=0;
-    thd.command=COM_DELAYED_INSERT;
+    thd.set_command(COM_DELAYED_INSERT);
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
-    /*
-      Statement-based replication of INSERT DELAYED has problems with
-      RAND() and user variables, so in mixed mode we go to row-based.
-      For normal commands, the unsafe flag is set at parse time.
-      However, since the flag is a member of the THD object, of which
-      the delayed_insert thread has its own copy, we must set the
-      statement to unsafe here and explicitly set row logging mode.
 
-      @todo set_current_stmt_binlog_format_row_if_mixed should not be
-      called by anything else than thd->decide_logging_format().  When
-      we call set_current_blah here, none of the checks in
-      decide_logging_format is made.  We should probably call
-      thd->decide_logging_format() directly instead.  /Sven
-    */
-    thd.lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
-    thd.set_current_stmt_binlog_format_row_if_mixed();
     /*
       Prevent changes to global.lock_wait_timeout from affecting
       delayed insert threads as any timeouts in delayed inserts
@@ -2019,7 +2058,8 @@ Delayed_insert *find_handler(THD *thd, TABLE_LIST *table_list)
 */
 
 static
-bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
+bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
+                       TABLE_LIST *table_list)
 {
   int error;
   Delayed_insert *di;
@@ -2052,7 +2092,8 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       mysql_mutex_unlock(&LOCK_thread_count);
       di->thd.set_db(table_list->db, (uint) strlen(table_list->db));
       di->thd.set_query(my_strdup(table_list->table_name,
-                                  MYF(MY_WME | ME_FATALERROR)), 0);
+                                  MYF(MY_WME | ME_FATALERROR)),
+                        0, system_charset_info);
       if (di->thd.db == NULL || di->thd.query() == NULL)
       {
         /* The error is reported */
@@ -2063,19 +2104,12 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
       /* Replace volatile strings with local copies */
       di->table_list.alias= di->table_list.table_name= di->thd.query();
       di->table_list.db= di->thd.db;
-
-      /*
-        Clone the ticket representing the lock on the target table for
-        the insert and add it to the list of granted metadata locks held by
-        the handler thread. This is safe since the handler thread is
-        not holding nor waiting on any metadata locks.
-      */
-      if (di->thd.mdl_context.clone_ticket(&table_list->mdl_request))
-      {
-        delete di;
-        my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-        goto end_create;
-      }
+      /* We need the tickets so that they can be cloned in handle_delayed_insert */
+      di->grl_protection.init(MDL_key::GLOBAL, "", "",
+                              MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
+      di->grl_protection.ticket= grl_protection_request->ticket;
+      init_mdl_requests(&di->table_list);
+      di->table_list.mdl_request.ticket= table_list->mdl_request.ticket;
 
       di->lock();
       mysql_mutex_lock(&di->mutex);
@@ -2088,15 +2122,20 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
 		    error));
         mysql_mutex_unlock(&di->mutex);
 	di->unlock();
-        di->thd.mdl_context.release_lock(table_list->mdl_request.ticket);
 	delete di;
 	my_error(ER_CANT_CREATE_THREAD, MYF(ME_FATALERROR), error);
         goto end_create;
       }
 
-      /* Wait until table is open */
+      /*
+        Wait until table is open unless the handler thread or the connection
+        thread has been killed. Note that we in all cases must wait until the
+        handler thread has been properly initialized before exiting. Otherwise
+        we risk doing clone_ticket() on a ticket that is no longer valid.
+      */
       thd_proc_info(thd, "waiting for handler open");
-      while (!di->thd.killed && !di->table && !thd->killed)
+      while (!di->handler_thread_initialized ||
+             (!di->thd.killed && !di->table && !thd->killed))
       {
         mysql_cond_wait(&di->cond_client, &di->mutex);
       }
@@ -2203,7 +2242,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
         The thread could be killed with an error message if
         di->handle_inserts() or di->open_and_lock_table() fails.
         The thread could be killed without an error message if
-        killed using mysql_notify_thread_having_shared_lock() or
+        killed using THD::notify_shared_lock() or
         kill_delayed_threads_for_table().
       */
       if (!thd.is_error() || thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
@@ -2302,6 +2341,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
 {
   delayed_row *row= 0;
   Delayed_insert *di=thd->di;
+  my_bitmap_map *bitmaps;
   const Discrete_interval *forced_auto_inc;
   DBUG_ENTER("write_delayed");
   DBUG_PRINT("enter", ("query = '%s' length %lu", query.str,
@@ -2371,6 +2411,7 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
   row->auto_increment_offset=    thd->variables.auto_increment_offset;
   row->sql_mode=                 thd->variables.sql_mode;
   row->auto_increment_field_not_null= table->auto_increment_field_not_null;
+  row->binlog_rows_query_log_events= thd->variables.binlog_rows_query_log_events;
 
   /* Copy the next forced auto increment value, if any. */
   if ((forced_auto_inc= thd->auto_inc_intervals_forced.get_next()))
@@ -2379,6 +2420,15 @@ int write_delayed(THD *thd, TABLE *table, enum_duplicates duplic,
     DBUG_PRINT("delayed", ("transmitting auto_inc: %lu",
                            (ulong) row->forced_insert_id));
   }
+  
+  /*
+    Since insert delayed has its own thread and table, we
+    need to copy the user thread session write_set.
+  */
+  bitmaps= (my_bitmap_map*) my_malloc(bitmap_buffer_size(table->write_set->n_bits), MYF(0));
+  bitmap_init(&row->write_set, bitmaps, table->write_set->n_bits, FALSE);
+  bitmap_clear_all(&row->write_set);
+  bitmap_union(&row->write_set, table->write_set);
 
   di->rows.push_back(row);
   di->stacked_inserts++;
@@ -2452,6 +2502,65 @@ void kill_delayed_threads(void)
 
 
 /**
+  A strategy for the prelocking algorithm which prevents the
+  delayed insert thread from opening tables with engines which
+  do not support delayed inserts.
+
+  Particularly it allows to abort open_tables() as soon as we
+  discover that we have opened a MERGE table, without acquiring
+  metadata locks on underlying tables.
+*/
+
+class Delayed_prelocking_strategy : public Prelocking_strategy
+{
+public:
+  virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+                              Sroutine_hash_entry *rt, sp_head *sp,
+                              bool *need_prelocking);
+  virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+                            TABLE_LIST *table_list, bool *need_prelocking);
+  virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+                           TABLE_LIST *table_list, bool *need_prelocking);
+};
+
+
+bool Delayed_prelocking_strategy::
+handle_table(THD *thd, Query_tables_list *prelocking_ctx,
+             TABLE_LIST *table_list, bool *need_prelocking)
+{
+  DBUG_ASSERT(table_list->lock_type == TL_WRITE_DELAYED);
+
+  if (!(table_list->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
+  {
+    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), table_list->table_name);
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
+bool Delayed_prelocking_strategy::
+handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
+               Sroutine_hash_entry *rt, sp_head *sp,
+               bool *need_prelocking)
+{
+  /* LEX used by the delayed insert thread has no routines. */
+  DBUG_ASSERT(0);
+  return FALSE;
+}
+
+
+bool Delayed_prelocking_strategy::
+handle_view(THD *thd, Query_tables_list *prelocking_ctx,
+            TABLE_LIST *table_list, bool *need_prelocking)
+{
+  /* We don't open views in the delayed insert thread. */
+  DBUG_ASSERT(0);
+  return FALSE;
+}
+
+
+/**
    Open and lock table for use by delayed thread and check that
    this table is suitable for delayed inserts.
 
@@ -2461,21 +2570,21 @@ void kill_delayed_threads(void)
 
 bool Delayed_insert::open_and_lock_table()
 {
+  Delayed_prelocking_strategy prelocking_strategy;
+
+  /*
+    Use special prelocking strategy to get ER_DELAYED_NOT_SUPPORTED
+    error for tables with engines which don't support delayed inserts.
+  */
   if (!(table= open_n_lock_single_table(&thd, &table_list,
                                         TL_WRITE_DELAYED,
-                                        MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK)))
+                                        MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK,
+                                        &prelocking_strategy)))
   {
     thd.fatal_error();				// Abort waiting inserts
     return TRUE;
   }
-  if (!(table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
-  {
-    /* To rollback InnoDB statement transaction. */
-    trans_rollback_stmt(&thd);
-    my_error(ER_DELAYED_NOT_SUPPORTED, MYF(ME_FATALERROR),
-             table_list.table_name);
-    return TRUE;
-  }
+
   if (table->triggers)
   {
     /*
@@ -2524,6 +2633,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
     /* Can't use my_error since store_globals has not yet been called */
     thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
                                    ER(ER_OUT_OF_RESOURCES), NULL);
+    di->handler_thread_initialized= TRUE;
   }
   else
   {
@@ -2534,19 +2644,39 @@ pthread_handler_t handle_delayed_insert(void *arg)
       /* Can't use my_error since store_globals has perhaps failed */
       thd->stmt_da->set_error_status(thd, ER_OUT_OF_RESOURCES,
                                      ER(ER_OUT_OF_RESOURCES), NULL);
+      di->handler_thread_initialized= TRUE;
       thd->fatal_error();
       goto err;
     }
 
     thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
+
     /*
-      Statement-based replication of INSERT DELAYED has problems with RAND()
-      and user vars, so in mixed mode we go to row-based.
+      INSERT DELAYED has to go to row-based format because the time
+      at which rows are inserted cannot be determined in mixed mode.
     */
-    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
     thd->set_current_stmt_binlog_format_row_if_mixed();
 
-    init_mdl_requests(&di->table_list);
+    /*
+      Clone tickets representing protection against GRL and the lock on
+      the target table for the insert and add them to the list of granted
+      metadata locks held by the handler thread. This is safe since the
+      handler thread is not holding nor waiting on any metadata locks.
+    */
+    if (thd->mdl_context.clone_ticket(&di->grl_protection) ||
+        thd->mdl_context.clone_ticket(&di->table_list.mdl_request))
+    {
+      thd->mdl_context.release_transactional_locks();
+      di->handler_thread_initialized= TRUE;
+      goto err;
+    }
+
+    /*
+      Now that the ticket has been cloned, it is safe for the connection
+      thread to exit.
+    */
+    di->handler_thread_initialized= TRUE;
+    di->table_list.mdl_request.ticket= NULL;
 
     if (di->open_and_lock_table())
       goto err;
@@ -2740,7 +2870,6 @@ bool Delayed_insert::handle_inserts(void)
   mysql_mutex_unlock(&mutex);
 
   table->next_number_field=table->found_next_number_field;
-  table->use_all_columns();
 
   thd_proc_info(&thd, "upgrading lock");
   if (thr_upgrade_write_delay_lock(*thd.lock->locks, delayed_lock,
@@ -2773,6 +2902,7 @@ bool Delayed_insert::handle_inserts(void)
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   mysql_mutex_lock(&mutex);
 
+  bitmap_set_all(table->read_set);
   while ((row=rows.get()))
   {
     stacked_inserts--;
@@ -2781,6 +2911,16 @@ bool Delayed_insert::handle_inserts(void)
 
     thd.start_time=row->start_time;
     thd.query_start_used=row->query_start_used;
+
+    /* 
+       Copy to the DI table hander the row write set
+       which in its turn is a copy of the user thread's table
+       write set at the time the delayed insert was issued.
+     */
+    bitmap_clear_all(table->write_set);
+    bitmap_union(table->write_set, &row->write_set);
+    table->file->column_bitmaps_signal();
+
     /*
       To get the exact auto_inc interval to store in the binlog we must not
       use values from the previous interval (of the previous rows).
@@ -2791,6 +2931,26 @@ bool Delayed_insert::handle_inserts(void)
                            (ulong) row->query.length));
     if (log_query)
     {
+      /*
+        Guaranteed that the INSERT DELAYED STMT will not be here
+        in SBR when mysql binlog is enabled.
+      */
+      DBUG_ASSERT(!(mysql_bin_log.is_open() &&
+                  !thd.is_current_stmt_binlog_format_row()));
+
+      if (mysql_bin_log.is_open())
+      {
+        /* Flush rows of previous statement*/
+        if (thd.binlog_flush_pending_rows_event(TRUE, FALSE))
+        {
+          delete row;
+          goto err;
+        }
+        /* Set query for Rows_query_log event in RBR*/
+        thd.set_query(row->query.str, row->query.length);
+        thd.variables.binlog_rows_query_log_events= row->binlog_rows_query_log_events;
+      }
+
       /*
         This is the first value of an INSERT statement.
         It is the right place to clear a forced insert_id.
@@ -2858,39 +3018,6 @@ bool Delayed_insert::handle_inserts(void)
       table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     }
 
-    if (log_query && mysql_bin_log.is_open())
-    {
-      bool backup_time_zone_used = thd.time_zone_used;
-      Time_zone *backup_time_zone = thd.variables.time_zone;
-      if (row->time_zone != NULL)
-      {
-        thd.time_zone_used = true;
-        thd.variables.time_zone = row->time_zone;
-      }
-
-      /* if the delayed insert was killed, the killed status is
-         ignored while binlogging */
-      int errcode= 0;
-      if (thd.killed == THD::NOT_KILLED)
-        errcode= query_error_code(&thd, TRUE);
-      
-      /*
-        If the query has several rows to insert, only the first row will come
-        here. In row-based binlogging, this means that the first row will be
-        written to binlog as one Table_map event and one Rows event (due to an
-        event flush done in binlog_query()), then all other rows of this query
-        will be binlogged together as one single Table_map event and one
-        single Rows event.
-      */
-      if (thd.binlog_query(THD::ROW_QUERY_TYPE,
-                           row->query.str, row->query.length,
-                           FALSE, FALSE, FALSE, errcode))
-        goto err;
-
-      thd.time_zone_used = backup_time_zone_used;
-      thd.variables.time_zone = backup_time_zone;
-    }
-
     if (table->s->blob_fields)
       free_delayed_insert_blobs(table);
     thread_safe_decrement(delayed_rows_in_use,&LOCK_delayed_status);
@@ -2903,6 +3030,8 @@ bool Delayed_insert::handle_inserts(void)
     */
     table->auto_increment_field_not_null= FALSE;
 
+    if (log_query && mysql_bin_log.is_open())
+      thd.set_query(NULL, 0);
     delete row;
     /*
       Let READ clients do something once in a while
@@ -2963,7 +3092,7 @@ bool Delayed_insert::handle_inserts(void)
   */
   has_trans= thd.lex->sql_command == SQLCOM_CREATE_TABLE ||
               table->file->has_transactions();
-  if (thd.is_current_stmt_binlog_format_row() &&
+  if (mysql_bin_log.is_open() &&
       thd.binlog_flush_pending_rows_event(TRUE, has_trans))
     goto err;
 
@@ -2975,6 +3104,15 @@ bool Delayed_insert::handle_inserts(void)
     goto err;
   }
   query_cache_invalidate3(&thd, table, 1);
+  DBUG_EXECUTE_IF("after_handle_inserts",
+                  {
+                    const char act[]=
+                      "now "
+                      "signal inserts_handled";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(&thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
   mysql_mutex_lock(&mutex);
   DBUG_RETURN(0);
 
@@ -3211,7 +3349,7 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (thd->slave_thread &&
       (info.handle_duplicates == DUP_UPDATE) &&
       (table->next_number_field != NULL) &&
-      rpl_master_has_bug(&active_mi->rli, 24432, TRUE, NULL, NULL))
+      rpl_master_has_bug(active_mi->rli, 24432, TRUE, NULL, NULL))
     DBUG_RETURN(1);
 #endif
 
@@ -3386,6 +3524,9 @@ bool select_insert::send_eof()
 
   error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
           table->file->ha_end_bulk_insert() : 0);
+  if (!error && thd->is_error())
+    error= thd->stmt_da->sql_errno();
+
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -3929,7 +4070,7 @@ bool select_create::send_eof()
 {
   bool tmp=select_insert::send_eof();
   if (tmp)
-    abort();
+    abort_result_set();
   else
   {
     /*
@@ -3961,7 +4102,7 @@ void select_create::abort_result_set()
   DBUG_ENTER("select_create::abort_result_set");
 
   /*
-    In select_insert::abort() we roll back the statement, including
+    In select_insert::abort_result_set() we roll back the statement, including
     truncating the transaction cache of the binary log. To do this, we
     pretend that the statement is transactional, even though it might
     be the case that it was not.

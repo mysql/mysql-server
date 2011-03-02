@@ -21,7 +21,7 @@
 #include "sql_base.h"    // find_table_in_global_list, lock_table_names
 #include "sql_parse.h"                          // sql_parse
 #include "sql_cache.h"                          // query_cache_*
-#include "lock.h"        // wait_if_global_read_lock
+#include "lock.h"        // MYSQL_OPEN_SKIP_TEMPORARY 
 #include "sql_show.h"    // append_identifier
 #include "sql_table.h"                         // build_table_filename
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
@@ -549,7 +549,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   /* prepare select to resolve all fields */
-  lex->view_prepare_mode= 1;
+  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
   if (unit->prepare(thd, 0, 0))
   {
     /*
@@ -648,13 +648,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 #endif
 
-
-  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
-  {
-    res= TRUE;
-    goto err;
-  }
-
   res= mysql_register_view(thd, view, mode);
 
   if (mysql_bin_log.is_open())
@@ -703,7 +696,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   if (mode != VIEW_CREATE_NEW)
     query_cache_invalidate3(thd, view, 0);
-  thd->global_read_lock.start_waiting_global_read_lock(thd);
   if (res)
     goto err;
 
@@ -844,7 +836,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   view_query.length(0);
   is_query.length(0);
   {
-    ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
+    sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
     lex->unit.print(&view_query, QT_ORDINARY);
@@ -1229,7 +1221,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     view_select= &lex->select_lex;
     view_select->select_number= ++thd->select_number;
 
-    ulong saved_mode= thd->variables.sql_mode;
+    sql_mode_t saved_mode= thd->variables.sql_mode;
     /* switch off modes which can prevent normal parsing of VIEW
       - MODE_REAL_AS_FLOAT            affect only CREATE TABLE parsing
       + MODE_PIPES_AS_CONCAT          affect expression parsing
@@ -1277,6 +1269,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TABLE_LIST *view_tables= lex->query_tables;
     TABLE_LIST *view_tables_tail= 0;
     TABLE_LIST *tbl;
+    Security_context *security_ctx;
 
     /*
       Check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
@@ -1423,25 +1416,38 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     if (table->view_suid)
     {
       /*
-        Prepare a security context to check underlying objects of the view
+        For suid views prepare a security context for checking underlying
+        objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
             thd->stmt_arena->alloc(sizeof(Security_context))))
         goto err;
-      /* Assign the context to the tables referenced in the view */
-      if (view_tables)
-      {
-        DBUG_ASSERT(view_tables_tail);
-        for (tbl= view_tables; tbl != view_tables_tail->next_global;
-             tbl= tbl->next_global)
-          tbl->security_ctx= table->view_sctx;
-      }
-      /* assign security context to SELECT name resolution contexts of view */
-      for(SELECT_LEX *sl= lex->all_selects_list;
-          sl;
-          sl= sl->next_select_in_list())
-        sl->context.security_ctx= table->view_sctx;
+      security_ctx= table->view_sctx;
     }
+    else
+    {
+      /*
+        For non-suid views inherit security context from view's table list.
+        This allows properly handle situation when non-suid view is used
+        from within suid view.
+      */
+      security_ctx= table->security_ctx;
+    }
+
+    /* Assign the context to the tables referenced in the view */
+    if (view_tables)
+    {
+      DBUG_ASSERT(view_tables_tail);
+      for (tbl= view_tables; tbl != view_tables_tail->next_global;
+           tbl= tbl->next_global)
+        tbl->security_ctx= security_ctx;
+    }
+
+    /* assign security context to SELECT name resolution contexts of view */
+    for(SELECT_LEX *sl= lex->all_selects_list;
+        sl;
+        sl= sl->next_select_in_list())
+      sl->context.security_ctx= security_ctx;
 
     /*
       Setup an error processor to hide error messages issued by stored
@@ -1660,13 +1666,15 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (access(path, F_OK) || 
         FRMTYPE_VIEW != (type= dd_frm_type(thd, path, &not_used)))
     {
-      char name[FN_REFLEN];
-      my_snprintf(name, sizeof(name), "%s.%s", view->db, view->table_name);
       if (thd->lex->drop_if_exists)
       {
+        String tbl_name;
+        tbl_name.append(String(view->db,system_charset_info));
+        tbl_name.append('.');
+        tbl_name.append(String(view->table_name,system_charset_info));
 	push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			    ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
-			    name);
+			    tbl_name.c_ptr());
 	continue;
       }
       if (type == FRMTYPE_TABLE)
@@ -1681,6 +1689,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
       {
         if (non_existant_views.length())
           non_existant_views.append(',');
+
+        non_existant_views.append(String(view->db,system_charset_info));
+        non_existant_views.append('.');
         non_existant_views.append(String(view->table_name,system_charset_info));
       }
       continue;

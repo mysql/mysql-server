@@ -193,12 +193,11 @@ static double _mi_search_pos(register MI_INFO *info,
 			     register my_off_t pos)
 {
   int flag;
-  uint nod_flag,keynr,max_keynr;
+  uint nod_flag,keynr,UNINIT_VAR(max_keynr);
   my_bool after_key;
   uchar *keypos,*buff;
   double offset;
   DBUG_ENTER("_mi_search_pos");
-  LINT_INIT(max_keynr);
 
   if (pos == HA_OFFSET_ERROR)
     DBUG_RETURN(0.5);

@@ -36,7 +36,7 @@ Created December 2006 by Marko Makela
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool_zip_mutex or any
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any
 block->mutex.  The buf_pool->mutex may only be released and reacquired
 if lru != NULL.  This function should only be used for allocating
 compressed page frames or control blocks (buf_page_t).  Allocated

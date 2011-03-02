@@ -19,7 +19,7 @@
 
 --echo #---------------- Index merge test 1 -------------------------------------------
 
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 
 --disable_warnings
 drop table if exists t0, t1, t2, t3, t4;

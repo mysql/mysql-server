@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* By Jani Tolonen, 2001-04-20, MySQL Development Team */
-
 #define CHECK_VERSION "2.5.0"
 
 #include "client_priv.h"
@@ -22,6 +20,7 @@
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sslopt-vars.h>
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 /* Exit codes */
 
@@ -41,14 +40,16 @@ static int my_end_arg;
 static char * opt_mysql_unix_port = 0;
 static char *opt_password = 0, *current_user = 0, 
 	    *default_charset= 0, *current_host= 0;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
 DYNAMIC_ARRAY tables4repair;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol=0;
+static char *opt_bind_addr = NULL;
 
-enum operations { DO_CHECK, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
+enum operations { DO_CHECK=1, DO_REPAIR, DO_ANALYZE, DO_OPTIMIZE, DO_UPGRADE };
 
 static struct my_option my_long_options[] =
 {
@@ -66,6 +67,9 @@ static struct my_option my_long_options[] =
    "If a checked table is corrupted, automatically fix it. Repairing will be done after all tables have been checked, if corrupted ones were found.",
    &opt_auto_repair, &opt_auto_repair, 0, GET_BOOL, NO_ARG, 0,
    0, 0, 0, 0, 0},
+  {"bind-address", 0, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory for character set files.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -100,6 +104,10 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", &default_charset,
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_DEFAULT_AUTH,
+   "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fast",'F', "Check only tables that haven't been closed properly.",
    &opt_fast, &opt_fast, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
@@ -137,6 +145,9 @@ static struct my_option my_long_options[] =
   {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -215,9 +226,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("By Jani Tolonen, 2001-04-20, MySQL Development Team.\n");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n");
-  puts("and you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
   puts("This program can be used to CHECK (-c, -m, -C), REPAIR (-r), ANALYZE (-a),");
   puts("or OPTIMIZE (-o) tables. Some of the options (like -e or -q) can be");
   puts("used at the same time. Not all options are supported by all storage engines.");
@@ -244,6 +253,8 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
+  int orig_what_to_do= what_to_do;
+
   switch(optid) {
   case 'a':
     what_to_do = DO_ANALYZE;
@@ -317,6 +328,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
+  }
+
+  if (orig_what_to_do && (what_to_do != orig_what_to_do))
+  {
+    fprintf(stderr, "Error:  %s doesn't support multiple contradicting commands.\n",
+            my_progname);
+    return 1;
   }
   return 0;
 }
@@ -744,7 +762,7 @@ static void print_result()
       */
       if (found_error && opt_auto_repair && what_to_do != DO_REPAIR &&
 	  strcmp(row[3],"OK"))
-	insert_dynamic(&tables4repair, (uchar*) prev);
+	insert_dynamic(&tables4repair, prev);
       found_error=0;
       if (opt_silent)
 	continue;
@@ -764,7 +782,7 @@ static void print_result()
   }
   /* add the last table to be repaired to the list */
   if (found_error && opt_auto_repair && what_to_do != DO_REPAIR)
-    insert_dynamic(&tables4repair, (uchar*) prev);
+    insert_dynamic(&tables4repair, prev);
   mysql_free_result(res);
 }
 
@@ -786,10 +804,19 @@ static int dbConnect(char *host, char *user, char *passwd)
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(&mysql_connection, MYSQL_OPT_BIND, opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 #endif
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql_connection, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql_connection, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   mysql_options(&mysql_connection, MYSQL_SET_CHARSET_NAME, default_charset);
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))

@@ -78,15 +78,15 @@
                 : "memory")
 
 /*
-  Actually 32-bit reads/writes are always atomic on x86
-  But we add LOCK_prefix here anyway to force memory barriers
+  Actually 32/64-bit reads/writes are always atomic on x86_64,
+  nonetheless issue memory barriers as appropriate.
 */
 #define make_atomic_load_body(S)                                \
-  ret=0;                                                        \
-  asm volatile (LOCK_prefix "; cmpxchg %2, %0"                  \
-                : "=m" (*a), "=a" (ret)                         \
-                : "r" (ret), "m" (*a)                           \
-                : "memory")
+  /* Serialize prior load and store operations. */              \
+  asm volatile ("mfence" ::: "memory");                         \
+  ret= *a;                                                      \
+  /* Prevent compiler from reordering instructions. */          \
+  asm volatile ("" ::: "memory")
 #define make_atomic_store_body(S)                               \
   asm volatile ("; xchg %0, %1;"                                \
                 : "=m" (*a), "+r" (v)                           \
@@ -111,9 +111,9 @@
   On some platforms (e.g. Mac OS X and Solaris) the ebx register
   is held as a pointer to the global offset table. Thus we're not
   allowed to use the b-register on those platforms when compiling
-  PIC code, to avoid this we push ebx and pop ebx and add a movl
-  instruction to avoid having ebx in the interface of the assembler
-  instruction.
+  PIC code, to avoid this we push ebx and pop ebx. The new value
+  is copied directly from memory to avoid problems with a implicit
+  manipulation of the stack pointer by the push.
 
   cmpxchg8b works on both 32-bit platforms and 64-bit platforms but
   the code here is only used on 32-bit platforms, on 64-bit
@@ -121,11 +121,13 @@
   fine.
 */
 #define make_atomic_cas_body64                                    \
-  int32 ebx=(set & 0xFFFFFFFF), ecx=(set >> 32);                  \
-  asm volatile ("push %%ebx; movl %3, %%ebx;"                     \
-                LOCK_prefix "; cmpxchg8b %0; setz %2; pop %%ebx"  \
-                : "=m" (*a), "+A" (*cmp), "=c" (ret)               \
-                : "m" (ebx), "c" (ecx), "m" (*a)                  \
+  asm volatile ("push %%ebx;"                                     \
+                "movl (%%ecx), %%ebx;"                            \
+                "movl 4(%%ecx), %%ecx;"                           \
+                LOCK_prefix "; cmpxchg8b %0;"                     \
+                "setz %2; pop %%ebx"                              \
+                : "=m" (*a), "+A" (*cmp), "=c" (ret)              \
+                : "c" (&set), "m" (*a)                            \
                 : "memory", "esp")
 #endif
 

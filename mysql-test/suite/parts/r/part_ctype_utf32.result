@@ -3,7 +3,7 @@
 #
 DROP TABLE IF EXISTS t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1 (
 a enum('a') CHARACTER SET utf32 COLLATE utf32_spanish2_ci
 ) ENGINE=MYISAM PARTITION BY KEY(a) PARTITIONS 2;

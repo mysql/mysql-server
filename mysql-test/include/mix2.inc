@@ -55,7 +55,7 @@
 # Set the SESSION DEFAULT STORAGE ENGINE to a value <> storage engine
 # to be tested. This must not affect any CREATE TABLE statement, where
 # the storage engine is assigned explicitely,
-eval SET SESSION STORAGE_ENGINE = $other_engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $other_engine_type;
 
 #
 # Small basic test with ignore
@@ -1457,8 +1457,8 @@ show variables like "innodb_thread_sleep_delay";
 # Test varchar
 #
 
-let $default=`select @@storage_engine`;
-eval set storage_engine=$engine_type;
+let $default=`select @@default_storage_engine`;
+eval set default_storage_engine=$engine_type;
 source include/varchar.inc;
 
 #
@@ -1477,7 +1477,7 @@ create table t1 (v varchar(65530) character set utf8);
 show create table t1;
 drop table t1;
 
-eval set storage_engine=$default;
+eval set default_storage_engine=$default;
 
 # InnoDB specific varchar tests
 eval create table t1 (v varchar(16384)) engine=$engine_type;
@@ -2270,25 +2270,25 @@ drop table t1, t2, t3;
 # 3) CREATE ... SELECT
 
 connect (a,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (b,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (c,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (d,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (e,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (f,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (g,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (h,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (i,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connect (j,localhost,root,,);
-eval SET SESSION STORAGE_ENGINE = $engine_type;
+eval SET SESSION DEFAULT_STORAGE_ENGINE = $engine_type;
 connection a;
 create table t1(a int not null, b int, primary key(a));
 insert into t1 values (1,2),(5,3),(4,2);

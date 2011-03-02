@@ -23,7 +23,10 @@ def	mysql	PRIMARY	mysql	ndb_binlog_index	PRIMARY KEY
 def	mysql	PRIMARY	mysql	plugin	PRIMARY KEY
 def	mysql	PRIMARY	mysql	proc	PRIMARY KEY
 def	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY
+def	mysql	PRIMARY	mysql	proxies_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	servers	PRIMARY KEY
+def	mysql	PRIMARY	mysql	slave_master_info	PRIMARY KEY
+def	mysql	PRIMARY	mysql	slave_relay_log_info	PRIMARY KEY
 def	mysql	PRIMARY	mysql	tables_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone	PRIMARY KEY
 def	mysql	PRIMARY	mysql	time_zone_leap_second	PRIMARY KEY

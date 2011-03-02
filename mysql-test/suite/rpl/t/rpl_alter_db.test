@@ -12,3 +12,4 @@ sync_slave_with_master;
 connection master;
 drop database temp_db;
 sync_slave_with_master;
+--source include/rpl_end.inc

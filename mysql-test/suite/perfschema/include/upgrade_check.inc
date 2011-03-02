@@ -18,7 +18,7 @@
 #
 
 --error 1
---exec $MYSQL_UPGRADE --skip-verbose > $out_file 2> $err_file
+--exec $MYSQL_UPGRADE --skip-verbose --force > $out_file 2> $err_file
 
 # Verify that mysql_upgrade complained about the performance_schema
 --cat_file $err_file

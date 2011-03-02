@@ -38,8 +38,10 @@ int mi_scan_init(register MI_INFO *info)
 
 int mi_scan(MI_INFO *info, uchar *buf)
 {
+  int result;
   DBUG_ENTER("mi_scan");
   /* Init all but update-flag */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  DBUG_RETURN ((*info->s->read_rnd)(info,buf,info->nextpos,1));
+  result= (*info->s->read_rnd)(info, buf, info->nextpos, 1);
+  DBUG_RETURN(result);
 }

@@ -24,7 +24,108 @@
 #include <process.h>
 #include <sys/timeb.h>
 
-int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
+
+/*
+  Windows native condition variables. We use runtime loading / function 
+  pointers, because they are not available on XP 
+*/
+
+/* Prototypes and function pointers for condition variable functions */
+typedef VOID (WINAPI * InitializeConditionVariableProc) 
+  (PCONDITION_VARIABLE ConditionVariable);
+
+typedef BOOL (WINAPI * SleepConditionVariableCSProc)
+  (PCONDITION_VARIABLE ConditionVariable,
+  PCRITICAL_SECTION CriticalSection, 
+  DWORD dwMilliseconds);
+
+typedef VOID (WINAPI * WakeAllConditionVariableProc)
+ (PCONDITION_VARIABLE ConditionVariable);
+
+typedef VOID (WINAPI * WakeConditionVariableProc)
+  (PCONDITION_VARIABLE ConditionVariable);
+
+static InitializeConditionVariableProc my_InitializeConditionVariable;
+static SleepConditionVariableCSProc my_SleepConditionVariableCS;
+static WakeAllConditionVariableProc my_WakeAllConditionVariable;
+static WakeConditionVariableProc my_WakeConditionVariable;
+
+
+/**
+ Indicates if we have native condition variables,
+ initialized first time pthread_cond_init is called.
+*/
+
+static BOOL have_native_conditions= FALSE;
+
+
+/**
+  Check if native conditions can be used, load function pointers 
+*/
+
+static void check_native_cond_availability(void)
+{
+  HMODULE module= GetModuleHandle("kernel32");
+
+  my_InitializeConditionVariable= (InitializeConditionVariableProc)
+    GetProcAddress(module, "InitializeConditionVariable");
+  my_SleepConditionVariableCS= (SleepConditionVariableCSProc)
+    GetProcAddress(module, "SleepConditionVariableCS");
+  my_WakeAllConditionVariable= (WakeAllConditionVariableProc)
+    GetProcAddress(module, "WakeAllConditionVariable");
+  my_WakeConditionVariable= (WakeConditionVariableProc)
+    GetProcAddress(module, "WakeConditionVariable");
+
+  if (my_InitializeConditionVariable)
+    have_native_conditions= TRUE;
+}
+
+
+
+/**
+  Convert abstime to milliseconds
+*/
+
+static DWORD get_milliseconds(const struct timespec *abstime)
+{
+  long long millis; 
+  union ft64 now;
+
+  if (abstime == NULL)
+   return INFINITE;
+
+  GetSystemTimeAsFileTime(&now.ft);
+
+  /*
+    Calculate time left to abstime
+    - subtract start time from current time(values are in 100ns units)
+    - convert to millisec by dividing with 10000
+  */
+  millis= (abstime->tv.i64 - now.i64) / 10000;
+  
+  /* Don't allow the timeout to be negative */
+  if (millis < 0)
+    return 0;
+
+  /*
+    Make sure the calculated timeout does not exceed original timeout
+    value which could cause "wait for ever" if system time changes
+  */
+  if (millis > abstime->max_timeout_msec)
+    millis= abstime->max_timeout_msec;
+  
+  if (millis > UINT_MAX)
+    millis= UINT_MAX;
+
+  return (DWORD)millis;
+}
+
+
+/*
+  Old (pre-vista) implementation using events
+*/
+
+static int legacy_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
 {
   cond->waiting= 0;
   InitializeCriticalSection(&cond->lock_waiting);
@@ -53,7 +154,8 @@ int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
   return 0;
 }
 
-int pthread_cond_destroy(pthread_cond_t *cond)
+
+static int legacy_cond_destroy(pthread_cond_t *cond)
 {
   DeleteCriticalSection(&cond->lock_waiting);
 
@@ -65,48 +167,13 @@ int pthread_cond_destroy(pthread_cond_t *cond)
 }
 
 
-int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
-{
-  return pthread_cond_timedwait(cond,mutex,NULL);
-}
-
-
-int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+static int legacy_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
                            struct timespec *abstime)
 {
   int result;
-  long timeout; 
-  union ft64 now;
+  DWORD timeout; 
 
-  if( abstime != NULL )
-  {
-    GetSystemTimeAsFileTime(&now.ft);
-
-    /*
-      Calculate time left to abstime
-      - subtract start time from current time(values are in 100ns units)
-      - convert to millisec by dividing with 10000
-    */
-    timeout= (long)((abstime->tv.i64 - now.i64) / 10000);
-    
-    /* Don't allow the timeout to be negative */
-    if (timeout < 0)
-      timeout= 0L;
-
-    /*
-      Make sure the calucated timeout does not exceed original timeout
-      value which could cause "wait for ever" if system time changes
-    */
-    if (timeout > abstime->max_timeout_msec)
-      timeout= abstime->max_timeout_msec;
-
-  }
-  else
-  {
-    /* No time specified; don't expire */
-    timeout= INFINITE;
-  }
-
+  timeout= get_milliseconds(abstime);
   /* 
     Block access if previous broadcast hasn't finished.
     This is just for safety and should normally not
@@ -142,7 +209,7 @@ int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
   return result == WAIT_TIMEOUT ? ETIMEDOUT : 0;
 }
 
-int pthread_cond_signal(pthread_cond_t *cond)
+static int legacy_cond_signal(pthread_cond_t *cond)
 {
   EnterCriticalSection(&cond->lock_waiting);
   
@@ -155,7 +222,7 @@ int pthread_cond_signal(pthread_cond_t *cond)
 }
 
 
-int pthread_cond_broadcast(pthread_cond_t *cond)
+static int legacy_cond_broadcast(pthread_cond_t *cond)
 {
   EnterCriticalSection(&cond->lock_waiting);
   /*
@@ -174,6 +241,87 @@ int pthread_cond_broadcast(pthread_cond_t *cond)
   LeaveCriticalSection(&cond->lock_waiting);  
 
   return 0;
+}
+
+
+/* 
+ Posix API functions. Just choose between native and legacy implementation.
+*/
+
+int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
+{
+  /*
+    Once initialization is used here rather than in my_init(), to 
+    1) avoid  my_init() pitfalls- undefined order in which initialization should
+    run
+    2) be potentially useful C++ (in static constructors that run before main())
+    3) just to simplify the API.
+    Also, the overhead of my_pthread_once is very small.
+  */
+  static my_pthread_once_t once_control= MY_PTHREAD_ONCE_INIT;
+  my_pthread_once(&once_control, check_native_cond_availability);
+
+  if (have_native_conditions)
+  {
+    my_InitializeConditionVariable(&cond->native_cond);
+    return 0;
+  }
+  else 
+    return legacy_cond_init(cond, attr);
+}
+
+
+int pthread_cond_destroy(pthread_cond_t *cond)
+{
+  if (have_native_conditions)
+    return 0; /* no destroy function */
+  else
+    return legacy_cond_destroy(cond);
+}
+
+
+int pthread_cond_broadcast(pthread_cond_t *cond)
+{
+  if (have_native_conditions)
+  {
+    my_WakeAllConditionVariable(&cond->native_cond);
+    return 0;
+  }
+  else
+    return legacy_cond_broadcast(cond);
+}
+
+
+int pthread_cond_signal(pthread_cond_t *cond)
+{
+  if (have_native_conditions)
+  {
+    my_WakeConditionVariable(&cond->native_cond);
+    return 0;
+  }
+  else
+    return legacy_cond_signal(cond);
+}
+
+
+int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+  struct timespec *abstime)
+{
+  if (have_native_conditions)
+  {
+    DWORD timeout= get_milliseconds(abstime);
+    if (!my_SleepConditionVariableCS(&cond->native_cond, mutex, timeout))
+      return ETIMEDOUT;
+    return 0;  
+  }
+  else
+    return legacy_cond_timedwait(cond, mutex, abstime);
+}
+
+
+int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
+{
+  return pthread_cond_timedwait(cond, mutex, NULL);
 }
 
 

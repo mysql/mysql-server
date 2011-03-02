@@ -10,9 +10,6 @@ let $VERSION=`select version()`;
 # Now GRANT/REVOKE do implicitly commit
 # transaction
 
---disable_warnings
-drop database if exists d1;
---enable_warnings
 create database d1;
 use d1;
 create table t (s1 int) engine=innodb;
@@ -40,4 +37,5 @@ select * from t;
 show grants for x@y;
 drop user x@y;
 drop database d1;
---sync_slave_with_master
+
+--source include/rpl_end.inc

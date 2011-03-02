@@ -4,7 +4,7 @@
 source include/master-slave.inc;
 
 --disable_query_log
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
 create table t1(id int, i int, r1 int, r2 int, p varchar(100));

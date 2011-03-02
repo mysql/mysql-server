@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,11 +41,7 @@ typedef struct my_aio_result {
 # define MEM_CHECK_DEFINED(a,len) ((void) 0)
 #endif /* HAVE_VALGRIND */
 
-#ifndef THREAD
-extern int my_errno;  /* Last error in mysys */
-#else
 #include <my_pthread.h>
-#endif
 
 #include <m_ctype.h>                    /* for CHARSET_INFO */
 #include <stdarg.h>
@@ -197,7 +193,7 @@ extern void my_large_free(uchar *ptr);
 #define my_alloca(SZ) alloca((size_t) (SZ))
 #define my_afree(PTR) {}
 #else
-#define my_alloca(SZ) my_malloc(SZ,MYF(0))
+#define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
 #define my_afree(PTR) my_free(PTR)
 #endif /* HAVE_ALLOCA */
 
@@ -256,17 +252,11 @@ extern my_bool  my_disable_locking, my_disable_async_io,
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 /* from default.c */
-extern char *my_defaults_extra_file;
+extern const char *my_defaults_extra_file;
 extern const char *my_defaults_group_suffix;
 extern const char *my_defaults_file;
 
 extern my_bool timed_mutexes;
-
-enum loglevel {
-   ERROR_LEVEL,
-   WARNING_LEVEL,
-   INFORMATION_LEVEL
-};
 
 enum cache_type
 {
@@ -314,7 +304,7 @@ struct st_my_file_info
   int    oflag;     /* open flags, e.g O_APPEND */
 #endif
   enum   file_type	type;
-#if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
+#if !defined(HAVE_PREAD) && !defined(_WIN32)
   mysql_mutex_t mutex;
 #endif
 };
@@ -334,9 +324,7 @@ typedef struct st_my_tmpdir
   DYNAMIC_ARRAY full_list;
   char **list;
   uint cur, max;
-#ifdef THREAD
   mysql_mutex_t mutex;
-#endif
 } MY_TMPDIR;
 
 typedef struct st_dynamic_string
@@ -348,7 +336,6 @@ typedef struct st_dynamic_string
 struct st_io_cache;
 typedef int (*IO_CACHE_CALLBACK)(struct st_io_cache*);
 
-#ifdef THREAD
 typedef struct st_io_cache_share
 {
   mysql_mutex_t       mutex;           /* To sync on reads into buffer. */
@@ -368,7 +355,6 @@ typedef struct st_io_cache_share
   my_bool alloced;
 #endif
 } IO_CACHE_SHARE;
-#endif
 
 typedef struct st_io_cache		/* Used when cacheing files */
 {
@@ -409,7 +395,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     WRITE_CACHE, and &read_pos and &read_end respectively otherwise
   */
   uchar  **current_pos, **current_end;
-#ifdef THREAD
+
   /*
     The lock is for append buffer used in SEQ_READ_APPEND cache
     need mutex copying from append buffer to read buffer.
@@ -423,7 +409,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
     READ_CACHE mode is supported.
   */
   IO_CACHE_SHARE *share;
-#endif
+
   /*
     A caller will use my_b_read() macro to read from the cache
     if the data is already in cache, it will be simply copied with
@@ -456,7 +442,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   IO_CACHE_CALLBACK pre_close;
   /*
     Counts the number of times, when we were forced to use disk. We use it to
-    increase the binlog_cache_disk_use status variable.
+    increase the binlog_cache_disk_use and binlog_stmt_cache_disk_use status
+    variables.
   */
   ulong disk_writes;
   void* arg;				/* for use by pre/post_read */
@@ -495,6 +482,10 @@ typedef struct st_io_cache		/* Used when cacheing files */
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
+
+typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
+
+extern my_error_reporter my_charset_error_reporter;
 
 	/* defines for mf_iocache */
 
@@ -630,6 +621,7 @@ extern const char** get_global_errmsgs();
 extern void wait_for_free_space(const char *filename, int errors);
 extern FILE *my_fopen(const char *FileName,int Flags,myf MyFlags);
 extern FILE *my_fdopen(File Filedes,const char *name, int Flags,myf MyFlags);
+extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
 extern int my_fclose(FILE *fd,myf MyFlags);
 extern File my_fileno(FILE *fd);
 extern int my_chsize(File fd,my_off_t newlength, int filler, myf MyFlags);
@@ -653,14 +645,6 @@ extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
 extern int my_copystat(const char *from, const char *to, int MyFlags);
 extern char * my_filename(File fd);
-
-#ifndef THREAD
-extern void dont_break(void);
-extern void allow_break(void);
-#else
-#define dont_break()
-#define allow_break()
-#endif
 
 #ifdef EXTRA_DEBUG
 void my_print_open_files(void);
@@ -734,12 +718,10 @@ extern my_bool reinit_io_cache(IO_CACHE *info,enum cache_type type,
 			       pbool clear_cache);
 extern void setup_io_cache(IO_CACHE* info);
 extern int _my_b_read(IO_CACHE *info,uchar *Buffer,size_t Count);
-#ifdef THREAD
 extern int _my_b_read_r(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
                                 IO_CACHE *write_cache, uint num_threads);
 extern void remove_io_thread(IO_CACHE *info);
-#endif
 extern int _my_b_seq_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_net_read(IO_CACHE *info,uchar *Buffer,size_t Count);
 extern int _my_b_get(IO_CACHE *info);
@@ -778,10 +760,11 @@ extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
 /* init_dynamic_array() function is deprecated */
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
                                   uint init_alloc, uint alloc_increment);
-extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,uchar * element);
+extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
 extern uchar *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern uchar *pop_dynamic(DYNAMIC_ARRAY*);
-extern my_bool set_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);
+extern my_bool set_dynamic(DYNAMIC_ARRAY *array, const void *element,
+                           uint array_index);
 extern my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements);
 extern void get_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);
 extern void delete_dynamic(DYNAMIC_ARRAY *array);
@@ -824,12 +807,17 @@ extern void set_prealloc_root(MEM_ROOT *root, char *ptr);
 extern void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
                                 size_t prealloc_size);
 extern char *strdup_root(MEM_ROOT *root,const char *str);
+static inline char *safe_strdup_root(MEM_ROOT *root, const char *str)
+{
+  return str ? strdup_root(root, str) : 0;
+}
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
 extern int get_defaults_options(int argc, char **argv,
                                 char **defaults, char **extra_defaults,
                                 char **group_suffix);
-extern const char *args_separator;
+extern my_bool my_getopt_use_args_separator;
+extern my_bool my_getopt_is_args_separator(const char* arg);
 extern int my_load_defaults(const char *conf_file, const char **groups,
                             int *argc, char ***argv, const char ***);
 extern int load_defaults(const char *conf_file, const char **groups,
@@ -906,15 +894,20 @@ int my_getpagesize(void);
 int my_msync(int, void *, size_t, int);
 
 /* character sets */
+extern void my_charset_loader_init_mysys(MY_CHARSET_LOADER *loader);
 extern uint get_charset_number(const char *cs_name, uint cs_flags);
 extern uint get_collation_number(const char *name);
 extern const char *get_charset_name(uint cs_number);
 
 extern CHARSET_INFO *get_charset(uint cs_number, myf flags);
 extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
+extern CHARSET_INFO *my_collation_get_by_name(MY_CHARSET_LOADER *loader,
+                                              const char *name, myf flags);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 					   uint cs_flags, myf my_flags);
-
+extern CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
+                                            const char *name,
+                                            uint cs_flags, myf my_flags);
 extern my_bool resolve_charset(const char *cs_name,
                                CHARSET_INFO *default_cs,
                                CHARSET_INFO **cs);

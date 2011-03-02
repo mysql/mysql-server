@@ -296,4 +296,16 @@ CONVERT_TZ(NOW(), 'UTC', 'Europe/Moscow') IS NULL
 UPDATE t1 SET t = CONVERT_TZ(t, 'UTC', 'Europe/Moscow');
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug #55424: convert_tz crashes when fed invalid data
+#
+CREATE TABLE t1 (a SET('x') NOT NULL);
+INSERT INTO t1 VALUES ('');
+SELECT CONVERT_TZ(1, a, 1) FROM t1;
+CONVERT_TZ(1, a, 1)
+NULL
+SELECT CONVERT_TZ(1, 1, a) FROM t1;
+CONVERT_TZ(1, 1, a)
+NULL
+DROP TABLE t1;
 End of 5.1 tests

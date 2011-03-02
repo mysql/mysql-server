@@ -40,6 +40,7 @@ ENDIF()
 SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
+               filesort_utils.cc
                filesort.cc gstream.cc sha2.cc
                handler.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
@@ -48,6 +49,7 @@ SET (SQL_SOURCE
                key.cc log.cc lock.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
                mysqld.cc net_serv.cc  keycaches.cc
+               ../sql-common/client_plugin.c
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc set_var.cc 
@@ -58,7 +60,7 @@ SET (SQL_SOURCE
                sql_error.cc sql_handler.cc sql_help.cc sql_insert.cc sql_lex.cc 
                sql_list.cc sql_load.cc sql_manager.cc sql_parse.cc
                sql_partition.cc sql_plugin.cc sql_prepare.cc sql_rename.cc 
-               debug_sync.cc debug_sync.h
+               sql_join_cache.cc debug_sync.cc debug_sync.h
                sql_select.cc sql_show.cc sql_state.c sql_string.cc 
                sql_table.cc sql_test.cc sql_trigger.cc sql_udf.cc sql_union.cc
                sql_update.cc sql_view.cc strfunc.cc table.cc thr_malloc.cc 
@@ -72,6 +74,7 @@ SET (SQL_SOURCE
                sql_profile.cc event_parse_data.cc
                sql_bootstrap.cc
                sql_signal.cc mdl.cc
+               gcalc_slicescan.cc gcalc_tools.cc
                sql_alloc_error_handler.cc
                transaction.cc sys_vars.cc  rpl_handler.cc sql_truncate.cc
                datadict.cc sql_reload.cc
@@ -93,7 +96,7 @@ TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS}
 
 SET (BINLOG_SOURCE log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
 		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
-		   sql_binlog.cc rpl_injector.cc)
+		   rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
@@ -102,10 +105,14 @@ SET (MASTER_SOURCE rpl_master.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
-SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc)
+SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
+		  rpl_info_handler.cc rpl_info_file.cc rpl_info_table.cc
+		  rpl_info_values.cc rpl_info.cc rpl_info_factory.cc
+		  rpl_info_table_access.cc server_ids.h)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-ADD_LIBRARY(sqlgunitlib mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
+ADD_LIBRARY(sqlgunitlib
+  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc)
 ADD_DEPENDENCIES(sqlgunitlib GenError)
 
 
@@ -149,7 +156,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql)
+TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
@@ -289,8 +296,7 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
      COMMAND ${CMAKE_COMMAND}
      ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-     COMMAND  ${CMAKE_COMMAND} -E touch initdb.dep
-     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+     COMMAND  ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/initdb.dep
      DEPENDS mysqld
   )
   ADD_CUSTOM_TARGET(initial_database  
@@ -301,7 +307,11 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
   COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
-  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
+  INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)
 ENDIF()
 ENDIF()
+
+ADD_CUSTOM_TARGET(show-dist-name
+  COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
+)
 

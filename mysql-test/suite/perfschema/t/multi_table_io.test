@@ -40,7 +40,7 @@ show create table test1.t2;
 let $schema_to_dump= 'test','test1';
 
 # Start event recording
-update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+update performance_schema.setup_consumers set enabled = 'YES';
 
 # INSERT ... SELECT ...
 insert into test1.t2 select * from test.t1;

@@ -49,6 +49,7 @@ int vio_close_shared_memory(Vio * vio);
 #endif
 
 void	vio_timeout(Vio *vio,uint which, uint timeout);
+my_bool vio_buff_has_data(Vio *vio);
 
 #ifdef HAVE_OPENSSL
 #include "my_net.h"			/* needed because of struct in_addr */
@@ -61,6 +62,8 @@ int vio_ssl_close(Vio *vio);
 void vio_ssl_delete(Vio *vio);
 
 int vio_ssl_blocking(Vio *vio, my_bool set_blocking_mode, my_bool *old_mode);
+
+my_bool vio_ssl_has_data(Vio *vio);
 
 #endif /* HAVE_OPENSSL */
 #endif /* VIO_PRIV_INCLUDED */

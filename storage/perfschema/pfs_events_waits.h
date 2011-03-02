@@ -31,6 +31,7 @@ struct PFS_table;
 struct PFS_file;
 struct PFS_thread;
 struct PFS_instr_class;
+struct PFS_table_share;
 
 /** Class of a wait event. */
 enum events_waits_class
@@ -41,46 +42,6 @@ enum events_waits_class
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
   WAIT_CLASS_FILE
-};
-
-/** State of a timer. */
-enum timer_state
-{
-  /**
-    Not timed.
-    In this state, TIMER_START, TIMER_END and TIMER_WAIT are NULL.
-  */
-  TIMER_STATE_UNTIMED,
-  /**
-    About to start.
-    In this state, TIMER_START, TIMER_END and TIMER_WAIT are NULL.
-  */
-  TIMER_STATE_STARTING,
-  /**
-    Started, but not yet ended.
-    In this state, TIMER_START has a value, TIMER_END and TIMER_WAIT are NULL.
-  */
-  TIMER_STATE_STARTED,
-  /**
-    Ended.
-    In this state, TIMER_START, TIMER_END and TIMER_WAIT have a value.
-  */
-  TIMER_STATE_TIMED
-};
-
-/** Target object a wait event is waiting on. */
-union events_waits_target
-{
-  /** Mutex waited on. */
-  PFS_mutex *m_mutex;
-  /** RWLock waited on. */
-  PFS_rwlock *m_rwlock;
-  /** Condition waited on. */
-  PFS_cond *m_cond;
-  /** Table waited on. */
-  PFS_table *m_table;
-  /** File waited on. */
-  PFS_file *m_file;
 };
 
 /** A wait event record. */
@@ -102,8 +63,6 @@ struct PFS_events_waits
   PFS_thread *m_thread;
   /** Instrument metadata. */
   PFS_instr_class *m_class;
-  /** Timer state. */
-  enum timer_state m_timer_state;
   /** Event id. */
   ulonglong m_event_id;
   /** Nesting event id. */
@@ -118,16 +77,14 @@ struct PFS_events_waits
     This member is populated only if m_timed is true.
   */
   ulonglong m_timer_end;
-  /** Schema name. */
-  const char *m_schema_name;
-  /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
   /** Object type */
   enum_object_type m_object_type;
-  /** Object name. */
-  const char *m_object_name;
-  /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  /** Table share, for table operations only. */
+  PFS_table_share *m_weak_table_share;
+  /** File, for file operations only. */
+  PFS_file *m_weak_file;
+  /** For weak pointers, target object version. */
+  uint32 m_weak_version;
   /** Address in memory of the object instance waited on. */
   const void *m_object_instance_addr;
   /** Location of the instrumentation in the source code (file name). */
@@ -150,21 +107,6 @@ struct PFS_events_waits
   ulong m_flags;
 };
 
-/**
-  A wait locker.
-  A locker is a transient helper structure used by the instrumentation
-  during the recording of a wait.
-*/
-struct PFS_wait_locker
-{
-  /** The timer used to measure the wait. */
-  enum_timer_name m_timer_name;
-  /** The object waited on. */
-  events_waits_target m_target;
-  /** The wait data recorded. */
-  PFS_events_waits m_waits_current;
-};
-
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait);
 
 void insert_events_waits_history_long(PFS_events_waits *wait);
@@ -172,14 +114,9 @@ void insert_events_waits_history_long(PFS_events_waits *wait);
 extern bool flag_events_waits_current;
 extern bool flag_events_waits_history;
 extern bool flag_events_waits_history_long;
-extern bool flag_events_waits_summary_by_thread_by_event_name;
-extern bool flag_events_waits_summary_by_event_name;
-extern bool flag_events_waits_summary_by_instance;
-extern bool flag_events_locks_summary_by_thread_by_name;
-extern bool flag_events_locks_summary_by_event_name;
-extern bool flag_events_locks_summary_by_instance;
-extern bool flag_file_summary_by_event_name;
-extern bool flag_file_summary_by_instance;
+extern bool flag_global_instrumentation;
+extern bool flag_thread_instrumentation;
+
 extern bool events_waits_history_long_full;
 extern volatile uint32 events_waits_history_long_index;
 extern PFS_events_waits *events_waits_history_long_array;
@@ -191,6 +128,13 @@ void cleanup_events_waits_history_long();
 void reset_events_waits_current();
 void reset_events_waits_history();
 void reset_events_waits_history_long();
+
+void reset_table_waits_by_table();
+void reset_table_io_waits_by_table();
+void reset_table_lock_waits_by_table();
+void reset_table_waits_by_table_handle();
+void reset_table_io_waits_by_table_handle();
+void reset_table_lock_waits_by_table_handle();
 
 #endif
 

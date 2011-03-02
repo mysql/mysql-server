@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc
+/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -220,13 +220,13 @@
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
 #cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
-#cmakedefine HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP 1
 #cmakedefine HAVE_PTHREAD_SETPRIO_NP 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
 #cmakedefine HAVE_PTHREAD_THREADMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
+#cmakedefine PTHREAD_ONCE_INITIALIZER @PTHREAD_ONCE_INITIALIZER@
 #cmakedefine HAVE_PUTENV 1
 #cmakedefine HAVE_RE_COMP 1
 #cmakedefine HAVE_REGCOMP 1
@@ -407,7 +407,6 @@
 
 
 #cmakedefine TARGET_OS_LINUX 1
-#cmakedefine TARGET_OS_SOLARIS 1
 
 #cmakedefine HAVE_WCTYPE_H 1
 #cmakedefine HAVE_WCHAR_H 1
@@ -471,9 +470,6 @@
 
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
 
-#define THREAD 1
-#define THREAD_SAFE_CLIENT 1
-
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 #define MACHINE_TYPE "@CMAKE_SYSTEM_PROCESSOR@"
 #cmakedefine HAVE_DTRACE 1
@@ -519,8 +515,8 @@
 #cmakedefine CYBOZU 1
 
 /* Character sets and collations */
-#cmakedefine MYSQL_DEFAULT_CHARSET_NAME "latin1"
-#cmakedefine MYSQL_DEFAULT_COLLATION_NAME "latin1_swedish_ci"
+#cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
+#cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
 
 #cmakedefine USE_MB 1
 #cmakedefine USE_MB_IDENT 1
@@ -570,7 +566,7 @@
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
-
+#cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
   Stuff that always need to be defined (compile breaks without it)
@@ -602,6 +598,13 @@
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
+
+#cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+
+#define MYSQL_VERSION_MAJOR @MAJOR_VERSION@
+#define MYSQL_VERSION_MINOR @MINOR_VERSION@
+#define MYSQL_VERSION_PATCH @PATCH_VERSION@
+#define MYSQL_VERSION_EXTRA "@EXTRA_VERSION@"
 
 #define PACKAGE "mysql"
 #define PACKAGE_BUGREPORT ""

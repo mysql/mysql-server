@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop database if exists mysqltest1;
 create database mysqltest1;
 use mysqltest1;
@@ -633,7 +629,7 @@ test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_s
 test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 show create procedure ` mysqltestbug36570_p2`;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
- mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int)
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int )
 `label`:
 begin
 select a;
@@ -644,7 +640,7 @@ test	 mysqltestbug36570_p2	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_s
 test	mysqltestbug36570_p1	PROCEDURE	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 show create procedure ` mysqltestbug36570_p2`;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
- mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int)
+ mysqltestbug36570_p2		CREATE DEFINER=`root`@`localhost` PROCEDURE ` mysqltestbug36570_p2`( a int )
 `label`:
 begin
 select a;
@@ -1165,7 +1161,7 @@ end
 /*!*/;
 use mysql/*!*/;
 SET TIMESTAMP=t/*!*/;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `test`.` mysqltestbug36570_p2`( a int)
+CREATE DEFINER=`root`@`localhost` PROCEDURE `test`.` mysqltestbug36570_p2`( a int )
 `label`:
 begin
 select a;
@@ -1238,14 +1234,7 @@ ERROR 42000: FUNCTION test.f1 does not exist
 #
 # Bug #11918 Can't use a declared variable in LIMIT clause
 #
-drop table if exists t1;
-drop procedure if exists p1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 create table t1 (c1 int);
 insert into t1 (c1) values
 (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
@@ -1281,3 +1270,4 @@ set @@session.binlog_format=@save_binlog_format;
 drop table t1;
 drop procedure p1;
 # End of 5.5 tests.
+include/rpl_end.inc

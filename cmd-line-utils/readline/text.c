@@ -811,11 +811,10 @@ _rl_overwrite_char (count, c)
   int i;
 #if defined (HANDLE_MULTIBYTE)
   char mbkey[MB_LEN_MAX];
-  int k;
 
   /* Read an entire multibyte character sequence to insert COUNT times. */
   if (count > 0 && MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-    k = _rl_read_mbstring (c, mbkey, MB_LEN_MAX);
+    _rl_read_mbstring (c, mbkey, MB_LEN_MAX);
 #endif
 
   rl_begin_undo_group ();

@@ -1,0 +1,9 @@
+select 'Ok, the server started' as result;
+result
+Ok, the server started
+select @@SQL_MODE;
+@@SQL_MODE
+REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI
+select @@log_warnings;
+@@log_warnings
+5

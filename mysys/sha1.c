@@ -1,4 +1,4 @@
-/* Copyright (C) 2002, 2004, 2006 MySQL AB
+/* Copyright (c) 2002, 2004, 2006 MySQL AB
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -6,26 +6,57 @@
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+*/
 
 /*
   Original Source from: http://www.faqs.org/rfcs/rfc3174.html
 
- DESCRIPTION
-   This file implements the Secure Hashing Algorithm 1 as
-   defined in FIPS PUB 180-1 published April 17, 1995.
+  Copyright (C) The Internet Society (2001).  All Rights Reserved.
 
-   The SHA-1, produces a 160-bit message digest for a given data
-   stream.  It should take about 2**n steps to find a message with the
-   same digest as a given message and 2**(n/2) to find any two
-   messages with the same digest, when n is the digest size in bits.
-   Therefore, this algorithm can serve as a means of providing a
-   "fingerprint" for a message.
+  This document and translations of it may be copied and furnished to
+  others, and derivative works that comment on or otherwise explain it
+  or assist in its implementation may be prepared, copied, published
+  and distributed, in whole or in part, without restriction of any
+  kind, provided that the above copyright notice and this paragraph are
+  included on all such copies and derivative works.  However, this
+  document itself may not be modified in any way, such as by removing
+  the copyright notice or references to the Internet Society or other
+  Internet organizations, except as needed for the purpose of
+  developing Internet standards in which case the procedures for
+  copyrights defined in the Internet Standards process must be
+  followed, or as required to translate it into languages other than
+  English.
+
+  The limited permissions granted above are perpetual and will not be
+  revoked by the Internet Society or its successors or assigns.
+
+  This document and the information contained herein is provided on an
+  "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+  TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+  BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+  HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+  Acknowledgement 
+  Funding for the RFC Editor function is currently provided by the 
+  Internet Society. 
+
+ DESCRIPTION
+  This file implements the Secure Hashing Algorithm 1 as
+  defined in FIPS PUB 180-1 published April 17, 1995.
+
+  The SHA-1, produces a 160-bit message digest for a given data
+  stream.  It should take about 2**n steps to find a message with the
+  same digest as a given message and 2**(n/2) to find any two
+  messages with the same digest, when n is the digest size in bits.
+  Therefore, this algorithm can serve as a means of providing a
+  "fingerprint" for a message.
 
  PORTABILITY ISSUES
    SHA-1 is defined in terms of 32-bit "words".  This code uses

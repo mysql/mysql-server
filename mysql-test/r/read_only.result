@@ -119,10 +119,10 @@ select @@global.read_only;
 1
 unlock tables;
 drop temporary table ttt;
-ERROR 42S02: Unknown table 'ttt'
+ERROR 42S02: Unknown table 'test.ttt'
 drop temporary table if exists ttt;
 Warnings:
-Note	1051	Unknown table 'ttt'
+Note	1051	Unknown table 'test.ttt'
 connection default;
 set global read_only=0;
 drop table t1,t2;

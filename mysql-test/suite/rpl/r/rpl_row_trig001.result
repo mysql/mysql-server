@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE test.t1 (n MEDIUMINT NOT NULL, d DATETIME, PRIMARY KEY(n));
 CREATE TABLE test.t2 (n MEDIUMINT NOT NULL AUTO_INCREMENT, f FLOAT, d DATETIME, PRIMARY KEY(n));
 CREATE TABLE test.t3 (n MEDIUMINT NOT NULL AUTO_INCREMENT, d DATETIME, PRIMARY KEY(n));
@@ -29,3 +25,4 @@ DROP TRIGGER test.t3_bi_t2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
 DROP TABLE test.t3;
+include/rpl_end.inc

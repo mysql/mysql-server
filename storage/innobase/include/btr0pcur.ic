@@ -466,9 +466,10 @@ Initializes and opens a persistent cursor to an index tree. It should be
 closed with btr_pcur_close. */
 UNIV_INLINE
 void
-btr_pcur_open_func(
-/*===============*/
+btr_pcur_open_low(
+/*==============*/
 	dict_index_t*	index,	/*!< in: index */
+	ulint		level,	/*!< in: level in the btree */
 	const dtuple_t*	tuple,	/*!< in: tuple on which search done */
 	ulint		mode,	/*!< in: PAGE_CUR_L, ...;
 				NOTE that if the search is made using a unique
@@ -495,7 +496,7 @@ btr_pcur_open_func(
 
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
-	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
+	btr_cur_search_to_nth_level(index, level, tuple, mode, latch_mode,
 				    btr_cursor, 0, file, line, mtr);
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 

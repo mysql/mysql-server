@@ -53,9 +53,7 @@ typedef struct st_safe_hash_entry
 
 typedef struct st_safe_hash_with_default
 {
-#ifdef THREAD
   rw_lock_t mutex;
-#endif
   HASH hash;
   uchar *default_value;
   SAFE_HASH_ENTRY *root;

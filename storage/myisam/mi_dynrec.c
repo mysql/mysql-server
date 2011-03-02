@@ -39,13 +39,11 @@ static int delete_dynamic_record(MI_INFO *info,my_off_t filepos,
 static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 			  uint length);
 
-#ifdef THREAD
 /* Play it safe; We have a small stack when using threads */
 #undef my_alloca
 #undef my_afree
 #define my_alloca(A) my_malloc((A),MYF(0))
 #define my_afree(A) my_free((A))
-#endif
 
 	/* Interface function from MI_INFO */
 
@@ -1387,7 +1385,7 @@ ulong _mi_calc_blob_length(uint length, const uchar *pos)
 }
 
 
-void _my_store_blob_length(uchar *pos,uint pack_length,uint length)
+void _mi_store_blob_length(uchar *pos,uint pack_length,uint length)
 {
   switch (pack_length) {
   case 1:
@@ -1578,9 +1576,6 @@ int _mi_cmp_dynamic_record(register MI_INFO *info, register const uchar *record)
   uchar *buffer;
   MI_BLOCK_INFO block_info;
   DBUG_ENTER("_mi_cmp_dynamic_record");
-
-	/* We are going to do changes; dont let anybody disturb */
-  dont_break();				/* Dont allow SIGHUP or SIGINT */
 
   if (info->opt_flag & WRITE_CACHE_USED)
   {

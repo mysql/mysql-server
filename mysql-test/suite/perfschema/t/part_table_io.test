@@ -26,7 +26,7 @@ eval drop table if exists $table_item;
 --enable_warnings
 
 # Start recording events
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
+update performance_schema.setup_consumers set enabled='YES';
 insert into marker set a = 1;
 eval create table $table_item
 ( a varchar(255) not null, b int not null) engine = $engine_type

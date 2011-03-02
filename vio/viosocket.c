@@ -98,6 +98,10 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 #undef VIO_UNBUFFERED_READ_MIN_SIZE
 }
 
+my_bool vio_buff_has_data(Vio *vio)
+{
+  return (vio->read_pos != vio->read_end);
+}
 
 size_t vio_write(Vio * vio, const uchar* buf, size_t size)
 {

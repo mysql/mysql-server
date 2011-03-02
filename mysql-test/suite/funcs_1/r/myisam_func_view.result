@@ -2662,7 +2662,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -2679,7 +2679,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
@@ -2696,10 +2696,10 @@ NULL	NULL	1
 0	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 18446744073709551615	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect INTEGER value: '-1'
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -2714,10 +2714,10 @@ NULL	NULL	1
 0	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           	4
 18446744073709551615	-1                            	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect INTEGER value: '-1'
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
@@ -2736,7 +2736,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -2753,7 +2753,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
@@ -2772,7 +2772,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$--'
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
@@ -2789,7 +2789,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$--'
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 Warning	1105	Cast to unsigned converted negative integer to it's positive complement
 DROP VIEW v1;
 
@@ -3028,7 +3028,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varbinary_1000` as signed) AS `CAST(my_varbinary_1000 AS SIGNED INTEGER)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3044,7 +3044,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- '
 DROP VIEW v1;
 
 
@@ -3060,10 +3060,10 @@ NULL	NULL	1
 0	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 -1	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect INTEGER value: '-1'
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_binary_30` as signed) AS `CAST(my_binary_30 AS SIGNED INTEGER)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3077,10 +3077,10 @@ NULL	NULL	1
 0	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--           	4
 -1	-1                            	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
-Warning	1292	Truncated incorrect INTEGER value: '-1'
+Warning	1292	Truncated incorrect INTEGER value: ' ---\xC3\xA4\xC3\x96\xC3\xBC\xC3\x9F@\xC2\xB5*$-- \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '-1\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP VIEW v1;
 
 
@@ -3098,7 +3098,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_varchar_1000` as signed) AS `CAST(my_varchar_1000 AS SIGNED INTEGER)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3114,7 +3114,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<---------1000 characters-------------------------------------------------------------------------------------------------------'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$-- '
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- '
 DROP VIEW v1;
 
 
@@ -3132,7 +3132,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$--'
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_char_30` as signed) AS `CAST(my_char_30 AS SIGNED INTEGER)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3148,7 +3148,7 @@ NULL	NULL	1
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect INTEGER value: '<--------30 characters------->'
-Warning	1292	Truncated incorrect INTEGER value: ' ---äÖüß@µ*$--'
+Warning	1292	Truncated incorrect INTEGER value: ' ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--'
 DROP VIEW v1;
 
 

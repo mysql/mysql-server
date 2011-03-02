@@ -120,15 +120,10 @@ UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
-/** Mutex protecting the ios count */
-static mutex_t		ios_mutex;
-/** Count of I/O operations in io_handler_thread() */
-static ulint		ios;
-
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
-/** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
+/** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -151,11 +146,6 @@ UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
-
-#ifdef UNIV_PFS_MUTEX
-/* Key to register ios_mutex_key with performance schema */
-UNIV_INTERN mysql_pfs_key_t	ios_mutex_key;
-#endif /* UNIV_PFS_MUTEX */
 
 /*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
@@ -477,7 +467,6 @@ io_handler_thread(
 			the aio array */
 {
 	ulint	segment;
-	ulint	i;
 
 	segment = *((ulint*)arg);
 
@@ -490,15 +479,9 @@ io_handler_thread(
 	pfs_register_thread(io_handler_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
-	for (i = 0;; i++) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		fil_aio_wait(segment);
-
-		mutex_enter(&ios_mutex);
-		ios++;
-		mutex_exit(&ios_mutex);
 	}
-
-	thr_local_free(os_thread_get_curr_id());
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.
@@ -1001,10 +984,6 @@ skip_size_check:
 				srv_data_file_is_raw_partition[i] != 0);
 	}
 
-	ios = 0;
-
-	mutex_create(ios_mutex_key, &ios_mutex, SYNC_NO_ORDER_CHECK);
-
 	return(DB_SUCCESS);
 }
 
@@ -1036,6 +1015,8 @@ innobase_start_or_create_for_mysql(void)
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1047,26 +1028,35 @@ innobase_start_or_create_for_mysql(void)
 	on Mac OS X 10.3 or later. */
 	struct utsname utsname;
 	if (uname(&utsname)) {
-		fputs("InnoDB: cannot determine Mac OS X version!\n", stderr);
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: cannot determine Mac OS X version!\n", stderr);
 	} else {
 		srv_have_fullfsync = strcmp(utsname.release, "7.") >= 0;
 	}
 	if (!srv_have_fullfsync) {
-		fputs("InnoDB: On Mac OS X, fsync() may be"
-		      " broken on internal drives,\n"
-		      "InnoDB: making transactions unsafe!\n", stderr);
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: On Mac OS X, fsync() may be "
+		      "broken on internal drives,\n", stderr);
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: making transactions unsafe!\n", stderr);
 	}
 # endif /* F_FULLFSYNC */
 #endif /* HAVE_DARWIN_THREADS */
 
 	if (sizeof(ulint) != sizeof(void*)) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Error: size of InnoDB's ulint is %lu,"
-			" but size of void* is %lu.\n"
-			"InnoDB: The sizes should be the same"
-			" so that on a 64-bit platform you can\n"
-			"InnoDB: allocate more than 4 GB of memory.",
-			(ulong)sizeof(ulint), (ulong)sizeof(void*));
+			" InnoDB: Error: size of InnoDB's ulint is %lu, "
+			"but size of void*\n", (ulong) sizeof(ulint));
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: is %lu. The sizes should be the same "
+			"so that on a 64-bit\n",
+			(ulong) sizeof(void*));
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: platforms you can allocate more than 4 GB "
+			"of memory.\n");
 	}
 
 	/* System tables are created in tablespace 0.  Thus, we must
@@ -1075,53 +1065,74 @@ innobase_start_or_create_for_mysql(void)
 	innodb_file_per_table) until this function has returned. */
 	srv_file_per_table = FALSE;
 #ifdef UNIV_DEBUG
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
+		" InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
 #endif
 
 #ifdef UNIV_IBUF_DEBUG
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!\n"
+		" InnoDB: !!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!\n");
 # ifdef UNIV_IBUF_COUNT_DEBUG
-		"InnoDB: !!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on !!!!!!!!!\n"
-		"InnoDB: Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG\n"
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: !!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on "
+		"!!!!!!!!!\n");
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG\n");
 # endif
-		);
 #endif
 
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_BLOB_DEBUG
 	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!\n");
+		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
+#endif /* UNIV_BLOB_DEBUG */
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_print_timestamp(stderr);
+	fprintf(stderr,
+		" InnoDB: !!!!!!!! UNIV_SYNC_DEBUG switched on !!!!!!!!!\n");
 #endif
 
 #ifdef UNIV_SEARCH_DEBUG
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!\n");
+		" InnoDB: !!!!!!!! UNIV_SEARCH_DEBUG switched on !!!!!!!!!\n");
 #endif
 
 #ifdef UNIV_LOG_LSN_DEBUG
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!\n");
+		" InnoDB: !!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!\n");
 #endif /* UNIV_LOG_LSN_DEBUG */
 #ifdef UNIV_MEM_DEBUG
+	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
+		" InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
 
 	if (UNIV_LIKELY(srv_use_sys_malloc)) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: The InnoDB memory heap is disabled\n");
+			" InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
-	fputs("InnoDB: " IB_ATOMICS_STARTUP_MSG
-	      "\nInnoDB: Compressed tables use zlib " ZLIB_VERSION
+	ut_print_timestamp(stderr);
+	fputs(" InnoDB: " IB_ATOMICS_STARTUP_MSG "\n", stderr);
+
+	ut_print_timestamp(stderr);
+	fputs(" InnoDB: Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
 #endif /* UNIV_ZIP_DEBUG */
-#ifdef UNIV_ZIP_COPY
-	      " and extra copying"
-#endif /* UNIV_ZIP_COPY */
 	      "\n" , stderr);
+#ifdef UNIV_ZIP_COPY
+	ut_print_timestamp(stderr);
+	fputs(" InnoDB: and extra copying\n", stderr);
+#endif /* UNIV_ZIP_COPY */
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1129,13 +1140,17 @@ innobase_start_or_create_for_mysql(void)
 	second time during the process lifetime. */
 
 	if (srv_start_has_been_called) {
-		fprintf(stderr,
-			"InnoDB: Error: startup called second time"
-			" during the process lifetime.\n"
-			"InnoDB: In the MySQL Embedded Server Library"
-			" you cannot call server_init()\n"
-			"InnoDB: more than once during"
-			" the process lifetime.\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: startup called second time "
+			"during the process\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: lifetime. In the MySQL Embedded "
+			"Server Library you\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: cannot call server_init() more "
+			"than once during the\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: process lifetime.\n");
 	}
 
 	srv_start_has_been_called = TRUE;
@@ -1179,7 +1194,7 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_use_native_aio) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Using Linux native AIO\n");
+			" InnoDB: Using Linux native AIO\n");
 	}
 #else
 	/* Currently native AIO is supported only on windows and linux
@@ -1224,8 +1239,9 @@ innobase_start_or_create_for_mysql(void)
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #endif
 	} else {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Unrecognized value %s for"
+			" InnoDB: Unrecognized value %s for"
 			" innodb_flush_method\n",
 			srv_file_flush_method_str);
 		return(DB_ERROR);
@@ -1306,7 +1322,8 @@ innobase_start_or_create_for_mysql(void)
 	we'll emit a message telling the user that this parameter
 	is now deprecated. */
 	if (srv_n_file_io_threads != 4) {
-		fprintf(stderr, "InnoDB: Warning:"
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Warning:"
 			" innodb_file_io_threads is deprecated."
 			" Please use innodb_read_io_threads and"
 			" innodb_write_io_threads instead\n");
@@ -1318,13 +1335,16 @@ innobase_start_or_create_for_mysql(void)
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
-	still applies to windows. */
-	if (!srv_use_native_aio) {
-		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
-	} else {
+	io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
+
+	/* On Windows when using native aio the number of aio requests
+	that a thread can handle at a given time is limited to 32
+	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
+# ifdef __WIN__
+	if (srv_use_native_aio) {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
+# endif /* __WIN__ */
 
 	os_aio_init(io_limit,
 		    srv_n_read_io_threads,
@@ -1337,7 +1357,7 @@ innobase_start_or_create_for_mysql(void)
 	/* Print time to initialize the buffer pool */
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Initializing buffer pool, size =");
+		" InnoDB: Initializing buffer pool, size =");
 
 	if (srv_buf_pool_size >= 1024 * 1024 * 1024) {
 		fprintf(stderr,
@@ -1353,11 +1373,12 @@ innobase_start_or_create_for_mysql(void)
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Completed initialization of buffer pool\n");
+		" InnoDB: Completed initialization of buffer pool\n");
 
 	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Fatal error: cannot allocate the memory"
+			" InnoDB: Fatal error: cannot allocate memory"
 			" for the buffer pool\n");
 
 		return(DB_ERROR);
@@ -1369,7 +1390,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_buf_pool_size <= 5 * 1024 * 1024) {
 
-		fprintf(stderr, "InnoDB: Warning: Small buffer pool size "
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Warning: Small buffer pool size "
 			"(%luM), the flst_validate() debug function "
 			"can cause a deadlock if the buffer pool fills up.\n",
 			srv_buf_pool_size / 1024 / 1024);
@@ -1391,18 +1413,19 @@ innobase_start_or_create_for_mysql(void)
 
 #ifdef UNIV_LOG_ARCHIVE
 	if (0 != ut_strcmp(srv_log_group_home_dirs[0], srv_arch_dir)) {
-		fprintf(stderr,
-			"InnoDB: Error: you must set the log group"
-			" home dir in my.cnf the\n"
-			"InnoDB: same as log arch dir.\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: you must set the log group home dir in my.cnf\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: the same as log arch dir.\n");
 
 		return(DB_ERROR);
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
 	if (srv_n_log_files * srv_log_file_size >= 262144) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Error: combined size of log files"
+			" InnoDB: Error: combined size of log files"
 			" must be < 4 GB\n");
 
 		return(DB_ERROR);
@@ -1413,10 +1436,13 @@ innobase_start_or_create_for_mysql(void)
 	for (i = 0; i < srv_n_data_files; i++) {
 #ifndef __WIN__
 		if (sizeof(off_t) < 5 && srv_data_file_sizes[i] >= 262144) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Error: file size must be < 4 GB"
-				" with this MySQL binary\n"
-				"InnoDB: and operating system combination,"
+				" InnoDB: Error: file size must be < 4 GB"
+				" with this MySQL binary\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: and operating system combination,"
 				" in some OS's < 2 GB\n");
 
 			return(DB_ERROR);
@@ -1426,8 +1452,9 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Error: tablespace size must be"
+			" InnoDB: Error: tablespace size must be"
 			" at least 10 MB\n");
 
 		return(DB_ERROR);
@@ -1440,19 +1467,32 @@ innobase_start_or_create_for_mysql(void)
 					&min_flushed_lsn, &max_flushed_lsn,
 					&sum_of_new_sizes);
 	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Could not open or create data files.\n"
-			"InnoDB: If you tried to add new data files,"
-			" and it failed here,\n"
-			"InnoDB: you should now edit innodb_data_file_path"
-			" in my.cnf back\n"
-			"InnoDB: to what it was, and remove the"
-			" new ibdata files InnoDB created\n"
-			"InnoDB: in this failed attempt. InnoDB only wrote"
-			" those files full of\n"
-			"InnoDB: zeros, but did not yet use them in any way."
-			" But be careful: do not\n"
-			"InnoDB: remove old data files"
+			" InnoDB: Could not open or create data files.\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: If you tried to add new data files,"
+			" and it failed here,\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: you should now edit innodb_data_file_path"
+			" in my.cnf back\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: to what it was, and remove the"
+			" new ibdata files InnoDB created\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: in this failed attempt. InnoDB only wrote"
+			" those files full of\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: zeros, but did not yet use them in any way."
+			" But be careful: do not\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: remove old data files"
 			" which contain your precious data!\n");
 
 		return((int) err);
@@ -1478,18 +1518,29 @@ innobase_start_or_create_for_mysql(void)
 		}
 		if ((log_opened && create_new_db)
 		    || (log_opened && log_created)) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Error: all log files must be"
-				" created at the same time.\n"
-				"InnoDB: All log files must be"
-				" created also in database creation.\n"
-				"InnoDB: If you want bigger or smaller"
-				" log files, shut down the\n"
-				"InnoDB: database and make sure there"
-				" were no errors in shutdown.\n"
-				"InnoDB: Then delete the existing log files."
-				" Edit the .cnf file\n"
-				"InnoDB: and start the database again.\n");
+				" InnoDB: Error: all log files must be"
+				" created at the same time.\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: All log files must be"
+				" created also in database creation.\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: If you want bigger or smaller"
+				" log files, shut down the\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: database and make sure there"
+				" were no errors in shutdown.\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: Then delete the existing log files."
+				" Edit the .cnf file\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: and start the database again.\n");
 
 			return(DB_ERROR);
 		}
@@ -1510,27 +1561,41 @@ innobase_start_or_create_for_mysql(void)
 		    || max_arch_log_no != min_arch_log_no
 #endif /* UNIV_LOG_ARCHIVE */
 		    ) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Cannot initialize created"
-				" log files because\n"
-				"InnoDB: data files were not in sync"
-				" with each other\n"
-				"InnoDB: or the data files are corrupt.\n");
+				" InnoDB: Cannot initialize created"
+				" log files because\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: data files were not in sync"
+				" with each other\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: or the data files are corrupt.\n");
 
 			return(DB_ERROR);
 		}
 
 		if (max_flushed_lsn < (ib_uint64_t) 1000) {
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Cannot initialize created"
-				" log files because\n"
-				"InnoDB: data files are corrupt,"
-				" or new data files were\n"
-				"InnoDB: created when the database"
-				" was started previous\n"
-				"InnoDB: time but the database"
-				" was not shut down\n"
-				"InnoDB: normally after that.\n");
+				" InnoDB: Cannot initialize created"
+				" log files because\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: data files are corrupt,"
+				" or new data files were\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: created when the database"
+				" was started previous\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: time but the database"
+				" was not shut down\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: normally after that.\n");
 
 			return(DB_ERROR);
 		}
@@ -1550,6 +1615,8 @@ innobase_start_or_create_for_mysql(void)
 
 	trx_sys_file_format_init();
 
+	trx_sys_create();
+
 	if (create_new_db) {
 		mtr_start(&mtr);
 
@@ -1561,7 +1628,14 @@ innobase_start_or_create_for_mysql(void)
 		the first rollback segment before the double write buffer.
 		All the remaining rollback segments will be created later,
 		after the double write buffer has been created. */
-		trx_sys_create();
+		trx_sys_create_sys_pages();
+
+		ib_bh = trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		dict_create();
 
@@ -1569,8 +1643,9 @@ innobase_start_or_create_for_mysql(void)
 
 #ifdef UNIV_LOG_ARCHIVE
 	} else if (srv_archive_recovery) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Starting archive"
+			" InnoDB: Starting archive"
 			" recovery from a backup...\n");
 		err = recv_recovery_from_archive_start(
 			min_flushed_lsn, srv_archive_recovery_limit_lsn,
@@ -1584,7 +1659,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1641,7 +1721,13 @@ innobase_start_or_create_for_mysql(void)
 		works for space 0. */
 
 		dict_boot();
-		trx_sys_init_at_db_start();
+
+		ib_bh = trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
@@ -1744,7 +1830,7 @@ innobase_start_or_create_for_mysql(void)
 	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
 
 	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(&srv_lock_timeout_thread, NULL,
+	os_thread_create(&lock_wait_timeout_thread, NULL,
 			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which warns of long semaphore waits */
@@ -1763,19 +1849,51 @@ innobase_start_or_create_for_mysql(void)
 		return((int)DB_ERROR);
 	}
 
+	srv_is_being_started = FALSE;
+
 	/* Create the master thread which does purge and other utility
 	operations */
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
 
-	/* Currently we allow only a single purge thread. */
-	ut_a(srv_n_purge_threads == 0 || srv_n_purge_threads == 1);
-
 	/* If the user has requested a separate purge thread then
 	start the purge thread. */
-	if (srv_n_purge_threads == 1) {
-		os_thread_create(&srv_purge_thread, NULL, NULL);
+	if (srv_n_purge_threads >= 1) {
+
+		os_thread_create(
+			&srv_purge_coordinator_thread, NULL,
+			thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+		ut_a(UT_ARR_SIZE(thread_ids)
+		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
+
+		for (i = 1; i < srv_n_purge_threads; ++i) {
+			os_thread_create(
+				&srv_worker_thread, NULL,
+				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
+		}
+	}
+
+	/* Create the page_cleaner thread */
+	os_thread_create(&buf_flush_page_cleaner_thread, NULL, NULL);
+
+	/* Wait for the purge coordinator and master thread to startup. */
+
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+		if (srv_thread_has_reserved_slot(SRV_MASTER) == ULINT_UNDEFINED
+		    || (srv_n_purge_threads > 0
+			&& srv_thread_has_reserved_slot(SRV_PURGE)
+			== ULINT_UNDEFINED)) {
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: "
+				"Waiting for the background threads to "
+				"start\n");
+			os_thread_sleep(1000000);
+		} else {
+			break;
+		}
 	}
 
 #ifdef UNIV_DEBUG
@@ -1792,11 +1910,14 @@ innobase_start_or_create_for_mysql(void)
 	if (!srv_auto_extend_last_data_file
 	    && sum_of_data_file_sizes != tablespace_size_in_header) {
 
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Error: tablespace size"
-			" stored in header is %lu pages, but\n"
+			" InnoDB: Error: tablespace size"
+			" stored in header is %lu pages, but\n",
+			(ulong) tablespace_size_in_header);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
 			"InnoDB: the sum of data file sizes is %lu pages\n",
-			(ulong) tablespace_size_in_header,
 			(ulong) sum_of_data_file_sizes);
 
 		if (srv_force_recovery == 0
@@ -1804,16 +1925,25 @@ innobase_start_or_create_for_mysql(void)
 			/* This is a fatal error, the tail of a tablespace is
 			missing */
 
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Cannot start InnoDB."
-				" The tail of the system tablespace is\n"
-				"InnoDB: missing. Have you edited"
-				" innodb_data_file_path in my.cnf in an\n"
-				"InnoDB: inappropriate way, removing"
-				" ibdata files from there?\n"
-				"InnoDB: You can set innodb_force_recovery=1"
-				" in my.cnf to force\n"
-				"InnoDB: a startup if you are trying"
+				" InnoDB: Cannot start InnoDB."
+				" The tail of the system tablespace is\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: missing. Have you edited"
+				" innodb_data_file_path in my.cnf in an\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: inappropriate way, removing"
+				" ibdata files from there?\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: You can set innodb_force_recovery=1"
+				" in my.cnf to force\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: a startup if you are trying"
 				" to recover a badly corrupt database.\n");
 
 			return(DB_ERROR);
@@ -1823,26 +1953,38 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_auto_extend_last_data_file
 	    && sum_of_data_file_sizes < tablespace_size_in_header) {
 
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Error: tablespace size stored in header"
-			" is %lu pages, but\n"
-			"InnoDB: the sum of data file sizes"
+			" InnoDB: Error: tablespace size stored in header"
+			" is %lu pages, but\n",
+			(ulong) tablespace_size_in_header);
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: the sum of data file sizes"
 			" is only %lu pages\n",
-			(ulong) tablespace_size_in_header,
 			(ulong) sum_of_data_file_sizes);
 
 		if (srv_force_recovery == 0) {
 
+			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"InnoDB: Cannot start InnoDB. The tail of"
-				" the system tablespace is\n"
-				"InnoDB: missing. Have you edited"
-				" innodb_data_file_path in my.cnf in an\n"
-				"InnoDB: inappropriate way, removing"
-				" ibdata files from there?\n"
-				"InnoDB: You can set innodb_force_recovery=1"
-				" in my.cnf to force\n"
-				"InnoDB: a startup if you are trying to"
+				" InnoDB: Cannot start InnoDB. The tail of"
+				" the system tablespace is\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: missing. Have you edited"
+				" innodb_data_file_path in my.cnf in an\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: inappropriate way, removing"
+				" ibdata files from there?\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: You can set innodb_force_recovery=1"
+				" in my.cnf to force\n");
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				" InnoDB: a startup if you are trying to"
 				" recover a badly corrupt database.\n");
 
 			return(DB_ERROR);
@@ -1850,13 +1992,16 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Check that os_fast_mutexes work as expected */
-	os_fast_mutex_init(&srv_os_test_mutex);
+	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
 
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Error: pthread_mutex_trylock returns"
-			" an unexpected value on\n"
-			"InnoDB: success! Cannot continue.\n");
+			" InnoDB: Error: pthread_mutex_trylock returns"
+			" an unexpected value on\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: success! Cannot continue.\n");
 		exit(1);
 	}
 
@@ -1871,14 +2016,15 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: %s started; "
+			" InnoDB: %s started; "
 			"log sequence number %llu\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 
 	if (srv_force_recovery > 0) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: !!! innodb_force_recovery"
+			" InnoDB: !!! innodb_force_recovery"
 			" is set to %lu !!!\n",
 			(ulong) srv_force_recovery);
 	}
@@ -1899,12 +2045,17 @@ innobase_start_or_create_for_mysql(void)
 		4.1.1. It is essential that the insert buffer is emptied
 		here! */
 
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: You are upgrading to an"
-			" InnoDB version which allows multiple\n"
-			"InnoDB: tablespaces. Wait that purge"
-			" and insert buffer merge run to\n"
-			"InnoDB: completion...\n");
+			" InnoDB: You are upgrading to an"
+			" InnoDB version which allows multiple\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: tablespaces. Wait that purge"
+			" and insert buffer merge run to\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: completion...\n");
 		for (;;) {
 			os_thread_sleep(1000000);
 
@@ -1916,21 +2067,29 @@ innobase_start_or_create_for_mysql(void)
 				break;
 			}
 		}
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: Full purge and insert buffer merge"
+			" InnoDB: Full purge and insert buffer merge"
 			" completed.\n");
 
 		trx_sys_mark_upgraded_to_multiple_tablespaces();
 
+		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"InnoDB: You have now successfully upgraded"
-			" to the multiple tablespaces\n"
-			"InnoDB: format. You should NOT DOWNGRADE"
-			" to an earlier version of\n"
-			"InnoDB: InnoDB! But if you absolutely need to"
-			" downgrade, see\n"
-			"InnoDB: " REFMAN "multiple-tablespaces.html\n"
-			"InnoDB: for instructions.\n");
+			" InnoDB: You have now successfully upgraded"
+			" to the multiple tablespaces\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: format. You should NOT DOWNGRADE"
+			" to an earlier version of\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: InnoDB! But if you absolutely need to"
+			" downgrade, see\n");
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: " REFMAN "multiple-tablespaces.html\n"
+			" InnoDB: for instructions.\n");
 	}
 
 	if (srv_force_recovery == 0) {
@@ -2024,7 +2183,7 @@ innobase_shutdown_for_mysql(void)
 		HERE OR EARLIER */
 
 		/* a. Let the lock timeout thread exit */
-		os_event_set(srv_lock_timeout_thread_event);
+		os_event_set(srv_timeout_event);
 
 		/* b. srv error monitor thread exits automatically, no need
 		to do anything here */
@@ -2032,8 +2191,11 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. We wake the purge thread so that it exits */
-		srv_wake_purge_thread();
+		/* d. We wake the purge thread(s) so that they exit */
+		if (srv_n_purge_threads > 0) {
+			srv_wake_purge_thread();
+			srv_wake_worker_threads(srv_n_purge_threads - 1);
+		}
 
 		/* e. Exit the i/o threads */
 
@@ -2109,6 +2271,8 @@ innobase_shutdown_for_mysql(void)
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
 	os_aio_free();
+	que_close();
+	row_mysql_close();
 	sync_close();
 	srv_free();
 	fil_close();
@@ -2144,9 +2308,6 @@ innobase_shutdown_for_mysql(void)
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);
-	}
-	if (lock_latest_err_file) {
-		fclose(lock_latest_err_file);
 	}
 
 	if (srv_print_verbose_log) {

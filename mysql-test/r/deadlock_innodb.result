@@ -113,7 +113,7 @@ commit;
 # Switch to connection default + disconnect con1 and con2
 drop table t1, t2;
 End of 4.1 tests
-set storage_engine=innodb;
+set default_storage_engine=innodb;
 drop table if exists a;
 drop table if exists A;
 create table A (c int);
@@ -121,5 +121,5 @@ insert into A (c) values (0);
 create table a as select * from A;
 drop table A;
 drop table if exists a;
-set storage_engine=default;
+set default_storage_engine=default;
 End of 5.0 tests.

@@ -1,0 +1,33 @@
+SET @start_global_value = @@global.optimizer_join_cache_level;
+
+#
+# exists as global and session
+#
+select @@global.optimizer_join_cache_level;
+select @@session.optimizer_join_cache_level;
+show global variables like 'optimizer_join_cache_level';
+show session variables like 'optimizer_join_cache_level';
+select * from information_schema.global_variables where variable_name='optimizer_join_cache_level';
+select * from information_schema.session_variables where variable_name='optimizer_join_cache_level';
+
+#
+# show that it's writable
+#
+set global optimizer_join_cache_level=2;
+select @@global.optimizer_join_cache_level;
+set session optimizer_join_cache_level=4;
+select @@session.optimizer_join_cache_level;
+set session optimizer_join_cache_level=9;
+select @@session.optimizer_join_cache_level;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_join_cache_level=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_join_cache_level=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_join_cache_level="foo";
+
+SET @@global.optimizer_join_cache_level = @start_global_value;

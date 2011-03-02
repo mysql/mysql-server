@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2003, 2006 MySQL AB
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights
+   reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -657,11 +658,6 @@ static int rnd(int max_value)
 
 static sig_handler endprog(int sig_number __attribute__((unused)))
 {
-#ifndef THREAD
-  if (my_dont_interrupt)
-    my_remember_signal(sig_number,endprog);
-  else
-#endif
   {
     hp_panic(HA_PANIC_CLOSE);
     my_end(1);

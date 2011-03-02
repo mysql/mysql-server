@@ -2,11 +2,7 @@
 # This test will fail if the server/client does not support enough charsets.
 
 source include/master-slave.inc;
---disable_warnings
 set timestamp=1000000000;
-drop database if exists mysqltest2;
-drop database if exists mysqltest3;
---enable_warnings
 
 create database mysqltest2 character set latin2;
 set @@character_set_server=latin5;      
@@ -104,18 +100,6 @@ connection master;
 set global character_set_server=latin2;
 set global character_set_server=latin1; # back
 
-# Check that SET ONE_SHOT is really one shot
-
-set one_shot @@character_set_server=latin5;
-set @@max_join_size=1000;
-select @@character_set_server;
-select @@character_set_server;
-set @@character_set_server=latin5;
-select @@character_set_server;
-select @@character_set_server;
-
-set one_shot max_join_size=1000000;
-
 # Test of wrong character set numbers;
 error 1115;
 set character_set_client=9999999;
@@ -149,6 +133,6 @@ eval create table `t1` (
 set @p=_latin1 'test';
 update t1 set pk='test' where pk=@p;
 drop table t1;
-sync_slave_with_master;
 
 # End of 4.1 tests
+--source include/rpl_end.inc

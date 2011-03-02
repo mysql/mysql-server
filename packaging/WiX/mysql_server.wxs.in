@@ -4,7 +4,7 @@
     Id="*" 
     UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
     Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
-    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@" 
+    Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
     Manufacturer="@MANUFACTURER@">
     
@@ -21,16 +21,19 @@
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
+    
     <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+      <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
-        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@"
+        Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
+      <?endif?>
       <UpgradeVersion 
-        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@"
+        Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
@@ -128,10 +131,10 @@
                   Impersonate="no"
                   Return="check" />
     <InstallExecuteSequence>
-      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
-      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
-      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And UILevel&gt;4</Custom>
-      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And UILevel&lt;=4</Custom>
+      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
+      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
+      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&gt;4</Custom>
+      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&lt;=4</Custom>
     </InstallExecuteSequence>
 
     <!-- Installation root-->

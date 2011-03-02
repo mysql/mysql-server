@@ -18,44 +18,40 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
-select * from performance_schema.SETUP_TIMERS;
+select * from performance_schema.setup_timers;
 
-select * from performance_schema.SETUP_TIMERS
+select * from performance_schema.setup_timers
   where name='Wait';
 
-select * from performance_schema.SETUP_TIMERS
+select * from performance_schema.setup_timers
   where timer_name='CYCLE';
 
---replace_result '\'setup_timers' '\'SETUP_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.SETUP_TIMERS
+insert into performance_schema.setup_timers
   set name='FOO', timer_name='CYCLE';
 
---replace_result '\'setup_timers' '\'SETUP_TIMERS'
 --error ER_WRONG_PERFSCHEMA_USAGE
-update performance_schema.SETUP_TIMERS
+update performance_schema.setup_timers
   set name='FOO';
 
-update performance_schema.SETUP_TIMERS
+update performance_schema.setup_timers
   set timer_name='MILLISECOND';
 
-select * from performance_schema.SETUP_TIMERS;
+select * from performance_schema.setup_timers;
 
-update performance_schema.SETUP_TIMERS
+update performance_schema.setup_timers
   set timer_name='CYCLE';
 
---replace_result '\'setup_timers' '\'SETUP_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_TIMERS;
+delete from performance_schema.setup_timers;
 
---replace_result '\'setup_timers' '\'SETUP_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.SETUP_TIMERS
+delete from performance_schema.setup_timers
   where name='Wait';
 
-LOCK TABLES performance_schema.SETUP_TIMERS READ;
+LOCK TABLES performance_schema.setup_timers READ;
 UNLOCK TABLES;
 
-LOCK TABLES performance_schema.SETUP_TIMERS WRITE;
+LOCK TABLES performance_schema.setup_timers WRITE;
 UNLOCK TABLES;
 

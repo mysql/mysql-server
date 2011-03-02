@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -80,7 +80,6 @@ trx_sys_get_nth_rseg(
 	trx_sys_t*	sys,	/*!< in: trx system */
 	ulint		n)	/*!< in: index of slot */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(n < TRX_SYS_N_RSEGS);
 
 	return(sys->rseg_array[n]);
@@ -92,7 +91,7 @@ UNIV_INLINE
 void
 trx_sys_set_nth_rseg(
 /*=================*/
-	trx_sys_t*	sys,	/*!< in: trx system */
+	trx_sys_t*	sys,	/*!< in/out: trx system */
 	ulint		n,	/*!< in: index of slot */
 	trx_rseg_t*	rseg)	/*!< in: pointer to rseg object, NULL if slot
 				not in use */
@@ -137,7 +136,6 @@ trx_sysf_rseg_get_space(
 	ulint		i,		/*!< in: slot index == rseg id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -159,7 +157,6 @@ trx_sysf_rseg_get_page_no(
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
@@ -179,7 +176,6 @@ trx_sysf_rseg_set_space(
 	ulint		space,		/*!< in: space id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -203,7 +199,6 @@ trx_sysf_rseg_set_page_no(
 					slot is reset to unused */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -252,35 +247,101 @@ trx_read_trx_id(
 
 /****************************************************************//**
 Looks for the trx handle with the given id in trx_list.
-@return	the trx handle or NULL if not found */
+The caller must be holding trx_sys->lock.
+@return	the trx handle or NULL if not found;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
 trx_get_on_id(
 /*==========*/
 	trx_id_t	trx_id)	/*!< in: trx id to search for */
 {
-	trx_t*	trx;
+	trx_t*		trx;
+	ulint		len;
+	trx_t*		first;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	len = UT_LIST_GET_LEN(trx_sys->trx_list);
 
-	while (trx != NULL) {
-		if (trx_id == trx->id) {
-
-			return(trx);
-		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
+	if (len == 0) {
+		return(NULL);
 	}
 
-	return(NULL);
+	/* Because the list is ordered on trx id in descending order,
+	we try to speed things up a bit. */
+
+	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	ut_ad(trx->in_trx_list);
+
+	if (trx_id == trx->id) {
+		return(trx);
+	} else if (len == 1 || trx_id > trx->id) {
+		return(NULL);
+	}
+
+	first = trx;
+
+	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+	ut_ad(trx->in_trx_list);
+
+	if (trx_id == trx->id) {
+		return(trx);
+	} else if (len == 2 || trx_id < trx->id) {
+		return(NULL);
+	}
+
+	/* Search the list from the lower end (tail). */
+	if (trx_id < (first->id + trx->id) >> 1) {
+		for (trx = UT_LIST_GET_PREV(trx_list, trx);
+		     trx != NULL && trx_id > trx->id;
+		     trx = UT_LIST_GET_PREV(trx_list, trx)) {
+			ut_ad(trx->in_trx_list);
+		}
+	} else {
+		for (trx = UT_LIST_GET_NEXT(trx_list, first);
+		     trx != NULL && trx_id < trx->id;
+		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+			ut_ad(trx->in_trx_list);
+		}
+	}
+
+	return((trx != NULL && trx->id == trx_id) ? trx : NULL);
 }
 
 /****************************************************************//**
-Returns the minumum trx id in trx list. This is the smallest id for which
-the trx can possibly be active. (But, you must look at the trx->conc_state to
-find out if the minimum trx id transaction itself is active, or already
+Returns the minimum trx id in trx list. This is the smallest id for which
+the trx can possibly be active. (But, you must look at the trx->state
+to find out if the minimum trx id transaction itself is active, or already
+committed.). The caller must be holding the trx_sys_t::lock in shared mode.
+@return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
+UNIV_INLINE
+trx_id_t
+trx_list_get_min_trx_id_low(void)
+/*=============================*/
+{
+	trx_id_t	id;
+	trx_t*		trx;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+	ut_ad(trx == NULL || trx->in_trx_list);
+
+	id = (trx == NULL) ? trx_sys->max_trx_id : trx->id;
+
+	return(id);
+}
+
+/****************************************************************//**
+Returns the minimum trx id in trx list. This is the smallest id for which
+the trx can possibly be active. (But, you must look at the trx->state
+to find out if the minimum trx id transaction itself is active, or already
 committed.)
 @return	the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
 UNIV_INLINE
@@ -288,56 +349,87 @@ trx_id_t
 trx_list_get_min_trx_id(void)
 /*=========================*/
 {
-	trx_t*	trx;
+	trx_id_t	id;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+	rw_lock_s_lock(&trx_sys->lock);
 
-	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
+	id = trx_list_get_min_trx_id_low();
 
-	if (trx == NULL) {
+	rw_lock_s_unlock(&trx_sys->lock);
 
-		return(trx_sys->max_trx_id);
-	}
-
-	return(trx->id);
+	return(id);
 }
 
 /****************************************************************//**
-Checks if a transaction with the given id is active.
-@return	TRUE if active */
+Checks if a transaction with the given id is active. Caller must hold
+trx_sys->lock in shared mode. If the caller is not holding
+lock_sys->mutex, the transaction may already have been committed.
+@return	transaction instance if active, or NULL;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
 UNIV_INLINE
-ibool
+trx_t*
+trx_is_active_low(
+/*==============*/
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt)	/*!< in: NULL or pointer to a flag
+					that will be set if corrupt */
+{
+	trx_t*		trx;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+
+	if (trx_id < trx_list_get_min_trx_id_low()) {
+
+		trx = NULL;
+	} else if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
+
+		/* There must be corruption: we let the caller handle the
+	       	diagnostic prints in this case. */
+
+		trx = NULL;
+		if (corrupt != NULL) {
+			*corrupt = TRUE;
+		}
+	} else {
+		trx = trx_get_on_id(trx_id);
+
+		if (trx != NULL
+		    && trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+
+			trx = NULL;
+		}
+	}
+
+	return(trx);
+}
+
+/****************************************************************//**
+Checks if a transaction with the given id is active. If the caller is
+not holding lock_sys->mutex, the transaction may already have been
+committed.
+@return	transaction instance if active, or NULL;
+the pointer must not be dereferenced unless lock_sys->mutex was
+acquired before calling this function and is still being held */
+UNIV_INLINE
+trx_t*
 trx_is_active(
 /*==========*/
-	trx_id_t	trx_id)	/*!< in: trx id of the transaction */
+	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
+	ibool*		corrupt)	/*!< in: NULL or pointer to a flag
+					that will be set if corrupt */
 {
-	trx_t*	trx;
+	trx_t*		trx;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+	rw_lock_s_lock(&trx_sys->lock);
 
-	if (trx_id < trx_list_get_min_trx_id()) {
+	trx = trx_is_active_low(trx_id, corrupt);
 
-		return(FALSE);
-	}
+	rw_lock_s_unlock(&trx_sys->lock);
 
-	if (UNIV_UNLIKELY(trx_id >= trx_sys->max_trx_id)) {
-
-		/* There must be corruption: we return TRUE because this
-		function is only called by lock_clust_rec_some_has_impl()
-		and row_vers_impl_x_locked_off_kernel() and they have
-		diagnostic prints in this case */
-
-		return(TRUE);
-	}
-
-	trx = trx_get_on_id(trx_id);
-	if (trx && (trx->conc_state == TRX_ACTIVE
-		    || trx->conc_state == TRX_PREPARED)) {
-
-		return(TRUE);
-	}
-
-	return(FALSE);
+	return(trx);
 }
 
 /*****************************************************************//**
@@ -348,9 +440,9 @@ trx_id_t
 trx_sys_get_new_trx_id(void)
 /*========================*/
 {
-	trx_id_t	id;
-
-	ut_ad(mutex_own(&kernel_mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&trx_sys->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -364,21 +456,52 @@ trx_sys_get_new_trx_id(void)
 		trx_sys_flush_max_trx_id();
 	}
 
-	id = trx_sys->max_trx_id++;
-
-	return(id);
+	return(trx_sys->max_trx_id++);
 }
 
 /*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
+Determines the maximum transaction id.
+@return maximum currently allocated trx id; will be stale after the
+next call to trx_sys_get_new_trx_id() */
 UNIV_INLINE
 trx_id_t
-trx_sys_get_new_trx_no(void)
+trx_sys_get_max_trx_id(void)
 /*========================*/
 {
-	ut_ad(mutex_own(&kernel_mutex));
+#if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
+	trx_id_t	max_trx_id;
+	/* Avoid torn reads. */
+	rw_lock_s_lock(&trx_sys->lock);
+	max_trx_id = trx_sys->max_trx_id;
+	rw_lock_s_unlock(&trx_sys->lock);
+	return(max_trx_id);
+#else
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(&trx_sys->lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+	/* Perform a dirty read. Callers should be prepared for stale
+	values, and we know that the value fits in a machine word, so
+	that it will be read and written atomically. */
+	return(trx_sys->max_trx_id);
+#endif
+}
 
-	return(trx_sys_get_new_trx_id());
+/*****************************************************************//**
+Get the number of transaction in the system, independent of their state.
+@return count of transactions in trx_sys_t::trx_list */
+UNIV_INLINE
+ulint
+trx_sys_get_n_trx(void)
+/*===================*/
+{
+	ulint	n_trx;
+
+	rw_lock_s_lock(&trx_sys->lock);
+
+	n_trx = UT_LIST_GET_LEN(trx_sys->trx_list);
+
+	rw_lock_s_unlock(&trx_sys->lock);
+
+	return(n_trx);
 }
 #endif /* !UNIV_HOTBACKUP */

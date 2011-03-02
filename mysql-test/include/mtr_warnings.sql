@@ -16,6 +16,12 @@ CREATE TABLE test_suppressions (
 -- no invalid patterns can be inserted
 -- into test_suppressions
 --
+SET @character_set_client_saved = @@character_set_client||
+SET @character_set_results_saved = @@character_set_results||
+SET @collation_connection_saved = @@collation_connection||
+SET @@character_set_client = latin1||
+SET @@character_set_results = latin1||
+SET @@collation_connection = latin1_swedish_ci||
 /*!50002
 CREATE DEFINER=root@localhost TRIGGER ts_insert
 BEFORE INSERT ON test_suppressions
@@ -24,6 +30,9 @@ FOR EACH ROW BEGIN
   SELECT "" REGEXP NEW.pattern INTO dummy;
 END
 */||
+SET @@character_set_client = @character_set_client_saved||
+SET @@character_set_results = @character_set_results_saved||
+SET @@collation_connection = @collation_connection_saved||
 
 
 --
@@ -38,6 +47,12 @@ CREATE TABLE global_suppressions (
 -- no invalid patterns can be inserted
 -- into global_suppressions
 --
+SET @character_set_client_saved = @@character_set_client||
+SET @character_set_results_saved = @@character_set_results||
+SET @collation_connection_saved = @@collation_connection||
+SET @@character_set_client = latin1||
+SET @@character_set_results = latin1||
+SET @@collation_connection = latin1_swedish_ci||
 /*!50002
 CREATE DEFINER=root@localhost TRIGGER gs_insert
 BEFORE INSERT ON global_suppressions
@@ -46,6 +61,9 @@ FOR EACH ROW BEGIN
   SELECT "" REGEXP NEW.pattern INTO dummy;
 END
 */||
+SET @@character_set_client = @character_set_client_saved||
+SET @@character_set_results = @character_set_results_saved||
+SET @@collation_connection = @collation_connection_saved||
 
 
 
@@ -178,7 +196,7 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
- ("Slave: Unknown table 't1' Error_code: 1051"),
+ ("Slave: Unknown table 'test.t1' Error_code: 1051"),
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
@@ -189,7 +207,7 @@ INSERT INTO global_suppressions VALUES
  ("The path specified for the variable .* is not a directory or cannot be written:"),
  ("Master server does not support or not configured semi-sync replication, fallback to asynchronous"),
  (": The MySQL server is running with the --secure-backup-file-priv option so it cannot execute this statement"),
- ("Slave: Unknown table 't1' Error_code: 1051"),
+ ("Slave: Unknown table 'test.t1' Error_code: 1051"),
 
  /* Messages from valgrind */
  ("==[0-9]*== Memcheck,"),
@@ -215,6 +233,9 @@ INSERT INTO global_suppressions VALUES
  ("Slave I/O: Get master clock failed with error:.*"),
  ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
  ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
+ ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
+ ("Slave I/O: Get master BINLOG_CHECKSUM failed with error.*"),
+ ("Slave I/O: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
  /*
    BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
    table cause warnings in errlog

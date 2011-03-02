@@ -54,14 +54,17 @@ enum PSI_file_operation
   PSI_FILE_RENAME= 15,
   PSI_FILE_SYNC= 16
 };
-enum PSI_table_operation
+enum PSI_table_io_operation
+{
+  PSI_TABLE_FETCH_ROW= 0,
+  PSI_TABLE_WRITE_ROW= 1,
+  PSI_TABLE_UPDATE_ROW= 2,
+  PSI_TABLE_DELETE_ROW= 3
+};
+enum PSI_table_lock_operation
 {
   PSI_TABLE_LOCK= 0,
-  PSI_TABLE_EXTERNAL_LOCK= 1,
-  PSI_TABLE_FETCH_ROW= 2,
-  PSI_TABLE_WRITE_ROW= 3,
-  PSI_TABLE_UPDATE_ROW= 4,
-  PSI_TABLE_DELETE_ROW= 5
+  PSI_TABLE_EXTERNAL_LOCK= 1
 };
 typedef unsigned int PSI_mutex_key;
 typedef unsigned int PSI_rwlock_key;
@@ -153,13 +156,11 @@ struct PSI_table_locker_state_v1
   uint m_flags;
   struct PSI_table *m_table;
   struct PSI_table_share *m_table_share;
-  void *m_class;
   struct PSI_thread *m_thread;
   ulonglong m_timer_start;
   ulonglong (*m_timer)(void);
-  enum PSI_table_operation m_operation;
+  enum PSI_table_io_operation m_io_operation;
   uint m_index;
-  uint m_lock_index;
   const char* m_src_file;
   int m_src_line;
   void *m_wait;
@@ -203,6 +204,14 @@ typedef struct PSI_thread* (*new_thread_v1_t)
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    unsigned long id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
+typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
+typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
+                                          const char *host, int host_len);
+typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
+typedef void (*set_thread_command_v1_t)(int command);
+typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+typedef void (*set_thread_state_v1_t)(const char* state);
+typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
@@ -218,9 +227,12 @@ typedef struct PSI_cond_locker* (*get_thread_cond_locker_v1_t)
   (struct PSI_cond_locker_state_v1 *state,
    struct PSI_cond *cond, struct PSI_mutex *mutex,
    enum PSI_cond_operation op);
-typedef struct PSI_table_locker* (*get_thread_table_locker_v1_t)
+typedef struct PSI_table_locker* (*get_thread_table_io_locker_v1_t)
   (struct PSI_table_locker_state_v1 *state,
-   struct PSI_table *table, enum PSI_table_operation op, ulong flags);
+   struct PSI_table *table, enum PSI_table_io_operation op, uint index);
+typedef struct PSI_table_locker* (*get_thread_table_lock_locker_v1_t)
+  (struct PSI_table_locker_state_v1 *state,
+   struct PSI_table *table, enum PSI_table_lock_operation op, ulong flags);
 typedef struct PSI_file_locker* (*get_thread_file_name_locker_v1_t)
   (struct PSI_file_locker_state_v1 *state,
    PSI_file_key key, enum PSI_file_operation op, const char *name,
@@ -255,9 +267,12 @@ typedef void (*start_cond_wait_v1_t)
   (struct PSI_cond_locker *locker, const char *src_file, uint src_line);
 typedef void (*end_cond_wait_v1_t)
   (struct PSI_cond_locker *locker, int rc);
-typedef void (*start_table_wait_v1_t)
-  (struct PSI_table_locker *locker, uint index, const char *src_file, uint src_line);
-typedef void (*end_table_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*start_table_io_wait_v1_t)
+  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
+typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker);
+typedef void (*start_table_lock_wait_v1_t)
+  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
+typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 typedef struct PSI_file* (*start_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
 typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker);
@@ -291,13 +306,21 @@ struct PSI_v1
   new_thread_v1_t new_thread;
   set_thread_id_v1_t set_thread_id;
   get_thread_v1_t get_thread;
+  set_thread_user_v1_t set_thread_user;
+  set_thread_user_host_v1_t set_thread_user_host;
+  set_thread_db_v1_t set_thread_db;
+  set_thread_command_v1_t set_thread_command;
+  set_thread_start_time_v1_t set_thread_start_time;
+  set_thread_state_v1_t set_thread_state;
+  set_thread_info_v1_t set_thread_info;
   set_thread_v1_t set_thread;
   delete_current_thread_v1_t delete_current_thread;
   delete_thread_v1_t delete_thread;
   get_thread_mutex_locker_v1_t get_thread_mutex_locker;
   get_thread_rwlock_locker_v1_t get_thread_rwlock_locker;
   get_thread_cond_locker_v1_t get_thread_cond_locker;
-  get_thread_table_locker_v1_t get_thread_table_locker;
+  get_thread_table_io_locker_v1_t get_thread_table_io_locker;
+  get_thread_table_lock_locker_v1_t get_thread_table_lock_locker;
   get_thread_file_name_locker_v1_t get_thread_file_name_locker;
   get_thread_file_stream_locker_v1_t get_thread_file_stream_locker;
   get_thread_file_descriptor_locker_v1_t get_thread_file_descriptor_locker;
@@ -313,8 +336,10 @@ struct PSI_v1
   end_rwlock_wrwait_v1_t end_rwlock_wrwait;
   start_cond_wait_v1_t start_cond_wait;
   end_cond_wait_v1_t end_cond_wait;
-  start_table_wait_v1_t start_table_wait;
-  end_table_wait_v1_t end_table_wait;
+  start_table_io_wait_v1_t start_table_io_wait;
+  end_table_io_wait_v1_t end_table_io_wait;
+  start_table_lock_wait_v1_t start_table_lock_wait;
+  end_table_lock_wait_v1_t end_table_lock_wait;
   start_file_open_wait_v1_t start_file_open_wait;
   end_file_open_wait_v1_t end_file_open_wait;
   end_file_open_wait_and_bind_to_descriptor_v1_t

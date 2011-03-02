@@ -35,6 +35,10 @@ Created 7/19/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "ibuf0types.h"
 
+/** Default value for maximum on-disk size of change buffer in terms
+of percentage of the buffer pool. */
+#define CHANGE_BUFFER_DEFAULT_SIZE	(25)
+
 /* Possible operations buffered in the insert/whatever buffer. See
 ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
 typedef enum {
@@ -43,7 +47,7 @@ typedef enum {
 	IBUF_OP_DELETE = 2,
 
 	/* Number of different operation types. */
-	IBUF_OP_COUNT = 3,
+	IBUF_OP_COUNT = 3
 } ibuf_op_t;
 
 /** Combinations of operations that can be buffered.  Because the enum
@@ -62,6 +66,11 @@ typedef enum {
 
 /** Operations that can currently be buffered. */
 extern ibuf_use_t	ibuf_use;
+
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/** Flag to control insert buffer debugging. */
+extern uint		ibuf_debug;
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
 /** The insert buffer control structure */
 extern ibuf_t*		ibuf;
@@ -92,6 +101,14 @@ UNIV_INTERN
 void
 ibuf_init_at_db_start(void);
 /*=======================*/
+/*********************************************************************//**
+Updates the max_size value for ibuf. */
+UNIV_INTERN
+void
+ibuf_max_size_update(
+/*=================*/
+	ulint	new_val);	/*!< in: new value in terms of
+				percentage of the buffer pool size */
 /*********************************************************************//**
 Reads the biggest tablespace id from the high end of the insert buffer
 tree and updates the counter in fil_system. */
@@ -239,15 +256,44 @@ Must not be called when recv_no_ibuf_operations==TRUE.
 @return	TRUE if level 2 or level 3 page */
 UNIV_INTERN
 ibool
-ibuf_page(
-/*======*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	page_no,/*!< in: page number */
-	mtr_t*	mtr);	/*!< in: mtr which will contain an x-latch to the
-			bitmap page if the page is not one of the fixed
-			address ibuf pages, or NULL, in which case a new
-			transaction is created. */
+ibuf_page_low(
+/*==========*/
+	ulint		space,	/*!< in: space id */
+	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint		page_no,/*!< in: page number */
+#ifdef UNIV_DEBUG
+	ibool		x_latch,/*!< in: FALSE if relaxed check
+				(avoid latching the bitmap page) */
+#endif /* UNIV_DEBUG */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
+	mtr_t*		mtr)	/*!< in: mtr which will contain an
+				x-latch to the bitmap page if the page
+				is not one of the fixed address ibuf
+				pages, or NULL, in which case a new
+				transaction is created. */
+	__attribute__((warn_unused_result));
+#ifdef UNIV_DEBUG
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
+pages.  Must not be called when recv_no_ibuf_operations==TRUE.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes, or 0
+@param page_no	page number
+@param mtr	mini-transaction or NULL
+@return TRUE if level 2 or level 3 page */
+# define ibuf_page(space, zip_size, page_no, mtr)			\
+	ibuf_page_low(space, zip_size, page_no, TRUE, __FILE__, __LINE__, mtr)
+#else /* UVIV_DEBUG */
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
+pages.  Must not be called when recv_no_ibuf_operations==TRUE.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes, or 0
+@param page_no	page number
+@param mtr	mini-transaction or NULL
+@return TRUE if level 2 or level 3 page */
+# define ibuf_page(space, zip_size, page_no, mtr)			\
+	ibuf_page_low(space, zip_size, page_no, __FILE__, __LINE__, mtr)
+#endif /* UVIV_DEBUG */
 /***********************************************************************//**
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
@@ -324,14 +370,12 @@ will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract_for_n_pages(
-/*======================*/
-	ibool	sync,	/*!< in: TRUE if the caller wants to wait for the
-			issued read with the highest tablespace address
-			to complete */
-	ulint	n_pages);/*!< in: try to read at least this many pages to
-			the buffer pool and merge the ibuf contents to
-			them */
+ibuf_contract_in_background(
+/*========================*/
+	ibool	full);	/*!< in: TRUE if the caller wants to do a full
+			contract based on PCT_IO(100). If FALSE then
+			the size of contract batch is determined based
+			on the current size of the ibuf tree. */
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.

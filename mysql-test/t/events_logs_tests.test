@@ -46,7 +46,7 @@ call select_general_log();
 --echo Check slow query log
 --echo
 --echo Ensure that slow logging is on
-show variables like 'log_slow_queries';
+show variables like 'slow_query_log';
 --echo 
 --echo Demonstrate that session value has no effect
 --echo

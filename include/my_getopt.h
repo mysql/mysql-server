@@ -39,6 +39,13 @@ C_MODE_START
 #define GET_ASK_ADDR	 128
 #define GET_TYPE_MASK	 127
 
+/**
+  Enumeration of the my_option::arg_type attributes.
+  It should be noted that for historical reasons variables with the combination
+  arg_type=NO_ARG, my_option::var_type=GET_BOOL still accepts
+  arguments. This is someone counter intuitive and care should be taken
+  if the code is refactored.
+*/
 enum get_opt_arg_type { NO_ARG, OPT_ARG, REQUIRED_ARG };
 
 struct st_typelib;
@@ -79,7 +86,6 @@ struct my_option
 
 
 typedef my_bool (*my_get_one_option)(int, const struct my_option *, char *);
-typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...);
 /**
   Used to retrieve a reference to the object (variable) that holds the value
   for the given option. For example, if var_type is GET_UINT, the function

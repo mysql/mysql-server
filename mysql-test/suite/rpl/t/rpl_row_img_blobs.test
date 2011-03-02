@@ -1,0 +1,56 @@
+#
+# This file contains tests for WL#5096.
+#
+
+--let $rpl_topology= 1->2->3
+--source include/rpl_init.inc
+-- source include/have_binlog_format_row.inc
+
+-- connection server_1
+-- source include/have_innodb.inc
+-- connection server_2
+-- source include/have_innodb.inc
+-- connection server_3
+-- source include/have_innodb.inc
+-- connection server_1
+
+#
+#   WL#5096 Tests.
+# 
+
+#
+# Tests combinations of binlog-row-image against mixes of MyISAM and InnoDB
+# storage engines on all three servers.
+#
+# All the combinarions need not to be separated into their own files as
+# the tests for indexes and engines mixes are, because noblobs test script
+# does not take too long time, thence we do not risk triggering PB2 timeout
+# on valgrind runs.
+#
+
+## NOBLOB
+
+-- let $row_img_set=server_1:NOBLOB:N,server_2:NOBLOB:Y,server_3:NOBLOB:Y
+-- source include/rpl_row_img_set.inc
+
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
+-- source include/rpl_row_img_general_loop.inc
+
+## MINIMAL
+
+-- let $row_img_set=server_1:MINIMAL:N,server_2:MINIMAL:Y,server_3:MINIMAL:Y
+-- source include/rpl_row_img_set.inc
+
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
+-- source include/rpl_row_img_general_loop.inc
+
+## FULL
+
+-- let $row_img_set=server_1:FULL:N,server_2:FULL:Y,server_3:FULL:Y
+-- source include/rpl_row_img_set.inc
+
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
+-- source include/rpl_row_img_general_loop.inc
+
+
+--source include/rpl_end.inc

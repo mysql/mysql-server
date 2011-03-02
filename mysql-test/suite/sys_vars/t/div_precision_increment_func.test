@@ -19,7 +19,7 @@
 #                                                                              #
 ################################################################################
 
-let $save_div_precision_increment = `SELECT @@global.div_precision_increment`
+let $save_div_precision_increment = `SELECT @@global.div_precision_increment`;
  
 #SET @save_div_precision_increment = @@global.div_precision_increment;
 

@@ -228,6 +228,23 @@ XA ROLLBACK 'xid1';
 disconnect con1;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#56448 Assertion failed: ! is_set() with second xa end
+--echo #
+
+XA START 'x';
+XA END 'x';
+# Second XA END caused an assertion.
+--error ER_XAER_RMFAIL
+XA END 'x';
+XA PREPARE 'x';
+# Second XA PREPARE also caused an assertion.
+--error ER_XAER_RMFAIL
+XA PREPARE 'x';
+XA ROLLBACK 'x';
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

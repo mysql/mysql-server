@@ -10,4 +10,4 @@ create table t1 (a int) engine=myisam;
 drop table t1;
 Got one of the listed errors
 drop table t1;
-ERROR 42S02: Unknown table 't1'
+ERROR 42S02: Unknown table 'test.t1'

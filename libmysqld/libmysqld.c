@@ -17,7 +17,6 @@
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <my_pthread.h>
-#include "embedded_priv.h"
 #include <my_sys.h>
 #include <mysys_err.h>
 #include <m_string.h>
@@ -28,6 +27,7 @@
 #include <signal.h>
 #include <time.h>
 #include <sql_common.h>
+#include "embedded_priv.h"
 #include "client_settings.h"
 #ifdef	 HAVE_PWD_H
 #include <pwd.h>
@@ -165,7 +165,11 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag|=CLIENT_CAPABILITIES;
   if (client_flag & CLIENT_MULTI_STATEMENTS)
     client_flag|= CLIENT_MULTI_RESULTS;
-  client_flag&= ~CLIENT_COMPRESS;
+  /*
+    no compression in embedded as we don't send any data,
+    and no pluggable auth, as we cannot do a client-server dialog
+  */
+  client_flag&= ~(CLIENT_COMPRESS | CLIENT_PLUGIN_AUTH);
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 

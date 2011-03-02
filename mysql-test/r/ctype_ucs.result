@@ -2491,7 +2491,7 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 select hex(concat(IsSimple(GeomFromText('POINT(1 1)'))));
 hex(concat(IsSimple(GeomFromText('POINT(1 1)'))))
-0030
+0031
 create table t1 as select concat(IsSimple(GeomFromText('Point(1 1)'))) as c1;
 show create table t1;
 Table	Create Table
@@ -2733,7 +2733,7 @@ create table t1 as select concat(time_to_sec('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+  `c1` varchar(10) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(extract(year from 20090702)));
@@ -3919,6 +3919,9 @@ GROUP_CONCAT(IFNULL(a,''))
 SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
 GROUP_CONCAT(IF(a,a,''))
 1234567
+SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
+GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END)
+1234567
 SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					COALESCE(a,'')	253	9	7	Y	0	31	8
@@ -4052,6 +4055,48 @@ DROP TABLE t1;
 #
 # End of Bug#54916
 #
+#
+# WL#5510 Functions to_base64 and from_base64
+#
+CREATE TABLE t1 AS SELECT TO_BASE64('test') AS to_base64;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `to_base64` varchar(12) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT to_base64, LENGTH(to_base64), HEX(to_base64) FROM t1;
+to_base64	LENGTH(to_base64)	HEX(to_base64)
+AHQAZQBzAHQ=	24	0041004800510041005A00510042007A004100480051003D
+CREATE TABLE t2 AS SELECT FROM_BASE64(to_base64) AS from_base64 FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `from_base64` varbinary(18) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT CAST(from_base64 AS CHAR), LENGTH(from_base64), HEX(from_base64) FROM t2;
+CAST(from_base64 AS CHAR)	LENGTH(from_base64)	HEX(from_base64)
+test	8	0074006500730074
+DROP TABLE t2;
+DROP TABLE t1;
+#
+# Bug#58190 BETWEEN no longer uses indexes for date or datetime fields
+#
+SELECT @@collation_connection;
+@@collation_connection
+ucs2_general_ci
+CREATE TABLE t1 (
+id INT(11) DEFAULT NULL,
+date_column DATE DEFAULT NULL,
+KEY(date_column));
+INSERT INTO t1 VALUES (1,'2010-09-01'),(2,'2010-10-01');
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
+EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+DROP TABLE t1;
 #
 # Bug#52159 returning time type from function and empty left join causes debug assertion
 #
@@ -4574,6 +4619,19 @@ ae	00610065
 æ	00E6
 drop table t1;
 "END ctype_german.inc"
+#
+# Bug#59145 valgrind warnings for uninitialized values in my_strtoll10_mb2
+#
+SET NAMES latin1;
+SELECT CONVERT(CHAR(NULL USING ucs2), UNSIGNED);
+CONVERT(CHAR(NULL USING ucs2), UNSIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+DO IFNULL(CHAR(NULL USING ucs2), '');
+DO CAST(CONVERT('' USING ucs2) AS UNSIGNED);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
 #
 # End of 5.6 tests
 #

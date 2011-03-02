@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -131,6 +131,22 @@ ROW_FORMAT=REDUNDANT. */
 #define DICT_TF2_FLAG_UNSET(table, flag)			\
 	(table->flags &= ~((flag) << DICT_TF2_SHIFT))
 
+/** Tables could be chained together with Foreign key constraint. When
+first load the parent table, we would load all of its descedents.
+This could result in rescursive calls and out of stack error eventually.
+DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
+when exceeded, the child table will not be loaded. It will be loaded when
+the foreign constraint check needs to be run. */
+#define DICT_FK_MAX_RECURSIVE_LOAD	255
+
+/** Similarly, when tables are chained together with foreign key constraints
+with on cascading delete/update clause, delete from parent table could
+result in recursive cascading calls. This defines the maximum number of
+such cascading deletes/updates allowed. When exceeded, the delete from
+parent table will fail, and user has to drop excessive foreign constraint
+before proceeds. */
+#define FK_MAX_CASCADE_DEL		255
+
 /**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
@@ -237,6 +253,26 @@ dict_foreign_t*
 dict_mem_foreign_create(void);
 /*=========================*/
 
+/**********************************************************************//**
+Sets the foreign_table_name_lookup pointer based on the value of
+srv_lower_case_table_names. */
+UNIV_INTERN
+void
+dict_mem_foreign_table_name_lookup_set(
+/*===================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
+/**********************************************************************//**
+Sets the reference_table_name_lookup pointer based on the value of
+srv_lower_case_table_names. */
+UNIV_INTERN
+void
+dict_mem_referenced_table_name_lookup_set(
+/*======================================*/
+	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
+	ibool		do_alloc);	/*!< in: is an alloc needed */
+
 /** Data structure for a column in a table */
 struct dict_col_struct{
 	/*----------------------*/
@@ -339,6 +375,8 @@ struct dict_index_struct{
 				/*!< TRUE if this index is marked to be
 				dropped in ha_innobase::prepare_drop_index(),
 				otherwise FALSE */
+	unsigned	corrupted:1;
+				/*!< TRUE if the index object is corrupted */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
@@ -347,13 +385,24 @@ struct dict_index_struct{
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
-	ib_int64_t*	stat_n_diff_key_vals;
+	ib_uint64_t*	stat_n_diff_key_vals;
 				/*!< approximate number of different
 				key values for this index, for each
 				n-column prefix where n <=
 				dict_get_n_unique(index); we
 				periodically calculate new
 				estimates */
+	ib_uint64_t*	stat_n_sample_sizes;
+				/*!< number of pages that were sampled
+				to calculate each of stat_n_diff_key_vals[],
+				e.g. stat_n_sample_sizes[3] pages were sampled
+				to get the number stat_n_diff_key_vals[3]. */
+	ib_uint64_t*	stat_n_non_null_key_vals;
+				/* approximate number of non-null key values
+				for this index, for each column where
+				n < dict_get_n_unique(index); This
+				is used when innodb_stats_method is
+				"nulls_ignored". */
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
@@ -367,6 +416,13 @@ struct dict_index_struct{
 				index, or 0 if the index existed
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
+#ifdef UNIV_BLOB_DEBUG
+	mutex_t		blobs_mutex;
+				/*!< mutex protecting blobs */
+	void*		blobs;	/*!< map of (page_no,heap_no,field_no)
+				to first_blob_page_no; protected by
+				blobs_mutex; @see btr_blob_dbg_t */
+#endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
 /** Value of dict_index_struct::magic_n */
@@ -391,10 +447,14 @@ struct dict_foreign_struct{
 	unsigned	type:6;		/*!< 0 or DICT_FOREIGN_ON_DELETE_CASCADE
 					or DICT_FOREIGN_ON_DELETE_SET_NULL */
 	char*		foreign_table_name;/*!< foreign table name */
+	char*		foreign_table_name_lookup;
+				/*!< foreign table name used for dict lookup */
 	dict_table_t*	foreign_table;	/*!< table where the foreign key is */
 	const char**	foreign_col_names;/*!< names of the columns in the
 					foreign key */
 	char*		referenced_table_name;/*!< referenced table name */
+	char*		referenced_table_name_lookup;
+				/*!< referenced table name for dict lookup*/
 	dict_table_t*	referenced_table;/*!< table where the referenced key
 					is */
 	const char**	referenced_col_names;/*!< names of the referenced
@@ -455,6 +515,11 @@ struct dict_table_struct{
 				to the dictionary cache */
 	unsigned	n_def:10;/*!< number of columns defined so far */
 	unsigned	n_cols:10;/*!< number of columns */
+	unsigned	can_be_evicted:1;
+				/*!< TRUE if it's not an InnoDB system table
+				or a table that has no FK relationships */
+	unsigned	corrupted:1;
+				/*!< TRUE if table is corrupted */
 	dict_col_t*	cols;	/*!< array of column descriptions */
 	const char*	col_names;
 				/*!< Column names packed in a character string
@@ -476,12 +541,12 @@ struct dict_table_struct{
 				which refer to this table */
 	UT_LIST_NODE_T(dict_table_t)
 			table_LRU; /*!< node of the LRU list of tables */
-	ulint		n_mysql_handles_opened;
-				/*!< count of how many handles MySQL has opened
-				to this table; dropping of the table is
-				NOT allowed until this count gets to zero;
-				MySQL does NOT itself check the number of
-				open handles at drop */
+	unsigned	fk_max_recusive_level:8;
+				/*!< maximum recursive level we support when
+				loading tables chained together with FK
+				constraints. If exceeds this level, we will
+				stop loading child table into memory along with
+				its parent table */
 	ulint		n_foreign_key_checks_running;
 				/*!< count of how many foreign key check
 				operations are currently being performed
@@ -496,8 +561,6 @@ struct dict_table_struct{
 				with undo logs commits, it sets this
 				to the value of the trx id counter for
 				the tables it had an IX lock on */
-	UT_LIST_BASE_NODE_T(lock_t)
-			locks; /*!< list of locks on the table */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
@@ -552,8 +615,8 @@ struct dict_table_struct{
 				whether a transaction has locked the AUTOINC
 				lock we keep a pointer to the transaction
 				here in the autoinc_trx variable. This is to
-				avoid acquiring the kernel mutex and scanning
-				the vector in trx_t.
+				avoid acquiring the lock_sys_t::mutex and
+			       	scanning the vector in trx_t.
 
 				When an AUTOINC lock has to wait, the
 				corresponding lock instance is created on
@@ -577,17 +640,32 @@ struct dict_table_struct{
 				/*!< This counter is used to track the number
 				of granted and pending autoinc locks on this
 				table. This value is set after acquiring the
-				kernel mutex but we peek the contents to
+				lock_sys_t::mutex but we peek the contents to
 				determine whether other transactions have
 				acquired the AUTOINC lock or not. Of course
 				only one transaction can be granted the
 				lock but there can be multiple waiters. */
 	const trx_t*	autoinc_trx;
 				/*!< The transaction that currently holds the
-				the AUTOINC lock on this table. */
+				the AUTOINC lock on this table.
+				Protected by lock_sys->mutex. */
 	fts_t*		fts;	/* FTS specific state variables */
 				/* @} */
 	/*----------------------*/
+	ulint		n_rec_locks;
+				/*!< Count of the number of record locks on
+				this table. We use this to determine whether
+				we can evict the table from the dictionary
+				cache. It is protected by lock_sys->mutex. */
+	ulint		n_ref_count;
+				/*!< count of how many handles are opened
+				to this table; dropping of the table is
+				NOT allowed until this count gets to zero;
+				MySQL does NOT itself check the number of
+				open handles at drop */
+	UT_LIST_BASE_NODE_T(lock_t)
+			locks; /*!< list of locks on the table; protected
+			       by lock_sys->mutex */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

@@ -72,6 +72,7 @@ row_merge_create_fts_sort_index(
 	new_index->id = index->id;
 	new_index->table = (dict_table_t*)table;
 	new_index->n_uniq = FTS_NUM_FIELDS_SORT;
+	new_index->n_def = FTS_NUM_FIELDS_SORT;
 
 	/* The first field is on the Tokenized Word */
 	field = dict_index_get_nth_field(new_index, 0);
@@ -381,8 +382,6 @@ row_merge_fts_doc_tokenize(
 		n_tuple[idx]++;
 	}
 
-	ut_ad(data_size < sizeof(row_merge_block_t));
-
 	if (FTS_PLL_ENABLED) {
 
 		for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
@@ -517,6 +516,11 @@ exit:
 	DEBUG_FTS_SORT_PRINT("FTS SORT: start merge sort\n");
 
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
+
+		if (!merge_file[i]->offset) {
+			continue;
+		}
+
 		tmpfd[i] = innobase_mysql_tmpfile();
 		error = row_merge_sort(psort_info->psort_common->trx,
 				       psort_info->psort_common->sort_index,

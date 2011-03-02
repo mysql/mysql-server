@@ -9,3 +9,4 @@
 let $engine_type=Innodb;
 --source extra/rpl_tests/rpl_mixing_engines.test
 
+--source include/rpl_end.inc

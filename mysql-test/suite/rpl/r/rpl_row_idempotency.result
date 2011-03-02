@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Can't find record in 't.' Error_code: 1032");
 call mtr.add_suppression("Slave: Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
 call mtr.add_suppression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
@@ -76,6 +72,7 @@ b
 2
 3
 *** slave must stop (Trying to delete a referenced foreing key)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1451
 select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
@@ -94,6 +91,7 @@ set global slave_exec_mode='STRICT';
 delete from ti1 where b=3;
 insert into ti2 set a=3, b=3 /* offending write event */;
 *** slave must stop (Trying to insert an invalid foreign key)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1452
 select * from ti2 order by b /* must be (2,2) */;
@@ -114,6 +112,7 @@ a	b
 insert into ti1 set b=1;
 insert into ti1 set b=1 /* offending write event */;
 *** slave must stop (Trying to insert a dupliacte key)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1062
 set foreign_key_checks= 0;
@@ -130,6 +129,7 @@ DELETE FROM t1 WHERE a = -2;
 DELETE FROM t2 WHERE a = -2;
 DELETE FROM t1 WHERE a = -2;
 *** slave must stop (Key was not found)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
 set global slave_exec_mode='IDEMPOTENT';
@@ -137,6 +137,7 @@ start slave sql_thread;
 set global slave_exec_mode='STRICT';
 DELETE FROM t2 WHERE a = -2;
 *** slave must stop (Key was not found)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
 set global slave_exec_mode='IDEMPOTENT';
@@ -146,6 +147,7 @@ UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
 *** slave must stop (Key was not found)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
 set global slave_exec_mode='IDEMPOTENT';
@@ -153,6 +155,7 @@ start slave sql_thread;
 set global slave_exec_mode='STRICT';
 UPDATE t2 SET a = 1 WHERE a = -1;
 *** slave must stop (Key was not found)
+include/wait_for_slave_sql_to_stop.inc
 Last_SQL_Error
 1032
 set global slave_exec_mode='IDEMPOTENT';
@@ -161,3 +164,4 @@ SET @@global.slave_exec_mode= @old_slave_exec_mode;
 drop table t1,t2,ti2,ti1;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 *** end of tests
+include/rpl_end.inc

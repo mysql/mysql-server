@@ -53,7 +53,7 @@ Created 2007-03-20 Sunny Bains
 /* Red black tree typedefs */
 typedef struct ib_rbt_struct ib_rbt_t;
 typedef struct ib_rbt_node_struct ib_rbt_node_t;
-// FIXME: Iterator is a better name than _bound_
+/* FIXME: Iterator is a better name than _bound_ */
 typedef struct ib_rbt_bound_struct ib_rbt_bound_t;
 typedef void (*ib_rbt_print_node)(const ib_rbt_node_t* node);
 typedef int (*ib_rbt_compare)(const void* p1, const void* p2);

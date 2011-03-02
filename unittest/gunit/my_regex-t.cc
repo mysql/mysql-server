@@ -31,10 +31,10 @@ namespace {
 
 const int NSUBS= 10;
 
-class Regex_test : public ::testing::Test
+class RegexTest : public ::testing::Test
 {
 protected:
-  Regex_test()
+  RegexTest()
   {
     memset(&re, 0, sizeof(re));
   }
@@ -63,7 +63,7 @@ Re_test_data basic_data[]=
   { NULL, 0, NULL }
 };
 
-TEST_F(Regex_test, basic_test)
+TEST_F(RegexTest, BasicTest)
 {
   for (int ix=0; basic_data[ix].pattern; ++ix)
   {

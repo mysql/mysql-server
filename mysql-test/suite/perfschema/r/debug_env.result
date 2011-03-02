@@ -1,0 +1,152 @@
+"============================================================================"
+"This is not a test, it's a debug utility to troubleshoot test suite problems"
+"This script is flagged as experimental, as failures are expected"
+"============================================================================"
+show engines;
+Engine	Support	Comment	Transactions	XA	Savepoints
+FEDERATED	NO	Federated MySQL storage engine	NULL	NULL	NULL
+MRG_MYISAM	YES	Collection of identical MyISAM tables	NO	NO	NO
+MyISAM	DEFAULT	MyISAM storage engine	NO	NO	NO
+BLACKHOLE	YES	/dev/null storage engine (anything you write to it disappears)	NO	NO	NO
+CSV	YES	CSV storage engine	NO	NO	NO
+MEMORY	YES	Hash based, stored in memory, useful for temporary tables	NO	NO	NO
+ARCHIVE	YES	Archive storage engine	NO	NO	NO
+InnoDB	YES	Supports transactions, row-level locking, and foreign keys	YES	YES	YES
+PERFORMANCE_SCHEMA	YES	Performance Schema	NO	NO	NO
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+show variables like "performance_schema%";
+Variable_name	Value
+performance_schema	ON
+performance_schema_events_waits_history_long_size	10000
+performance_schema_events_waits_history_size	10
+performance_schema_max_cond_classes	80
+performance_schema_max_cond_instances	1000
+performance_schema_max_file_classes	50
+performance_schema_max_file_handles	32768
+performance_schema_max_file_instances	10000
+performance_schema_max_mutex_classes	200
+performance_schema_max_mutex_instances	10000
+performance_schema_max_rwlock_classes	30
+performance_schema_max_rwlock_instances	10000
+performance_schema_max_table_handles	1000
+performance_schema_max_table_instances	500
+performance_schema_max_thread_classes	50
+performance_schema_max_thread_instances	1000
+performance_schema_setup_actors_size	100
+performance_schema_setup_objects_size	100
+show engine performance_schema status;
+Type	Name	Status
+performance_schema	events_waits_current.row_size	136
+performance_schema	events_waits_current.row_count	3000
+performance_schema	events_waits_history.row_size	136
+performance_schema	events_waits_history.row_count	10000
+performance_schema	events_waits_history.memory	1360000
+performance_schema	events_waits_history_long.row_size	136
+performance_schema	events_waits_history_long.row_count	10000
+performance_schema	events_waits_history_long.memory	1360000
+performance_schema	(pfs_mutex_class).row_size	192
+performance_schema	(pfs_mutex_class).row_count	200
+performance_schema	(pfs_mutex_class).memory	38400
+performance_schema	(pfs_rwlock_class).row_size	224
+performance_schema	(pfs_rwlock_class).row_count	30
+performance_schema	(pfs_rwlock_class).memory	6720
+performance_schema	(pfs_cond_class).row_size	176
+performance_schema	(pfs_cond_class).row_count	80
+performance_schema	(pfs_cond_class).memory	14080
+performance_schema	(pfs_thread_class).row_size	144
+performance_schema	(pfs_thread_class).row_count	50
+performance_schema	(pfs_thread_class).memory	7200
+performance_schema	(pfs_file_class).row_size	200
+performance_schema	(pfs_file_class).row_count	50
+performance_schema	(pfs_file_class).memory	10000
+performance_schema	mutex_instances.row_size	104
+performance_schema	mutex_instances.row_count	10000
+performance_schema	mutex_instances.memory	1040000
+performance_schema	rwlock_instances.row_size	152
+performance_schema	rwlock_instances.row_count	10000
+performance_schema	rwlock_instances.memory	1520000
+performance_schema	cond_instances.row_size	72
+performance_schema	cond_instances.row_count	1000
+performance_schema	cond_instances.memory	72000
+performance_schema	threads.row_size	888
+performance_schema	threads.row_count	1000
+performance_schema	threads.memory	888000
+performance_schema	file_instances.row_size	608
+performance_schema	file_instances.row_count	10000
+performance_schema	file_instances.memory	6080000
+performance_schema	(pfs_file_handle).row_size	8
+performance_schema	(pfs_file_handle).row_count	32768
+performance_schema	(pfs_file_handle).memory	262144
+performance_schema	events_waits_summary_by_thread_by_event_name.row_size	32
+performance_schema	events_waits_summary_by_thread_by_event_name.row_count	362000
+performance_schema	events_waits_summary_by_thread_by_event_name.memory	11584000
+performance_schema	(pfs_table_share).row_size	21664
+performance_schema	(pfs_table_share).row_count	500
+performance_schema	(pfs_table_share).memory	10832000
+performance_schema	(pfs_table).row_size	8704
+performance_schema	(pfs_table).row_count	1000
+performance_schema	(pfs_table).memory	8704000
+performance_schema	setup_actors.row_size	240
+performance_schema	setup_actors.row_count	100
+performance_schema	setup_actors.memory	24000
+performance_schema	setup_objects.row_size	432
+performance_schema	setup_objects.row_count	100
+performance_schema	setup_objects.memory	43200
+performance_schema	events_waits_summary_global_by_event_name.row_size	32
+performance_schema	events_waits_summary_global_by_event_name.row_count	362
+performance_schema	events_waits_summary_global_by_event_name.memory	11584
+performance_schema	performance_schema.memory	43857328
+use performance_schema;
+show tables;
+Tables_in_performance_schema
+cond_instances
+events_waits_current
+events_waits_history
+events_waits_history_long
+events_waits_summary_by_instance
+events_waits_summary_by_thread_by_event_name
+events_waits_summary_global_by_event_name
+file_instances
+file_summary_by_event_name
+file_summary_by_instance
+mutex_instances
+objects_summary_global_by_type
+performance_timers
+rwlock_instances
+setup_actors
+setup_consumers
+setup_instruments
+setup_objects
+setup_timers
+table_io_waits_summary_by_index_usage
+table_io_waits_summary_by_table
+table_lock_waits_summary_by_table
+threads
+select * from performance_timers;
+TIMER_NAME	TIMER_FREQUENCY	TIMER_RESOLUTION	TIMER_OVERHEAD
+select * from setup_timers;
+NAME	TIMER_NAME
+wait	CYCLE
+select * from threads;
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
+select count(*) from setup_instruments;
+count(*)
+220
+select count(*) from events_waits_summary_by_thread_by_event_name;
+count(*)
+3080

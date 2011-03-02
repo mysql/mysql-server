@@ -33,6 +33,9 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0types.h"
 #include "log0log.h"
 
+/** Flag indicating if the page_cleaner is in active state. */
+extern ibool buf_page_cleaner_is_active;
+
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
 UNIV_INTERN
@@ -84,6 +87,21 @@ buf_flush_init_for_writing(
 	ib_uint64_t	newest_lsn);	/*!< in: newest modification lsn
 					to the page */
 #ifndef UNIV_HOTBACKUP
+# if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+/********************************************************************//**
+Writes a flushable page asynchronously from the buffer pool to a file.
+NOTE: buf_pool->mutex and block->mutex must be held upon entering this
+function, and they will be released by this function after flushing.
+This is loosely based on buf_flush_batch() and buf_flush_page().
+@return TRUE if the page was flushed and the mutexes released */
+UNIV_INTERN
+ibool
+buf_flush_page_try(
+/*===============*/
+	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
+	buf_block_t*	block)		/*!< in/out: buffer control block */
+	__attribute__((nonnull, warn_unused_result));
+# endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the LRU list.
 NOTE: The calling thread may own latches to pages: to avoid deadlocks,
@@ -123,7 +141,18 @@ UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
+					or BUF_FLUSH_LIST */
+/******************************************************************//**
+Waits until a flush batch of the given type ends. This is called by
+a thread that only wants to wait for a flush to end but doesn't do
+any flushing itself. */
+UNIV_INTERN
+void
+buf_flush_wait_batch_end_wait_only(
+/*===============================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 /********************************************************************//**
@@ -182,18 +211,17 @@ UNIV_INTERN
 void
 buf_flush_stat_update(void);
 /*=======================*/
-/*********************************************************************
-Determines the fraction of dirty pages that need to be flushed based
-on the speed at which we generate redo log. Note that if redo log
-is generated at significant rate without a corresponding increase
-in the number of dirty pages (for example, an in-memory workload)
-it can cause IO bursts of flushing. This function implements heuristics
-to avoid this burstiness.
-@return	number of dirty pages to be flushed / second */
+/******************************************************************//**
+page_cleaner thread tasked with flushing dirty pages from the buffer
+pools. As of now we'll have only one instance of this thread.
+@return a dummy parameter */
 UNIV_INTERN
-ulint
-buf_flush_get_desired_flush_rate(void);
-/*==================================*/
+os_thread_ret_t
+buf_flush_page_cleaner_thread(
+/*==========================*/
+	void*	arg __attribute__((unused)));
+			/*!< in: a dummy parameter required by
+			os_thread_create */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**

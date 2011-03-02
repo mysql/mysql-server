@@ -134,3 +134,15 @@ INSERT INTO t1 VALUES ('abc\0\0');
 INSERT INTO t1 VALUES ('abc\0\0');
 ERROR 23000: Duplicate entry 'abc\x00\x00' for key 'PRIMARY'
 DROP TABLE t1;
+#
+# Bug#57882: Item_func_conv_charset::val_str(String*): 
+#            Assertion `fixed == 1' failed
+#
+SELECT (CONVERT('0' USING latin1) IN (CHAR(COT('v') USING utf8),''));
+ERROR 22003: DOUBLE value is out of range in 'cot('v')'
+SET NAMES utf8 COLLATE utf8_latvian_ci ;
+SELECT UPDATEXML(-73 * -2465717823867977728,@@global.auto_increment_increment,null);
+ERROR 22003: BIGINT value is out of range in '(-(73) * -(2465717823867977728))'
+#
+# End Bug#57882
+#

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** On Master ****
 CREATE USER dummy@localhost;
 CREATE USER dummy1@localhost, dummy2@localhost;
@@ -44,12 +40,7 @@ COUNT(*)
 ##########
 ########## setup (PART I)
 ##########
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 CREATE DATABASE b54866 ;
 use b54866;
 CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
@@ -60,6 +51,7 @@ CREATE USER 'b54866_user'@'localhost';
 GRANT ALL ON b54866.* TO 'b54866_user'@'localhost';
 REVOKE ALL ON b54866.* FROM 'b54866_user'@'localhost', 'b54866_fake_user';
 ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
+include/check_slave_no_error.inc
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -104,6 +96,7 @@ Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO 'b54866_user'@'localhost'
 GRANT CREATE, DROP ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 *************************************************************
+include/check_slave_no_error.inc
 ##########
 ########## setup (PART II)
 ##########
@@ -147,6 +140,7 @@ GRANT USAGE ON *.* TO 'b54866_user'@'localhost'
 GRANT CREATE, DROP ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO 'b54866_user'@'localhost'
 *************************************************************
+include/check_slave_no_error.inc
 ##########
 ########## FUNCTION
 ##########
@@ -164,6 +158,7 @@ Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO 'b54866_user'@'localhost'
 GRANT CREATE, DROP ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 *************************************************************
+include/check_slave_no_error.inc
 ##########
 ########## empty revokes should not be binlogged
 ##########
@@ -174,6 +169,7 @@ ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localh
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
 ### No binary log entries were detected for empty revoke operations
+include/check_slave_no_error.inc
 ##########
 ########## Cleanup
 ##########
@@ -182,3 +178,4 @@ DROP FUNCTION b54866_f;
 DROP TABLE test.t2;
 DROP USER 'b54866_user'@'localhost';
 DROP DATABASE b54866;
+include/rpl_end.inc

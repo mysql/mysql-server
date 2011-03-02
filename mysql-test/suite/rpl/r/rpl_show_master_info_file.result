@@ -1,9 +1,6 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SELECT "MYSQLTEST_VARDIR/mysqld.2/data/master.info" as Master_Info_File;
 Master_Info_File
 MYSQLTEST_VARDIR/mysqld.2/data/master.info
+include/rpl_end.inc

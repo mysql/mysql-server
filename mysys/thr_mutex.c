@@ -19,7 +19,7 @@
 #if defined(TARGET_OS_LINUX) && !defined (__USE_UNIX98)
 #define __USE_UNIX98			/* To get rw locks under Linux */
 #endif
-#if defined(THREAD) && defined(SAFE_MUTEX)
+#if defined(SAFE_MUTEX)
 #undef SAFE_MUTEX			/* Avoid safe_mutex redefinitions */
 #include "mysys_priv.h"
 #include "my_static.h"
@@ -262,8 +262,8 @@ int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
 
 
 int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
-			struct timespec *abstime,
-			const char *file, uint line)
+                        const struct timespec *abstime,
+                        const char *file, uint line)
 {
   int error;
   pthread_mutex_lock(&mp->global);
@@ -395,9 +395,9 @@ void safe_mutex_end(FILE *file __attribute__((unused)))
 #endif /* SAFE_MUTEX_DETECT_DESTROY */
 }
 
-#endif /* THREAD && SAFE_MUTEX */
+#endif /* SAFE_MUTEX */
 
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+#if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
 
 #include "mysys_priv.h"
 #include "my_static.h"
@@ -500,4 +500,4 @@ void fastmutex_global_init(void)
 #endif
 }
   
-#endif /* defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 
+#endif /* defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 

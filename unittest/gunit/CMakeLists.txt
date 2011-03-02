@@ -82,7 +82,7 @@ IF(NOT GTEST_DOWNLOADED)
   LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 
   # Now look for gtest.
-  FIND_PACKAGE(GTest)
+  FIND_PACKAGE(GTest QUIET)
 
   # Revert suffix list back to what it was before.
   LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
@@ -206,8 +206,18 @@ IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
   ADD_DEFINITIONS("-library=stlport4")
 ENDIF()
 
-# Add tests (link them with sql library) 
-SET(TESTS sql_list mdl mdl_mytap my_regex thread_utils)
+# Add tests (link them with gunit library) 
+SET(TESTS
+  bounded_queue
+  dbug
+  mdl
+  mdl_mytap
+  my_decimal
+  my_regex
+  sql_list
+  thread_utils
+  )
+
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
   TARGET_LINK_LIBRARIES(${test}-t gunit sqlgunitlib strings dbug regex)

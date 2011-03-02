@@ -42,7 +42,7 @@ struct row_file_summary_by_event_name
     Columns COUNT_READ, COUNT_WRITE,
     SUM_NUMBER_OF_BYTES_READ, SUM_NUMBER_OF_BYTES_WRITE.
   */
-  PFS_file_stat m_file_stat;
+  PFS_file_io_stat m_file_io_stat;
 };
 
 /** Table PERFORMANCE_SCHEMA.FILE_SUMMARY_BY_EVENT_NAME. */
@@ -101,7 +101,7 @@ struct row_file_summary_by_instance
     Columns COUNT_READ, COUNT_WRITE,
     SUM_NUMBER_OF_BYTES_READ, SUM_NUMBER_OF_BYTES_WRITE.
   */
-  PFS_file_stat m_file_stat;
+  PFS_file_io_stat m_file_io_stat;
 };
 
 /** Table PERFORMANCE_SCHEMA.FILE_UMMARY_BY_INSTANCE. */
@@ -139,7 +139,7 @@ private:
 
   /** Current row. */
   row_file_summary_by_instance m_row;
-  /** True is the current row exists. */
+  /** True if the current row exists. */
   bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;

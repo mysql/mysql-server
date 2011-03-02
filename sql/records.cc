@@ -206,6 +206,15 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 
   if (select && my_b_inited(&select->file))
     tempfile= &select->file;
+  else if (select && select->quick && select->quick->clustered_pk_range())
+  {
+    /*
+      In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
+      use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
+      sort file does not contain rowids which satisfy clustered pk range.
+    */
+    tempfile= 0;
+  }
   else
     tempfile= table->sort.io_cache;
   if (tempfile && my_b_inited(tempfile)) // Test if ref-records was used
@@ -276,9 +285,12 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
       (void) table->file->extra_opt(HA_EXTRA_CACHE,
 				  thd->variables.read_buff_size);
   }
-  /* Condition pushdown to storage engine */
-  if ((thd->variables.optimizer_switch &
-       OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && 
+  /* 
+    Do condition pushdown for UPDATE/DELETE.
+    TODO: Remove this from here as it causes two condition pushdown calls 
+    when we're running a SELECT and the condition cannot be pushed down.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
       select && select->cond && 
       (select->cond->used_tables() & table->map) &&
       !table->file->pushed_cond)

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam auto_increment=3;
 insert into t1 values (NULL,1),(NULL,2),(NULL,3);
 select * from t1;
@@ -244,12 +240,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1
 drop table t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=innodb;
@@ -303,12 +294,30 @@ id
 INSERT INTO t1 VALUES(4);
 INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+BEGIN;
+# Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+# zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+# Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+# affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+SELECT * FROM t1;
+id	data
+0	2
+SELECT * FROM t1;
+id	data
+0	2
+DROP TABLE t1;
+include/rpl_end.inc

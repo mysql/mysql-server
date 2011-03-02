@@ -34,11 +34,11 @@ create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
 let $table=t1;
 let $count=0;
 
-insert delayed into t1 values (207);
+insert /* before delayed */ delayed /* after delayed */ into t1 values (207);
 inc $count;
 --source include/wait_until_rows_count.inc
 
-insert delayed into t1 values (null);
+insert /*! delayed */ into t1 values (null);
 inc $count;
 --source include/wait_until_rows_count.inc
 
@@ -52,13 +52,19 @@ inc $count;
 FLUSH TABLES;
 source include/show_binlog_events.inc;
 
-insert delayed into t1 values (null),(null),(null),(null);
+RESET MASTER;
+insert /* before delayed */ delayed /* after delayed */ into t1 values (null),(null),(null),(null);
 inc $count; inc $count; inc $count; inc $count;
 --source include/wait_until_rows_count.inc
 
-insert delayed into t1 values (null),(null),(400),(null);
+insert  /*! delayed */ into t1 values (null),(null),(400),(null);
 inc $count; inc $count; inc $count; inc $count;
 --source include/wait_until_rows_count.inc
+
+if (`SELECT @@SESSION.BINLOG_FORMAT = 'STATEMENT'`) {
+  FLUSH TABLES;
+  source include/show_binlog_events.inc;
+}
 
 select * from t1;
 drop table t1;

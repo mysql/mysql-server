@@ -428,7 +428,7 @@ log_close(void)
 		}
 	}
 
-	if (checkpoint_age <= log->max_modified_age_async) {
+	if (checkpoint_age <= log->max_modified_age_sync) {
 
 		goto function_exit;
 	}
@@ -436,7 +436,7 @@ log_close(void)
 	oldest_lsn = buf_pool_get_oldest_modification();
 
 	if (!oldest_lsn
-	    || lsn - oldest_lsn > log->max_modified_age_async
+	    || lsn - oldest_lsn > log->max_modified_age_sync
 	    || checkpoint_age > log->max_checkpoint_age_async) {
 
 		log->check_flush_or_checkpoint = TRUE;
@@ -782,6 +782,9 @@ log_init(void)
 
 	log_sys->lsn = LOG_START_LSN;
 
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
+
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
@@ -827,9 +830,9 @@ log_init(void)
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
-	MONITOR_SET_SIMPLE(MONITOR_LSN_CHECKPOINT,
-			   log_sys->last_checkpoint_lsn);
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE, 0);
 	log_sys->n_pending_checkpoint_writes = 0;
+
 
 	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
 		       SYNC_NO_ORDER_CHECK);
@@ -871,6 +874,9 @@ log_init(void)
 
 	log_sys->buf_free = LOG_BLOCK_HDR_SIZE;
 	log_sys->lsn = LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	mutex_exit(&(log_sys->mutex));
 
@@ -1516,18 +1522,12 @@ loop:
 
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 
-		MONITOR_SET_SIMPLE(MONITOR_LSN_FLUSHDISK,
-				   log_sys->flushed_to_disk_lsn);
-
 	} else if (flush_to_disk) {
 
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 
 		fil_flush(group->space_id);
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
-
-		MONITOR_SET_SIMPLE(MONITOR_LSN_FLUSHDISK,
-				   log_sys->flushed_to_disk_lsn);
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -1646,15 +1646,13 @@ buffer pool. NOTE: this function may only be called if the calling thread owns
 no synchronization objects!
 @return FALSE if there was a flush batch of the same type running,
 which means that we could not start this flush batch */
-UNIV_INTERN
+static
 ibool
 log_preflush_pool_modified_pages(
 /*=============================*/
-	ib_uint64_t	new_oldest,	/*!< in: try to advance
+	ib_uint64_t	new_oldest)	/*!< in: try to advance
 					oldest_modified_lsn at least
 					to this lsn */
-	ibool		sync)		/*!< in: TRUE if synchronous
-					operation is desired */
 {
 	ulint	n_pages;
 
@@ -1673,14 +1671,15 @@ log_preflush_pool_modified_pages(
 
 	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
 
-	if (sync) {
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-	}
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	if (n_pages == ULINT_UNDEFINED) {
 
 		return(FALSE);
 	}
+
+	MONITOR_INC(MONITOR_NUM_SYNC_FLUSHES);
+	MONITOR_SET(MONITOR_FLUSH_SYNC_PAGES, n_pages);
 
 	return(TRUE);
 }
@@ -1698,9 +1697,8 @@ log_complete_checkpoint(void)
 	log_sys->next_checkpoint_no++;
 
 	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn;
-
-	MONITOR_SET_SIMPLE(MONITOR_LSN_CHECKPOINT,
-			   log_sys->last_checkpoint_lsn);
+	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
+		    log_sys->lsn - log_sys->last_checkpoint_lsn);
 
 	rw_lock_x_unlock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
 }
@@ -2099,9 +2097,31 @@ log_make_checkpoint_at(
 {
 	/* Preflush pages synchronously */
 
-	while (!log_preflush_pool_modified_pages(lsn, TRUE));
+	while (!log_preflush_pool_modified_pages(lsn));
 
 	while (!log_checkpoint(TRUE, write_always));
+}
+
+/****************************************************************//**
+Checks if an asynchronous flushing of dirty pages is required in the
+background. This function is only called from the page cleaner thread.
+@return lsn to which the flushing should happen or IB_ULONGLONG_MAX
+if flushing is not required */
+UNIV_INTERN
+ib_uint64_t
+log_async_flush_lsn(void)
+/*=====================*/
+{
+	ib_int64_t	age_diff;
+	ib_uint64_t	oldest_lsn;
+
+	mutex_enter(&log_sys->mutex);
+	oldest_lsn = log_buf_pool_get_oldest_modification();
+	age_diff = log_sys->lsn - oldest_lsn
+		   - log_sys->max_modified_age_async;
+	mutex_exit(&log_sys->mutex);
+
+	return(age_diff > 0 ? oldest_lsn + age_diff : IB_ULONGLONG_MAX);
 }
 
 /****************************************************************//**
@@ -2119,14 +2139,13 @@ log_checkpoint_margin(void)
 	ib_uint64_t	checkpoint_age;
 	ib_uint64_t	advance;
 	ib_uint64_t	oldest_lsn;
-	ibool		sync;
 	ibool		checkpoint_sync;
 	ibool		do_checkpoint;
 	ibool		success;
 loop:
-	sync = FALSE;
 	checkpoint_sync = FALSE;
 	do_checkpoint = FALSE;
+	advance = 0;
 
 	mutex_enter(&(log->mutex));
 	ut_ad(!recv_no_log_write);
@@ -2144,15 +2163,7 @@ loop:
 	if (age > log->max_modified_age_sync) {
 
 		/* A flush is urgent: we have to do a synchronous preflush */
-
-		sync = TRUE;
 		advance = 2 * (age - log->max_modified_age_sync);
-	} else if (age > log->max_modified_age_async) {
-
-		/* A flush is not urgent: we do an asynchronous preflush */
-		advance = age - log->max_modified_age_async;
-	} else {
-		advance = 0;
 	}
 
 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;
@@ -2179,15 +2190,12 @@ loop:
 	if (advance) {
 		ib_uint64_t	new_oldest = oldest_lsn + advance;
 
-		success = log_preflush_pool_modified_pages(new_oldest, sync);
+		success = log_preflush_pool_modified_pages(new_oldest);
 
 		/* If the flush succeeded, this thread has done its part
 		and can proceed. If it did not succeed, there was another
-		thread doing a flush at the same time. If sync was FALSE,
-		the flush was not urgent, and we let this thread proceed.
-		Otherwise, we let it start from the beginning again. */
-
-		if (sync && !success) {
+		thread doing a flush at the same time. */
+		if (!success) {
 			mutex_enter(&(log->mutex));
 
 			log->check_flush_or_checkpoint = TRUE;
@@ -3111,8 +3119,12 @@ void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
-	ib_uint64_t	lsn;
-	ulint		arch_log_no;
+	ib_uint64_t		lsn;
+	ulint			arch_log_no;
+	ulint			count = 0;
+	ulint			total_trx;
+	ulint			pending_io;
+	enum srv_thread_type	active_thd;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3125,34 +3137,55 @@ logs_empty_and_mark_files_at_shutdown(void)
 loop:
 	os_thread_sleep(100000);
 
-	mutex_enter(&kernel_mutex);
+	count++;
 
 	/* We need the monitor threads to stop before we proceed with a
 	normal shutdown. In case of very fast shutdown, however, we can
 	proceed without waiting for monitor threads. */
 
-	if (srv_fast_shutdown < 2
-	   && (srv_error_monitor_active
-	      || srv_lock_timeout_active || srv_monitor_active)) {
+	if (srv_fast_shutdown < 2) {
+	       	const char*	thread_name;
+		
+		thread_name = srv_any_background_threads_are_active();
 
-		mutex_exit(&kernel_mutex);
+		if (thread_name != NULL) {
+			/* Print a message every 60 seconds if we are waiting
+			for the monitor thread to exit. Master and worker
+		       	threads check will be done later. */
 
-		goto loop;
+			if (srv_print_verbose_log && count > 600) {
+				ut_print_timestamp(stderr);
+				fprintf(stderr, "  InnoDB: Waiting for %s "
+					"to exit\n", thread_name);
+				count = 0;
+			}
+
+			goto loop;
+		}
 	}
 
 	/* Check that there are no longer transactions. We need this wait even
 	for the 'very fast' shutdown, because the InnoDB layer may have
 	committed or prepared transactions and we don't want to lose them. */
 
-	if (trx_n_mysql_transactions > 0
-	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+	total_trx = trx_sys_any_active_transactions();
 
-		mutex_exit(&kernel_mutex);
+	if (total_trx > 0) {
+
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu "
+				"active transactions to finish\n",
+				(ulong) total_trx);
+
+			count = 0;
+		}
 
 		goto loop;
 	}
 
 	if (srv_fast_shutdown == 2) {
+
 		/* In this fastest shutdown we do not flush the buffer pool:
 		it is essentially a 'crash' of the InnoDB server. Make sure
 		that the log is all flushed to disk, so that we can recover
@@ -3166,12 +3199,61 @@ loop:
 		return; /* We SKIP ALL THE REST !! */
 	}
 
-	mutex_exit(&kernel_mutex);
-
 	/* Check that the background threads are suspended */
 
-	if (srv_is_any_background_thread_active()) {
+	active_thd = srv_get_active_thread_type();
+
+	if (active_thd != SRV_NONE) {
+
+		/* The srv_lock_timeout_thread, srv_error_monitor_thread
+		and srv_monitor_thread should already exit by now. The
+		only threads to be suspended are the master threads
+		and worker threads (purge threads). Print the thread
+		type if any of such threads not in suspended mode */
+		if (srv_print_verbose_log && count > 600) {
+			const char*	thread_type = "<null>";
+
+			switch (active_thd) {
+			case SRV_NONE:
+				/* This shouldn't happen because we've already
+				checked for this case before entering the if().
+				We handle it here to avoid a compiler worning. */
+				ut_error;
+			case SRV_WORKER:
+				thread_type = "worker threads";
+				break;
+			case SRV_MASTER:
+				thread_type = "master thread";
+				break;
+			case SRV_PURGE:
+				thread_type = "purge thread";
+				break;
+			}
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %s "
+				" to be suspended\n", thread_type);
+			count = 0;
+		}
+
 		goto loop;
+	}
+
+	/* At this point only page_cleaner should be active. We wait
+	here to let it complete the flushing of the buffer pools
+	before proceeding further. */
+	srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
+	count = 0;
+	while (buf_page_cleaner_is_active) {
+		++count;
+		os_thread_sleep(100000);
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Waiting for page_cleaner to "
+				"finish flushing of buffer pool\n");
+			count = 0;
+		}
 	}
 
 	mutex_enter(&(log_sys->mutex));
@@ -3184,12 +3266,30 @@ loop:
 
 		mutex_exit(&(log_sys->mutex));
 
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Pending checkpoint_writes: %lu\n"
+				"  InnoDB: Pending log flush writes: %lu\n",
+				(ulong) log_sys->n_pending_checkpoint_writes,
+				(ulong) log_sys->n_pending_writes);
+			count = 0;
+		}
 		goto loop;
 	}
 
 	mutex_exit(&(log_sys->mutex));
 
-	if (!buf_pool_check_no_pending_io()) {
+	pending_io = buf_pool_check_no_pending_io();
+
+	if (pending_io) {
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu buffer page "
+				"I/Os to complete\n",
+				(ulong) pending_io);
+			count = 0;
+		}
 
 		goto loop;
 	}
@@ -3232,7 +3332,7 @@ loop:
 	mutex_exit(&(log_sys->mutex));
 
 	/* Check that the background threads stay suspended */
-	if (srv_is_any_background_thread_active()) {
+	if (srv_get_active_thread_type() != SRV_NONE) {
 		fprintf(stderr,
 			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
@@ -3250,13 +3350,20 @@ loop:
 
 	if (!buf_all_freed()) {
 
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for dirty buffer "
+				"pages to be flushed\n");
+			count = 0;
+		}
+
 		goto loop;
 	}
 
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_any_background_thread_active());
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3278,7 +3385,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_any_background_thread_active());
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3372,9 +3479,11 @@ log_print(
 	fprintf(file,
 		"Log sequence number %llu\n"
 		"Log flushed up to   %llu\n"
+		"Pages flushed up to %llu\n"
 		"Last checkpoint at  %llu\n",
 		log_sys->lsn,
 		log_sys->flushed_to_disk_lsn,
+		log_buf_pool_get_oldest_modification(),
 		log_sys->last_checkpoint_lsn);
 
 	current_time = time(NULL);

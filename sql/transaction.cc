@@ -21,6 +21,7 @@
 #include "sql_priv.h"
 #include "transaction.h"
 #include "rpl_handler.h"
+#include "debug_sync.h"         // DEBUG_SYNC
 
 /* Conditions under which the transaction state must not change. */
 static bool trans_check(THD *thd)
@@ -391,15 +392,15 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
   thd->transaction.savepoints= newsv;
 
   /*
-    Remember the last acquired lock before the savepoint was set.
-    This is used as a marker to only release locks acquired after
+    Remember locks acquired before the savepoint was set.
+    They are used as a marker to only release locks acquired after
     the setting of this savepoint.
     Note: this works just fine if we're under LOCK TABLES,
     since mdl_savepoint() is guaranteed to be beyond
     the last locked table. This allows to release some
     locks acquired during LOCK TABLES.
   */
-  newsv->mdl_savepoint = thd->mdl_context.mdl_savepoint();
+  newsv->mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
   DBUG_RETURN(FALSE);
 }
@@ -565,7 +566,8 @@ bool trans_xa_end(THD *thd)
   else if (!xa_trans_rolled_back(&thd->transaction.xid_state))
     thd->transaction.xid_state.xa_state= XA_IDLE;
 
-  DBUG_RETURN(thd->transaction.xid_state.xa_state != XA_IDLE);
+  DBUG_RETURN(thd->is_error() ||
+              thd->transaction.xid_state.xa_state != XA_IDLE);
 }
 
 
@@ -596,7 +598,8 @@ bool trans_xa_prepare(THD *thd)
   else
     thd->transaction.xid_state.xa_state= XA_PREPARED;
 
-  DBUG_RETURN(thd->transaction.xid_state.xa_state != XA_PREPARED);
+  DBUG_RETURN(thd->is_error() ||
+              thd->transaction.xid_state.xa_state != XA_PREPARED);
 }
 
 
@@ -643,17 +646,31 @@ bool trans_xa_commit(THD *thd)
   }
   else if (xa_state == XA_PREPARED && thd->lex->xa_opt == XA_NONE)
   {
-    if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
+    MDL_request mdl_request;
+
+    /*
+      Acquire metadata lock which will ensure that COMMIT is blocked
+      by active FLUSH TABLES WITH READ LOCK (and vice versa COMMIT in
+      progress blocks FTWRL).
+
+      We allow FLUSHer to COMMIT; we assume FLUSHer knows what it does.
+    */
+    mdl_request.init(MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
+                     MDL_TRANSACTION);
+
+    if (thd->mdl_context.acquire_lock(&mdl_request,
+                                      thd->variables.lock_wait_timeout))
     {
       ha_rollback_trans(thd, TRUE);
       my_error(ER_XAER_RMERR, MYF(0));
     }
     else
     {
+      DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
+
       res= test(ha_commit_one_phase(thd, 1));
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
-      thd->global_read_lock.start_waiting_global_read_lock(thd);
     }
   }
   else

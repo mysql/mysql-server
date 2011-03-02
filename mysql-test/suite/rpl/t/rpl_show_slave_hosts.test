@@ -42,4 +42,4 @@ let $wait_for_all= 1;
 source include/wait_show_condition.inc;
 source include/show_slave_hosts.inc;
 
-source include/master-slave-end.inc;
+--source include/rpl_end.inc

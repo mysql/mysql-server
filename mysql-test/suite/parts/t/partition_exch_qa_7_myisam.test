@@ -1,0 +1,11 @@
+# Author: Horst Hunger
+# Created: 2010-07-06
+
+--source include/have_partition.inc
+
+let $engine_table= MYISAM;
+let $engine_part= MYISAM;
+let $engine_subpart= MYISAM;
+
+--source suite/parts/inc/part_exch_qa_7.inc
+

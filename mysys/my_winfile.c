@@ -97,7 +97,7 @@ HANDLE my_get_osfhandle(File fd)
 
 static int my_get_open_flags(File fd)
 {
-  DBUG_ENTER("my_get_osfhandle");
+  DBUG_ENTER("my_get_open_flags");
   DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
   DBUG_RETURN(my_file_info[fd].oflag);
 }
@@ -321,7 +321,7 @@ size_t my_win_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset)
     if(lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
       DBUG_RETURN(0); /*return 0 at EOF*/
     my_osmaperr(lastError);
-    DBUG_RETURN(-1);
+    DBUG_RETURN((size_t)-1);
   }
   DBUG_RETURN(nBytesRead);
 }
@@ -352,7 +352,7 @@ size_t my_win_read(File Filedes, uchar *Buffer, size_t Count)
     if(lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
       DBUG_RETURN(0); /*return 0 at EOF*/
     my_osmaperr(lastError);
-    DBUG_RETURN(-1);
+    DBUG_RETURN((size_t)-1);
   }
   DBUG_RETURN(nBytesRead);
 }
@@ -386,7 +386,7 @@ size_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   if(!WriteFile(hFile, Buffer, (DWORD)Count, &nBytesWritten, &ov))
   {
     my_osmaperr(GetLastError());
-    DBUG_RETURN(-1);
+    DBUG_RETURN((size_t)-1);
   }
   else
     DBUG_RETURN(nBytesWritten);
@@ -427,6 +427,15 @@ size_t my_win_write(File fd, const uchar *Buffer, size_t Count)
   DBUG_ENTER("my_win_write");
   DBUG_PRINT("my",("Filedes: %d, Buffer: %p, Count %llu", fd, Buffer, 
       (ulonglong)Count));
+
+  if(!Count)
+    DBUG_RETURN(0);
+
+#ifdef _WIN64
+  if(Count > UINT_MAX)
+    Count= UINT_MAX;
+#endif
+
   if(my_get_open_flags(fd) & _O_APPEND)
   {
     /*
@@ -442,10 +451,10 @@ size_t my_win_write(File fd, const uchar *Buffer, size_t Count)
   hFile= my_get_osfhandle(fd);
   if(!WriteFile(hFile, Buffer, (DWORD)Count, &nWritten, pov))
   {
-    nWritten= (size_t)-1;
     my_osmaperr(GetLastError());
+    DBUG_RETURN((size_t)-1);
   }
-  DBUG_RETURN((size_t)nWritten);
+  DBUG_RETURN(nWritten);
 }
 
 

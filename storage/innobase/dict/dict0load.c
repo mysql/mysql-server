@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,10 +37,12 @@ Created 4/24/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "dict0stats.h"
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
-#include "ha_prototypes.h" /* innobase_strcasecmp() */
+#include "dict0priv.h"
+#include "ha_prototypes.h" /* innobase_casedn_str() */
 
 
 /** Following are six InnoDB system tables */
@@ -171,9 +173,9 @@ dict_print(void)
 	/* Enlarge the fatal semaphore wait timeout during the InnoDB table
 	monitor printout */
 
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	os_increment_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -208,11 +210,10 @@ dict_print(void)
 	mem_heap_free(heap);
 
 	/* Restore the fatal semaphore wait timeout */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
+	os_decrement_counter_by_amount(
+		server_mutex,
+		srv_fatal_semaphore_wait_threshold, 7200/*2 hours*/);
 }
-
 
 /********************************************************************//**
 This function gets the next system table record as it scans the table.
@@ -287,13 +288,13 @@ dict_getnext_system(
 					to the record */
 	mtr_t*		mtr)		/*!< in: the mini-transaction */
 {
-        const rec_t*	rec;
+	const rec_t*	rec;
 
 	/* Restore the position */
-        btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+	btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
 
 	/* Get the next record */
-        rec = dict_getnext_system_low(pcur, mtr);
+	rec = dict_getnext_system_low(pcur, mtr);
 
 	return(rec);
 }
@@ -345,9 +346,10 @@ dict_process_sys_tables_rec(
 	if ((status & DICT_TABLE_UPDATE_STATS)
 	    && dict_table_get_first_index(*table)) {
 
-		/* Update statistics if DICT_TABLE_UPDATE_STATS
-		is set */
-		dict_update_statistics_low(*table, TRUE);
+		/* Update statistics member fields in *table if
+		DICT_TABLE_UPDATE_STATS is set */
+		ut_ad(mutex_own(&dict_sys->mutex));
+		dict_stats_update(*table, DICT_STATS_FETCH, TRUE);
 	}
 
 	return(NULL);
@@ -435,10 +437,11 @@ dict_process_sys_fields_rec(
 	return(err_msg);
 
 }
+
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
-about SYS_FOREIGN fields, please refer to dict_load_foreign() function
+about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
@@ -466,6 +469,11 @@ dict_process_sys_foreign_rec(
 err_len:
 		return("incorrect column length in SYS_FOREIGN");
 	}
+	
+	/* This recieves a dict_foreign_t* that points to a stack variable.
+	So mem_heap_free(foreign->heap) is not used as elsewhere.
+	Since the heap used here is freed elsewhere, foreign->heap
+	is not assigned. */
 	foreign->id = mem_heap_strdupl(heap, (const char*) field, len);
 
 	rec_get_nth_field_offs_old(rec, 1/*DB_TRX_ID*/, &len);
@@ -476,6 +484,9 @@ err_len:
 	if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL)) {
 		goto err_len;
 	}
+
+	/* The _lookup versions of the referenced and foreign table names
+	 are not assigned since they are not used in this dict_foreign_t */
 
 	field = rec_get_nth_field_old(rec, 3/*FOR_NAME*/, &len);
 	if (UNIV_UNLIKELY(len < 1 || len == UNIV_SQL_NULL)) {
@@ -502,6 +513,7 @@ err_len:
 
 	return(NULL);
 }
+
 /********************************************************************//**
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
@@ -565,6 +577,7 @@ err_len:
 
 	return(NULL);
 }
+
 /********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.
 @return compressed page size in kilobytes; or 0 if the tablespace is
@@ -1010,7 +1023,7 @@ dict_load_field_low(
 /*================*/
 	byte*		index_id,	/*!< in/out: index id (8 bytes)
 					an "in" value if index != NULL
-                                        and "out" if index == NULL */
+					and "out" if index == NULL */
 	dict_index_t*	index,		/*!< in/out: index, could be NULL
 					if we just populate a dict_field_t
 					struct with information from
@@ -1329,7 +1342,10 @@ ulint
 dict_load_indexes(
 /*==============*/
 	dict_table_t*	table,	/*!< in/out: table */
-	mem_heap_t*	heap)	/*!< in: memory heap for temporary storage */
+	mem_heap_t*	heap,	/*!< in: memory heap for temporary storage */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when
+				loading the index definition */
 {
 	dict_table_t*	sys_indexes;
 	dict_index_t*	sys_index;
@@ -1375,7 +1391,8 @@ dict_load_indexes(
 
 		err_msg = dict_load_index_low(buf, table->name, heap, rec,
 					      TRUE, &index);
-		ut_ad((index == NULL) == (err_msg != NULL));
+		ut_ad((index == NULL && err_msg != NULL)
+		      || (index != NULL && err_msg == NULL));
 
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have
@@ -1413,10 +1430,22 @@ dict_load_indexes(
 				"InnoDB: but the index tree has been freed!\n",
 				index->name, table->name);
 
+			if (ignore_err & DICT_ERR_IGNORE_INDEX_ROOT) {
+				/* If caller can tolerate this error,
+				we will continue to load the index and
+				let caller deal with this error. However
+				mark the index and table corrupted */
+				index->corrupted = TRUE;
+				table->corrupted = TRUE;
+				fprintf(stderr,
+					"InnoDB: Index is corrupt but forcing"
+					" load into data dictionary\n");
+			} else {
 corrupted:
-			dict_mem_index_free(index);
-			error = DB_CORRUPTION;
-			goto func_exit;
+				dict_mem_index_free(index);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
 		} else if (!dict_index_is_clust(index)
 			   && NULL == dict_table_get_first_index(table)) {
 
@@ -1572,7 +1601,7 @@ err_len:
 				"InnoDB: in InnoDB data dictionary"
 				" has unknown type %lx.\n",
 				(ulong) flags);
-			return(NULL);
+			return("incorrect flags in SYS_TABLES");
 		}
 	} else {
 		flags = 0;
@@ -1638,7 +1667,10 @@ dict_load_table(
 /*============*/
 	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
-	ibool		cached)	/*!< in: TRUE=add to cache, FALSE=do not */
+	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	dict_err_ignore_t ignore_err)
+				/*!< in: error to be ignored when loading
+				table and its indexes' definition */
 {
 	dict_table_t*	table;
 	dict_table_t*	sys_tables;
@@ -1746,14 +1778,18 @@ err_exit:
 	dict_load_columns(table, heap);
 
 	if (cached) {
-		dict_table_add_to_cache(table, heap);
+		dict_table_add_to_cache(table, TRUE, heap);
 	} else {
 		dict_table_add_system_columns(table, heap);
 	}
 
 	mem_heap_empty(heap);
 
-	err = dict_load_indexes(table, heap);
+	err = dict_load_indexes(table, heap, ignore_err);
+
+	/* Initialize table foreign_child value. Its value could be
+	changed when dict_load_foreigns() is called below */
+	table->fk_max_recusive_level = 0;
 
 	/* If the force recovery flag is set, we open the table irrespective
 	of the error condition, since the user may want to dump data from the
@@ -1761,7 +1797,14 @@ err_exit:
 	all indexes were loaded. */
 	if (!cached) {
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, TRUE);
+		err = dict_load_foreigns(table->name, TRUE, TRUE);
+
+		if (err != DB_SUCCESS) {
+			dict_table_remove_from_cache(table);
+			table = NULL;
+		} else {
+			table->fk_max_recusive_level = 0;
+		}
 	} else if (!srv_force_recovery) {
 		dict_table_remove_from_cache(table);
 		table = NULL;
@@ -1792,6 +1835,8 @@ err_exit:
 #endif /* 0 */
 	mem_heap_free(heap);
 
+	ut_ad(ignore_err != DICT_ERR_IGNORE_NONE || table->corrupted == FALSE);
+
 	return(table);
 }
 
@@ -1819,6 +1864,8 @@ dict_load_table_on_id(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
+	table = NULL;
+
 	/* NOTE that the operation of this function is protected by
 	the dictionary mutex, and therefore no deadlocks can occur
 	with other dictionary operations. */
@@ -1843,42 +1890,41 @@ dict_load_table_on_id(
 
 	btr_pcur_open_on_user_rec(sys_table_ids, tuple, PAGE_CUR_GE,
 				  BTR_SEARCH_LEAF, &pcur, &mtr);
+
+check_rec:
 	rec = btr_pcur_get_rec(&pcur);
 
-	if (!btr_pcur_is_on_user_rec(&pcur)
-	    || rec_get_deleted_flag(rec, 0)) {
-		/* Not found */
+	if (page_rec_is_user_rec(rec)) {
+		/*---------------------------------------------------*/
+		/* Now we have the record in the secondary index
+		containing the table ID and NAME */
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
+		field = rec_get_nth_field_old(rec, 0, &len);
+		ut_ad(len == 8);
 
-		return(NULL);
+		/* Check if the table id in record is the one searched for */
+		if (table_id == mach_read_from_8(field)) {
+			if (rec_get_deleted_flag(rec, 0)) {
+				/* Until purge has completed, there
+				may be delete-marked duplicate records
+				for the same SYS_TABLES.ID.
+				Due to Bug #60049, some delete-marked
+				records may survive the purge forever. */
+				if (btr_pcur_move_to_next(&pcur, &mtr)) {
+
+					goto check_rec;
+				}
+			} else {
+				/* Now we get the table name from the record */
+				field = rec_get_nth_field_old(rec, 1, &len);
+				/* Load the table definition to memory */
+				table = dict_load_table(
+					mem_heap_strdupl(
+						heap, (char*) field, len),
+					TRUE, DICT_ERR_IGNORE_NONE);
+			}
+		}
 	}
-
-	/*---------------------------------------------------*/
-	/* Now we have the record in the secondary index containing the
-	table ID and NAME */
-
-	rec = btr_pcur_get_rec(&pcur);
-	field = rec_get_nth_field_old(rec, 0, &len);
-	ut_ad(len == 8);
-
-	/* Check if the table id in record is the one searched for */
-	if (table_id != mach_read_from_8(field)) {
-
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-		mem_heap_free(heap);
-
-		return(NULL);
-	}
-
-	/* Now we get the table name from the record */
-	field = rec_get_nth_field_old(rec, 1, &len);
-	/* Load the table definition to memory */
-	table = dict_load_table(mem_heap_strdupl(heap, (char*) field, len),
-				TRUE);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -1903,7 +1949,7 @@ dict_load_sys_table(
 
 	heap = mem_heap_create(1000);
 
-	dict_load_indexes(table, heap);
+	dict_load_indexes(table, heap, DICT_ERR_IGNORE_NONE);
 
 	mem_heap_free(heap);
 }
@@ -1939,6 +1985,7 @@ dict_load_foreign_cols(
 	mtr_start(&mtr);
 
 	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
+
 	sys_index = UT_LIST_GET_FIRST(sys_foreign_cols->indexes);
 	ut_a(!dict_table_is_comp(sys_foreign_cols));
 
@@ -1989,8 +2036,12 @@ dict_load_foreign(
 /*==============*/
 	const char*	id,	/*!< in: foreign constraint id as a
 				null-terminated string */
-	ibool		check_charsets)
+	ibool		check_charsets,
 				/*!< in: TRUE=check charset compatibility */
+	ibool		check_recursive)
+				/*!< in: Whether to record the foreign table
+				parent count to avoid unlimited recursive
+				load of chained foreign tables */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -2004,6 +2055,8 @@ dict_load_foreign(
 	ulint		len;
 	ulint		n_fields_and_type;
 	mtr_t		mtr;
+	dict_table_t*	for_table;
+	dict_table_t*	ref_table;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -2012,6 +2065,7 @@ dict_load_foreign(
 	mtr_start(&mtr);
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN");
+
 	sys_index = UT_LIST_GET_FIRST(sys_foreign->indexes);
 	ut_a(!dict_table_is_comp(sys_foreign));
 
@@ -2076,23 +2130,69 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
+
 	foreign->foreign_table_name = mem_heap_strdupl(
 		foreign->heap, (char*) field, len);
+	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	foreign->referenced_table_name = mem_heap_strdupl(
 		foreign->heap, (char*) field, len);
+	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
 	dict_load_foreign_cols(id, foreign);
 
-	/* If the foreign table is not yet in the dictionary cache, we
-	have to load it so that we are able to make type comparisons
-	in the next function call. */
+	ref_table = dict_table_check_if_in_cache_low(
+			foreign->referenced_table_name_lookup);
 
-	dict_table_get_low(foreign->foreign_table_name);
+	/* We could possibly wind up in a deep recursive calls if
+	we call dict_table_get_low() again here if there
+	is a chain of tables concatenated together with
+	foreign constraints. In such case, each table is
+	both a parent and child of the other tables, and
+	act as a "link" in such table chains.
+	To avoid such scenario, we would need to check the
+	number of ancesters the current table has. If that
+	exceeds DICT_FK_MAX_CHAIN_LEN, we will stop loading
+	the child table.
+	Foreign constraints are loaded in a Breath First fashion,
+	that is, the index on FOR_NAME is scanned first, and then
+	index on REF_NAME. So foreign constrains in which
+	current table is a child (foreign table) are loaded first,
+	and then those constraints where current table is a
+	parent (referenced) table.
+	Thus we could check the parent (ref_table) table's
+	reference count (fk_max_recusive_level) to know how deep the
+	recursive call is. If the parent table (ref_table) is already
+	loaded, and its fk_max_recusive_level is larger than
+	DICT_FK_MAX_CHAIN_LEN, we will stop the recursive loading
+	by skipping loading the child table. It will not affect foreign
+	constraint check for DMLs since child table will be loaded
+	at that time for the constraint check. */
+	if (!ref_table
+	    || ref_table->fk_max_recusive_level < DICT_FK_MAX_RECURSIVE_LOAD) {
+
+		/* If the foreign table is not yet in the dictionary cache, we
+		have to load it so that we are able to make type comparisons
+		in the next function call. */
+
+		for_table = dict_table_get_low(foreign->foreign_table_name_lookup);
+
+		if (for_table && ref_table && check_recursive) {
+			/* This is to record the longest chain of ancesters
+			this table has, if the parent has more ancesters
+			than this table has, record it after add 1 (for this
+			parent */
+			if (ref_table->fk_max_recusive_level
+			    >= for_table->fk_max_recusive_level) {
+				for_table->fk_max_recusive_level =
+					 ref_table->fk_max_recusive_level + 1;
+			}
+		}
+	}
 
 	/* Note that there may already be a foreign constraint object in
 	the dictionary cache for this constraint: then the following
@@ -2117,6 +2217,8 @@ ulint
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
+	ibool		check_recursive,/*!< in: Whether to check recursive
+					load of tables chained by FK */
 	ibool		check_charsets)	/*!< in: TRUE=check charset
 					compatibility */
 {
@@ -2218,7 +2320,7 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign(id, check_charsets);
+	err = dict_load_foreign(id, check_charsets, check_recursive);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);
@@ -2245,6 +2347,11 @@ load_next_index:
 	if (sec_index != NULL) {
 
 		mtr_start(&mtr);
+
+		/* Switch to scan index on REF_NAME, fk_max_recusive_level
+		already been updated when scanning FOR_NAME index, no need to
+		update again */
+		check_recursive = FALSE;
 
 		goto start_load;
 	}

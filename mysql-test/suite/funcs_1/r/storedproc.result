@@ -1822,7 +1822,7 @@ grant execute on db_storedproc.* to 'user_1'@'localhost';
 flush privileges;
 drop table IF EXISTS mysql.t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'mysql.t1'
 create table mysql.t1( f1 char );
 DROP PROCEDURE IF EXISTS sp11;
 Warnings:
@@ -22352,7 +22352,7 @@ Warnings:
 Note	1305	FUNCTION db_storedproc.fn1 does not exist
 drop table IF EXISTS res_t9;
 Warnings:
-Note	1051	Unknown table 'res_t9'
+Note	1051	Unknown table 'db_storedproc.res_t9'
 create table res_t9 (f1 int, f2 char(25), f3 int);
 insert into res_t9 values (10, 'abc', 20);
 CREATE FUNCTION fn1(i1 longtext) returns longtext
@@ -22378,7 +22378,7 @@ Warnings:
 Note	1305	FUNCTION db_storedproc.fn1 does not exist
 drop  table IF EXISTS res_t9;
 Warnings:
-Note	1051	Unknown table 'res_t9'
+Note	1051	Unknown table 'db_storedproc.res_t9'
 create table res_t9 (f1 int, f2 char(25), f3 int);
 CREATE FUNCTION fn1(i1 longtext) returns longtext
 BEGIN

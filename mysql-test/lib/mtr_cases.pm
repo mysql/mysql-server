@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (C) 2005-2006 MySQL AB
-#
+# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -150,7 +150,7 @@ sub collect_test_cases ($$$$) {
       {
 	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
-	if ( $test->{name} =~ /.*\.$tname/ )
+	if ( $test->{name} =~ /^$sname.*\.$tname$/ )
 	{
 	  $found= 1;
 	  last;
@@ -177,8 +177,6 @@ sub collect_test_cases ($$$$) {
   if ( $opt_reorder && !$quick_collect)
   {
     # Reorder the test cases in an order that will make them faster to run
-    my %sort_criteria;
-
     # Make a mapping of test name to a string that represents how that test
     # should be sorted among the other tests.  Put the most important criterion
     # first, then a sub-criterion, then sub-sub-criterion, etc.
@@ -190,24 +188,31 @@ sub collect_test_cases ($$$$) {
       # Append the criteria for sorting, in order of importance.
       #
       push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "A" : "B"));
+      push(@criteria, $tinfo->{template_path});
       # Group test with equal options together.
       # Ending with "~" makes empty sort later than filled
       my $opts= $tinfo->{'master_opt'} ? $tinfo->{'master_opt'} : [];
       push(@criteria, join("!", sort @{$opts}) . "~");
+      # Add slave opts if any
+      if ($tinfo->{'slave_opt'})
+      {
+	push(@criteria, join("!", sort @{$tinfo->{'slave_opt'}}));
+      }
+      # This sorts tests with force-restart *before* identical tests
+      push(@criteria, $tinfo->{force_restart} ? "force-restart" : "no-restart");
 
-      $sort_criteria{$tinfo->{name}} = join(" ", @criteria);
+      $tinfo->{criteria}= join(" ", @criteria);
     }
 
-    @$cases = sort {
-      $sort_criteria{$a->{'name'}} . $a->{'name'} cmp
-	$sort_criteria{$b->{'name'}} . $b->{'name'}; } @$cases;
+    @$cases = sort {$a->{criteria} cmp $b->{criteria}; } @$cases;
 
     # For debugging the sort-order
     # foreach my $tinfo (@$cases)
     # {
-    #   print("$sort_criteria{$tinfo->{'name'}} -> \t$tinfo->{'name'}\n");
+    #   my $tname= $tinfo->{name} . ' ' . $tinfo->{combination};
+    #   my $crit= $tinfo->{criteria};
+    #   print("$tname\n\t$crit\n");
     # }
-
   }
 
   if (defined $print_testcases){
@@ -224,8 +229,11 @@ sub collect_test_cases ($$$$) {
 sub split_testname {
   my ($test_name)= @_;
 
-  # Get rid of directory part and split name on .'s
-  my @parts= split(/\./, basename($test_name));
+  # If .test file name is used, get rid of directory part
+  $test_name= basename($test_name) if $test_name =~ /\.test$/;
+
+  # Now split name on .'s
+  my @parts= split(/\./, $test_name);
 
   if (@parts == 1){
     # Only testname given, ex: alias
@@ -701,6 +709,13 @@ sub process_opts_file {
 	next;
       }
 
+      $value= mtr_match_prefix($opt, "--testcase-timeout=");
+      if ( defined $value ) {
+	# Overrides test case timeout for this test
+	$tinfo->{'case-timeout'}= $value;
+	next;
+      }
+
       # Ok, this was a real option, add it
       push(@{$tinfo->{$opt_name}}, $opt);
     }
@@ -919,7 +934,7 @@ sub collect_one_test_case {
     {
       # Ndb is not supported, skip it
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster support";
+      $tinfo->{'comment'}= "No ndbcluster support or ndb tests not enabled";
       return $tinfo;
     }
     elsif ( $::opt_skip_ndbcluster )

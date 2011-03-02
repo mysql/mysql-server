@@ -71,7 +71,7 @@ it should also declare all the accompanying data structures, as necessary
     #define VERSION_foo 0x0100
 ==================================================================
 
-7. create a new file libservices/foo_service.h using the following template:
+7. create a new file libservices/foo_service.c using the following template:
 ==================================================================
   /* GPL header */
   #include <service_versions.h>

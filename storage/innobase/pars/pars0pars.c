@@ -834,19 +834,21 @@ pars_retrieve_table_def(
 /*====================*/
 	sym_node_t*	sym_node)	/*!< in: table node */
 {
-	const char*	table_name;
-
 	ut_a(sym_node);
 	ut_a(que_node_get_type(sym_node) == QUE_NODE_SYMBOL);
 
-	sym_node->resolved = TRUE;
-	sym_node->token_type = SYM_TABLE;
+	/* Open the table only if it is not already opened. */
+	if (sym_node->token_type != SYM_TABLE_REF_COUNTED) {
 
-	table_name = (const char*) sym_node->name;
+		ut_a(sym_node->table == NULL);
 
-	sym_node->table = dict_table_get_low(table_name);
+		sym_node->resolved = TRUE;
+		sym_node->token_type = SYM_TABLE_REF_COUNTED;
 
-	ut_a(sym_node->table);
+		sym_node->table = dict_table_open_on_name(sym_node->name, TRUE);
+
+		ut_a(sym_node->table != NULL);
+	}
 }
 
 /*********************************************************************//**
@@ -1414,10 +1416,10 @@ pars_set_dfield_type(
 		dtype_set(dfield_get_type(dfield), DATA_INT, flags, 4);
 
 	} else if (type == &pars_char_token) {
-		ut_a(len == 0);
+		//ut_a(len == 0);
 
 		dtype_set(dfield_get_type(dfield), DATA_VARCHAR,
-			  DATA_ENGLISH | flags, 0);
+			  DATA_ENGLISH | flags, len);
 	} else if (type == &pars_binary_token) {
 		ut_a(len != 0);
 
@@ -1828,7 +1830,7 @@ commit_node_t*
 pars_commit_statement(void)
 /*=======================*/
 {
-	return(commit_node_create(pars_sym_tab_global->heap));
+	return(trx_commit_node_create(pars_sym_tab_global->heap));
 }
 
 /*********************************************************************//**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,6 +101,24 @@ class my_decimal :public decimal_t
   decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
 
 public:
+
+  my_decimal(const my_decimal &rhs) : decimal_t(rhs)
+  {
+    for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
+      buffer[i]= rhs.buffer[i];
+    fix_buffer_pointer();
+  }
+
+  my_decimal& operator=(const my_decimal &rhs)
+  {
+    if (this == &rhs)
+      return *this;
+    decimal_t::operator=(rhs);
+    for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
+      buffer[i]= rhs.buffer[i];
+    fix_buffer_pointer();
+    return *this;
+  }
 
   void init()
   {
@@ -248,7 +266,6 @@ inline
 void my_decimal2decimal(const my_decimal *from, my_decimal *to)
 {
   *to= *from;
-  to->fix_buffer_pointer();
 }
 
 
@@ -328,7 +345,7 @@ int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
 
 
 inline
-int my_decimal2double(uint mask, const my_decimal *d, double *result)
+int my_decimal2double(uint, const my_decimal *d, double *result)
 {
   /* No need to call check_result as this will always succeed */
   return decimal2double((decimal_t*) d, result);

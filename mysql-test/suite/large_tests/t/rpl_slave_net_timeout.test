@@ -79,3 +79,4 @@ set @@global.log_output = @save_log_output;
 connection slave;
 set @@global.slave_net_timeout = @save_slave_net_timeout;
 
+--source include/rpl_end.inc

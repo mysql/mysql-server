@@ -1074,7 +1074,9 @@ fts_query_union(
 	query->error = fts_index_fetch_nodes(
 		trx, &graph, &query->fts_index_table, token, &fetch);
 
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	if (query->error == DB_SUCCESS) {
 

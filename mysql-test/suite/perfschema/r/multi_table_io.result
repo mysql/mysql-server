@@ -18,13 +18,13 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table if exists test.marker;
 create table test.marker(a int);
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+update performance_schema.setup_consumers set enabled='NO';
+update performance_schema.setup_instruments set enabled='NO';
+update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/io/table/%";
-truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate table performance_schema.events_waits_history_long;
 flush status;
-update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+update performance_schema.setup_consumers set enabled = 'YES';
 insert into test1.t2 select * from test.t1;
 insert into marker set a = 1;
 select * from test.t1 natural join test1.t2;
@@ -39,14 +39,14 @@ update test.t1 AS a natural join test1.t2 AS b SET a.col2 = 'updated' , b.col2 =
 insert into marker set a = 1;
 delete from test.t1, test1.t2 using test.t1 inner join test1.t2
 where test.t1.col1 = test1.t2.col1;
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
+update performance_schema.setup_consumers set enabled='NO';
 select event_name,
 left(source, locate(":", source)) as short_source,
 object_type, object_schema,
 if (locate("#sql-", object_name), "#sql-XXXX", object_name)
 as pretty_name,
 operation, number_of_bytes
-from performance_schema.EVENTS_WAITS_HISTORY_LONG
+from performance_schema.events_waits_history_long
 where event_name like 'wait/io/table/%'
   and object_schema in ('test','test1')
 order by thread_id, event_id;
@@ -87,13 +87,13 @@ Performance_schema_table_handles_lost	0
 Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
-truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
+truncate performance_schema.events_waits_history_long;
 flush status;
 drop table test.t1;
 drop schema test1;
-update performance_schema.SETUP_CONSUMERS set enabled='NO';
-truncate performance_schema.EVENTS_WAITS_HISTORY_LONG;
+update performance_schema.setup_consumers set enabled='NO';
+truncate performance_schema.events_waits_history_long;
 drop table test.marker;
 flush status;
-update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
-update performance_schema.SETUP_CONSUMERS set enabled='YES';
+update performance_schema.setup_instruments set enabled='YES';
+update performance_schema.setup_consumers set enabled='YES';

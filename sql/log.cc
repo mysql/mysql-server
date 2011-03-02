@@ -925,8 +925,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     if (!query)
     {
       is_command= TRUE;
-      query= command_name[thd->command].str;
-      query_length= command_name[thd->command].length;
+      query= command_name[thd->get_command()].str;
+      query_length= command_name[thd->get_command()].length;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)
@@ -1125,7 +1125,7 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
 void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
-  MYSQL_LOG *file_log;
+  MYSQL_LOG *file_log= NULL;
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -1137,7 +1137,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
     file_log= file_log_handler->get_mysql_log();
     break;
   default:
-    assert(0);                                  // Impossible
+    MY_ASSERT_UNREACHABLE();
   }
 
   if (!(*tmp_opt))
@@ -1254,7 +1254,8 @@ static int find_uniq_filename(char *name)
   *end='.';
   length= (size_t) (end - start + 1);
 
-  if (!(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))
+  if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
+      !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
   {						// This shouldn't happen
     strmov(end,".1");				// use name+1
     DBUG_RETURN(1);
@@ -1281,7 +1282,11 @@ updating the index files.", max_found);
   }
 
   next= max_found + 1;
-  sprintf(ext_buf, "%06lu", next);
+  if (sprintf(ext_buf, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
   *end++='.';
 
   /* 
@@ -1298,7 +1303,11 @@ index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
     goto end;
   }
 
-  sprintf(end, "%06lu", next);
+  if (sprintf(end, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
 
   /* print warning if reaching the end of available extensions. */
   if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
@@ -1359,7 +1368,11 @@ bool MYSQL_LOG::init_and_set_log_file_name(const char *log_name,
     1   error
 */
 
-bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
+bool MYSQL_LOG::open(
+#ifdef HAVE_PSI_INTERFACE
+                     PSI_file_key log_file_key,
+#endif
+                     const char *log_name, enum_log_type log_type_arg,
                      const char *new_name, enum cache_type io_cache_type_arg)
 {
   char buff[FN_REFLEN];
@@ -1387,7 +1400,12 @@ bool MYSQL_LOG::open(const char *log_name, enum_log_type log_type_arg,
 
   db[0]= 0;
 
-  if ((file= mysql_file_open(key_file_MYSQL_LOG,
+#ifdef HAVE_PSI_INTERFACE
+  /* Keep the key for reopen */
+  m_log_file_key= log_file_key;
+#endif
+
+  if ((file= mysql_file_open(log_file_key,
                              log_file_name, open_flags,
                              MYF(MY_WME | ME_WAITTANG))) < 0 ||
       init_io_cache(&log_file, file, IO_SIZE, io_cache_type,
@@ -1522,13 +1540,8 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
-        /* 
-          This should be treated as error once propagation of error further
-          up in the stack gets proper handling.
-        */
-        push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
-                            ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                            log_name);
+        my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                        MYF(ME_FATALERROR), log_name);
 	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
@@ -1571,7 +1584,11 @@ void MYSQL_QUERY_LOG::reopen_file()
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
 
-  open(save_name, log_type, 0, io_cache_type);
+  open(
+#ifdef HAVE_PSI_INTERFACE
+       m_log_file_key,
+#endif
+       save_name, log_type, 0, io_cache_type);
   my_free(save_name);
 
   mysql_mutex_unlock(&LOCK_log);
@@ -1932,8 +1949,6 @@ bool general_log_write(THD *thd, enum enum_server_command command,
   return FALSE;
 }
 
-
-
 /**
   Check if a string is a valid number.
 
@@ -1994,69 +2009,52 @@ void sql_perror(const char *message)
 
 
 /*
+  Change the file associated with two output streams. Used to
+  redirect stdout and stderr to a file. The streams are reopened
+  only for appending (writing at end of file).
+*/
+extern "C" my_bool reopen_fstreams(const char *filename,
+                                   FILE *outstream, FILE *errstream)
+{
+  if (outstream && !my_freopen(filename, "a", outstream))
+    return TRUE;
+
+  if (errstream && !my_freopen(filename, "a", errstream))
+    return TRUE;
+
+  /* The error stream must be unbuffered. */
+  if (errstream)
+    setbuf(errstream, NULL);
+
+  return FALSE;
+}
+
+
+/*
   Unfortunately, there seems to be no good way
   to restore the original streams upon failure.
 */
 static bool redirect_std_streams(const char *file)
 {
-  if (freopen(file, "a+", stdout) && freopen(file, "a+", stderr))
-  {
-    setbuf(stderr, NULL);
-    return FALSE;
-  }
+  if (reopen_fstreams(file, stdout, stderr))
+    return TRUE;
 
-  return TRUE;
+  setbuf(stderr, NULL);
+  return FALSE;
 }
 
 
 bool flush_error_log()
 {
-  bool result=0;
+  bool result= 0;
   if (opt_error_log)
   {
-    char err_renamed[FN_REFLEN], *end;
-    end= strmake(err_renamed,log_error_file,FN_REFLEN-5);
-    strmov(end, "-old");
     mysql_mutex_lock(&LOCK_error_log);
-#ifdef __WIN__
-    char err_temp[FN_REFLEN+5];
-    /*
-     On Windows is necessary a temporary file for to rename
-     the current error file.
-    */
-    strxmov(err_temp, err_renamed,"-tmp",NullS);
-    my_delete(err_temp, MYF(0));
-    if (freopen(err_temp,"a+",stdout))
-    {
-      int fd;
-      size_t bytes;
-      uchar buf[IO_SIZE];
-
-      freopen(err_temp,"a+",stderr);
-      setbuf(stderr, NULL);
-      my_delete(err_renamed, MYF(0));
-      my_rename(log_error_file, err_renamed, MYF(0));
-      redirect_std_streams(log_error_file);
-
-      if ((fd= my_open(err_temp, O_RDONLY, MYF(0))) >= 0)
-      {
-        while ((bytes= mysql_file_read(fd, buf, IO_SIZE, MYF(0))) &&
-               bytes != MY_FILE_ERROR)
-          my_fwrite(stderr, buf, bytes, MYF(0));
-        mysql_file_close(fd, MYF(0));
-      }
-      my_delete(err_temp, MYF(0));
-    }
-    else
-     result= 1;
-#else
-   my_rename(log_error_file, err_renamed, MYF(0));
-   if (redirect_std_streams(log_error_file))
-     result= 1;
-#endif
+    if (redirect_std_streams(log_error_file))
+      result= 1;
     mysql_mutex_unlock(&LOCK_error_log);
   }
-   return result;
+  return result;
 }
 
 #ifdef _WIN32
@@ -2559,7 +2557,7 @@ int TC_LOG_MMAP::sync()
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
+int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
 {
   PAGE *p=pages+(cookie/tc_log_page_size);
   my_xid *x=(my_xid *)(data+cookie);
@@ -2577,6 +2575,7 @@ void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);
+  return 0;
 }
 
 void TC_LOG_MMAP::close()

@@ -1,11 +1,8 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** On Slave ****
 STOP SLAVE;
+include/wait_for_slave_to_stop.inc
 **** On Master ****
 SET SESSION BINLOG_FORMAT=ROW;
 CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
@@ -43,8 +40,12 @@ c	d
 3	18
 **** On Slave ****
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+include/wait_for_slave_sql_to_stop.inc
+include/check_slave_param.inc [Exec_Master_Log_Pos]
+include/check_slave_no_error.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
+include/wait_for_slave_to_start.inc
 SELECT * FROM t1;
 a	b
 1	1
@@ -56,6 +57,7 @@ c	d
 2	8
 3	27
 STOP SLAVE;
+include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 RESET MASTER;
 SET SESSION BINLOG_FORMAT=STATEMENT;
@@ -68,8 +70,10 @@ master-bin.000001	#	User var	#	#	@`foo`=12
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(@foo, 2*@foo)
 master-bin.000001	#	Query	#	#	COMMIT
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
+include/wait_for_slave_to_start.inc
 **** On Master ****
 DROP TABLE t1, t2;
 SET SESSION BINLOG_FORMAT=ROW;
@@ -281,3 +285,4 @@ include/start_slave.inc
 SELECT * FROM t10 ORDER BY a;
 a	b
 DROP TABLE t10;
+include/rpl_end.inc

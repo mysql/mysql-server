@@ -118,7 +118,7 @@ extern "C" {
                             (_to_)= (mi_get_mask_all_keys_active(_maxkeys_) & \
                                      (_from_))
 
-	/* Param to/from mi_info */
+	/* Param to/from mi_status */
 
 typedef struct st_mi_isaminfo		/* Struct from h_info */
 {
@@ -433,10 +433,8 @@ typedef struct st_mi_check_param
   const char *db_name, *table_name;
   const char *op_name;
   enum_mi_stats_method stats_method;
-#ifdef THREAD
   mysql_mutex_t print_msg_mutex;
   my_bool need_print_msg_lock;
-#endif
 } MI_CHECK;
 
 typedef struct st_sort_ft_buf
@@ -460,10 +458,8 @@ typedef struct st_sort_info
   SORT_FT_BUF *ft_buf;
   /* sync things */
   uint got_error, threads_running;
-#ifdef THREAD
   mysql_mutex_t mutex;
   mysql_cond_t  cond;
-#endif
 } SORT_INFO;
 
 /* functions in mi_check */

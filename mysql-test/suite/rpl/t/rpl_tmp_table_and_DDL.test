@@ -20,6 +20,7 @@ sync_slave_with_master;
 # to stop.
 #
 
+--connection master
 --disable_abort_on_error
 
 CREATE TABLE t1 (a CHAR(30));
@@ -155,5 +156,4 @@ DROP PROCEDURE p2;
 DROP EVENT e2;
 DROP TABLE t1, t2;
 
---source include/master-slave-end.inc
-
+--source include/rpl_end.inc
