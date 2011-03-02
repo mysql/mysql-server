@@ -125,3 +125,81 @@ WHERE
   table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<>0 ;
 
 drop table t1, t2;
+
+--echo #
+--echo # BUG#693747: Assertion multi_range_read.cc:908: int DsMrr_impl::dsmrr_init(
+--echo #
+set @_save_join_cache_level= @@join_cache_level;
+set @_save_join_buffer_size= @@join_buffer_size;
+
+set join_cache_level=8;
+set join_buffer_size=10000;
+
+CREATE TABLE t1 (
+  f2 varchar(32) COLLATE latin1_swedish_ci, 
+  f3 int(11), 
+  f4 varchar(1024) COLLATE utf8_bin, 
+  f5 varchar(1024) COLLATE latin1_bin, 
+  KEY (f5)
+) ENGINE=Aria TRANSACTIONAL=0 ;
+
+--echo # Fill the table with some data
+--disable_query_log
+INSERT IGNORE INTO t1 VALUES 
+('cueikuirqr','0','f4-data','hcueikuirqrzflno'),('her','0','f4-data','ehcueikuirqrzfln'),
+('YKAOE','0','f4-data','qieehcueikuirqrz'),('youre','0','f4-data','nkqieehcueikuirq'),
+('b','0','f4-data','the'),('MGUDG','0','f4-data','m'),
+('UXAGU','0','f4-data','HZXVA'),('bwbgsnkqie','0','f4-data','something'),
+('s','0','f4-data','slelfhjawbwbgsnk'),('the','0','f4-data','if'),
+('TDLKE','0','f4-data','MGWNJ'),('do','0','f4-data','see'),
+('why','0','f4-data','mean'),('THKCG','0','f4-data','YFLDY'),
+('x','0','f4-data','e'),('yncitaeysb','0','f4-data','tgyncitaeysbgucs'),
+('ZEOXX','0','f4-data','jawbwbgsnkqieehc'),('hjawbwbgsn','0','f4-data','fhjawbwbgsnkqiee'),
+('all','0','f4-data','sbgucsgqslelfhja'),('the','0','f4-data','would'),
+('mtgyncitae','0','f4-data','ISNQQ'),('KNCUI','0','f4-data','want'),
+('is','0','f4-data','i'),('out','0','f4-data','jvcmjlmtgyncitae'),
+('it','0','f4-data','you'),('LHDIH','0','f4-data','txmtxyjvcmjlmtgy'),
+('z','0','f4-data','ntxmtxyjvcmjlmtg'),('vyhnmvgmcn','0','f4-data','AIGQK'),
+('ytvyhnmvgm','0','f4-data','z'),('t','0','f4-data','on'),
+('xqegbytvyh','0','f4-data','ixqegbytvyhnmvgm'),('WGVRU','0','f4-data','h'),
+('b','0','f4-data','z'),('who','0','f4-data','gddixqegbytvy'),
+('PMLFL','0','f4-data','vgmcntxmtxyjvcmj'),('back','0','f4-data','n'),
+('i','0','f4-data','PZGUB'),('f','0','f4-data','the'),
+('PNXVP','0','f4-data','v'),('MAKKL','0','f4-data','CGCWF'),
+('RMDAV','0','f4-data','v'),('l','0','f4-data','n'),
+('rhnoypgddi','0','f4-data','VIZNE'),('t','0','f4-data','a'),
+('like','0','f4-data','JSHPZ'),('pskeywslmk','0','f4-data','q'),
+('QZZJJ','0','f4-data','c'),('atlxepskey','0','f4-data','YJRMA'),
+('YUVOU','0','f4-data','eywslmkdrhnoypgd'),('some','0','f4-data','r'),
+('c','0','f4-data','her'),('o','0','f4-data','EMURT'),
+('if','0','f4-data','had'),('when','0','f4-data','CLVWT'),
+('blfufrcdjm','0','f4-data','IZCZN'),('vutblfufrc','0','f4-data','how'),
+('why','0','f4-data','I'),('IXLYQ','0','f4-data','weuwuvutblfufrcd'),
+('here','0','f4-data','m'),('ZOCTJ','0','f4-data','IDSFD'),
+('kqsweuwuvu','0','f4-data','oh'),('ykqsweuwuv','0','f4-data','zykqsweuwuvutblf'),
+('zezykqsweu','0','f4-data','t'),('q','0','f4-data','o'),
+('IBKAU','0','f4-data','oh'),('ivjisuzezy','0','f4-data','XHXKE'),
+('xsivjisuze','0','f4-data','plxsivjisuzezykq'),('have','0','f4-data','uvplxsivjisuzezy'),
+('on','0','f4-data','me'),('ijkfuvplxs','0','f4-data','OGEHV'),
+('u','0','f4-data','okay'),('i','0','f4-data','pajzbbojshnijkfu'),
+('of','0','f4-data','g'),('for','0','f4-data','Im'),
+('or','0','f4-data','ZOJHX'),('n','0','f4-data','you'),
+('that','0','f4-data','just'),('bbojshnijk','0','f4-data','JYGSJ'),
+('k','0','f4-data','y'),('k','0','f4-data','y'),
+('be','0','f4-data','m'),('fnbmxwicrk','0','f4-data','t'),
+('yaffpegvav','0','f4-data','have'),('crkdymahya','0','f4-data','QQWQI'),
+('t','0','f4-data','hnijkfuvplxsivji'),('dgxpajzbbo','0','f4-data','vavdgxpajzbbojsh'),
+('g','0','f4-data','pegvavdgxpajzbbo'),('Im','0','f4-data','ffpegvavdgxpajzb');
+--enable_query_log
+
+
+SELECT alias2.* , alias1.f2 
+FROM 
+  t1 AS alias1
+  LEFT JOIN t1 AS alias2 ON alias1.f2 = alias2.f5
+WHERE
+  alias2.f3 < 0;
+
+set join_cache_level=@_save_join_cache_level;
+set join_buffer_size=@_save_join_buffer_size;
+drop table t1;

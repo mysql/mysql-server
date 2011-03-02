@@ -907,7 +907,26 @@ error:
   DBUG_RETURN(res);
 
 use_default_impl:
-  DBUG_ASSERT(primary_file->inited == handler::INDEX);
+  if (primary_file->inited != handler::INDEX)
+  {
+    /* We can get here when 
+       - we've previously successfully done a DS-MRR scan (and so have 
+         secondary_file!= NULL, secondary_file->inited= INDEX, 
+         primary_file->inited=RND)
+       - for this invocation, we haven't got enough buffer space, and so we
+         have to use the default MRR implementation.
+
+      note: primary_file->ha_index_end() will call dsmrr_close() which will
+      close/destroy the secondary_file, this is intentional. 
+      (Yes this is slow, but one can't expect performance with join buffer 
+       so small that it can accomodate one rowid and one index tuple)
+    */
+    if ((res= primary_file->ha_rnd_end()) || 
+        (res= primary_file->ha_index_init(keyno, test(mode & HA_MRR_SORTED))))
+    {
+      DBUG_RETURN(res);
+    }
+  }
   /* Call correct init function and assign to top level object */
   Mrr_simple_index_reader *s= &reader_factory.simple_index_reader;
   res= s->init(primary_file, seq_funcs, seq_init_param, n_ranges, mode, NULL, 
