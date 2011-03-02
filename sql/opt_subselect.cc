@@ -910,6 +910,10 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   {
     /* Inject into the WHERE */
     parent_join->conds= and_items(parent_join->conds, sj_nest->sj_on_expr);
+    /*
+      fix_fields must update the properties (e.g. st_select_lex::cond_count of
+      the correct select_lex.
+    */
     save_lex= thd->lex->current_select;
     thd->lex->current_select=parent_join->select_lex;
     parent_join->conds->fix_fields(parent_join->thd, &parent_join->conds);
