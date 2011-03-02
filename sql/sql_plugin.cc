@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -957,7 +957,10 @@ static void reap_plugins(void)
 
   list= reap;
   while ((plugin= *(--list)))
+  {
+    sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
+  }
 
   mysql_mutex_lock(&LOCK_plugin);
 
@@ -1039,6 +1042,14 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
   LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
   DBUG_ASSERT(list);
+
+  /*
+    In unit tests, LOCK_plugin may be uninitialized, so do not lock it.
+    Besides: there's no point in locking it, if there are no plugins to unlock.
+   */
+  if (count == 0)
+    DBUG_VOID_RETURN;
+
   mysql_mutex_lock(&LOCK_plugin);
   while (count--)
     intern_plugin_unlock(lex, *list++);
@@ -2591,7 +2602,7 @@ static char **mysql_sys_var_str(THD* thd, int offset)
   return (char **) intern_sys_var_ptr(thd, offset, true);
 }
 
-void plugin_thdvar_init(THD *thd)
+void plugin_thdvar_init(THD *thd, bool enable_plugins)
 {
   plugin_ref old_table_plugin= thd->variables.table_plugin;
   DBUG_ENTER("plugin_thdvar_init");
@@ -2607,11 +2618,14 @@ void plugin_thdvar_init(THD *thd)
   thd->variables.dynamic_variables_size= 0;
   thd->variables.dynamic_variables_ptr= 0;
 
-  mysql_mutex_lock(&LOCK_plugin);
-  thd->variables.table_plugin=
-        my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
-  intern_plugin_unlock(NULL, old_table_plugin);
-  mysql_mutex_unlock(&LOCK_plugin);
+  if (enable_plugins)
+  {
+    mysql_mutex_lock(&LOCK_plugin);
+    thd->variables.table_plugin=
+      my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
+    intern_plugin_unlock(NULL, old_table_plugin);
+    mysql_mutex_unlock(&LOCK_plugin);
+  }
   DBUG_VOID_RETURN;
 }
 

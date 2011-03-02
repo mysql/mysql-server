@@ -32,6 +32,7 @@ struct PFS_global_param;
   @{
 */
 
+/** Hash key for @sa PFS_setup_object. */
 struct PFS_setup_object_key
 {
   /**
@@ -43,6 +44,7 @@ struct PFS_setup_object_key
   uint m_key_length;
 };
 
+/** A setup_object record. */
 struct PFS_setup_object
 {
   enum_object_type get_object_type()

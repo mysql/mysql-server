@@ -51,8 +51,5 @@ include/config\\\\.h$
 include/my_config\\\\.h$
 /autom4te\\\\.cache/
 errmsg\\\\.sys$
-run_collection_test-bt.cmake
-run_collection_test-bt-debug.cmake
-run_collection_test-bt-fast.cmake
 #
 )

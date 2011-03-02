@@ -2248,7 +2248,7 @@ connection i;
 reap;
 
 connection j;
---error 1205
+--error ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT
 reap;
 
 connection a;
