@@ -595,7 +595,7 @@ public:
   inline bool is_union (); 
 
   friend void lex_start(THD *thd);
-  friend int subselect_union_engine::exec();
+  friend bool subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
 };
