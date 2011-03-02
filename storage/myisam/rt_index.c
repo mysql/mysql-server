@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB & Ramil Kalimullin
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -481,16 +481,12 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 			     uint key_length, uchar *page_buf, uint nod_flag)
 {
   double increase;
-  double best_incr;
+  double UNINIT_VAR(best_incr);
   double area;
-  double best_area;
+  double UNINIT_VAR(best_area);
   uchar *best_key= NULL;
   uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   uchar *last = rt_PAGE_END(page_buf);
-
-  LINT_INIT(best_area);
-  LINT_INIT(best_key);
-  LINT_INIT(best_incr);
 
   for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
   {

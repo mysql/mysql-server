@@ -17,27 +17,25 @@
 #define SQL_SIGNAL_H
 
 /**
-  Signal_common represents the common properties of the SIGNAL and RESIGNAL
-  statements.
+  Sql_cmd_common_signal represents the common properties of the
+  SIGNAL and RESIGNAL statements.
 */
-class Signal_common : public Sql_statement
+class Sql_cmd_common_signal : public Sql_cmd
 {
 protected:
   /**
     Constructor.
-    @param lex the LEX structure for this statement.
     @param cond the condition signaled if any, or NULL.
     @param set collection of signal condition item assignments.
   */
-  Signal_common(LEX *lex,
-                const sp_cond_type_t *cond,
-                const Set_signal_information& set)
-    : Sql_statement(lex),
+  Sql_cmd_common_signal(const sp_cond_type_t *cond,
+                        const Set_signal_information& set)
+    : Sql_cmd(),
       m_cond(cond),
       m_set_signal_information(set)
   {}
 
-  virtual ~Signal_common()
+  virtual ~Sql_cmd_common_signal()
   {}
 
   /**
@@ -91,60 +89,56 @@ protected:
 };
 
 /**
-  Signal_statement represents a SIGNAL statement.
+  Sql_cmd_signal represents a SIGNAL statement.
 */
-class Signal_statement : public Signal_common
+class Sql_cmd_signal : public Sql_cmd_common_signal
 {
 public:
   /**
     Constructor, used to represent a SIGNAL statement.
-    @param lex the LEX structure for this statement.
     @param cond the SQL condition to signal (required).
     @param set the collection of signal informations to signal.
   */
-  Signal_statement(LEX *lex,
-                const sp_cond_type_t *cond,
-                const Set_signal_information& set)
-    : Signal_common(lex, cond, set)
+  Sql_cmd_signal(const sp_cond_type_t *cond,
+                 const Set_signal_information& set)
+    : Sql_cmd_common_signal(cond, set)
   {}
 
-  virtual ~Signal_statement()
+  virtual ~Sql_cmd_signal()
   {}
 
-  /**
-    Execute a SIGNAL statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_SIGNAL;
+  }
+
   virtual bool execute(THD *thd);
 };
 
 /**
-  Resignal_statement represents a RESIGNAL statement.
+  Sql_cmd_resignal represents a RESIGNAL statement.
 */
-class Resignal_statement : public Signal_common
+class Sql_cmd_resignal : public Sql_cmd_common_signal
 {
 public:
   /**
     Constructor, used to represent a RESIGNAL statement.
-    @param lex the LEX structure for this statement.
     @param cond the SQL condition to resignal (optional, may be NULL).
     @param set the collection of signal informations to resignal.
   */
-  Resignal_statement(LEX *lex,
-                     const sp_cond_type_t *cond,
-                     const Set_signal_information& set)
-    : Signal_common(lex, cond, set)
+  Sql_cmd_resignal(const sp_cond_type_t *cond,
+                   const Set_signal_information& set)
+    : Sql_cmd_common_signal(cond, set)
   {}
 
-  virtual ~Resignal_statement()
+  virtual ~Sql_cmd_resignal()
   {}
 
-  /**
-    Execute a RESIGNAL statement at runtime.
-    @param thd the current thread.
-    @return 0 on success.
-  */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_RESIGNAL;
+  }
+
   virtual bool execute(THD *thd);
 };
 

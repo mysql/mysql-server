@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,5 +39,15 @@ extern struct st_mysql_plugin	i_s_innodb_fts_inserted;
 extern struct st_mysql_plugin	i_s_innodb_fts_deleted;
 extern struct st_mysql_plugin	i_s_innodb_fts_index_cache;
 extern struct st_mysql_plugin	i_s_innodb_fts_index_table;
+extern struct st_mysql_plugin	i_s_innodb_buffer_page;
+extern struct st_mysql_plugin	i_s_innodb_buffer_page_lru;
+extern struct st_mysql_plugin	i_s_innodb_buffer_stats;
+extern struct st_mysql_plugin	i_s_innodb_sys_tables;
+extern struct st_mysql_plugin	i_s_innodb_sys_tablestats;
+extern struct st_mysql_plugin	i_s_innodb_sys_indexes;
+extern struct st_mysql_plugin	i_s_innodb_sys_columns;
+extern struct st_mysql_plugin	i_s_innodb_sys_fields;
+extern struct st_mysql_plugin	i_s_innodb_sys_foreign;
+extern struct st_mysql_plugin	i_s_innodb_sys_foreign_cols;
 
 #endif /* i_s_h */

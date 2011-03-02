@@ -45,7 +45,7 @@ for this structure, presented program generate next searching-structure:
        +----------+-+-+-+--+
        |    1 char|a|b|c|d |
        +----------+-+-+-+--+
-       |first_char|b|0|0|0 |
+       |first_char|d|0|0|0 |
        |last_char |n|0|0|-1|
        |link      |+|0|0|+ |
                    |     |
@@ -374,7 +374,7 @@ int main(int argc,char **argv)
   printf("/*\n\n  Do " "not " "edit " "this " "file " "directly!\n\n*/\n");
 
   printf("\
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.\n\
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.\n\
 \n\
    This program is free software; you can redistribute it and/or modify\n\
    it under the terms of the GNU General Public License as published by\n\

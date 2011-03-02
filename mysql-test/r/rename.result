@@ -39,7 +39,7 @@ select * from t3;
 3	table 3
 drop table if exists t1,t2,t3,t4;
 Warnings:
-Note	1051	Unknown table 't4'
+Note	1051	Unknown table 'test.t4'
 CREATE TABLE t1 (a int);
 CREATE TABLE t3 (a int);
 FLUSH TABLES WITH READ LOCK;

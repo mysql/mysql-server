@@ -95,6 +95,7 @@ FROM information_schema.routines;
 routine_name	definer
 add_suppression	root@localhost
 check_testcase	root@localhost
+check_testcase_perfschema	root@localhost
 check_warnings	root@localhost
 force_restart	root@localhost
 bug12480	root@localhost
@@ -111,6 +112,7 @@ FROM information_schema.routines;
 routine_name	definer
 add_suppression	root@localhost
 check_testcase	root@localhost
+check_testcase_perfschema	root@localhost
 check_warnings	root@localhost
 force_restart	root@localhost
 bug12480	root@localhost
@@ -982,4 +984,4 @@ a	b
 3	c
 drop table if exists t1,t11;
 Warnings:
-Note	1051	Unknown table 't11'
+Note	1051	Unknown table 'test.t11'

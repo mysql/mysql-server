@@ -1,10 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-drop database if exists d1;
+include/master-slave.inc
+[connection master]
 create database d1;
 use d1;
 create table t (s1 int) engine=innodb;
@@ -30,3 +25,4 @@ Grants for x@y
 GRANT USAGE ON *.* TO 'x'@'y'
 drop user x@y;
 drop database d1;
+include/rpl_end.inc

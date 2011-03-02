@@ -1,4 +1,5 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
+   reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +31,6 @@
 #define EOVERFLOW 84
 #endif
 
-#if !defined(USE_MY_FUNC) && !defined(THREAD)
-#include <my_nosys.h>			/* For faster code, after test */
-#endif	/* USE_MY_FUNC */
 #endif	/* stdin */
 #include <my_list.h>
 
@@ -351,7 +349,7 @@ enum ha_base_keytype {
 /*
   update the 'variable' part of the info:
   handler::records, deleted, data_file_length, index_file_length,
-  delete_length, check_time, mean_rec_length
+  check_time, mean_rec_length
 */
 #define HA_STATUS_VARIABLE      16
 /*
@@ -364,6 +362,11 @@ enum ha_base_keytype {
   update handler::auto_increment_value
 */
 #define HA_STATUS_AUTO          64
+/*
+  Get also delete_length when HA_STATUS_VARIABLE is called. It's ok to set it also
+  when only HA_STATUS_VARIABLE but it won't be used.
+*/
+#define HA_STATUS_VARIABLE_EXTRA 128
 
 /*
   Errorcodes given by handler functions
@@ -514,14 +517,40 @@ enum data_file_type {
 
 /* For key ranges */
 
+/* from -inf */
 #define NO_MIN_RANGE	1
+
+/* to +inf */
 #define NO_MAX_RANGE	2
+
+/*  X < key, i.e. not including the left endpoint */
 #define NEAR_MIN	4
+
+/* X > key, i.e. not including the right endpoint */
 #define NEAR_MAX	8
+
+/* 
+  This flag means that index is a unique index, and the interval is 
+  equivalent to "AND(keypart_i = const_i)", where all of const_i are not NULLs.
+*/
 #define UNIQUE_RANGE	16
+
+/* 
+  This flag means that the interval is equivalent to 
+  "AND(keypart_i = const_i)", where not all key parts may be used but all of 
+  const_i are not NULLs.
+*/
 #define EQ_RANGE	32
+
+/*
+  This flag has the same meaning as UNIQUE_RANGE, except that for at least
+  one keypart the condition is "keypart IS NULL". 
+*/
 #define NULL_RANGE	64
+
 #define GEOM_FLAG      128
+
+/* Deprecated, currently used only by NDB at row retrieval */
 #define SKIP_RANGE     256
 
 typedef struct st_key_range

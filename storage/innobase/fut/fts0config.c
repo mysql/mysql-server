@@ -124,7 +124,9 @@ fts_config_get_value(
 
 	error = fts_eval_sql(trx, graph);
 
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	return(error);
 }
@@ -221,7 +223,9 @@ fts_config_set_value(
 
 	fts_table->suffix = "CONFIG";
 
-	graph = fts_parse_sql(
+	row_mysql_lock_data_dictionary(trx);
+
+	graph = fts_parse_sql_no_dict_lock(
 		fts_table, info,
 		"BEGIN UPDATE %s SET value = :value WHERE key = :name;");
 
@@ -245,7 +249,7 @@ fts_config_set_value(
 		pars_info_bind_varchar_literal(
 			info, "value", value->utf8, value->len);
 
-		graph = fts_parse_sql(
+		graph = fts_parse_sql_no_dict_lock(
 			fts_table, info,
 			"BEGIN\n"
 			"INSERT INTO %s VALUES(:name, :value);");
@@ -256,6 +260,8 @@ fts_config_set_value(
 
 		que_graph_free(graph);
 	}
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	return(error);
 }
@@ -504,7 +510,9 @@ fts_config_increment_value(
 
 	error = fts_eval_sql(trx, graph);
 
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	if (UNIV_UNLIKELY(error == DB_SUCCESS)) {
 		ulint		int_value;

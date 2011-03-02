@@ -22,7 +22,9 @@ drop table if exists t1;
 --enable_warnings
 create table t1 (n int);
 insert into t1 values (1);
-sync_slave_with_master;
+save_master_pos;
+connection slave;
+sync_with_master;
 select * from t1;
 
 # 3. Delete new replication user
@@ -38,8 +40,10 @@ stop slave;
 start slave;
 
 # 5. Make sure Slave_IO_Running = No
-let $slave_io_errno= 1045;
-source include/wait_for_slave_io_error.inc;
+--vertical_results
+#checking show slave status
+let $status_items = Master_Host,Master_User,Connect_Retry,Master_Log_File,Relay_Master_Log_File,Slave_IO_Running,Slave_SQL_Running,Replicate_Do_DB,Replicate_Ignore_DB,Replicate_Do_Table,Replicate_Ignore_Table,Replicate_Wild_Do_Table,Replicate_Wild_Ignore_Table,Last_Errno,Last_Error,Skip_Counter,Until_Condition,Until_Log_File,Until_Log_Pos,Master_SSL_Allowed,Master_SSL_CA_File,Master_SSL_CA_Path,Master_SSL_Cert,Master_SSL_Cipher,Master_SSL_Key,Seconds_Behind_Master,Master_SSL_Verify_Server_Cert,Last_SQL_Errno,Last_SQL_Error,Replicate_Ignore_Server_Ids,Master_Server_Id;
+source include/show_slave_status.inc;
 
 # Cleanup (Note that slave IO thread is not running)
 connection slave;

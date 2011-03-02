@@ -28,6 +28,9 @@
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 #include "pfs_timer.h"
+#include "pfs_setup_actor.h"
+#include "pfs_setup_object.h"
+#include "pfs_defaults.h"
 
 PFS_global_param pfs_param;
 
@@ -53,6 +56,7 @@ initialize_performance_schema(const PFS_global_param *param)
 
   init_timers();
   PFS_atomic::init();
+  init_event_name_sizing(param);
 
   if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
     return NULL;
@@ -69,7 +73,11 @@ initialize_performance_schema(const PFS_global_param *param)
       init_events_waits_history_long(
         param->m_events_waits_history_long_sizing) ||
       init_file_hash() ||
-      init_table_share_hash())
+      init_table_share_hash() ||
+      init_setup_actor(param) ||
+      init_setup_actor_hash() ||
+      init_setup_object(param) ||
+      init_setup_object_hash())
   {
     /*
       The performance schema initialization failed.
@@ -80,6 +88,7 @@ initialize_performance_schema(const PFS_global_param *param)
   }
 
   pfs_initialized= true;
+  install_default_setup(&PFS_bootstrap);
   return &PFS_bootstrap;
 }
 
@@ -112,6 +121,10 @@ static void cleanup_performance_schema(void)
   cleanup_events_waits_history_long();
   cleanup_table_share_hash();
   cleanup_file_hash();
+  cleanup_setup_actor();
+  cleanup_setup_actor_hash();
+  cleanup_setup_object();
+  cleanup_setup_object_hash();
   PFS_atomic::cleanup();
 }
 

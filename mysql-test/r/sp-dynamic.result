@@ -249,7 +249,7 @@ drop procedure p1|
 drop table if exists t1|
 drop table if exists t2|
 Warnings:
-Note	1051	Unknown table 't2'
+Note	1051	Unknown table 'test.t2'
 create table t1 (id integer primary key auto_increment,
 stmt_text char(35), status varchar(20))|
 insert into t1 (stmt_text) values

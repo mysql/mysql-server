@@ -46,7 +46,7 @@
   end of dispatch_command().
 */
 
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
+bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                   SQL_I_List<ORDER> *order_list, ha_rows limit, ulonglong options)
 {
   bool          will_batch;
@@ -227,6 +227,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     uint         length= 0;
     SORT_FIELD  *sortorder;
     ha_rows examined_rows;
+    ha_rows found_rows;
     
     table->update_const_key_parts(conds);
     order= simple_remove_const(order, conds);
@@ -241,9 +242,10 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                                                    MYF(MY_FAE | MY_ZEROFILL));
     
       if (!(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-	  (table->sort.found_records = filesort(thd, table, sortorder, length,
-                                                select, HA_POS_ERROR, 1,
-                                                &examined_rows))
+	  (table->sort.found_records= filesort(thd, table, sortorder, length,
+                                               select, HA_POS_ERROR,
+                                               true,
+                                               &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
       {
         delete select;
@@ -525,9 +527,7 @@ int mysql_multi_delete_prepare(THD *thd)
     if (!(target_tbl->table= target_tbl->correspondent_table->table))
     {
       DBUG_ASSERT(target_tbl->correspondent_table->view &&
-                  target_tbl->correspondent_table->merge_underlying_list &&
-                  target_tbl->correspondent_table->merge_underlying_list->
-                  next_local);
+                  target_tbl->correspondent_table->multitable_view);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                target_tbl->correspondent_table->view_db.str,
                target_tbl->correspondent_table->view_name.str);

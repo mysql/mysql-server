@@ -169,6 +169,7 @@ insert into t1 values ('AA'),('Aa'),('aa'),('aA');
 insert into t1 values ('AE'),('Ae'),('ae'),('aE');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
+insert into t1 values ('DŽ'),('Dž'),('dž'),('dŽ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
 insert into t1 values ('LJ'),('Lj'),('lj'),('lJ');
 insert into t1 values ('LL'),('Ll'),('ll'),('lL');

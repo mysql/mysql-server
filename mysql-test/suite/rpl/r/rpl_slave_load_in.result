@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t1(a int not null auto_increment, b int, primary key(a));
 create table t2(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
@@ -13,7 +9,8 @@ insert into t2(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t2;
 load data infile '../../std_data/rpl_loaddata.dat' into table t2;
 commit;
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 drop table t1;
 drop table t2;
+include/rpl_end.inc

@@ -634,7 +634,7 @@ fts_zip_read_word(
 	}
 
 	if (ptr != NULL) {
-		ut_ad(word->len == strlen(ptr));
+		ut_ad(word->len == strlen((char*) ptr));
 	}
 #endif /* UNIV_DEBUG */
 
@@ -960,7 +960,10 @@ fts_table_fetch_doc_ids(
 		"CLOSE c;");
 
 	error = fts_eval_sql(trx, graph);
+
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(trx);

@@ -83,17 +83,22 @@ set @bcs = @@binlog_cache_size;
 set global binlog_cache_size=4096;
 reset master;
 
-create table t1 (a int) engine=innodb;
+create table t1 (a int, b char(255)) engine=innodb;
 
-let $1=400;
+flush status;
+show status like "binlog_cache_use";
+
+let $1=100;
 disable_query_log;
 begin;
 while ($1)
 {
- eval insert into t1 values( $1 );
+ eval insert into t1 values( $1, 'just to fill void to make transaction occupying at least two buffers of the trans cache' );
  dec $1;
 }
 commit;
+--echo *** the following must show the counter value = 1 ***
+show status like "binlog_cache_use";
 enable_query_log;
 
 --source include/show_binlog_events.inc
@@ -304,5 +309,58 @@ BINLOG '
 SHOW BINLOG EVENTS;
 
 DROP TABLE t1;
+
+--echo
+--echo # BUG#54903 BINLOG statement toggles session variables
+--echo # ----------------------------------------------------------------------
+--echo # This test verify that BINLOG statement doesn't change current session's
+--echo # variables foreign_key_checks and unique_checks.
+--echo
+CREATE TABLE t1 (c1 INT KEY);
+
+SET @@SESSION.foreign_key_checks= ON;
+SET @@SESSION.unique_checks= ON;
+
+--echo # INSERT INTO t1 VALUES (1)
+--echo # foreign_key_checks=0 and unique_checks=0
+BINLOG '
+dfLtTBMBAAAAKQAAANcAAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+dfLtTBcBAAAAIgAAAPkAAAAAABcAAAAAAAcAAf/+AQAAAA==
+';
+
+SELECT * FROM t1;
+--echo # Their values should be ON
+SHOW SESSION VARIABLES LIKE "%_checks";
+
+--echo
+SET @@SESSION.foreign_key_checks= OFF;
+SET @@SESSION.unique_checks= OFF;
+
+--echo # INSERT INTO t1 VALUES(2)
+--echo # foreign_key_checks=1 and unique_checks=1
+BINLOG '
+dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+dfLtTBcBAAAAIgAAAM0BAAAAABcAAAAAAAEAAf/+AgAAAA==
+';
+
+SELECT * FROM t1;
+--echo # Their values should be OFF
+SHOW SESSION VARIABLES LIKE "%_checks";
+
+--echo # INSERT INTO t1 VALUES(2)
+--echo # foreign_key_checks=1 and unique_checks=1
+--echo # It should not change current session's variables, even error happens
+--error 1062
+BINLOG '
+dfLtTBMBAAAAKQAAAKsBAAAAABcAAAAAAAEABHRlc3QAAnQxAAEDAAE=
+dfLtTBcBAAAAIgAAAM0BAAAAABcAAAAAAAEAAf/+AgAAAA==
+';
+
+SELECT * FROM t1;
+--echo # Their values should be OFF
+SHOW SESSION VARIABLES LIKE "%_checks";
+
+DROP TABLE t1;
+
 disconnect fresh;
 

@@ -300,12 +300,7 @@ INSERT INTO t1 VALUES('2001-01-09','2001-01-10',6),('2001-01-11','2001-01-12',7)
 UPDATE t1 SET c1='2001-01-09 24:59:59',c2='2009-01-10 23:60:59' WHERE c1='2001-01-09';
 UPDATE t1 SET c2='2001-01-11 23:59:60' WHERE c1='2001-01-11'; 
 SELECT count(*) FROM t1 WHERE c1='2001-01-09 24:59:59' AND c2='2009-01-10 23:60:59';
-
-# Bug#52283 : Remove the following --disable_warnings
-#             command when the bug is fixed
---disable_warnings
 SELECT count(*) FROM t1 WHERE c2='2001-01-11 23:59:60' /* returns 0 */;
---enable_warnings
 --sorted_result
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 

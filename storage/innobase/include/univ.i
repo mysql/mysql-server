@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
@@ -44,9 +44,14 @@ Created 1/20/1994 Heikki Tuuri
 #include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
+/* aux macros to convert M into "123" (string) if M is defined like
+#define M 123 */
+#define _IB_TO_STR(s)	#s
+#define IB_TO_STR(s)	_IB_TO_STR(s)
+
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	2
-#define INNODB_VERSION_BUGFIX	0
+#define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -57,16 +62,14 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-/* auxiliary macros to help creating the version as string */
-#define __INNODB_VERSION(a, b, c)	(#a "." #b "." #c)
-#define _INNODB_VERSION(a, b, c)	__INNODB_VERSION(a, b, c)
-
 #define INNODB_VERSION_STR			\
-	_INNODB_VERSION(INNODB_VERSION_MAJOR,	\
-			INNODB_VERSION_MINOR,	\
-			INNODB_VERSION_BUGFIX)
+	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
+	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
+	IB_TO_STR(INNODB_VERSION_BUGFIX)
 
-#define REFMAN "http://dev.mysql.com/doc/refman/5.1/en/"
+#define REFMAN "http://dev.mysql.com/doc/refman/"	\
+	IB_TO_STR(MYSQL_VERSION_MAJOR) "."		\
+	IB_TO_STR(MYSQL_VERSION_MINOR) "/en/"
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 /* In the dynamic plugin, redefine some externally visible symbols
@@ -77,19 +80,6 @@ have not figured out how to apply the visibility=hidden attribute to
 the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-/* if any of the following macros is defined at this point this means
-that the code from the "right" plug.in was executed and we do not
-need to include ut0auxconf.h which would either define the same macros
-or will be empty */
-#if !defined(HAVE_IB_GCC_ATOMIC_BUILTINS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_GCC) \
- && !defined(HAVE_IB_SOLARIS_ATOMICS) \
- && !defined(HAVE_IB_ATOMIC_PTHREAD_T_SOLARIS) \
- && !defined(SIZEOF_PTHREAD_T) \
- && !defined(HAVE_IB_PAUSE_INSTRUCTION)
-# include "ut0auxconf.h"
-#endif
 
 #if (defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)) && !defined(MYSQL_SERVER) && !defined(__WIN__)
 # undef __WIN__
@@ -133,11 +123,6 @@ if we are compiling on Windows. */
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 
-# if !defined(__GNUC__) && !(defined(__SUNPRO_C) || defined(__SUNPRO_CC))
-#  undef  UNIV_MUST_NOT_INLINE			/* Remove compiler warning */
-#  define UNIV_MUST_NOT_INLINE
-# endif
-
 # ifdef HAVE_PREAD
 #  define HAVE_PWRITE
 # endif
@@ -159,6 +144,16 @@ resolved */
 #  define UNIV_PFS_IO
 # endif
 # define UNIV_PFS_THREAD
+
+/* There are mutexes/rwlocks that we want to exclude from
+instrumentation even if their corresponding performance schema
+define is set. And this PFS_NOT_INSTRUMENTED is used
+as the key value to identify those objects that would
+be excluded from instrumentation. */
+# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
+
+# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
+
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifdef __WIN__
@@ -198,14 +193,15 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
+#define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
+						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */
-#define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
-						(field file_page_was_freed
-						in buf_page_t) */
+#define UNIV_DEBUG_FILE_ACCESSES		/* Enable freed block access
+						debugging without UNIV_DEBUG */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
@@ -214,9 +210,14 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
+#define UNIV_PERF_DEBUG                         /* debug flag that enables
+                                                light weight performance
+                                                related stuff. */
 #define UNIV_SYNC_DEBUG				/* debug mutex and latch
 operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_SEARCH_DEBUG			/* debug B-tree comparisons */
@@ -235,6 +236,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_AIO_DEBUG				/* prints info about
 						submitted and reaped AIO
 						requests to the log. */
+#define UNIV_STATS_DEBUG			/* prints various stats
+						related debug info from
+						dict0stats.c */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -267,7 +271,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INTERN
 #endif
 
-#if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
+#ifndef UNIV_MUST_NOT_INLINE
 /* Definition for inline version */
 
 #ifdef __WIN__
@@ -278,14 +282,14 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 # define UNIV_INLINE static __inline__
 #endif
 
-#else
+#else /* !UNIV_MUST_NOT_INLINE */
 /* If we want to compile a noninlined version we use the following macro
 definitions: */
 
 #define UNIV_NONINL
 #define UNIV_INLINE	UNIV_INTERN
 
-#endif	/* UNIV_DEBUG */
+#endif /* !UNIV_MUST_NOT_INLINE */
 
 #ifdef _WIN32
 #define UNIV_WORD_SIZE		4
@@ -321,6 +325,10 @@ defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
 number does not include a terminating '\0'. InnoDB probably can handle
 longer names internally */
 #define MAX_TABLE_NAME_LEN	192
+
+/* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
+the MySQL's NAME_LEN, see check_and_convert_db_name(). */
+#define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
 
 /*
 			UNIVERSAL TYPE DEFINITIONS
@@ -377,6 +385,9 @@ typedef unsigned long long int	ullint;
 /* The 'undefined' value for a ulint */
 #define ULINT_UNDEFINED		((ulint)(-1))
 
+/* The 'undefined' value for a ib_uint64_t */
+#define UINT64_UNDEFINED	((ib_uint64_t)(-1))
+
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF
 /* The undefined 32-bit unsigned integer */
@@ -390,6 +401,9 @@ typedef unsigned long long int	ullint;
 
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t	ib_id_t;
+
+/* The 'undefined' value for a ullint */
+#define ULLINT_UNDEFINED        ((ullint)(-1))
 
 /* This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
@@ -444,7 +458,7 @@ it is read or written. */
 /* Use sun_prefetch when compile with Sun Studio */
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
-# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many(addr)
+# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
 # define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
 #else
 # define UNIV_UNUSED

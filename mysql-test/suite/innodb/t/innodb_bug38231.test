@@ -10,7 +10,7 @@
 # preceded by --send
 -- source include/not_embedded.inc
 
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not crash the server
 -- disable_query_log

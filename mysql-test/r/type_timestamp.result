@@ -503,6 +503,27 @@ f1	f2-f3
 5	0
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug #55779: select does not work properly in mysql server
+#             Version "5.1.42 SUSE MySQL RPM"
+#
+CREATE TABLE t1 (a TIMESTAMP, KEY (a));
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00'), ('2000-01-01 00:00:00'),
+('2000-01-01 00:00:01'), ('2000-01-01 00:00:01');
+SELECT a FROM t1 WHERE a >=  20000101000000;
+a
+2000-01-01 00:00:00
+2000-01-01 00:00:00
+2000-01-01 00:00:01
+2000-01-01 00:00:01
+SELECT a FROM t1 WHERE a >= '20000101000000';
+a
+2000-01-01 00:00:00
+2000-01-01 00:00:00
+2000-01-01 00:00:01
+2000-01-01 00:00:01
+DROP TABLE t1;
+End of 5.1 tests
 
 Bug#50888 valgrind warnings in Field_timestamp::val_str
 
@@ -519,3 +540,32 @@ a
 2010-03-05 11:08:02
 DROP TABLE t1;
 End of Bug#50888
+#
+# Bug59330: Incorrect result when comparing an aggregate
+#           function with TIMESTAMP
+#
+CREATE TABLE t1 (dt DATETIME, ts TIMESTAMP);
+INSERT INTO t1 VALUES('2011-01-06 12:34:30', '2011-01-06 12:34:30');
+SELECT MAX(dt), MAX(ts) FROM t1;
+MAX(dt)	MAX(ts)
+2011-01-06 12:34:30	2011-01-06 12:34:30
+SELECT MAX(ts) < '2010-01-01 00:00:00' FROM t1;
+MAX(ts) < '2010-01-01 00:00:00'
+0
+SELECT MAX(dt) < '2010-01-01 00:00:00' FROM t1;
+MAX(dt) < '2010-01-01 00:00:00'
+0
+SELECT MAX(ts) > '2010-01-01 00:00:00' FROM t1;
+MAX(ts) > '2010-01-01 00:00:00'
+1
+SELECT MAX(dt) > '2010-01-01 00:00:00' FROM t1;
+MAX(dt) > '2010-01-01 00:00:00'
+1
+SELECT MAX(ts) = '2011-01-06 12:34:30' FROM t1;
+MAX(ts) = '2011-01-06 12:34:30'
+1
+SELECT MAX(dt) = '2011-01-06 12:34:30' FROM t1;
+MAX(dt) = '2011-01-06 12:34:30'
+1
+DROP TABLE t1;
+End of 5.5 tests

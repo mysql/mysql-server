@@ -80,12 +80,8 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     used_tables_cache |= item->used_tables();
     const_item_cache&= item->const_item() && !with_null;
     not_null_tables_cache|= item->not_null_tables();
-    /*
-      Some subqueries transformations aren't done in the view_prepare_mode thus
-      is_null() will fail. So we skip is_null() calculation for CREATE VIEW as
-      not necessary.
-    */
-    if (const_item_cache && !thd->lex->view_prepare_mode)
+
+    if (const_item_cache)
     {
       if (item->cols() > 1)
 	with_null|= item->null_inside();
@@ -133,6 +129,20 @@ void Item_row::update_used_tables()
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
+    used_tables_cache|= items[i]->used_tables();
+    const_item_cache&= items[i]->const_item();
+  }
+}
+
+void Item_row::fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select,
+                                 Item **ref)
+{
+  used_tables_cache= 0;
+  const_item_cache= 1;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    items[i]->fix_after_pullout(parent_select, removed_select, &items[i]);
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
   }

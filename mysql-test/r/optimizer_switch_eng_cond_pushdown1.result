@@ -1,5 +1,0 @@
-select @@session.engine_condition_pushdown,
-@@global.engine_condition_pushdown,
-@@session.optimizer_switch, @@global.optimizer_switch;
-@@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-1	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on

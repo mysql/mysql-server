@@ -22,94 +22,93 @@
   Stub class that returns a error if the partition storage engine is
   not supported.
 */
-class Partition_statement_unsupported : public Sql_statement
+class Sql_cmd_partition_unsupported : public Sql_cmd
 {
 public:
-  Partition_statement_unsupported(LEX *lex)
-    : Sql_statement(lex)
+  Sql_cmd_partition_unsupported()
   {}
 
-  ~Partition_statement_unsupported()
+  ~Sql_cmd_partition_unsupported()
   {}
+
+  /* Override SQLCOM_*, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 
   bool execute(THD *thd);
 };
 
 
-class Alter_table_exchange_partition_statement :
-  public Partition_statement_unsupported
+class Sql_cmd_alter_table_exchange_partition :
+  public Sql_cmd_partition_unsupported
 {
 public:
-  Alter_table_exchange_partition_statement(LEX *lex)
-    : Partition_statement_unsupported(lex)
+  Sql_cmd_alter_table_exchange_partition()
   {}
 
-  ~Alter_table_exchange_partition_statement()
+  ~Sql_cmd_alter_table_exchange_partition()
   {}
 };
 
 
-class Alter_table_analyze_partition_statement :
-  public Partition_statement_unsupported
+class  Sql_cmd_alter_table_analyze_partition :
+  public Sql_cmd_partition_unsupported
 {
 public:
-  Alter_table_analyze_partition_statement(LEX *lex)
-    : Partition_statement_unsupported(lex)
+  Sql_cmd_alter_table_analyze_partition()
   {}
 
-  ~Alter_table_analyze_partition_statement()
+  ~Sql_cmd_alter_table_analyze_partition()
   {}
 };
 
 
-class Alter_table_check_partition_statement :
-  public Partition_statement_unsupported
+class Sql_cmd_alter_table_check_partition :
+  public Sql_cmd_partition_unsupported
 {
 public:
-  Alter_table_check_partition_statement(LEX *lex)
-    : Partition_statement_unsupported(lex)
+  Sql_cmd_alter_table_check_partition()
   {}
 
-  ~Alter_table_check_partition_statement()
+  ~Sql_cmd_alter_table_check_partition()
   {}
 };
 
 
-class Alter_table_optimize_partition_statement :
-  public Partition_statement_unsupported
+class Sql_cmd_alter_table_optimize_partition :
+  public Sql_cmd_partition_unsupported
 {
 public:
-  Alter_table_optimize_partition_statement(LEX *lex)
-    : Partition_statement_unsupported(lex)
+  Sql_cmd_alter_table_optimize_partition()
   {}
 
-  ~Alter_table_optimize_partition_statement()
+  ~Sql_cmd_alter_table_optimize_partition()
   {}
 };
 
 
-class Alter_table_repair_partition_statement :
-  public Partition_statement_unsupported
+class Sql_cmd_alter_table_repair_partition :
+  public Sql_cmd_partition_unsupported
 {
 public:
-  Alter_table_repair_partition_statement(LEX *lex)
-    : Partition_statement_unsupported(lex)
+  Sql_cmd_alter_table_repair_partition()
   {}
 
-  ~Alter_table_repair_partition_statement()
+  ~Sql_cmd_alter_table_repair_partition()
   {}
 };
 
 
-class Alter_table_truncate_partition_statement :
-  public Partition_statement_unsupported
+class Sql_cmd_alter_table_truncate_partition :
+  public Sql_cmd_partition_unsupported
 {
 public:
-  Alter_table_truncate_partition_statement(LEX *lex)
-    : Partition_statement_unsupported(lex)
+  Sql_cmd_alter_table_truncate_partition()
   {}
 
-  ~Alter_table_truncate_partition_statement()
+  ~Sql_cmd_alter_table_truncate_partition()
   {}
 };
 
@@ -119,25 +118,19 @@ public:
   Class that represents the ALTER TABLE t1 EXCHANGE PARTITION p
                             WITH TABLE t2 statement.
 */
-class Alter_table_exchange_partition_statement : public Alter_table_common
+class Sql_cmd_alter_table_exchange_partition : public Sql_cmd_common_alter_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE EXCHANGE PARTITION statement.
-    @param lex the LEX structure for this statement.
   */
-  Alter_table_exchange_partition_statement(LEX *lex)
-    : Alter_table_common(lex)
+  Sql_cmd_alter_table_exchange_partition()
+    : Sql_cmd_common_alter_table()
   {}
 
-  ~Alter_table_exchange_partition_statement()
+  ~Sql_cmd_alter_table_exchange_partition()
   {}
 
-  /**
-    Execute a ALTER TABLE EXCHANGE PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
 
 private:
@@ -148,130 +141,129 @@ private:
 /**
   Class that represents the ALTER TABLE t1 ANALYZE PARTITION p statement.
 */
-class Alter_table_analyze_partition_statement : public Analyze_table_statement
+class Sql_cmd_alter_table_analyze_partition : public Sql_cmd_analyze_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE ANALYZE PARTITION statement.
-    @param lex the LEX structure for this statement.
   */
-  Alter_table_analyze_partition_statement(LEX *lex)
-    : Analyze_table_statement(lex)
+  Sql_cmd_alter_table_analyze_partition()
+    : Sql_cmd_analyze_table()
   {}
 
-  ~Alter_table_analyze_partition_statement()
+  ~Sql_cmd_alter_table_analyze_partition()
   {}
 
-  /**
-    Execute a ALTER TABLE ANALYZE PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
+
+  /* Override SQLCOM_ANALYZE, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 };
 
 
 /**
   Class that represents the ALTER TABLE t1 CHECK PARTITION p statement.
 */
-class Alter_table_check_partition_statement : public Check_table_statement
+class Sql_cmd_alter_table_check_partition : public Sql_cmd_check_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE CHECK PARTITION statement.
-    @param lex the LEX structure for this statement.
   */
-  Alter_table_check_partition_statement(LEX *lex)
-    : Check_table_statement(lex)
+  Sql_cmd_alter_table_check_partition()
+    : Sql_cmd_check_table()
   {}
 
-  ~Alter_table_check_partition_statement()
+  ~Sql_cmd_alter_table_check_partition()
   {}
 
-  /**
-    Execute a ALTER TABLE CHECK PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
+
+  /* Override SQLCOM_CHECK, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 };
 
 
 /**
   Class that represents the ALTER TABLE t1 OPTIMIZE PARTITION p statement.
 */
-class Alter_table_optimize_partition_statement : public Optimize_table_statement
+class Sql_cmd_alter_table_optimize_partition : public Sql_cmd_optimize_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE OPTIMIZE PARTITION statement.
-    @param lex the LEX structure for this statement.
   */
-  Alter_table_optimize_partition_statement(LEX *lex)
-    : Optimize_table_statement(lex)
+  Sql_cmd_alter_table_optimize_partition()
+    : Sql_cmd_optimize_table()
   {}
 
-  ~Alter_table_optimize_partition_statement()
+  ~Sql_cmd_alter_table_optimize_partition()
   {}
 
-  /**
-    Execute a ALTER TABLE OPTIMIZE PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
+
+  /* Override SQLCOM_OPTIMIZE, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 };
 
 
 /**
   Class that represents the ALTER TABLE t1 REPAIR PARTITION p statement.
 */
-class Alter_table_repair_partition_statement : public Repair_table_statement
+class Sql_cmd_alter_table_repair_partition : public Sql_cmd_repair_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE REPAIR PARTITION statement.
-    @param lex the LEX structure for this statement.
   */
-  Alter_table_repair_partition_statement(LEX *lex)
-    : Repair_table_statement(lex)
+  Sql_cmd_alter_table_repair_partition()
+    : Sql_cmd_repair_table()
   {}
 
-  ~Alter_table_repair_partition_statement()
+  ~Sql_cmd_alter_table_repair_partition()
   {}
 
-  /**
-    Execute a ALTER TABLE REPAIR PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
+
+  /* Override SQLCOM_REPAIR, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 };
 
 
 /**
   Class that represents the ALTER TABLE t1 TRUNCATE PARTITION p statement.
 */
-class Alter_table_truncate_partition_statement : public Truncate_statement
+class Sql_cmd_alter_table_truncate_partition : public Sql_cmd_truncate_table
 {
 public:
   /**
     Constructor, used to represent a ALTER TABLE TRUNCATE PARTITION statement.
-    @param lex the LEX structure for this statement.
   */
-  Alter_table_truncate_partition_statement(LEX *lex)
-    : Truncate_statement(lex)
+  Sql_cmd_alter_table_truncate_partition()
   {}
 
-  ~Alter_table_truncate_partition_statement()
+  virtual ~Sql_cmd_alter_table_truncate_partition()
   {}
 
-  /**
-    Execute a ALTER TABLE TRUNCATE PARTITION statement at runtime.
-    @param thd the current thread.
-    @return false on success.
-  */
   bool execute(THD *thd);
+
+  /* Override SQLCOM_TRUNCATE, since it is an ALTER command */
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_ALTER_TABLE;
+  }
 };
 
 #endif /* WITH_PARTITION_STORAGE_ENGINE */

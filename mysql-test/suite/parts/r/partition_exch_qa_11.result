@@ -1,0 +1,56 @@
+use test;
+SET @part= 'p0';
+SET @part_tab= 'tp';
+SET @table= 't_10';
+SET @s= CONCAT('ALTER TABLE ',@part_tab,' EXCHANGE PARTITION ',@part,' WITH TABLE ',@table);
+PREPARE test_stmt1 FROM @s;
+EXECUTE test_stmt1;
+SELECT * FROM t_10;
+a	b
+2	Two
+4	Four
+6	Six
+8	Eight
+SELECT * FROM tp;
+a	b
+1	One
+112	Hundred twelve
+114	Hundred fourteen
+116	Hundred sixteen
+118	Hundred eightteen
+12	twelve
+122	Hundred twenty-two
+124	Hundred twenty-four
+126	Hundred twenty-six
+128	Hundred twenty-eight
+14	Fourteen
+16	Sixteen
+162	Hundred sixty-two
+164	Hundred sixty-four
+166	Hundred sixty-six
+168	Hundred sixty-eight
+18	Eightteen
+182	Hundred eighty-two
+184	Hundred eighty-four
+186	Hundred eighty-six
+188	Hundred eighty-eight
+3	Three
+5	Five
+9	Nine
+DEALLOCATE PREPARE test_stmt1;
+SET @part_tab= 'tp';
+SET @s= CONCAT('ALTER TABLE ',@part_tab,' EXCHANGE PARTITION ? WITH TABLE ?');
+PREPARE test_stmt2 FROM @s;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '? WITH TABLE ?' at line 1
+DROP TABLE IF EXISTS t_10;
+DROP TABLE IF EXISTS t_100;
+DROP TABLE IF EXISTS t_1000;
+DROP TABLE IF EXISTS tp;
+DROP TABLE IF EXISTS tsp;
+DROP TABLE IF EXISTS tsp_00;
+DROP TABLE IF EXISTS tsp_01;
+DROP TABLE IF EXISTS tsp_02;
+DROP TABLE IF EXISTS tsp_03;
+DROP TABLE IF EXISTS tsp_04;
+DROP TABLE IF EXISTS t_empty;
+DROP TABLE IF EXISTS t_null;

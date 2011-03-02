@@ -24,6 +24,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
+#include "pfs_timer.h"
 
 THR_LOCK table_events_waits_current::m_table_lock;
 
@@ -80,6 +81,11 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
+    { C_STRING_WITH_LEN("INDEX_NAME") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("OBJECT_TYPE") },
     { C_STRING_WITH_LEN("varchar(64)") },
     { NULL, 0}
@@ -96,7 +102,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("OPERATION") },
-    { C_STRING_WITH_LEN("varchar(16)") },
+    { C_STRING_WITH_LEN("varchar(32)") },
     { NULL, 0}
   },
   {
@@ -113,16 +119,17 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_events_waits_current::m_field_def=
-{ 16, field_types };
+{ 17, field_types };
 
 PFS_engine_table_share
 table_events_waits_current::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_CURRENT") },
+  { C_STRING_WITH_LEN("events_waits_current") },
   &pfs_truncatable_acl,
   &table_events_waits_current::create,
   NULL, /* write_row */
   &table_events_waits_current::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_current), /* ref length */
   &m_table_lock,
@@ -135,11 +142,12 @@ THR_LOCK table_events_waits_history::m_table_lock;
 PFS_engine_table_share
 table_events_waits_history::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_HISTORY") },
+  { C_STRING_WITH_LEN("events_waits_history") },
   &pfs_truncatable_acl,
   &table_events_waits_history::create,
   NULL, /* write_row */
   &table_events_waits_history::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_events_waits_history), /* ref length */
   &m_table_lock,
@@ -152,11 +160,12 @@ THR_LOCK table_events_waits_history_long::m_table_lock;
 PFS_engine_table_share
 table_events_waits_history_long::m_share=
 {
-  { C_STRING_WITH_LEN("EVENTS_WAITS_HISTORY_LONG") },
+  { C_STRING_WITH_LEN("events_waits_history_long") },
   &pfs_truncatable_acl,
   &table_events_waits_history_long::create,
   NULL, /* write_row */
   &table_events_waits_history_long::delete_all_rows,
+  NULL, /* get_row_count */
   10000, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -176,6 +185,98 @@ void table_events_waits_common::clear_object_columns()
   m_row.m_object_type_length= 0;
   m_row.m_object_schema_length= 0;
   m_row.m_object_name_length= 0;
+  m_row.m_index_name_length= 0;
+}
+
+int table_events_waits_common::make_table_object_columns(volatile PFS_events_waits *wait)
+{
+  uint safe_index;
+  PFS_table_share *safe_table_share;
+
+  safe_table_share= sanitize_table_share(wait->m_weak_table_share);
+  if (unlikely(safe_table_share == NULL))
+    return 1;
+
+  if (wait->m_object_type == OBJECT_TYPE_TABLE)
+  {
+    m_row.m_object_type= "TABLE";
+    m_row.m_object_type_length= 5;
+  }
+  else
+  {
+    m_row.m_object_type= "TEMPORARY TABLE";
+    m_row.m_object_type_length= 15;
+  }
+
+  if (safe_table_share->get_version() == wait->m_weak_version)
+  {
+    /* OBJECT SCHEMA */
+    m_row.m_object_schema_length= safe_table_share->m_schema_name_length;
+    if (unlikely((m_row.m_object_schema_length == 0) ||
+                 (m_row.m_object_schema_length > sizeof(m_row.m_object_schema))))
+      return 1;
+    memcpy(m_row.m_object_schema, safe_table_share->m_schema_name, m_row.m_object_schema_length);
+
+    /* OBJECT NAME */
+    m_row.m_object_name_length= safe_table_share->m_table_name_length;
+    if (unlikely((m_row.m_object_name_length == 0) ||
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+      return 1;
+    memcpy(m_row.m_object_name, safe_table_share->m_table_name, m_row.m_object_name_length);
+
+    /* INDEX NAME */
+    safe_index= wait->m_index;
+    if (safe_index < MAX_KEY && safe_index < safe_table_share->m_key_count)
+    {
+      PFS_table_key *key= & safe_table_share->m_keys[safe_index];
+      m_row.m_index_name_length= key->m_name_length;
+      if (unlikely((m_row.m_index_name_length == 0) ||
+                   (m_row.m_index_name_length > sizeof(m_row.m_index_name))))
+        return 1;
+      memcpy(m_row.m_index_name, key->m_name, m_row.m_index_name_length);
+    }
+    else
+      m_row.m_index_name_length= 0;
+  }
+  else
+  {
+    m_row.m_object_schema_length= 0;
+    m_row.m_object_name_length= 0;
+    m_row.m_index_name_length= 0;
+  }
+
+  return 0;
+}
+
+int table_events_waits_common::make_file_object_columns(volatile PFS_events_waits *wait)
+{
+  PFS_file *safe_file;
+
+  safe_file= sanitize_file(wait->m_weak_file);
+  if (unlikely(safe_file == NULL))
+    return 1;
+
+  m_row.m_object_type= "FILE";
+  m_row.m_object_type_length= 4;
+  m_row.m_object_schema_length= 0;
+
+  if (safe_file->get_version() == wait->m_weak_version)
+  {
+    /* OBJECT NAME */
+    m_row.m_object_name_length= safe_file->m_filename_length;
+    if (unlikely((m_row.m_object_name_length == 0) ||
+                 (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
+      return 1;
+    memcpy(m_row.m_object_name, safe_file->m_filename, m_row.m_object_name_length);
+  }
+  else
+  {
+    m_row.m_object_name_length= 0;
+  }
+
+  m_row.m_index_name_length= 0;
+
+  return 0;
 }
 
 /**
@@ -187,7 +288,7 @@ void table_events_waits_common::clear_object_columns()
 */
 void table_events_waits_common::make_row(bool thread_own_wait,
                                          PFS_thread *pfs_thread,
-                                         PFS_events_waits *wait)
+                                         volatile PFS_events_waits *wait)
 {
   pfs_lock lock;
   PFS_thread *safe_thread;
@@ -221,14 +322,6 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     and sanitizes all the data before returning a row.
   */
 
-  m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
-  m_row.m_event_id= wait->m_event_id;
-  m_row.m_nesting_event_id= wait->m_nesting_event_id;
-  m_row.m_timer_state= wait->m_timer_state;
-  m_row.m_timer_start= wait->m_timer_start;
-  m_row.m_timer_end= wait->m_timer_end;
-  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
-
   /*
     PFS_events_waits::m_class needs to be sanitized,
     for race conditions when this code:
@@ -250,39 +343,35 @@ void table_events_waits_common::make_row(bool thread_own_wait,
     safe_class= sanitize_cond_class((PFS_cond_class*) wait->m_class);
     break;
   case WAIT_CLASS_TABLE:
-    if (wait->m_object_type == OBJECT_TYPE_TABLE)
-    {
-      m_row.m_object_type= "TABLE";
-      m_row.m_object_type_length= 5;
-    }
-    else
-    {
-      m_row.m_object_type= "TEMPORARY TABLE";
-      m_row.m_object_type_length= 15;
-    }
-    memcpy(m_row.m_object_schema, wait->m_schema_name,
-           wait->m_schema_name_length);
-    m_row.m_object_schema_length= wait->m_schema_name_length;
-    memcpy(m_row.m_object_name, wait->m_object_name,
-           wait->m_object_name_length);
-    m_row.m_object_name_length= wait->m_object_name_length;
-    safe_class= &global_table_class;
+    if (make_table_object_columns(wait))
+      return;
+    safe_class= sanitize_table_class(wait->m_class);
     break;
   case WAIT_CLASS_FILE:
-    m_row.m_object_type= "FILE";
-    m_row.m_object_type_length= 4;
-    m_row.m_object_schema_length= 0;
-    memcpy(m_row.m_object_name, wait->m_object_name,
-           wait->m_object_name_length);
-    m_row.m_object_name_length= wait->m_object_name_length;
+    if (make_file_object_columns(wait))
+      return;
     safe_class= sanitize_file_class((PFS_file_class*) wait->m_class);
     break;
   case NO_WAIT_CLASS:
   default:
     return;
   }
+
   if (unlikely(safe_class == NULL))
     return;
+
+  m_row.m_thread_internal_id= safe_thread->m_thread_internal_id;
+  m_row.m_event_id= wait->m_event_id;
+#ifdef HAVE_NESTED_EVENTS
+  m_row.m_nesting_event_id= wait->m_nesting_event_id;
+#endif
+
+  time_normalizer *normalizer= time_normalizer::get(wait_timer);
+  normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
+                      & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
+
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
+
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
@@ -364,13 +453,24 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("rename") },
   { C_STRING_WITH_LEN("sync") },
 
-  /* Table operations */
-  { C_STRING_WITH_LEN("lock") },
-  { C_STRING_WITH_LEN("external lock") },
+  /* Table io operations */
   { C_STRING_WITH_LEN("fetch") },
   { C_STRING_WITH_LEN("insert") }, /* write row */
   { C_STRING_WITH_LEN("update") }, /* update row */
-  { C_STRING_WITH_LEN("delete") }  /* delete row */
+  { C_STRING_WITH_LEN("delete") }, /* delete row */
+
+  /* Table lock operations */
+  { C_STRING_WITH_LEN("read normal") },
+  { C_STRING_WITH_LEN("read with shared locks") },
+  { C_STRING_WITH_LEN("read high priority") },
+  { C_STRING_WITH_LEN("read no inserts") },
+  { C_STRING_WITH_LEN("write allow write") },
+  { C_STRING_WITH_LEN("write concurrent insert") },
+  { C_STRING_WITH_LEN("write delayed") },
+  { C_STRING_WITH_LEN("write low priority") },
+  { C_STRING_WITH_LEN("write normal") },
+  { C_STRING_WITH_LEN("read external") },
+  { C_STRING_WITH_LEN("write external") }
 };
 
 
@@ -420,21 +520,20 @@ int table_events_waits_common::read_row_values(TABLE *table,
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
       case 4: /* TIMER_START */
-        if ((m_row.m_timer_state == TIMER_STATE_STARTED) ||
-            (m_row.m_timer_state == TIMER_STATE_TIMED))
+        if (m_row.m_timer_start != 0)
           set_field_ulonglong(f, m_row.m_timer_start);
         else
           f->set_null();
         break;
       case 5: /* TIMER_END */
-        if (m_row.m_timer_state == TIMER_STATE_TIMED)
+        if (m_row.m_timer_end != 0)
           set_field_ulonglong(f, m_row.m_timer_end);
         else
           f->set_null();
         break;
       case 6: /* TIMER_WAIT */
-        if (m_row.m_timer_state == TIMER_STATE_TIMED)
-          set_field_ulonglong(f, m_row.m_timer_end - m_row.m_timer_start);
+        if (m_row.m_timer_wait != 0)
+          set_field_ulonglong(f, m_row.m_timer_wait);
         else
           f->set_null();
         break;
@@ -459,7 +558,16 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 10: /* OBJECT_TYPE */
+      case 10: /* INDEX_NAME */
+        if (m_row.m_index_name_length > 0)
+        {
+          set_field_varchar_utf8(f, m_row.m_index_name,
+                                 m_row.m_index_name_length);
+        }
+        else
+          f->set_null();
+        break;
+      case 11: /* OBJECT_TYPE */
         if (m_row.m_object_type)
         {
           set_field_varchar_utf8(f, m_row.m_object_type,
@@ -468,17 +576,21 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 11: /* OBJECT_INSTANCE */
+      case 12: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, m_row.m_object_instance_addr);
         break;
-      case 12: /* NESTING_EVENT_ID */
+      case 13: /* NESTING_EVENT_ID */
+#ifdef HAVE_NESTED_EVENTS
         set_field_ulonglong(f, m_row.m_nesting_event_id);
+#else
+        f->set_null();
+#endif
         break;
-      case 13: /* OPERATION */
+      case 14: /* OPERATION */
         operation= &operation_names_map[(int) m_row.m_operation - 1];
         set_field_varchar_utf8(f, operation->str, operation->length);
         break;
-      case 14: /* NUMBER_OF_BYTES */
+      case 15: /* NUMBER_OF_BYTES */
         if ((m_row.m_operation == OPERATION_TYPE_FILEREAD) ||
             (m_row.m_operation == OPERATION_TYPE_FILEWRITE) ||
             (m_row.m_operation == OPERATION_TYPE_FILECHSIZE))
@@ -486,12 +598,8 @@ int table_events_waits_common::read_row_values(TABLE *table,
         else
           f->set_null();
         break;
-      case 15: /* FLAGS */
-        if ((m_row.m_operation == OPERATION_TYPE_TABLE_LOCK) ||
-            (m_row.m_operation == OPERATION_TYPE_TABLE_EXTERNAL_LOCK))
-          set_field_ulong(f, m_row.m_flags);
-        else
-          f->set_null();
+      case 16: /* FLAGS */
+        f->set_null();
         break;
       default:
         DBUG_ASSERT(false);
@@ -544,9 +652,9 @@ int table_events_waits_current::rnd_next(void)
     if (m_pos.m_index_2 >= 1)
       continue;
 #else
-    uint safe_locker_count= pfs_thread->m_wait_locker_count;
+    uint safe_events_waits_count= pfs_thread->m_events_waits_count;
 
-    if (safe_locker_count == 0)
+    if (safe_events_waits_count == 0)
     {
       /* Display the last top level wait, when completed */
       if (m_pos.m_index_2 >= 1)
@@ -555,12 +663,12 @@ int table_events_waits_current::rnd_next(void)
     else
     {
       /* Display all pending waits, when in progress */
-      if (m_pos.m_index_2 >= safe_locker_count)
+      if (m_pos.m_index_2 >= safe_events_waits_count)
         continue;
     }
 #endif
 
-    wait= &pfs_thread->m_wait_locker_stack[m_pos.m_index_2].m_waits_current;
+    wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2];
 
     if (wait->m_wait_class == NO_WAIT_CLASS)
     {
@@ -596,9 +704,9 @@ int table_events_waits_current::rnd_pos(const void *pos)
   if (m_pos.m_index_2 >= 1)
     return HA_ERR_RECORD_DELETED;
 #else
-  uint safe_locker_count= pfs_thread->m_wait_locker_count;
+  uint safe_events_waits_count= pfs_thread->m_events_waits_count;
 
-  if (safe_locker_count == 0)
+  if (safe_events_waits_count == 0)
   {
     /* Display the last top level wait, when completed */
     if (m_pos.m_index_2 >= 1)
@@ -607,14 +715,14 @@ int table_events_waits_current::rnd_pos(const void *pos)
   else
   {
     /* Display all pending waits, when in progress */
-    if (m_pos.m_index_2 >= safe_locker_count)
+    if (m_pos.m_index_2 >= safe_events_waits_count)
       return HA_ERR_RECORD_DELETED;
   }
 #endif
 
-  DBUG_ASSERT(m_pos.m_index_2 < LOCKER_STACK_SIZE);
+  DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_SIZE);
 
-  wait= &pfs_thread->m_wait_locker_stack[m_pos.m_index_2].m_waits_current;
+  wait= &pfs_thread->m_events_waits_stack[m_pos.m_index_2];
 
   if (wait->m_wait_class == NO_WAIT_CLASS)
     return HA_ERR_RECORD_DELETED;

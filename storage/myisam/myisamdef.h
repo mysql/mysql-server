@@ -18,12 +18,8 @@
 #include "myisam.h"			/* Structs & some defines */
 #include "myisampack.h"			/* packing of keys */
 #include <my_tree.h>
-#ifdef THREAD
 #include <my_pthread.h>
 #include <thr_lock.h>
-#else
-#include <my_no_pthread.h>
-#endif
 #include <mysql/psi/mysql_file.h>
 
 /* undef map from my_nosys; We need test-if-disk full */
@@ -211,17 +207,15 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     not_flushed,
     temporary,delay_key_write,
     concurrent_insert;
-#ifdef THREAD
+
   THR_LOCK lock;
   mysql_mutex_t intern_lock;            /* Locking for use with _locking */
   mysql_rwlock_t *key_root_lock;
-#endif
   my_off_t mmaped_length;
   uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
                                            area */
   mysql_rwlock_t mmap_lock;
 } MYISAM_SHARE;
-
 
 typedef uint mi_bit_type;
 
@@ -231,6 +225,9 @@ typedef struct st_mi_bit_buff {		/* Used for packing of record */
   uchar *pos,*end,*blob_pos,*blob_end;
   uint error;
 } MI_BIT_BUFF;
+
+
+typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_myisam_info {
   MYISAM_SHARE *s;			/* Shared between open:s */
@@ -295,12 +292,13 @@ struct st_myisam_info {
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
   my_bool once_flags;           /* For MYISAMMRG */
+
+  index_cond_func_t index_cond_func;   /* Index condition function */
+  void *index_cond_func_arg;           /* parameter for the func */
 #ifdef __WIN__
   my_bool owned_by_merge;                       /* This MyISAM table is part of a merge union */
 #endif
-#ifdef THREAD
   THR_LOCK_DATA lock;
-#endif
   uchar  *rtree_recursion_state;	/* For RTREE */
   int     rtree_recursion_depth;
 };
@@ -461,10 +459,9 @@ typedef struct st_mi_sort_param
 #define MI_UNIQUE_HASH_TYPE	HA_KEYTYPE_ULONG_INT
 #define mi_unique_store(A,B)    mi_int4store((A),(B))
 
-#ifdef THREAD
 extern mysql_mutex_t THR_LOCK_myisam;
-#endif
-#if !defined(THREAD) || defined(DONT_USE_RW_LOCKS)
+
+#if defined(DONT_USE_RW_LOCKS)
 #define mysql_rwlock_wrlock(A) {}
 #define mysql_rwlock_rdlock(A) {}
 #define mysql_rwlock_unlock(A) {}
@@ -694,7 +691,7 @@ extern uint _mi_rec_pack(MI_INFO *info,uchar *to,const uchar *from);
 extern uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
                                     MI_BLOCK_INFO *info, uchar **rec_buff_p,
                                     File file, my_off_t filepos);
-extern void _my_store_blob_length(uchar *pos,uint pack_length,uint length);
+extern void _mi_store_blob_length(uchar *pos,uint pack_length,uint length);
 extern void _myisam_log(enum myisam_log_commands command,MI_INFO *info,
 		       const uchar *buffert,uint length);
 extern void _myisam_log_command(enum myisam_log_commands command,
@@ -766,6 +763,8 @@ void mi_remap_file(MI_INFO *info, my_off_t size);
 void _mi_report_crashed(MI_INFO *file, const char *message,
                         const char *sfile, uint sline);
 
+int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
+
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);
 void mi_check_print_error(MI_CHECK *param, const char *fmt,...);
@@ -774,14 +773,14 @@ void mi_check_print_info(MI_CHECK *param, const char *fmt,...);
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);
-#ifdef THREAD
 pthread_handler_t thr_find_all_keys(void *arg);
-#endif
 int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file);
 
 int sort_write_record(MI_SORT_PARAM *sort_param);
 int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
 
+extern void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
+                                   void *func_arg);
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,13 @@
+#
+# Bug #51639
+# This test verifies that 'do db' filters will follow
+# the setting of lower_case_table_name to be case 
+# sensitive when setting lower_case_table_name = 0
+#
+
+-- source include/master-slave.inc
+-- source include/have_binlog_format_statement.inc
+
+-- source extra/rpl_tests/rpl_filters.test 
+
+--source include/rpl_end.inc

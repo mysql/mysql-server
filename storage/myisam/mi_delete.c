@@ -102,7 +102,7 @@ int mi_delete(MI_INFO *info,const uchar *record)
   mi_sizestore(lastpos,info->lastpos);
   myisam_log_command(MI_LOG_DELETE,info,(uchar*) lastpos,sizeof(lastpos),0);
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
-  allow_break();			/* Allow SIGHUP & SIGINT */
+
   if (info->invalidator != 0)
   {
     DBUG_PRINT("info", ("invalidator... '%s' (delete)", info->filename));
@@ -122,7 +122,6 @@ err:
   }
   (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
-  allow_break();			/* Allow SIGHUP & SIGINT */
   my_errno=save_errno;
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {

@@ -76,7 +76,8 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
           break;
         }
         /* Skip rows that are inserted by other threads since we got a lock */
-        if (info->lastpos < info->state->data_file_length)
+        if (info->lastpos < info->state->data_file_length && 
+            (!info->index_cond_func || mi_check_index_cond(info, inx, buf)))
           break;
       }
   }

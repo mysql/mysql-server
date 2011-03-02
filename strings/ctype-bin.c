@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB & tommy@valley.ne.jp.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -69,9 +69,7 @@ static uchar bin_char_array[] =
 
 static my_bool 
 my_coll_init_8bit_bin(CHARSET_INFO *cs,
-                      void *(*alloc)(size_t) __attribute__((unused)),
-                      char *error __attribute__((unused)),
-                      size_t errsize __attribute__((unused)))
+                      MY_CHARSET_LOADER *loader __attribute__((unused)))
 {
   cs->max_sort_char=255; 
   return FALSE;

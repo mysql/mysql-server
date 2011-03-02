@@ -170,7 +170,10 @@ dict_load_table(
 /*============*/
 	const char*	name,	/*!< in: table name in the
 				databasename/tablename format */
-	ibool		cached);/*!< in: TRUE=add to cache, FALSE=do not */
+	ibool		cached,	/*!< in: TRUE=add to cache, FALSE=do not */
+	dict_err_ignore_t ignore_err);
+				/*!< in: error to be ignored when loading
+				table and its indexes' definition */
 /***********************************************************************//**
 Loads a table object based on the table id.
 @return	table; NULL if table does not exist */
@@ -200,6 +203,8 @@ ulint
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
+	ibool		check_recursive,/*!< in: Whether to check recursive
+					load of tables chained by FK */
 	ibool		check_charsets);/*!< in: TRUE=check charsets
 					compatibility */
 /********************************************************************//**

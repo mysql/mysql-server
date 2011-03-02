@@ -19,39 +19,33 @@
 --source include/have_perfschema.inc
 
 --replace_column 2 <frequency> 3 <resolution> 4 <overhead>
-select * from performance_schema.PERFORMANCE_TIMERS;
+select * from performance_schema.performance_timers;
 
 --replace_column 2 <frequency> 3 <resolution> 4 <overhead>
-select * from performance_schema.PERFORMANCE_TIMERS
+select * from performance_schema.performance_timers
   where timer_name='CYCLE';
 
---replace_result '\'performance_timers' '\'PERFORMANCE_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.PERFORMANCE_TIMERS
+insert into performance_schema.performance_timers
   set timer_name='FOO', timer_frequency=1,
   timer_resolution=2, timer_overhead=3;
 
---replace_result '\'performance_timers' '\'PERFORMANCE_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.PERFORMANCE_TIMERS
+update performance_schema.performance_timers
   set timer_frequency=12 where timer_name='CYCLE';
 
---replace_result '\'performance_timers' '\'PERFORMANCE_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.PERFORMANCE_TIMERS;
+delete from performance_schema.performance_timers;
 
---replace_result '\'performance_timers' '\'PERFORMANCE_TIMERS'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.PERFORMANCE_TIMERS
+delete from performance_schema.performance_timers
   where timer_name='CYCLE';
 
---replace_result '\'performance_timers' '\'PERFORMANCE_TIMERS'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.PERFORMANCE_TIMERS READ;
+LOCK TABLES performance_schema.performance_timers READ;
 UNLOCK TABLES;
 
---replace_result '\'performance_timers' '\'PERFORMANCE_TIMERS'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.PERFORMANCE_TIMERS WRITE;
+LOCK TABLES performance_schema.performance_timers WRITE;
 UNLOCK TABLES;
 

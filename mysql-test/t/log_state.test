@@ -206,42 +206,6 @@ SET GLOBAL slow_query_log = @old_slow_query_log;
 ###########################################################################
 
 #
-# Bug#29131: SHOW VARIABLES reports variable 'log' but SET doesn't recognize it
-#
-
-SET GLOBAL general_log = ON;
-
-SHOW VARIABLES LIKE 'general_log';
-SHOW VARIABLES LIKE 'log';
-SELECT @@general_log, @@log;
-SET GLOBAL log = 0;
-SHOW VARIABLES LIKE 'general_log';
-SHOW VARIABLES LIKE 'log';
-SELECT @@general_log, @@log;
-SET GLOBAL general_log = 1;
-SHOW VARIABLES LIKE 'general_log';
-SHOW VARIABLES LIKE 'log';
-SELECT @@general_log, @@log;
-
-SHOW VARIABLES LIKE 'slow_query_log';
-SHOW VARIABLES LIKE 'log_slow_queries';
-SELECT @@slow_query_log, @@log_slow_queries;
-SET GLOBAL log_slow_queries = 0;
-SHOW VARIABLES LIKE 'slow_query_log';
-SHOW VARIABLES LIKE 'log_slow_queries';
-SELECT @@slow_query_log, @@log_slow_queries;
-SET GLOBAL slow_query_log = 1;
-SHOW VARIABLES LIKE 'slow_query_log';
-SHOW VARIABLES LIKE 'log_slow_queries';
-SELECT @@slow_query_log, @@log_slow_queries;
-
-SET GLOBAL general_log = @old_general_log;
-SET GLOBAL slow_query_log = @old_slow_query_log;
-
-
-###########################################################################
-
-#
 # Bug#31604: server crash when setting slow_query_log_file/general_log_file
 #
 
@@ -280,38 +244,6 @@ SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
 
 --echo
 --echo # -- End of Bug#32748.
-
-
-###########################################################################
-
-# WL#4403 - deprecate @log and @slow_log_queries variables
-
-# These server system variables are all deprecated
-# -- show for command-line as well!
---echo deprecated:
-SET GLOBAL log = 0;
-SET GLOBAL log_slow_queries = 0;
-SET GLOBAL log = DEFAULT;
-SET GLOBAL log_slow_queries = DEFAULT;
-
-# These server system variables are NOT deprecated.
---echo not deprecated:
-SELECT @@global.general_log_file INTO @my_glf;
-SELECT @@global.slow_query_log_file INTO @my_sqlf;
-SET GLOBAL general_log = 0;
-SET GLOBAL slow_query_log = 0;
-SET GLOBAL general_log_file = 'WL4403_G.log';
-SET GLOBAL slow_query_log_file = 'WL4403_SQ.log';
-SET GLOBAL general_log_file = @my_glf;
-SET GLOBAL slow_query_log_file = @my_sqlf;
-SET GLOBAL general_log = DEFAULT;
-SET GLOBAL slow_query_log = DEFAULT;
-
-## Reset to initial values
-SET @@global.general_log = @old_general_log;
-SET @@global.general_log_file = @old_general_log_file;
-SET @@global.slow_query_log = @old_slow_query_log;
-SET @@global.slow_query_log_file = @old_slow_query_log_file;
 
 ###########################################################################
 

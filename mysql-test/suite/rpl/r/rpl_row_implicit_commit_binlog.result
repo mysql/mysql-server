@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 #########################################################################
 #                            CONFIGURATION
 #########################################################################
@@ -522,7 +518,7 @@ master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE new_tt_xx
 INSERT INTO tt_1(ddl_case) VALUES (3);
 DROP TABLE IF EXISTS tt_xx, new_tt_xx;
 Warnings:
-Note	1051	Unknown table 'tt_xx'
+Note	1051	Unknown table 'test.tt_xx'
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -562,10 +558,8 @@ master-bin.000001	#	Query	#	#	DROP DATABASE IF EXISTS db
 ###################################################################################
 #                               CHECK CONSISTENCY
 ###################################################################################
-Comparing tables master:test.tt_1 and slave:test.tt_1
+include/diff_tables.inc [master:tt_1,slave:tt_1]
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
-DROP TABLE tt_1;
-DROP TABLE tt_2;
-DROP TABLE nt_1;
+include/rpl_end.inc

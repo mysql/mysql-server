@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET @old_debug= @@global.debug;
 call mtr.add_suppression('Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT');
 create table t1 (f1 int);
@@ -17,12 +13,7 @@ insert into t1 values (2);
 flush logs;
 unlock tables;
 drop table t1;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 SET GLOBAL DEBUG= '+d,dec_event_time_by_1_hour';
 CREATE TABLE t1 (a INT);
 LOCK TABLE t1 WRITE;
@@ -30,3 +21,4 @@ INSERT INTO t1 VALUES (3);
 UNLOCK TABLES;
 DROP TABLE t1;
 SET @@global.debug= @old_debug;
+include/rpl_end.inc

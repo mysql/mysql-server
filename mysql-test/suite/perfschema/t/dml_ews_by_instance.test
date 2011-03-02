@@ -18,62 +18,52 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+--disable_result_log
+select * from performance_schema.events_waits_summary_by_instance
   where event_name like 'Wait/Synch/%' limit 1;
 
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+select * from performance_schema.events_waits_summary_by_instance
   where event_name='FOO';
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+select * from performance_schema.events_waits_summary_by_instance
   order by count_star limit 1;
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+select * from performance_schema.events_waits_summary_by_instance
   order by count_star desc limit 1;
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+select * from performance_schema.events_waits_summary_by_instance
   where min_timer_wait > 0 order by count_star limit 1;
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+select * from performance_schema.events_waits_summary_by_instance
   where min_timer_wait > 0 order by count_star desc limit 1;
+--enable_result_log
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+insert into performance_schema.events_waits_summary_by_instance
   set event_name='FOO', object_instance_begin=0,
   count_star=1, sum_timer_wait=2, min_timer_wait=3,
   avg_timer_wait=4, max_timer_wait=5;
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+update performance_schema.events_waits_summary_by_instance
   set count_star=12;
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+update performance_schema.events_waits_summary_by_instance
   set count_star=12 where event_name like "FOO";
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE
+delete from performance_schema.events_waits_summary_by_instance
   where count_star=1;
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
+delete from performance_schema.events_waits_summary_by_instance;
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE READ;
+LOCK TABLES performance_schema.events_waits_summary_by_instance READ;
 UNLOCK TABLES;
 
---replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE WRITE;
+LOCK TABLES performance_schema.events_waits_summary_by_instance WRITE;
 UNLOCK TABLES;
 

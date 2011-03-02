@@ -616,16 +616,6 @@ pars_info_add_ull_literal(
 	pars_info_t*	info,		/*!< in: info struct */
 	const char*	name,		/*!< in: name */
 	ib_uint64_t	val);		/*!< in: value */
-/****************************************************************//**
-Add user function. */
-UNIV_INTERN
-void
-pars_info_add_function(
-/*===================*/
-	pars_info_t*		info,	/*!< in: info struct */
-	const char*		name,	/*!< in: function name */
-	pars_user_func_cb_t	func,	/*!< in: function address */
-	void*			arg);	/*!< in: user-supplied argument */
 
 /****************************************************************//**
 Add bound id. */

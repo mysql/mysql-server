@@ -90,9 +90,8 @@ my_off_t my_b_append_tell(IO_CACHE* info)
     from messing with the variables that we need in order to provide the
     answer to the question.
   */
-#ifdef THREAD
   mysql_mutex_lock(&info->append_buffer_lock);
-#endif
+
 #ifndef DBUG_OFF
   /*
     Make sure EOF is where we think it is. Note that we cannot just use
@@ -112,9 +111,7 @@ my_off_t my_b_append_tell(IO_CACHE* info)
   }
 #endif  
   res = info->end_of_file + (info->write_pos-info->append_read_pos);
-#ifdef THREAD
   mysql_mutex_unlock(&info->append_buffer_lock);
-#endif
   return res;
 }
 
@@ -418,7 +415,7 @@ process_flags:
     {
       register int iarg;
       size_t length2;
-      char buff[17];
+      char buff[32];
 
       iarg = va_arg(args, int);
       if (*fmt == 'd')
@@ -449,7 +446,7 @@ process_flags:
     {
       register long iarg;
       size_t length2;
-      char buff[17];
+      char buff[32];
 
       iarg = va_arg(args, long);
       if (*++fmt == 'd')

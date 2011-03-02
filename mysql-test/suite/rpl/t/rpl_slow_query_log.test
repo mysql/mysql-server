@@ -196,7 +196,7 @@ disconnect extra2;
 # BUG#50620: Adding an index to a table prevents slave from logging into slow log
 #
 
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 
 -- connection master
 SET @old_log_output= @@log_output;
@@ -233,7 +233,7 @@ let $master_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text 
 -- sync_slave_with_master
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
 
-if (`SELECT $master_slow_query != $slave_slow_query`)
+if ($master_slow_query != $slave_slow_query)
 {
   -- connection master
   -- echo ***********************************************
@@ -250,7 +250,7 @@ if (`SELECT $master_slow_query != $slave_slow_query`)
   -- die "Assertion failed! Master and slave slow log contents differ. Bailing out!"
 }
 
-if (`SELECT $master_slow_query = $slave_slow_query`)
+if ($master_slow_query == $slave_slow_query)
 {
   -- echo ### Assertion is good. Both Master and Slave exhibit the 
   -- echo ### same number of queries in slow log: $master_slow_query
@@ -276,7 +276,7 @@ let $master_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text 
 -- sync_slave_with_master
 let $slave_slow_query= `SELECT count(*) = 1 FROM mysql.slow_log WHERE sql_text like '$slow_query'`;
 
-if (`SELECT $master_slow_query != $slave_slow_query`)
+if ($master_slow_query != $slave_slow_query)
 {
   -- connection master
   -- echo ***********************************************
@@ -293,7 +293,7 @@ if (`SELECT $master_slow_query != $slave_slow_query`)
   -- die "Assertion failed! Master and slave slow log contents differ. Bailing out!"
 }
 
-if (`SELECT $master_slow_query = $slave_slow_query`)
+if ($master_slow_query == $slave_slow_query)
 {
   -- echo ### Assertion is good. Both Master and Slave exhibit the 
   -- echo ### same number of queries in slow log: $master_slow_query
@@ -307,3 +307,4 @@ DROP TABLE t1;
 -- sync_slave_with_master
 SET @@global.log_output= @old_log_output;
 SET @@global.long_query_time= @old_long_query_time;
+--source include/rpl_end.inc

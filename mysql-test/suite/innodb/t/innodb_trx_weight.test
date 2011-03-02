@@ -8,7 +8,7 @@
 
 -- source include/have_innodb.inc
 
-SET storage_engine=InnoDB;
+SET default_storage_engine=InnoDB;
 
 # we do not really care about what gets printed, we are only
 # interested in getting the deadlock resolved according to our

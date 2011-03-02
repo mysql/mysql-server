@@ -1,0 +1,1 @@
+--lower-case-table-names=1 "--replicate-rewrite-db=b37656->bug37656"

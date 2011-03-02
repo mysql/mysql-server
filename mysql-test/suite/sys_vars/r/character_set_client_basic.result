@@ -430,7 +430,7 @@ ERROR 42000: Unknown character set: '100'
 SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
 @total_charset
-39
+40
 '#--------------------FN_DYNVARS_010_10-------------------------#'
 SET @@character_set_client = abc;
 ERROR 42000: Unknown character set: 'abc'

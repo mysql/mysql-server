@@ -373,3 +373,81 @@ commit;
 # --> connection con2
 # --> connection default
 drop table t1;
+#
+# Test for bug #55273 "FLUSH TABLE tm WITH READ LOCK for Merge table
+#                      causes assert failure".
+#
+drop table if exists t1, t2, tm;
+create table t1 (i int);
+create table t2 (i int);
+create table tm (i int) engine=merge union=(t1, t2);
+insert into t1 values (1), (2);
+insert into t2 values (3), (4);
+# The below statement should succeed and lock merge
+# table for read. Only merge table gets flushed and
+# not underlying tables.
+flush tables tm with read lock;
+select * from tm;
+i
+1
+2
+3
+4
+# Check that underlying tables are locked.
+select * from t1;
+i
+1
+2
+select * from t2;
+i
+3
+4
+unlock tables;
+# This statement should succeed as well and flush
+# all tables in the list.
+flush tables tm, t1, t2 with read lock;
+select * from tm;
+i
+1
+2
+3
+4
+# Naturally, underlying tables should be locked in this case too.
+select * from t1;
+i
+1
+2
+select * from t2;
+i
+3
+4
+unlock tables;
+drop tables tm, t1, t2;
+#
+# Test for bug #57006 "Deadlock between HANDLER and
+#                      FLUSH TABLES WITH READ LOCK".
+#
+drop table if exists t1, t2;
+create table t1 (i int);
+create table t2 (i int);
+handler t1 open;
+# Switching to connection 'con1'.
+# Sending:
+flush tables with read lock;
+# Switching to connection 'con2'.
+# Wait until FTWRL starts waiting for 't1' to be closed.
+# Switching to connection 'default'.
+# The below statement should not cause deadlock.
+# Sending:
+insert into t2 values (1);
+# Switching to connection 'con2'.
+# Wait until INSERT starts to wait for FTWRL to go away.
+# Switching to connection 'con1'.
+# FTWRL should be able to continue now.
+# Reap FTWRL.
+unlock tables;
+# Switching to connection 'default'.
+# Reap INSERT.
+handler t1 close;
+# Cleanup.
+drop tables t1, t2;

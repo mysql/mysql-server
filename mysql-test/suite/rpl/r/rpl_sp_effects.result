@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 drop procedure if exists p1;
 drop procedure if exists p2;
@@ -278,3 +274,4 @@ drop procedure sp_bug26199;
 drop function sf_bug26199;
 SET @@global.log_bin_trust_function_creators= @old_log_bin_trust_function_creators;
 end of the tests
+include/rpl_end.inc

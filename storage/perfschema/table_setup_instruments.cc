@@ -54,11 +54,12 @@ table_setup_instruments::m_field_def=
 PFS_engine_table_share
 table_setup_instruments::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_INSTRUMENTS") },
+  { C_STRING_WITH_LEN("setup_instruments") },
   &pfs_updatable_acl,
   &table_setup_instruments::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_setup_instruments),
   &m_table_lock,
@@ -84,63 +85,38 @@ void table_setup_instruments::reset_position(void)
 
 int table_setup_instruments::rnd_next(void)
 {
-  PFS_mutex_class *mutex_class;
-  PFS_rwlock_class *rwlock_class;
-  PFS_cond_class *cond_class;
-  PFS_file_class *file_class;
+  PFS_instr_class *instr_class= NULL;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
        m_pos.next_view())
   {
-    switch (m_pos.m_index_1) {
+    switch (m_pos.m_index_1)
+    {
     case pos_setup_instruments::VIEW_MUTEX:
-      mutex_class= find_mutex_class(m_pos.m_index_2);
-      if (mutex_class)
-      {
-        make_row(mutex_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_mutex_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_RWLOCK:
-      rwlock_class= find_rwlock_class(m_pos.m_index_2);
-      if (rwlock_class)
-      {
-        make_row(rwlock_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_rwlock_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_COND:
-      cond_class= find_cond_class(m_pos.m_index_2);
-      if (cond_class)
-      {
-        make_row(cond_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_cond_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_THREAD:
-      /* Reserved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
+      /* Not used yet  */
       break;
     case pos_setup_instruments::VIEW_FILE:
-      file_class= find_file_class(m_pos.m_index_2);
-      if (file_class)
-      {
-        make_row(file_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_file_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_TABLE:
-      if (m_pos.m_index_2 == 1)
-      {
-        make_row(&global_table_class);
-        m_next_pos.set_after(&m_pos);
-        return 0;
-      }
+      instr_class= find_table_class(m_pos.m_index_2);
       break;
+    }
+    if (instr_class)
+    {
+      make_row(instr_class);
+      m_next_pos.set_after(&m_pos);
+      return 0;
     }
   }
 
@@ -149,56 +125,35 @@ int table_setup_instruments::rnd_next(void)
 
 int table_setup_instruments::rnd_pos(const void *pos)
 {
-  PFS_mutex_class *mutex_class;
-  PFS_rwlock_class *rwlock_class;
-  PFS_cond_class *cond_class;
-  PFS_file_class *file_class;
+  PFS_instr_class *instr_class= NULL;
 
   set_position(pos);
 
-  switch (m_pos.m_index_1) {
+  switch (m_pos.m_index_1)
+  {
   case pos_setup_instruments::VIEW_MUTEX:
-    mutex_class= find_mutex_class(m_pos.m_index_2);
-    if (mutex_class)
-    {
-      make_row(mutex_class);
-      return 0;
-    }
+    instr_class= find_mutex_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_RWLOCK:
-    rwlock_class= find_rwlock_class(m_pos.m_index_2);
-    if (rwlock_class)
-    {
-      make_row(rwlock_class);
-      return 0;
-    }
+    instr_class= find_rwlock_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_COND:
-    cond_class= find_cond_class(m_pos.m_index_2);
-    if (cond_class)
-    {
-      make_row(cond_class);
-      return 0;
-    }
+    instr_class= find_cond_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_THREAD:
-    /* Reserved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
+    /* Not used yet */
     break;
   case pos_setup_instruments::VIEW_FILE:
-    file_class= find_file_class(m_pos.m_index_2);
-    if (file_class)
-    {
-      make_row(file_class);
-      return 0;
-    }
+    instr_class= find_file_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_TABLE:
-    if (m_pos.m_index_2 == 1)
-    {
-      make_row(&global_table_class);
-      return 0;
-    }
+    instr_class= find_table_class(m_pos.m_index_2);
     break;
+  }
+  if (instr_class)
+  {
+    make_row(instr_class);
+    return 0;
   }
 
   return HA_ERR_RECORD_DELETED;
@@ -268,7 +223,6 @@ int table_setup_instruments::update_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
         value= (enum_yes_no) get_field_enum(f);

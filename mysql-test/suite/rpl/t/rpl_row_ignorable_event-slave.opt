@@ -1,0 +1,1 @@
+--binlog-row-event-max-size=512 --binlog-rows-query-log-events=1 --replicate-ignore-table=test.t4 --replicate-wild-ignore-table=test.t5

@@ -217,6 +217,7 @@ struct st_vio
   void	  (*timeout)(Vio*, unsigned int which, unsigned int timeout);
   my_bool (*poll_read)(Vio *vio, uint timeout);
   my_bool (*is_connected)(Vio*);
+  my_bool (*has_data) (Vio*);
 #ifdef HAVE_OPENSSL
   void	  *ssl_arg;
 #endif

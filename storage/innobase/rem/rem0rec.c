@@ -809,7 +809,8 @@ rec_get_converted_size_comp_prefix(
 			continue;
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || col->mtype == DATA_BLOB
+		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
 		/* If the maximum length of a variable-length field
 		is up to 255 bytes, the actual length is always stored
@@ -1749,9 +1750,9 @@ UNIV_INTERN
 void
 rec_print(
 /*======*/
-	FILE*		file,	/*!< in: file where to print */
-	const rec_t*	rec,	/*!< in: physical record */
-	dict_index_t*	index)	/*!< in: record descriptor */
+	FILE*			file,	/*!< in: file where to print */
+	const rec_t*		rec,	/*!< in: physical record */
+	const dict_index_t*	index)	/*!< in: record descriptor */
 {
 	ut_ad(index);
 

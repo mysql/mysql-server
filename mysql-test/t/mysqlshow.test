@@ -35,4 +35,10 @@ DROP TABLE t1, t2;
 --exec $MYSQL_SHOW INFORMATION_SCHEMA
 --exec $MYSQL_SHOW inf_rmation_schema
 
+#
+# WL#3126 TCP address binding for mysql client library;
+# - running mysqlshow --protcol=tcp --bind-address=127.0.0.1
+#
+--exec $MYSQL_SHOW --protocol=tcp --bind-address=127.0.0.1 test
+
 --echo End of 5.0 tests

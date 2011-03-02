@@ -136,7 +136,7 @@ public:
   bool get_trigger_info(THD *thd, trg_event_type event,
                         trg_action_time_type time_type,
                         LEX_STRING *trigger_name, LEX_STRING *trigger_stmt,
-                        ulong *sql_mode,
+                        sql_mode_t *sql_mode,
                         LEX_STRING *definer,
                         LEX_STRING *client_cs_name,
                         LEX_STRING *connection_cl_name,
@@ -145,7 +145,7 @@ public:
   void get_trigger_info(THD *thd,
                         int trigger_idx,
                         LEX_STRING *trigger_name,
-                        ulonglong *sql_mode,
+                        sql_mode_t *sql_mode,
                         LEX_STRING *sql_original_stmt,
                         LEX_STRING *client_cs_name,
                         LEX_STRING *connection_cl_name,
@@ -157,6 +157,7 @@ public:
                            TABLE *table, bool names_only);
   static bool drop_all_triggers(THD *thd, char *db, char *table_name);
   static bool change_table_name(THD *thd, const char *db,
+                                const char *old_alias,
                                 const char *old_table,
                                 const char *new_db,
                                 const char *new_table);

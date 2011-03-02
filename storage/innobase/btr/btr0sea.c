@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -151,7 +151,7 @@ btr_search_check_free_space_in_heap(void)
 	be enough free space in the hash table. */
 
 	if (heap->free_block == NULL) {
-		buf_block_t*	block = buf_block_alloc(NULL, 0);
+		buf_block_t*	block = buf_block_alloc(NULL);
 
 		rw_lock_x_lock(&btr_search_latch);
 
@@ -588,6 +588,8 @@ btr_search_update_hash_ref(
 
 		ha_insert_for_fold(btr_search_sys->hash_index, fold,
 				   block, rec);
+
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
 	}
 }
 
@@ -1055,6 +1057,15 @@ btr_search_drop_page_hash_index(
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
+	/* Do a dirty check on btr_search_fully_disabled and
+	block->is_hashed, return if AHI is disabled. This is
+	to avoid acquiring shared btr_search_latch for performance
+	consideration. If either condition is not satisfied
+	continue to acquire btr_search_latch before checking again */
+	if (btr_search_fully_disabled && (!block->is_hashed)) {
+		return;
+	}
+
 retry:
 	rw_lock_s_lock(&btr_search_latch);
 	page = block->frame;
@@ -1165,7 +1176,10 @@ next_rec:
 
 	block->is_hashed = FALSE;
 	block->index = NULL;
-	
+
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_REMOVED);
+	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_REMOVED, n_cached);
+
 cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
@@ -1421,6 +1435,8 @@ btr_search_build_page_hash_index(
 		ha_insert_for_fold(table, folds[i], block, recs[i]);
 	}
 
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_ADDED);
+	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_ADDED, n_cached);
 exit_func:
 	rw_lock_x_unlock(&btr_search_latch);
 
@@ -1512,7 +1528,6 @@ btr_search_update_hash_on_delete(
 	rec_t*		rec;
 	ulint		fold;
 	index_id_t	index_id;
-	ibool		found;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
@@ -1545,7 +1560,11 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	found = ha_search_and_delete_if_found(table, fold, rec);
+	if (ha_search_and_delete_if_found(table, fold, rec)) {
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVED);
+	} else {
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND);
+	}
 
 	rw_lock_x_unlock(&btr_search_latch);
 }
@@ -1590,8 +1609,11 @@ btr_search_update_hash_node_on_insert(
 
 		table = btr_search_sys->hash_index;
 
-		ha_search_and_update_if_found(table, cursor->fold, rec,
-					      block, page_rec_get_next(rec));
+		if (ha_search_and_update_if_found(
+			table, cursor->fold, rec, block,
+			page_rec_get_next(rec))) {
+			MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_UPDATED);
+		}
 
 		rw_lock_x_unlock(&btr_search_latch);
 	} else {
@@ -1630,12 +1652,6 @@ btr_search_update_hash_on_insert(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	table = btr_search_sys->hash_index;
-
-	btr_search_check_free_space_in_heap();
-
-	rec = btr_cur_get_rec(cursor);
-
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1646,6 +1662,12 @@ btr_search_update_hash_on_insert(
 
 		return;
 	}
+
+	table = btr_search_sys->hash_index;
+
+	btr_search_check_free_space_in_heap();
+
+	rec = btr_cur_get_rec(cursor);
 
 	ut_a(block->index == cursor->index);
 	ut_a(!dict_index_is_ibuf(cursor->index));
@@ -1813,8 +1835,7 @@ btr_search_validate(void)
 				hash_block = buf_block_hash_get(
 					buf_pool,
 					buf_block_get_space(block),
-					buf_block_get_page_no(block),
-					NULL);
+					buf_block_get_page_no(block));
 			} else {
 				hash_block = NULL;
 			}

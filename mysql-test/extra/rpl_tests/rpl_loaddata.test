@@ -11,12 +11,9 @@
 # check if START SLAVE, RESET SLAVE, CHANGE MASTER reset Last_slave_error and
 # Last_slave_errno in SHOW SLAVE STATUS (1st and 3rd commands did not: bug 986)
 
+-- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 source include/have_innodb.inc;
-
-connection slave;
-reset master;
-connection master;
 
 --disable_query_log
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -25,7 +22,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 # MTR is not case-sensitive.
 let $lower_stmt_head= load data;
 let $UPPER_STMT_HEAD= LOAD DATA;
-if (`SELECT '$lock_option' <> ''`)
+if ($lock_option)
 {
   #if $lock_option is null, an extra blank is added into the statement,
   #this will change the result of rpl_loaddata test case. so $lock_option
@@ -48,9 +45,7 @@ create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60))
 insert into t3 select * from t2;
 --enable_warnings
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 select * from t1;
 select * from t3;
@@ -62,9 +57,7 @@ drop table t2;
 drop table t3;
 create table t1(a int, b int, unique(b));
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # See if slave stops when there's a duplicate entry for key error in LOAD DATA
 
@@ -75,21 +68,16 @@ eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 
 save_master_pos;
 connection slave;
-# The SQL slave thread should be stopped now.
---source include/wait_for_slave_sql_to_stop.inc
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 # Skip the bad event and see if error is cleared in SHOW SLAVE STATUS by START
 # SLAVE, even though we are not executing any event (as sql_slave_skip_counter
 # takes us directly to the end of the relay log).
 
-set global sql_slave_skip_counter=1;
-start slave;
 sync_with_master;
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-echo Last_SQL_Errno=$last_error;
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-echo Last_SQL_Error;
-echo $last_error;
+--source include/check_slave_no_error.inc
 
 # Trigger error again to test CHANGE MASTER
 
@@ -103,17 +91,15 @@ connection slave;
 # The SQL slave thread should be stopped now. 
 # Exec_Master_Log_Pos should point to the start of Execute event
 # for last load data.
---source include/wait_for_slave_sql_to_stop.inc
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error.inc
 
 # CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
-stop slave;
+--source include/stop_slave_io.inc
 change master to master_user='test';
 change master to master_user='root';
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-echo Last_SQL_Errno=$last_error;
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-echo Last_SQL_Error;
-echo $last_error;
+--source include/check_slave_no_error.inc
 
 # Trigger error again to test RESET SLAVE
 
@@ -128,16 +114,14 @@ eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now.
---source include/wait_for_slave_sql_to_stop.inc
+# 1062 = ER_DUP_ENTRY
+--let $slave_sql_errno= 1062
+--source include/wait_for_slave_sql_error.inc
 
 # RESET SLAVE and see if error is cleared in SHOW SLAVE STATUS.
 stop slave;
 reset slave;
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
-echo Last_SQL_Errno=$last_error;
-let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
-echo Last_SQL_Error;
-echo $last_error;
+--source include/check_slave_no_error.inc
 
 # Finally, see if logging is done ok on master for a failing LOAD DATA INFILE
 
@@ -166,9 +150,13 @@ eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fi
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 connection slave;
+
 if (`SELECT @@global.binlog_format != 'ROW'`)
 {
-  --source include/wait_for_slave_sql_to_stop.inc
+  # Query causes error on master but not on slave. This causes the slave to
+  # stop with error code 0 (which is wrong: see BUG#57287)
+  --let $slave_sql_errno= 0
+  --source include/wait_for_slave_sql_error.inc
   drop table t1, t2;
 }
 connection master;
@@ -180,11 +168,12 @@ CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 --error ER_DUP_ENTRY
 eval $UPPER_STMT_HEAD INFILE "../../std_data/words.dat" INTO TABLE t1;
 
-DROP TABLE IF EXISTS t1;
+DROP TABLE t1;
 
 # BUG#48297: Schema name is ignored when LOAD DATA is written into binlog,
 # replication aborts
--- source include/master-slave-reset.inc
+-- let $rpl_only_running_threads= 1
+-- source include/rpl_reset.inc
 
 -- let $db1= b48297_db1
 -- let $db2= b42897_db2
@@ -245,8 +234,7 @@ connect (conn2,localhost,root,,*NO-ONE*);
 -- sync_slave_with_master
 -- eval use $db1
 
-let $diff_table_1=master:$db1.t1;
-let $diff_table_2=slave:$db1.t1;
+let $diff_tables= master:$db1.t1, slave:$db1.t1;
 source include/diff_tables.inc;
 
 -- connection master
@@ -257,7 +245,7 @@ source include/diff_tables.inc;
 -- sync_slave_with_master
 
 # BUG#49479: LOAD DATA INFILE is binlogged without escaping field names
--- source include/master-slave-reset.inc
+-- source include/rpl_reset.inc
 -- connection master
 use test;
 CREATE TABLE t1 (`key` TEXT, `text` TEXT);
@@ -268,6 +256,5 @@ SELECT * FROM t1;
 -- sync_slave_with_master
 -- connection master
 DROP TABLE t1;
--- sync_slave_with_master
 
-# End of 4.1 tests
+--source include/rpl_end.inc

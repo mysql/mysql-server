@@ -7,12 +7,6 @@
 # So they can't be verified by test case here.
 # Finish the following tests by calling its common test script:  
 # extra/rpl_tests/rpl_get_master_version_and_clock.test. 
-# And meanwhile this test checks that the slave I/O thread refuses to start if slave
-# and master have the same server id (because this is a useless setup,
-# and otherwise SHOW SLAVE STATUS shows progress but all queries are
-# ignored, which has caught our customers), unless
-# --replicate-same-server-id.
-#
 
 source include/master-slave.inc;
 source include/have_debug.inc;
@@ -75,4 +69,10 @@ source include/wait_for_slave_io_error.inc;
 # is not really necessary but avoids mtr post-run env check warnings
 SET DEBUG_SYNC= 'RESET';
 
+# clear slave_io_error
+--source include/stop_slave_sql.inc
+RESET SLAVE;
+
 # End of tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

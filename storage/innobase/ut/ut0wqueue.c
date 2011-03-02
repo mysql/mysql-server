@@ -151,8 +151,9 @@ ib_wqueue_timedwait(
 
 		mutex_exit(&wq->mutex);
 
-		error = os_event_wait_time(wq->event, (ulint) wait_in_usecs,
-					   sig_count);
+		error = os_event_wait_time_low(wq->event,
+					       (ulint) wait_in_usecs,
+					       sig_count);
 
 		if (error == OS_SYNC_TIME_EXCEEDED) {
 			break;

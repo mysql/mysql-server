@@ -18,9 +18,11 @@
 #include <pfs_instr.h>
 #include <pfs_stat.h>
 #include <pfs_global.h>
+#include <pfs_instr_class.h>
 #include <tap.h>
 
 #include "stub_pfs_global.h"
+#include "stub_server_misc.h"
 
 void test_oom()
 {
@@ -45,7 +47,10 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (mutex)");
 
@@ -65,7 +70,10 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (rwlock)");
 
@@ -85,7 +93,10 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (cond)");
 
@@ -105,7 +116,10 @@ void test_oom()
   param.m_file_handle_sizing= 1000;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (file)");
 
@@ -125,7 +139,10 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (table)");
 
@@ -145,7 +162,10 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (thread)");
 
@@ -167,8 +187,11 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (thread history sizing)");
 
@@ -188,8 +211,11 @@ void test_oom()
   param.m_file_handle_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
+  param.m_setup_actor_sizing= 0;
+  param.m_setup_object_sizing= 0;
 
   stub_alloc_fails_after_count= 2;
+  init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread wait)");
 

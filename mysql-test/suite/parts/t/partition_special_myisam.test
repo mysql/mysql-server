@@ -62,13 +62,14 @@ ALTER TABLE t1 COALESCE PARTITION 2;
 
 --connect (con3,localhost,root,,)
 
-perl;
-open( LD, ">" . "/tmp/load.in" ) || die "Could not open file for writing " . $ENV{'MYSQLTEST_DATADIR'} . "/test/load.in";
-print LD "1\n2\n3\n";
-close( LD );
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--write_file $MYSQLD_DATADIR/test/load.in
+1
+2
+3
 EOF
 --echo # Connection 3 tries to load into the table:
-send LOAD DATA LOCAL INFILE '/tmp/load.in' INTO TABLE t1 (f);
+send LOAD DATA INFILE 'load.in' INTO TABLE t1 (f);
 
 --connection default
 --real_sleep 1

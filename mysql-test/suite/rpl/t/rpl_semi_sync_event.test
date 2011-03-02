@@ -20,7 +20,7 @@ enable_query_log;
 connection master;
 disable_query_log;
 let $value = query_get_value(show variables like 'rpl_semi_sync_master_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
@@ -34,7 +34,7 @@ source include/stop_slave.inc;
 
 disable_query_log;
 let $value= query_get_value(show variables like 'rpl_semi_sync_slave_enabled', Value, 1);
-if (`select '$value' = 'No such row'`)
+if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
@@ -107,3 +107,4 @@ DROP EVENT ev1;
 DROP EVENT ev2;
 DROP TABLE t1;
 sync_slave_with_master;
+--source include/rpl_end.inc

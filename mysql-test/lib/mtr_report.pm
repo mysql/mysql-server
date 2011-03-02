@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -129,7 +129,8 @@ sub mtr_report_test ($) {
       # Find out if this test case is an experimental one, so we can treat
       # the failure as an expected failure instead of a regression.
       for my $exp ( @$::experimental_test_cases ) {
-        if ( $exp ne $test_name ) {
+	# Include pattern match for combinations
+        if ( $exp ne $test_name && $test_name !~ /^$exp / ) {
           # if the expression is not the name of this test case, but has
           # an asterisk at the end, determine if the characters up to
           # but excluding the asterisk are the same
@@ -229,7 +230,8 @@ sub mtr_report_stats ($$;$) {
   # Find out how we where doing
   # ----------------------------------------------------------------------
 
-  my $tot_skiped= 0;
+  my $tot_skipped= 0;
+  my $tot_skipdetect= 0;
   my $tot_passed= 0;
   my $tot_failed= 0;
   my $tot_tests=  0;
@@ -246,8 +248,9 @@ sub mtr_report_stats ($$;$) {
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
     {
-      # Test was skipped
-      $tot_skiped++;
+      # Test was skipped (disabled not counted)
+      $tot_skipped++ unless $tinfo->{'disable'};
+      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' )
     {
@@ -376,6 +379,9 @@ sub mtr_report_stats ($$;$) {
     print "All $tot_tests tests were successful.\n\n";
   }
 
+  print "$tot_skipped tests were skipped, ".
+    "$tot_skipdetect by the test itself.\n\n" if $tot_skipped;
+
   if ( $tot_failed != 0 || $found_problems)
   {
     mtr_error("there were failing test cases") unless $dont_error;
@@ -390,7 +396,7 @@ sub mtr_report_stats ($$;$) {
 ##############################################################################
 
 sub mtr_print_line () {
-  print '-' x 60 . "\n";
+  print '-' x 74 . "\n";
 }
 
 
@@ -400,13 +406,18 @@ sub mtr_print_thick_line {
 }
 
 
-sub mtr_print_header () {
+sub mtr_print_header ($) {
+  my ($wid) = @_;
   print "\n";
   printf "TEST";
-  print " " x 38;
+  if ($wid) {
+    print " " x 34 . "WORKER ";
+  } else {
+    print " " x 38;
+  }
   print "RESULT   ";
-  print "TIME (ms)" if $timer;
-  print "\n";
+  print "TIME (ms) or " if $timer;
+  print "COMMENT\n";
   mtr_print_line();
   print "\n";
 }

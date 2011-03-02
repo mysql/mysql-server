@@ -1,0 +1,25 @@
+# Horst Hunger
+# Created: 2010-10-06
+# 
+# Test of the authentification interface. The plugin checks the expected values set
+# by this application and the application checks the values set the the plugin.
+--source include/have_plugin_server.inc
+--source include/not_embedded.inc
+
+CREATE DATABASE test_user_db;
+
+CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_server AS 'qa_test_11_dest';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_11_dest identified by 'dest_passwd';
+GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
+
+--echo exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--exec $MYSQL $PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P $MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+--echo exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_2_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+--error 1
+--exec $MYSQL $PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P $MASTER_MYPORT -u qa_test_2_user --password=qa_test_2_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
+
+DROP USER qa_test_11_user, qa_test_11_dest;
+DROP DATABASE test_user_db;
+
+--exit

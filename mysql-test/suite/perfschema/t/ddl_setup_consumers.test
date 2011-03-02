@@ -18,16 +18,15 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_result '\'setup_consumers' '\'SETUP_CONSUMERS'
 -- error ER_DBACCESS_DENIED_ERROR
-alter table performance_schema.SETUP_CONSUMERS add column foo integer;
+alter table performance_schema.setup_consumers add column foo integer;
 
 -- error ER_WRONG_PERFSCHEMA_USAGE
-truncate table performance_schema.SETUP_CONSUMERS;
+truncate table performance_schema.setup_consumers;
 
 -- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.SETUP_CONSUMERS ADD INDEX test_index(NAME);
+ALTER TABLE performance_schema.setup_consumers ADD INDEX test_index(NAME);
 
 -- error ER_DBACCESS_DENIED_ERROR
-CREATE UNIQUE INDEX test_index ON performance_schema.SETUP_CONSUMERS(NAME);
+CREATE UNIQUE INDEX test_index ON performance_schema.setup_consumers(NAME);
 

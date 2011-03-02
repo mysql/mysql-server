@@ -26,7 +26,6 @@ ${CMAKE_SOURCE_DIR}/regex
 ${ZLIB_INCLUDE_DIR}
 ${SSL_INCLUDE_DIRS}
 ${SSL_INTERNAL_INCLUDE_DIRS}
-${NDB_CLUSTER_INCLUDES}
 ${CMAKE_SOURCE_DIR}/sql/backup
 )
 
@@ -42,8 +41,10 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
+           ../sql-common/client_plugin.c
            ../sql/password.c ../sql/discover.cc ../sql/derror.cc 
            ../sql/field.cc ../sql/field_conv.cc
+           ../sql/filesort_utils.cc
            ../sql/filesort.cc ../sql/gstream.cc
            ../sql/handler.cc ../sql/hash_filo.cc ../sql/hostname.cc 
            ../sql/init.cc ../sql/item_buff.cc ../sql/item_cmpfunc.cc 
@@ -64,8 +65,9 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_class.cc ../sql/sql_crypt.cc ../sql/sql_cursor.cc 
            ../sql/sql_db.cc ../sql/sql_delete.cc ../sql/sql_derived.cc 
            ../sql/sql_do.cc ../sql/sql_error.cc ../sql/sql_handler.cc 
-           ../sql/sql_help.cc ../sql/sql_insert.cc ../sql/datadict.cc
-           ../sql/sql_admin.cc ../sql/sql_truncate.cc ../sql/sql_reload.cc
+           ../sql/sql_help.cc ../sql/sql_insert.cc ../sql/sql_join_cache.cc
+           ../sql/datadict.cc ../sql/sql_admin.cc ../sql/sql_truncate.cc
+           ../sql/sql_reload.cc
            ../sql/sql_lex.cc ../sql/keycaches.cc
            ../sql/sql_list.cc ../sql/sql_load.cc ../sql/sql_locale.cc 
            ../sql/sql_binlog.cc ../sql/sql_manager.cc
@@ -84,8 +86,8 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_alter.cc ../sql/sql_partition_admin.cc
            ../sql/event_parse_data.cc
            ../sql/sql_signal.cc ../sql/rpl_handler.cc
-	       ../sql/rpl_utility.cc ../sql/binlog.cc
-           ../sql/sys_vars.cc
+           ../sql/rpl_utility.cc ../sql/rpl_reporting.cc ../sql/binlog.cc 
+           ../sql/sys_vars.cc ../sql/gcalc_slicescan.cc ../sql/gcalc_tools.cc
            ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
            ../sql/mdl.cc ../sql/transaction.cc ../sql/sql_bootstrap.cc
            ${GEN_SOURCES}
@@ -110,7 +112,7 @@ SET(LIBS
   dbug strings regex mysys vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
-  ${MYSQLD_STATIC_PLUGIN_LIBS} ${NDB_CLIENT_LIBS}
+  ${MYSQLD_STATIC_PLUGIN_LIBS}
   sql_embedded
 )
 

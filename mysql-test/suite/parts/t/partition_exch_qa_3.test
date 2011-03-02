@@ -1,0 +1,46 @@
+# Author: Horst Hunger
+# Created: 2010-07-05
+
+--source include/have_partition.inc
+
+let $engine_table= MYISAM;
+let $engine_part= InnoDB;
+let $engine_subpart= InnoDB;
+
+use test;
+
+--disable_result_log
+--disable_query_log
+--source suite/parts/inc/part_exch_tabs.inc
+
+--sorted_result
+SELECT * FROM t_10;
+--sorted_result
+SELECT * FROM t_100;
+--sorted_result
+SELECT * FROM t_1000;
+--sorted_result
+SELECT * FROM tp;
+--sorted_result
+SELECT * FROM tsp;
+--sorted_result
+SELECT * FROM tsp_00;
+--sorted_result
+SELECT * FROM tsp_01;
+--sorted_result
+SELECT * FROM tsp_02;
+--sorted_result
+SELECT * FROM tsp_03;
+--sorted_result
+SELECT * FROM tsp_04;
+--enable_result_log
+--enable_query_log
+
+# 5) Exchanges with different engines.
+--error ER_MIX_HANDLER_ERROR
+ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
+--error ER_MIX_HANDLER_ERROR
+ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
+
+--source suite/parts/inc/part_exch_drop_tabs.inc
+

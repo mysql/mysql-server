@@ -30,8 +30,8 @@ DROP TABLE t1;
 #
 #BUG#49591, Add proper version number to SHOW CREATE TABLE
 #
-create table t1 (a int)
-partition by range (a)
+create table t1 (a DATETIME)
+partition by range (TO_DAYS(a))
 subpartition by hash(to_seconds(a))
 (partition p0 values less than (1));
 show create table t1;

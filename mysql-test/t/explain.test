@@ -1,5 +1,5 @@
 #
-# Test of different EXPLAIN's
+# Test of different EXPLAINs
 
 --disable_warnings
 drop table if exists t1;
@@ -172,6 +172,14 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#37870: Usage of uninitialized value caused failed assertion.
 --echo #
+set @opt_sw_save=  @@optimizer_switch;
+
+--disable_query_log
+if (`select locate('semijoin', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='semijoin=off';
+}
+--enable_query_log
 create table t1 (dt datetime not null, t time not null);
 create table t2 (dt datetime not null);
 insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
@@ -186,6 +194,7 @@ EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2
 flush tables;
 SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
 drop tables t1, t2;
+set optimizer_switch= @opt_sw_save;
 
 --echo #
 --echo # Bug#47669: Query showed by EXPLAIN EXTENDED gives different result from original query
@@ -238,4 +247,111 @@ EXPLAIN SELECT c1 FROM t1 WHERE c2 = 1 AND c4 = 1 AND c5 = 1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#56814 Explain + subselect + fulltext crashes server
+--echo #
+
+CREATE TABLE t1(f1 VARCHAR(6) NOT NULL,
+FULLTEXT KEY(f1),UNIQUE(f1));
+INSERT INTO t1 VALUES ('test');
+
+EXPLAIN SELECT 1 FROM t1
+WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) AGAINST (""))
+WHERE t1.f1 GROUP BY t1.f1));
+
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+PREPARE stmt FROM
+'EXPLAIN SELECT 1 FROM t1
+ WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a
+ ON (MATCH(t1.f1) AGAINST (""))
+ WHERE t1.f1 GROUP BY t1.f1))';
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DEALLOCATE PREPARE stmt;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Bug#46860: 
+--echo # Crash/segfault using EXPLAIN EXTENDED on query using UNION in subquery.
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table `t1` (`a` int);
+--error ER_NON_UNIQ_ERROR
+explain extended select 1 from `t1`, `t1` as `t2`
+where `t1`.`a`  > all ( (select `a` from `t1` ) union (select `a`) );
+drop table t1;
+
+--echo # 
+--echo # BUG#30597: Change EXPLAIN output to include extrema of 
+--echo #            UNION components
+--echo # 
+
+EXPLAIN
+ SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1 UNION ALL SELECT 1
+ ;
+
+--echo # End BUG#30597
+
+--echo #
+--echo # BUG#53562: EXPLAIN statement should hint when 
+--echo #            index is not used due to type conversion
+--echo #
+
+CREATE TABLE t1 (url char(1) PRIMARY KEY);
+INSERT INTO t1 VALUES ('1'),('2'),('3'),('4'),('5');       
+
+--echo
+--echo # Normally, lookup access on primary key is done
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1';
+--echo
+--echo # Test that index can't be used for lookup due to type conversion
+--echo # (comparing char and int)
+SELECT * FROM t1 WHERE url=1;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url=1;
+--echo
+--echo # Test that index can't be used for lookup due to collation mismatch
+SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url='1' collate latin1_german2_ci;
+
+--echo
+--echo # Normally, range access on primary key is done
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3';
+--echo
+--echo # Test that range access on index can't be done due to type conversion
+--echo # (comparing char and int)
+SELECT * FROM t1 WHERE url>3;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>3;
+--echo
+--echo # Test that range access on index can't be done due to collation mismatch
+SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE url>'3' collate latin1_german2_ci;
+
+--echo
+DROP TABLE t1;
+
+--echo # End BUG#53562
+
+--echo End of 6.0 tests.

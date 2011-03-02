@@ -3,7 +3,7 @@
 
 # Don't run this test if $MYSQL_FIX_PRIVILEGE_TABLES isn't set
 # to the location of mysql_fix_privilege_tables.sql
-if (`SELECT LENGTH("$MYSQL_FIX_PRIVILEGE_TABLES") <= 0`)
+if (!$MYSQL_FIX_PRIVILEGE_TABLES)
 {
   skip Test need MYSQL_FIX_PRIVILEGE_TABLES;
 }

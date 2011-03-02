@@ -73,7 +73,10 @@ def	mysql	PRIMARY	mysql	ndb_binlog_index
 def	mysql	PRIMARY	mysql	plugin
 def	mysql	PRIMARY	mysql	proc
 def	mysql	PRIMARY	mysql	procs_priv
+def	mysql	PRIMARY	mysql	proxies_priv
 def	mysql	PRIMARY	mysql	servers
+def	mysql	PRIMARY	mysql	slave_master_info
+def	mysql	PRIMARY	mysql	slave_relay_log_info
 def	mysql	PRIMARY	mysql	tables_priv
 def	mysql	PRIMARY	mysql	time_zone
 def	mysql	PRIMARY	mysql	time_zone_leap_second

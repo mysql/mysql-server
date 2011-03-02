@@ -18,46 +18,40 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
---replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 #
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--disable_result_log
+select * from performance_schema.events_waits_summary_by_thread_by_event_name
   where event_name like 'Wait/Synch/%' limit 1;
 
-select * from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+select * from performance_schema.events_waits_summary_by_thread_by_event_name
   where event_name='FOO';
+--enable_result_log
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 --error ER_TABLEACCESS_DENIED_ERROR
-insert into performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+insert into performance_schema.events_waits_summary_by_thread_by_event_name
   set event_name='FOO', thread_id=1,
   count_star=1, sum_timer_wait=2, min_timer_wait=3,
   avg_timer_wait=4, max_timer_wait=5;
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+update performance_schema.events_waits_summary_by_thread_by_event_name
   set count_star=12;
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 --error ER_TABLEACCESS_DENIED_ERROR
-update performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+update performance_schema.events_waits_summary_by_thread_by_event_name
   set count_star=12 where event_name like "FOO";
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+delete from performance_schema.events_waits_summary_by_thread_by_event_name
   where count_star=1;
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 --error ER_TABLEACCESS_DENIED_ERROR
-delete from performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+delete from performance_schema.events_waits_summary_by_thread_by_event_name;
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME READ;
+LOCK TABLES performance_schema.events_waits_summary_by_thread_by_event_name READ;
 UNLOCK TABLES;
 
---replace_result '\'events_waits_summary_by_thread_by_event_name' '\'EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME'
 -- error ER_TABLEACCESS_DENIED_ERROR
-LOCK TABLES performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME WRITE;
+LOCK TABLES performance_schema.events_waits_summary_by_thread_by_event_name WRITE;
 UNLOCK TABLES;
 

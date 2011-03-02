@@ -177,7 +177,7 @@ let $any_unique= `SELECT @my_errno IN ($ER_DUP_KEY,$ER_DUP_ENTRY)`;
 #                   @my_errno AS sql_errno;
 if (`SELECT @my_errno NOT IN (0,$ER_DUP_KEY,$ER_DUP_ENTRY)`)
 {
-   --echo #      The last command got an unexepected error response.
+   --echo #      The last command got an unexpected error response.
    --echo #      Expected/handled SQL codes are 0,$ER_DUP_KEY,$ER_DUP_ENTRY
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
@@ -219,7 +219,7 @@ if ($any_unique)
    #                   @my_errno AS sql_errno;
    if (`SELECT @my_errno NOT IN (0,$ER_DUP_KEY,$ER_DUP_ENTRY)`)
    {
-      --echo #      The last command got an unexepected error response.
+      --echo #      The last command got an unexpected error response.
       --echo #      Expected/handled SQL codes are 0,$ER_DUP_KEY,$ER_DUP_ENTRY
       SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
       --echo #      Sorry, have to abort.
@@ -255,7 +255,7 @@ if ($any_unique)
    #                   @my_errno AS sql_errno;
    if (`SELECT @my_errno NOT IN (0,$ER_DUP_KEY,$ER_DUP_ENTRY)`)
    {
-      --echo #      The last command got an unexepected error response.
+      --echo #      The last command got an unexpected error response.
       --echo #      Expected/handled SQL codes are 0,$ER_DUP_KEY,$ER_DUP_ENTRY
       SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
       --echo #      Sorry, have to abort.
@@ -503,7 +503,7 @@ if ($no_debug)
 eval SET @my_errno = $mysql_errno;
 if (`SELECT @my_errno NOT IN (0,$ER_SAME_NAME_PARTITION,$ER_NO_PARTITION_FOR_GIVEN_VALUE)`)
 {
-   --echo #      The last command got an unexepected error response.
+   --echo #      The last command got an unexpected error response.
    --echo #      Expected/handled SQL codes are 0,$ER_SAME_NAME_PARTITION,$ER_NO_PARTITION_FOR_GIVEN_VALUE
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.
@@ -566,7 +566,7 @@ eval SET @my_errno = $mysql_errno;
 let $run= `SELECT @my_errno = 0`;
 if (`SELECT @my_errno NOT IN (0,$ER_BAD_NULL_ERROR)`)
 {
-   --echo #      The last command got an unexepected error response.
+   --echo #      The last command got an unexpected error response.
    --echo #      Expected/handled SQL codes are 0,$ER_BAD_NULL_ERROR
    SELECT '#      SQL code we got was: ' AS "", @my_errno AS "";
    --echo #      Sorry, have to abort.

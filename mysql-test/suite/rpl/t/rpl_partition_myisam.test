@@ -7,3 +7,5 @@
 let $engine_type= 'MyISAM';
 
 --source suite/rpl/include/rpl_partition.inc
+
+--source include/rpl_end.inc

@@ -25,11 +25,11 @@
 #
 
 --disable_result_log
-SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+SELECT EVENT_ID FROM performance_schema.events_waits_current
 WHERE THREAD_ID IN
-  (SELECT THREAD_ID FROM performance_schema.THREADS)
+  (SELECT THREAD_ID FROM performance_schema.threads)
 AND EVENT_NAME IN
-  (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
+  (SELECT NAME FROM performance_schema.setup_instruments
    WHERE NAME LIKE "wait/synch/%")
 LIMIT 1;
 --enable_result_log
@@ -38,15 +38,15 @@ LIMIT 1;
 # Bug#45088 Should not be able to create tables of engine PERFORMANCE_SCHEMA
 #
 
---error ER_WRONG_PERFSCHEMA_USAGE
+--error ER_CANT_CREATE_TABLE
 create table test.t1(a int) engine=performance_schema;
 
 #
 # Bug#44897 Performance Schema: can create a ghost table in another database
 #
 
---error ER_WRONG_PERFSCHEMA_USAGE
-create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+--error ER_CANT_CREATE_TABLE
+create table test.t1 like performance_schema.events_waits_current;
 
 #
 # Bug#44898 PerformanceSchema: can create a table in db performance_schema, cannot insert
@@ -73,7 +73,7 @@ select * from test.ghost;
 drop table test.ghost;
 
 # Shoud return nothing
-select * from performance_schema.FILE_INSTANCES
+select * from performance_schema.file_instances
   where file_name like "%ghost%";
 
 #

@@ -16,6 +16,8 @@
 #ifndef _sql_plugin_h
 #define _sql_plugin_h
 
+#include <my_global.h>
+
 /*
   the following #define adds server-only members to enum_mysql_show_type,
   that is defined in plugin.h
@@ -32,6 +34,9 @@
 
 class sys_var;
 enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
+enum enum_plugin_load_option { PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE,
+  PLUGIN_FORCE_PLUS_PERMANENT };
+extern const char *global_plugin_typelib_names[];
 
 #include <my_sys.h>
 
@@ -95,7 +100,7 @@ struct st_plugin_int
   void *data;                   /* plugin type specific, e.g. handlerton */
   MEM_ROOT mem_root;            /* memory for dynamic plugin structures */
   sys_var *system_vars;         /* server variables for this plugin */
-  bool is_mandatory;            /* If true then plugin must not fail to load */
+  enum enum_plugin_load_option load_option; /* OFF, ON, FORCE, F+PERMANENT */
 };
 
 
@@ -110,6 +115,7 @@ typedef struct st_plugin_int *plugin_ref;
 #define plugin_data(pi,cast) ((cast)((pi)->data))
 #define plugin_name(pi) (&((pi)->name))
 #define plugin_state(pi) ((pi)->state)
+#define plugin_load_option(pi) ((pi)->load_option)
 #define plugin_equals(p1,p2) ((p1) == (p2))
 #else
 typedef struct st_plugin_int **plugin_ref;
@@ -118,6 +124,7 @@ typedef struct st_plugin_int **plugin_ref;
 #define plugin_data(pi,cast) ((cast)((pi)[0]->data))
 #define plugin_name(pi) (&((pi)[0]->name))
 #define plugin_state(pi) ((pi)[0]->state)
+#define plugin_load_option(pi) ((pi)[0]->load_option)
 #define plugin_equals(p1,p2) ((p1) && (p2) && (p1)[0] == (p2)[0])
 #endif
 
@@ -148,6 +155,7 @@ extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd);
 extern void plugin_thdvar_cleanup(THD *thd);
 extern SHOW_COMP_OPTION plugin_status(const char *name, int len, size_t type);
+extern bool check_valid_path(const char *path, size_t length);
 
 typedef my_bool (plugin_foreach_func)(THD *thd,
                                       plugin_ref plugin,

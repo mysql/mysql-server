@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** Test case for BUG#16487 ****
 **** Master ****
 CREATE TABLE test.t4 (a int);
@@ -34,6 +30,7 @@ Warnings:
 Warning	1364	Field 'ssl_cipher' doesn't have a default value
 Warning	1364	Field 'x509_issuer' doesn't have a default value
 Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
 GRANT SELECT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON *.* TO mysqltest6@localhost;
 GRANT INSERT ON test.* TO mysqltest6@localhost;
@@ -141,3 +138,4 @@ HEX(word)
 SELECT * FROM tmptbl504451f4258$1;
 ERROR 42S02: Table 'test.tmptbl504451f4258$1' doesn't exist
 DROP TABLE t5;
+include/rpl_end.inc

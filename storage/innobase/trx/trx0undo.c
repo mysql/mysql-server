@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0rec.h"
 #include "trx0purge.h"
+#include "srv0mon.h"
 
 /* How should the old versions in the history list be managed?
    ----------------------------------------------------------
@@ -78,7 +79,7 @@ can still remove old versions from the bottom of the stack. */
    -------------------------------------------------------------------
 latches?
 -------
-The contention of the kernel mutex should be minimized. When a transaction
+The contention of the trx_sys_t:::lock should be minimized. When a transaction
 does its first insert or modify in an index, an undo log is assigned for it.
 Then we must have an x-latch to the rollback segment header.
 	When the transaction does more modifys or rolls back, the undo log is
@@ -500,6 +501,8 @@ trx_undo_seg_create(
 			       page_get_page_no(*undo_page), mtr);
 	*id = slot_no;
 
+	MONITOR_INC(MONITOR_NUM_UNDO_SLOT_USED);
+
 	return(err);
 }
 
@@ -894,7 +897,6 @@ trx_undo_add_page(
 	ibool		success;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
 
 	rseg = trx->rseg;
@@ -969,7 +971,6 @@ trx_undo_free_page(
 	ulint		zip_size;
 
 	ut_a(hdr_page_no != page_no);
-	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	zip_size = rseg->zip_size;
@@ -1072,13 +1073,10 @@ trx_undo_truncate_end(
 	ulint		last_page_no;
 	trx_undo_rec_t* rec;
 	trx_undo_rec_t* trunc_here;
-	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
-
-	rseg = trx->rseg;
 
 	for (;;) {
 		mtr_start(&mtr);
@@ -1223,8 +1221,6 @@ trx_undo_seg_free(
 
 		mtr_start(&mtr);
 
-		ut_ad(!mutex_own(&kernel_mutex));
-
 		mutex_enter(&(rseg->mutex));
 
 		seg_header = trx_undo_page_get(undo->space, undo->zip_size,
@@ -1242,6 +1238,8 @@ trx_undo_seg_free(
 				&mtr);
 			trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL,
 					       &mtr);
+
+			MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_USED);
 		}
 
 		mutex_exit(&(rseg->mutex));
@@ -1360,6 +1358,7 @@ add_to_list:
 		} else {
 			UT_LIST_ADD_LAST(undo_list, rseg->insert_undo_cached,
 					 undo);
+			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
@@ -1369,6 +1368,7 @@ add_to_list:
 		} else {
 			UT_LIST_ADD_LAST(undo_list, rseg->update_undo_cached,
 					 undo);
+			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 		}
 	}
 
@@ -1425,6 +1425,9 @@ trx_undo_lists_init(
 			rseg_header = trx_rsegf_get(
 				rseg->space, rseg->zip_size, rseg->page_no,
 				&mtr);
+
+			/* Found a used slot */
+			MONITOR_INC(MONITOR_NUM_UNDO_SLOT_USED);
 		}
 	}
 
@@ -1644,6 +1647,8 @@ trx_undo_reuse_cached(
 		}
 
 		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, undo);
+
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
 		ut_ad(type == TRX_UNDO_UPDATE);
 
@@ -1654,6 +1659,8 @@ trx_undo_reuse_cached(
 		}
 
 		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, undo);
+
+		MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	}
 
 	ut_ad(undo->size == 1);
@@ -1758,9 +1765,7 @@ trx_undo_assign_undo(
 
 	mtr_start(&mtr);
 
-	ut_ad(!mutex_own(&kernel_mutex));
-
-	mutex_enter(&(rseg->mutex));
+	mutex_enter(&rseg->mutex);
 
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
 				     &mtr);
@@ -1801,8 +1806,6 @@ UNIV_INTERN
 page_t*
 trx_undo_set_state_at_finish(
 /*=========================*/
-	trx_rseg_t*	rseg,	/*!< in: rollback segment memory object */
-	trx_t*		trx __attribute__((unused)), /*!< in: transaction */
 	trx_undo_t*	undo,	/*!< in: undo log memory copy */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1810,11 +1813,6 @@ trx_undo_set_state_at_finish(
 	trx_upagef_t*	page_hdr;
 	page_t*		undo_page;
 	ulint		state;
-
-	ut_ad(trx);
-	ut_ad(undo);
-	ut_ad(mtr);
-	ut_ad(mutex_own(&rseg->mutex));
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
 		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
@@ -1833,19 +1831,7 @@ trx_undo_set_state_at_finish(
 	    && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
 	       < TRX_UNDO_PAGE_REUSE_LIMIT) {
 
-		/* This is a heuristic to avoid the problem of all UNDO
-		slots ending up in one of the UNDO lists. Previously if
-		the server crashed with all the slots in one of the lists,
-		transactions that required the slots of a different type
-		would fail for lack of slots. */
-
-		if (UT_LIST_GET_LEN(rseg->update_undo_list) < 500
-		    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
-
-			state = TRX_UNDO_CACHED;
-		} else {
-			state = TRX_UNDO_TO_FREE;
-		}
+		state = TRX_UNDO_CACHED;
 
 	} else if (undo->type == TRX_UNDO_INSERT) {
 
@@ -1873,7 +1859,6 @@ trx_undo_set_state_at_prepare(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_usegf_t*	seg_hdr;
-	trx_upagef_t*	page_hdr;
 	trx_ulogf_t*	undo_header;
 	page_t*		undo_page;
 	ulint		offset;
@@ -1891,7 +1876,6 @@ trx_undo_set_state_at_prepare(
 				      undo->hdr_page_no, mtr);
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 
 	/*------------------------------*/
 	undo->state = TRX_UNDO_PREPARED;
@@ -1942,9 +1926,10 @@ trx_undo_update_cleanup(
 	if (undo->state == TRX_UNDO_CACHED) {
 
 		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_cached, undo);
+
+		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
-		ut_ad(undo->state == TRX_UNDO_TO_PURGE
-		      || undo->state == TRX_UNDO_TO_FREE);
+		ut_ad(undo->state == TRX_UNDO_TO_PURGE);
 
 		trx_undo_mem_free(undo);
 	}
@@ -1976,6 +1961,8 @@ trx_undo_insert_cleanup(
 	if (undo->state == TRX_UNDO_CACHED) {
 
 		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_cached, undo);
+
+		MONITOR_INC(MONITOR_NUM_UNDO_SLOT_CACHED);
 	} else {
 		ut_ad(undo->state == TRX_UNDO_TO_FREE);
 

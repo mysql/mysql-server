@@ -1,0 +1,26 @@
+--source include/have_partition.inc
+--source include/not_blackhole.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+--echo #
+--echo # Bug#46086: crash when dropping a partitioned table and
+--echo #            the original engine is disabled
+--echo # Copy a .frm and .par file which was created with:
+--echo # create table `t1` (`id` int primary key) engine=blackhole
+--echo # partition by key () partitions 1;
+--copy_file std_data/parts/t1_blackhole.frm $MYSQLD_DATADIR/test/t1.frm
+--copy_file std_data/parts/t1_blackhole.par $MYSQLD_DATADIR/test/t1.par
+SHOW TABLES;
+--replace_result $MYSQLD_DATADIR ./
+--error ER_NOT_FORM_FILE
+SHOW CREATE TABLE t1;
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+--list_files $MYSQLD_DATADIR/test t1*
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--remove_file $MYSQLD_DATADIR/test/t1.par

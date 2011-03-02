@@ -173,53 +173,6 @@ enum mysql_db_table_field
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
 
-/* Classes */
-
-struct acl_host_and_ip
-{
-  char *hostname;
-  long ip,ip_mask;                      // Used with masked ip:s
-};
-
-
-class ACL_ACCESS {
-public:
-  ulong sort;
-  ulong access;
-};
-
-
-/* ACL_HOST is used if no host is specified */
-
-class ACL_HOST :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  char *db;
-};
-
-
-class ACL_USER :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  uint hostname_length;
-  USER_RESOURCES user_resource;
-  char *user;
-  uint8 salt[SCRAMBLE_LENGTH+1];       // scrambled password in binary form
-  uint8 salt_len;        // 0 - no password, 4 - 3.20, 8 - 3.23, 20 - 4.1.1 
-  enum SSL_type ssl_type;
-  const char *ssl_cipher, *x509_issuer, *x509_subject;
-};
-
-
-class ACL_DB :public ACL_ACCESS
-{
-public:
-  acl_host_and_ip host;
-  char *user,*db;
-};
-
 /* prototypes */
 
 bool hostname_requires_resolving(const char *hostname);
@@ -228,17 +181,16 @@ my_bool acl_reload(THD *thd);
 void acl_free(bool end=0);
 ulong acl_get(const char *host, const char *ip,
 	      const char *user, const char *db, my_bool db_is_pattern);
-int acl_getroot(THD *thd, USER_RESOURCES *mqh, const char *passwd,
-                uint passwd_len);
-bool acl_getroot_no_password(Security_context *sctx, char *user, char *host,
-                             char *ip, char *db);
+bool acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len);
+bool acl_getroot(Security_context *sctx, char *user, char *host,
+                 char *ip, char *db);
 bool acl_check_host(const char *host, const char *ip);
 int check_change_password(THD *thd, const char *host, const char *user,
                            char *password, uint password_len);
 bool change_password(THD *thd, const char *host, const char *user,
 		     char *password);
 bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &user_list,
-                 ulong rights, bool revoke);
+                 ulong rights, bool revoke, bool is_proxy);
 int mysql_table_grant(THD *thd, TABLE_LIST *table, List <LEX_USER> &user_list,
                        List <LEX_COLUMN> &column_list, ulong rights,
                        bool revoke);
@@ -280,10 +232,10 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
 bool is_acl_user(const char *host, const char *user);
-int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
-int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
@@ -420,4 +372,6 @@ get_cached_table_access(GRANT_INTERNAL_INFO *grant_internal_info,
                         const char *schema_name,
                         const char *table_name);
 
+bool acl_check_proxy_grant_access (THD *thd, const char *host, const char *user,
+                                   bool with_grant);
 #endif /* SQL_ACL_INCLUDED */

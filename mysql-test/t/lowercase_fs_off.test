@@ -91,3 +91,14 @@ DROP DATABASE db1;
 use test;
 
 # End of 5.0 tests
+
+
+--echo #
+--echo # Extra test coverage for Bug#56595 RENAME TABLE causes assert on OS X
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a= 1;
+RENAME TABLE t1 TO T1;
+ALTER TABLE T1 RENAME t1;
+DROP TABLE t1;

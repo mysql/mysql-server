@@ -1,0 +1,1 @@
+-a -n -Cutf8 --collation=utf8_bin -T12 -W3

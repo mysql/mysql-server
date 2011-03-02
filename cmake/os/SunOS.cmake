@@ -17,7 +17,6 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
 
-SET(TARGET_OS_SOLARIS 1)
 # Enable 64 bit file offsets
 SET(_FILE_OFFSET_BITS 64)
 

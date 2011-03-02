@@ -10,18 +10,23 @@
 # The master's binlog is treated as a relay log that the SQL thread executes.
 #
 
---source include/have_log_bin.inc
-
-# The test is disabled for windows due to 
-# Bug #42879 CHANGE MASTER RELAY_LOG_FILE=path fails on windows
-# Todo: release it from not_windows
---source include/not_windows.inc
+--source include/master-slave.inc
 
 #
 # Bug#31240 load data infile replication between (4.0 or 4.1) and 5.1 fails
 #
 
 --echo ==== Initialize ====
+--connection slave
+
+--disable_query_log
+# The binlog contains the function RAND which is unsafe.
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
+--source include/stop_slave.inc
+RESET SLAVE;
+
 # the relay log contains create t1, t3 tables and load data infile
 --let $fake_relay_log = $MYSQL_TEST_DIR/suite/binlog/std_data/binlog_old_version_4_1.000001
 --source include/setup_fake_relay_log.inc
@@ -36,6 +41,8 @@ start slave sql_thread;
 SELECT COUNT(*) - 17920 as zero FROM t3;
 
 --echo ==== Clean up ====
-stop slave sql_thread;
+--source include/stop_slave_sql.inc
 --source include/cleanup_fake_relay_log.inc
 drop table t1, t3;
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

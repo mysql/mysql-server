@@ -210,3 +210,142 @@ SELECT hex(@a:=convert(_utf32 0x10400 using utf8mb4) collate utf8mb4_test_400_ci
 SELECT hex(@a:=convert(_utf32 0x10428 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
 SELECT hex(@a:=convert(_utf32 0x2C00 using utf8mb4) collate utf8mb4_test_400_ci), hex(lower(@a));
 SELECT hex(@a:=convert(_utf32 0x2C30 using utf8mb4) collate utf8mb4_test_400_ci), hex(upper(@a));
+
+--echo #
+--echo # WL#5624 Collation customization improvements
+--echo #
+SET NAMES utf8 COLLATE utf8_5624_1;
+CREATE TABLE t1 AS SELECT REPEAT(' ', 16) AS a LIMIT 0;
+# Part 1,2,3: long contractions and expansions
+# Part 7: Quarternary difference
+INSERT INTO t1 VALUES ('012345'),('001234'),('000123'),('000012'),('000001');
+INSERT INTO t1 VALUES ('12345'),('01234'),('00123'),('00012'),('00001');
+INSERT INTO t1 VALUES ('1234'),('0123'),('0012'),('0001');
+INSERT INTO t1 VALUES ('123'),('012'),('001');
+INSERT INTO t1 VALUES ('12'),('01');
+INSERT INTO t1 VALUES ('1'),('9');
+INSERT INTO t1 VALUES ('ГАИ'),('ГИБДД');
+# Part 4: reset before
+# Part 6: characters rather than escape sequences
+INSERT INTO t1 VALUES ('a'),('b'),('c'),('d'),('e');
+INSERT INTO t1 VALUES ('cz'),('Ċ'),('ċ');
+INSERT INTO t1 VALUES ('f'),('fz'),('g'),('Ġ'),('ġ');
+INSERT INTO t1 VALUES ('h'),('hz'),('GĦ'),('Għ'),('gĦ'),('għ');
+INSERT INTO t1 VALUES ('i'),('iz'),('Ħ'),('ħ');
+INSERT INTO t1 VALUES ('y'),('yz'),('z'),('Ż'),('ż');
+INSERT INTO t1 VALUES ('ā'),('Ā'),('á'),('Á'),('à'),('À');
+INSERT INTO t1 VALUES ('ē'),('é'),('ě'),('ê'),('Ē'),('É'),('Ě'),('Ê');
+# Part 8: Abbreviated shift syntax
+INSERT INTO t1 VALUES ('a'),('~'),('!'),('@'),('#'),('$'),('%'),('^');
+INSERT INTO t1 VALUES ('('),(')'),('-'),('+'),('|'),('='),(':'),(';');
+INSERT INTO t1 VALUES ('"'),('\''),('?');
+# Part 9: Normal expansion syntax
+INSERT INTO t1 VALUES ('ch'),('k'),('cs'),('ccs'),('cscs');
+# Part 10: Previous context
+INSERT INTO t1 VALUES ('aa-'),('ab-'),('ac-'),('ad-'),('ae-'),('af-'),('az-');
+# Part 12: Logical reset positions
+INSERT INTO t1 VALUES ('lp-fni'),('lp-lni');
+INSERT INTO t1 VALUES ('lp-fpi'),('lp-lpi');
+INSERT INTO t1 VALUES ('lp-fsi'),('lp-lsi');
+INSERT INTO t1 VALUES ('lp-fti'),('lp-lti');
+INSERT INTO t1 VALUES ('lp-ft'),('lp-lt');
+INSERT INTO t1 VALUES ('lp-fv'),('lp-lv');
+# Logical positions with reset before
+INSERT INTO t1 VALUES ('lb-fni'),('lb-lni');
+INSERT INTO t1 VALUES ('lb-fv'),('lb-lv');
+# Part 5: Long tailoring
+INSERT INTO t1 VALUES (_ucs2 0x3106),(_ucs2 0x3110), (_ucs2 0x3111), (_ucs2 0x3112);
+INSERT INTO t1 VALUES (_ucs2 0x32A3), (_ucs2 0x3231);
+INSERT INTO t1 VALUES (_ucs2 0x84D9), (_ucs2 0x98F5), (_ucs2 0x7CF3), (_ucs2 0x5497);
+SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY a;
+--echo #
+--echo # WL#5624, the same test with UCS2
+--echo #
+ALTER TABLE t1 CONVERT TO CHARACTER SET ucs2 COLLATE ucs2_5624_1;
+SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
+DROP TABLE t1;
+
+--echo #
+--echo # WL#5624, unsupported features
+--echo #
+# Part 13: More verbosity
+--error ER_UNKNOWN_COLLATION
+SET NAMES utf8 COLLATE utf8_5624_2;
+SHOW WARNINGS;
+
+--echo #
+--echo # WL#5624, reset before primary ignorable
+--echo #
+--error ER_UNKNOWN_COLLATION
+SET NAMES utf8 COLLATE utf8_5624_3;
+SHOW WARNINGS;
+
+--echo #
+--echo # WL#5624, \u without hex digits is equal to {'\\', 'u'}
+--echo #
+SET NAMES utf8 COLLATE utf8_5624_4;
+CREATE TABLE t1 AS SELECT REPEAT(' ', 10) AS a LIMIT 0;
+INSERT INTO t1 VALUES ('\\'),('u'),('x'),('X');
+SELECT a, HEX(WEIGHT_STRING(a)) FROM t1 ORDER BY a, LENGTH(a), BINARY(a);
+DROP TABLE t1;
+
+--echo #
+--echo # WL#5624, testing Bengali collations
+--echo #
+SET NAMES utf8, collation_connection=utf8_bengali_standard_ci;
+CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
+INSERT INTO t1 VALUES (_ucs2 0x09FA), (_ucs2 0x09F8), (_ucs2 0x09F9), (_ucs2 0x09F2);
+INSERT INTO t1 VALUES (_ucs2 0x09DC), (_ucs2 0x09A109BC);
+INSERT INTO t1 VALUES (_ucs2 0x09A2), (_ucs2 0x09DD), (_ucs2 0x09A209BC);
+INSERT INTO t1 VALUES (_ucs2 0x09A3);
+SELECT HEX(WEIGHT_STRING(a)), HEX(CONVERT(a USING ucs2)), HEX(a)
+FROM t1 ORDER BY a, BINARY a;
+DROP TABLE t1;
+
+SET NAMES utf8, collation_connection=utf8_bengali_traditional_ci;
+CREATE TABLE t1 AS SELECT REPEAT (' ', 10) AS a LIMIT 0;
+INSERT INTO t1 VALUES
+(_ucs2 0x0985),(_ucs2 0x0986),(_ucs2 0x0987),(_ucs2 0x0988),
+(_ucs2 0x0989),(_ucs2 0x098A),(_ucs2 0x098B),(_ucs2 0x09E0),
+(_ucs2 0x098C),(_ucs2 0x09E1),(_ucs2 0x098F),(_ucs2 0x0990),
+(_ucs2 0x0993);
+
+INSERT INTO t1 VALUES
+(_ucs2 0x0994),(_ucs2 0x0982),(_ucs2 0x0983),(_ucs2 0x0981),
+(_ucs2 0x099509CD), (_ucs2 0x099609CD), (_ucs2 0x099709CD), (_ucs2 0x099809CD),
+(_ucs2 0x099909CD), (_ucs2 0x099A09CD), (_ucs2 0x099B09CD), (_ucs2 0x099C09CD),
+(_ucs2 0x099D09CD), (_ucs2 0x099E09CD), (_ucs2 0x099F09CD), (_ucs2 0x09A009CD),
+(_ucs2 0x09A109CD), (_ucs2 0x09A209CD), (_ucs2 0x09A309CD),
+(_ucs2 0x09CE), (_ucs2 0x09A409CD200D), (_ucs2 0x09A409CD),
+(_ucs2 0x09A509CD),(_ucs2 0x09A609CD),
+(_ucs2 0x09A709CD), (_ucs2 0x09A809CD), (_ucs2 0x09AA09CD), (_ucs2 0x09AB09CD),
+(_ucs2 0x09AC09CD), (_ucs2 0x09AD09CD), (_ucs2 0x09AE09CD), (_ucs2 0x09AF09CD),
+(_ucs2 0x09B009CD), (_ucs2 0x09F009CD), (_ucs2 0x09B209CD), (_ucs2 0x09F109CD),
+(_ucs2 0x09B609CD), (_ucs2 0x09B709CD), (_ucs2 0x09B809CD), (_ucs2 0x09B909CD);
+
+INSERT INTO t1 VALUES 
+ (_ucs2 0x099509CD0985),(_ucs2 0x0995),
+ (_ucs2 0x099509CD0986),(_ucs2 0x099509BE),
+ (_ucs2 0x099509CD0987),(_ucs2 0x099509BF),
+ (_ucs2 0x099509CD0988),(_ucs2 0x099509C0),
+ (_ucs2 0x099509CD0989),(_ucs2 0x099509C1),
+ (_ucs2 0x099509CD098A),(_ucs2 0x099509C2),
+ (_ucs2 0x099509CD098B),(_ucs2 0x099509C3),
+ (_ucs2 0x099509CD09E0),(_ucs2 0x099509C4),
+ (_ucs2 0x099509CD098C),(_ucs2 0x099509E2),
+ (_ucs2 0x099509CD09E1),(_ucs2 0x099509E3),
+ (_ucs2 0x099509CD098F),(_ucs2 0x099509C7),
+ (_ucs2 0x099509CD0990),(_ucs2 0x099509C8),
+ (_ucs2 0x099509CD0993),(_ucs2 0x099509CB),
+ (_ucs2 0x099509CD0994),(_ucs2 0x099509CC);
+
+SELECT HEX(WEIGHT_STRING(a)), HEX(CONVERT(a USING ucs2)), HEX(a)
+FROM t1 ORDER BY a, BINARY(a);
+SELECT HEX(WEIGHT_STRING(a)) as wa,
+GROUP_CONCAT(HEX(CONVERT(a USING ucs2)) ORDER BY LENGTH(a), BINARY a)
+FROM t1 GROUP BY a ORDER BY a;
+DROP TABLE t1;
+
+--echo #
+--echo # End of WL#5624
+--echo #

@@ -104,12 +104,20 @@ int delegates_init()
   transaction_delegate= new (place_trans_mem) Trans_delegate;
 
   if (!transaction_delegate->is_inited())
+  {
+    sql_print_error("Initialization of transaction delegates failed. "
+                    "Please report a bug.");
     return 1;
+  }
 
   binlog_storage_delegate= new (place_storage_mem) Binlog_storage_delegate;
 
   if (!binlog_storage_delegate->is_inited())
+  {
+    sql_print_error("Initialization binlog storage delegates failed. "
+                    "Please report a bug.");
     return 1;
+  }
 
 #ifdef HAVE_REPLICATION
   void *place_transmit_mem= transmit_mem.data;
@@ -118,16 +126,29 @@ int delegates_init()
   binlog_transmit_delegate= new (place_transmit_mem) Binlog_transmit_delegate;
 
   if (!binlog_transmit_delegate->is_inited())
+  {
+    sql_print_error("Initialization of binlog transmit delegates failed. "
+                    "Please report a bug.");
     return 1;
+  }
 
   binlog_relay_io_delegate= new (place_relay_io_mem) Binlog_relay_IO_delegate;
 
   if (!binlog_relay_io_delegate->is_inited())
+  {
+    sql_print_error("Initialization binlog relay IO delegates failed. "
+                    "Please report a bug.");
     return 1;
+  }
 #endif
 
   if (pthread_key_create(&RPL_TRANS_BINLOG_INFO, NULL))
+  {
+    sql_print_error("Error while creating pthread specific data key for replication. "
+                    "Please report a bug.");
     return 1;
+  }
+
   return 0;
 }
 
@@ -181,7 +202,7 @@ void delegates_destroy()
       r= 0;                                                             \
       break;                                                            \
     }                                                                   \
-    insert_dynamic(plugins, (uchar *)&plugin);                          \
+    insert_dynamic(plugins, &plugin);                                   \
     if (((Observer *)info->observer)->f                                 \
         && ((Observer *)info->observer)->f args)                        \
     {                                                                   \
@@ -411,8 +432,8 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
   param->user= mi->user;
   param->host= mi->host;
   param->port= mi->port;
-  param->master_log_name= mi->master_log_name;
-  param->master_log_pos= mi->master_log_pos;
+  param->master_log_name= const_cast<char *>(mi->get_master_log_name());
+  param->master_log_pos= mi->get_master_log_pos();
 }
 
 int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)

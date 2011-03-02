@@ -1,0 +1,19 @@
+#
+# Bug #51639
+# This test verifies that 'rewrite db' filter will follow
+# the setting of lower_case_table_name to be case insensitive
+# when setting lower_case_table_name > 0
+#
+
+-- source include/master-slave.inc
+-- source include/have_binlog_format_statement.inc
+connection slave;
+CREATE DATABASE rewrite;
+
+connection master;
+-- source extra/rpl_tests/rpl_filters.test
+
+connection slave;
+DROP DATABASE rewrite;
+
+--source include/rpl_end.inc

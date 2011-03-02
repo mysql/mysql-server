@@ -408,7 +408,7 @@ mlog_parse_string(
 	ptr += 2;
 
 	if (UNIV_UNLIKELY(offset >= UNIV_PAGE_SIZE)
-			|| UNIV_UNLIKELY(len + offset) > UNIV_PAGE_SIZE) {
+	    || UNIV_UNLIKELY(len + offset > UNIV_PAGE_SIZE)) {
 		recv_sys->found_corrupt_log = TRUE;
 
 		return(NULL);

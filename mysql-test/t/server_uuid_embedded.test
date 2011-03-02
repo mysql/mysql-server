@@ -25,7 +25,8 @@ SET GLOBAL SERVER_UUID= UUID();
 --echo # SERVER_UUID is not null
 --echo -----------------------------------------------------------------------------
 --let $server_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
-if (`SELECT '$server_uuid' = ''`)
+# Cannot use !$server_uuid since it may begin with 0
+if ($server_uuid == '')
 {
   --echo server's UUID is null
 }

@@ -24,7 +24,7 @@
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
 
-#define COUNT_SETUP_CONSUMERS 8
+#define COUNT_SETUP_CONSUMERS 5
 static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
 {
   {
@@ -40,24 +40,12 @@ static row_setup_consumers all_setup_consumers_data[COUNT_SETUP_CONSUMERS]=
     &flag_events_waits_history_long
   },
   {
-    { C_STRING_WITH_LEN("events_waits_summary_by_thread_by_event_name") },
-    &flag_events_waits_summary_by_thread_by_event_name
+    { C_STRING_WITH_LEN("global_instrumentation") },
+    &flag_global_instrumentation
   },
   {
-    { C_STRING_WITH_LEN("events_waits_summary_by_event_name") },
-    &flag_events_waits_summary_by_event_name
-  },
-  {
-    { C_STRING_WITH_LEN("events_waits_summary_by_instance") },
-    &flag_events_waits_summary_by_instance
-  },
-  {
-    { C_STRING_WITH_LEN("file_summary_by_event_name") },
-    &flag_file_summary_by_event_name
-  },
-  {
-    { C_STRING_WITH_LEN("file_summary_by_instance") },
-    &flag_file_summary_by_instance
+    { C_STRING_WITH_LEN("thread_instrumentation") },
+    &flag_thread_instrumentation
   }
 };
 
@@ -84,11 +72,12 @@ table_setup_consumers::m_field_def=
 PFS_engine_table_share
 table_setup_consumers::m_share=
 {
-  { C_STRING_WITH_LEN("SETUP_CONSUMERS") },
+  { C_STRING_WITH_LEN("setup_consumers") },
   &pfs_updatable_acl,
   &table_setup_consumers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   COUNT_SETUP_CONSUMERS, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
@@ -192,7 +181,6 @@ int table_setup_consumers::update_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
       {

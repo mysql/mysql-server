@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -86,11 +86,11 @@ trx_rsegf_undo_find_free(
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
 @return	rollback segment */
-UNIV_INTERN
+UNIV_INLINE
 trx_rseg_t*
 trx_rseg_get_on_id(
 /*===============*/
-	ulint	id);	/*!< in: rollback segment id */
+	ulint	id);		/*!< in: rollback segment id */
 /****************************************************************//**
 Creates a rollback segment header. This function is called only when
 a new rollback segment is created in the database.
@@ -107,13 +107,14 @@ trx_rseg_header_create(
 	mtr_t*	mtr);		/*!< in: mtr */
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
-rseg list and array in trx_sys at a database startup. */
+rseg array in trx_sys at a database startup. */
 UNIV_INTERN
 void
-trx_rseg_list_and_array_init(
-/*=========================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx system header */
-	mtr_t*		mtr);		/*!< in: mtr */
+trx_rseg_array_init(
+/*================*/
+	trx_sysf_t*	sys_header,	/*!< in/out: trx system header */
+	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
+	mtr_t*		mtr);		/*!< in/out: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */
 UNIV_INTERN
@@ -141,9 +142,7 @@ struct trx_rseg_struct{
 	ulint		id;	/*!< rollback segment id == the index of
 				its slot in the trx system file copy */
 	mutex_t		mutex;	/*!< mutex protecting the fields in this
-				struct except id; NOTE that the latching
-				order must always be kernel mutex ->
-				rseg mutex */
+				struct except id, which is constant */
 	ulint		space;	/*!< space where the rollback segment is
 				header is placed */
 	ulint		zip_size;/* compressed page size of space
@@ -176,11 +175,15 @@ struct trx_rseg_struct{
 					yet purged log */
 	ibool		last_del_marks;	/*!< TRUE if the last not yet purged log
 					needs purging */
-	/*--------------------------------------------------------*/
-	UT_LIST_NODE_T(trx_rseg_t) rseg_list;
-					/* the list of the rollback segment
-					memory objects */
 };
+
+/** For prioritising the rollback segments for purge. */
+struct rseg_queue_struct {
+        trx_id_t	trx_no;         /*!< trx_rseg_t::last_trx_no */
+        trx_rseg_t*     rseg;           /*!< Rollback segment */
+};
+
+typedef struct rseg_queue_struct rseg_queue_t;
 
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/

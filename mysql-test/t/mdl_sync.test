@@ -3661,7 +3661,7 @@ connection con2;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let CREATE PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 --send FLUSH TABLES WITH READ LOCK
 
 --echo # Connection 1
@@ -3689,15 +3689,22 @@ connection con2;
 SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let DROP PROCEDURE continue
-SET DEBUG_SYNC= 'wait_lock_global_read_lock SIGNAL grlwait';
+SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
 --send FLUSH TABLES WITH READ LOCK
 
 --echo # Connection 1
 connection default;
+--echo # Once FLUSH TABLES WITH READ LOCK starts waiting
+--echo # DROP PROCEDURE will be waked up and will drop
+--echo # procedure. Global read lock will be granted after
+--echo # this statement ends.
+--echo #
+--echo # Reaping DROP PROCEDURE.
 --reap
 
 --echo # Connection 2
 connection con2;
+--echo # Reaping FTWRL.
 --reap
 UNLOCK TABLES;
 
@@ -3969,7 +3976,8 @@ INSERT INTO t1 VALUES (1),(2),(3);
 
 --echo # Connection: con1
 connection con1;
-SET debug_sync='lock_table_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
+LOCK TABLES t1 WRITE;
+SET debug_sync='upgrade_lock_for_truncate SIGNAL parked_truncate WAIT_FOR go_truncate';
 send TRUNCATE TABLE t1;
 
 connection default;
@@ -3994,15 +4002,17 @@ connection default;
 --echo # Connection: default
 SET debug_sync='now WAIT_FOR parked_flush';
 SET debug_sync='now SIGNAL go_truncate';
+--echo # Ensure that truncate waits for a exclusive lock
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE state='Waiting for table metadata lock' AND info='TRUNCATE TABLE t1';
+--source include/wait_condition.inc
+SET debug_sync= 'now SIGNAL go_show';
 
 connection con1;
---echo # Connection: con1
+--echo # Connection: con1 (TRUNCATE)
 --echo # Reaping...
 reap;
-
-connection default;
---echo # Connection: default
-SET debug_sync= 'now SIGNAL go_show';
+UNLOCK TABLES;
 
 connection con2;
 --echo # Connection: con2 (SHOW FIELDS FROM t1)
@@ -4482,7 +4492,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for release of readlock'
+  WHERE state='Waiting for global read lock'
   AND info='CREATE TABLE db1.t2(a INT)';
 --source include/wait_condition.inc
 UNLOCK TABLES;
@@ -4504,7 +4514,7 @@ connection con2;
 --echo # Connection default
 connection default;
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist
-  WHERE state='Waiting for release of readlock'
+  WHERE state='Waiting for global read lock'
   AND info='ALTER DATABASE db1 DEFAULT CHARACTER SET utf8';
 --source include/wait_condition.inc
 UNLOCK TABLES;
@@ -4530,6 +4540,68 @@ UNLOCK TABLES;
 DROP DATABASE db1;
 disconnect con2;
 disconnect con3;
+
+
+--echo #
+--echo # Bug#56292 Deadlock with ALTER TABLE and MERGE tables
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, m1;
+--enable_warnings
+
+CREATE TABLE t1(a INT) engine=MyISAM;
+CREATE TABLE t2(a INT) engine=MyISAM;
+CREATE TABLE m1(a INT) engine=MERGE UNION=(t1, t2);
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (3), (4);
+
+connect(con1, localhost, root);
+connect(con2, localhost, root);
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= 'mdl_upgrade_shared_lock_to_exclusive SIGNAL upgrade WAIT_FOR continue';
+--echo # Sending:
+--send ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
+
+--echo # Connection con2
+connection con2;
+--echo # Waiting for ALTER TABLE to try lock upgrade
+SET DEBUG_SYNC= 'now WAIT_FOR upgrade';
+--echo # Sending:
+--send DELETE FROM t2 WHERE a = 3
+
+--echo # Connection default
+connection default;
+--echo # Check that DELETE is waiting on a metadata lock and not a table lock.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" AND
+        info = "DELETE FROM t2 WHERE a = 3";
+--source include/wait_condition.inc
+--echo # Now that DELETE blocks on a metadata lock, we should be able to do
+--echo # SELECT * FROM m1 here. SELECT used to be blocked by a DELETE table
+--echo # lock request.
+SELECT * FROM m1;
+--echo # Resuming ALTER TABLE
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: ALTER TABLE m1 engine=MERGE UNION=(t2, t1)
+--reap
+--echo # Connection con2
+connection con2;
+--echo # Reaping: DELETE FROM t2 WHERE a = 3
+--reap
+--echo # Connection default
+connection default;
+DROP TABLE m1, t1, t2;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
 
 
 # Check that all connections opened by test cases in this file are really

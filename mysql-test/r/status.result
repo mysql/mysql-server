@@ -149,7 +149,7 @@ a	a
 1	1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	4.805836
+Last_query_cost	4.805989
 DROP TABLE t1;
 show status like 'com_show_status';
 Variable_name	Value

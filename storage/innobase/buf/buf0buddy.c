@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -281,7 +281,7 @@ buf_buddy_alloc_from(
 
 /**********************************************************************//**
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool_zip_mutex or any block->mutex.
+buf_pool->mutex and must not hold buf_pool->zip_mutex or any block->mutex.
 The buf_pool->mutex may only be released and reacquired if lru != NULL.
 @return	allocated block, possibly NULL if lru==NULL */
 UNIV_INTERN
@@ -327,7 +327,7 @@ buf_buddy_alloc_low(
 
 	/* Try replacing an uncompressed page in the buffer pool. */
 	buf_pool_mutex_exit(buf_pool);
-	block = buf_LRU_get_free_block(buf_pool, 0);
+	block = buf_LRU_get_free_block(buf_pool);
 	*lru = TRUE;
 	buf_pool_mutex_enter(buf_pool);
 
@@ -356,7 +356,7 @@ buf_buddy_relocate_block(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ulint		fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
-	mutex_t*	hash_mutex = buf_page_hash_mutex_get(buf_pool, fold);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -376,11 +376,11 @@ buf_buddy_relocate_block(
 		break;
 	}
 
-	mutex_enter(hash_mutex);
+	rw_lock_x_lock(hash_lock);
 	mutex_enter(&buf_pool->zip_mutex);
 
 	if (!buf_page_can_relocate(bpage)) {
-		mutex_exit(hash_mutex);
+		rw_lock_x_unlock(hash_lock);
 		mutex_exit(&buf_pool->zip_mutex);
 		return(FALSE);
 	}
@@ -400,7 +400,7 @@ buf_buddy_relocate_block(
 
 	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
-	mutex_exit(hash_mutex);
+	rw_lock_x_unlock(hash_lock);
 	mutex_exit(&buf_pool->zip_mutex);
 	return(TRUE);
 }
@@ -460,7 +460,7 @@ buf_buddy_relocate(
 		on uninitialized value. */
 		UNIV_MEM_VALID(&space, sizeof space);
 		UNIV_MEM_VALID(&page_no, sizeof page_no);
-		bpage = buf_page_hash_get(buf_pool, space, page_no, NULL);
+		bpage = buf_page_hash_get(buf_pool, space, page_no);
 
 		if (!bpage || bpage->zip.data != src) {
 			/* The block has probably been freshly
@@ -702,7 +702,9 @@ buddy_nonfree:
 		bpage->list pointers. */
 		for (c = (char*) buf + (BUF_BUDDY_LOW << i);
 		     c-- > (char*) buf; ) {
-			*c = ~*c ^ i;
+			/* We can live with possible loss of data here due
+			to conversion from ulint to char. */
+			*c = (char) (~*c ^ i);
 		}
 	} else {
 		/* Fill large blocks with a constant pattern. */

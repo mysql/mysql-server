@@ -72,7 +72,8 @@ public:
       records.
     */
     return HA_NO_TRANSACTIONS | HA_REC_NOT_IN_SEQ | HA_NO_AUTO_INCREMENT |
-      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_NO_BLOBS;
+      HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
+      HA_PRIMARY_KEY_REQUIRED_FOR_DELETE;
   }
 
   /**
@@ -100,9 +101,6 @@ public:
   double scan_time(void)
   { return 1.0; }
 
-  double read_time(ha_rows)
-  { return 1.0; }
-
   int open(const char *name, int mode, uint test_if_locked);
 
   int close(void);
@@ -112,6 +110,8 @@ public:
   void use_hidden_primary_key();
 
   int update_row(const uchar *old_data, uchar *new_data);
+
+  int delete_row(const uchar *buf);
 
   int rnd_init(bool scan);
 
@@ -126,6 +126,8 @@ public:
   int info(uint);
 
   int delete_all_rows(void);
+
+  int truncate();
 
   int delete_table(const char *from);
 
@@ -146,6 +148,8 @@ public:
     *engine_callback= 0;
     return FALSE;
   }
+
+  virtual void print_error(int error, myf errflags);
 
 private:
   /** MySQL lock */

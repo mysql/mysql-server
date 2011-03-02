@@ -39,3 +39,7 @@ void pfs_free(void *)
 {
 }
 
+void pfs_print_error(const char *format, ...)
+{
+}
+

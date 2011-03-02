@@ -7,3 +7,4 @@ let $engine_type = 'InnoDB';
 -- source extra/rpl_tests/rpl_row_tabledefs.test
 
 
+--source include/rpl_end.inc

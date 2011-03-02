@@ -46,9 +46,11 @@ let $status_var_comparsion= >;
 # Clean up
 #
 --echo *** Clean up ***
---connection master
---sync_slave_with_master
---echo
-
-# End of 6.0 test
---echo End of 6.0 test
+--source include/stop_slave.inc
+CHANGE MASTER TO 
+    MASTER_SSL=0,
+    MASTER_SSL_CA='',
+    MASTER_SSL_CERT='',
+    MASTER_SSL_KEY='';
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

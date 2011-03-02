@@ -37,6 +37,8 @@ Completed by Sunny Bains and Jimmy Yang
 
 #include "fts0types.ic"
 #include "fts0vlc.ic"
+#include "dict0priv.h"
+#include "dict0stats.h"
 
 #ifdef UNIV_NONINL
 #include "fut0fut.ic"
@@ -186,8 +188,8 @@ static const char* fts_create_common_tables_sql = {
 		"ON %s_BEING_DELETED_CACHE(doc_id);\n"
 	""
 	"CREATE TABLE %s_CONFIG (\n"
-	"  key CHAR,\n"
-	"  value CHAR NOT NULL\n"
+	"  key CHAR(50),\n"
+	"  value CHAR(50) NOT NULL\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_CONFIG(key);\n"
 	""
@@ -1867,7 +1869,7 @@ fts_get_total_document_count(
 	dict_table_t*   table)		/*!< in: table instance */
 {
 	if (!table->stat_initialized) {
-		dict_update_statistics(table);
+		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, FALSE);
 	}
 
 	return(table->stat_n_rows);
@@ -1949,12 +1951,18 @@ retry:
 		return(DB_SUCCESS);
 	}
 
+	trx = trx_allocate_for_background();
+
+	trx->op_info = "getting next FTS document id";
+
 	info = pars_info_create();
 
 	pars_info_bind_function(
 		info, "my_func", fts_fetch_store_doc_id, doc_id);
 
-	graph = fts_parse_sql(
+	row_mysql_lock_data_dictionary(trx);
+
+	graph = fts_parse_sql_no_dict_lock(
 		&fts_table, info,
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS SELECT value FROM %s"
@@ -1970,14 +1978,11 @@ retry:
 		"END LOOP;\n"
 		"CLOSE c;");
 
-	trx = trx_allocate_for_background();
-
-	trx->op_info = "getting next FTS document id";
-
 	*doc_id = 0;
 	error = fts_eval_sql(trx, graph);
 
 	que_graph_free(graph);
+
 
 	// FIXME: We need to retry deadlock errors
 	if (error != DB_SUCCESS) {
@@ -1993,6 +1998,8 @@ retry:
 	error = fts_update_last_doc_id(table, cache->last_doc_id, trx);
 
 func_exit:
+	row_mysql_unlock_data_dictionary(trx);
+
 	if (error == DB_SUCCESS) {
 		fts_sql_commit(trx);
 	} else {
@@ -2056,7 +2063,7 @@ fts_update_last_doc_id(
 
 	pars_info_bind_varchar_literal(info, "doc_id", id, id_len);
 
-	graph = fts_parse_sql(
+	graph = fts_parse_sql_no_dict_lock(
 		&fts_table, info,
 		"BEGIN "
 		"UPDATE %s SET value = :doc_id"
@@ -2894,7 +2901,10 @@ fts_sync_delete_from_added(
 		"DELETE FROM %s WHERE doc_id >= :first AND doc_id <= :last;");
 
 	error = fts_eval_sql(sync->trx, graph);
+
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	return(error);
 }
@@ -3884,7 +3894,9 @@ fts_pending_read_doc_ids(
 		}
 	}
 
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	trx_free_for_background(trx);
 
@@ -4183,7 +4195,9 @@ fts_get_rows_count(
 		}
 	}
 
+	mutex_enter(&dict_sys->mutex);
 	que_graph_free(graph);
+	mutex_exit(&dict_sys->mutex);
 
 	trx_free_for_background(trx);
 
@@ -4489,7 +4503,9 @@ fts_savepoint_free(
 
 		/* The default savepoint name must be NULL. */
 		if (ftt->docs_added_graph) {
+			mutex_enter(&dict_sys->mutex);
 			que_graph_free(ftt->docs_added_graph);
+			mutex_exit(&dict_sys->mutex);
 		}
 
 		/* NOTE: We are responsible for free'ing the node */
@@ -4528,7 +4544,9 @@ fts_trx_free(
 	memset(fts_trx, 0, sizeof(*fts_trx));
 #endif /* UNIV_DEBUG */
 
-	mem_heap_free(fts_trx->heap);
+	if (fts_trx->heap) {
+		mem_heap_free(fts_trx->heap);
+	}
 }
 
 /********************************************************************
@@ -5351,13 +5369,13 @@ fts_check_and_drop_orphaned_tables(
 	ulint		error = DB_SUCCESS;
 
 	for (i = 0; i < ib_vector_size(tables); ++i) {
-		const dict_table_t*	table;
+		dict_table_t*		table;
 		fts_sys_table_t*	sys_table;
 		ibool			drop = FALSE;
 
 		sys_table = ib_vector_get(tables, i);
 
-		table = dict_table_get_on_id(sys_table->parent_id, trx);
+		table = dict_table_open_on_id(sys_table->parent_id, FALSE);
 
 		if (table == NULL || table->fts == NULL) {
 
@@ -5384,6 +5402,10 @@ fts_check_and_drop_orphaned_tables(
 					break;
 				}
 			}
+		}
+
+		if (table) {
+			dict_table_close(table, FALSE);
 		}
 
 		if (drop) {

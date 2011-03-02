@@ -299,5 +299,26 @@ DELETE FROM t1 WHERE col_int_nokey = 5 ORDER BY col_int_key LIMIT 2;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #44771: Unique Hash index in memory engine will give wrong
+--echo #             query result for NULL value.
+--echo #
+
+CREATE TABLE t1
+(
+   pk INT PRIMARY KEY,
+   val INT,
+   UNIQUE KEY USING HASH(val)
+) ENGINE=MEMORY;
+
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, NULL);
+INSERT INTO t1 VALUES (3, NULL);
+INSERT INTO t1 VALUES (4, NULL);
+
+SELECT * FROM t1 WHERE val IS NULL;
+EXPLAIN SELECT * FROM t1 WHERE val IS NULL;
+DROP TABLE t1;
+
 --echo End of 5.5 tests
 
