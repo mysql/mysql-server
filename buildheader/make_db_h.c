@@ -75,7 +75,6 @@ enum {
         TOKUDB_UPGRADE_FAILURE         = -100011,
 	TOKUDB_TRY_AGAIN               = -100012,
 	TOKUDB_NEEDS_REPAIR            = -100013,
-	TOKUDB_FINGERPRINT_ERROR       = -100014,
 };
 
 static void print_defines (void) {
@@ -227,7 +226,6 @@ static void print_defines (void) {
     dodefine(TOKUDB_UPGRADE_FAILURE);
     dodefine(TOKUDB_TRY_AGAIN);
     dodefine(TOKUDB_NEEDS_REPAIR);
-    dodefine(TOKUDB_FINGERPRINT_ERROR);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");

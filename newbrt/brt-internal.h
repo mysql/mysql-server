@@ -82,7 +82,6 @@ add_estimates (struct subtree_estimates *a, struct subtree_estimates *b) {
 
 
 struct brtnode_nonleaf_childinfo {
-    u_int32_t    subtree_fingerprint;
     struct subtree_estimates subtree_estimates;
     BLOCKNUM     blocknum;
     BOOL         have_fullhash;     // do we have the full hash?
@@ -102,20 +101,16 @@ struct brtnode {
     int    layout_version_read_from_disk;  // transient, not serialized to disk, (useful for debugging)
     uint32_t build_id;       // build_id (svn rev number) of software that wrote this node to disk
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
-    u_int32_t rand4fingerprint;
-    u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
     int    dirty;
     u_int32_t fullhash;
     union node {
 	struct nonleaf {
-	    // Don't actually store the subree fingerprint in the in-memory data structure.
 	    int             n_children;  /* if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced. */
 	    unsigned int    totalchildkeylens;
 	    unsigned int    n_bytes_in_buffers;
 
 	    struct brtnode_nonleaf_childinfo *childinfos; /* One extra so we can grow */
 
-#define BNC_SUBTREE_FINGERPRINT(node,i) ((node)->u.n.childinfos[i].subtree_fingerprint)
 #define BNC_SUBTREE_ESTIMATES(node,i) ((node)->u.n.childinfos[i].subtree_estimates)
 #define BNC_BLOCKNUM(node,i) ((node)->u.n.childinfos[i].blocknum)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
@@ -259,7 +254,7 @@ int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/,
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
-void toku_verify_or_set_counts(BRTNODE, BOOL);
+void toku_verify_or_set_counts(BRTNODE);
 
 int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
@@ -295,11 +290,6 @@ extern int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, LSN max_ac
 extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt, u_int32_t *root_hash);
 
 static const BRTNODE null_brtnode=0;
-
-//extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
-//extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
-extern u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, XIDS xids, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
-extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_MSG cmd);
 
 // How long is the pivot key?
 unsigned int toku_brt_pivot_key_len (struct kv_pair *);
@@ -345,11 +335,11 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, BRT t);
 
 /* Stuff for testing */
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *);
-int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens);
+int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
 int toku_testsetup_root(BRT brt, BLOCKNUM);
 int toku_testsetup_get_sersize(BRT brt, BLOCKNUM); // Return the size on disk.
-int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
-int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_msg_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
+int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM, char *key, int keylen, char *val, int vallen);
+int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_msg_type, char *key, int keylen, char *val, int vallen);
 
 // These two go together to do lookups in a brtnode using the keys in a command.
 struct cmd_leafval_heaviside_extra {

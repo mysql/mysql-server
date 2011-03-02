@@ -320,22 +320,18 @@ brt_leaf_check_leaf_stats (BRTNODE node)
 
 // This should be done incrementally in most cases.
 static void
-fixup_child_fingerprint (BRTNODE node, int childnum_of_node, BRTNODE child)
-// Effect:  Sum the child fingerprint (and leafentry estimates) and store them in NODE.
+fixup_child_estimates (BRTNODE node, int childnum_of_node, BRTNODE child)
+// Effect:  Sum the child leafentry estimates and store them in NODE.
 // Parameters:
 //   node                The node to modify
 //   childnum_of_node    Which child changed   (PERFORMANCE: Later we could compute this incrementally)
 //   child               The child that changed.
-//   brt                 The brt (not used now but it will be for logger)
-//   logger              The logger (not used now but it will be for logger)
 {
     struct subtree_estimates estimates = zero_estimates;
-    u_int32_t sum = child->local_fingerprint;
     estimates.exact = TRUE;
     if (child->height>0) {
         int i;
         for (i=0; i<child->u.n.n_children; i++) {
-            sum += BNC_SUBTREE_FINGERPRINT(child,i);
 	    struct subtree_estimates *child_se = &BNC_SUBTREE_ESTIMATES(child,i);
 	    estimates.nkeys += child_se->nkeys;
 	    estimates.ndata += child_se->ndata;
@@ -351,29 +347,9 @@ fixup_child_fingerprint (BRTNODE node, int childnum_of_node, BRTNODE child)
 	toku_omt_iterate(child->u.l.buffer, fill_leafnode_estimates, &s);
 #endif
     }
-    // Don't try to get fancy about not modifying the fingerprint if it didn't change.
-    // We only call this function if we have reason to believe that the child's fingerprint did change.
-    BNC_SUBTREE_FINGERPRINT(node,childnum_of_node)=sum;
+    // We only call this function if we have reason to believe that the child changed.
     BNC_SUBTREE_ESTIMATES(node,childnum_of_node)=estimates;
     node->dirty=1;
-}
-
-static inline void
-verify_local_fingerprint_nonleaf (BRTNODE node)
-{
-    if (0) {
-	//brt_leaf_check_leaf_stats(node);
-        static int count=0; count++;
-        u_int32_t fp=0;
-        int i;
-        if (node->height==0) return;
-        for (i=0; i<node->u.n.n_children; i++)
-            FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xids,
-                         fp += toku_calc_fingerprint_cmd(type, xids, key, keylen, data, datalen);
-                         );
-        fp *= node->rand4fingerprint;
-        lazy_assert(fp==node->local_fingerprint);
-    }
 }
 
 static inline void
@@ -448,7 +424,6 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //        node->log_lsn = toku_txn_get_last_lsn(txn);
 //        //if (node->log_lsn.lsn>33320) printf("%s:%d node%lld lsn=%lld\n", __FILE__, __LINE__, node->thisnodename, node->log_lsn.lsn);
 //    }
-    verify_local_fingerprint_nonleaf(node);
     VERIFY_NODE(brt,node);
     return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, (enum cachetable_dirty) node->dirty, brtnode_memory_size(node));
 }
@@ -457,9 +432,6 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
-//    if ((write_me || keep_me) && (brtnode->height==0)) {
-//        toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
-//    }
     if (0) {
         printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%" PRId64 " keep_me=%u height=%d", __FILE__, __LINE__, brtnode, brtnode->thisnodename.b, (unsigned)keep_me, brtnode->height);
         if (brtnode->height==0) printf(" buf=%p mempool-base=%p", brtnode->u.l.buffer, brtnode->u.l.buffer_mempool.base);
@@ -657,8 +629,6 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
     n->layout_version_original = t->h->layout_version;
     n->layout_version_read_from_disk = t->h->layout_version;
     n->height       = height;
-    n->rand4fingerprint = random();
-    n->local_fingerprint = 0;
     n->dirty = 1;
     lazy_assert(height>=0);
     if (height>0) {
@@ -700,7 +670,6 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 //  Store the new root's identity in *ROOTP, and the node in *NEWROOTP.
 //  Unpin nodea and nodeb.
 //  Leave the new root pinned.
-//  Stores the sum of the fingerprints of the children into the new node.  (LAZY:  Later we'll only store the fingerprints when evicting.)
 {
     BRTNODE MALLOC(newroot);
     int r;
@@ -726,14 +695,10 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     r=toku_fifo_create(&BNC_BUFFER(newroot,1)); if (r!=0) return r;
     BNC_NBYTESINBUF(newroot, 0)=0;
     BNC_NBYTESINBUF(newroot, 1)=0;
-    BNC_SUBTREE_FINGERPRINT(newroot, 0)=0;
-    BNC_SUBTREE_FINGERPRINT(newroot, 1)=0;
     BNC_SUBTREE_ESTIMATES(newroot, 0)=zero_estimates;
     BNC_SUBTREE_ESTIMATES(newroot, 1)=zero_estimates;
-    verify_local_fingerprint_nonleaf(nodea);
-    verify_local_fingerprint_nonleaf(nodeb);
-    fixup_child_fingerprint(newroot, 0, nodea);
-    fixup_child_fingerprint(newroot, 1, nodeb);
+    fixup_child_estimates(newroot, 0, nodea);
+    fixup_child_estimates(newroot, 1, nodeb);
     r = toku_unpin_brtnode(brt, nodea);
     if (r!=0) return r;
     r = toku_unpin_brtnode(brt, nodeb);
@@ -775,7 +740,6 @@ init_childinfo(BRTNODE node, int childnum, BRTNODE child) {
     BNC_BLOCKNUM(node,childnum) = child->thisnodename;
     BNC_HAVE_FULLHASH(node,childnum) = FALSE;
     BNC_NBYTESINBUF(node,childnum) = 0;
-    BNC_SUBTREE_FINGERPRINT(node,childnum) = 0;
     BNC_SUBTREE_ESTIMATES(node,childnum) = zero_estimates;
     int r = toku_fifo_create(&BNC_BUFFER(node,childnum));
     resource_assert_zero(r);
@@ -882,7 +846,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         toku_omt_destroy(&B->u.l.buffer); // Destroy B's empty OMT, so I can rebuild it from an array
         {
             u_int32_t i;
-            u_int32_t diff_fp = 0;
             u_int32_t diff_size = 0;
 	    struct subtree_estimates diff_est = zero_estimates;
 	    LEAFENTRY *MALLOC_N(n_leafentries-split_at, free_us);
@@ -894,7 +857,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 		diff_est.ndata++;
 		diff_est.dsize += le_keylen(oldle) + le_latest_vallen(oldle);
 		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(oldle)+ le_latest_vallen(oldle), diff_est.dsize);
-                diff_fp += toku_le_crc(oldle);
                 diff_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
                 memcpy(newle, oldle, leafentry_memsize(oldle));
 		free_us[i-split_at] = oldle; // don't free the old leafentries yet, since we compare them in the other iterations of the loops
@@ -905,8 +867,6 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
                 toku_mempool_mfree(&node->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
 	    }
 	    toku_free(free_us);
-            node->local_fingerprint -= node->rand4fingerprint * diff_fp;
-            B   ->local_fingerprint += B   ->rand4fingerprint * diff_fp;
             node->u.l.n_bytes_in_buffer -= diff_size;
             B   ->u.l.n_bytes_in_buffer += diff_size;
 	    subtract_estimates(&node->u.l.leaf_stats, &diff_est);
@@ -993,11 +953,8 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
             int r = toku_fifo_create(&BNC_BUFFER(B,i));
             if (r!=0) return r;
             BNC_NBYTESINBUF(B,i)=0;
-            BNC_SUBTREE_FINGERPRINT(B,i)=0;
             BNC_SUBTREE_ESTIMATES(B,i)=zero_estimates;
         }
-
-        verify_local_fingerprint_nonleaf(node);
 
         for (i=n_children_in_a; i<old_n_children; i++) {
 
@@ -1018,25 +975,18 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
                 int fr = toku_fifo_peek(from_htab, &key, &keylen, &data, &datalen, &type, &xids);
                 if (fr!=0) break;
                 int n_bytes_moved = keylen+datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
-                u_int32_t old_from_fingerprint = node->local_fingerprint;
-                u_int32_t delta = toku_calc_fingerprint_cmd(type, xids, key, keylen, data, datalen);
-                u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
-		B->local_fingerprint += B->rand4fingerprint*delta;
                 int r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xids);
                 if (r!=0) return r;
                 toku_fifo_deq(from_htab);
                 // key and data will no longer be valid
-                node->local_fingerprint = new_from_fingerprint;
 
                 B->u.n.n_bytes_in_buffers     += n_bytes_moved;
                 BNC_NBYTESINBUF(B, targchild) += n_bytes_moved;
                 node->u.n.n_bytes_in_buffers  -= n_bytes_moved;
                 BNC_NBYTESINBUF(node, i)      -= n_bytes_moved;
-                // verify_local_fingerprint_nonleaf(B);
-                // verify_local_fingerprint_nonleaf(node);
             }
 
-            // Delete a child, removing it's fingerprint, and also the preceeding pivot key.  The child number must be > 0
+            // Delete a child, removing the preceeding pivot key.  The child number must be > 0
             {
                 lazy_assert(i>0);
                 if (i>n_children_in_a) {
@@ -1049,16 +999,12 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
             BNC_BLOCKNUM(node, i) = make_blocknum(0);
             BNC_HAVE_FULLHASH(node, i) = FALSE; 
             
-            BNC_SUBTREE_FINGERPRINT(B, targchild)  = BNC_SUBTREE_FINGERPRINT(node, i);
-            BNC_SUBTREE_FINGERPRINT(node, i)       = 0;
-
             BNC_SUBTREE_ESTIMATES(B,    targchild) = BNC_SUBTREE_ESTIMATES(node, i);
             BNC_SUBTREE_ESTIMATES(node, i)         = zero_estimates;
 
             lazy_assert(BNC_NBYTESINBUF(node, i) == 0);
         }
 
-        // Drop the n_children now (not earlier) so that we can do the fingerprint verification at any time.
         node->u.n.n_children=n_children_in_a;
         for (i=n_children_in_a; i<old_n_children; i++) {
             toku_fifo_free(&BNC_BUFFER(node,i));
@@ -1071,8 +1017,6 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
         REALLOC_N(n_children_in_a+1,   node->u.n.childinfos);
         REALLOC_N(n_children_in_a, node->u.n.childkeys);
 
-        verify_local_fingerprint_nonleaf(node);
-        verify_local_fingerprint_nonleaf(B);
     }
 
     node->dirty = 1;
@@ -1120,12 +1064,9 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     node->dirty = 1;
 
-    verify_local_fingerprint_nonleaf(node);
-
     XREALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
     XREALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
     // Slide the children over.
-    BNC_SUBTREE_FINGERPRINT (node, node->u.n.n_children+1)=0;
     BNC_SUBTREE_ESTIMATES   (node, node->u.n.n_children+1)=zero_estimates;
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
         node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
@@ -1136,20 +1077,13 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
     BNC_BLOCKNUM(node, childnum+1) = childb->thisnodename;
     BNC_HAVE_FULLHASH(node, childnum+1) = TRUE;
     BNC_FULLHASH(node, childnum+1) = childb->fullhash;
-    // BNC_SUBTREE_FINGERPRINT(node, childnum)=0; // leave the subtreefingerprint alone for the child, so we can log the change
-    BNC_SUBTREE_FINGERPRINT(node, childnum+1)=0;
     BNC_SUBTREE_ESTIMATES  (node, childnum+1)=zero_estimates;
-    fixup_child_fingerprint(node, childnum,   childa);
-    fixup_child_fingerprint(node, childnum+1, childb);
+    fixup_child_estimates(node, childnum,   childa);
+    fixup_child_estimates(node, childnum+1, childb);
     r=toku_fifo_create(&BNC_BUFFER(node,childnum+1)); lazy_assert_zero(r);
-    verify_local_fingerprint_nonleaf(node);    // The fingerprint hasn't changed and everhything is still there.
     r=toku_fifo_create(&BNC_BUFFER(node,childnum));   lazy_assert_zero(r); // ??? SHould handle this error case
     BNC_NBYTESINBUF(node, childnum) = 0;
     BNC_NBYTESINBUF(node, childnum+1) = 0;
-
-    // Remove all the cmds from the local fingerprint.  Some may get added in again when we try to push to the child.
-
-    verify_local_fingerprint_nonleaf(node);
 
     // Slide the keys over
     {
@@ -1172,16 +1106,10 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
     }
                   )
 
-    verify_local_fingerprint_nonleaf(node);
-
     node->u.n.n_bytes_in_buffers -= old_count; /* By default, they are all removed.  We might add them back in. */
     /* Keep pushing to the children, but not if the children would require a pushdown */
 
     toku_fifo_free(&old_h);
-
-    verify_local_fingerprint_nonleaf(childa);
-    verify_local_fingerprint_nonleaf(childb);
-    verify_local_fingerprint_nonleaf(node);
 
     VERIFY_NODE(t, node);
     VERIFY_NODE(t, childa);
@@ -1228,9 +1156,6 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
 	lazy_assert(child->thisnodename.b!=0);
 	VERIFY_NODE(t,child);
     }
-
-    verify_local_fingerprint_nonleaf(node);
-    verify_local_fingerprint_nonleaf(child);
 
     BRTNODE nodea, nodeb;
     DBT splitk;
@@ -1287,7 +1212,6 @@ brt_leaf_apply_clean_xids_once (BRTNODE node, LEAFENTRY le)
     olddisksize = leafentry_disksize(le);
     lazy_assert(oldmemsize == olddisksize);
 #endif
-    u_int32_t old_crc = toku_le_crc(le);
 
     size_t newmemsize;
     size_t newdisksize;
@@ -1311,10 +1235,7 @@ brt_leaf_apply_clean_xids_once (BRTNODE node, LEAFENTRY le)
     toku_mempool_mfree(&node->u.l.buffer_mempool, p, size_reclaimed);
 
     node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + olddisksize;
-    node->local_fingerprint     -= node->rand4fingerprint * old_crc;
-
     node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-    node->local_fingerprint     += node->rand4fingerprint * toku_le_crc(le);
 
     //le_* functions (accessors) would return same key/keylen/val/vallen.
     //Therefore no cursor invalidation is needed.
@@ -1346,7 +1267,6 @@ brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
     olddisksize = leafentry_disksize(le);
     lazy_assert(oldmemsize == olddisksize);
 #endif
-    u_int32_t old_crc = toku_le_crc(le);
 
     size_t newmemsize;
     size_t newdisksize;
@@ -1370,10 +1290,8 @@ brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
     toku_mempool_mfree(&node->u.l.buffer_mempool, p, size_reclaimed);
 
     node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + olddisksize;
-    node->local_fingerprint     -= node->rand4fingerprint * old_crc;
 
     node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-    node->local_fingerprint     += node->rand4fingerprint * toku_le_crc(le);
 
     //le_* functions (accessors) would return same key/keylen/val/vallen.
     //Therefore no cursor invalidation is needed.
@@ -1425,7 +1343,6 @@ brt_leaf_delete_leafentry (BRTNODE node, u_int32_t idx, LEAFENTRY le)
     if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) goto return_r;
 
     node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-    node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
 
     {
         u_int32_t oldlen = le_latest_vallen(le) + le_keylen(le);
@@ -1438,7 +1355,6 @@ brt_leaf_delete_leafentry (BRTNODE node, u_int32_t idx, LEAFENTRY le)
     toku_mempool_mfree(&node->u.l.buffer_mempool, 0, leafentry_memsize(le)); // Must pass 0, since le may be no good any more.
 
     r=0;
-//        printf("%s:%d rand4=%08x local_fingerprint=%08x this=%08x\n", __FILE__, __LINE__, node->rand4fingerprint, node->local_fingerprint, toku_calccrc32_kvpair_struct(kv));
  return_r:
 
     // brt_leaf_check_leaf_stats(node);
@@ -1491,7 +1407,6 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
 	}
 
         node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
-        node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
         
 	//printf("%s:%d Added %u-%u got %lu\n", __FILE__, __LINE__, le_keylen(new_le), le_latest_vallen(le), node->u.l.leaf_stats.dsize);
 	// the ndata and nkeys remains unchanged
@@ -1503,7 +1418,6 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
         toku_mempool_mfree(&node->u.l.buffer_mempool, 0, size); // Must pass 0, since le may be no good any more.
         
         node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-        node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
 
         if ((r = toku_omt_set_at(node->u.l.buffer, new_le, idx))) goto return_r;
 
@@ -1518,7 +1432,6 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
             if ((r = toku_omt_insert_at(node->u.l.buffer, new_le, idx))) goto return_r;
 
             node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + newdisksize;
-            node->local_fingerprint += node->rand4fingerprint*toku_le_crc(new_le);
 
 	    node->u.l.leaf_stats.dsize += le_latest_vallen(new_le) + le_keylen(new_le);
 	    lazy_assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
@@ -1528,7 +1441,6 @@ brt_leaf_apply_cmd_once (BRTNODE node, const BRT_MSG cmd,
         }
     }
     r=0;
-//        printf("%s:%d rand4=%08x local_fingerprint=%08x this=%08x\n", __FILE__, __LINE__, node->rand4fingerprint, node->local_fingerprint, toku_calccrc32_kvpair_struct(kv));
  return_r:
 
     if (maybe_free) toku_free(maybe_free);
@@ -1546,7 +1458,6 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
 //  Return the serialization size in *new_size.
 // The leaf could end up "too big" or "too small".  It is up to the caller to fix that up.
 {
-//    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     TOKULOGGER logger = toku_cachefile_logger(t->cf);
     VERIFY_NODE(t, node);
     lazy_assert(node->height==0);
@@ -1761,7 +1672,6 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     // node->dirty = 1;
         
 
-//        toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     *re = get_leaf_reactivity(node);
     VERIFY_NODE(t, node);
     return 0;
@@ -1770,9 +1680,6 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
 static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int childnum, BRT_MSG cmd,
                                           enum reactivity re_array[], BOOL *did_io)
 {
-
-    verify_local_fingerprint_nonleaf(node);
-
     // if the fifo is empty and the child is in main memory and the child isn't gorged, then put it in the child
     if (BNC_NBYTESINBUF(node, childnum) == 0) {
         BLOCKNUM childblocknum  = BNC_BLOCKNUM(node, childnum); 
@@ -1786,18 +1693,12 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
         // The child is in main memory.
         BRTNODE child = child_v;
 
-        verify_local_fingerprint_nonleaf(child);
-
         r = brtnode_put_cmd (t, child, cmd, &re_array[childnum], did_io);
-        fixup_child_fingerprint(node, childnum, child);
+        fixup_child_estimates(node, childnum, child);
         VERIFY_NODE(t, node);
-
-        verify_local_fingerprint_nonleaf(child);
 
         int rr = toku_unpin_brtnode(t, child);
         lazy_assert_zero(rr);
-
-        verify_local_fingerprint_nonleaf(node);
 
         return r;
     }
@@ -1805,15 +1706,12 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
  put_in_fifo:
     toku_brt_append_to_child_buffer(node, childnum, cmd->type, cmd->xids, cmd->u.id.key, cmd->u.id.val);
 
-    verify_local_fingerprint_nonleaf(node);
-
     return 0;
 }
 
 // append a cmd to a nonleaf node's child buffer
 void
 toku_brt_append_to_child_buffer(BRTNODE node, int childnum, int type, XIDS xids, DBT *key, DBT *val) {
-    node->local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xids, key->data, key->size, val->data, val->size);
     int diff = key->size + val->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
     int r = toku_fifo_enq(BNC_BUFFER(node,childnum), key->data, key->size, val->data, val->size, type, xids);
     lazy_assert_zero(r);
@@ -1887,15 +1785,11 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_MSG cmd,
 //  The re_array[i] gets set to reactivity of any modified child.
 {
 
-    verify_local_fingerprint_nonleaf(node);
-
     /* find the right subtree */
     //TODO: accesses key, val directly
     unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
 
     int r = brt_nonleaf_cmd_once_to_child (t, node, childnum, cmd, re_array, did_io);
-
-    verify_local_fingerprint_nonleaf(node);
 
     return r;
 }
@@ -1926,9 +1820,6 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
 //  The re_array[i] gets set to the reactivity of any modified child i.  (And there may be several such children.)
 //
 {
-
-    verify_local_fingerprint_nonleaf(node);
-
     //TODO: Accessing type directly
     switch (cmd->type) {
     case BRT_INSERT_NO_OVERWRITE: 
@@ -1964,7 +1855,6 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
     while (toku_omt_size(omtb)>0) {
         LEAFENTRY le = fetch_from_buf(omtb, 0);
         u_int32_t le_size = leafentry_memsize(le);
-        u_int32_t le_crc  = toku_le_crc(le);
         {
             LEAFENTRY new_le = mempool_malloc_from_omt(omta, &a->u.l.buffer_mempool, le_size, 0);
             lazy_assert(new_le);
@@ -1973,7 +1863,6 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             int r = toku_omt_insert_at(omta, new_le, idx);
             lazy_assert_zero(r);
             a->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size; //This should be disksize
-            a->local_fingerprint     += a->rand4fingerprint * le_crc;
 
 	    a->u.l.leaf_stats.ndata++;
 	    maybe_bump_nkeys(a, +1);
@@ -1985,7 +1874,6 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             int r = toku_omt_delete_at(omtb, 0);
             lazy_assert_zero(r);
             b->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
-            b->local_fingerprint     -= b->rand4fingerprint * le_crc;
 
 	    b->u.l.leaf_stats.ndata--;
 	    b->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
@@ -2022,7 +1910,6 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
         int to_idx   = move_from_right ? toku_omt_size(omtto) : 0;
         LEAFENTRY le = fetch_from_buf(omtfrom, from_idx);
         u_int32_t le_size = leafentry_memsize(le);
-        u_int32_t le_crc  = toku_le_crc(le);
         {
             LEAFENTRY new_le = mempool_malloc_from_omt(omtto, &to->u.l.buffer_mempool, le_size, 0);
             lazy_assert(new_le);
@@ -2031,7 +1918,6 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             lazy_assert_zero(r);
 	    maybe_bump_nkeys(to, +1);
             to  ->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
-            to  ->local_fingerprint     += to->rand4fingerprint * le_crc;
 
 	    to->u.l.leaf_stats.ndata++;
 	    to->u.l.leaf_stats.dsize+= le_keylen(le) + le_latest_vallen(le);
@@ -2042,7 +1928,6 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             int r = toku_omt_delete_at(omtfrom, from_idx);
             lazy_assert_zero(r);
             from->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
-            from->local_fingerprint     -= from->rand4fingerprint * le_crc;
 
 	    from->u.l.leaf_stats.ndata--;
 	    from->u.l.leaf_stats.dsize-= le_keylen(le) + le_latest_vallen(le);
@@ -2100,8 +1985,8 @@ maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
         int r = merge_leaf_nodes(a, b);
 	if (r != 0) return r;
     }
-    fixup_child_fingerprint(parent, childnum_of_parent,   a);
-    fixup_child_fingerprint(parent, childnum_of_parent+1, b);
+    fixup_child_estimates(parent, childnum_of_parent,   a);
+    fixup_child_estimates(parent, childnum_of_parent+1, b);
     return 0;
 }
 
@@ -2110,7 +1995,6 @@ maybe_merge_pinned_nonleaf_nodes (BRTNODE parent, int childnum_of_parent, struct
                                   BRTNODE a, BRTNODE b,
                                   BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
 {
-    verify_local_fingerprint_nonleaf(a);
     lazy_assert(parent_splitk);
     int old_n_children = a->u.n.n_children;
     int new_n_children = old_n_children + b->u.n.n_children;
@@ -2131,29 +2015,14 @@ maybe_merge_pinned_nonleaf_nodes (BRTNODE parent, int childnum_of_parent, struct
     b->u.n.n_children = 0;
     b->u.n.n_bytes_in_buffers = 0;
 
-    {
-        static int count=0; count++;
-        u_int32_t fp = 0;
-        int i;
-        for (i=0; i<a->u.n.n_children; i++)
-            FIFO_ITERATE(BNC_BUFFER(a,i), key, keylen, data, datalen, type, xid,
-                         fp += toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-                         );
-        a->local_fingerprint = a->rand4fingerprint * fp;
-        //printf("%s:%d fp=%u\n", __FILE__, __LINE__, a->local_fingerprint);
-        verify_local_fingerprint_nonleaf(a);
-    }
-    b->local_fingerprint = 0;
-
     a->dirty = 1;
     b->dirty = 1;
 
-    fixup_child_fingerprint(parent, childnum_of_parent, a);
+    fixup_child_estimates(parent, childnum_of_parent, a);
 //    abort(); // don't forget to reuse blocknums
     *did_merge = TRUE;
     *did_rebalance = FALSE;
     *splitk    = NULL;
-    verify_local_fingerprint_nonleaf(a);
     return 0;
 }
 
@@ -2181,13 +2050,11 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 //  splitk              (OUT):  If the two nodes did not get merged, the new pivot key between the two nodes.
 {
     lazy_assert(a->height == b->height);
-    verify_local_fingerprint_nonleaf(a);
     parent->dirty = 1; // just to make sure 
     if (a->height == 0) {
         return maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
         int r = maybe_merge_pinned_nonleaf_nodes(parent, childnum_of_parent, parent_splitk, a, b, did_merge, did_rebalance, splitk);
-        verify_local_fingerprint_nonleaf(a);
         return r;
     }
 }
@@ -2195,7 +2062,6 @@ maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair
 static int
 brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL *did_react)
 {
-    verify_local_fingerprint_nonleaf(node);
     if (node->u.n.n_children < 2) return 0; // if no siblings, we are merged as best we can.
 
     int childnuma,childnumb;
@@ -2233,7 +2099,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
                                             toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
         if (r!=0) return r;
         childa = childnode_v;
-        verify_local_fingerprint_nonleaf(childa);
     }
     {
         void *childnode_v;
@@ -2255,9 +2120,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
         struct kv_pair *splitk_kvpair = 0;
         struct kv_pair *old_split_key = node->u.n.childkeys[childnuma];
         unsigned int deleted_size = toku_brt_pivot_key_len(old_split_key);
-        verify_local_fingerprint_nonleaf(childa);
         r = maybe_merge_pinned_nodes(node, childnuma, node->u.n.childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
-        verify_local_fingerprint_nonleaf(childa);
         if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) lazy_assert(childa->u.n.childkeys[i]); }
         //(toku_verify_counts(childa), toku_verify_estimates(t,childa));
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
@@ -2267,8 +2130,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
 
         node->u.n.totalchildkeylens -= deleted_size; // The key was free()'d inside the maybe_merge_pinned_nodes.
 
-        verify_local_fingerprint_nonleaf(node);
-        verify_local_fingerprint_nonleaf(childa);
         if (did_merge) {
             toku_fifo_free(&BNC_BUFFER(node, childnumb));
             node->u.n.n_children--;
@@ -2280,10 +2141,8 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
                     &node->u.n.childkeys[childnuma+1],
                     (node->u.n.n_children-childnumb)*sizeof(node->u.n.childkeys[0]));
             REALLOC_N(node->u.n.n_children-1, node->u.n.childkeys);
-            fixup_child_fingerprint(node, childnuma, childa);
+            fixup_child_estimates(node, childnuma, childa);
             lazy_assert(node->u.n.childinfos[childnuma].blocknum.b == childa->thisnodename.b);
-            verify_local_fingerprint_nonleaf(node);
-            verify_local_fingerprint_nonleaf(childa);
 	    childa->dirty = 1; // just to make sure
 	    childb->dirty = 1; // just to make sure
         } else {
@@ -2291,7 +2150,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
             // If we didn't merge the nodes, then we need the correct pivot.
             node->u.n.childkeys[childnuma] = splitk_kvpair;
             node->u.n.totalchildkeylens += toku_brt_pivot_key_len(node->u.n.childkeys[childnuma]);
-            verify_local_fingerprint_nonleaf(node);
             node->dirty = 1;
         }
     }
@@ -2312,7 +2170,6 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
         if (rra) return rra;
         if (rrb) return rrb;
     }
-    verify_local_fingerprint_nonleaf(node);
     return r;
 }
 
@@ -2348,8 +2205,6 @@ brt_handle_maybe_reactive_child_at_root (BRT brt, CACHEKEY *rootp, BRTNODE *node
                 int r = brt_nonleaf_split(brt, node, &nodea, &nodeb, &splitk);
                 if (r!=0) return r;
             }
-	    //verify_local_fingerprint_nonleaf(nodea);
-	    //verify_local_fingerprint_nonleaf(nodeb);
             return brt_init_new_root(brt, nodea, nodeb, splitk, rootp, nodep);
         }
     case RE_FUSIBLE:
@@ -2414,9 +2269,6 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
 									toku_fill_dbt(&hv, val, vallen)} };
 
             int n_bytes_removed = (hk.size + hv.size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids));
-            u_int32_t old_from_fingerprint = node->local_fingerprint;
-            u_int32_t delta = toku_calc_fingerprint_cmd(type, xids, key, keylen, val, vallen);
-            u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 
             //printf("%s:%d random_picked\n", __FILE__, __LINE__);
             r = brtnode_put_cmd (t, child, &brtcmd, child_re, did_io);
@@ -2428,7 +2280,6 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
             //printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
             if (r!=0) goto return_r;
 
-            node->local_fingerprint = new_from_fingerprint;
             node->u.n.n_bytes_in_buffers -= n_bytes_removed;
             BNC_NBYTESINBUF(node, childnum) -= n_bytes_removed;
             node->dirty = 1;
@@ -2436,9 +2287,8 @@ flush_this_child (BRT t, BRTNODE node, int childnum, enum reactivity *child_re, 
         }
         if (0) printf("%s:%d done random picking\n", __FILE__, __LINE__);
     }
-    verify_local_fingerprint_nonleaf(node);
  return_r:
-    fixup_child_fingerprint(node, childnum, child);
+    fixup_child_estimates(node, childnum, child);
     {
         int rr=toku_unpin_brtnode(t, child);
         if (rr!=0) return rr;
@@ -2469,18 +2319,13 @@ brtnode_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd, enum reactivity *re, BOOL *di
 //   If we perform I/O then set *did_io to true.
 //   If a nonleaf node becomes overfull then we will flush some child.
 {
-
-    verify_local_fingerprint_nonleaf(node);
-
     if (node->height==0) {
         return brt_leaf_put_cmd(t, node, cmd, re);
     } else {
-        verify_local_fingerprint_nonleaf(node);
         enum reactivity child_re[node->u.n.n_children];
         { int i; for (i=0; i<node->u.n.n_children; i++) child_re[i]=RE_STABLE; }
         int r = brt_nonleaf_put_cmd(t, node, cmd, child_re, did_io);
         if (r!=0) goto return_r;
-        verify_local_fingerprint_nonleaf(node);
         // Now we may have overfilled node.  So we'll flush the heaviest child until we are happy.
         while (!*did_io                              // Don't flush if we've done I/O.
                && nonleaf_node_is_gorged(node)       // Don't flush if the node is small enough.
@@ -2530,7 +2375,6 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
     BOOL   did_io = FALSE;
     {
         int r = brtnode_put_cmd(brt, node, cmd, &re, &did_io);
-        verify_local_fingerprint_nonleaf(node);
         if (r!=0) return r;
         //if (should_split) printf("%s:%d Pushed something simple, should_split=1\n", __FILE__, __LINE__); 
     }
@@ -2538,7 +2382,6 @@ static int push_something_at_root (BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT
 
     {
         int r = brt_handle_maybe_reactive_child_at_root(brt, rootp, nodep, re);
-        verify_local_fingerprint_nonleaf(*nodep);
         return r;
     }
 }
@@ -2599,12 +2442,10 @@ int toku_brt_root_put_cmd(BRT brt, BRT_MSG cmd)
     lazy_assert(node->fullhash==fullhash);
     brt_verify_flags(brt, node);
 
-    verify_local_fingerprint_nonleaf(node);
     if ((r = push_something_at_root(brt, &node, rootp, cmd))) {
 	toku_unpin_brtnode(brt, node); // ignore any error code on the unpin.
 	return r;
     }
-    verify_local_fingerprint_nonleaf(node);
     r = toku_unpin_brtnode(brt, node);
     lazy_assert(r == 0);
     return 0;
@@ -3033,7 +2874,6 @@ static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
         toku_free(node);
         return r;
     }
-//    verify_local_fingerprint_nonleaf(node);
     r = toku_unpin_brtnode(t, node);
     if (r!=0) {
         toku_free(node);
@@ -4606,9 +4446,6 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 // Effect: Search in a node's child.
 //  If we change the shape, set *did_react = TRUE.  Else set *did_react = FALSE.
 {
-
-    verify_local_fingerprint_nonleaf(node);
-
     /* if the child's buffer is not empty then empty it */
     if (BNC_NBYTESINBUF(node, childnum) > 0) {
         BOOL did_io = FALSE;
@@ -4632,14 +4469,10 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
     struct unlock_brtnode_extra unlock_extra   = {brt,childnode};
     struct unlockers            next_unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, unlockers};
 
-    verify_local_fingerprint_nonleaf(node);
-    verify_local_fingerprint_nonleaf(childnode);
     enum reactivity child_re = RE_STABLE;
     int r = brt_search_node(brt, childnode, search, getf, getf_v, &child_re, doprefetch, brtcursor, &next_unlockers);
     if (r!=TOKUDB_TRY_AGAIN) {
 	// Even if r is reactive, we want to handle the maybe reactive child.
-	verify_local_fingerprint_nonleaf(node);
-	verify_local_fingerprint_nonleaf(childnode);
 
 #if TOKU_DO_PREFETCH
 	// maybe prefetch the next child
@@ -4660,7 +4493,6 @@ brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *search, BRT_
 
 	*parent_re = get_nonleaf_reactivity(node);
 
-	verify_local_fingerprint_nonleaf(node);
     } else {
 	// try again.
 	assert(!next_unlockers.locked);
@@ -4675,7 +4507,6 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CAL
     int count=0;
  again:
     count++;
-    verify_local_fingerprint_nonleaf(node);
 
     {
         int c;
@@ -4694,7 +4525,6 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CAL
             if (search->compare(search, 
                                 toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)))) {
                 BOOL did_change_shape = FALSE;
-                verify_local_fingerprint_nonleaf(node);
                 int r = brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &did_change_shape, unlockers);
                 lazy_assert(r != EAGAIN);
                 if (r == 0) return r;           //Success
@@ -4705,7 +4535,6 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CAL
 
         /* check the first (left) or last (right) node if nothing has been found */
         BOOL ignore_did_change_shape; // ignore this
-        verify_local_fingerprint_nonleaf(node);
         return brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &ignore_did_change_shape, unlockers);
     }
 }
@@ -4713,7 +4542,6 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CAL
 static int
 brt_search_node (BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor, UNLOCKERS unlockers)
 {
-    verify_local_fingerprint_nonleaf(node);
     if (node->height > 0)
         return brt_search_nonleaf_node(brt, node, search, getf, getf_v, re, doprefetch, brtcursor, unlockers);
     else {

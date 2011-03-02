@@ -5,8 +5,6 @@
 
 /* Verify a BRT. */
 /* Check:
- *   The fingerprint of every node (local check)
- *   The child's fingerprint matches the parent's copy (probably don't actually do thi syet)
  *   The tree is of uniform depth (and the height is correct at every node)
  *   For each pivot key:  the max of the stuff to the left is <= the pivot key < the min of the stuff to the right.
  *   For each leaf node:  All the keys are in strictly increasing order.
@@ -14,31 +12,6 @@
  */
 
 #include "includes.h"
-
-static int verify_local_fingerprint (BRTNODE node, int verbose) __attribute__ ((warn_unused_result));
-
-static int 
-verify_local_fingerprint (BRTNODE node, int verbose) {
-    u_int32_t fp=0;
-    int i;
-    int r = 0;
-    if (node->height>0) {
-	for (i=0; i<node->u.n.n_children; i++)
-	    FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
-			      {
-				  fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
-			      });
-	if (fp!=node->local_fingerprint) {
-	    if (verbose) {
-		fprintf(stderr, "%s:%d local fingerprints don't match\n", __FILE__, __LINE__);
-	    }
-	    r = TOKUDB_FINGERPRINT_ERROR;
-	}
-    } else {
-	toku_verify_or_set_counts(node, FALSE);
-    }
-    return r;
-}
 
 static int 
 compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
@@ -143,13 +116,6 @@ toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, int height,
     assert(node->fullhash == fullhash);   // this is a bad failure if wrong
     if (height >= 0) 
         invariant(height == node->height);   // this is a bad failure if wrong
-    {
-	int r = verify_local_fingerprint(node, verbose);
-	if (r) {
-	    result = r;
-	    if (!keep_going_on_failure) goto done;
-	}
-    }
     if (node->height > 0) {
 	// Verify that all the pivot keys are in order.
 	for (int i = 0; i < node->u.n.n_children-2; i++) {

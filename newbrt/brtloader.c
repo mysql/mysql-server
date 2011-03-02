@@ -1988,7 +1988,6 @@ int merge_files (struct merge_fileset *fs,
 struct subtree_info {
     int64_t block;
     struct subtree_estimates subtree_estimates;
-    int32_t fingerprint;
 };
 
 struct subtrees_info {
@@ -2008,14 +2007,13 @@ static void subtrees_info_destroy(struct subtrees_info *p) {
     p->subtrees = NULL;
 }
 
-static void allocate_node (struct subtrees_info *sts, int64_t b, const struct subtree_estimates est, const int fingerprint) {
+static void allocate_node (struct subtrees_info *sts, int64_t b, const struct subtree_estimates est) {
     if (sts->n_subtrees >= sts->n_subtrees_limit) {
 	sts->n_subtrees_limit *= 2;
 	XREALLOC_N(sts->n_subtrees_limit, sts->subtrees);
     }
     sts->subtrees[sts->n_subtrees].subtree_estimates = est;
     sts->subtrees[sts->n_subtrees].block = b;
-    sts->subtrees[sts->n_subtrees].fingerprint = fingerprint;
     sts->n_subtrees++;
 }
 
@@ -2029,9 +2027,6 @@ struct dbuf {
 struct leaf_buf {
     int64_t blocknum;
     struct dbuf dbuf;
-    unsigned int rand4fingerprint;
-    unsigned int local_fingerprint;
-    int local_fingerprint_p;
     int nkeys, ndata, dsize, n_in_buf;
     int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
     TXNID xid;
@@ -2231,14 +2226,10 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     putbuf_int32(&lbuf->dbuf, target_nodesize);
     putbuf_int32(&lbuf->dbuf, flags);
     putbuf_int32(&lbuf->dbuf, height);
-    lbuf->rand4fingerprint = loader_random();
-    putbuf_int32(&lbuf->dbuf, lbuf->rand4fingerprint);
-    lbuf->local_fingerprint = 0;
     lbuf->nkeys = lbuf->ndata = lbuf->dsize = 0;
     lbuf->n_in_buf = 0;
     
     // leave these uninitialized for now.
-    lbuf->local_fingerprint_p = lbuf->dbuf.off;    lbuf->dbuf.off+=4;
     lbuf->nkeys_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
     lbuf->ndata_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
     lbuf->dsize_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
@@ -2415,7 +2406,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 		old_n_rows_remaining = n_rows_remaining;
 
                 struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
-		allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
+		allocate_node(&sts, lblock, est);
 
 		n_pivots++;
 
@@ -2458,7 +2449,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     if (lbuf) {
         struct subtree_estimates est = make_subtree_estimates(lbuf->nkeys, lbuf->ndata, lbuf->dsize, TRUE);
-        allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
+        allocate_node(&sts, lblock, est);
         {
             int p = progress_allocation/2;
             finish_leafnode(&out, lbuf, p, bl);
@@ -2826,13 +2817,8 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     if (!lbuf->dbuf.error) {
         invariant(le_off + le_len == lbuf->dbuf.off);
         u_int32_t this_x = x1764_memory(lbuf->dbuf.buf + le_off, le_len);
-        u_int32_t this_prod = lbuf->rand4fingerprint * this_x;
-        lbuf->local_fingerprint += this_prod;
         if (0) {
             printf("%s:%d x1764(buf+%d, %d)=%8x\n", __FILE__, __LINE__, le_off, le_len, this_x);
-            printf("%s:%d rand4fingerprint=%8x\n", __FILE__, __LINE__, lbuf->rand4fingerprint);
-            printf("%s:%d this_prod=%8x\n", __FILE__, __LINE__, this_prod);
-            printf("%s:%d local_fingerprint=%8x\n", __FILE__, __LINE__, lbuf->local_fingerprint);
         }
     }
 }
@@ -2850,8 +2836,6 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     int result = 0;
 
     //printf("  finishing leaf node progress=%d fin at %d\n", bl->progress, bl->progress+progress_allocation);
-    //printf("local_fingerprint=%8x\n", lbuf->local_fingerprint);
-    putbuf_int32_at(&lbuf->dbuf, lbuf->local_fingerprint_p, lbuf->local_fingerprint);
     putbuf_int64_at(&lbuf->dbuf, lbuf->nkeys_p,             lbuf->nkeys);
     putbuf_int64_at(&lbuf->dbuf, lbuf->ndata_p,             lbuf->ndata);
     putbuf_int64_at(&lbuf->dbuf, lbuf->dsize_p,             lbuf->dsize);
@@ -3098,12 +3082,10 @@ static int setup_nonleaf_block (int n_children,
         struct subtree_estimates new_subtree_estimates = zero_estimates;
 
         struct subtree_info *XMALLOC_N(n_children, subtrees_array);
-        int32_t fingerprint = 0;
         for (int i = 0; i < n_children; i++) {
             int64_t from_blocknum = first_child_offset_in_subtrees + i;
             subtrees_array[i] = subtrees->subtrees[from_blocknum];
             add_estimates(&new_subtree_estimates, &subtrees->subtrees[from_blocknum].subtree_estimates);
-            fingerprint += subtrees->subtrees[from_blocknum].fingerprint;
         }
 
         int r = allocate_block(out, blocknum);
@@ -3111,7 +3093,7 @@ static int setup_nonleaf_block (int n_children,
             toku_free(subtrees_array);
             result = r;
         } else {
-            allocate_node(next_subtrees, *blocknum, new_subtree_estimates, fingerprint);
+            allocate_node(next_subtrees, *blocknum, new_subtree_estimates);
             
             *pivots_p = pivots;
             *subtrees_info_p = subtrees_array;
@@ -3147,8 +3129,6 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     node->height=height;
     node->u.n.n_children = n_children;
     node->flags = 0;
-    node->local_fingerprint = 0;
-    node->rand4fingerprint = loader_random();
 
     XMALLOC_N(n_children-1, node->u.n.childkeys);
     for (int i=0; i<n_children-1; i++) 
@@ -3168,7 +3148,6 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     XMALLOC_N(n_children, node->u.n.childinfos);
     for (int i=0; i<n_children; i++) {
 	struct brtnode_nonleaf_childinfo *ci = &node->u.n.childinfos[i];
-	ci->subtree_fingerprint = subtree_info[i].fingerprint;
 	ci->subtree_estimates   = subtree_info[i].subtree_estimates;
 	ci->blocknum            = make_blocknum(subtree_info[i].block);
 	ci->have_fullhash       = FALSE;

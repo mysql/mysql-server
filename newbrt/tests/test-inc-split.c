@@ -43,7 +43,6 @@ char *fname;
 static void
 doit (int ksize __attribute__((__unused__))) {
     BLOCKNUM cnodes[BRT_FANOUT], bnode, anode;
-    u_int32_t fingerprints[BRT_FANOUT];
 
     char *keys[BRT_FANOUT-1];
     int keylens[BRT_FANOUT-1];
@@ -64,12 +63,11 @@ doit (int ksize __attribute__((__unused__))) {
     for (i=0; i<BRT_FANOUT; i++) {
 	r=toku_testsetup_leaf(t, &cnodes[i]);
 	assert(r==0);
-	fingerprints[i]=0;
 	char key[KSIZE+10];
 	int keylen = 1+snprintf(key, KSIZE, "%08d%0*d", i*10000+1, KSIZE-9, 0);
 	char val[1];
 	char vallen=0;
-	r=toku_testsetup_insert_to_leaf(t, cnodes[i], key, keylen, val, vallen, &fingerprints[i]);
+	r=toku_testsetup_insert_to_leaf(t, cnodes[i], key, keylen, val, vallen);
 	assert(r==0);
     }
 
@@ -80,14 +78,13 @@ doit (int ksize __attribute__((__unused__))) {
 	keys[i]=toku_strdup(key);
     }
 
-    r = toku_testsetup_nonleaf(t, 1, &bnode, BRT_FANOUT, cnodes, fingerprints, keys, keylens);
+    r = toku_testsetup_nonleaf(t, 1, &bnode, BRT_FANOUT, cnodes, keys, keylens);
     assert(r==0);
 
     for (i=0; i+1<BRT_FANOUT; i++) {
 	toku_free(keys[i]);
     }
 
-    u_int32_t bfingerprint=0;
     {
 	const int magic_size = (NODESIZE-toku_testsetup_get_sersize(t, bnode))/2-25;
 	//printf("magic_size=%d\n", magic_size);
@@ -95,22 +92,22 @@ doit (int ksize __attribute__((__unused__))) {
 	int keylen = 1+snprintf(key, KSIZE, "%08d%0*d", 150002, magic_size, 0);
 	char val[1];
 	char vallen=0;
-	r=toku_testsetup_insert_to_nonleaf(t, bnode, BRT_INSERT, key, keylen, val, vallen, &bfingerprint);
+	r=toku_testsetup_insert_to_nonleaf(t, bnode, BRT_INSERT, key, keylen, val, vallen);
 
 	keylen = 1+snprintf(key, KSIZE, "%08d%0*d", 2, magic_size-1, 0);
-	r=toku_testsetup_insert_to_nonleaf(t, bnode, BRT_INSERT, key, keylen, val, vallen, &bfingerprint);	
+	r=toku_testsetup_insert_to_nonleaf(t, bnode, BRT_INSERT, key, keylen, val, vallen);
     }
     //printf("%lld sersize=%d\n", bnode, toku_testsetup_get_sersize(t, bnode));
     // Now we have an internal node which has full children and the buffers are nearly full
 
-    r = toku_testsetup_nonleaf(t, 2, &anode, 1,          &bnode, &bfingerprint,    0, 0);
+    r = toku_testsetup_nonleaf(t, 2, &anode, 1,          &bnode, 0, 0);
     assert(r==0);
     {
 	char key[20];
 	int keylen = 1+snprintf(key, 20, "%08d", 3);
 	char val[1];
 	char vallen=0;
-	r=toku_testsetup_insert_to_nonleaf(t, anode, BRT_INSERT, key, keylen, val, vallen, &bfingerprint); 
+	r=toku_testsetup_insert_to_nonleaf(t, anode, BRT_INSERT, key, keylen, val, vallen);
     }
     if (0)
     {

@@ -19,7 +19,7 @@ int toku_testsetup_leaf(BRT brt, BLOCKNUM *blocknum) {
 }
 
 // Don't bother to clean up carefully if something goes wrong.  (E.g., it's OK to have malloced stuff that hasn't been freed.)
-int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens) {
+int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, char **keys, int *keylens) {
     BRTNODE node;
     assert(n_children<=BRT_FANOUT);
     int r = toku_read_brt_header_and_store_in_cachefile(brt->cf, MAX_LSN, &brt->h, &ignore_if_was_already_open);
@@ -32,8 +32,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, BLOCKNUM *blocknum, int n_child
     node->u.n.n_bytes_in_buffers=0;
     int i;
     for (i=0; i<n_children; i++) {
-	node->u.n.childinfos[i] = (struct brtnode_nonleaf_childinfo){ .subtree_fingerprint = subtree_fingerprints[i],
-								      .subtree_estimates   = zero_estimates,
+	node->u.n.childinfos[i] = (struct brtnode_nonleaf_childinfo){ .subtree_estimates   = zero_estimates,
 								      .blocknum            = children[i],
 								      .n_bytes_in_buffer   = 0 };
 	r = toku_fifo_create(&BNC_BUFFER(node,i)); if (r!=0) return r;
@@ -66,14 +65,14 @@ int toku_testsetup_get_sersize(BRT brt, BLOCKNUM diskoff) // Return the size on 
     return size;
 }
 
-int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
+int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int keylen, char *val, int vallen) {
     void *node_v;
     int r;
     r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;
-    toku_verify_or_set_counts(node, FALSE);
+    toku_verify_or_set_counts(node);
     assert(node->height==0);
 
     size_t lesize, disksize;
@@ -99,7 +98,6 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
 	LEAFENTRY storeddata=storeddatav;
 	// It's already there.  So now we have to remove it and put the new one back in.
 	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(storeddata);
-	node->local_fingerprint     -= node->rand4fingerprint*toku_le_crc(storeddata);
 	toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, leafentry_memsize(storeddata));
 	// Now put the new kv in.
 	toku_omt_set_at(node->u.l.buffer, leafentry, idx);
@@ -109,18 +107,16 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     }
 
     node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + disksize;
-    node->local_fingerprint += node->rand4fingerprint*toku_le_crc(leafentry);
 
     node->dirty=1;
-    *subtree_fingerprint = node->local_fingerprint;
 
-    toku_verify_or_set_counts(node, FALSE);
+    toku_verify_or_set_counts(node);
 
     r = toku_unpin_brtnode(brt, node_v);
     return r;
 }
 
-int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_type cmdtype, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint) {
+int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_type cmdtype, char *key, int keylen, char *val, int vallen) {
     void *node_v;
     int r;
     r = toku_cachetable_get_and_pin(brt->cf, blocknum, toku_cachetable_hash(brt->cf, blocknum), &node_v, NULL,
@@ -137,9 +133,6 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     XIDS xids_0 = xids_get_root_xids();
     r = toku_fifo_enq(BNC_BUFFER(node, childnum), key, keylen, val, vallen, cmdtype, xids_0);
     assert(r==0);
-    u_int32_t fdelta = node->rand4fingerprint * toku_calc_fingerprint_cmd(cmdtype, xids_0, key, keylen, val, vallen);
-    node->local_fingerprint += fdelta;
-    *subtree_fingerprint += fdelta;
     int sizediff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids_0);
     node->u.n.n_bytes_in_buffers += sizediff;
     BNC_NBYTESINBUF(node, childnum) += sizediff;

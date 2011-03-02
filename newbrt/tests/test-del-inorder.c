@@ -17,7 +17,6 @@ char *fname;
 static void
 doit (void) {
     BLOCKNUM nodea,nodeb;
-    u_int32_t fingerprinta=0;
 
     int r;
     
@@ -35,11 +34,10 @@ doit (void) {
     r = toku_testsetup_leaf(t, &nodea);
     assert(r==0);
 
-    r = toku_testsetup_nonleaf(t, 1, &nodeb, 1, &nodea, &fingerprinta, 0, 0);
+    r = toku_testsetup_nonleaf(t, 1, &nodeb, 1, &nodea, 0, 0);
     assert(r==0);
 
-    u_int32_t fingerprint=0;
-    r = toku_testsetup_insert_to_nonleaf(t, nodeb, BRT_DELETE_ANY, "hello", 6, 0, 0, &fingerprint);
+    r = toku_testsetup_insert_to_nonleaf(t, nodeb, BRT_DELETE_ANY, "hello", 6, 0, 0);
     assert(r==0);
 
     r = toku_testsetup_root(t, nodeb);

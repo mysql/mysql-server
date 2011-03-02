@@ -516,7 +516,7 @@ generate_logprint (void) {
 		fprintf(pf, "          u_int32_t actual_murmur = x1764_finish(&checksum);\n");
 		fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
 		fprintf(pf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
-		fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" actual_fingerprint=%%08x\", actual_murmur);\n");
+		fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" checksum=%%08x\", actual_murmur);\n");
 		fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
 		fprintf(pf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
 		fprintf(pf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");

@@ -149,19 +149,11 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
     printf(" layout_version_original=%d\n", n->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" build_id=%d\n", n->build_id);
-    printf(" rand4fp     =%08x\n", n->rand4fingerprint);
-    printf(" localfp     =%08x\n", n->local_fingerprint);
     if (n->height>0) {
 	printf(" n_children=%d\n", n->u.n.n_children);
 	printf(" total_childkeylens=%u\n", n->u.n.totalchildkeylens);
 	printf(" n_bytes_in_buffers=%u\n", n->u.n.n_bytes_in_buffers);
 	int i;
-	printf(" subfingerprints={");
-	for (i=0; i<n->u.n.n_children; i++) {
-	    if (i>0) printf(" ");
-	    printf("%08x", BNC_SUBTREE_FINGERPRINT(n, i));
-	}
-	printf("}\n");
 	printf(" subleafentry_estimates={");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    if (i>0) printf(" ");
