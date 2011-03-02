@@ -3,13 +3,6 @@ include/master-slave.inc
 CREATE TABLE t1 ( a int ) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t1 VALUES (1);
-OPTIMIZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	error	Lock wait timeout exceeded; try restarting transaction
-test.t1	optimize	status	Operation failed
-Warnings:
-Error	1205	Lock wait timeout exceeded; try restarting transaction
 OPTIMIZE TABLE non_existing;
 Table	Op	Msg_type	Msg_text
 test.non_existing	optimize	Error	Table 'test.non_existing' doesn't exist

@@ -556,24 +556,27 @@ Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val)
 
 int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
-  if (aggr)
+  /*
+    Dependent subselects may be executed multiple times, making
+    set_aggregator to be called multiple times. The aggregator type
+    will be the same, but it needs to be reset so that it is
+    reevaluated with the new dependent data.
+    This function may also be called multiple times during query optimization.
+    In this case, the type may change, so we delete the old aggregator,
+    and create a new one.
+  */
+  if (aggr && aggregator == aggr->Aggrtype())
   {
-    /* 
-      Dependent subselects may be executed multiple times, making
-      set_aggregator to be called multiple times. The aggregator type
-      will be the same, but it needs to be reset so that it is
-      reevaluated with the new dependent data.
-    */
-    DBUG_ASSERT(aggregator == aggr->Aggrtype());
     aggr->clear();
     return FALSE;
   }
+
+  delete aggr;
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
     aggr= new Aggregator_distinct(this);
     break;
-
   case Aggregator::SIMPLE_AGGREGATOR:
     aggr= new Aggregator_simple(this);
     break;

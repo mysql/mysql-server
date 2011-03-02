@@ -2430,17 +2430,17 @@ static ulonglong read_timestamp(THD *thd)
 
 static bool check_timestamp(sys_var *self, THD *thd, set_var *var)
 {
-  time_t val;
+  longlong val;
 
   if (!var->value)
     return FALSE;
 
-  val= (time_t) var->save_result.ulonglong_value;
-  if (val < (time_t) MY_TIME_T_MIN || val > (time_t) MY_TIME_T_MAX)
+  val= (longlong) var->save_result.ulonglong_value;
+  if (val != 0 &&          // this is how you set the default value
+      (val < TIMESTAMP_MIN_VALUE || val > TIMESTAMP_MAX_VALUE))
   {
-    my_message(ER_UNKNOWN_ERROR, 
-               "This version of MySQL doesn't support dates later than 2038",
-               MYF(0));
+    char buf[64];
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "timestamp", llstr(val, buf));
     return TRUE;
   }
   return FALSE;
@@ -3082,7 +3082,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
       return true;
-    else if (!(locale= my_locale_by_name(res->c_ptr())))
+    else if (!(locale= my_locale_by_name(res->c_ptr_safe())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());

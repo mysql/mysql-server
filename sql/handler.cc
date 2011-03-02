@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2700,6 +2700,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
+  case HA_ERR_RECORD_DELETED:
   case HA_ERR_END_OF_FILE:
     textno=ER_KEY_NOT_FOUND;
     break;

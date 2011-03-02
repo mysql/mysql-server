@@ -1,0 +1,59 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+SET @old_debug= @@session.debug;
+
+--echo #
+--echo # Bug#36022 please log more information about "Sort aborted" queries
+--echo #
+
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int);
+INSERT INTO t1(f1) VALUES (0),(1),(2),(3),(4),(5);
+
+SET session debug= '+d,make_char_array_fail';
+CALL mtr.add_suppression("Out of sort memory");
+--error ER_OUT_OF_SORTMEMORY
+SELECT * FROM t1 ORDER BY f1 ASC, f0;
+SET session debug= @old_debug;
+
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+--error ER_SP_WRONG_NO_OF_ARGS
+DELETE FROM t1 ORDER BY (f1(10)) LIMIT 1;
+
+DROP TABLE t1;
+DROP FUNCTION f1;
+
+--echo #
+--echo # Bug #11747102
+--echo # 30771: LOG MORE INFO ABOUT THREADS KILL'D AND SORT ABORTED MESSAGES
+--echo #
+
+connect (con1, localhost, root);
+connect (con2, localhost, root);
+
+--echo # connection 1
+connection con1;
+CREATE TABLE t1(f0 int auto_increment primary key, f1 int);
+INSERT INTO t1(f1) VALUES (0),(1),(2),(3),(4),(5);
+
+let $ID= `SELECT @id := CONNECTION_ID()`;
+
+SET DEBUG_SYNC='filesort_start SIGNAL filesort_started WAIT_FOR filesort_killed';
+--echo # Sending: (not reaped since connection is killed later)
+--send SELECT * FROM t1 ORDER BY f1 ASC, f0
+
+--echo # connection 2
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+SET DEBUG_SYNC='now WAIT_FOR filesort_started';
+KILL @id;
+SET DEBUG_SYNC='now SIGNAL filesort_killed';
+
+--echo # connection default
+connection default;
+disconnect con1;
+disconnect con2;
+--source include/wait_until_count_sessions.inc
+SET DEBUG_SYNC= "RESET";
+DROP TABLE t1;

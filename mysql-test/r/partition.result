@@ -2264,3 +2264,51 @@ INSERT INTO t1 VALUES(0);
 DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 End of 5.1 tests
+#
+# BUG#55385: UPDATE statement throws an error, but still updates
+#            the table entries
+CREATE TABLE t1_part (
+partkey int,
+nokey int
+) PARTITION BY LINEAR HASH(partkey) PARTITIONS 3;
+INSERT INTO t1_part VALUES (1, 1) , (10, 10);
+CREATE VIEW v1 AS SELECT * FROM t1_part;
+
+# Should be (1,1),(10,10)
+SELECT * FROM t1_part;
+partkey	nokey
+1	1
+10	10
+
+# Case 1
+# Update is refused because partitioning key is updated
+UPDATE t1_part AS A NATURAL JOIN t1_part B SET A.partkey = 2, B.nokey = 3;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+UPDATE t1_part AS A NATURAL JOIN t1_part B SET A.nokey = 2, B.partkey = 3;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+
+# Case 2
+# Like 1, but partition accessed through a view
+UPDATE t1_part AS A NATURAL JOIN v1 as B SET A.nokey = 2 , B.partkey = 3;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+UPDATE v1 AS A NATURAL JOIN t1_part as B SET A.nokey = 2 , B.partkey = 3;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+
+# Should be (1,1),(10,10)
+SELECT * FROM t1_part;
+partkey	nokey
+1	1
+10	10
+
+# Case 3
+# Update is accepted because partitioning key is not updated
+UPDATE t1_part AS A NATURAL JOIN t1_part B SET A.nokey = 2 , B.nokey = 3;
+
+# Should be (1,3),(10,3)
+SELECT * FROM t1_part;
+partkey	nokey
+1	3
+10	3
+
+DROP VIEW v1;
+DROP TABLE t1_part;

@@ -32,6 +32,7 @@
 #include "probes_mysql.h"
 #include "sql_test.h"                           // TEST_filesort
 #include "opt_range.h"                          // SQL_SELECT
+#include "debug_sync.h"
 
 /// How to write record_ref.
 #define WRITE_REF(file,from) \
@@ -123,6 +124,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
 
   MYSQL_FILESORT_START(table->s->db.str, table->s->table_name.str);
+  DEBUG_SYNC(thd, "filesort_start");
 
   /*
    Release InnoDB's adaptive hash index latch (if holding) before
@@ -324,8 +326,25 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   if (error)
-    my_message(ER_FILSORT_ABORT, ER(ER_FILSORT_ABORT),
-               MYF(ME_ERROR+ME_WAITTANG));
+  {
+    int kill_errno= thd->killed_errno();
+    DBUG_ASSERT(thd->is_error() || kill_errno);
+    my_printf_error(ER_FILSORT_ABORT,
+                    "%s: %s",
+                    MYF(ME_ERROR + ME_WAITTANG),
+                    ER_THD(thd, ER_FILSORT_ABORT),
+                    kill_errno ? ER(kill_errno) : thd->stmt_da->message());
+                    
+    if (global_system_variables.log_warnings > 1)
+    {
+      sql_print_warning("%s, host: %s, user: %s, thread: %lu, query: %-.4096s",
+                        ER_THD(thd, ER_FILSORT_ABORT),
+                        thd->security_ctx->host_or_ip,
+                        &thd->security_ctx->priv_user[0],
+                        (ulong) thd->thread_id,
+                        thd->query());
+    }
+  }
   else
     statistic_add(thd->status_var.filesort_rows,
 		  (ulong) records, &LOCK_status);
@@ -368,6 +387,9 @@ static char **make_char_array(char **old_pos, register uint fields,
   register char **pos;
   char *char_pos;
   DBUG_ENTER("make_char_array");
+
+  DBUG_EXECUTE_IF("make_char_array_fail",
+                  DBUG_SET("+d,simulate_out_of_memory"););
 
   if (old_pos ||
       (old_pos= (char**) my_malloc((uint) fields*(length+sizeof(char*)),
