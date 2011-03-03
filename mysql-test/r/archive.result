@@ -12756,3 +12756,19 @@ a
 1
 2
 DROP TABLE t1;
+#
+# BUG#57162 - valgrind errors, random data when returning
+#             ordered data from archive tables
+#
+SET sort_buffer_size=32804;
+CREATE TABLE t1(a INT, b CHAR(255), c CHAR(255), d CHAR(255),
+e CHAR(255), f INT) ENGINE=ARCHIVE DEFAULT CHARSET utf8;
+INSERT INTO t1 VALUES(-1,'b','c','d','e',1);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT t1.* FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6;
+SELECT * FROM t1 ORDER BY f LIMIT 1;
+a	b	c	d	e	f
+-1	b	c	d	e	1
+DROP TABLE t1;
+SET sort_buffer_size=DEFAULT;
