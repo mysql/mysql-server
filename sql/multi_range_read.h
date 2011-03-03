@@ -271,7 +271,8 @@ public:
             mrr_funcs.skip_index_tuple(mrr_iter, range_info));
   }
   
-  bool set_interruption_temp_buffer(uint rowid_length, uint key_len,
+  bool set_interruption_temp_buffer(uint rowid_length, uint key_len, 
+                                    uint saved_pk_len,
                                     uchar **space_start, uchar *space_end);
   void set_no_interruption_temp_buffer();
 
@@ -300,20 +301,28 @@ private:
   
   /* TRUE == reached eof when enumerating ranges */
   bool source_exhausted;
-  
-  bool support_scan_interruptions;
+   
   /* 
-    Space where we save the rowid of the last record we've returned. This is
-    needed for the cases where index scan is interrupted by some other activity
-    that destroys contents in file->record[0] (which some storage engines use
-    to store the last rowid value)
-  */
+    Following members are for interrupt_read()/resume_read(). The idea is that 
+    in some cases index scan that is done by this object is interrupted by
+    rnd_pos() calls made by Mrr_ordered_rndpos_reader. The problem is that
+    we're sharing handler->record[0] with that object, and it destroys its
+    contents.
+    We need to save/restore our current
+    - index tuple (for pushed index condition checks)
+    - clustered primary key values (again, for pushed index condition checks)
+    - rowid of the last record we've retrieved (in case this rowid matches
+      multiple ranges and we'll need to return it again)
+  */ 
+  bool support_scan_interruptions;
+  /* Space where we save the rowid of the last record we've returned */
   uchar *saved_rowid;
-
+  
   /* TRUE <=> saved_rowid has the last saved rowid */
   bool have_saved_rowid;
-
-  uchar *saved_key_tuple;
+  
+  uchar *saved_key_tuple; /* Saved current key tuple */
+  uchar *saved_primary_key; /* Saved current primary key tuple */
 
   static int compare_keys(void* arg, uchar* key1, uchar* key2);
   static int compare_keys_reverse(void* arg, uchar* key1, uchar* key2);
