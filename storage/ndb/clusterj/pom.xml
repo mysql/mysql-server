@@ -29,6 +29,7 @@
     <module>clusterj-core</module>
     <module>clusterj-test</module>
     <module>clusterj-tie</module>
+    <module>clusterj-jdbc</module>
     <module>clusterj-jpatest</module>
     <module>clusterj-openjpa</module>
   </modules>
