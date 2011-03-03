@@ -1464,8 +1464,15 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 			      (char *)"<no matter>",
 			      (char *)in_left_expr_name);
 
-    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
-    //psergey: placed then removed: select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
+    /*
+      The uncacheable property controls a number of actions, e.g. whether to
+      save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
+      plans with a temp table where the original JOIN was overriden by
+      make_simple_join. The UNCACHEABLE_EXPLAIN is ignored by EXPLAIN, thus
+      non-correlated subqueries will not appear as such to EXPLAIN.
+    */
+    master_unit->uncacheable|= UNCACHEABLE_EXPLAIN;
+    select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
   }
 
   if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
@@ -1529,6 +1536,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
   SELECT_LEX *select_lex= join->select_lex;
   DBUG_ENTER("Item_in_subselect::single_value_in_to_exists_transformer");
 
+  /*
+    The IN=>EXISTS transformation makes non-correlated subqueries correlated.
+  */
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (join->having || select_lex->with_sum_func ||
       select_lex->group_list.elements)
@@ -1742,7 +1752,15 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     optimizer->keep_top_level_cache();
 
     thd->lex->current_select= current;
-    master_unit->uncacheable|= UNCACHEABLE_DEPENDENT;
+    /*
+      The uncacheable property controls a number of actions, e.g. whether to
+      save/restore (via init_save_join_tab/restore_tmp) the original JOIN for
+      plans with a temp table where the original JOIN was overriden by
+      make_simple_join. The UNCACHEABLE_EXPLAIN is ignored by EXPLAIN, thus
+      non-correlated subqueries will not appear as such to EXPLAIN.
+    */
+    master_unit->uncacheable|= UNCACHEABLE_EXPLAIN;
+    select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
 
     if (!abort_on_null && left_expr->maybe_null && !pushed_cond_guards)
     {
@@ -1796,6 +1814,9 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
 
   DBUG_ENTER("Item_in_subselect::row_value_in_to_exists_transformer");
 
+  /*
+    The IN=>EXISTS transformation makes non-correlated subqueries correlated.
+  */
   select_lex->uncacheable|= UNCACHEABLE_DEPENDENT;
   if (is_having_used)
   {

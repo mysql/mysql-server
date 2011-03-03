@@ -707,3 +707,42 @@ f4
 f
 d
 drop table t1,t2;
+#
+# LP BUG#718763 Second crash in select_describe() and materialization
+#
+CREATE TABLE t1 ( f1 int(11), f3 int(11), f10 varchar(1), KEY (f3)) ;
+INSERT INTO t1 VALUES ('28','6','m'),('29','4','c');
+CREATE TABLE t2 (f11 varchar(1)) ;
+INSERT INTO t2 VALUES ('f'),('d');
+SET @old_optimizer_switch = @@session.optimizer_switch;
+SET SESSION optimizer_switch = 'materialization=on';
+EXPLAIN
+SELECT * FROM t1
+WHERE f3 = (
+SELECT t1.f3 FROM t1
+WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+SELECT * FROM t1
+WHERE f3 = (
+SELECT t1.f3 FROM t1
+WHERE ( t1.f10 ) IN ( SELECT f11 FROM t2 GROUP BY f11 ));
+f1	f3	f10
+EXPLAIN
+SELECT * FROM t1
+WHERE f3 = (
+SELECT f3 FROM t1
+WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using temporary; Using filesort
+SELECT * FROM t1
+WHERE f3 = (
+SELECT f3 FROM t1
+WHERE ( f10, f10 ) IN ( SELECT f11, f11 FROM t2 GROUP BY f11 ));
+f1	f3	f10
+SET SESSION optimizer_switch = @old_optimizer_switch;
+drop table t1,t2;
