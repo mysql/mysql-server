@@ -3504,3 +3504,24 @@ deallocate prepare s;
 DROP TABLE ot1, ot2, ot3, it1;
 
 --echo # End of the test for bug#57623.
+
+--echo #
+--echo # Bug#11766739: Crash in tmp_table_param::init() with semijoin=on
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+
+let $query=
+SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+             FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End of the test for bug#11766739.
