@@ -20,7 +20,7 @@
   <groupId>clusterj</groupId>
   <artifactId>clusterj-jdbc</artifactId>
   <name>ClusterJ JDBC Plugin</name>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>7.1.11-SNAPSHOT</version>
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -53,7 +53,7 @@
     <dependency>
       <groupId>mysql</groupId>
       <artifactId>mysql-connector-java</artifactId>
-      <version>5.1.13-SNAPSHOT</version>
+      <version>5.1.15</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
