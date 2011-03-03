@@ -519,6 +519,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_arg[res_length-1]=tail;                   // save extra length
   tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
+  tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
@@ -606,6 +607,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
     goto wrong_key;				     // Wrong key
   tmp_value.length(length-1-tail);
+  tmp_value.set_charset(&my_charset_bin);
   return &tmp_value;
 
 error:
