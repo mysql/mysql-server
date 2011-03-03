@@ -108,7 +108,7 @@ else
 NEWBRT_O_FILES = newbrt.o
 endif
 
-NEWBRT_O_FILES += brtloader.$(OEXT)
+NEWBRT_O_FILES += brtloader.$(OEXT) quicklz.$(OEXT) compress.$(OEXT)
 
 brtloader.$(OEXT): $(DEPEND_COMPILE)
 ifeq ($(BRTLOADER),cilk)

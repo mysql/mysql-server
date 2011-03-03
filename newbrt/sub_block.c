@@ -6,12 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include "quicklz.h"
 #include <zlib.h>
-
 #include "toku_assert.h"
 #include "x1764.h"
 #include "threadpool.h"
 #include "sub_block.h"
+#include "compress.h"
 
 void 
 sub_block_init(struct sub_block *sub_block) {
@@ -120,6 +121,19 @@ compress_work_init(struct compress_work *w, struct sub_block *sub_block) {
     w->sub_block = sub_block;
 }
 
+static enum toku_compression_method toku_compress_method = TOKU_QUICKLZ_METHOD;
+void toku_set_default_compression_method (enum toku_compression_method a) {
+    switch (a) {
+    case TOKU_ZLIB_METHOD: 
+    case TOKU_QUICKLZ_METHOD:
+	toku_compress_method = a;
+	return;
+    }
+    // fall through to error
+    assert(0);
+}
+
+
 void
 compress_sub_block(struct sub_block *sub_block) {
     // compress it
@@ -127,12 +141,9 @@ compress_sub_block(struct sub_block *sub_block) {
     Bytef *compressed_ptr = (Bytef *) sub_block->compressed_ptr;
     uLongf uncompressed_len = sub_block->uncompressed_size;
     uLongf real_compressed_len = sub_block->compressed_size_bound;
-    int compression_level = 5;
-
-    int r = compress2((Bytef*)compressed_ptr, &real_compressed_len,
-                      (Bytef*)uncompressed_ptr, uncompressed_len,
-                      compression_level);
-    assert(r == Z_OK);
+    toku_compress(toku_compress_method,
+		  compressed_ptr, &real_compressed_len,
+		  uncompressed_ptr, uncompressed_len);
     sub_block->compressed_size = real_compressed_len; // replace the compressed size estimate with the real size
 
     // checksum it
@@ -234,16 +245,9 @@ decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompre
         if (verbose_decompress_sub_block) fprintf(stderr, "%s:%d xsum %u expected %u\n", __FUNCTION__, __LINE__, xsum, expected_xsum);
         result = EINVAL;
     } else {
-
         // decompress
-        uLongf destlen = uncompress_size;
-        int r = uncompress(uncompress_ptr, &destlen, compress_ptr, compress_size);
-        if (r != Z_OK || destlen != uncompress_size) {
-            if (verbose_decompress_sub_block) fprintf(stderr, "%s:%d uncompress %d %lu %u\n", __FUNCTION__, __LINE__, r, destlen, uncompress_size);
-            result = EINVAL;
-        }
+	toku_decompress(uncompress_ptr, uncompress_size, compress_ptr, compress_size);
     }
-
     return result;
 }
 
