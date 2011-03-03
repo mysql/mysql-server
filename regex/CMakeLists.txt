@@ -18,12 +18,11 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 ADD_CONVENIENCE_LIBRARY(regex ${REGEX_SOURCES})
 
-ADD_EXECUTABLE(re main.c split.c debug.c)
-TARGET_LINK_LIBRARIES(re regex strings mysys)
+IF(WITH_UNIT_TESTS)
+  ADD_EXECUTABLE(re main.c split.c debug.c)
+  TARGET_LINK_LIBRARIES(re regex strings mysys)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/tests
-               ${CMAKE_CURRENT_BINARY_DIR}/re_tests COPYONLY)
-
-ADD_TEST(regex1 re     -i${CMAKE_CURRENT_BINARY_DIR}/re_tests)
-ADD_TEST(regex2 re -el -i${CMAKE_CURRENT_BINARY_DIR}/re_tests)
-ADD_TEST(regex3 re -er -i${CMAKE_CURRENT_BINARY_DIR}/re_tests)
+  ADD_TEST(regex1 re     -I)
+  ADD_TEST(regex2 re -el -I)
+  ADD_TEST(regex3 re -er -I)
+ENDIF()
