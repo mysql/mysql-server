@@ -403,3 +403,28 @@ table1.col_varchar_1024_latin1_key = table2.col_varchar_10_latin1 AND table1.pk<
 count(*)
 0
 drop table t1, t2;
+#
+# BUG#693747: Assertion multi_range_read.cc:908: int DsMrr_impl::dsmrr_init(
+#
+set @_save_join_cache_level= @@join_cache_level;
+set @_save_join_buffer_size= @@join_buffer_size;
+set join_cache_level=8;
+set join_buffer_size=10000;
+CREATE TABLE t1 (
+f2 varchar(32) COLLATE latin1_swedish_ci, 
+f3 int(11), 
+f4 varchar(1024) COLLATE utf8_bin, 
+f5 varchar(1024) COLLATE latin1_bin, 
+KEY (f5)
+) ENGINE=Aria TRANSACTIONAL=0 ;
+# Fill the table with some data
+SELECT alias2.* , alias1.f2 
+FROM 
+t1 AS alias1
+LEFT JOIN t1 AS alias2 ON alias1.f2 = alias2.f5
+WHERE
+alias2.f3 < 0;
+f2	f3	f4	f5	f2
+set join_cache_level=@_save_join_cache_level;
+set join_buffer_size=@_save_join_buffer_size;
+drop table t1;
