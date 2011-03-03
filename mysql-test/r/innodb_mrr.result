@@ -736,3 +736,32 @@ SELECT * FROM t1 WHERE c2 <=> NULL ORDER BY c2 LIMIT 2;
 c1	c2	c3
 08:29:45	NULL	2009-02-01
 drop table `t1`;
+#
+# BUG#707925: Wrong result with join_cache_level=6 optimizer_use_mrr =
+#   force (incremental, BKA join)
+#
+set @_save_join_cache_level= @@join_cache_level;
+set join_cache_level = 6;
+CREATE TABLE t1 ( 
+f1 int(11), f2 int(11), f3 varchar(1), f4 varchar(1), 
+PRIMARY KEY (f1), 
+KEY (f3), 
+KEY (f2)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('11','8','f','f'),('12','5','v','v'),('13','8','s','s'),
+('14','8','a','a'),('15','6','p','p'),('16','7','z','z'),('17','2','a','a'),
+('18','5','h','h'),('19','7','h','h'),('20','2','v','v'),('21','9','v','v'),
+('22','142','b','b'),('23','3','y','y'),('24','0','v','v'),('25','3','m','m'),
+('26','5','z','z'),('27','9','n','n'),('28','1','d','d'),('29','107','a','a');
+select count(*) from (
+SELECT alias1.f2 
+FROM 
+t1 AS alias1 JOIN ( 
+t1 AS alias2 FORCE KEY (f3) JOIN 
+t1 AS alias3 FORCE KEY (f2) ON alias3.f2 = alias2.f2 AND alias3.f4 = alias2.f3 
+) ON alias3.f1 <= alias2.f1
+) X;
+count(*)
+361
+set join_cache_level=@_save_join_cache_level;
+drop table t1;

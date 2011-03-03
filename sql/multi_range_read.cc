@@ -387,15 +387,25 @@ int Mrr_ordered_index_reader::get_next(char **range_info)
 
 bool Mrr_ordered_index_reader::set_interruption_temp_buffer(uint rowid_length,
                                                             uint key_len, 
+                                                            uint saved_pk_len,
                                                             uchar **space_start,
                                                             uchar *space_end)
 {
-  if (space_end - *space_start <= (ptrdiff_t)(rowid_length + key_len))
+  if (space_end - *space_start <= (ptrdiff_t)(rowid_length + key_len + saved_pk_len))
     return TRUE;
   support_scan_interruptions= TRUE; 
   
   saved_rowid= *space_start;
   *space_start += rowid_length;
+  
+  if (saved_pk_len)
+  {
+    saved_primary_key= *space_start;
+    *space_start += saved_pk_len;
+  }
+  else
+    saved_primary_key= NULL;
+
   saved_key_tuple= *space_start;
   *space_start += key_len;
 
@@ -406,17 +416,25 @@ bool Mrr_ordered_index_reader::set_interruption_temp_buffer(uint rowid_length,
 void Mrr_ordered_index_reader::set_no_interruption_temp_buffer()
 {
   support_scan_interruptions= FALSE;
-  saved_key_tuple= saved_rowid= NULL; /* safety */
+  saved_key_tuple= saved_rowid= saved_primary_key= NULL; /* safety */
   have_saved_rowid= FALSE;
 }
 
 void Mrr_ordered_index_reader::interrupt_read()
 {
   DBUG_ASSERT(support_scan_interruptions);
+  TABLE *table= file->get_table();
   /* Save the current key value */
-  key_copy(saved_key_tuple, file->get_table()->record[0], 
-           &file->get_table()->key_info[file->active_index],
+  key_copy(saved_key_tuple, table->record[0],
+           &table->key_info[file->active_index],
            keypar.key_tuple_length);
+  
+  if (saved_primary_key)
+  {
+    key_copy(saved_primary_key, table->record[0], 
+             &table->key_info[table->s->primary_key],
+             table->key_info[table->s->primary_key].key_length);
+  }
 
   /* Save the last rowid */
   memcpy(saved_rowid, file->ref, file->ref_length);
@@ -433,9 +451,16 @@ void Mrr_ordered_index_reader::position()
 
 void Mrr_ordered_index_reader::resume_read()
 {
-  key_restore(file->get_table()->record[0], saved_key_tuple, 
-              &file->get_table()->key_info[file->active_index],
+  TABLE *table= file->get_table();
+  key_restore(table->record[0], saved_key_tuple, 
+              &table->key_info[file->active_index],
               keypar.key_tuple_length);
+  if (saved_primary_key)
+  {
+    key_restore(table->record[0], saved_primary_key, 
+                &table->key_info[table->s->primary_key],
+                table->key_info[table->s->primary_key].key_length);
+  }
 }
 
 
@@ -819,9 +844,17 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     /* Ordered index reader needs some space to store an index tuple */
     if (strategy != index_strategy)
     {
+      uint saved_pk_length=0;
+      if (h_idx->primary_key_is_clustered())
+      {
+        uint pk= h_idx->get_table()->s->primary_key;
+        saved_pk_length= h_idx->get_table()->key_info[pk].key_length;
+      }
+
       if (reader_factory.ordered_index_reader.
             set_interruption_temp_buffer(primary_file->ref_length,
                                          keypar.key_tuple_length,
+                                         saved_pk_length,
                                          &full_buf, full_buf_end))
         goto use_default_impl;
     }
