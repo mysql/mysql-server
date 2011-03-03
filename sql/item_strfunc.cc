@@ -3450,13 +3450,67 @@ String *Item_func_quote::val_str(String *str)
   }
 
   arg_length= arg->length();
-  new_length= arg_length+2; /* for beginning and ending ' signs */
 
-  for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, (uchar) *from);
+  if (collation.collation->mbmaxlen == 1)
+  {
+    new_length= arg_length + 2; /* for beginning and ending ' signs */
+    for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
+      new_length+= get_esc_bit(escmask, (uchar) *from);
+  }
+  else
+  {
+    new_length= (arg_length * 2) +  /* For string characters */
+                (2 * collation.collation->mbmaxlen); /* For quotes */
+  }
 
   if (tmp_value.alloc(new_length))
     goto null;
+
+  if (collation.collation->mbmaxlen > 1)
+  {
+    CHARSET_INFO *cs= collation.collation;
+    int mblen;
+    uchar *to_end;
+    to= (char*) tmp_value.ptr();
+    to_end= (uchar*) to + new_length;
+
+    /* Put leading quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+
+    for (start= (char*) arg->ptr(), end= start + arg_length; start < end; )
+    {
+      my_wc_t wc;
+      bool escape;
+      if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) start, (uchar*) end)) <= 0)
+        goto null;
+      start+= mblen;
+      switch (wc) {
+        case 0:      escape= 1; wc= '0'; break;
+        case '\032': escape= 1; wc= 'Z'; break;
+        case '\'':   escape= 1; break;
+        case '\\':   escape= 1; break;
+        default:     escape= 0; break;
+      }
+      if (escape)
+      {
+        if ((mblen= cs->cset->wc_mb(cs, '\\', (uchar*) to, to_end)) <= 0)
+          goto null;
+        to+= mblen;
+      }
+      if ((mblen= cs->cset->wc_mb(cs, wc, (uchar*) to, to_end)) <= 0)
+        goto null;
+      to+= mblen;
+    }
+
+    /* Put trailing quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+    new_length= to - tmp_value.ptr();
+    goto ret;
+  }
 
   /*
     We replace characters from the end to the beginning
@@ -3489,6 +3543,8 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
+
+ret:
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;
