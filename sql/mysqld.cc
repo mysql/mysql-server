@@ -1042,7 +1042,7 @@ static void close_connections(void)
     {
       (void) mysql_socket_shutdown(ip_sock, SHUT_RDWR);
       (void) mysql_socket_close(ip_sock);
-      mysql_socket_getfd(ip_sock)= INVALID_SOCKET;
+      mysql_socket_setfd(&ip_sock, INVALID_SOCKET);
     }
   }
 #ifdef _WIN32
@@ -1075,7 +1075,7 @@ static void close_connections(void)
     (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
     (void) mysql_socket_close(unix_sock);
     (void) unlink(mysqld_unix_port);
-    mysql_socket_getfd(unix_sock)= INVALID_SOCKET;
+    mysql_socket_setfd(&unix_sock, INVALID_SOCKET);
   }
 #endif
   end_thr_alarm(0);			 // Abort old alarms.
@@ -1182,14 +1182,14 @@ static void close_server_sock()
   tmp_sock=ip_sock;
   if (mysql_socket_getfd(tmp_sock) != INVALID_SOCKET)
   {
-    mysql_socket_getfd(ip_sock)= INVALID_SOCKET;
+    mysql_socket_setfd(&ip_sock, INVALID_SOCKET);
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
     (void) mysql_socket_shutdown(tmp_sock, SHUT_RDWR);
   }
   tmp_sock=unix_sock;
   if (mysql_socket_getfd(tmp_sock) != INVALID_SOCKET)
   {
-    mysql_socket_getfd(unix_sock)= INVALID_SOCKET;
+    mysql_socket_setfd(&unix_sock, INVALID_SOCKET);
     DBUG_PRINT("info",("calling shutdown on unix socket"));
     (void) mysql_socket_shutdown(tmp_sock, SHUT_RDWR);
     (void) unlink(mysqld_unix_port);
@@ -5314,7 +5314,7 @@ static void create_new_thread(THD *thd)
 inline void kill_broken_server()
 {
   /* hack to get around signals ignored in syscalls for problem OS's */
-  if (unix_sock == INVALID_SOCKET ||
+  if (mysql_get_fd(unix_sock) == INVALID_SOCKET ||
       (!opt_disable_networking && mysql_socket_getfd(ip_sock) == INVALID_SOCKET))
   {
     select_thread_in_use = 0;
@@ -6996,7 +6996,8 @@ static int mysql_init_variables(void)
   character_set_filesystem= &my_charset_bin;
 
   opt_specialflag= SPECIAL_ENGLISH;
-  mysql_socket_getfd(unix_sock)= mysql_socket_getfd(ip_sock)= INVALID_SOCKET;
+  mysql_socket_setfd(&unix_sock, INVALID_SOCKET);
+  mysql_socket_setfd(&ip_sock, INVALID_SOCKET);
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;

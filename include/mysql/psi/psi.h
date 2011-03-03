@@ -1310,17 +1310,20 @@ typedef void (*set_socket_descriptor_v1_t)(struct PSI_socket *socket,
     @param addr socket address information
   */
 typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
-                                         const struct sockaddr * addr);
+                                        const struct sockaddr * addr,
+                                        socklen_t addr_len);
 
 /**
   Set the socket info for an instrumented socket.
     @param socket the instrumented socket
     @param fd the socket descriptor
     @param addr the socket ip address
+    @param addr_len length of socket ip address
 */
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                       uint fd,
-                                      const struct sockaddr * addr);
+                                      const struct sockaddr * addr,
+                                      socklen_t addr_len);
 
 /**
   Performance Schema Interface, version 1.
@@ -1457,9 +1460,9 @@ struct PSI_v1
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */
   end_file_wait_v1_t end_file_wait;
-  /** @sa start_file_wait_v1_t. */
+  /** @sa start_socket_wait_v1_t. */
   start_socket_wait_v1_t start_socket_wait;
-  /** @sa end_file_wait_v1_t. */
+  /** @sa end_socket_wait_v1_t. */
   end_socket_wait_v1_t end_socket_wait;
   /** @sa set_socket_descriptor_v1_t. */
   set_socket_descriptor_v1_t set_socket_descriptor;

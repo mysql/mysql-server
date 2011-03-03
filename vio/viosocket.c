@@ -36,7 +36,7 @@ size_t vio_read(Vio* vio, uchar* buf, size_t size)
   DBUG_ENTER("vio_read");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                       (uint) size));
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket.m_psi, PSI_SOCKET_RECV, 0);
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_RECV, 0);
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
@@ -121,7 +121,7 @@ size_t vio_write(Vio * vio, const uchar* buf, size_t size)
   DBUG_ENTER("vio_write");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket.m_psi, PSI_SOCKET_SEND, 0);
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SEND, 0);
 
 #ifdef __WIN__
   r = send(vio->sd, buf, size,0);
@@ -217,7 +217,7 @@ int vio_fastsend(Vio* vio __attribute__((unused)))
   int r=0;
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_fastsend");
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket.m_psi, PSI_SOCKET_OPT, 0);
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_OPT, 0);
 
 #if defined(IPTOS_THROUGHPUT)
   {
@@ -257,7 +257,7 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
   DBUG_ENTER("vio_keepalive");
   DBUG_PRINT("enter", ("sd: %d  set_keep_alive: %d", vio->sd, (int)
 		       set_keep_alive));
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket.m_psi, PSI_SOCKET_OPT, 0);
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_OPT, 0);
 
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
@@ -613,6 +613,9 @@ static my_bool socket_poll_read(my_socket sd, uint timeout)
 
 static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
+  MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_RECV, 0);
+
 #ifdef __WIN__
   int len;
   if (ioctlsocket(vio->sd, FIONREAD, &len))
@@ -633,6 +636,8 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
   *bytes= res;
   return FALSE;
 #endif
+
+  MYSQL_END_SOCKET_WAIT(locker, 0);
 }
 
 

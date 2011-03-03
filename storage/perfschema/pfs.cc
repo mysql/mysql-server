@@ -3562,18 +3562,18 @@ static void end_file_wait_v1(PSI_file_locker *locker,
 /** Socket operations */
 
 static void start_socket_wait_v1(PSI_socket_locker *locker,
-                                     size_t count,
+                                     size_t byte_count,
                                      const char *src_file,
                                      uint src_line);
 
-static void end_socket_wait_v1(PSI_socket_locker *locker, size_t count);
+static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count);
 
 /**
   Implementation of the socket instrumentation interface.
   @sa PSI_v1::start_socket_wait.
 */
 static void start_socket_wait_v1(PSI_socket_locker *locker,
-                                 size_t count,
+                                 size_t byte_count,
                                  const char *src_file, uint src_line)
 {
   PSI_socket_locker_state *state= reinterpret_cast<PSI_socket_locker_state*> (locker);
@@ -3584,7 +3584,7 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
 
   if (flags & STATE_FLAG_TIMED)
   {
-    timer_start= get_timer_raw_value_and_function(wait_timer, & state->m_timer);
+    timer_start= get_timer_raw_value_and_function(wait_timer, &state->m_timer);
     state->m_timer_start= timer_start;
   }
 
@@ -3596,7 +3596,8 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
     wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
-    wait->m_number_of_bytes= count; // TBD: Get this from end_socket_wait()
+    /** end_socket_wait() will overwrite with actual byte count. */
+    wait->m_number_of_bytes= byte_count;
   }
 }
 
@@ -3648,7 +3649,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   case PSI_SOCKET_CONNECT:
   case PSI_SOCKET_CREATE:
   case PSI_SOCKET_BIND:
-  case PSI_SOCKET_CLOSE:
   case PSI_SOCKET_SEEK:
   case PSI_SOCKET_OPT:
   case PSI_SOCKET_STAT:
@@ -3656,6 +3656,13 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     time_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_waits;
     io_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_bytes;
     break;
+  case PSI_SOCKET_CLOSE:
+    time_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_waits;
+    io_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_bytes;
+    /* This socket will no longer be used by the server */
+    destroy_socket(socket);
+    break;
+
   default:
     DBUG_ASSERT(false);
     io_stat= NULL;
@@ -3714,6 +3721,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       if (flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_count--;
+      /** Actual number of bytes. */
+      wait->m_number_of_bytes= byte_count;
     }
   }
 
@@ -3784,18 +3793,19 @@ int inet_pton(int af, const char *src, void *dst)
 #endif // __WIN32
 
 static void set_socket_address_v1(PSI_socket *socket,
-                                  const struct sockaddr * socket_addr)
+                                  const struct sockaddr *addr,
+                                  socklen_t addr_len)
 {
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
   memset(pfs->m_ip, 0, pfs->m_ip_length);
 
-  switch (socket_addr->sa_family)
+  switch (addr->sa_family)
   {
     case AF_INET:
     {
-      struct sockaddr_in * sa4= (struct sockaddr_in *)(socket_addr);
+      struct sockaddr_in *sa4= (struct sockaddr_in *)(addr);
       pfs->m_ip_length= INET_ADDRSTRLEN;
       inet_ntop(AF_INET, &(sa4->sin_addr), pfs->m_ip, pfs->m_ip_length);
       pfs->m_port= ntohs(sa4->sin_port);
@@ -3804,7 +3814,7 @@ static void set_socket_address_v1(PSI_socket *socket,
 
     case AF_INET6:
     {
-      struct sockaddr_in6 * sa6= (struct sockaddr_in6 *)(socket_addr);
+      struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(addr);
       pfs->m_ip_length= INET6_ADDRSTRLEN;
       inet_ntop(AF_INET6, &(sa6->sin6_addr), pfs->m_ip, pfs->m_ip_length);
       pfs->m_port= ntohs(sa6->sin6_port);
@@ -3821,13 +3831,14 @@ static void set_socket_address_v1(PSI_socket *socket,
 
 static void set_socket_info_v1(PSI_socket *socket,
                                uint fd,
-                               const struct sockaddr * addr)
+                               const struct sockaddr *addr,
+                               socklen_t addr_len)
 {
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
   pfs->m_fd= fd;
-  set_socket_address_v1(socket, addr);
+  set_socket_address_v1(socket, addr, addr_len);
 }
 
 /**
