@@ -351,7 +351,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [openjpa="$withval"],
               [openjpa="default"])
   AC_ARG_WITH([classpath],
-              [AS_HELP_STRING([--with-classpath=PATH], Include and set classpath for Cluster/J and OpenJPA support)],
+              [AS_HELP_STRING([--with-classpath=PATH], Include and set classpath for Cluster/J, Cluster/J JPA, and Cluster/J JDBC)],
               [classpath="$withval"],
               [classpath="no"])
   AC_ARG_WITH([javac-target],
@@ -439,6 +439,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   # needed for OpenJPA compile:
   #   openjpa-x.y.z.jar:geronimo-jpa_x.y_spec-x.y.jar
 
+  # needed for ClusterJ JDBC compile:
+  #   antlr-3.2.jar
+  #   antlr-runtime-3.2.jar
+  #   antlr-2.7.7.jar
+  #   stringtemplate-3.2.jar
+
   # needed for PCEnhancement:
   #   serp-x.y.z.jar:commons-lang-x.y.jar:geronimo-jta_x.y_spec-x.y.jar:commons-collections-x.y.jar
   
@@ -504,7 +510,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
 
   # switch to enable experimental support for ClusterJ-JDBC
   AC_ARG_WITH([clusterj-jdbc],
-              [AS_HELP_STRING([--with-clusterj-jdbc], Include experimental support for ClusterJ-JDBC)],
+              [AS_HELP_STRING([--with-clusterj-jdbc], Include experimental support for ClusterJ JDBC)],
               [clusterj_jdbc="$withval"],
               [clusterj_jdbc="no"])
 
@@ -516,10 +522,10 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       AC_MSG_RESULT([-- including ClusterJ JDBC])
       have_clusterj_jdbc=yes
     else
-      AC_MSG_RESULT([-- ClusterJ for JDBC requires external OpenJPA jar set with --with-classpath: not included])
+      AC_MSG_RESULT([-- ClusterJ for JDBC requires ClusterJ: not included])
     fi
   else
-    AC_MSG_RESULT([-- ClusterJ for JDBC requires Cluster/J and Java to compile: not included])
+    AC_MSG_RESULT([-- ClusterJ for JDBC is only included when --with-clusterj-jdbc is specified: not included])
   fi
 
   if test x"$have_clusterj_jdbc" = xyes  
