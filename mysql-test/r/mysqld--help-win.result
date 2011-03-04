@@ -611,6 +611,8 @@ The following options may be given as the first argument:
  Don't give threads different priorities. This option is
  deprecated because it has no effect; the implied behavior
  is already the default.
+ --slave-allow-batching 
+ Allow slave to batch requests
  --slave-compressed-protocol 
  Use compression on master/slave protocol
  --slave-exec-mode=name 
@@ -911,6 +913,7 @@ skip-name-resolve FALSE
 skip-networking FALSE
 skip-show-database FALSE
 skip-slave-start FALSE
+slave-allow-batching FALSE
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
 slave-net-timeout 3600
