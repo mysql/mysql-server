@@ -347,11 +347,15 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
   AC_ARG_WITH([openjpa],
-              [AS_HELP_STRING([--with-openjpa], Include and set path for native OpenJPA support)],
+              [AS_HELP_STRING([--with-openjpa],
+	                      [Include and set path for native
+                               OpenJPA support])],
               [openjpa="$withval"],
               [openjpa="default"])
   AC_ARG_WITH([classpath],
-              [AS_HELP_STRING([--with-classpath=PATH], Include and set classpath for Cluster/J, Cluster/J JPA, and Cluster/J JDBC)],
+              [AS_HELP_STRING([--with-classpath=PATH],
+                              [Include and set classpath for Cluster/J,
+                               Cluster/J JPA, and Cluster/J JDBC])],
               [classpath="$withval"],
               [classpath="no"])
   AC_ARG_WITH([javac-target],
@@ -419,7 +423,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       AC_MSG_RESULT([-- including Cluster/J])
       have_clusterj=yes
     else
-      AC_MSG_WARN([-- Cluster/J requires ucs2 charset; use --with-extra-charsets to configure])
+      AC_MSG_WARN([-- Cluster/J requires ucs2 charset;
+                   use --with-extra-charsets to configure])
       have_clusterj=yes
     fi
   else
@@ -480,10 +485,12 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
         AC_MSG_RESULT([-- including OpenJPA])
         have_openjpa=yes
       else
-        AC_MSG_RESULT([-- Cluster for OpenJPA requires external OpenJPA jar set with --with-classpath: not included])
+        AC_MSG_RESULT([-- Cluster for OpenJPA requires external
+                       OpenJPA jar set with --with-classpath: not included])
       fi
     else
-      AC_MSG_RESULT([-- Cluster for OpenJPA requires Cluster/J and Java to compile: not included])
+      AC_MSG_RESULT([-- Cluster for OpenJPA requires Cluster/J and
+                     Java to compile: not included])
     fi
   fi
 
@@ -510,7 +517,9 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
 
   # switch to enable experimental support for ClusterJ-JDBC
   AC_ARG_WITH([clusterj-jdbc],
-              [AS_HELP_STRING([--with-clusterj-jdbc], Include experimental support for ClusterJ JDBC)],
+              [AS_HELP_STRING([--with-clusterj-jdbc],
+                              [Include experimental support for
+                               ClusterJ JDBC])],
               [clusterj_jdbc="$withval"],
               [clusterj_jdbc="no"])
 
@@ -525,7 +534,8 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       AC_MSG_RESULT([-- ClusterJ for JDBC requires ClusterJ: not included])
     fi
   else
-    AC_MSG_RESULT([-- ClusterJ for JDBC is only included when --with-clusterj-jdbc is specified: not included])
+    AC_MSG_RESULT([-- ClusterJ for JDBC is only included
+                   when --with-clusterj-jdbc is specified: not included])
   fi
 
   if test x"$have_clusterj_jdbc" = xyes  
