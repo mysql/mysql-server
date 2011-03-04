@@ -509,6 +509,31 @@ public:
     DBUG_ASSERT(0);
     return GEOM_GEOMETRY;
   }
+
+#ifndef MCP_WL3627
+  ha_storage_media field_storage_type() const
+  {
+    return (ha_storage_media)
+      ((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
+  }
+
+  void set_storage_type(ha_storage_media storage_type)
+  {
+    flags |= (storage_type << FIELD_FLAGS_STORAGE_MEDIA);
+  }
+
+  column_format_type column_format() const
+  {
+    return (column_format_type)
+      ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
+  }
+
+  void set_column_format(column_format_type column_format)
+  {
+    flags |= (column_format << FIELD_FLAGS_COLUMN_FORMAT);
+  }
+#endif
+
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
@@ -2186,6 +2211,20 @@ public:
   {
     return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
   }
+
+#ifndef MCP_WL3627
+  ha_storage_media field_storage_type() const
+  {
+    return (ha_storage_media)
+      ((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);
+  }
+
+  column_format_type column_format() const
+  {
+    return (column_format_type)
+      ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
+  }
+#endif
 };
 
 

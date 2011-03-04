@@ -12,10 +12,6 @@ ENGINE NDB;
 create table t1 (a int column_format DYNAMIC STORAGE DISK) TABLESPACE ts1 engine NDB;
 Warnings:
 Warning	1478	DYNAMIC column a with STORAGE DISK is not supported, column will become FIXED
-select column_name, storage, format from information_schema.columns
-where table_name = "t1";
-column_name	storage	format
-a	Disk	Dynamic
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -64,21 +60,6 @@ t1	CREATE TABLE `t1` (
   `f1` char(100) NOT NULL /*!50120 STORAGE DISK */ /*!50120 COLUMN_FORMAT DYNAMIC */,
   KEY `b` (`b`)
 ) /*!50100 TABLESPACE ts1 */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
-select column_name, storage, format from information_schema.columns
-where table_name = "t1";
-column_name	storage	format
-a	Default	Fixed
-a1	Default	Fixed
-b	Default	Dynamic
-b1	Disk	Fixed
-c	Default	Fixed
-c1	Memory	Dynamic
-d	Default	Fixed
-d1	Default	Dynamic
-e	Default	Fixed
-e1	Default	Dynamic
-f	Default	Fixed
-f1	Disk	Dynamic
 alter table t1 change column a a int storage disk;
 Warnings:
 Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
