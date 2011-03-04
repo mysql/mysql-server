@@ -46,10 +46,10 @@ typedef enum _thd_wait_type_e {
   THD_WAIT_LAST= 11
 } thd_wait_type;
 extern struct thd_wait_service_st {
-  void (*thd_wait_begin_func)(void*, thd_wait_type);
+  void (*thd_wait_begin_func)(void*, int);
   void (*thd_wait_end_func)(void*);
 } *thd_wait_service;
-void thd_wait_begin(void* thd, thd_wait_type wait_type);
+void thd_wait_begin(void* thd, int wait_type);
 void thd_wait_end(void* thd);
 #include <mysql/service_thread_scheduler.h>
 struct scheduler_functions;

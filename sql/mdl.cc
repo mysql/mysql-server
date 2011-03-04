@@ -975,14 +975,14 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
   old_msg= thd_enter_cond(thd, &m_COND_wait_status, &m_LOCK_wait_status,
                           wait_state_name);
 
+  thd_wait_begin(thd, THD_WAIT_META_DATA_LOCK);
   while (!m_wait_status && !thd_killed(thd) &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
   {
-    thd_wait_begin(thd, THD_WAIT_META_DATA_LOCK);
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
                                       abs_timeout);
-    thd_wait_end(thd);
   }
+  thd_wait_end(thd);
 
   if (m_wait_status == EMPTY)
   {
