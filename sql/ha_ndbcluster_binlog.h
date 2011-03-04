@@ -35,19 +35,19 @@ extern handlerton *ndbcluster_hton;
 class Ndb_event_data
 {
 public:
-  Ndb_event_data(NDB_SHARE *the_share) : 
-    table_share((TABLE_SHARE *)0), table((TABLE *)0), share(the_share)
+  Ndb_event_data(NDB_SHARE *the_share) :
+    shadow_table(0),
+    share(the_share)
   {
     ndb_value[0]= 0;
     ndb_value[1]= 0;
   }
   ~Ndb_event_data()
   {
-    if (table)
-      closefrm(table, 1);
+    if (shadow_table)
+      closefrm(shadow_table, 1);
+    shadow_table= 0;
     free_root(&mem_root, MYF(0));
-    table_share= 0;
-    table= 0;
     share= 0;
     /*
        ndbvalue[] allocated with my_multi_malloc
@@ -56,8 +56,7 @@ public:
     my_free(ndb_value[0], MYF(MY_WME|MY_ALLOW_ZERO_PTR));
   }
   MEM_ROOT mem_root;
-  TABLE_SHARE *table_share;
-  TABLE *table;
+  TABLE *shadow_table;
   NDB_SHARE *share;
   NdbValue *ndb_value[2];
 };
