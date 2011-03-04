@@ -78,7 +78,7 @@ typedef enum _thd_wait_type_e {
 } thd_wait_type;
 
 extern struct thd_wait_service_st {
-  void (*thd_wait_begin_func)(MYSQL_THD, thd_wait_type);
+  void (*thd_wait_begin_func)(MYSQL_THD, int);
   void (*thd_wait_end_func)(MYSQL_THD);
 } *thd_wait_service;
 
@@ -90,7 +90,7 @@ extern struct thd_wait_service_st {
 
 #else
 
-void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type);
+void thd_wait_begin(MYSQL_THD thd, int wait_type);
 void thd_wait_end(MYSQL_THD thd);
 
 #endif
