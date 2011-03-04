@@ -727,9 +727,7 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-#ifdef HAVE_STACKTRACE
 static my_bool opt_stack_trace;
-#endif /* HAVE_STACKTRACE */
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
