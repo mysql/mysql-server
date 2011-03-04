@@ -3616,6 +3616,22 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 }
 
 
+char* handler::get_tablespace_name(THD *thd, char *buff, uint buff_len)
+{
+  char *ts= table->s->tablespace;
+  if (!ts)
+    return NULL;
+
+  if (!buff)
+  {
+    buff= my_strdup(ts, MYF(0));
+    return buff;
+  }
+
+  strnmov(buff, ts, buff_len);
+  return buff;
+}
+
 /****************************************************************************
 ** Some general functions that isn't in the handler class
 ****************************************************************************/
