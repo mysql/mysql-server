@@ -1745,6 +1745,10 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         We don't use enter_cond()/exit_cond(). They do not save old
         mutex and cond. This would prohibit the use of DEBUG_SYNC
         between other places of enter_cond() and exit_cond().
+
+        We need to check for existence of thd->mysys_var to also make
+        it possible to use DEBUG_SYNC framework in scheduler when this
+        variable has been set to NULL.
       */
       if (thd->mysys_var)
       {
