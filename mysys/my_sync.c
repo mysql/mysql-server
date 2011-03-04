@@ -56,10 +56,10 @@ int my_sync(File fd, myf my_flags)
   DBUG_ENTER("my_sync");
   DBUG_PRINT("my",("Fd: %d  my_flags: %d", fd, my_flags));
 
+  if (before_sync_wait)
+    (*before_sync_wait)();
   do
   {
-    if (before_sync_wait)
-      (*before_sync_wait)();
 #if defined(F_FULLFSYNC)
     /*
       In Mac OS X >= 10.3 this call is safer than fsync() (it forces the
