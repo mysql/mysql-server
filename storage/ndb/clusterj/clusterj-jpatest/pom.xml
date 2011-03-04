@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +25,15 @@
     the release plugin.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <groupId>com.mysql.clusterj</groupId>
+    <artifactId>clusterj-aggregate</artifactId>
+    <version>${versionNumber}</version>
+  </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-jpatest</artifactId>
-    <version>7.1.11-SNAPSHOT</version>
+    <version>${versionNumber}</version>
     <packaging>jar</packaging>
     <name>ClusterJ JPA Integration Tests</name>
 
@@ -97,11 +102,15 @@
     </plugins>
   </build>
     <dependencies>
-        <dependency>
-            <groupId>org.apache.openjpa</groupId>
-            <artifactId>openjpa</artifactId>
-            <version>1.2.0</version>
-        </dependency>
+      <dependency>
+        <groupId>org.apache.openjpa</groupId>
+        <artifactId>openjpa</artifactId>
+      </dependency>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <scope>compile</scope>
+      </dependency>
     </dependencies>
   <licenses>
     <license>
