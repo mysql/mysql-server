@@ -135,7 +135,7 @@ class Key_value_records_iterator
   
 public:
   int init(Mrr_ordered_index_reader *owner_arg);
-  int get_next(char **range_info);
+  int get_next(range_id_t *range_info);
   void move_to_next_key_value();
 };
 
@@ -186,7 +186,7 @@ public:
 class Mrr_reader 
 {
 public:
-  virtual int get_next(char **range_info) = 0;
+  virtual int get_next(range_id_t *range_info) = 0;
   virtual int refill_buffer(bool initial) = 0;
   virtual ~Mrr_reader() {}; /* just to remove compiler warning */
 };
@@ -211,7 +211,7 @@ public:
   virtual uchar *get_rowid_ptr() = 0;
   /* Get the rowid (call this after get_next() call) */
   virtual void position();
-  virtual bool skip_record(char *range_id, uchar *rowid) = 0;
+  virtual bool skip_record(range_id_t range_id, uchar *rowid) = 0;
 
   virtual void interrupt_read() {}
   virtual void resume_read() {}
@@ -232,10 +232,10 @@ public:
            uint mode, Key_parameters *key_par,
            Lifo_buffer *key_buffer,
            Buffer_manager *buf_manager_arg);
-  int get_next(char **range_info);
+  int get_next(range_id_t *range_info);
   int refill_buffer(bool initial) { return initial? 0: HA_ERR_END_OF_FILE; }
   uchar *get_rowid_ptr() { return file->ref; }
-  bool skip_record(char *range_id, uchar *rowid)
+  bool skip_record(range_id_t range_id, uchar *rowid)
   {
     return (file->mrr_funcs.skip_record &&
             file->mrr_funcs.skip_record(file->mrr_iter, range_id, rowid));
@@ -255,17 +255,17 @@ public:
            uint mode, Key_parameters *key_par,
            Lifo_buffer *key_buffer,
            Buffer_manager *buf_manager_arg);
-  int get_next(char **range_info);
+  int get_next(range_id_t *range_info);
   int refill_buffer(bool initial);
   uchar *get_rowid_ptr() { return file->ref; }
   
-  bool skip_record(char *range_info, uchar *rowid)
+  bool skip_record(range_id_t range_info, uchar *rowid)
   {
     return (mrr_funcs.skip_record &&
             mrr_funcs.skip_record(mrr_iter, range_info, rowid));
   }
 
-  bool skip_index_tuple(char *range_info)
+  bool skip_index_tuple(range_id_t range_info)
   {
     return (mrr_funcs.skip_index_tuple &&
             mrr_funcs.skip_index_tuple(mrr_iter, range_info));
@@ -343,7 +343,7 @@ class Mrr_ordered_rndpos_reader : public Mrr_reader
 public:
   int init(handler *file, Mrr_index_reader *index_reader, uint mode,
            Lifo_buffer *buf);
-  int get_next(char **range_info);
+  int get_next(range_id_t *range_info);
   int refill_buffer(bool initial);
 private:
   handler *file; /* Handler to use */
@@ -540,7 +540,7 @@ public:
                  void *seq_init_param, uint n_ranges, uint mode, 
                  HANDLER_BUFFER *buf);
   void dsmrr_close();
-  int dsmrr_next(char **range_info);
+  int dsmrr_next(range_id_t *range_info);
 
   ha_rows dsmrr_info(uint keyno, uint n_ranges, uint keys, uint key_parts, 
                      uint *bufsz, uint *flags, COST_VECT *cost);

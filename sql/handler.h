@@ -1218,7 +1218,7 @@ typedef struct st_range_seq_if
           out from the stream of records returned by multi_range_read_next()
       0 - The record shall be left in the stream
   */ 
-  bool (*skip_record) (range_seq_t seq, char *range_info, uchar *rowid);
+  bool (*skip_record) (range_seq_t seq, range_id_t range_info, uchar *rowid);
 
   /*
     Check if the record combination matches the index condition
@@ -1231,10 +1231,10 @@ typedef struct st_range_seq_if
       0 - The record combination satisfies the index condition
       1 - Otherwise
   */ 
-  bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
+  bool (*skip_index_tuple) (range_seq_t seq, range_id_t range_info);
 } RANGE_SEQ_IF;
 
-typedef bool (*SKIP_INDEX_TUPLE_FUNC) (range_seq_t seq, char *range_info);
+typedef bool (*SKIP_INDEX_TUPLE_FUNC) (range_seq_t seq, range_id_t range_info);
 
 class COST_VECT
 { 
@@ -1870,7 +1870,7 @@ public:
   virtual int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                     uint n_ranges, uint mode, 
                                     HANDLER_BUFFER *buf);
-  virtual int multi_range_read_next(char **range_info);
+  virtual int multi_range_read_next(range_id_t *range_info);
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);

@@ -10519,7 +10519,7 @@ int QUICK_RANGE_SELECT::reset()
 
 int QUICK_RANGE_SELECT::get_next()
 {
-  char *dummy;
+  range_id_t dummy;
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next");
   if (in_ror_merged_scan)
   {

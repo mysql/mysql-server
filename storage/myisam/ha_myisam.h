@@ -162,7 +162,7 @@ public:
    */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode, HANDLER_BUFFER *buf);
-  int multi_range_read_next(char **range_info);
+  int multi_range_read_next(range_id_t *range_info);
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,

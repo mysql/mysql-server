@@ -227,7 +227,7 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
   @retval other  Error code
 */
 
-int handler::multi_range_read_next(char **range_info)
+int handler::multi_range_read_next(range_id_t *range_info)
 {
   int result= HA_ERR_END_OF_FILE;
   bool range_res;
@@ -306,7 +306,7 @@ int Mrr_simple_index_reader::init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
 }
 
 
-int Mrr_simple_index_reader::get_next(char **range_info)
+int Mrr_simple_index_reader::get_next(range_id_t *range_info)
 {
   int res;
   while (!(res= file->handler::multi_range_read_next(range_info)))
@@ -338,7 +338,7 @@ int Mrr_simple_index_reader::get_next(char **range_info)
   @retval Other               Some other error; Error is printed
 */
 
-int Mrr_ordered_index_reader::get_next(char **range_info)
+int Mrr_ordered_index_reader::get_next(range_id_t *range_info)
 {
   int res;
   DBUG_ENTER("Mrr_ordered_index_reader::get_next");
@@ -481,7 +481,7 @@ int Mrr_ordered_index_reader::refill_buffer(bool initial)
   buf_manager->reset_buffer_sizes(buf_manager->arg);
   key_buffer->reset();
   key_buffer->setup_writing(keypar.key_size_in_keybuf,
-                            is_mrr_assoc? sizeof(char*) : 0);
+                            is_mrr_assoc? sizeof(range_id_t) : 0);
 
   while (key_buffer->can_write() && 
          !(source_exhausted= mrr_funcs.next(mrr_iter, &cur_range)))
@@ -610,7 +610,7 @@ void Mrr_index_reader::position()
 
 int Mrr_ordered_rndpos_reader::refill_from_index_reader()
 {
-  char *range_info;
+  range_id_t range_info;
   int res;
   DBUG_ENTER("Mrr_ordered_rndpos_reader::refill_from_index_reader");
 
@@ -618,7 +618,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
   index_rowid= index_reader->get_rowid_ptr();
   rowid_buffer->reset();
   rowid_buffer->setup_writing(file->ref_length,
-                              is_mrr_assoc? sizeof(char*) : 0);
+                              is_mrr_assoc? sizeof(range_id_t) : 0);
 
   last_identical_rowid= NULL;
 
@@ -648,7 +648,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
   rowid_buffer->sort((qsort2_cmp)rowid_cmp_reverse, (void*)file);
 
   rowid_buffer->setup_reading(file->ref_length,
-                              is_mrr_assoc ? sizeof(char*) : 0);
+                              is_mrr_assoc ? sizeof(range_id_t) : 0);
   DBUG_RETURN(rowid_buffer->is_empty()? HA_ERR_END_OF_FILE : 0);
 }
 
@@ -661,7 +661,7 @@ int Mrr_ordered_rndpos_reader::refill_from_index_reader()
     with the same rowid value.
 */
 
-int Mrr_ordered_rndpos_reader::get_next(char **range_info)
+int Mrr_ordered_rndpos_reader::get_next(range_id_t *range_info)
 {
   int res;
   
@@ -684,8 +684,8 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
     if (!is_mrr_assoc)
       return 0;
 
-    memcpy(range_info, rowid_buffer->read_ptr2, sizeof(uchar*));
-    if (!index_reader->skip_record((char*)*range_info, rowid_buffer->read_ptr1))
+    memcpy(range_info, rowid_buffer->read_ptr2, sizeof(range_id_t));
+    if (!index_reader->skip_record(*range_info, rowid_buffer->read_ptr1))
       return 0;
   }
   
@@ -701,7 +701,7 @@ int Mrr_ordered_rndpos_reader::get_next(char **range_info)
 
     if (is_mrr_assoc)
     {
-      memcpy(range_info, rowid_buffer->read_ptr2, sizeof(uchar*));
+      memcpy(range_info, rowid_buffer->read_ptr2, sizeof(range_id_t));
       if (index_reader->skip_record(*range_info, rowid_buffer->read_ptr1))
         continue;
     }
@@ -899,7 +899,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       /* index strategy doesn't need buffer, give all space to rowids*/
       rowid_buffer.set_buffer_space(full_buf, full_buf_end);
       if (!rowid_buffer.have_space_for(primary_file->ref_length + 
-                                       (int)is_mrr_assoc * sizeof(char*)))
+                                       (int)is_mrr_assoc * sizeof(range_id_t)))
         goto use_default_impl;
     }
 
@@ -1139,7 +1139,7 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
                                       key_part_map key_tuple_map)
 {
   long key_buff_elem_size= key_size_in_keybuf + 
-                           (int)is_mrr_assoc * sizeof(void*);
+                           (int)is_mrr_assoc * sizeof(range_id_t);
   
   KEY *key_info= &primary_file->get_table()->key_info[keyno];
   /* 
@@ -1147,7 +1147,7 @@ bool DsMrr_impl::setup_buffer_sharing(uint key_size_in_keybuf,
     for keys and another part for rowids.
   */
   ulonglong rowid_buf_elem_size= primary_file->ref_length + 
-                                 (int)is_mrr_assoc * sizeof(char*);
+                                 (int)is_mrr_assoc * sizeof(range_id_t);
   
   /*
     Use rec_per_key statistics as a basis to find out how many rowids 
@@ -1284,7 +1284,7 @@ int Key_value_records_iterator::init(Mrr_ordered_index_reader *owner_arg)
 }
 
 
-int Key_value_records_iterator::get_next(char **range_info)
+int Key_value_records_iterator::get_next(range_id_t *range_info)
 {
   int res;
 
@@ -1310,7 +1310,7 @@ int Key_value_records_iterator::get_next(char **range_info)
   }
 
   identical_key_it.read(); /* This gets us next range_id */
-  memcpy(range_info, identical_key_it.read_ptr2, sizeof(char*));
+  memcpy(range_info, identical_key_it.read_ptr2, sizeof(range_id_t));
 
   if (!last_identical_key_ptr || 
       (identical_key_it.read_ptr1 == last_identical_key_ptr))
@@ -1339,7 +1339,7 @@ void Key_value_records_iterator::move_to_next_key_value()
   Calling convention is like multi_range_read_next() has.
 */
 
-int DsMrr_impl::dsmrr_next(char **range_info)
+int DsMrr_impl::dsmrr_next(range_id_t *range_info)
 {
   int res;
   if (strategy_exhausted)
