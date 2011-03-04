@@ -2315,16 +2315,23 @@ JOIN::exec()
 		new Item_cond_and(curr_table->select->cond,
 				  sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	  curr_table->select->cond->fix_fields(thd, 0);
 	}
         if (curr_table->pre_idx_push_select_cond)
 	{
+          if (sort_table_cond->type() == Item::COND_ITEM &&
+              sort_table_cond != curr_table->select->cond)
+            sort_table_cond= sort_table_cond->copy_andor_structure(thd);           
           if (!(curr_table->pre_idx_push_select_cond= 
                 new Item_cond_and(curr_table->pre_idx_push_select_cond,
                                   sort_table_cond)))
             DBUG_VOID_RETURN;            
-          curr_table->pre_idx_push_select_cond->fix_fields(thd, 0);
         }
+        if (curr_table->select->cond && !curr_table->select->cond->fixed)
+	  curr_table->select->cond->fix_fields(thd, 0);
+        if (curr_table->pre_idx_push_select_cond &&
+            !curr_table->pre_idx_push_select_cond->fixed)
+          curr_table->pre_idx_push_select_cond->fix_fields(thd, 0);
+          
         curr_table->set_select_cond(curr_table->select->cond, __LINE__);
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
