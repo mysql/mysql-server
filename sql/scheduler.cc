@@ -80,6 +80,8 @@ scheduler_functions *thread_scheduler= NULL;
 */
 
 /**@{*/
+extern "C"
+{
 static void scheduler_wait_lock_begin(void) {
   MYSQL_CALLBACK(thread_scheduler,
                  thd_wait_begin, (current_thd, THD_WAIT_TABLE_LOCK));
@@ -97,6 +99,7 @@ static void scheduler_wait_sync_begin(void) {
 static void scheduler_wait_sync_end(void) {
   MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (current_thd));
 }
+};
 /**@}*/
 
 /**
