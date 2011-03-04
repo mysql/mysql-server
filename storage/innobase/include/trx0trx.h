@@ -448,9 +448,9 @@ struct trx_lock_struct {
 					hold lock_sys->mutex, except when
 					they are holding trx->mutex and
 					wait_lock==NULL */
-	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm. This is only
-					covered by the lock_sys->mutex. */
+	ib_uint64_t	deadlock_mark;	/*!< A mark field that is initialized
+					to and checked against lock_mark_counter
+				       	by lock_deadlock_recursive(). */
 	ibool		was_chosen_as_deadlock_victim;
 					/*!< when the transaction decides to
 				       	wait for a lock, it sets this to FALSE;
