@@ -386,6 +386,8 @@ FD	FD	FD	D18D	FD
 FE	FE	FE	D18E	FE	
 FF	FF	FF	D18F	FF	
 DROP TABLE t1;
+set global LC_TIME_NAMES=convert((-8388608) using cp1251);
+ERROR HY000: Unknown locale: '-8388608'
 #
 # End of 5.1 tests
 #
@@ -3216,6 +3218,21 @@ maketime(`a`,`a`,`a`)
 00:00:00
 DROP TABLE t1;
 SET sql_mode=default;
+#
+# Bug#60101 COALESCE with cp1251 tables causes [Err] 1267 - Illegal mix of collations
+#
+CREATE TABLE t1 (test1 INT, test2 VARCHAR(255));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `test1` int(11) DEFAULT NULL,
+  `test2` varchar(255) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT COALESCE(IF(test1=1, 1, NULL), test2) FROM t1;
+COALESCE(IF(test1=1, 1, NULL), test2)
+SELECT COALESCE(IF(test1=1, NULL, 1), test2) FROM t1;
+COALESCE(IF(test1=1, NULL, 1), test2)
+DROP TABLE t1;
 #
 # End of 5.5 tests
 #
