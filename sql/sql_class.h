@@ -624,14 +624,14 @@ public:
   /*
     The states relfects three diffrent life cycles for three
     different types of statements:
-    Prepared statement: ES_INITIALIZED -> ES_PREPARED -> ES_EXECUTED.
-    Stored procedure:   ES_INITIALIZED_FOR_SP -> ES_EXECUTED.
-    Other statements:   ES_CONVENTIONAL_EXECUTION never changes.
+    Prepared statement: STMT_INITIALIZED -> STMT_PREPARED -> STMT_EXECUTED.
+    Stored procedure:   STMT_INITIALIZED_FOR_SP -> STMT_EXECUTED.
+    Other statements:   STMT_CONVENTIONAL_EXECUTION never changes.
   */
   enum enum_state
   {
-    ES_INITIALIZED= 0, ES_INITIALIZED_FOR_SP= 1, ES_PREPARED= 2,
-    ES_CONVENTIONAL_EXECUTION= 3, ES_EXECUTED= 4, ES_ERROR= -1
+    STMT_INITIALIZED= 0, STMT_INITIALIZED_FOR_SP= 1, STMT_PREPARED= 2,
+    STMT_CONVENTIONAL_EXECUTION= 3, STMT_EXECUTED= 4, STMT_ERROR= -1
   };
 
   enum_state state;
@@ -654,18 +654,18 @@ public:
   virtual Type type() const;
   virtual ~Query_arena() {};
 
-  inline bool is_stmt_prepare() const { return state == ES_INITIALIZED; }
+  inline bool is_stmt_prepare() const { return state == STMT_INITIALIZED; }
   inline bool is_first_sp_execute() const
-  { return state == ES_INITIALIZED_FOR_SP; }
+  { return state == STMT_INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { return (int)state < (int)ES_PREPARED; }
+  { return (int)state < (int)STMT_PREPARED; }
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { return (int)state <= (int)ES_PREPARED; }
-  inline bool is_first_stmt_execute() const { return state == ES_PREPARED; }
+  { return (int)state <= (int)STMT_PREPARED; }
+  inline bool is_first_stmt_execute() const { return state == STMT_PREPARED; }
   inline bool is_stmt_execute() const
-  { return state == ES_PREPARED || state == ES_EXECUTED; }
+  { return state == STMT_PREPARED || state == STMT_EXECUTED; }
   inline bool is_conventional() const
-  { return state == ES_CONVENTIONAL_EXECUTION; }
+  { return state == STMT_CONVENTIONAL_EXECUTION; }
 
   inline void* alloc(size_t size) { return alloc_root(mem_root,size); }
   inline void* calloc(size_t size)
