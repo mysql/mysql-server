@@ -33,7 +33,7 @@ void reset_mqh(LEX_USER *lu, bool get_them);
 bool check_mqh(THD *thd, uint check_command);
 void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
-void thd_init_client_charset(THD *thd, uint cs_number);
+bool thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
 bool thd_prepare_connection(THD *thd);
 bool thd_is_connection_alive(THD *thd);

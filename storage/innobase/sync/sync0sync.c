@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1172,7 +1172,7 @@ sync_thread_add_level(
 	case SYNC_RSEG:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
-	case SYNC_PURGE_SYS:
+	case SYNC_PURGE_QUEUE:
 	case SYNC_DICT_AUTOINC_MUTEX:
 	case SYNC_DICT_OPERATION:
 	case SYNC_DICT_HEADER:
@@ -1239,10 +1239,16 @@ sync_thread_add_level(
 		     || sync_thread_levels_g(array, SYNC_FSP, TRUE));
 		break;
 	case SYNC_TRX_UNDO_PAGE:
+		/* Purge is allowed to read in as many UNDO pages as it likes,
+		there was a bogus rule here earlier that forced the caller to
+		acquire the purge_sys_t::mutex. The purge mutex did not really
+		protect anything because it was only ever acquired by the
+		single purge thread. The purge thread can read the UNDO pages
+		without any covering mutex. */
+
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
 		     || sync_thread_levels_contain(array, SYNC_RSEG)
-		     || sync_thread_levels_contain(array, SYNC_PURGE_SYS)
-		     || sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE, TRUE));
+		     || sync_thread_levels_g(array, level - 1, TRUE));
 		break;
 	case SYNC_RSEG_HEADER:
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));

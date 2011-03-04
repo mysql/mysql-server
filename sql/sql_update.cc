@@ -998,6 +998,98 @@ static table_map get_table_map(List<Item> *items)
   return map;
 }
 
+/**
+  If one row is updated through two different aliases and the first
+  update physically moves the row, the second update will error
+  because the row is no longer located where expected. This function
+  checks if the multiple-table update is about to do that and if so
+  returns with an error.
+
+  The following update operations physically moves rows:
+    1) Update of a column in a clustered primary key
+    2) Update of a column used to calculate which partition the row belongs to
+
+  This function returns with an error if both of the following are
+  true:
+
+    a) A table in the multiple-table update statement is updated
+       through multiple aliases (including views)
+    b) At least one of the updates on the table from a) may physically
+       moves the row. Note: Updating a column used to calculate which
+       partition a row belongs to does not necessarily mean that the
+       row is moved. The new value may or may not belong to the same
+       partition.
+
+  @param leaves               First leaf table
+  @param tables_for_update    Map of tables that are updated
+
+  @return
+    true   if the update is unsafe, in which case an error message is also set,
+    false  otherwise.
+*/
+static
+bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
+{
+  TABLE_LIST *tl= leaves;
+
+  for (tl= leaves; tl ; tl= tl->next_leaf)
+  {
+    if (tl->table->map & tables_for_update)
+    {
+      TABLE *table1= tl->table;
+      bool primkey_clustered= (table1->file->primary_key_is_clustered() &&
+                               table1->s->primary_key != MAX_KEY);
+
+      bool table_partitioned= false;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      table_partitioned= (table1->part_info != NULL);
+#endif
+
+      if (!table_partitioned && !primkey_clustered)
+        continue;
+
+      for (TABLE_LIST* tl2= tl->next_leaf; tl2 ; tl2= tl2->next_leaf)
+      {
+        /*
+          Look at "next" tables only since all previous tables have
+          already been checked
+        */
+        TABLE *table2= tl2->table;
+        if (table2->map & tables_for_update && table1->s == table2->s)
+        {
+          // A table is updated through two aliases
+          if (table_partitioned &&
+              (partition_key_modified(table1, table1->write_set) ||
+               partition_key_modified(table2, table2->write_set)))
+          {
+            // Partitioned key is updated
+            my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
+                     tl->belong_to_view ? tl->belong_to_view->alias
+                                        : tl->alias,
+                     tl2->belong_to_view ? tl2->belong_to_view->alias
+                                         : tl2->alias);
+            return true;
+          }
+
+          if (primkey_clustered &&
+              (bitmap_is_set(table1->write_set, table1->s->primary_key) ||
+               bitmap_is_set(table2->write_set, table2->s->primary_key)))
+          {
+            // Clustered primary key is updated
+            my_error(ER_MULTI_UPDATE_KEY_CONFLICT, MYF(0),
+                     tl->belong_to_view ? tl->belong_to_view->alias
+                                        : tl->alias,
+                     tl2->belong_to_view ? tl2->belong_to_view->alias
+                                         : tl2->alias);
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
 
 /*
   make update specific preparation and checks after opening tables
@@ -1077,10 +1169,14 @@ int mysql_multi_update_prepare(THD *thd)
 
   thd->table_map_for_update= tables_for_update= get_table_map(fields);
 
+  leaves= lex->select_lex.leaf_tables;
+
+  if (unsafe_key_update(leaves, tables_for_update))
+    DBUG_RETURN(true);
+
   /*
     Setup timestamp handling and locking mode
   */
-  leaves= lex->select_lex.leaf_tables;
   for (tl= leaves; tl; tl= tl->next_leaf)
   {
     TABLE *table= tl->table;
