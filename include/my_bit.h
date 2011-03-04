@@ -1,3 +1,18 @@
+/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 #ifndef MY_BIT_INCLUDED
 #define MY_BIT_INCLUDED
 
@@ -44,9 +59,12 @@ static inline uint my_count_bits(ulonglong v)
 #endif
 }
 
-static inline uint my_count_bits_ushort(ushort v)
+static inline uint my_count_bits_uint32(uint32 v)
 {
-  return _my_bits_nbits[v];
+  return (uint) (uchar) (_my_bits_nbits[(uchar)  v] +
+                         _my_bits_nbits[(uchar) (v >> 8)] +
+                         _my_bits_nbits[(uchar) (v >> 16)] +
+                         _my_bits_nbits[(uchar) (v >> 24)]);
 }
 
 
