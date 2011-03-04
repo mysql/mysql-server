@@ -742,7 +742,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 
 
 THD::THD()
-   :Statement(&main_lex, &main_mem_root, ES_CONVENTIONAL_EXECUTION,
+   :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
    rli_fake(0),
    user_time(0), in_sub_stmt(0),
@@ -3550,7 +3550,7 @@ extern "C" void thd_pool_wait_end(MYSQL_THD thd);
 
   thd_wait_end MUST be called immediately after waking up again.
 */
-extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   MYSQL_CALLBACK(thread_scheduler, thd_wait_begin, (thd, wait_type));
 }
@@ -3566,7 +3566,7 @@ extern "C" void thd_wait_end(MYSQL_THD thd)
   MYSQL_CALLBACK(thread_scheduler, thd_wait_end, (thd));
 }
 #else
-extern "C" void thd_wait_begin(MYSQL_THD thd, thd_wait_type wait_type)
+extern "C" void thd_wait_begin(MYSQL_THD thd, int wait_type)
 {
   /* do NOTHING for the embedded library */
   return;
