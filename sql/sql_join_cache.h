@@ -1313,7 +1313,7 @@ public:
   uint get_next_key(uchar **key);
 
   /* Check index condition of the joined table for a record from BKA cache */
-  bool skip_index_tuple(char *range_info);
+  bool skip_index_tuple(range_id_t range_info);
 
 };
 
@@ -1403,5 +1403,5 @@ public:
   enum Join_algorithm get_join_alg() { return BKAH_JOIN_ALG; }
 
   /* Check index condition of the joined table for a record from BKAH cache */
-  bool skip_index_tuple(char *range_info);
+  bool skip_index_tuple(range_id_t range_info);
 };

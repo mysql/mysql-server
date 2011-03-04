@@ -3712,7 +3712,9 @@ int JOIN_TAB_SCAN_MRR::open()
 int JOIN_TAB_SCAN_MRR::next()
 {
   char **ptr= (char **) cache->get_curr_association_ptr();
-  int rc= join_tab->table->file->multi_range_read_next(ptr) ? -1 : 0;
+
+  DBUG_ASSERT(sizeof(range_id_t) == sizeof(*ptr));
+  int rc= join_tab->table->file->multi_range_read_next((range_id_t*)ptr) ? -1 : 0;
   if (!rc)
   {
     /* 
@@ -3836,7 +3838,7 @@ bool bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 */ 
 
 static 
-bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
+bool bka_range_seq_skip_record(range_seq_t rseq, range_id_t range_info, uchar *rowid)
 {
   DBUG_ENTER("bka_range_seq_skip_record");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
@@ -3867,7 +3869,7 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
 */
 
 static 
-bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
+bool bka_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
 {
   DBUG_ENTER("bka_skip_index_tuple");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
@@ -4203,7 +4205,7 @@ start:
     0    otherwise
 */
 
-bool JOIN_CACHE_BKA::skip_index_tuple(char *range_info)
+bool JOIN_CACHE_BKA::skip_index_tuple(range_id_t range_info)
 {
   DBUG_ENTER("JOIN_CACHE_BKA::skip_index_tuple");
   get_record_by_pos((uchar*)range_info);
@@ -4311,7 +4313,7 @@ bool bkah_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 */ 
 
 static 
-bool bkah_range_seq_skip_record(range_seq_t rseq, char *range_info,
+bool bkah_range_seq_skip_record(range_seq_t rseq, range_id_t range_info,
                                 uchar *rowid)
 {
   DBUG_ENTER("bkah_range_seq_skip_record");
@@ -4342,7 +4344,7 @@ bool bkah_range_seq_skip_record(range_seq_t rseq, char *range_info,
 */
 
 static 
-bool bkah_skip_index_tuple(range_seq_t rseq, char *range_info)
+bool bkah_skip_index_tuple(range_seq_t rseq, range_id_t range_info)
 {
   DBUG_ENTER("bka_unique_skip_index_tuple");
   JOIN_CACHE_BKAH *cache= (JOIN_CACHE_BKAH *) rseq;
@@ -4456,7 +4458,7 @@ int JOIN_CACHE_BKAH::init()
 
 */
 
-bool JOIN_CACHE_BKAH::skip_index_tuple(char *range_info)
+bool JOIN_CACHE_BKAH::skip_index_tuple(range_id_t range_info)
 {
   uchar *last_rec_ref_ptr= get_next_rec_ref((uchar*) range_info);
   uchar *next_rec_ref_ptr= last_rec_ref_ptr;

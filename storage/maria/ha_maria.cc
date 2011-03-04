@@ -3633,7 +3633,7 @@ int ha_maria::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
   return ds_mrr.dsmrr_init(this, seq, seq_init_param, n_ranges, mode, buf);
 }
 
-int ha_maria::multi_range_read_next(char **range_info)
+int ha_maria::multi_range_read_next(range_id_t *range_info)
 {
   return ds_mrr.dsmrr_next(range_info);
 }
