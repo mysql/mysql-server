@@ -323,42 +323,45 @@ ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share)
   init_sql_alloc(&event_data->mem_root, 1024, 0);
   *root_ptr= &event_data->mem_root;
 
-  TABLE_SHARE *table_share= event_data->table_share= 
+  TABLE_SHARE *shadow_table_share=
     (TABLE_SHARE*)alloc_root(&event_data->mem_root, sizeof(TABLE_SHARE));
-  TABLE *table= event_data->table= 
+  TABLE *shadow_table=
     (TABLE*)alloc_root(&event_data->mem_root, sizeof(TABLE));
 
-  init_tmp_table_share(thd, table_share, share->db, 0, share->table_name, 
+  init_tmp_table_share(thd, shadow_table_share,
+                       share->db, 0,
+                       share->table_name,
                        share->key);
-  if ((error= open_table_def(thd, table_share, 0)) ||
-      (error= open_table_from_share(thd, table_share, "", 0, 
+  if ((error= open_table_def(thd, shadow_table_share, 0)) ||
+      (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
-                                    0, table, OTM_OPEN)))
+                                    0, shadow_table, OTM_OPEN)))
   {
-    DBUG_PRINT("error", ("open_table_def/open_table_from_share failed: %d my_errno: %d",
+    DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
                          error, my_errno));
-    free_table_share(table_share);
-    event_data->table= 0;
-    event_data->table_share= 0;
+    free_table_share(shadow_table_share);
     delete event_data;
     share->event_data= 0;
     *root_ptr= old_root;
     DBUG_RETURN(error);
   }
+  event_data->shadow_table= shadow_table;
+
   mysql_mutex_lock(&LOCK_open);
-  assign_new_table_id(table_share);
+  assign_new_table_id(shadow_table_share);
   mysql_mutex_unlock(&LOCK_open);
 
-  table->in_use= injector_thd;
+  shadow_table->in_use= injector_thd;
   
-  table->s->db.str= share->db;
-  table->s->db.length= strlen(share->db);
-  table->s->table_name.str= share->table_name;
-  table->s->table_name.length= strlen(share->table_name);
+  shadow_table->s->db.str= share->db;
+  shadow_table->s->db.length= strlen(share->db);
+  shadow_table->s->table_name.str= share->table_name;
+  shadow_table->s->table_name.length= strlen(share->table_name);
   /* We can't use 'use_all_columns()' as the file object is not setup yet */
-  table->column_bitmaps_set_no_signal(&table->s->all_set, &table->s->all_set);
+  shadow_table->column_bitmaps_set_no_signal(&shadow_table->s->all_set,
+                                             &shadow_table->s->all_set);
 #ifndef DBUG_OFF
-  dbug_print_table("table", table);
+  dbug_print_table("table", shadow_table);
 #endif
   *root_ptr= old_root;
   DBUG_RETURN(0);
@@ -425,9 +428,9 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   {
     if ((error= ndbcluster_binlog_open_table(thd, share)))
       break;
-    if (share->event_data->table->s->primary_key == MAX_KEY)
+    if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
       share->flags|= NSF_HIDDEN_PK;
-    if (share->event_data->table->s->blob_fields != 0)
+    if (share->event_data->shadow_table->s->blob_fields != 0)
       share->flags|= NSF_BLOB_FLAG;
     break;
   }
@@ -1552,7 +1555,7 @@ print_could_not_discover_error(THD *thd,
 static void ndbcluster_get_schema(Ndb_event_data *event_data,
                                   Cluster_schema *s)
 {
-  TABLE *table= event_data->table;
+  TABLE *table= event_data->shadow_table;
   Field **field;
   /* unpack blob values */
   uchar* blobs_buffer= 0;
@@ -2354,9 +2357,9 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 {
   DBUG_ENTER("ndb_handle_schema_change");
   NDB_SHARE *share= event_data->share;
-  TABLE_SHARE *table_share= event_data->table_share;
-  const char *tabname= table_share->table_name.str;
-  const char *dbname= table_share->db.str;
+  TABLE *shadow_table= event_data->shadow_table;
+  const char *tabname= shadow_table->s->table_name.str;
+  const char *dbname= shadow_table->s->db.str;
   bool do_close_cached_tables= FALSE;
   bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
 
@@ -3137,12 +3140,12 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
         }
         if (!error && share)
         {
-          if (share->event_data->table->s->primary_key == MAX_KEY)
+          if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
             share->flags|= NSF_HIDDEN_PK;
           /*
             Refresh share->flags to handle added BLOB columns
           */
-          if (share->event_data->table->s->blob_fields != 0)
+          if (share->event_data->shadow_table->s->blob_fields != 0)
             share->flags|= NSF_BLOB_FLAG;
 
           /*
@@ -4666,7 +4669,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   }
 
   DBUG_ASSERT(event_data != 0);
-  TABLE *table= event_data->table;
+  TABLE *table= event_data->shadow_table;
 
   int retries= 100;
   /*
@@ -5315,7 +5318,7 @@ ndb_binlog_thread_handle_data_event(Ndb *ndb, NdbEventOperation *pOp,
                                     unsigned &trans_slave_row_count)
 {
   Ndb_event_data *event_data= (Ndb_event_data *) pOp->getCustomData();
-  TABLE *table= event_data->table;
+  TABLE *table= event_data->shadow_table;
   NDB_SHARE *share= event_data->share;
   if (pOp != share->op)
   {
@@ -6291,7 +6294,7 @@ restart_cluster_failure:
             (Ndb_event_data *) ndb_apply_status_share->op->getCustomData();
           DBUG_ASSERT(event_data);
         }
-        apply_status_table= event_data->table;
+        apply_status_table= event_data->shadow_table;
 
         /* 
            Intialize apply_status_table->record[0] 
@@ -6398,7 +6401,7 @@ restart_cluster_failure:
               continue;
             }
             // this should not happen
-            if (share == NULL || event_data->table == NULL)
+            if (share == NULL || event_data->shadow_table == NULL)
             {
               DBUG_PRINT("info", ("no share or table %s!",
                                   gci_op->getEvent()->getTable()->getName()));
@@ -6409,7 +6412,7 @@ restart_cluster_failure:
               // skip this table, it is handled specially
               continue;
             }
-            TABLE *table= event_data->table;
+            TABLE *table= event_data->shadow_table;
 #ifndef DBUG_OFF
             const LEX_STRING &name= table->s->table_name;
 #endif

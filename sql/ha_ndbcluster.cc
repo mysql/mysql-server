@@ -11514,9 +11514,9 @@ static void print_share(const char* where, NDB_SHARE* share)
   if (event_data)
   {
     fprintf(DBUG_FILE,
-            "  - event_data->table: %p %s.%s\n",
-            event_data->table, event_data->table->s->db.str,
-            event_data->table->s->table_name.str);
+            "  - event_data->shadow_table: %p %s.%s\n",
+            event_data->shadow_table, event_data->shadow_table->s->db.str,
+            event_data->shadow_table->s->table_name.str);
   }
 }
 
@@ -11749,14 +11749,14 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
     event_data= share->event_data;
   else if (share->op)
     event_data= (Ndb_event_data *) share->op->getCustomData();
-  if (event_data && event_data->table)
+  if (event_data && event_data->shadow_table)
   {
     if (!IS_TMP_PREFIX(share->table_name))
     {
-      event_data->table->s->db.str= share->db;
-      event_data->table->s->db.length= strlen(share->db);
-      event_data->table->s->table_name.str= share->table_name;
-      event_data->table->s->table_name.length= strlen(share->table_name);
+      event_data->shadow_table->s->db.str= share->db;
+      event_data->shadow_table->s->db.length= strlen(share->db);
+      event_data->shadow_table->s->table_name.str= share->table_name;
+      event_data->shadow_table->s->table_name.length= strlen(share->table_name);
     }
     else
     {
