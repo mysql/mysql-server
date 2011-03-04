@@ -15,6 +15,7 @@
 
 class ha_tokudb;
 
+
 typedef struct loader_context {
     THD* thd;
     char write_status_msg[200];
@@ -129,6 +130,14 @@ int generate_row_for_put(
     const DBT *src_key, 
     const DBT *src_val
     ); 
+int tokudb_update_fun(
+    DB* db,
+    const DBT *key,
+    const DBT *old_val, 
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val, void *set_extra),
+    void *set_extra
+    );
 
 
 class ha_tokudb : public handler {
@@ -221,7 +230,7 @@ private:
     // transaction used by ha_tokudb's cursor
     //
     DB_TXN *transaction;
-
+    bool is_fast_alter_running;
     //
     // instance of cursor being used for init_xxx and rnd_xxx functions
     //
@@ -363,6 +372,15 @@ private:
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     void test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
+    u_int32_t fill_row_mutator(
+        uchar* buf, 
+        u_int32_t* dropped_columns, 
+        u_int32_t num_dropped_columns,
+        TABLE* altered_table,
+        KEY_AND_COL_INFO* altered_kc_info,
+        u_int32_t keynr,
+        bool is_add
+        );
 
  
 public:
@@ -497,8 +515,49 @@ public:
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
     int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+    int tokudb_add_index(
+        TABLE *table_arg, 
+        KEY *key_info, 
+        uint num_of_keys, 
+        DB_TXN* txn, 
+        bool* inc_num_DBs,
+        bool* modified_DB
+        ); 
+    void restore_add_index(TABLE* table_arg, uint num_of_keys, bool incremented_numDBs, bool modified_DBs);
+    int drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, DB_TXN* txn);
     int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+    void restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys);
     int final_drop_index(TABLE *table_arg);
+
+    void print_alter_info(
+        TABLE *altered_table,
+        HA_CREATE_INFO *create_info,
+        HA_ALTER_FLAGS *alter_flags,
+        uint table_changes
+        );
+    int check_if_supported_alter(TABLE *altered_table,
+         HA_CREATE_INFO *create_info,
+         HA_ALTER_FLAGS *alter_flags,
+         uint table_changes
+         );
+    int alter_table_phase1(THD *thd,
+                                   TABLE *altered_table,
+                                   HA_CREATE_INFO *create_info,
+                                   HA_ALTER_INFO *alter_info,
+                                   HA_ALTER_FLAGS *alter_flags)
+    {
+      return 0;
+    }
+    int alter_table_phase2(THD *thd,
+                                   TABLE *altered_table,
+                                   HA_CREATE_INFO *create_info,
+                                   HA_ALTER_INFO *alter_info,
+			           HA_ALTER_FLAGS *alter_flags);
+    int alter_table_phase3(THD *thd, TABLE *table)
+    {
+      return 0;
+    }
+
 
     // delete all rows from the table
     // effect: all dictionaries, including the main and indexes, should be empty

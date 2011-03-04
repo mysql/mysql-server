@@ -10,12 +10,12 @@ extern "C" {
 #error "WORDS_BIGENDIAN not supported"
 #endif
 
-void get_var_field_info(
-    u_int32_t* field_len, 
-    u_int32_t* start_offset, 
-    u_int32_t var_field_index, 
-    const uchar* var_field_offset_ptr, 
-    u_int32_t num_offset_bytes
+inline void get_var_field_info(
+    u_int32_t* field_len, // output: length of field
+    u_int32_t* start_offset, // output, length of offset where data starts
+    u_int32_t var_field_index, //input, index of var field we want info on
+    const uchar* var_field_offset_ptr, //input, pointer to where offset information for all var fields begins
+    u_int32_t num_offset_bytes //input, number of bytes used to store offsets starting at var_field_offset_ptr
     ) 
 {
     u_int32_t data_start_offset = 0;
@@ -2075,11 +2075,11 @@ u_int32_t pack_clustering_val_from_desc(
     //
     null_bytes_src_ptr = (uchar *)pk_val->data;
     fixed_src_ptr = null_bytes_src_ptr + num_null_bytes;    
-    var_src_offset_ptr = fixed_src_ptr + src_mcp_info.var_len_offset;
+    var_src_offset_ptr = fixed_src_ptr + src_mcp_info.fixed_field_size;
     var_src_data_ptr = var_src_offset_ptr + src_mcp_info.len_of_offsets;
 
     fixed_dest_ptr = buf + num_null_bytes;
-    var_dest_offset_ptr = fixed_dest_ptr + dest_mcp_info.var_len_offset;
+    var_dest_offset_ptr = fixed_dest_ptr + dest_mcp_info.fixed_field_size;
     var_dest_data_ptr = var_dest_offset_ptr + dest_mcp_info.len_of_offsets;
     orig_var_dest_data_ptr = var_dest_data_ptr;
 
@@ -2585,7 +2585,7 @@ u_int32_t pack_key_from_desc(
     }
     null_bytes_ptr = (uchar *)pk_val->data;
     fixed_field_ptr = null_bytes_ptr + num_null_bytes;
-    var_field_offset_ptr = fixed_field_ptr + mcp_info.var_len_offset;
+    var_field_offset_ptr = fixed_field_ptr + mcp_info.fixed_field_size;
     var_field_data_ptr = var_field_offset_ptr + mcp_info.len_of_offsets;
     while ( (u_int32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
         uchar col_fix_val;
@@ -2850,6 +2850,151 @@ u_int32_t pack_key_from_desc(
     }
 
     return (u_int32_t)(packed_key_pos - buf); // 
+}
+
+bool fields_have_same_name(
+    Field* a,
+    Field* b
+    )
+{
+    return strcmp(a->field_name, b->field_name) == 0;
+}
+
+
+bool are_two_fields_same(
+    Field* a,
+    Field* b
+    )
+{
+    bool retval = true;
+    enum_field_types a_mysql_type = a->real_type();
+    enum_field_types b_mysql_type = b->real_type();
+    // make sure have same names
+    if (strcmp(a->field_name, b->field_name) != 0) {
+        retval = false;
+        goto cleanup;
+    }
+    
+    // make sure have same types
+    if (a_mysql_type != b_mysql_type) {
+        retval = false;
+        goto cleanup;
+    }
+
+    // make sure that either both are nullable, or both not nullable
+    if ((a->null_bit && !b->null_bit) || (!a->null_bit && b->null_bit)) {
+        retval = false;
+        goto cleanup;
+    }
+
+    switch (a_mysql_type) {
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_DOUBLE:
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_BIT:
+    {
+        TOKU_TYPE toku_type = mysql_to_toku_type(a);
+        if (toku_type == toku_type_int) {
+            if ( ((a->flags & UNSIGNED_FLAG) == 0) !=  ((b->flags & UNSIGNED_FLAG) == 0) ) {
+                retval = false;
+                goto cleanup;
+            }
+        }
+        if (a->pack_length() != b->pack_length()) {
+            retval = false;
+            goto cleanup;
+        }
+    }
+        break;
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+        // test the charset
+        if (a->charset()->number != b->charset()->number) {
+            retval = false;
+            goto cleanup;            
+        }
+        if (a->row_pack_length() != b->row_pack_length()) {
+            retval = false;
+            goto cleanup;
+        }
+        break;
+    case MYSQL_TYPE_STRING:
+        if (a->pack_length() != b->pack_length()) {
+            retval = false;
+            goto cleanup;
+        }
+        // if both are binary, we know have same pack lengths,
+        // so we can goto end
+        if (a->binary() && b->binary()) {
+            // nothing to do, we are good
+        }
+        else if (!a->binary() && !b->binary()) {
+            // test the charset
+            if (a->charset()->number != b->charset()->number) {
+                retval = false;
+                goto cleanup;            
+            }
+        }
+        else {
+            // one is binary and the other is not, so not the same
+            retval = false;
+            goto cleanup;
+        }        
+        break;
+    case MYSQL_TYPE_VARCHAR:
+        if (a->field_length != b->field_length) {
+            retval = false;
+            goto cleanup;
+        }
+        // if both are binary, we know have same pack lengths,
+        // so we can goto end
+        if (a->binary() && b->binary()) {
+            // nothing to do, we are good
+        }
+        else if (!a->binary() && !b->binary()) {
+            // test the charset
+            if (a->charset()->number != b->charset()->number) {
+                retval = false;
+                goto cleanup;            
+            }
+        }
+        else {
+            // one is binary and the other is not, so not the same
+            retval = false;
+            goto cleanup;
+        }        
+        break;
+    //
+    // I believe these are old types that are no longer
+    // in any 5.1 tables, so tokudb does not need
+    // to worry about them
+    // Putting in this assert in case I am wrong.
+    // Do not support geometry yet.
+    //
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_VAR_STRING:
+    default:
+        assert(false);
+    }
+
+cleanup:
+    return retval;
 }
 
 
