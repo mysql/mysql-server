@@ -26,7 +26,6 @@ ndb_update_no_read	 : SEAGULL rbwr
 
 ndb_condition_pushdown	 : SEAGULL
 
-ndb_column_properties	 : SEAGULL tablespace
 ndb_dd_basic		 : SEAGULL tablespace
 ndb_dd_dump		 : SEAGULL tablespace
 ndb_dd_sql_features	 : SEAGULL tablespace
