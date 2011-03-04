@@ -303,19 +303,19 @@ ndbcluster_binlog_close_table(THD *thd, NDB_SHARE *share)
 
 
 /*
-  Creates a TABLE object for the ndb cluster table
-
-  NOTES
-    This does not open the underlying table
+  Open a shadow table for the table given in share.
+  - The shadow table is (mainly) used when an event is
+    recieved from the data nodes which need to be written
+    to the binlog injector.
 */
 
 static int
-ndbcluster_binlog_open_table(THD *thd, NDB_SHARE *share)
+ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
 {
   int error;
   DBUG_ASSERT(share->event_data == 0);
   Ndb_event_data *event_data= share->event_data= new Ndb_event_data(share);
-  DBUG_ENTER("ndbcluster_binlog_open_table");
+  DBUG_ENTER("ndb_binlog_open_shadow_table");
 
   MEM_ROOT **root_ptr=
     my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
@@ -426,7 +426,7 @@ int ndbcluster_binlog_init_share(THD *thd, NDB_SHARE *share, TABLE *_table)
   }
   while (1) 
   {
-    if ((error= ndbcluster_binlog_open_table(thd, share)))
+    if ((error= ndb_binlog_open_shadow_table(thd, share)))
       break;
     if (share->event_data->shadow_table->s->primary_key == MAX_KEY)
       share->flags|= NSF_HIDDEN_PK;
@@ -3132,8 +3132,8 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           pthread_mutex_lock(&share->mutex);
           ndbcluster_binlog_close_table(thd, share);
 
-          if ((error= ndbcluster_binlog_open_table(thd, share)))
-            sql_print_error("NDB Binlog: Failed to re-open table %s.%s",
+          if ((error= ndb_binlog_open_shadow_table(thd, share)))
+            sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
                             schema->db, schema->name);
           if (error)
             pthread_mutex_unlock(&share->mutex);
