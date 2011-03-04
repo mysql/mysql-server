@@ -577,6 +577,11 @@ else
 SUMMARIZE_CMD =
 endif
 
+#target for flymake-mode
+.PHONY: check-syntax
+check-syntax: $(DEPEND_COMPILE)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fno-ident -fsyntax-only $(CHK_SOURCES)
+
 #Auto change variables from raw to include .exe if necessary.
 BINS = $(patsubst %,%$(BINSUF),$(BINS_RAW))
 OBJS = $(patsubst %,%.$(OEXT),$(OBJS_RAW))

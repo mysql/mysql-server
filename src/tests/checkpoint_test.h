@@ -156,16 +156,17 @@ db_startup(DICTIONARY d, DB_TXN *open_txn) {
     //Small nodesize means many nodes.
     db->set_pagesize(db, 1<<10);
     {
-        DBT desc;
-        dbt_init(&desc, "foo", sizeof("foo"));
-        r = db->set_descriptor(db, 1, &desc);
-            CKERR(r);
-    }
-    {
         char name[MAX_NAME*2];
         fill_name(d, name, sizeof(name));
         r = db->open(db, open_txn, name, NULL, DB_BTREE, DB_CREATE, 0666);
             CKERR(r);
+    }
+    {
+        DBT desc;
+        IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+            dbt_init(&desc, "foo", sizeof("foo"));
+            CHK(db->change_descriptor(db, txn_desc, &desc,0));
+            });
     }
 }
 

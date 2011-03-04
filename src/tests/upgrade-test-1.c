@@ -33,6 +33,19 @@ char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.2.0.node4k.cleanshutdown";
 char *db_v4_dir_flat   = OLDDATADIR "env_preload.4.2.0.flat.cleanshutdown";
 
 
+// should put this in test.h:
+static __attribute__((__unused__)) int
+char_dbt_cmp (const DBT *a, const DBT *b) {
+    int rval = 0;  
+    assert(a && b);
+    if (a->size < b->size) rval = -1;
+    else if (a->size > b->size) rval = 1;
+    else if (a->size) {  // if both strings are of size zero, return 0
+	rval = strcmp((char*)a->data, (char*)b->data);
+    }
+    return rval;
+}
+
 
 static void upgrade_test_1(DB **dbs) {
     int r;
@@ -46,10 +59,11 @@ static void upgrade_test_1(DB **dbs) {
         for(int i=0;i<NUM_DBS;i++) {
             idx[i] = i;
             r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
-            r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                       CKERR(r);
             dbs[i]->app_private = &idx[i];
             snprintf(name, sizeof(name), "db_%04x", i);
             r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
+	    r = char_dbt_cmp(&desc, &(dbs[i]->descriptor->dbt));
+	    CKERR(r);  // verify that upgraded descriptor is same as original
         }
     }
 
@@ -62,7 +76,7 @@ static void upgrade_test_1(DB **dbs) {
     // close
     {
         for(int i=0;i<NUM_DBS;i++) {
-            dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);
+            r = dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);
             dbs[i] = NULL;
         }
     }

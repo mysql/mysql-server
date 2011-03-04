@@ -316,11 +316,13 @@ static void run_test(void)
     for (int i = 0; i < NUM_DBS; i++) {
         ids[i] = i;
         r = db_create(&dbs[i], env, 0); CKERR(r);
-        r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                       CKERR(r);
         dbs[i]->app_private = &ids[i];
         char key_name[32]; 
         sprintf(key_name, "key%d", i);
         r = dbs[i]->open(dbs[i], NULL, key_name, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);   CKERR(r);
+        IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+            CHK(dbs[i]->change_descriptor(dbs[i], txn_desc, &desc, 0));
+        });
     }
 
     // generate the src DB (do not use put_multiple)

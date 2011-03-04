@@ -88,7 +88,7 @@ hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
 
 static void
 dump_descriptor(DESCRIPTOR d) {
-    printf(" descriptor version %u size %u ", d->version, d->dbt.size);
+    printf(" descriptor size %u ", d->dbt.size);
     simple_hex_dump(d->dbt.data, d->dbt.size);
     printf("\n");
 }
@@ -192,6 +192,8 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 case BRT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
 				 case BRT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
 				 case BRT_OPTIMIZE_FOR_UPGRADE: printf("OPTIMIZE_FOR_UPGRADE"); goto ok;
+				 case BRT_UPDATE:   printf("UPDATE"); goto ok;
+				 case BRT_UPDATE_BROADCAST_ALL: printf("UPDATE_BROADCAST_ALL"); goto ok;
 				 }
 				 printf("HUH?");
 			     ok:

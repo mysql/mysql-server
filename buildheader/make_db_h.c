@@ -61,7 +61,7 @@ void print_db_notices (void) {
 
 
 enum {
-	TOKUDB_OUT_OF_LOCKS            = -100000,
+        TOKUDB_OUT_OF_LOCKS            = -100000,
         TOKUDB_SUCCEEDED_EARLY         = -100001,
         TOKUDB_FOUND_BUT_REJECTED      = -100002,
         TOKUDB_USER_CALLBACK_ERROR     = -100003,
@@ -73,7 +73,7 @@ enum {
         TOKUDB_ACCEPT                  = -100009,
         TOKUDB_MVCC_DICTIONARY_TOO_NEW = -100010,
         TOKUDB_UPGRADE_FAILURE         = -100011,
-	TOKUDB_TRY_AGAIN               = -100012,
+        TOKUDB_TRY_AGAIN               = -100012,
 	TOKUDB_NEEDS_REPAIR            = -100013,
 };
 
@@ -156,6 +156,7 @@ static void print_defines (void) {
     printf("#define DB_SET_RANGE_REVERSE 252\n"); // private tokudb
     //printf("#define DB_GET_BOTH_RANGE_REVERSE 251\n"); // private tokudb.  No longer supported #2862.
     dodefine(DB_RMW);
+    printf("#define DB_IS_RESETTING_OP 0x01000000\n"); // private tokudb
     printf("#define DB_PRELOCKED 0x00800000\n"); // private tokudb
     printf("#define DB_PRELOCKED_WRITE 0x00400000\n"); // private tokudb
     printf("#define DB_PRELOCKED_FILE_READ 0x00200000\n"); // private tokudb
@@ -524,12 +525,16 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        deletes_fail;            /* ydb row delete operations that failed  */ \n");
     printf("  u_int64_t        updates;                 /* ydb row update operations              */ \n");
     printf("  u_int64_t        updates_fail;            /* ydb row update operations that failed  */ \n");
+    printf("  u_int64_t        updates_broadcast;       /* ydb row update broadcast operations              */ \n");
+    printf("  u_int64_t        updates_broadcast_fail;  /* ydb row update broadcast operations that failed  */ \n");
     printf("  u_int64_t        multi_inserts;           /* ydb multi_row insert operations, dictionaray count             */ \n");
     printf("  u_int64_t        multi_inserts_fail;      /* ydb multi_row insert operations that failed, dictionary count  */ \n");
     printf("  u_int64_t        multi_deletes;           /* ydb multi_row delete operations, dictionary count              */ \n");
     printf("  u_int64_t        multi_deletes_fail;      /* ydb multi_row delete operations that failed, dictionary count  */ \n");
     printf("  u_int64_t        multi_updates;           /* ydb row update operations, dictionary count              */ \n");
     printf("  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ \n");
+    printf("  u_int64_t        le_updates;              /* leafentry update operations                        */ \n");
+    printf("  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");
@@ -625,6 +630,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */",
                              "int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max)",
                              "int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max)",
+			     "void (*set_update)                          (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))",
 			     NULL};
         print_struct("db_env", 1, db_env_fields32, db_env_fields64, sizeof(db_env_fields32)/sizeof(db_env_fields32[0]), extra);
     }
@@ -643,7 +649,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 
     //descriptor
     printf("typedef struct __toku_descriptor {\n");
-    printf("    u_int32_t version;\n");
     printf("    DBT       dbt;\n");
     printf("} *DESCRIPTOR, DESCRIPTOR_S;\n");
 
@@ -673,7 +678,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/",
                              "int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */",
                              "DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */",
-                             "int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */",
+                             "int (*change_descriptor) (DB*, DB_TXN*, const DBT* descriptor, u_int32_t) /* change row/dictionary descriptor for a db.  Available only while db is open */",
 			     "int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */",
                              "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
                              "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
@@ -681,6 +686,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*set_indexer)(DB*, DB_INDEXER*)",
                              "void (*get_indexer)(DB*, DB_INDEXER**)",
                              "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
+			     "int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, u_int32_t flags)",
+			     "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, u_int32_t flags)",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }

@@ -99,6 +99,8 @@ enum brt_msg_type {
     BRT_INSERT_NO_OVERWRITE = 11,
     BRT_OPTIMIZE = 12,             // Broadcast
     BRT_OPTIMIZE_FOR_UPGRADE = 13, // same as BRT_OPTIMIZE, but record version number in leafnode
+    BRT_UPDATE = 14,
+    BRT_UPDATE_BROADCAST_ALL = 15
 };
 
 typedef struct xids_t *XIDS;
@@ -110,16 +112,19 @@ struct brt_msg {
     union {
         /* insert or delete */
         struct brt_cmd_insert_delete {
-            DBT *key;
-            DBT *val;
+            const DBT *key;   // for insert, delete, upsertdel
+            const DBT *val;   // for insert, delete, (and it is the "extra" for upsertdel, upsertdel_broadcast_all)
         } id;
     } u;
 };
 // Message sent into brt to implement command (insert, delete, etc.)
 // This structure supports nested transactions, and obsoletes brt_msg.
-typedef struct brt_msg BRT_MSG_S, *BRT_MSG;
+typedef struct brt_msg BRT_MSG_S;
+typedef const struct brt_msg *BRT_MSG;
 
 typedef int (*brt_compare_func)(DB *, const DBT *, const DBT *);
+typedef void (*setval_func)(const DBT *, void *);
+typedef int (*brt_update_func)(DB *, const DBT *, const DBT *, const DBT *, setval_func, void *);
 
 #define UU(x) x __attribute__((__unused__))
 

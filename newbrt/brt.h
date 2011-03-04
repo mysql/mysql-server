@@ -29,7 +29,10 @@ C_BEGIN
 typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void*);
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
-int toku_maybe_upgrade_descriptor(BRT t, DESCRIPTOR d, BOOL do_log, TOKUTXN txn) __attribute__ ((warn_unused_result));
+int toku_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);
+int toku_write_descriptor_to_disk(struct brt_header * h, DESCRIPTOR d, int fd);
+void update_descriptor_in_memory(BRT t, const DBT* new_descriptor);
+
 
 int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn) __attribute__ ((warn_unused_result));
 // See the brt.c file for what this toku_redirect_brt does
@@ -40,16 +43,57 @@ u_int32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 int toku_brt_create(BRT *)  __attribute__ ((warn_unused_result));
 int toku_brt_set_flags(BRT, unsigned int flags)  __attribute__ ((warn_unused_result));
 int toku_brt_get_flags(BRT, unsigned int *flags)  __attribute__ ((warn_unused_result));
-int toku_brt_set_descriptor (BRT t, u_int32_t version, const DBT* descriptor)  __attribute__ ((warn_unused_result));
 int toku_brt_set_nodesize(BRT, unsigned int nodesize)  __attribute__ ((warn_unused_result));
 int toku_brt_get_nodesize(BRT, unsigned int *nodesize) __attribute__ ((warn_unused_result));
 
-int toku_brt_set_bt_compare(BRT, brt_compare_func) __attribute__ ((warn_unused_result));
-int toku_brt_set_upsert(BRT brt, int (*upsert)(DB *, const DBT *key, const DBT *upserted_val, const DBT *upserted_extra, const DBT *prev_val,
-					       void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))
-      __attribute__ ((warn_unused_result));
-
+int toku_brt_set_bt_compare(BRT, brt_compare_func)  __attribute__ ((warn_unused_result));
 brt_compare_func toku_brt_get_bt_compare (BRT brt);
+
+// How updates (update/insert/deletes) work:
+// There are two flavers of upsertdels:  Singleton and broadcast.
+// When a singleton upsertdel message arrives it contains a key and an extra DBT.
+//
+// At the YDB layer, the function looks like
+//
+// int (*update_function)(DB*, DB_TXN*, const DBT *key, const DBT *old_val, const DBT *extra,
+//                        void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra);
+//
+// And there are two DB functions
+//
+// int DB->update(DB *, DB_TXN *, const DBT *key, const DBT *extra);
+// Effect:
+//    If there is a key-value pair visible to the txn with value old_val then the system calls
+//      update_function(DB, key, old_val, extra, set_val, set_extra)
+//    where set_val and set_extra are a function and a void* provided by the system.
+//    The update_function can do one of two things:
+//      a) call set_val(new_val, set_extra)
+//         which has the effect of doing DB->put(db, txn, key, new_val, 0)
+//         overwriting the old value.
+//      b) Return DB_DELETE (a new return code)
+//      c) Return 0 (success) without calling set_val, which leaves the old value unchanged.
+//    If there is no such key-value pair visible to the txn, then the system calls
+//       update_function(DB, key, NULL, extra, set_val, set_extra)
+//    and the update_function can do one of the same three things.
+// Implementation notes: Update acquires a write lock (just as DB->put
+//    does).   This function works by sending a UPDATE message containing
+//    the key and extra.
+//
+// int DB->update_broadcast(DB *, DB_TXN*, const DBT *extra);
+// Effect: This has the same effect as building a cursor that walks
+//  through the DB, calling DB->update() on every key that the cursor
+//  finds.
+// Implementation note: Acquires a write lock on the entire database.
+//  This function works by sending an BROADCAST-UPDATE message containing
+//   the key and the extra.
+
+// Question: Why does the update_function need a DB_TXN?						    
+
+int toku_brt_set_update(BRT brt, int (*update_fun)(DB *,
+						   const DBT *key, const DBT *old_val, const DBT *extra,
+						   void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra))
+     __attribute__ ((warn_unused_result));
+int toku_brt_update(BRT brt, TOKUTXN txn, const DBT *key, const DBT *extra) __attribute__ ((warn_unused_result));
+int toku_brt_broadcast_update(BRT brt, TOKUTXN txn, const DBT *extra) __attribute__ ((warn_unused_result));
 
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname_in_env,
@@ -59,7 +103,6 @@ int toku_brt_open_recovery(BRT, const char *fname_in_env, int is_create, int onl
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags)  __attribute__ ((warn_unused_result));
 
-int toku_brt_broadcast_commit_all (BRT brt)  __attribute__ ((warn_unused_result));
 int toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 
 // Effect: Insert a key and data pair into a brt
@@ -74,6 +117,15 @@ int toku_brt_optimize_for_upgrade (BRT brt)  __attribute__ ((warn_unused_result)
 // Returns 0 if successful
 int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum brt_msg_type type)  __attribute__ ((warn_unused_result));
 
+// Effect: Send an update message into a brt.  This function is called
+// during recovery.
+// Returns 0 if successful
+int toku_brt_maybe_update(BRT brt, const DBT *key, const DBT *update_function_extra, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging) __attribute__ ((warn_unused_result));
+
+// Effect: Send a broadcasting update message into a brt.  This function
+// is called during recovery.
+// Returns 0 if successful
+int toku_brt_maybe_update_broadcast(BRT brt, const DBT *update_function_extra, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, BOOL is_resetting_op) __attribute__ ((warn_unused_result));
 
 int toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
 int toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn)  __attribute__ ((warn_unused_result));

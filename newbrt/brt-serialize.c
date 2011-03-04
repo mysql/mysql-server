@@ -544,7 +544,7 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
     return 0;
 }
 
-static void deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, BOOL temporary);
+static void deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_version);
 
 #include "workset.h"
 
@@ -1382,19 +1382,27 @@ int toku_serialize_brt_header_to (int fd, struct brt_header *h) {
     return rr;
 }
 
+// not version-sensitive because we only serialize a descriptor using the current layout_version
 u_int32_t
 toku_serialize_descriptor_size(const DESCRIPTOR desc) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
-    u_int32_t size = 4+ //version
-                     4; //size
+    u_int32_t size = 4; // four bytes for size of descriptor
+    size += desc->dbt.size;
+    return size;
+}
+
+static u_int32_t
+deserialize_descriptor_size(const DESCRIPTOR desc, int layout_version) {
+    //Checksum NOT included in this.  Checksum only exists in header's version.
+    u_int32_t size = 4; // four bytes for size of descriptor
+    if (layout_version == BRT_LAYOUT_VERSION_13)
+	size += 4;   // for version 13, include four bytes of "version"
     size += desc->dbt.size;
     return size;
 }
 
 void
 toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc) {
-    if (desc->version==0) lazy_assert(desc->dbt.size==0);
-    wbuf_int(wb, desc->version);
     wbuf_bytes(wb, desc->dbt.data, desc->dbt.size);
 }
 
@@ -1426,31 +1434,32 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
 }
 
 static void
-deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, BOOL temporary) {
-    desc->version  = rbuf_int(rb);
+deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_version) {
+    if (layout_version == BRT_LAYOUT_VERSION_13) {
+	// in older versions of TokuDB the Descriptor had a 4 byte version, which we must skip over
+	u_int32_t dummy_version;
+	dummy_version = rbuf_int(rb);
+    }
     u_int32_t size;
     bytevec   data;
     rbuf_bytes(rb, &data, &size);
     bytevec   data_copy = data;;
     if (size>0) {
-        if (!temporary) {
-            data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
-            lazy_assert(data_copy);
-        }
+	data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
+	lazy_assert(data_copy);
     }
     else {
         lazy_assert(size==0);
         data_copy = NULL;
     }
     toku_fill_dbt(&desc->dbt, data_copy, size);
-    if (desc->version==0) lazy_assert(desc->dbt.size==0);
 }
 
 static void
-deserialize_descriptor_from(int fd, struct brt_header *h, DESCRIPTOR desc) {
+deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_version) {
     DISKOFF offset;
     DISKOFF size;
-    toku_get_descriptor_offset_size(h->blocktable, &offset, &size);
+    toku_get_descriptor_offset_size(bt, &offset, &size);
     memset(desc, 0, sizeof(*desc));
     if (size > 0) {
         lazy_assert(size>=4); //4 for checksum
@@ -1472,9 +1481,9 @@ deserialize_descriptor_from(int fd, struct brt_header *h, DESCRIPTOR desc) {
             {
                 struct rbuf rb = {.buf = dbuf, .size = size, .ndone = 0};
                 //Not temporary; must have a toku_memdup'd copy.
-                deserialize_descriptor_from_rbuf(&rb, desc, FALSE);
+                deserialize_descriptor_from_rbuf(&rb, desc, layout_version);
             }
-            lazy_assert(toku_serialize_descriptor_size(desc)+4 == size);
+            lazy_assert(deserialize_descriptor_size(desc, layout_version)+4 == size);
             toku_free(dbuf);
         }
     }
@@ -1563,7 +1572,6 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->root = rbuf_blocknum(&rc);
     h->root_hash.valid = FALSE;
     h->flags = rbuf_int(&rc);
-    deserialize_descriptor_from(fd, h, &h->descriptor);
     h->layout_version_original = rbuf_int(&rc);    
     h->build_id_original = rbuf_int(&rc);
     h->time_of_creation  = rbuf_ulonglong(&rc);
@@ -1584,6 +1592,17 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 
 
 
+static int 
+write_descriptor_to_disk_unlocked(struct brt_header * h, DESCRIPTOR d, int fd) {
+    int r = 0;
+    DISKOFF offset;
+    //4 for checksum
+    toku_realloc_descriptor_on_disk_unlocked(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
+    r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
+    return r;
+}
+
+
 //TODO: When version 15 exists, add case for version 14 that looks like today's version 13 case,
 static int
 deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
@@ -1592,6 +1611,8 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
 
     struct brt_header *h = NULL;
     rval = deserialize_brtheader (fd, rb, &h); //deserialize from rbuf and fd into header
+    invariant ((uint32_t) h->layout_version == version);
+    deserialize_descriptor_from(fd, h->blocktable, &(h->descriptor), version);
     if (rval == 0) {
         invariant(h);
         switch (version) {
@@ -1616,6 +1637,10 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
                 if (upgrade) {
                     toku_brtheader_lock(h);
                     h->num_blocks_to_upgrade = toku_block_get_blocks_in_use_unlocked(h->blocktable); //Total number of blocks
+		    if (version == BRT_LAYOUT_VERSION_13) {
+			// write upgraded descriptor to disk if descriptor upgraded from version 13
+			rval = write_descriptor_to_disk_unlocked(h, &(h->descriptor), fd);
+		    }
                     h->dirty = 1;
                     toku_brtheader_unlock(h);
                 }

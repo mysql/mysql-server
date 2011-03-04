@@ -458,13 +458,14 @@ static const ULE_S ule_committed_delete = {
     .uxrs = (UXR_S *)ule_committed_delete.uxrs_static
 };
 
-static BRT_MSG
-msg_init(BRT_MSG msg, int type, XIDS xids,
+static BRT_MSG_S
+msg_init(int type, XIDS xids,
          DBT *key, DBT *val) {
-    msg->type = type;
-    msg->xids = xids;
-    msg->u.id.key = key;
-    msg->u.id.val = val;
+    BRT_MSG_S msg;
+    msg.type = type;
+    msg.xids = xids;
+    msg.u.id.key = key;
+    msg.u.id.val = val;
     return msg;
 }
 
@@ -550,31 +551,31 @@ test_le_empty_apply(void) {
                     //Abort/commit of an empty le is an empty le
                     ULE_S ule_expected = ule_committed_delete;
 
-                    msg_init(&msg, BRT_COMMIT_ANY, msg_xids,  &key, &val);
+                    msg = msg_init(BRT_COMMIT_ANY, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
+                    msg = msg_init(BRT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
 
-                    msg_init(&msg, BRT_ABORT_ANY, msg_xids, &key, &val);
+                    msg = msg_init(BRT_ABORT_ANY, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
+                    msg = msg_init(BRT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
                 {
                     //delete of an empty le is an empty le
                     ULE_S ule_expected = ule_committed_delete;
 
-                    msg_init(&msg, BRT_DELETE_ANY, msg_xids, &key, &val);
+                    msg = msg_init(BRT_DELETE_ANY, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
                 {
-                    msg_init(&msg, BRT_INSERT, msg_xids, &key, &val);
+                    msg = msg_init(BRT_INSERT, msg_xids, &key, &val);
                     ULE_S ule_expected;
                     generate_provpair_for(&ule_expected, &msg);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
                 {
-                    msg_init(&msg, BRT_INSERT_NO_OVERWRITE, msg_xids, &key, &val);
+                    msg = msg_init(BRT_INSERT_NO_OVERWRITE, msg_xids, &key, &val);
                     ULE_S ule_expected;
                     generate_provpair_for(&ule_expected, &msg);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
@@ -670,19 +671,19 @@ test_le_committed_apply(void) {
                 if (nesting_level > 0) {
                     //Commit/abort will not change a committed le
                     ULE_S ule_expected = ule_initial;
-                    msg_init(&msg, BRT_COMMIT_ANY, msg_xids,  &key, &val);
+                    msg = msg_init(BRT_COMMIT_ANY, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
+                    msg = msg_init(BRT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
 
-                    msg_init(&msg, BRT_ABORT_ANY, msg_xids, &key, &val);
+                    msg = msg_init(BRT_ABORT_ANY, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
+                    msg = msg_init(BRT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
 
                 {
-                    msg_init(&msg, BRT_DELETE_ANY, msg_xids, &key, &val);
+                    msg = msg_init(BRT_DELETE_ANY, msg_xids, &key, &val);
                     ULE_S ule_expected;
                     ule_expected.uxrs = ule_expected.uxrs_static;
                     generate_provdel_for(&ule_expected, &msg);
@@ -695,7 +696,7 @@ test_le_committed_apply(void) {
                     fillrandom(valbuf2, valsize2);
                     DBT val2;
                     toku_fill_dbt(&val2, valbuf2, valsize2);
-                    msg_init(&msg, BRT_INSERT, msg_xids, &key, &val2);
+                    msg = msg_init(BRT_INSERT, msg_xids, &key, &val2);
                     ULE_S ule_expected;
                     ule_expected.uxrs = ule_expected.uxrs_static;
                     generate_both_for(&ule_expected, &val, &msg);
@@ -709,7 +710,7 @@ test_le_committed_apply(void) {
                     fillrandom(valbuf2, valsize2);
                     DBT val2;
                     toku_fill_dbt(&val2, valbuf2, valsize2);
-                    msg_init(&msg, BRT_INSERT_NO_OVERWRITE, msg_xids, &key, &val2);
+                    msg = msg_init(BRT_INSERT_NO_OVERWRITE, msg_xids, &key, &val2);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
             }
@@ -743,7 +744,7 @@ static void test_le_optimize(void) {
     XIDS msg_xids; 
     int r = xids_create_child(root_xids, &msg_xids, optimize_txnid);
     assert(r==0);
-    msg_init(&msg, BRT_OPTIMIZE, msg_xids, &key, &val);
+    msg = msg_init(BRT_OPTIMIZE, msg_xids, &key, &val);
 
     //
     // create the key

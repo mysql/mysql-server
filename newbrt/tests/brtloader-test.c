@@ -320,7 +320,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
 
     assert(fs.n_temp_files==0);
 
-    DESCRIPTOR_S desc = {.version = 1, .dbt = (DBT){.size = 4, .data="abcd"}};
+    DESCRIPTOR_S desc = {.dbt = (DBT){.size = 4, .data="abcd"}};
 
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);

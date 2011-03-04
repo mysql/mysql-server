@@ -124,7 +124,7 @@ int print_leafentry (FILE *outf, LEAFENTRY v); // Print a leafentry out in human
 
 int le_latest_is_del(LEAFENTRY le); // Return true if it is a provisional delete.
 BOOL le_is_clean(LEAFENTRY le); //Return how many xids exist (0 does not count)
-int le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
+BOOL le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
 u_int32_t le_latest_keylen (LEAFENTRY le); // Return the latest keylen.
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
 u_int32_t le_latest_vallen (LEAFENTRY le); // Return the latest vallen.  Returns 0 for provisional deletes.
@@ -136,30 +136,6 @@ u_int32_t le_keylen (LEAFENTRY le);
 void* le_key_and_len (LEAFENTRY le, u_int32_t *len);
 
 u_int64_t le_outermost_uncommitted_xid (LEAFENTRY le);
-
-void le_clean_xids(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *new_leafentry_disksize);
-//Effect: Fully promotes le.  Returns new memory/disk size.
-//        Reuses the memory of le.
-//        Memory size is guaranteed to reduce.
-//           result of leafentry_memsize() changes
-//        Pointer to le is reused.
-//           No need to update omt if it just points to the leafentry.
-//        Does not change results of:
-//           le_latest_is_del()
-//           le_latest_keylen()
-//           le_latest_vallen()
-//           le_keylen()
-//        le_outermost_uncommitted_xid will return 0 after this.
-//        Changes results of following pointer functions, but memcmp of old/new answers would say they're the same.
-//          Note: You would have to memdup the old answers before calling le_full_promotion, if you want to run the comparison
-//           le_latest_val()
-//           le_key()
-//        le_outermost_uncommitted_xid will return 0 after this
-//        key/val pointers will change, but data pointed to by them will be the same
-//           as before
-//Requires: le is not a provdel
-//Requires: le is not marked committed
-//Requires: The outermost uncommitted xid in le has actually committed (le was not yet updated to reflect that)
 
 void
 le_committed_mvcc(uint8_t *key, uint32_t keylen,

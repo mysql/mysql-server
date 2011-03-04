@@ -60,12 +60,16 @@ static void run_test (void) {
     DB *dbb;
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    which = 0;
-    r = dba->set_descriptor(dba, 1, &descriptor);                     CKERR(r);
-    which = 1;
-    r = dbb->set_descriptor(dbb, 1, &descriptor);                     CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    which = 0;
+    IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+        CHK(dba->change_descriptor(dba, txn_desc, &descriptor, 0));
+    });
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
+    which = 1;
+    IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+        CHK(dbb->change_descriptor(dbb, txn_desc, &descriptor, 0));
+    });
 
     DB *dbs[num_dbs] = {dba, dbb};
     uint32_t flags[num_dbs] = {DB_YESOVERWRITE, DB_YESOVERWRITE};

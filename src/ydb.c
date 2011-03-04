@@ -69,6 +69,8 @@ static u_int64_t num_deletes;
 static u_int64_t num_deletes_fail;
 static u_int64_t num_updates;
 static u_int64_t num_updates_fail;
+static u_int64_t num_updates_broadcast;
+static u_int64_t num_updates_broadcast_fail;
 static u_int64_t num_multi_inserts;
 static u_int64_t num_multi_inserts_fail;
 static u_int64_t num_multi_deletes;
@@ -98,6 +100,8 @@ init_status_info(void) {
     num_deletes_fail = 0;
     num_updates = 0;
     num_updates_fail = 0;
+    num_updates_broadcast = 0;
+    num_updates_broadcast_fail = 0;
     num_multi_inserts = 0;
     num_multi_inserts_fail = 0;
     num_multi_deletes = 0;
@@ -381,6 +385,8 @@ static inline int db_opened(DB *db) {
 
 
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
+static int toku_db_update(DB *db, DB_TXN *txn, const DBT *key, const DBT *update_function_extra, u_int32_t flags);
+static int toku_db_update_broadcast(DB *db, DB_TXN *txn, const DBT *update_function_extra, u_int32_t flags);
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
 static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor);
 
@@ -442,6 +448,7 @@ ydb_do_recovery (DB_ENV *env) {
     assert(env->i->real_log_dir);
     toku_ydb_unlock();
     int r = tokudb_recover(env->i->dir, env->i->real_log_dir, env->i->bt_compare,
+                           env->i->update_function,
                            env->i->generate_row_for_put, env->i->generate_row_for_del,
                            env->i->cachetable_size);
     toku_ydb_lock();
@@ -1633,6 +1640,20 @@ locked_env_set_default_bt_compare(DB_ENV * env, int (*bt_compare) (DB *, const D
     return r;
 }
 
+static void
+env_set_update (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
+    env->i->update_function = update_function;
+}
+
+static void
+locked_env_set_update (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra)) {
+    toku_ydb_lock();
+    env_set_update (env, update_function);
+    toku_ydb_unlock();
+}
+
+
+
 static int
 env_set_generate_row_callback_for_put(DB_ENV *env, generate_row_for_put_func generate_row_for_put) {
     HANDLE_PANICKED_ENV(env);
@@ -1888,6 +1909,8 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
 	    engstat->deletes_fail       = num_deletes_fail;
 	    engstat->updates            = num_updates;
 	    engstat->updates_fail       = num_updates_fail;
+	    engstat->updates_broadcast  = num_updates_broadcast;
+	    engstat->updates_broadcast_fail  = num_updates_broadcast_fail;
      	    engstat->multi_inserts      = num_multi_inserts;
 	    engstat->multi_inserts_fail = num_multi_inserts_fail;
 	    engstat->multi_deletes      = num_multi_deletes;
@@ -1900,6 +1923,12 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat, char * env_panic_st
             engstat->directory_read_locks_fail = directory_read_locks_fail;
             engstat->directory_write_locks = directory_write_locks;
             engstat->directory_write_locks_fail = directory_write_locks_fail;
+	}
+	{
+	    UPDATE_STATUS_S update_stat;
+	    toku_update_get_status(&update_stat);
+	    engstat->le_updates = update_stat.updates;
+	    engstat->le_updates_broadcast = update_stat.updates_broadcast;
 	}
 	{
 	    u_int64_t fsync_count, fsync_time;
@@ -2082,6 +2111,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
 	n += snprintf(buff + n, bufsiz - n, "deletes_fail                     %"PRIu64"\n", engstat.deletes_fail);
 	n += snprintf(buff + n, bufsiz - n, "updates                          %"PRIu64"\n", engstat.updates);
 	n += snprintf(buff + n, bufsiz - n, "updates_fail                     %"PRIu64"\n", engstat.updates_fail);
+	n += snprintf(buff + n, bufsiz - n, "updates_broadcast                %"PRIu64"\n", engstat.updates_broadcast);
+	n += snprintf(buff + n, bufsiz - n, "updates_broadcast_fail           %"PRIu64"\n", engstat.updates_broadcast_fail);
+	n += snprintf(buff + n, bufsiz - n, "le_updates                       %"PRIu64"\n", engstat.le_updates);
+	n += snprintf(buff + n, bufsiz - n, "le_updates_broadcast             %"PRIu64"\n", engstat.le_updates_broadcast);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts                    %"PRIu64"\n", engstat.multi_inserts);
 	n += snprintf(buff + n, bufsiz - n, "multi_inserts_fail               %"PRIu64"\n", engstat.multi_inserts_fail);
 	n += snprintf(buff + n, bufsiz - n, "multi_deletes                    %"PRIu64"\n", engstat.multi_deletes);
@@ -2208,6 +2241,7 @@ toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     SENV(dbremove);
     SENV(dbrename);
     SENV(set_default_bt_compare);
+    SENV(set_update);
     SENV(set_generate_row_callback_for_put);
     SENV(set_generate_row_callback_for_del);
     SENV(put_multiple);
@@ -4057,7 +4091,14 @@ env_del_multiple(
 
     for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
+        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
+        remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
+        //Do locking if necessary.
+        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+            r = toku_grab_read_lock_on_directory(db, txn);
+            if (r != 0) goto cleanup;
+        }
         if (db == src_db) {
             del_keys[which_db] = *src_key;
         }
@@ -4067,8 +4108,6 @@ env_del_multiple(
             if (r != 0) goto cleanup;
             del_keys[which_db] = keys[which_db];
         }
-        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
-        remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
         if (remaining_flags[which_db] & ~DB_DELETE_ANY) {
             r = EINVAL;
@@ -4082,10 +4121,6 @@ env_del_multiple(
         }
 
         //Do locking if necessary.
-        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-            r = toku_grab_read_lock_on_directory(db, txn);
-            if (r != 0) goto cleanup;
-        }
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
             r = get_point_lock(db, txn, &del_keys[which_db]);
@@ -4512,6 +4547,10 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
         assert(r==0);
         db->i->key_compare_was_set = TRUE;
     }
+    if (db->dbenv->i->update_function) {
+        r = toku_brt_set_update(db->i->brt,db->dbenv->i->update_function);
+        assert(r==0);
+    }
     BOOL need_locktree = (BOOL)((db->dbenv->i->open_flags & DB_INIT_LOCK) &&
                                 (db->dbenv->i->open_flags & DB_INIT_TXN));
 
@@ -4575,7 +4614,7 @@ error_cleanup:
 //(insertion is legal)
 //Return non zero otherwise.
 static int
-db_put_check_size_constraints(DB *db, DBT *key, DBT *val) {
+db_put_check_size_constraints(DB *db, const DBT *key, const DBT *val) {
     int r;
 
     //Check limits on size of key and val.
@@ -4684,6 +4723,131 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     return r;
 }
 
+static int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
+    RANGE_LOCK_REQUEST_S request;
+    char *   dname = db->i->dname;
+    DBT key_in_directory;
+    //
+    // bad hack because some environment dictionaries do not have a dname
+    //
+    if (!dname) {
+        return 0;
+    }
+    toku_fill_dbt(&key_in_directory, dname, strlen(dname)+1);
+    //Left end of range == right end of range (point lock)
+    write_lock_request_init(
+        &request, 
+        txn, 
+        db->dbenv->i->directory,
+        &key_in_directory,
+        &key_in_directory
+        );
+    int r = grab_range_lock(&request);
+    if (r == 0)
+	directory_write_locks++;
+    else
+	directory_write_locks_fail++;
+    return r;
+}
+
+
+
+static int
+toku_db_update(DB *db, DB_TXN *txn,
+               const DBT *key,
+               const DBT *update_function_extra,
+               u_int32_t flags) {
+    HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
+    int r = 0;
+
+    u_int32_t lock_flags = get_prelocked_flags(flags);
+    flags &= ~lock_flags;
+
+    if (!(lock_flags & DB_PRELOCKED_FILE_READ)) {
+        r = toku_grab_read_lock_on_directory(db, txn);
+        if (r != 0) { goto cleanup; }
+    }
+
+    r = db_put_check_size_constraints(db, key, update_function_extra);
+    if (r != 0) { goto cleanup; }
+
+    BOOL do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
+    if (do_locking) {
+        r = get_point_lock(db, txn, key);
+        if (r != 0) { goto cleanup; }
+    }
+
+    TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+    r = toku_brt_maybe_update(db->i->brt, key, update_function_extra, ttxn,
+                              FALSE, ZERO_LSN, TRUE);
+
+cleanup:
+    if (r == 0) 
+	num_updates++;
+    else
+	num_updates_fail++;
+    return r;
+}
+
+
+// DB_IS_RESETTING_OP is true if the dictionary should be considered as if created by this transaction.
+// For example, it will be true if toku_db_update_broadcast() is used to implement a schema change (such
+// as adding a column), and will be false if used simply to update all the rows of a table (such as 
+// incrementing a field).
+static int
+toku_db_update_broadcast(DB *db, DB_TXN *txn,
+                         const DBT *update_function_extra,
+                         u_int32_t flags) {
+    HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
+    int r = 0;
+
+    u_int32_t lock_flags = get_prelocked_flags(flags);
+    flags &= ~lock_flags;
+    u_int32_t is_resetting_op_flag = flags & DB_IS_RESETTING_OP;
+    flags &= is_resetting_op_flag;
+    BOOL is_resetting_op = (is_resetting_op_flag != 0);
+    
+
+    if (is_resetting_op) {
+        if (txn->parent != NULL) {
+            r = EINVAL; // cannot have a parent if you are a resetting op
+            goto cleanup;
+        }
+        r = toku_db_pre_acquire_fileops_lock(db, txn);
+        if (r != 0) { goto cleanup; }
+    }
+    else if (!(lock_flags & DB_PRELOCKED_FILE_READ)) {
+        r = toku_grab_read_lock_on_directory(db, txn);
+        if (r != 0) { goto cleanup; }
+    }
+
+    {
+        DBT null_key;
+        toku_init_dbt(&null_key);
+        r = db_put_check_size_constraints(db, &null_key, update_function_extra);
+        if (r != 0) { goto cleanup; }
+    }
+
+    BOOL do_locking = (db->i->lt && !(lock_flags & DB_PRELOCKED_WRITE));
+    if (do_locking) {
+        r = toku_db_pre_acquire_table_lock(db, txn, TRUE);
+        if (r != 0) { goto cleanup; }
+    }
+
+    TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+    r = toku_brt_maybe_update_broadcast(db->i->brt, update_function_extra, ttxn,
+                                        FALSE, ZERO_LSN, TRUE, is_resetting_op);
+
+cleanup:
+    if (r == 0) 
+	num_updates_broadcast++;
+    else
+	num_updates_broadcast_fail++;
+    return r;
+}
+
 static int
 log_put_single(DB_TXN *txn, BRT brt, const DBT *key, const DBT *val) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
@@ -4771,6 +4935,15 @@ env_put_multiple(
     for (uint32_t which_db = 0; which_db < num_dbs; which_db++) {
         DB *db = db_array[which_db];
 
+        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
+        remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
+
+        //Do locking if necessary.
+        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+            r = toku_grab_read_lock_on_directory(db, txn);
+            if (r != 0) goto cleanup;
+        }
+
         //Generate the row
         if (db == src_db) {
             put_keys[which_db] = *src_key;
@@ -4782,9 +4955,6 @@ env_put_multiple(
             put_keys[which_db] = keys[which_db];
             put_vals[which_db] = vals[which_db];            
         }
-
-        lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
-        remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
         // check size constraints
         r = db_put_check_size_constraints(db, &put_keys[which_db], &put_vals[which_db]);
@@ -4802,10 +4972,6 @@ env_put_multiple(
         }
 
         //Do locking if necessary.
-        if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-            r = toku_grab_read_lock_on_directory(db, txn);
-            if (r != 0) goto cleanup;
-        }
         if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
             //Needs locking
             r = get_point_lock(db, txn, &put_keys[which_db]);
@@ -4876,6 +5042,10 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             lock_flags[which_db] = get_prelocked_flags(flags_array[which_db]);
             remaining_flags[which_db] = flags_array[which_db] & ~lock_flags[which_db];
 
+            if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
+                r = toku_grab_read_lock_on_directory(db, txn);
+                if (r != 0) goto cleanup;
+            }
             // keys[0..num_dbs-1] are the new keys
             // keys[num_dbs..2*num_dbs-1] are the old keys
             // vals[0..num_dbs-1] are the new vals
@@ -4909,10 +5079,6 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
             toku_dbt_cmp cmpfun = toku_db_get_compare_fun(db);
             BOOL key_eq = cmpfun(db, &curr_old_key, &curr_new_key) == 0;
             if (!key_eq) {
-                if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-                    r = toku_grab_read_lock_on_directory(db, txn);
-                    if (r != 0) goto cleanup;
-                }
                 //Check overwrite constraints only in the case where 
                 // the keys are not equal.
                 // If the keys are equal, then we do not care of the flag is DB_NOOVERWRITE or DB_YESOVERWRITE
@@ -4945,10 +5111,6 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 r = db_put_check_size_constraints(db, &curr_new_key, &curr_new_val);
                 if (r != 0) goto cleanup;
 
-                if (!(lock_flags[which_db] & DB_PRELOCKED_FILE_READ)) {
-                    r = toku_grab_read_lock_on_directory(db, txn);
-                    if (r != 0) goto cleanup;
-                }
                 // lock new key
                 if (db->i->lt) {
                     r = get_point_lock(db, txn, &curr_new_key);
@@ -5228,14 +5390,47 @@ toku_db_rename(DB * db, const char *fname, const char *dbname, const char *newna
     return r;
 }
 
+//
+// This function is the only way to set a descriptor of a DB.
+//
 static int 
-toku_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor) {
+toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
+    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
-    if (db_opened(db)) return EINVAL;
-    else if (!descriptor) r = EINVAL;
-    else if (descriptor->size>0 && !descriptor->data) r = EINVAL;
-    else r = toku_brt_set_descriptor(db->i->brt, version, descriptor);
+    TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+    DBT old_descriptor;
+    BOOL is_db_hot_index  = ((flags & DB_IS_HOT_INDEX) != 0);
+
+    toku_init_dbt(&old_descriptor);
+    if (!db_opened(db) || !txn || !descriptor || (descriptor->size>0 && !descriptor->data)){
+        r = EINVAL;
+        goto cleanup;
+    }
+    if (txn->parent != NULL) {
+        r = EINVAL; // cannot have a parent if you are a resetting op
+        goto cleanup;
+    }
+    //
+    // If the DB is created for the purpose of being a hot index, 
+    // then do not grab a write lock on the directory when setting the
+    // descriptor, because the hot index DB must not have a write
+    // lock grabbed in order to work
+    //
+    if (is_db_hot_index) {
+        r = toku_grab_read_lock_on_directory(db, txn);
+        if (r != 0) { goto cleanup; }    
+    }
+    else {
+        r = toku_db_pre_acquire_fileops_lock(db, txn);
+        if (r != 0) { goto cleanup; }    
+    }
+    
+    old_descriptor.size = db->descriptor->dbt.size;
+    old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
+    r = toku_change_descriptor(db->i->brt, &old_descriptor, descriptor, TRUE, ttxn);
+cleanup:
+    if (old_descriptor.data) toku_free(old_descriptor.data);
     return r;
 }
 
@@ -5330,33 +5525,6 @@ toku_c_pre_acquire_read_lock(DBC *dbc, const DBT *key_left, const DBT *key_right
 			       key_right);
         r = grab_range_lock(&request);
     }
-    return r;
-}
-
-static int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
-    RANGE_LOCK_REQUEST_S request;
-    char *   dname = db->i->dname;
-    DBT key_in_directory;
-    //
-    // bad hack because some environment dictionaries do not have a dname
-    //
-    if (!dname) {
-        return 0;
-    }
-    toku_fill_dbt(&key_in_directory, dname, strlen(dname)+1);
-    //Left end of range == right end of range (point lock)
-    write_lock_request_init(
-        &request, 
-        txn, 
-        db->dbenv->i->directory,
-        &key_in_directory,
-        &key_in_directory
-        );
-    int r = grab_range_lock(&request);
-    if (r == 0)
-	directory_write_locks++;
-    else
-	directory_write_locks_fail++;
     return r;
 }
 
@@ -5636,6 +5804,56 @@ locked_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     return r;
 }
 
+static inline int
+autotxn_db_update(DB *db, DB_TXN *txn,
+                  const DBT *key,
+                  const DBT *update_function_extra,
+                  u_int32_t flags) {
+    BOOL changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    if (r != 0) { return r; }
+    r = toku_db_update(db, txn, key, update_function_extra, flags);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
+static int
+locked_db_update(DB *db, DB_TXN *txn,
+                 const DBT *key,
+                 const DBT *update_function_extra,
+                 u_int32_t flags) {
+    int r = env_check_avail_fs_space(db->dbenv);
+    if (r != 0) { goto cleanup; }
+    toku_ydb_lock();
+    r = autotxn_db_update(db, txn, key, update_function_extra, flags);
+    toku_ydb_unlock();
+cleanup:
+    return r;
+}
+
+static inline int
+autotxn_db_update_broadcast(DB *db, DB_TXN *txn,
+                            const DBT *update_function_extra,
+                            u_int32_t flags) {
+    BOOL changed; int r;
+    r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
+    if (r != 0) { return r; }
+    r = toku_db_update_broadcast(db, txn, update_function_extra, flags);
+    return toku_db_destruct_autotxn(txn, r, changed);
+}
+
+static int
+locked_db_update_broadcast(DB *db, DB_TXN *txn,
+                           const DBT *update_function_extra,
+                           u_int32_t flags) {
+    int r = env_check_avail_fs_space(db->dbenv);
+    if (r != 0) { goto cleanup; }
+    toku_ydb_lock();
+    r = autotxn_db_update_broadcast(db, txn, update_function_extra, flags);
+    toku_ydb_unlock();
+cleanup:
+    return r;
+}
+
 static int 
 locked_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     toku_multi_operation_client_lock(); //Cannot begin checkpoint
@@ -5657,9 +5875,9 @@ locked_db_rename(DB * db, const char *namea, const char *nameb, const char *name
 }
 
 static int 
-locked_db_set_descriptor(DB *db, u_int32_t version, const DBT* descriptor) {
+locked_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t flags) {
     toku_ydb_lock();
-    int r = toku_db_set_descriptor(db, version, descriptor);
+    int r = toku_db_change_descriptor(db, txn, descriptor, flags);
     toku_ydb_unlock();
     return r;
 }
@@ -5861,9 +6079,11 @@ toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     //    SDB(key_range);
     SDB(open);
     SDB(put);
+    SDB(update);
+    SDB(update_broadcast);
     SDB(remove);
     SDB(rename);
-    SDB(set_descriptor);
+    SDB(change_descriptor);
     SDB(set_errfile);
     SDB(set_pagesize);
     SDB(get_pagesize);
@@ -6038,6 +6258,7 @@ int
 db_env_set_func_free (void (*f)(void*)) {
     return toku_set_func_free(f);
 }
+
 
 // Got to call dlmalloc, or else it won't get included.
 void 

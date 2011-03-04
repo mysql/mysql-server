@@ -50,10 +50,12 @@ static void upgrade_test_3(DB **dbs) {
     for(int i=0;i<NUM_DBS;i++) {
 	idx[i] = i;
 	r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
-	r = dbs[i]->set_descriptor(dbs[i], 1, &desc);                                                         CKERR(r);
 	dbs[i]->app_private = &idx[i];
 	snprintf(name, sizeof(name), "db_%04x", i);
 	r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666);                                CKERR(r);
+    IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
+        CHK(dbs[i]->change_descriptor(dbs[i], txn_desc, &desc, 0));
+    });
 
 	r = env->txn_begin(env, NULL, &txn, DB_SERIALIZABLE);
 	CKERR(r);

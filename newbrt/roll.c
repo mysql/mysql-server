@@ -127,7 +127,11 @@ static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
     return 0;
 }
 
-static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn) {
+
+// Input arg reset_root_xid_that_created TRUE means that this operation has changed the definition of this dictionary.
+// (Example use is for schema change committed with txn that inserted cmdupdatebroadcast message.)
+static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn,
+			 BOOL reset_root_xid_that_created) {
     CACHEFILE cf;
     // 2954 - ignore messages for aborted hot-index
     int r = toku_txn_ignore_contains(txn, filenum);
@@ -157,12 +161,18 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
         DBT key_dbt,data_dbt;
         XIDS xids = toku_txn_get_xids(txn);
         BRT_MSG_S brtcmd = { type, xids,
-                             .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
+                             .u.id={(key.len > 0)
+                                    ? toku_fill_dbt(&key_dbt,  key.data,  key.len)
+                                    : toku_init_dbt(&key_dbt),
                                     data
                                     ? toku_fill_dbt(&data_dbt, data->data, data->len)
                                     : toku_init_dbt(&data_dbt) }};
 
         r = toku_brt_root_put_cmd(brt, &brtcmd);
+	if (r == 0 && reset_root_xid_that_created) {
+	    TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
+	    toku_reset_root_xid_that_created(brt, new_root_xid_that_created);
+	}
     }
 cleanup:
     toku_cachefile_unpin_fd(cf);
@@ -178,7 +188,7 @@ static int do_nothing_with_filenum(TOKUTXN UU(txn), FILENUM UU(filenum)) {
 
 int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF UU(yield), void *UU(yieldv), LSN oplsn) {
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
 #else
     key = key; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
@@ -193,7 +203,59 @@ toku_rollback_cmdinsert (FILENUM    filenum,
                          void *     UU(yieldv),
                          LSN        oplsn)
 {
-    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+}
+
+int
+toku_commit_cmdupdate(FILENUM    filenum,
+                      BYTESTRING key,
+                      TOKUTXN    txn,
+                      YIELDF     UU(yield),
+                      void *     UU(yieldv),
+                      LSN        oplsn)
+{
+    return do_insertion(BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+}
+
+int
+toku_rollback_cmdupdate(FILENUM    filenum,
+                        BYTESTRING key,
+                        TOKUTXN    txn,
+                        YIELDF     UU(yield),
+                        void *     UU(yieldv),
+                        LSN        oplsn)
+{
+    return do_insertion(BRT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+}
+
+int
+toku_commit_cmdupdatebroadcast(FILENUM    filenum,
+                               u_int8_t   is_resetting_op,
+                               TOKUTXN    txn,
+                               YIELDF     UU(yield),
+                               void *     UU(yieldv),
+                               LSN        oplsn)
+{
+    // if is_resetting_op, reset root_xid_that_created in
+    // relevant brtheader.
+    BOOL reset_root_xid_that_created = (is_resetting_op ? TRUE : FALSE);
+    const enum brt_msg_type msg_type = (is_resetting_op
+                                        ? BRT_COMMIT_BROADCAST_ALL
+                                        : BRT_COMMIT_BROADCAST_TXN);
+    BYTESTRING nullkey = { 0, NULL };
+    return do_insertion(msg_type, filenum, nullkey, 0, txn, oplsn, reset_root_xid_that_created);
+}
+
+int
+toku_rollback_cmdupdatebroadcast(FILENUM    filenum,
+                                 u_int8_t   UU(is_resetting_op),
+                                 TOKUTXN    txn,
+                                 YIELDF     UU(yield),
+                                 void *     UU(yieldv),
+                                 LSN        oplsn)
+{
+    BYTESTRING nullkey = { 0, NULL };
+    return do_insertion(BRT_ABORT_BROADCAST_TXN, filenum, nullkey, 0, txn, oplsn, FALSE);
 }
 
 int
@@ -205,9 +267,9 @@ toku_commit_cmddelete (FILENUM    filenum,
                        LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE
-    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
 #else
-    xid = xid; key = key;
+    key = key; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
 #endif
 }
@@ -220,7 +282,7 @@ toku_rollback_cmddelete (FILENUM    filenum,
                          void *     UU(yieldv),
                          LSN        oplsn)
 {
-    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
+    return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
 }
 
 static int
@@ -461,4 +523,55 @@ toku_rollback_dictionary_redirect (FILENUM old_filenum,
     }
     return r;
 }
+
+int
+toku_commit_change_fdescriptor(FILENUM    filenum,
+                               BYTESTRING UU(old_descriptor),
+                               TOKUTXN    txn,
+                               YIELDF     UU(yield),
+                               void *     UU(yieldv),
+                               LSN        UU(oplsn))
+{
+    return do_nothing_with_filenum(txn, filenum);
+}
+
+int
+toku_rollback_change_fdescriptor(FILENUM    filenum,
+                               BYTESTRING old_descriptor,
+                               TOKUTXN    txn,
+                               YIELDF     UU(yield),
+                               void *     UU(yieldv),
+                               LSN        UU(oplsn))
+{
+    CACHEFILE cf;
+    int r;
+    int fd;
+    r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    if (r==ENOENT) { //Missing file on recovered transaction is not an error
+        assert(txn->recovered_from_checkpoint);
+        r = 0;
+        goto done;
+    }
+    assert(r==0);
+
+    fd = toku_cachefile_get_and_pin_fd(cf);
+    if (!toku_cachefile_is_dev_null_unlocked(cf)) {
+        OMTVALUE brtv=NULL;
+        r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
+        assert(r==0);
+        BRT brt = brtv;
+        DESCRIPTOR_S d;
+
+        toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);
+        r = toku_write_descriptor_to_disk(brt->h, &d, fd);
+        assert(r == 0);
+
+        update_descriptor_in_memory(brt, &d.dbt);
+    }
+    toku_cachefile_unpin_fd(cf);
+done:
+    return r;
+}
+
+
 
