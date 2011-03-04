@@ -2011,6 +2011,33 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   if ((error= open_indexes(thd, ndb, table, FALSE)) != 0)
     goto err;
 
+  /*
+    Backward compatibility for tables created without tablespace
+    in .frm => read tablespace setting from engine
+  */
+  if (table_share->mysql_version < 50120 &&
+      !table_share->tablespace /* safety */)
+  {
+    Uint32 id;
+    if (tab->getTablespace(&id))
+    {
+      NdbDictionary::Tablespace ts= dict->getTablespace(id);
+      NdbError ndberr= dict->getNdbError();
+      if (ndberr.classification == NdbError::NoError)
+      {
+        const char *tablespace= ts.getName();
+        const size_t tablespace_len= strlen(tablespace);
+        if (tablespace_len != 0)
+        {
+          DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
+          table_share->tablespace= strmake_root(&table_share->mem_root,
+                                                tablespace,
+                                                tablespace_len);
+        }
+      }
+    }
+  }
+
   ndbtab_g.release();
 
 #ifdef HAVE_NDB_BINLOG
@@ -7957,47 +7984,6 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
     }
   }
 
-#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
-  TABLE_SHARE *share= table->s;
-  if (share->mysql_version < MYSQL_VERSION_TABLESPACE_IN_FRM)
-  {
-     DBUG_PRINT("info", ("Restored an old table %s, pre-frm_version 7", 
-	                 share->table_name.str));
-     if (!create_info->tablespace && !share->tablespace)
-     {
-       DBUG_PRINT("info", ("Checking for tablespace in ndb"));
-       NDBDICT *ndbdict= ndb->getDictionary();
-       NdbError ndberr;
-       Uint32 id;
-       ndb->setDatabaseName(m_dbname);
-       DBUG_ASSERT(ndbtab != NULL);
-       if (!ndbtab->getTablespace(&id))
-       {
-         DBUG_VOID_RETURN;
-       }
-       {
-         NdbDictionary::Tablespace ts= ndbdict->getTablespace(id);
-         ndberr= ndbdict->getNdbError();
-         if(ndberr.classification != NdbError::NoError)
-           goto err;
-	 const char *tablespace= ts.getName();
-         DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
-         uint tablespace_len= strlen(tablespace);
-         if (tablespace_len != 0) 
-         {
-           share->tablespace= (char *) alloc_root(&share->mem_root,
-                                                  tablespace_len+1);
-           strxmov(share->tablespace, tablespace, NullS);
-	   create_info->tablespace= share->tablespace;
-         }
-         DBUG_VOID_RETURN;
-       }
-err:
-       my_errno= ndb_to_mysql_error(&ndberr);
-    }
-  }
-#endif
-
   DBUG_VOID_RETURN;
 }
 
@@ -8105,7 +8091,6 @@ int ha_ndbcluster::create(const char *name,
   bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
-  const char *tablespace= create_info->tablespace;
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
@@ -8139,9 +8124,6 @@ int ha_ndbcluster::create(const char *name,
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
 
-#ifndef NDB_WITHOUT_TABLESPACE_IN_FRM
-  DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
-#endif
   table= form;
   if (create_from_engine)
   {
@@ -8318,8 +8300,8 @@ int ha_ndbcluster::create(const char *name,
   { 
     tab.setLogging(TRUE);
     tab.setTemporary(FALSE);
-    if (tablespace)
-      tab.setTablespaceName(tablespace);
+    if (create_info->tablespace)
+      tab.setTablespaceName(create_info->tablespace);
     else
       tab.setTablespaceName("DEFAULT-TS");
   }
@@ -11516,9 +11498,9 @@ static void print_share(const char* where, NDB_SHARE* share)
   if (event_data)
   {
     fprintf(DBUG_FILE,
-            "  - event_data->table: %p %s.%s\n",
-            event_data->table, event_data->table->s->db.str,
-            event_data->table->s->table_name.str);
+            "  - event_data->shadow_table: %p %s.%s\n",
+            event_data->shadow_table, event_data->shadow_table->s->db.str,
+            event_data->shadow_table->s->table_name.str);
   }
 }
 
@@ -11751,14 +11733,14 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
     event_data= share->event_data;
   else if (share->op)
     event_data= (Ndb_event_data *) share->op->getCustomData();
-  if (event_data && event_data->table)
+  if (event_data && event_data->shadow_table)
   {
     if (!IS_TMP_PREFIX(share->table_name))
     {
-      event_data->table->s->db.str= share->db;
-      event_data->table->s->db.length= strlen(share->db);
-      event_data->table->s->table_name.str= share->table_name;
-      event_data->table->s->table_name.length= strlen(share->table_name);
+      event_data->shadow_table->s->db.str= share->db;
+      event_data->shadow_table->s->db.length= strlen(share->db);
+      event_data->shadow_table->s->table_name.str= share->table_name;
+      event_data->shadow_table->s->table_name.length= strlen(share->table_name);
     }
     else
     {

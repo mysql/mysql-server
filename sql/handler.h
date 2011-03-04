@@ -324,6 +324,14 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
                 /** Unused. Reserved for future versions. */
                 ROW_TYPE_PAGE };
 
+#ifndef MCP_WL3627
+enum column_format_type {
+  COLUMN_FORMAT_TYPE_DEFAULT=   0,
+  COLUMN_FORMAT_TYPE_FIXED=     1,
+  COLUMN_FORMAT_TYPE_DYNAMIC=   2
+};
+#endif
+
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
   BFN_RESET_SLAVE=       2,
@@ -1647,8 +1655,7 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  virtual char* get_tablespace_name(THD *thd, char *name, uint name_len)
-  { return(NULL);}  /* gets tablespace name from handler */
+  virtual char* get_tablespace_name(THD *thd, char *name, uint name_len);
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
   /**
