@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,11 +17,14 @@
 -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <properties>
+    <versionNumber>7.1.11-SNAPSHOT</versionNumber>
+  </properties>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-aggregate</artifactId>
   <packaging>pom</packaging>
-  <version>7.1.11-SNAPSHOT</version>
+  <version>${versionNumber}</version>
   <name>ClusterJ Aggregate</name>
   <description>The aggregate maven project of ClusterJ</description>
   <modules>
@@ -33,6 +36,62 @@
     <module>clusterj-jpatest</module>
     <module>clusterj-openjpa</module>
   </modules>
+  <dependencyManagement>
+    <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.7</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr</artifactId>
+      <version>3.2</version>
+    </dependency>
+      <dependency>
+        <groupId>org.apache.openjpa</groupId>
+        <artifactId>openjpa</artifactId>
+        <version>1.2.0</version>
+      </dependency>
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>5.1.15</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-api</artifactId>
+      <version>${versionNumber}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-core</artifactId>
+      <version>${versionNumber}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-test</artifactId>
+      <version>${versionNumber}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-tie</artifactId>
+      <version>${versionNumber}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-jpatest</artifactId>
+      <version>${versionNumber}</version>
+    </dependency>
+    <dependency>
+      <groupId>ndbjtie</groupId>
+      <artifactId>ndbjtie</artifactId>
+      <version>${versionNumber}</version>
+    </dependency>
+    </dependencies>
+  </dependencyManagement>
   <licenses>
     <license>
       <name>GPLv2</name>
