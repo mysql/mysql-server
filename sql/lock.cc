@@ -82,8 +82,6 @@
 #include "sql_acl.h"                       // SUPER_ACL
 #include <hash.h>
 #include <assert.h>
-#include <mysql/plugin.h>
-#include <mysql/service_thd_wait.h>
 
 /**
   @defgroup Locking Locking
