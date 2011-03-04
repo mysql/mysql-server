@@ -13,6 +13,15 @@ where table_name = "t1";
 show create table t1;
 source show_attributes.inc;
 select * from t1 order by a1;
+
+# Since this is an _old_ table without tablespace
+# in .frm but with tablespace in engine -> do extra checks
+# that tablespace is still there after ALTER
+ALTER TABLE t1 ADD COLUMN c int;
+SHOW CREATE TABLE t1;
+FLUSH TABLES;
+SHOW CREATE TABLE t1;
+
 drop table t1;
 
 ALTER TABLESPACE ts

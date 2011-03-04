@@ -2011,6 +2011,33 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   if ((error= open_indexes(thd, ndb, table, FALSE)) != 0)
     goto err;
 
+  /*
+    Backward compatibility for tables created without tablespace
+    in .frm => read tablespace setting from engine
+  */
+  if (table_share->mysql_version < 50120 &&
+      !table_share->tablespace /* safety */)
+  {
+    Uint32 id;
+    if (tab->getTablespace(&id))
+    {
+      NdbDictionary::Tablespace ts= dict->getTablespace(id);
+      NdbError ndberr= dict->getNdbError();
+      if (ndberr.classification == NdbError::NoError)
+      {
+        const char *tablespace= ts.getName();
+        const size_t tablespace_len= strlen(tablespace);
+        if (tablespace_len != 0)
+        {
+          DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
+          table_share->tablespace= strmake_root(&table_share->mem_root,
+                                                tablespace,
+                                                tablespace_len);
+        }
+      }
+    }
+  }
+
   ndbtab_g.release();
 
 #ifdef HAVE_NDB_BINLOG
