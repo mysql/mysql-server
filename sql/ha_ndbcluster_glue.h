@@ -67,9 +67,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 /* Online alter table not supported */
 #define NDB_WITHOUT_ONLINE_ALTER
 
-/* Tablespace in .frm and TABLE_SHARE->tablespace not supported */
-#define NDB_WITHOUT_TABLESPACE_IN_FRM
-
 /* Read before write removal not supported */
 #define NDB_WITHOUT_READ_BEFORE_WRITE_REMOVAL
 
