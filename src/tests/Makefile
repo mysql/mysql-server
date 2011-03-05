@@ -159,6 +159,13 @@ BDB_DONTRUN_TESTS = \
         recover-descriptor \
         recover-descriptor2 \
         recover-descriptor3 \
+        recover-descriptor4 \
+        recover-descriptor5 \
+        recover-descriptor6 \
+        recover-descriptor7 \
+        recover-descriptor8 \
+        recover-descriptor9 \
+        recover-descriptor10 \
         recover-fclose-in-checkpoint \
         recover-loader-test \
         recover-lsn-filter-multiple \
@@ -213,6 +220,10 @@ BDB_DONTRUN_TESTS = \
         test_dupsort_set_range_reverse \
         test_logflush \
         test_transactional_descriptor \
+        test_trans_desc_during_chkpt \
+        test_trans_desc_during_chkpt2 \
+        test_trans_desc_during_chkpt3 \
+        test_trans_desc_during_chkpt4 \
         test_txn_abort6 \
         test_txn_abort8 \
         test_txn_abort9 \
