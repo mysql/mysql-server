@@ -30,8 +30,7 @@ typedef int(*BRT_GET_CALLBACK_FUNCTION)(ITEMLEN, bytevec, ITEMLEN, bytevec, void
 
 int toku_open_brt (const char *fname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*) __attribute__ ((warn_unused_result));
 int toku_brt_change_descriptor(BRT t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn);
-int toku_write_descriptor_to_disk(struct brt_header * h, DESCRIPTOR d, int fd);
-void update_descriptor_in_memory(BRT t, const DBT* new_descriptor);
+int toku_update_descriptor(struct brt_header * h, DESCRIPTOR d, int fd);
 
 
 int toku_dictionary_redirect (const char *dst_fname_in_env, BRT old_brt, TOKUTXN txn) __attribute__ ((warn_unused_result));

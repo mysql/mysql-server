@@ -563,10 +563,8 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
         DESCRIPTOR_S d;
 
         toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);
-        r = toku_write_descriptor_to_disk(brt->h, &d, fd);
+        r = toku_update_descriptor(brt->h, &d, fd);
         assert(r == 0);
-
-        update_descriptor_in_memory(brt, &d.dbt);
     }
     toku_cachefile_unpin_fd(cf);
 done:
