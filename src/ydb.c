@@ -5428,7 +5428,7 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
     
     old_descriptor.size = db->descriptor->dbt.size;
     old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
-    r = toku_change_descriptor(db->i->brt, &old_descriptor, descriptor, TRUE, ttxn);
+    r = toku_brt_change_descriptor(db->i->brt, &old_descriptor, descriptor, TRUE, ttxn);
 cleanup:
     if (old_descriptor.data) toku_free(old_descriptor.data);
     return r;

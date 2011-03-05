@@ -702,7 +702,7 @@ static int toku_recover_change_fdescriptor (struct logtype_change_fdescriptor *l
             l->new_descriptor.data, 
             l->new_descriptor.len
             );
-        r = toku_change_descriptor(
+        r = toku_brt_change_descriptor(
             tuple->brt, 
             &old_descriptor, 
             &new_descriptor, 
