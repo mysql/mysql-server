@@ -263,3 +263,16 @@ SELECT * FROM t2 inner join t1 WHERE ( t1.a = 0 OR t1.a IS NULL) AND t2.a = 3 AN
 drop table t1, t2;
 -- echo End of 5.0 tests
 
+--echo #
+--echo #  BUG#727667 Wrong result with OR + NOT NULL in maria-5.3
+--echo # 
+
+CREATE TABLE t1 (
+        f3 int(11),
+        f10 varchar(1),
+        KEY (f3)
+);
+INSERT INTO t1 VALUES ('9','k'),(NULL,'r');
+SELECT * FROM t1 WHERE (f3 = 83) OR (f10 = 'z' AND f3 IS NULL);
+DROP TABLE t1;
+

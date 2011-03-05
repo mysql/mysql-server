@@ -109,8 +109,15 @@ typedef struct st_table_ref
   */
   key_part_map  null_rejecting;
   table_map	depend_map;		  ///< Table depends on these tables.
+
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
   uchar          *null_ref_key;
+  /* 
+    ref_or_null optimization: number of key part can be NULL (there's only one)
+    uint(-1) if no part can be NULL.
+  */
+  uint           null_ref_part;
+
   /*
     The number of times the record associated with this key was used
     in the join.

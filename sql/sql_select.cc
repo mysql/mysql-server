@@ -6564,10 +6564,12 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
   j->ref.has_record= FALSE;
   j->ref.null_rejecting= 0;
   j->ref.disable_cache= FALSE;
+  j->ref.null_ref_part= (uint)-1;
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
   uchar *key_buff=j->ref.key_buff, *null_ref_key= 0;
+  uint null_ref_part= (uint)-1;
   bool keyuse_uses_no_tables= TRUE;
   if (ftkey)
   {
@@ -6621,7 +6623,10 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
 	instead of JT_REF_OR_NULL in case if field can't be null
       */
       if ((keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL) && maybe_null)
+      {
 	null_ref_key= key_buff;
+        null_ref_part= i;
+      }
       key_buff+= keyinfo->key_part[i].store_length;
     }
   } /* not ftkey */
@@ -6636,6 +6641,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
     j->ref.null_ref_key= null_ref_key;
+    j->ref.null_ref_part= null_ref_part;
   }
   else if (keyuse_uses_no_tables)
   {
@@ -15287,8 +15293,12 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 *****************************************************************************/
 
 /**
+  Check if "left_item=right_item" equality is guaranteed to be true by use of
+  [eq]ref access on left_item->field->table.
+
   @return
-    1 if right_item is used removable reference key on left_item
+    TRUE    if right_item is used removable reference key on left_item
+    FALSE   otherwise
 */
 
 bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
@@ -15301,7 +15311,11 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
       (!join_tab->first_inner ||
        *join_tab->first_inner->on_expr_ref == root_cond))
   {
-    // Cond guards
+    /*
+      If ref access uses "Full scan on NULL key" (i.e. it actually alternates
+      between ref access and full table scan), then no equality can be
+      guaranteed to be true.
+    */
     for (uint i = 0; i < join_tab->ref.key_parts; i++)
     {
       if (join_tab->ref.cond_guards[i])
@@ -15309,7 +15323,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
         return FALSE;
       }
     }
-    //
+
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && ref_item->eq(right_item,1))
     {
@@ -15611,6 +15625,29 @@ make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
 }
 
 
+/*
+  @brief
+
+  Check if
+   - @table uses "ref"-like access 
+   - it is based on "@field=certain_item" equality
+   - the equality will be true for any record returned by the access method
+  and return the certain_item if yes.
+  
+  @detail
+  
+  Equality won't necessarily hold if:
+   - the used index covers only part of the @field. 
+     Suppose, we have a CHAR(5) field and INDEX(field(3)). if you make a lookup
+     for 'abc', you will get both record with 'abc' and with 'abcde'.
+   - The type of access is actually ref_or_null, and so @field can be either 
+     a value or NULL.
+
+  @return 
+    Item that the field will be equal to
+    NULL if no such item 
+*/
+
 static Item *
 part_of_refkey(TABLE *table,Field *field)
 {
@@ -15619,17 +15656,30 @@ part_of_refkey(TABLE *table,Field *field)
     return (Item*) 0;             // field from outer non-select (UPDATE,...)
 
   uint ref_parts= join_tab->ref.key_parts;
-  if (ref_parts)
+  if (ref_parts) /* if it's ref/eq_ref/ref_or_null */
   {
-    
     uint key= join_tab->ref.key;
     KEY *key_info= join_tab->get_keyinfo_by_key_no(key);
     KEY_PART_INFO *key_part= key_info->key_part;
 
     for (uint part=0 ; part < ref_parts ; part++,key_part++)
-      if (field->eq(key_part->field) &&
-	  !(key_part->key_part_flag & (HA_PART_KEY_SEG | HA_NULL_PART)))
-	return join_tab->ref.items[part];
+    {
+      if (field->eq(key_part->field))
+      {
+        /*
+          Found the field in the key. Check that 
+           1. ref_or_null doesn't alternate this component between a value and
+              a NULL
+           2. index fully covers the key
+        */
+        if (part != join_tab->ref.null_ref_part &&            // (1)
+            !(key_part->key_part_flag & HA_PART_KEY_SEG))     // (2)
+        {
+          return join_tab->ref.items[part];
+        }
+        break;
+      }
+    }
   }
   return (Item*) 0;
 }
