@@ -7,8 +7,13 @@
 # If exit code is good or bad then entry in raw_mode_exit table will be created
 # Anything above exit code 1 is bad.  We wait for this
 CREATE TABLE raw_mode_exit (exit_code INT);
---system `$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ master-bin.000001 ; [ \$? -le 1 ]` && $MYSQL -e "use test; INSERT INTO raw_mode_exit VALUES (1);" &
-
+# Now jump some loops to have mysqlbinlog executed in the background
+--write_file $MYSQL_TMP_DIR/mbl.sh
+#!/bin/sh
+(`$MYSQL_BINLOG --raw --read-from-remote-server --stop-never --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQLTEST_VARDIR/tmp/ master-bin.000001 ; [ $? -le 1 ]` && $MYSQL -e "use test; INSERT INTO raw_mode_exit VALUES (1);") < /dev/null > /dev/null 2>&1 &
+EOF
+--chmod 0755 $MYSQL_TMP_DIR/mbl.sh
+--exec $MYSQL_TMP_DIR/mbl.sh
 let $wait_condition= SELECT id from information_schema.processlist where processlist.command like '%Binlog%' and state like '%Master has sent%';
 --source include/wait_condition.inc
 --diff_files $MYSQLTEST_VARDIR/tmp/master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
@@ -24,5 +29,6 @@ DROP TABLE raw_mode_exit;
 --remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000002
 --remove_file $MYSQLTEST_VARDIR/tmp/master-bin.000003
+--remove_file $MYSQL_TMP_DIR/mbl.sh
 
 --echo End of tests
