@@ -2293,7 +2293,8 @@ void Item_char_typecast::fix_length_and_dec()
 
 bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  bool res= get_arg0_time(ltime);
+  if (get_arg0_time(ltime))
+    return 1;
   /*
     MYSQL_TIMESTAMP_TIME value can have non-zero day part,
     which we should not lose.
@@ -2301,16 +2302,17 @@ bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   if (ltime->time_type != MYSQL_TIMESTAMP_TIME)
     ltime->year= ltime->month= ltime->day= 0;
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
-  return res;
+  return 0;
 }
 
 
 bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  bool res= get_arg0_date(ltime, TIME_FUZZY_DATE);
+  if (get_arg0_date(ltime, TIME_FUZZY_DATE))
+    return 1;
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return res;
+  return 0;
 }
 
 bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)

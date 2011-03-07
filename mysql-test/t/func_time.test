@@ -886,6 +886,18 @@ select truncate(date('2010-40-10'), 6);
 select extract(month from '2010-40-50');
 select subtime('0000-00-10 10:10:10', '30 10:00:00');
 
+select cast(str_to_date(NULL, '%H:%i:%s') as time);
+
+create table t1 (a timestamp,key(a));
+insert t1 values ('2010-01-01 02:03:04');
+insert t1 select a + interval 1 day from t1;
+insert t1 select a + interval 2 day from t1;
+insert t1 select a + interval 4 day from t1;
+insert t1 select a + interval 8 day from t1;
+insert t1 select a + interval 16 day from t1;
+explain select * from t1 where a > cast('2010-10-00 01:02:03' as datetime);
+drop table t1;
+
 #
 # lp:730627 TIME_to_ulonglong: Assertion `0' failed in 5.1-micro on wrong argument to MAKETIME
 #

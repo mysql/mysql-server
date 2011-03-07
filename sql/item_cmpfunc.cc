@@ -842,8 +842,10 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     else
     {
       MYSQL_TIME buf;
-      item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES);
-      value= pack_time(&buf);
+      if (item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES))
+        DBUG_ASSERT(item->null_value);
+      else
+        value= pack_time(&buf);
       f_type= item->field_type(); // for Item_cache_int below.
     }
     break;

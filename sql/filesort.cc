@@ -850,8 +850,10 @@ static void make_sortkey(register SORTPARAM *param,
           else
           {
             MYSQL_TIME buf;
-            item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES);
-            value= pack_time(&buf);
+            if (item->get_date_result(&buf, TIME_FUZZY_DATE | TIME_INVALID_DATES))
+              DBUG_ASSERT(maybe_null && item->null_value);
+            else
+              value= pack_time(&buf);
           }
           if (maybe_null)
           {

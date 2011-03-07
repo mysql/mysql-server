@@ -1427,6 +1427,22 @@ Warning	1292	Incorrect datetime value: '2010-40-50'
 select subtime('0000-00-10 10:10:10', '30 10:00:00');
 subtime('0000-00-10 10:10:10', '30 10:00:00')
 NULL
+select cast(str_to_date(NULL, '%H:%i:%s') as time);
+cast(str_to_date(NULL, '%H:%i:%s') as time)
+NULL
+create table t1 (a timestamp,key(a));
+insert t1 values ('2010-01-01 02:03:04');
+insert t1 select a + interval 1 day from t1;
+insert t1 select a + interval 2 day from t1;
+insert t1 select a + interval 4 day from t1;
+insert t1 select a + interval 8 day from t1;
+insert t1 select a + interval 16 day from t1;
+explain select * from t1 where a > cast('2010-10-00 01:02:03' as datetime);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	a	a	4	NULL	32	Using where; Using index
+Warnings:
+Warning	1292	Incorrect datetime value: '2010-10-00 01:02:03' for column 'a' at row 1
+drop table t1;
 select maketime(20,61,10)+0;
 maketime(20,61,10)+0
 NULL

@@ -5410,6 +5410,7 @@ String *Field_time::val_str(String *val_buffer,
     tmp= -tmp;
     ltime.neg= 1;
   }
+  ltime.year= ltime.month= 0;
   ltime.day= (uint) 0;
   ltime.hour= (uint) (tmp/10000);
   ltime.minute= (uint) (tmp/100 % 100);
