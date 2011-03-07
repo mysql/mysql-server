@@ -1463,7 +1463,7 @@ static int do_update(BRT t, BRTNODE node, BRT_MSG cmd, int idx,
     if (cmd->type == BRT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        (void) toku_sync_fetch_and_increment_uint64(&update_status.updates);
+        update_status.updates++;
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == BRT_UPDATE_BROADCAST_ALL) {
@@ -1472,7 +1472,7 @@ static int do_update(BRT t, BRTNODE node, BRT_MSG cmd, int idx,
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        (void) toku_sync_fetch_and_increment_uint64(&update_status.updates_broadcast);
+        update_status.updates_broadcast++;
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
