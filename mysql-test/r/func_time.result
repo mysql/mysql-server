@@ -1427,3 +1427,6 @@ Warning	1292	Incorrect datetime value: '2010-40-50'
 select subtime('0000-00-10 10:10:10', '30 10:00:00');
 subtime('0000-00-10 10:10:10', '30 10:00:00')
 NULL
+select maketime(20,61,10)+0;
+maketime(20,61,10)+0
+NULL

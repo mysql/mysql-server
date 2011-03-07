@@ -886,3 +886,8 @@ select truncate(date('2010-40-10'), 6);
 select extract(month from '2010-40-50');
 select subtime('0000-00-10 10:10:10', '30 10:00:00');
 
+#
+# lp:730627 TIME_to_ulonglong: Assertion `0' failed in 5.1-micro on wrong argument to MAKETIME
+#
+select maketime(20,61,10)+0;
+

@@ -2582,7 +2582,7 @@ bool Item_func_maketime::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
                    args[2]->null_value ||
                    minute < 0 || minute > 59 ||
                    second < 0 || second > 59)))
-    return 0;
+    return 1;
 
   bzero(ltime, sizeof(*ltime));
   ltime->time_type= MYSQL_TIMESTAMP_TIME;
