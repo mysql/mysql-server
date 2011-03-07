@@ -84,7 +84,7 @@ my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
   if (not_zero_date)
   {
     if ((((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
-         (ltime->month == 0 || ltime->day == 0)) ||
+         (ltime->month == 0 || ltime->day == 0)) || ltime->neg ||
         (!(flags & TIME_INVALID_DATES) &&
          ltime->month && ltime->day > days_in_month[ltime->month-1] &&
          (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||

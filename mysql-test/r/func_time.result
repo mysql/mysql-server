@@ -1430,18 +1430,14 @@ NULL
 select cast(str_to_date(NULL, '%H:%i:%s') as time);
 cast(str_to_date(NULL, '%H:%i:%s') as time)
 NULL
-create table t1 (a timestamp,key(a));
-insert t1 values ('2010-01-01 02:03:04');
-insert t1 select a + interval 1 day from t1;
-insert t1 select a + interval 2 day from t1;
-insert t1 select a + interval 4 day from t1;
-insert t1 select a + interval 8 day from t1;
-insert t1 select a + interval 16 day from t1;
-explain select * from t1 where a > cast('2010-10-00 01:02:03' as datetime);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	a	a	4	NULL	32	Using where; Using index
+create table t1 (f1 datetime, key (f1));
+insert into t1 values ('2000-09-12 00:00:00'), ('2007-04-25 05:08:49');
+select * from t1 where f1 > time('-23:00:06');
+f1
+2000-09-12 00:00:00
+2007-04-25 05:08:49
 Warnings:
-Warning	1292	Incorrect datetime value: '2010-10-00 01:02:03' for column 'a' at row 1
+Warning	1292	Incorrect datetime value: '-23:00:06' for column 'f1' at row 1
 drop table t1;
 select maketime(20,61,10)+0;
 maketime(20,61,10)+0
