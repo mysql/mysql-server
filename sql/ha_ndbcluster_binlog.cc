@@ -1029,9 +1029,7 @@ static void ndb_notify_tables_writable()
   the correct state w.r.t created databases using the information in
   that table.
 
-  Function should only be called while ndbcluster_global_schema_lock
-  is held, to ensure that ndb_schema table is not being updated while
-  scanning.
+
 */
 static int ndbcluster_find_all_databases(THD *thd)
 {
@@ -1044,10 +1042,15 @@ static int ndbcluster_find_all_databases(THD *thd)
   int retries= 100;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
   DBUG_ENTER("ndbcluster_find_all_databases");
-  /* Ensure that we have the right lock */
-  if (!ndbcluster_has_global_schema_lock(thd_ndb))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ndbcluster_find_all_databases"));
+
+  /*
+    Function should only be called while ndbcluster_global_schema_lock
+    is held, to ensure that ndb_schema table is not being updated while
+    scanning.
+  */
+  if (!thd_ndb->has_required_global_schema_lock("ndbcluster_find_all_databases"))
+    DBUG_RETURN(1);
+
   ndb->setDatabaseName(NDB_REP_DB);
   thd_ndb_options.set(TNO_NO_LOG_SCHEMA_OP);
   thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -1681,7 +1684,7 @@ int ndbcluster_log_schema_op(THD *thd,
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
   {
-    if (!(thd_ndb= Thd_ndb::seize()))
+    if (!(thd_ndb= Thd_ndb::seize(thd)))
     {
       sql_print_error("Could not allocate Thd_ndb object");
       DBUG_RETURN(1);
@@ -5644,7 +5647,7 @@ restart_cluster_failure:
   int have_injector_mutex_lock= 0;
   do_ndbcluster_binlog_close_connection= BCCC_exit;
 
-  if (!(thd_ndb= Thd_ndb::seize()))
+  if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
     ndb_binlog_thread_running= -1;

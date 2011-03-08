@@ -368,28 +368,29 @@ void ndbcluster_global_schema_lock_deinit(void)
 }
 
 
-bool 
-ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb)
+bool
+Thd_ndb::has_required_global_schema_lock(const char* func)
 {
-  if (thd_ndb->global_schema_lock_trans)
+  if (global_schema_lock_error)
   {
-    thd_ndb->global_schema_lock_trans->refresh();
-    return true;
+    // An error occured while locking, either because
+    // no connection to cluster or another user has locked
+    // the lock -> ok, but caller should not allow to continue
+    return false;
   }
-  return false;
-}
 
+  if (global_schema_lock_trans)
+  {
+    global_schema_lock_trans->refresh();
+    return true; // All OK
+  }
 
-int
-ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg)
-{
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  if (thd_ndb && thd_ndb->global_schema_lock_error != 0)
-    return HA_ERR_NO_CONNECTION;
+  // No attempt at taking global schema lock has been done, neither
+  // error or trans set -> programming error
   sql_print_error("NDB: programming error, no lock taken while running "
-                  "query %s. Message: %s", thd_query(thd), msg);
+                  "query '%s' in function '%s'", thd_query(m_thd), func);
   abort();
-  return -1;
+  return false;
 }
 
 

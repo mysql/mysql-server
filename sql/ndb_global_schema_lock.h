@@ -21,7 +21,4 @@
 void ndbcluster_global_schema_lock_init(void);
 void ndbcluster_global_schema_lock_deinit(void);
 
-bool ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
-int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
-
 #endif
