@@ -48,6 +48,9 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   char *rename_log_table[2]= {NULL, NULL};
   DBUG_ENTER("mysql_rename_tables");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+#endif
   /*
     Avoid problems with a rename on a table that we have locked or
     if the user is trying to to do this in a transcation context
@@ -142,6 +145,10 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout,
                        MYSQL_OPEN_SKIP_TEMPORARY))
     goto err;
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  global_schema_lock_guard.lock();
+#endif
 
   for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
