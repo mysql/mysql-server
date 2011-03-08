@@ -1879,7 +1879,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
         DBUG_RETURN(true);
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-        global_schema_lock_guard.lock();
+      global_schema_lock_guard.lock();
 #endif
 
       for (table= tables; table; table= table->next_local)
@@ -1921,11 +1921,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
           if (!table->table)
             DBUG_RETURN(true);
           table->mdl_request.ticket= table->table->mdl_ticket;
-
+       }
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-          global_schema_lock_guard.lock();
+      global_schema_lock_guard.lock();
 #endif
-        }
     }
   }
 
