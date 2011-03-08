@@ -43,6 +43,7 @@
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndbcluster_connection.h"
+#include "ndb_thd.h"
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
@@ -9837,7 +9838,7 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
   {
     if (!(thd_ndb= Thd_ndb::seize()))
       return NULL;
-    set_thd_ndb(thd, thd_ndb);
+    thd_set_thd_ndb(thd, thd_ndb);
   }
 
   else if (validate_ndb && !thd_ndb->valid_ndb())
@@ -9873,7 +9874,7 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
   if (thd_ndb)
   {
     Thd_ndb::release(thd_ndb);
-    set_thd_ndb(thd, NULL); // not strictly required but does not hurt either
+    thd_set_thd_ndb(thd, NULL);
   }
   DBUG_RETURN(0);
 }
@@ -12939,7 +12940,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     pthread_mutex_lock(&LOCK_ndb_util_thread);
     goto ndb_util_thread_end;
   }
-  set_thd_ndb(thd, thd_ndb);
+  thd_set_thd_ndb(thd, thd_ndb);
   thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
 
   if (opt_ndb_extra_logging && ndb_binlog_running)
@@ -13118,7 +13119,7 @@ ndb_util_thread_fail:
   if (thd_ndb)
   {
     Thd_ndb::release(thd_ndb);
-    set_thd_ndb(thd, NULL);
+    thd_set_thd_ndb(thd, NULL);
   }
   thd->cleanup();
   delete thd;

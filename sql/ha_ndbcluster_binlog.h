@@ -322,18 +322,6 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
 
-inline
-Thd_ndb *
-get_thd_ndb(THD *thd)
-{ return (Thd_ndb *) thd_get_ha_data(thd, ndbcluster_hton); }
-
-inline
-void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
-{ thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
-
-Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb= false);
-
 bool ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
 int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
 

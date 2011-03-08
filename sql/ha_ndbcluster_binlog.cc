@@ -22,6 +22,7 @@
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
 #include "ndb_local_connection.h"
+#include "ndb_thd.h"
 
 #include "rpl_injector.h"
 #include "rpl_filter.h"
@@ -1929,7 +1930,7 @@ int ndbcluster_log_schema_op(THD *thd,
       sql_print_error("Could not allocate Thd_ndb object");
       DBUG_RETURN(1);
     }
-    set_thd_ndb(thd, thd_ndb);
+    thd_set_thd_ndb(thd, thd_ndb);
   }
 
   DBUG_PRINT("enter",
@@ -6031,7 +6032,7 @@ restart_cluster_failure:
     pthread_mutex_unlock(&injector_mutex);
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
-    set_thd_ndb(thd, thd_ndb);
+    thd_set_thd_ndb(thd, thd_ndb);
     thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
     thd->query_id= 0; // to keep valgrind quiet
   }
@@ -6734,7 +6735,7 @@ restart_cluster_failure:
   if (thd_ndb)
   {
     Thd_ndb::release(thd_ndb);
-    set_thd_ndb(thd, NULL);
+    thd_set_thd_ndb(thd, NULL);
     thd_ndb= NULL;
   }
 
