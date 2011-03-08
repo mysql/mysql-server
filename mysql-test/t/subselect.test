@@ -4293,3 +4293,26 @@ eval explain $query;
 DROP TABLE IF EXISTS ot1, ot4, it2, it3;
 
 
+--echo #
+--echo # Bug#729039: NULL keys used to evaluate subquery
+--echo #
+
+CREATE TABLE t1 (a int) ;
+INSERT INTO t1 VALUES (NULL), (1), (NULL), (2);
+
+CREATE TABLE t2 (a int, INDEX idx(a)) ;
+INSERT INTO t2 VALUES (NULL), (1), (NULL);
+
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 USE INDEX () WHERE t2.a = t1.a);
+EXPLAIN
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 USE INDEX() WHERE t2.a = t1.a);
+
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+EXPLAIN
+SELECT * FROM t1
+  WHERE EXISTS (SELECT a FROM t2 WHERE t2.a = t1.a);
+
+DROP TABLE t1,t2;
