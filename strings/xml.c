@@ -165,11 +165,16 @@ static int my_xml_scan(MY_XML_PARSER *p,MY_XML_ATTR *a)
   }
   else if ( (p->cur[0] == '"') || (p->cur[0] == '\'') )
   {
+    /*
+      "string" or 'string' found.
+      Scan until the closing quote/doublequote, or until the END-OF-INPUT.
+    */
     p->cur++;
     for (; ( p->cur < p->end ) && (p->cur[0] != a->beg[0]); p->cur++)
     {}
     a->end=p->cur;
-    if (a->beg[0] == p->cur[0])p->cur++;
+    if (p->cur < p->end) /* Closing quote or doublequote has been found */
+      p->cur++;
     a->beg++;
     if (!(p->flags & MY_XML_FLAG_SKIP_TEXT_NORMALIZATION))
       my_xml_norm_text(a);
