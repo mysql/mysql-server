@@ -262,21 +262,6 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname);
 bool
 ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname);
 
-bool ndbcluster_has_global_schema_lock(Thd_ndb *thd_ndb);
-int ndbcluster_no_global_schema_lock_abort(THD *thd, const char *msg);
-
-class Ndbcluster_global_schema_lock_guard
-{
-public:
-  Ndbcluster_global_schema_lock_guard(THD *thd);
-  ~Ndbcluster_global_schema_lock_guard();
-  int lock();
-private:
-  THD *m_thd;
-  int m_lock;
-};
-
-
 bool ndbcluster_anyvalue_is_reserved(Uint32 anyValue);
 bool ndbcluster_anyvalue_is_nologging(Uint32 anyValue);
 void ndbcluster_anyvalue_set_nologging(Uint32& anyValue);
