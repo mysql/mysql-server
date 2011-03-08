@@ -26,11 +26,11 @@
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
 
 
-typedef enum {
+enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
   NSS_DROPPED,
   NSS_ALTERED 
-} NDB_SHARE_STATE;
+};
 
 
 #ifdef HAVE_NDB_BINLOG
@@ -45,12 +45,12 @@ enum enum_conflict_fn_type
 
 /* NdbOperation custom data which points out handler and record. */
 struct Ndb_exceptions_data {
-  struct st_ndbcluster_share *share;
+  struct NDB_SHARE* share;
   const uchar* row;
 };
 
 
-typedef struct st_ndbcluster_conflict_fn_share {
+struct NDB_CONFLICT_FN_SHARE {
   enum_conflict_fn_type m_resolve_cft;
 
   /* info about original table */
@@ -62,7 +62,7 @@ typedef struct st_ndbcluster_conflict_fn_share {
 
   const NdbDictionary::Table *m_ex_tab;
   uint32 m_count;
-} NDB_CONFLICT_FN_SHARE;
+};
 #endif
 
 
@@ -79,7 +79,7 @@ struct Ndb_statistics {
 };
 
 
-typedef struct st_ndbcluster_share {
+struct NDB_SHARE {
   NDB_SHARE_STATE state;
   MEM_ROOT mem_root;
   THR_LOCK lock;
@@ -105,7 +105,7 @@ typedef struct st_ndbcluster_share {
   char *old_names; // for rename table
   MY_BITMAP *subscriber_bitmap;
   class NdbEventOperation *new_op;
-} NDB_SHARE;
+};
 
 
 inline
