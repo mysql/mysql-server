@@ -9824,34 +9824,6 @@ int ha_ndbcluster::close(void)
 }
 
 
-/**
-  If this thread already has a Thd_ndb object allocated
-  in current THD, reuse it. Otherwise
-  seize a Thd_ndb object, assign it to current THD and use it.
- 
-*/
-
-Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
-{
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  if (!thd_ndb)
-  {
-    if (!(thd_ndb= Thd_ndb::seize()))
-      return NULL;
-    thd_set_thd_ndb(thd, thd_ndb);
-  }
-
-  else if (validate_ndb && !thd_ndb->valid_ndb())
-  {
-    if (!thd_ndb->recycle_ndb(thd))
-      return NULL;
-  }
-
-  return thd_ndb->ndb;
-}
-
-
-
 int ha_ndbcluster::check_ndb_connection(THD* thd)
 {
   Ndb *ndb;
