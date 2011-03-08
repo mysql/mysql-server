@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,17 +113,6 @@ private:
   pthread_mutex_t &m_mutex;
 };
 
-
-class Thd_proc_info_guard
-{
-public:
-  Thd_proc_info_guard(THD *thd)
-   : m_thd(thd), m_proc_info(thd->proc_info) {}
-  ~Thd_proc_info_guard() { m_thd->proc_info= m_proc_info; }
-private:
-  THD *m_thd;
-  const char *m_proc_info;
-};
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
 
