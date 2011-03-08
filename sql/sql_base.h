@@ -1,4 +1,4 @@
-/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,7 +290,7 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
                    char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
 void tdc_flush_unused_tables();
-TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
+TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,
                                   bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);

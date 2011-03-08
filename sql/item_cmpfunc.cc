@@ -3054,20 +3054,59 @@ void Item_func_case::fix_length_and_dec()
     agg[0]= args[first_expr_num];
     left_result_type= agg[0]->result_type();
 
+    /*
+      As the first expression and WHEN expressions
+      are intermixed in args[] array THEN and ELSE items,
+      extract the first expression and all WHEN expressions into 
+      a temporary array, to process them easier.
+    */
     for (nagg= 0; nagg < ncases/2 ; nagg++)
       agg[nagg+1]= args[nagg*2];
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
+    if (found_types & (1 << STRING_RESULT))
+    {
+      /*
+        If we'll do string comparison, we also need to aggregate
+        character set and collation for first/WHEN items and
+        install converters for some of them to cmp_collation when necessary.
+        This is done because cmp_item compatators cannot compare
+        strings in two different character sets.
+        Some examples when we install converters:
 
+        1. Converter installed for the first expression:
+
+           CASE         latin1_item              WHEN utf16_item THEN ... END
+
+        is replaced to:
+
+           CASE CONVERT(latin1_item USING utf16) WHEN utf16_item THEN ... END
+
+        2. Converter installed for the left WHEN item:
+
+          CASE utf16_item WHEN         latin1_item              THEN ... END
+
+        is replaced to:
+
+           CASE utf16_item WHEN CONVERT(latin1_item USING utf16) THEN ... END
+      */
+      if (agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
+        return;
+      /*
+        Now copy first expression and all WHEN expressions back to args[]
+        arrray, because some of the items might have been changed to converters
+        (e.g. Item_func_conv_charset, or Item_string for constants).
+      */
+      args[first_expr_num]= agg[0];
+      for (nagg= 0; nagg < ncases / 2; nagg++)
+        args[nagg * 2]= agg[nagg + 1];
+    }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-        if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
-          return;
         if (!(cmp_items[i]=
             cmp_item::get_comparator((Item_result)i,
                                      cmp_collation.collation)))
