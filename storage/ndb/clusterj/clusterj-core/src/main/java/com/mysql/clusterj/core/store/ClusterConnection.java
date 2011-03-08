@@ -30,4 +30,8 @@ public interface ClusterConnection {
 
     public void close();
 
+    public int dbCount();
+
+    public void close(Db db);
+
 }

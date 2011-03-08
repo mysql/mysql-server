@@ -9992,10 +9992,23 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_get_1latest_1error_1msg(J
  * Signature: (Ljava/lang/String;)Lcom/mysql/ndbjtie/ndbapi/Ndb_cluster_connection;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create(JNIEnv * env, jclass cls, jstring p0)
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create__Ljava_lang_String_2(JNIEnv * env, jclass cls, jstring p0)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create(JNIEnv *, jclass, jstring)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create__Ljava_lang_String_2(JNIEnv *, jclass, jstring)");
     return gcreate< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection
+ * Method:    create
+ * Signature: (Ljava/lang/String;I)Lcom/mysql/ndbjtie/ndbapi/Ndb_cluster_connection;
+ */ 
+JNIEXPORT jobject JNICALL 
+Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create__Ljava_lang_String_2I
+  (JNIEnv * env, jclass cls, jstring p0, jint p1)
+{
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_1cluster_1connection_create__Ljava_lang_String_2I(JNIEnv *, jclass, jstring, jint)");
+    return gcreate< ttrait_c_m_n_n_Ndb_cluster_connection_r, ttrait_char_cp_jutf8null, ttrait_int >(env, cls, p0, p1);
 }
 
 /*

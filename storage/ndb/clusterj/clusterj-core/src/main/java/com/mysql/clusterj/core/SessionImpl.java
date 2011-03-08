@@ -283,7 +283,7 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * database access is executed: find, flush, or query. The instance must
      * have been returned from find or query; or
      * created via session.newInstance and its primary key initialized.
-     * @param instance the instance to load
+     * @param object the instance to load
      * @return the instance
      * @see #found(Object)
      */
