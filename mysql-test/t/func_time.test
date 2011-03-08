@@ -901,3 +901,12 @@ drop table t1;
 #
 select maketime(20,61,10)+0;
 
+#
+# lp:731103 Assertion `maybe_null && item->null_value' failed with ORDER BY LAST_DAY()
+#
+create table t1 (f2 int not null) ;
+insert into t1 values (0),(0);
+select last_day(f2) from t1;
+select last_day(f2) from t1 where last_day(f2) is null;
+select * from t1 order by last_day (f2);
+drop table t1;

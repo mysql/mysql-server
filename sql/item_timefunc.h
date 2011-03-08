@@ -862,4 +862,9 @@ public:
   Item_func_last_day(Item *a) :Item_datefunc(a) {}
   const char *func_name() const { return "last_day"; }
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
+  void fix_length_and_dec()
+  { 
+    maybe_null=1;
+    Item_datefunc::fix_length_and_dec();
+  }
 };

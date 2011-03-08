@@ -812,7 +812,7 @@ create table t1 select last_day('2000-02-05') as a,
 from_days(to_days("960101")) as b;
 describe t1;
 Field	Type	Null	Key	Default	Extra
-a	date	NO		0000-00-00	
+a	date	YES		NULL	
 b	date	YES		NULL	
 select * from t1;
 a	b
@@ -1442,3 +1442,29 @@ drop table t1;
 select maketime(20,61,10)+0;
 maketime(20,61,10)+0
 NULL
+create table t1 (f2 int not null) ;
+insert into t1 values (0),(0);
+select last_day(f2) from t1;
+last_day(f2)
+NULL
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0'
+select last_day(f2) from t1 where last_day(f2) is null;
+last_day(f2)
+NULL
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0'
+select * from t1 order by last_day (f2);
+f2
+0
+0
+Warnings:
+Warning	1292	Incorrect datetime value: '0'
+Warning	1292	Incorrect datetime value: '0'
+drop table t1;
