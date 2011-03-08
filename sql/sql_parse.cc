@@ -1218,7 +1218,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
           We have checked charset earlier,
           so thd_init_client_charset cannot fail.
         */
-        DBUG_ASSERT(!thd_init_client_charset(thd, cs_number));
+        if (thd_init_client_charset(thd, cs_number))
+          DBUG_ASSERT(0);
         thd->update_charset();
       }
     }
