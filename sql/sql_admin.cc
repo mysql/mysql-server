@@ -771,8 +771,12 @@ send_result_message:
       size_t length;
 
       protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-      length=my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
-                         table->table_name);
+      if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
+        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_UPGRADE),
+                            table->table_name);
+      else
+        length= my_snprintf(buf, sizeof(buf), ER(ER_TABLE_NEEDS_REBUILD),
+                            table->table_name);
       protocol->store(buf, length, system_charset_info);
       fatal_error=1;
       break;
