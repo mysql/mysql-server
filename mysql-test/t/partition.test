@@ -15,6 +15,16 @@ drop table if exists t1, t2;
 --enable_warnings
 
 --echo #
+--echo # Bug#59503: explain extended crash in get_mm_leaf
+--echo #
+CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
+ENGINE=MyISAM
+PARTITION BY KEY (a) PARTITIONS 1;
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#57778: failed primary key add to partitioned innodb table
 --echo #            inconsistent and crashes
 --echo #
