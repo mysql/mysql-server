@@ -3,6 +3,8 @@ create table t1 (a time(7));
 ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
 create table t1 (a time(3));
 insert t1 values ('2010-12-11 01:02:03.4567');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
 insert t1 values (20101211010203.45678);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
@@ -43,6 +45,8 @@ a
 drop table t1;
 create table t1 (a time(4)) engine=innodb;
 insert t1 values ('2010-12-11 01:02:03.456789');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
 01:02:03.4567
@@ -82,6 +86,8 @@ select * from t1;
 a
 01:02:13.3332
 insert t1 select a + interval 2 year from t1;
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
 01:02:13.3332
@@ -105,6 +111,9 @@ drop table t1, t2, t3;
 create table t1 (a time(6), b time(6));
 create procedure foo(x time, y time(4)) insert into t1 values (x, y);
 call foo('2010-02-03 4:5:6.789123', '2010-02-03 4:5:6.789123');
+Warnings:
+Note	1265	Data truncated for column 'x' at row 1
+Note	1265	Data truncated for column 'y' at row 1
 select * from t1;
 a	b
 04:05:06.000000	04:05:06.789100
@@ -115,6 +124,8 @@ set b = c + interval a microsecond;
 insert t1 values (b, c + interval a microsecond);
 end|
 call bar(1111111, '2011-01-02 3:4:5.123456');
+Warnings:
+Note	1265	Data truncated for column 'c' at row 1
 select * from t1;
 a	b
 04:05:06.000000	04:05:06.789100
@@ -126,6 +137,8 @@ return addtime('2010-10-10 10:10:10.101010', s);
 select xyz('1:1:1.010101');
 xyz('1:1:1.010101')
 11:11:11.1111
+Warnings:
+Note	1265	Data truncated for column 'xyz('1:1:1.010101')' at row 1
 drop function xyz;
 create view v1 as select * from t1 group by a,b;
 select * from v1;

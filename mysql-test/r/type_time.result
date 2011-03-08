@@ -1,6 +1,8 @@
 drop table if exists t1;
 create table t1 (t time);
 insert into t1 values("10:22:33"),("12:34:56.78"),(10),(1234),(123456.78),(1234559.99),("1"),("1:23"),("1:23:45"), ("10.22"), ("-10  1:22:33.45"),("20 10:22:33"),("1999-02-03 20:33:34");
+Warnings:
+Note	1265	Data truncated for column 't' at row 13
 insert t1 values (30),(1230),("1230"),("12:30"),("12:30:35"),("1 12:30:31.32");
 select * from t1;
 t
@@ -153,4 +155,15 @@ insert t1 values (-131415);
 select * from t1;
 a
 -13:14:15
+drop table t1;
+create table t1 (f1 time , f2 varchar(5), key(f1));
+insert into t1 values ('00:20:01','a'),('00:20:03','b');
+select * from t1 force key (f1) where f1 < curdate();
+f1	f2
+00:20:01	a
+00:20:03	b
+select * from t1 ignore key (f1) where f1 < curdate();
+f1	f2
+00:20:01	a
+00:20:03	b
 drop table t1;

@@ -3117,6 +3117,7 @@ values
 '1991-01-01 01:01:01', '1991-01-01 01:01:01') ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 insert into t9
 ( c1, c13, c14, c15, c16, c17 )
@@ -3124,6 +3125,7 @@ values
 ( 21, @arg00, @arg00, @arg00, @arg00, @arg00) ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 prepare stmt1 from "insert into t9
   ( c1, c13, c14, c15, c16, c17 )
@@ -3133,6 +3135,7 @@ values
 execute stmt1 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 prepare stmt2 from "insert into t9
   ( c1, c13, c14, c15, c16, c17 )
@@ -3141,6 +3144,7 @@ values
 execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 set @arg00= CAST('1991-01-01 01:01:01' as datetime) ;
 insert into t9
@@ -3153,6 +3157,7 @@ CAST('1991-01-01 01:01:01' as datetime),
 CAST('1991-01-01 01:01:01' as datetime)) ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 insert into t9
 ( c1, c13, c14, c15, c16, c17 )
@@ -3160,6 +3165,7 @@ values
 ( 31, @arg00, @arg00, @arg00, @arg00, @arg00) ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 prepare stmt1 from "insert into t9
   ( c1, c13, c14, c15, c16, c17 )
@@ -3172,6 +3178,7 @@ values
 execute stmt1 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 prepare stmt2 from "insert into t9
   ( c1, c13, c14, c15, c16, c17 )
@@ -3180,6 +3187,7 @@ values
 execute stmt2 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 set @arg00= 2000000000 ;
 insert into t9

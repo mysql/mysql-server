@@ -106,3 +106,12 @@ insert t1 values (-131415);
 select * from t1;
 drop table t1;
 
+#
+# lp:731229 Different results depending on table access method with TIME column and CURDATE()
+#
+create table t1 (f1 time , f2 varchar(5), key(f1));
+insert into t1 values ('00:20:01','a'),('00:20:03','b');
+select * from t1 force key (f1) where f1 < curdate();
+select * from t1 ignore key (f1) where f1 < curdate();
+drop table t1;
+

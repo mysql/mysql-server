@@ -5197,6 +5197,14 @@ int Field_temporal::store_TIME_with_warning(MYSQL_TIME *ltime,
     was_cut|=  MYSQL_TIME_WARN_TRUNCATED;
     ret= 3;
   }
+  else if (temporal_type() == MYSQL_TIMESTAMP_TIME &&
+           (ltime->year || ltime->month))
+  {
+    ltime->year= ltime->month= ltime->day= 0;
+    trunc_level= MYSQL_ERROR::WARN_LEVEL_NOTE;
+    was_cut|=  MYSQL_TIME_WARN_TRUNCATED;
+    ret= 3;
+  }
 
   /*
     error code logic:
@@ -5207,7 +5215,6 @@ int Field_temporal::store_TIME_with_warning(MYSQL_TIME *ltime,
 
     Also, MYSQL_TIME_WARN_TRUNCATED is used when storing a DATETIME in
     a DATE field and non-zero time part is thrown away.
-    QQ Why don't we do the same when storing DATETIME in TIME?
   */
   if (was_cut & MYSQL_TIME_WARN_TRUNCATED)
     set_datetime_warning(trunc_level, WARN_DATA_TRUNCATED,
@@ -5330,10 +5337,6 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   int was_cut;
   int have_smth_to_conv= str_to_datetime(from, len, &ltime, TIME_TIME_ONLY,
                                          &was_cut) > MYSQL_TIMESTAMP_ERROR;
-
-  if (ltime.month)
-    ltime.day=0;
-  ltime.month= ltime.year= 0;
   
   return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);
 }
@@ -5344,11 +5347,6 @@ int Field_time::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
   MYSQL_TIME l_time= *ltime;
   Lazy_string_time str(ltime);
   int was_cut= 0;
-
-  if (l_time.month)
-    l_time.day=0;
-  l_time.year= 0;
-  l_time.month= 0;
 
   int have_smth_to_conv= !check_time_range(&l_time, &was_cut);
   return store_TIME_with_warning(&l_time, &str, was_cut, have_smth_to_conv);
