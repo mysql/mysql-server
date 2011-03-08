@@ -5069,7 +5069,7 @@ bool subselect_rowid_merge_engine::partial_match()
   for (uint i= test(non_null_key); i < keys_count; i++)
   {
     DBUG_ASSERT(merge_keys[i]->get_column_count() == 1);
-    if (merge_keys[i]->get_search_key(0)->is_null())
+    if (merge_keys[i]->get_search_key(0)->null_value)
     {
       ++count_nulls_in_search_key;
       bitmap_set_bit(&matching_outer_cols, merge_keys[i]->get_keyid());

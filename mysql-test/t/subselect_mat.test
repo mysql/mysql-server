@@ -1011,3 +1011,31 @@ SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
 DROP TABLE t1, t2;
 
+--echo #
+--echo # LPBUG#719198 Ordered_key::cmp_key_with_search_key(rownum_t): Assertion `!compare_pred[i]->null_value'
+--echo # failed with subquery on both sides of NOT IN and materialization
+--echo #
+
+CREATE TABLE t1 (f1a int, f1b int) ;
+INSERT IGNORE INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 ( f2 int);
+INSERT IGNORE INTO t2 VALUES (3),(4);
+CREATE TABLE t3 (f3a int, f3b int);
+
+set session optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+
+EXPLAIN
+SELECT * FROM t2 WHERE (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
+SELECT * FROM t2 WHERE (SELECT f3a FROM t3) NOT IN (SELECT f1a FROM t1);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
+SELECT * FROM t2 WHERE (SELECT f3a, f3b FROM t3) NOT IN (SELECT f1a, f1b FROM t1);
+
+insert into t3 values (1,1),(2,2);
+
+EXPLAIN
+SELECT * FROM t2 WHERE (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1);
+SELECT * FROM t2 WHERE (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1);
+
+drop table t1, t2, t3;

@@ -3342,6 +3342,13 @@ private:
 };
 
 
+/**
+  @todo
+  Implement the is_null() method for this class. Currently calling is_null()
+  on any Item_cache object resolves to Item::is_null(), which reutns FALSE
+  for any value.
+*/
+
 class Item_cache: public Item_basic_constant
 {
 protected:
