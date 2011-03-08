@@ -508,7 +508,10 @@ sub main {
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
-  print "$ctest_report\n" if $ctest_report;
+  if ($ctest_report) {
+    print "$ctest_report\n";
+    mtr_print_line();
+  }
 
   print_total_times($opt_parallel) if $opt_report_times;
 
@@ -5730,7 +5733,7 @@ sub run_ctest() {
   $tinfo->{comment}.= "\nctest did not pruduce report summary" if ! $ctres;
   $tinfo->{result}= ($ctres && !$ctfail)
     ? 'MTR_RES_PASSED' : 'MTR_RES_FAILED';
-  $ctest_report .= "Report from unit tests in $ctfile\n";
+  $ctest_report .= "Report from unit tests in $ctfile";
   $tinfo->{failures}= ($tinfo->{result} eq 'MTR_RES_FAILED');
 
   mark_time_used('test');
