@@ -287,9 +287,11 @@ sub collect_one_suite($)
 			      "mysql-test/suite",
 			      "mysql-test",
 			      # Look in storage engine specific suite dirs
-			      "storage/*/mysql-test-suites"
+			      "storage/*/mtr",
+			      # Look in plugin specific suite dir
+			      "plugin/$suite/tests",
 			     ],
-			     [$suite]);
+			     [$suite, "mtr"]);
     }
     mtr_verbose("suitedir: $suitedir");
   }
