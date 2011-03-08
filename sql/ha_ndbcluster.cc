@@ -245,14 +245,6 @@ static MYSQL_THDVAR_UINT(
   UINT_MAX,                          /* max */
   0                                  /* block */
 );
-  
-
-/*
-  Default value for max number of transactions createable against NDB from
-  the handler. Should really be 2 but there is a transaction to much allocated
-  when lock table is used, and one extra to used for global schema lock.
-*/
-static const int max_transactions= 4;
 
 static int ndbcluster_end(handlerton *hton, ha_panic_function flag);
 static bool ndbcluster_show_status(handlerton *hton, THD*,
@@ -1066,13 +1058,6 @@ Thd_ndb::~Thd_ndb()
   free_root(&m_batch_mem_root, MYF(0));
 }
 
-void
-Thd_ndb::init_open_tables()
-{
-  count= 0;
-  m_error= FALSE;
-  my_hash_reset(&open_tables);
-}
 
 inline
 Ndb *ha_ndbcluster::get_ndb(THD *thd)
@@ -9839,97 +9824,6 @@ int ha_ndbcluster::close(void)
 
 
 /**
-  @todo
-  - Alt.1 If init fails because to many allocated Ndb 
-  wait on condition for a Ndb object to be released.
-  - Alt.2 Seize/release from pool, wait until next release 
-*/
-Thd_ndb* ha_ndbcluster::seize_thd_ndb()
-{
-  Thd_ndb *thd_ndb;
-  DBUG_ENTER("seize_thd_ndb");
-
-  thd_ndb= new Thd_ndb();
-  if (thd_ndb == NULL)
-  {
-    my_errno= HA_ERR_OUT_OF_MEM;
-    return NULL;
-  }
-  if (thd_ndb->ndb->init(max_transactions) != 0)
-  {
-    ERR_PRINT(thd_ndb->ndb->getNdbError());
-    /*
-      TODO 
-      Alt.1 If init fails because to many allocated Ndb 
-      wait on condition for a Ndb object to be released.
-      Alt.2 Seize/release from pool, wait until next release 
-    */
-    delete thd_ndb;
-    thd_ndb= NULL;
-  }
-  DBUG_RETURN(thd_ndb);
-}
-
-
-void ha_ndbcluster::release_thd_ndb(Thd_ndb* thd_ndb)
-{
-  DBUG_ENTER("release_thd_ndb");
-  delete thd_ndb;
-  DBUG_VOID_RETURN;
-}
-
-
-bool Thd_ndb::recycle_ndb(THD* thd)
-{
-  DBUG_ENTER("recycle_ndb");
-  DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
-
-  DBUG_ASSERT(global_schema_lock_trans == NULL);
-  DBUG_ASSERT(trans == NULL);
-
-  delete ndb;
-  if ((ndb= new Ndb(connection, "")) == NULL)
-  {
-    DBUG_PRINT("error",("failed to allocate Ndb object"));
-    DBUG_RETURN(false);
-  }
-
-  if (ndb->init(max_transactions) != 0)
-  {
-    delete ndb;
-    ndb= NULL;
-    DBUG_PRINT("error", ("Ndb::init failed, %d  message: %s",
-                         ndb->getNdbError().code,
-                         ndb->getNdbError().message));
-    DBUG_RETURN(false);
-  }
-
-  DBUG_RETURN(true);
-}
-
-
-bool
-Thd_ndb::valid_ndb(void)
-{
-  // The ndb object should be valid as long as a
-  // global schema lock transaction is ongoing
-  if (global_schema_lock_trans)
-    return true;
-
-  // The ndb object should be valid as long as a
-  // transaction is ongoing
-  if (trans)
-    return true;
-
-  if (unlikely(m_connect_count != connection->get_connect_count()))
-    return false;
-
-  return true;
-}
-
-
-
-/**
   If this thread already has a Thd_ndb object allocated
   in current THD, reuse it. Otherwise
   seize a Thd_ndb object, assign it to current THD and use it.
@@ -9941,7 +9835,7 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb)
   {
-    if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+    if (!(thd_ndb= Thd_ndb::seize()))
       return NULL;
     set_thd_ndb(thd, thd_ndb);
   }
@@ -9978,7 +9872,7 @@ static int ndbcluster_close_connection(handlerton *hton, THD *thd)
   DBUG_ENTER("ndbcluster_close_connection");
   if (thd_ndb)
   {
-    ha_ndbcluster::release_thd_ndb(thd_ndb);
+    Thd_ndb::release(thd_ndb);
     set_thd_ndb(thd, NULL); // not strictly required but does not hurt either
   }
   DBUG_RETURN(0);
@@ -13039,7 +12933,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
   /* Get thd_ndb for this thread */
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb()))
+  if (!(thd_ndb= Thd_ndb::seize()))
   {
     sql_print_error("Could not allocate Thd_ndb object");
     pthread_mutex_lock(&LOCK_ndb_util_thread);
@@ -13223,7 +13117,7 @@ ndb_util_thread_fail:
     delete [] share_list;
   if (thd_ndb)
   {
-    ha_ndbcluster::release_thd_ndb(thd_ndb);
+    Thd_ndb::release(thd_ndb);
     set_thd_ndb(thd, NULL);
   }
   thd->cleanup();
