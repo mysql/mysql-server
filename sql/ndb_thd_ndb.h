@@ -82,7 +82,6 @@ public:
   uint32 options;
   uint32 trans_options;
   List<NDB_SHARE> changed_tables;
-  uint query_state;
   HASH open_tables;
   /*
     This is a memroot used to buffer rows for batched execution.
