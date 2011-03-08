@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,11 +40,13 @@ public class ClusterConnectionServiceImpl
         LoggerFactoryService.getFactory().registerLogger("com.mysql.clusterj.tie");
     }
 
-    public ClusterConnection create(String connectString) {
+    public ClusterConnection create(String connectString, int nodeId) {
         try {
-            return new ClusterConnectionImpl(connectString);
+            return new ClusterConnectionImpl(connectString, nodeId);
+        } catch (ClusterJFatalUserException cjex) {
+            throw cjex;
         } catch (Exception e) {
-            String message = local.message("ERR_Connect", connectString);
+            String message = local.message("ERR_Connect", connectString, nodeId);
             logger.fatal(message);
             throw new ClusterJFatalUserException(message, e);
         }

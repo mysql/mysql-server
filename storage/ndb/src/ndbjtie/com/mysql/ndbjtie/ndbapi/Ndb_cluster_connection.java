@@ -1,6 +1,5 @@
 /*
-  Copyright 2010 Sun Microsystems, Inc.
-  All rights reserved. Use is subject to license terms.
+  Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +29,7 @@ public class Ndb_cluster_connection extends Wrapper implements Ndb_cluster_conne
     public final native int get_latest_error() /*_const_*/;
     public final native String/*_const char *_*/ get_latest_error_msg() /*_const_*/;
     static public final native Ndb_cluster_connection create(String/*_const char *_*/ connectstring /*_= 0_*/);
+    static public final native Ndb_cluster_connection create(String/*_const char *_*/ connectstring /*_= 0_*/, int force_api_nodeid);
     static public final native void delete(Ndb_cluster_connection p0);
     public final native void set_name(String/*_const char *_*/ name);
     public final native int set_timeout(int timeout_ms);

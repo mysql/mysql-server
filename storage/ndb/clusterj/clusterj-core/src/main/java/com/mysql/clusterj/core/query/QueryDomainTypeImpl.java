@@ -382,7 +382,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     /** Create a new explain for this query.
      * @param index the index used
      * @param scanType the scan type
-     * @return
+     * @return the explain
      */
     protected Map<String, Object> newExplain(CandidateIndexImpl index,
             ScanType scanType) {

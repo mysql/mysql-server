@@ -38,13 +38,22 @@ public interface Constants {
     /** The default value of the connection retries property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES = 4;
 
-    /** The name of the maximum sessions per connection property. This is the maximum number of sessions
-     * that can share the same ndb cluster connection.
+    /** The name of the connection pool size property. This is the number of connections to create in the connection
+     * pool. The default is 1 (all sessions share the same connection; all requests for a SessionFactory with the same
+     * connect string and database will share a single SessionFactory). A setting of 0 disables pooling; each request
+     * for a SessionFactory will receive its own unique SessionFactory.
      */
-    static final String PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION = "com.mysql.clusterj.maximum.sessions.per.connection";
+    static final String PROPERTY_CONNECTION_POOL_SIZE = "com.mysql.clusterj.connection.pool.size";
 
-    /** The default value of the maximum sessions per connection property */
-    static final int DEFAULT_PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION = Integer.MAX_VALUE;
+    /** The default value of the connection pool size property */
+    static final int DEFAULT_PROPERTY_CONNECTION_POOL_SIZE = 1;
+
+    /** The name of the connection pool node ids property. There is no default. This is the list of node ids to force
+     * the connections to be assigned to specific node ids. If this property is specified and connection pool size
+     * is not the default, the number of node ids of the list must match the connection pool size, or the number of
+     * node ids must be 1 and node ids will be assigned to connections starting with the specified node id.
+     */
+    static final String PROPERTY_CONNECTION_POOL_NODEIDS = "com.mysql.clusterj.connection.pool.nodeids";
 
     /** The name of the connection delay property. For details, see
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-cluster-connection-methods.html#ndb-ndb-cluster-connection-connect">Ndb_cluster_connection::connect()</a>

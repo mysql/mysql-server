@@ -41,7 +41,9 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class SessionFactoryImpl implements SessionFactory, Constants {
@@ -53,7 +55,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(SessionFactoryImpl.class);
 
     /** The properties */
-    protected Map props;
+    protected Map<?, ?> props;
 
     /** NdbCluster connect properties */
     String CLUSTER_CONNECTION_SERVICE;
@@ -66,25 +68,27 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     String CLUSTER_DATABASE;
     int CLUSTER_MAX_TRANSACTIONS;
 
-    /** Ndb_cluster_connection: one per factory. */
-    protected ClusterConnection clusterConnection;
+    /** Node ids obtained from the property PROPERTY_CONNECTION_POOL_NODEIDS */
+    List<Integer> nodeIds = new ArrayList<Integer>();
+
+    /** Connection pool size obtained from the property PROPERTY_CONNECTION_POOL_SIZE */
+    int connectionPoolSize;
 
     /** Map of Proxy to Class */
     // TODO make this non-static
-    static private Map<Class, Class> proxyClassToDomainClass = new HashMap<Class, Class>();
+    static private Map<Class<?>, Class<?>> proxyClassToDomainClass = new HashMap<Class<?>, Class<?>>();
 
     /** Map of Domain Class to DomainTypeHandler. */
     // TODO make this non-static
-    static final protected Map<Class, DomainTypeHandler> typeToHandlerMap =
-            new HashMap<Class, DomainTypeHandler>();
+    static final protected Map<Class<?>, DomainTypeHandler<?>> typeToHandlerMap =
+            new HashMap<Class<?>, DomainTypeHandler<?>>();
 
     /** DomainTypeHandlerFactory for this session factory. */
     DomainTypeHandlerFactory domainTypeHandlerFactory = new DomainTypeHandlerFactoryImpl();
 
-
     /** The tables. */
     // TODO make this non-static
-    static final protected Map<String,Table> Tables = new HashMap<String,Table>();
+//    static final protected Map<String,Table> Tables = new HashMap<String,Table>();
 
     /** The session factories. */
     static final protected Map<String, SessionFactoryImpl> sessionFactoryMap =
@@ -93,6 +97,17 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** The key for this factory */
     final String key;
 
+    /** Cluster connections that together can be used to manage sessions */
+    private List<ClusterConnection> pooledConnections = new ArrayList<ClusterConnection>();
+
+    /** Get a cluster connection service.
+     * @return the cluster connection service
+     */
+    protected ClusterConnectionService getClusterConnectionService() {
+        return ClusterJHelper.getServiceInstance(ClusterConnectionService.class,
+                    CLUSTER_CONNECTION_SERVICE);
+    }
+
     /** Get a session factory. If using connection pooling and there is already a session factory
      * with the same connect string and database, return it, regardless of whether other
      * properties of the factory are the same as specified in the Map.
@@ -100,29 +115,28 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param props properties of the session factory
      * @return the session factory
      */
-    static public SessionFactoryImpl getSessionFactory(Map<String, String> props) {
-        int maximumSessionsPerConnection = getIntProperty(props, 
-                PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION, DEFAULT_PROPERTY_MAXIMUM_SESSIONS_PER_CONNECTION);
+    static public SessionFactoryImpl getSessionFactory(Map<?, ?> props) {
+        int connectionPoolSize = getIntProperty(props, 
+                PROPERTY_CONNECTION_POOL_SIZE, DEFAULT_PROPERTY_CONNECTION_POOL_SIZE);
         String sessionFactoryKey = getSessionFactoryKey(props);
-        
         SessionFactoryImpl result = null;
-        if (maximumSessionsPerConnection != 0) {
+        if (connectionPoolSize != 0) {
             // if using connection pooling, see if already a session factory created
             synchronized(sessionFactoryMap) {
                 result = sessionFactoryMap.get(sessionFactoryKey);
                 if (result == null) {
-                    logger.info("SessionFactoryImpl creating new SessionFactory with key " + sessionFactoryKey);
                     result = new SessionFactoryImpl(props);
                     sessionFactoryMap.put(sessionFactoryKey, result);
                 }
             }
         } else {
+            // if not using connection pooling, create a new session factory
             result = new SessionFactoryImpl(props);
         }
         return result;
     }
 
-    private static String getSessionFactoryKey(Map<String, String> props) {
+    private static String getSessionFactoryKey(Map<?, ?> props) {
         String clusterConnectString = 
             getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
         String clusterDatabase = getStringProperty(props, PROPERTY_CLUSTER_DATABASE,
@@ -135,9 +149,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      *
      * @param props the properties for the factory
      */
-    protected SessionFactoryImpl(Map<String, String> props) {
+    protected SessionFactoryImpl(Map<?, ?> props) {
         this.props = props;
         this.key = getSessionFactoryKey(props);
+        this.connectionPoolSize = getIntProperty(props, 
+                PROPERTY_CONNECTION_POOL_SIZE, DEFAULT_PROPERTY_CONNECTION_POOL_SIZE);
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
         CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES,
                 Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES);
@@ -154,17 +170,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         CLUSTER_MAX_TRANSACTIONS = getIntProperty(props, PROPERTY_CLUSTER_MAX_TRANSACTIONS,
                 Constants.DEFAULT_PROPERTY_CLUSTER_MAX_TRANSACTIONS);
         CLUSTER_CONNECTION_SERVICE = getStringProperty(props, PROPERTY_CLUSTER_CONNECTION_SERVICE);
-        try {
-            ClusterConnectionService service =
-                    ClusterJHelper.getServiceInstance(ClusterConnectionService.class,
-                            CLUSTER_CONNECTION_SERVICE);
-            clusterConnection = service.create(CLUSTER_CONNECT_STRING);
-            clusterConnection.connect(CLUSTER_CONNECT_RETRIES, CLUSTER_CONNECT_DELAY,true);
-            clusterConnection.waitUntilReady(CLUSTER_CONNECT_TIMEOUT_BEFORE,CLUSTER_CONNECT_TIMEOUT_AFTER);
-        } catch (Exception Exception) {
-            throw new ClusterJFatalException(
-                    local.message("ERR_Connecting", props), Exception);
-        }
+        createClusterConnectionPool();
         // now get a Session and complete a transaction to make sure that the cluster is ready
         try {
             Session session = getSession(null);
@@ -173,10 +179,76 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             session.close();
         } catch (Exception e) {
             if (e instanceof ClusterJException) {
-                System.out.println("SessionFactoryImpl<init> failed to complete transaction.");
+                logger.warn(local.message("ERR_Session_Factory_Impl_Failed_To_Complete_Transaction"));
                 throw (ClusterJException)e;
             }
         }
+    }
+
+    protected void createClusterConnectionPool() {
+        String nodeIdsProperty = getStringProperty(props, PROPERTY_CONNECTION_POOL_NODEIDS);
+        if (nodeIdsProperty != null) {
+            // separators are any combination of white space, commas, and semicolons
+            String[] nodeIdsStringArray = nodeIdsProperty.split("[,; \t\n\r]+", 48);
+            for (String nodeIdString : nodeIdsStringArray) {
+                try {
+                    int nodeId = Integer.parseInt(nodeIdString);
+                    nodeIds.add(nodeId);
+                } catch (NumberFormatException ex) {
+                    throw new ClusterJFatalUserException(local.message("ERR_Node_Ids_Format", nodeIdsProperty), ex);
+                }
+            }
+            // validate the size of the node ids with the connection pool size
+            if (connectionPoolSize != DEFAULT_PROPERTY_CONNECTION_POOL_SIZE) {
+                // both are specified; they must match or nodeIds size must be 1
+                if (nodeIds.size() ==1) {
+                    // add new nodeIds to fill out array
+                    for (int i = 1; i < connectionPoolSize; ++i) {
+                        nodeIds.add(nodeIds.get(i - 1) + 1);
+                    }
+                }
+                if (connectionPoolSize != nodeIds.size()) {
+                    throw new ClusterJFatalUserException(
+                            local.message("ERR_Node_Ids_Must_Match_Connection_Pool_Size",
+                                    nodeIdsProperty, connectionPoolSize));
+                    
+                }
+            } else {
+                // only node ids are specified; make pool size match number of node ids
+                connectionPoolSize = nodeIds.size();
+            }
+        }
+        ClusterConnectionService service = getClusterConnectionService();
+        if (nodeIds.size() == 0) {
+            // node ids were not specified
+            for (int i = 0; i < connectionPoolSize; ++i) {
+                createClusterConnection(service, props, 0);
+            }
+        } else {
+            for (int i = 0; i < connectionPoolSize; ++i) {
+                createClusterConnection(service, props, nodeIds.get(i));
+            }
+        }
+    }
+
+    protected ClusterConnection createClusterConnection(
+            ClusterConnectionService service, Map<?, ?> props, int nodeId) {
+        ClusterConnection result = null;
+        try {
+            result = service.create(CLUSTER_CONNECT_STRING, nodeId);
+            result.connect(CLUSTER_CONNECT_RETRIES, CLUSTER_CONNECT_DELAY,true);
+            result.waitUntilReady(CLUSTER_CONNECT_TIMEOUT_BEFORE,CLUSTER_CONNECT_TIMEOUT_AFTER);
+        } catch (Exception ex) {
+            // need to clean up if some connections succeeded
+            for (ClusterConnection connection: pooledConnections) {
+                connection.close();
+            }
+            pooledConnections.clear();
+            throw new ClusterJFatalUserException(
+                    local.message("ERR_Connecting", props), ex);
+        }
+        this.pooledConnections.add(result);
+        return result;
     }
 
     /** Get a session to use with the cluster.
@@ -194,10 +266,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @return the session
      */
     public Session getSession(Map properties) {
+        ClusterConnection clusterConnection = getClusterConnectionFromPool();
         try {
             Db db = null;
             synchronized(this) {
-                checkConnection();
+                checkConnection(clusterConnection);
                 db = clusterConnection.createDb(CLUSTER_DATABASE, CLUSTER_MAX_TRANSACTIONS);
             }
             Dictionary dictionary = db.getDictionary();
@@ -210,7 +283,26 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         }
     }
 
-    private void checkConnection() {
+    private ClusterConnection getClusterConnectionFromPool() {
+        if (connectionPoolSize <= 1) {
+            return pooledConnections.get(0);
+        }
+        // find the best pooled connection (the connection with the least active sessions)
+        // this is not perfect without synchronization since a connection might close sessions
+        // after getting the dbCount but we don't care about perfection here. 
+        ClusterConnection result = null;
+        int bestCount = Integer.MAX_VALUE;
+        for (ClusterConnection pooledConnection: pooledConnections ) {
+            int count = pooledConnection.dbCount();
+            if (count < bestCount) {
+                bestCount = count;
+                result = pooledConnection;
+            }
+        }
+        return result;
+    }
+
+    private void checkConnection(ClusterConnection clusterConnection) {
         if (clusterConnection == null) {
             throw new ClusterJUserException(local.message("ERR_Session_Factory_Closed"));
         }
@@ -226,7 +318,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         DomainTypeHandler<T> domainTypeHandler;
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
-            domainTypeHandler = typeToHandlerMap.get(cls);
+            domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
         }
         return domainTypeHandler;
     }
@@ -240,11 +332,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     @SuppressWarnings( "unchecked" )
     public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls,
             Dictionary dictionary) {
-        checkConnection();
         DomainTypeHandler<T> domainTypeHandler;
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
-            domainTypeHandler = typeToHandlerMap.get(cls);
+            domainTypeHandler = (DomainTypeHandler<T>) typeToHandlerMap.get(cls);
             if (logger.isDetailEnabled()) logger.detail("DomainTypeToHandler for "
                     + cls.getName() + "(" + cls
                     + ") returned " + domainTypeHandler);
@@ -290,13 +381,11 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     public <T> T newInstance(Class<T> cls, Dictionary dictionary) {
-        checkConnection();
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls, dictionary);
         return domainTypeHandler.newInstance();
     }
 
     public Table getTable(String tableName, Dictionary dictionary) {
-        checkConnection();
         Table result;
         try {
             result = dictionary.getTable(tableName);
@@ -312,7 +401,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param propertyName the name of the property
      * @return the value from the properties (may be null)
      */
-    protected static String getStringProperty(Map<String, String> props, String propertyName) {
+    protected static String getStringProperty(Map<?, ?> props, String propertyName) {
         return (String)props.get(propertyName);
     }
 
@@ -323,7 +412,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param defaultValue the value to return if there is no property by that name
      * @return the value from the properties or the default value
      */
-    protected static String getStringProperty(Map<String, String> props, String propertyName, String defaultValue) {
+    protected static String getStringProperty(Map<?, ?> props, String propertyName, String defaultValue) {
         String result = (String)props.get(propertyName);
         if (result == null) {
             result = defaultValue;
@@ -337,30 +426,13 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param propertyName the name of the property
      * @return the value from the properties (may not be null)
      */
-    protected static String getRequiredStringProperty(Map<String, String> props, String propertyName) {
+    protected static String getRequiredStringProperty(Map<?, ?> props, String propertyName) {
         String result = (String)props.get(propertyName);
         if (result == null) {
                 throw new ClusterJFatalUserException(
                         local.message("ERR_NullProperty", propertyName));                            
         }
         return result;
-    }
-
-    /** Get the property from the properties map as an int.
-     * @param props the properties
-     * @param propertyName the name of the property
-     * @return the value from the properties or the default value
-     * 
-     */
-    protected static int getIntProperty(Map<String, String> props, String propertyName) {
-        String property = getStringProperty(props, propertyName);
-        try {
-            int result = Integer.parseInt(property);
-            return result;
-        } catch (NumberFormatException ex) {
-            throw new ClusterJFatalUserException(
-                    local.message("ERR_NumericFormat", propertyName, property));
-        }
     }
 
     /** Get the property from the properties map as an int. If the user has not
@@ -370,29 +442,35 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @param defaultValue the value to return if there is no property by that name
      * @return the value from the properties or the default value
      */
-    protected static int getIntProperty(Map<String, String> props, String propertyName, int defaultValue) {
-        String property = getStringProperty(props, propertyName);
+    protected static int getIntProperty(Map<?, ?> props, String propertyName, int defaultValue) {
+        Object property = props.get(propertyName);
         if (property == null) {
             return defaultValue;
         }
-        try {
-            int result = Integer.parseInt(property);
-            return result;
-        } catch (NumberFormatException ex) {
-            throw new ClusterJFatalUserException(
-                    local.message("ERR_NumericFormat", propertyName, property));
+        if (Number.class.isAssignableFrom(property.getClass())) {
+            return ((Number)property).intValue();
         }
+        if (property instanceof String) {
+            try {
+                int result = Integer.parseInt((String)property);
+                return result;
+            } catch (NumberFormatException ex) {
+                throw new ClusterJFatalUserException(
+                        local.message("ERR_NumericFormat", propertyName, property));
+            }
+        }
+        throw new ClusterJUserException(local.message("ERR_NumericFormat", propertyName, property));
     }
 
     public synchronized void close() {
-        // if already closed, we're done
-        if (clusterConnection != null) {
+        // we have to close all of the cluster connections
+        for (ClusterConnection clusterConnection: pooledConnections) {
             clusterConnection.close();
-            clusterConnection = null;
-            synchronized(sessionFactoryMap) {
-                // now remove this from the map
-                sessionFactoryMap.remove(key);
-            }
+        }
+        pooledConnections.clear();
+        synchronized(sessionFactoryMap) {
+            // now remove this from the map
+            sessionFactoryMap.remove(key);
         }
     }
 
@@ -402,6 +480,14 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
 
     public DomainTypeHandlerFactory getDomainTypeHandlerFactory() {
         return domainTypeHandlerFactory;
+    }
+
+    public List<Integer> getConnectionPoolSessionCounts() {
+        List<Integer> result = new ArrayList<Integer>();
+        for (ClusterConnection connection: pooledConnections) {
+            result.add(connection.dbCount());
+        }
+        return result;
     }
 
 }

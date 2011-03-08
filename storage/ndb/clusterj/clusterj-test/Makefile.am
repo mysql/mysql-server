@@ -45,6 +45,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/BitTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/BlobTest.java \
   $(clusterj_test_src)/testsuite/clusterj/CharsetTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/ConnectionPoolTest.java \
   $(clusterj_test_src)/testsuite/clusterj/CoordinatedTransactionIdVariableTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DateAsSqlDateTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/DateAsUtilDateTypesTest.java \
@@ -65,7 +66,6 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/LongIntStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongLongStringPKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/LongvarbinaryPKTest.java \
-  $(clusterj_test_src)/testsuite/clusterj/MaximumSessionsPerConnectionTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultiplePKTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultithreadedFindTest.java \
   $(clusterj_test_src)/testsuite/clusterj/MultithreadedTest.java \

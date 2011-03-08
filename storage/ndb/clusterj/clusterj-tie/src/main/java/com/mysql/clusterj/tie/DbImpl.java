@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.core.store.ClusterConnection;
 import com.mysql.clusterj.core.store.ClusterTransaction;
 
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -80,7 +81,11 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The Dictionary for this DbImpl */
     private DictionaryImpl dictionary;
 
-    public DbImpl(Ndb ndb, int maxTransactions) {
+    /** The ClusterConnection */
+    private ClusterConnection clusterConnection;
+
+    public DbImpl(ClusterConnection clusterConnection, Ndb ndb, int maxTransactions) {
+        this.clusterConnection = clusterConnection;
         this.ndb = ndb;
         int returnCode = ndb.init(maxTransactions);
         handleError(returnCode, ndb);
@@ -91,6 +96,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 
     public void close() {
         Ndb.delete(ndb);
+        clusterConnection.close(this);
     }
 
     public com.mysql.clusterj.core.store.Dictionary getDictionary() {
