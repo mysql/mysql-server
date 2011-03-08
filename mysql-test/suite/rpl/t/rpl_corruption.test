@@ -100,11 +100,19 @@ SET GLOBAL debug="-d,corrupt_queue_event";
 
 # Emulate corruption in relay log
 --echo # 6. Slave. Corruption in relay log
-SET GLOBAL debug="+d,corrupt_read_log_event_char";
+
+#
+# Bug #58630 shows `+d' syntax has a side effect
+# Andrei changed it to unsigned `d' version which does not affect the tests logics.
+# todo: restore back to `+d' when  Bug #58630,  OBug#11765758 sorted out
+#
+SET GLOBAL debug="d,corrupt_read_log_event_char";
 START SLAVE;
 let $slave_sql_errno= 1593;
 --source include/wait_for_slave_sql_error.inc
-SET GLOBAL debug="-d,corrupt_read_log_event_char";
+# see above comments on `+d' syntax
+
+SET GLOBAL debug="";
 
 # Start normal replication and compare same table on master
 # and slave
