@@ -12211,7 +12211,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
   ulong reclength= table_share->reclength;
   const NdbOperation* op;
-  Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans= m_thd_ndb->trans;
   int error;
 
