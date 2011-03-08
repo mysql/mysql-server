@@ -253,26 +253,23 @@ connection con1;
 --reap
 
 --echo # Test 4: Secondary unique index, should not block reads.
-# This requires HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE to be supported
-# by InnoDB. Adding this flag currently introduces a regression so
-# this test is disabled until the regression has been fixed.
 
 --echo # Connection default
 connection default;
-#SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
-#--echo # Sending:
-#--send ALTER TABLE t1 ADD UNIQUE (b)
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+--echo # Sending:
+--send ALTER TABLE t1 ADD UNIQUE (b)
 
-#--echo # Connection con1
-#connection con1;
-#SET DEBUG_SYNC= "now WAIT_FOR manage";
-#SELECT * FROM t1;
-#SET DEBUG_SYNC= "now SIGNAL query";
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+SELECT * FROM t1;
+SET DEBUG_SYNC= "now SIGNAL query";
 
-#--echo # Connection default
-#connection default;
-#--echo # Reaping: ALTER TABLE t1 ADD UNIQUE (b)
-#--reap
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER TABLE t1 ADD UNIQUE (b)
+--reap
 
 disconnect con1;
 disconnect con2;
