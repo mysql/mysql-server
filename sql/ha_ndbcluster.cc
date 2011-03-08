@@ -45,6 +45,8 @@
 #include "ha_ndbcluster_connection.h"
 #include "ndb_thd.h"
 #include "ndb_table_guard.h"
+#include "ndb_global_schema_lock.h"
+#include "ndb_global_schema_lock_guard.h"
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
@@ -10288,8 +10290,8 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
   if (dir)
     DBUG_RETURN(0); // Discover of databases not yet supported
 
-  Ndbcluster_global_schema_lock_guard ndbcluster_global_schema_lock_guard(thd);
-  if (ndbcluster_global_schema_lock_guard.lock())
+  Ndb_global_schema_lock_guard ndb_global_schema_lock_guard(thd);
+  if (ndb_global_schema_lock_guard.lock())
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   // List tables in NDB

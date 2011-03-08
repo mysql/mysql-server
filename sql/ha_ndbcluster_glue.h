@@ -76,9 +76,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 /* thd->binlog_query has new parameter "direct" */
 #define NDB_THD_BINLOG_QUERY_HAS_DIRECT
 
-/* Global schema lock not available */
-#define NDB_NO_GLOBAL_SCHEMA_LOCK
-
 /* No mysql_rm_table_part2 anymore in 5.5.8 */
 #define NDB_NO_MYSQL_RM_TABLE_PART2
 
