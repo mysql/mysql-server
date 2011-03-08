@@ -22,6 +22,8 @@ struct st_service_ref {
   void *service;
 };
 
+#ifdef HAVE_DLOPEN
+
 static struct my_snprintf_service_st my_snprintf_handler = {
   my_snprintf,
   my_vsnprintf
@@ -41,4 +43,4 @@ static struct st_service_ref list_of_services[]=
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
   { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler }
 };
-
+#endif
