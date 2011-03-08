@@ -44,6 +44,7 @@
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndbcluster_connection.h"
 #include "ndb_thd.h"
+#include "ndb_table_guard.h"
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
