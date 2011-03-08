@@ -224,6 +224,9 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
     }
 
     public void testNegativeConnectionPoolNoNodeId() {
+        if (!runSpecificNodeIdTests()) {
+            return;
+        }
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "48");
