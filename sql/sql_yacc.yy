@@ -6861,7 +6861,7 @@ alter_list_item:
           }
         | FORCE_SYM
           {
-            Lex->alter_info.flags|= ALTER_FORCE;
+            Lex->alter_info.flags|= ALTER_RECREATE;
           }
         | alter_order_clause
           {
