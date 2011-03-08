@@ -1501,12 +1501,13 @@ new_Field_timestamp(uchar *ptr, uchar *null_ptr, uchar null_bit,
                     enum Field::utype unireg_check, const char *field_name,
                     TABLE_SHARE *share, uint dec, CHARSET_INFO *cs)
 {
-  if (dec==0 || dec == NOT_FIXED_DEC)
+  if (dec==0)
     return new Field_timestamp(ptr, MAX_DATETIME_WIDTH, null_ptr, null_bit,
                                 unireg_check, field_name, share, cs);
-  else
-    return new Field_timestamp_hires(ptr, null_ptr, null_bit, unireg_check,
-                                     field_name, share, dec, cs);
+  if (dec == NOT_FIXED_DEC)
+    dec= MAX_DATETIME_PRECISION;
+  return new Field_timestamp_hires(ptr, null_ptr, null_bit, unireg_check,
+                                   field_name, share, dec, cs);
 }
 
 static inline Field_time *
@@ -1514,12 +1515,13 @@ new_Field_time(uchar *ptr, uchar *null_ptr, uchar null_bit,
                enum Field::utype unireg_check, const char *field_name,
                uint dec, CHARSET_INFO *cs)
 {
-  if (dec == 0 || dec == NOT_FIXED_DEC)
+  if (dec == 0)
     return new Field_time(ptr, MIN_TIME_WIDTH, null_ptr, null_bit,
                           unireg_check, field_name, cs);
-  else
-    return new Field_time_hires(ptr, null_ptr, null_bit,
-                                    unireg_check, field_name, dec, cs);
+  if (dec == NOT_FIXED_DEC)
+    dec= MAX_DATETIME_PRECISION;
+  return new Field_time_hires(ptr, null_ptr, null_bit,
+                                  unireg_check, field_name, dec, cs);
 }
 
 static inline Field_datetime *
@@ -1527,12 +1529,13 @@ new_Field_datetime(uchar *ptr, uchar *null_ptr, uchar null_bit,
                    enum Field::utype unireg_check,
                    const char *field_name, uint dec, CHARSET_INFO *cs)
 {
-  if (dec == 0 || dec == NOT_FIXED_DEC)
+  if (dec == 0)
     return new Field_datetime(ptr, MAX_DATETIME_WIDTH, null_ptr, null_bit,
                               unireg_check, field_name, cs);
-  else
-    return new Field_datetime_hires(ptr, null_ptr, null_bit,
-                                    unireg_check, field_name, dec, cs);
+  if (dec == NOT_FIXED_DEC)
+    dec= MAX_DATETIME_PRECISION;
+  return new Field_datetime_hires(ptr, null_ptr, null_bit,
+                                  unireg_check, field_name, dec, cs);
 }
 
 class Field_string :public Field_longstr {

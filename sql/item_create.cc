@@ -5091,7 +5091,7 @@ create_func_cast(THD *thd, Item *a, Cast_target cast_type,
       }
     }
     else
-      len= NOT_FIXED_DEC;
+      len= 0;
 
     if (cast_type == ITEM_CAST_TIME)
       res= new (thd->mem_root) Item_time_typecast(a, len);

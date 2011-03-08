@@ -624,3 +624,12 @@ select * from t1 where a = DATE('2010-10-10');
 select distinct a from t1 where a = DATE('2010-10-10');
 drop table t1;
 
+#
+# lp:731124 Loss of precision on DISTINCT
+#
+create table t1 (f1 varchar(40));
+insert into t1 values ('2010-10-10 00:00:00.0001'),('2010-10-10 00:00:00.0002'),('2010-10-10 00:00:00.0003');
+select time(f1) from t1 ;
+select distinct time(f1) from t1 ;
+drop table t1;
+

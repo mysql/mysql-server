@@ -2920,6 +2920,13 @@ void Item_func_coalesce::fix_length_and_dec()
 {
   cached_field_type= agg_field_type(args, arg_count);
   agg_result_type(&hybrid_type, args, arg_count);
+  Item_result cmp_type;
+  agg_cmp_type(&cmp_type, args, arg_count);
+  if (cmp_type == TIME_RESULT)
+  {
+    count_real_length();
+    return;
+  }
   switch (hybrid_type) {
   case STRING_RESULT:
     count_only_length();

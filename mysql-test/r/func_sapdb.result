@@ -195,17 +195,17 @@ time("1997-12-31 23:59:59.000001") as f9;
 describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	date	YES		NULL	
-f2	datetime	YES		NULL	
-f3	time	YES		NULL	
-f4	time	YES		NULL	
-f5	time	YES		NULL	
+f2	datetime(6)	YES		NULL	
+f3	time(6)	YES		NULL	
+f4	time(6)	YES		NULL	
+f5	time(6)	YES		NULL	
 f6	time	YES		NULL	
-f7	datetime	YES		NULL	
+f7	datetime(6)	YES		NULL	
 f8	date	YES		NULL	
-f9	time	YES		NULL	
+f9	time(6)	YES		NULL	
 select * from t1;
 f1	f2	f3	f4	f5	f6	f7	f8	f9
-1997-01-01	1998-01-02 01:01:00	49:01:01	46:58:57	-24:00:00	10:11:12	2001-12-01 01:01:01	1997-12-31	23:59:59
+1997-01-01	1998-01-02 01:01:00.000003	49:01:01.000001	46:58:57.999999	8275:29:36.710655	10:11:12	2001-12-01 01:01:01.000000	1997-12-31	23:59:59.000001
 create table test(t1 datetime, t2 time, t3 time, t4 datetime);
 insert into test values 
 ('2001-01-01 01:01:01', '01:01:01', null, '2001-02-01 01:01:01'),
@@ -230,8 +230,8 @@ SELECT TIMEDIFF(t1, t4) As ttt, TIMEDIFF(t2, t3) As qqq,
 TIMEDIFF(t3, t2) As eee, TIMEDIFF(t2, t4) As rrr from test;
 ttt	qqq	eee	rrr
 -744:00:00	NULL	NULL	NULL
-838:59:59.999999	22:58:58	-22:58:58	NULL
--838:59:59.999999	-22:58:58	22:58:58	NULL
+838:59:59	22:58:58	-22:58:58	NULL
+-838:59:59	-22:58:58	22:58:58	NULL
 NULL	26:02:02	-26:02:02	NULL
 00:00:00	-26:02:02	26:02:02	NULL
 NULL	NULL	NULL	NULL

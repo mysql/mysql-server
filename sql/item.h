@@ -2075,7 +2075,7 @@ public:
                         enum_field_types field_type_arg)
     :Item_partition_func_safe_string(name_arg, length_arg, &my_charset_bin),
      date_time_field_type(field_type_arg)
-  { }
+  { decimals= 0; }
   enum_field_types field_type() const { return date_time_field_type; }
 };
 

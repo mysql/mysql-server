@@ -765,7 +765,7 @@ public:
   const char *func_name() const { return "timediff"; }
   void fix_length_and_dec()
   {
-    decimals= NOT_FIXED_DEC;
+    decimals= max(args[0]->decimals, args[1]->decimals);
     Item_timefunc::fix_length_and_dec();
     maybe_null= 1;
   }

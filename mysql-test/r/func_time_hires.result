@@ -37,7 +37,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `sec_to_time(12345)` time DEFAULT NULL,
   `sec_to_time(12345.6789)` time(4) DEFAULT NULL,
-  `sec_to_time(1234567e-2)` time DEFAULT NULL,
+  `sec_to_time(1234567e-2)` time(6) DEFAULT NULL,
   `now()` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   `curtime(0)` time NOT NULL DEFAULT '00:00:00',
   `utc_timestamp(1)` datetime(1) NOT NULL DEFAULT '0000-00-00 00:00:00.0',
@@ -52,7 +52,7 @@ t1	CREATE TABLE `t1` (
 select * from t1;
 sec_to_time(12345)	03:25:45
 sec_to_time(12345.6789)	03:25:45.6789
-sec_to_time(1234567e-2)	03:25:45
+sec_to_time(1234567e-2)	03:25:45.670000
 now()	2011-01-01 01:01:01
 curtime(0)	01:01:01
 utc_timestamp(1)	2010-12-31 22:01:01.1

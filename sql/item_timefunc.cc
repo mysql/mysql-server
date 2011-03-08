@@ -2379,7 +2379,7 @@ void Item_func_add_time::fix_length_and_dec()
 {
   enum_field_types arg0_field_type;
   max_length= MAX_DATETIME_WIDTH;
-  decimals= NOT_FIXED_DEC;
+  decimals= max(args[0]->decimals, args[1]->decimals);
   maybe_null= 1;
 
   /*
