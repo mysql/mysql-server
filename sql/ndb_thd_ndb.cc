@@ -26,11 +26,11 @@ static const int MAX_TRANSACTIONS= 4;
 
 
 Thd_ndb*
-Thd_ndb::seize(void)
+Thd_ndb::seize(THD* thd)
 {
   DBUG_ENTER("seize_thd_ndb");
 
-  Thd_ndb* thd_ndb= new Thd_ndb();
+  Thd_ndb* thd_ndb= new Thd_ndb(thd);
   if (thd_ndb == NULL)
     return NULL;
 

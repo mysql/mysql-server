@@ -1001,7 +1001,8 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
   return (uchar*) &thd_ndb_share->key;
 }
 
-Thd_ndb::Thd_ndb()
+Thd_ndb::Thd_ndb(THD* thd) :
+  m_thd(thd)
 {
   connection= ndb_get_cluster_connection();
   m_connect_count= connection->get_connect_count();
@@ -8131,9 +8132,10 @@ int ha_ndbcluster::create(const char *name,
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
 
   if (!((thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP) ||
-        ndbcluster_has_global_schema_lock(thd_ndb)))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::create"));
+        thd_ndb->has_required_global_schema_lock("ha_ndbcluster::create")))
+  
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
   /*
     Don't allow table creation unless
     schema distribution table is setup
@@ -8909,9 +8911,9 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (check_ndb_connection(thd))
     DBUG_RETURN(my_errno= HA_ERR_NO_CONNECTION);
 
-  if (!ndbcluster_has_global_schema_lock(get_thd_ndb(thd)))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::rename_table"));
+  Thd_ndb *thd_ndb= thd_get_thd_ndb(thd);
+  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
+    DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
   Ndb *ndb= get_ndb(thd);
   ndb->setDatabaseName(old_dbname);
@@ -9315,9 +9317,11 @@ int ha_ndbcluster::delete_table(const char *name)
 
   ndb= thd_ndb->ndb;
 
-  if (!ndbcluster_has_global_schema_lock(thd_ndb))
-    DBUG_RETURN(ndbcluster_no_global_schema_lock_abort
-                (thd, "ha_ndbcluster::delete_table"));
+  if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::delete_table"))
+  {
+    error= HA_ERR_NO_CONNECTION;
+    goto err;
+  }
 
   /*
     Drop table in ndb.
@@ -12909,7 +12913,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   pthread_mutex_unlock(&LOCK_ndb_util_thread);
 
   /* Get thd_ndb for this thread */
-  if (!(thd_ndb= Thd_ndb::seize()))
+  if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
     pthread_mutex_lock(&LOCK_ndb_util_thread);

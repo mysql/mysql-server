@@ -57,10 +57,12 @@ enum THD_NDB_TRANS_OPTIONS
 
 class Thd_ndb 
 {
-  Thd_ndb();
+  THD* m_thd;
+
+  Thd_ndb(THD*);
   ~Thd_ndb();
 public:
-  static Thd_ndb* seize(void);
+  static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
 
   void init_open_tables();
@@ -108,6 +110,7 @@ public:
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;
+  bool has_required_global_schema_lock(const char* func);
 
   unsigned m_connect_count;
   bool valid_ndb(void);
