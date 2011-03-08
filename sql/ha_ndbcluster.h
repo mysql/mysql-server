@@ -179,10 +179,6 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
-typedef enum ndb_query_state_bits {
-  NDB_QUERY_NORMAL = 0,
-  NDB_QUERY_MULTI_READ_RANGE = 1
-} NDB_QUERY_STATE_BITS;
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
