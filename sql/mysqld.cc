@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1273,11 +1273,14 @@ static void __cdecl kill_server(int sig_ptr)
   /*    
    Send event to smem_event_connect_request for aborting    
    */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
-	  DBUG_PRINT("error",
-		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+  if (opt_enable_shared_memory)
+  {
+    if (!SetEvent(smem_event_connect_request))    
+    {      
+      DBUG_PRINT("error",
+                 ("Got error: %ld from SetEvent of smem_event_connect_request",
+                  GetLastError()));    
+    }
   }
 #endif  
   
@@ -3028,7 +3031,6 @@ SHOW_VAR com_status_vars[]= {
   {"show_grants",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_GRANTS]), SHOW_LONG_STATUS},
   {"show_keys",            (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_KEYS]), SHOW_LONG_STATUS},
   {"show_master_status",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_MASTER_STAT]), SHOW_LONG_STATUS},
-  {"show_new_master",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_NEW_MASTER]), SHOW_LONG_STATUS},
   {"show_open_tables",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_OPEN_TABLES]), SHOW_LONG_STATUS},
   {"show_plugins",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PLUGINS]), SHOW_LONG_STATUS},
   {"show_privileges",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_PRIVILEGES]), SHOW_LONG_STATUS},
@@ -4217,11 +4219,14 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-  if (my_basic_init())
+#ifndef _WIN32
+  // For windows, my_init() is called from the win specific mysqld_main
+  if (my_init())                 // init my_sys library & pthreads
   {
-    fprintf(stderr, "my_basic_init() failed.");
+    fprintf(stderr, "my_init() failed.");
     return 1;
   }
+#endif
 
   orig_argc= argc;
   orig_argv= argv;
@@ -4320,11 +4325,10 @@ int mysqld_main(int argc, char **argv)
       recreate objects which were initialised early,
       so that they are instrumented as well.
     */
-    my_thread_basic_global_reinit();
+    my_thread_global_reinit();
   }
 #endif /* HAVE_PSI_INTERFACE */
 
-  my_init();                                   // init my_sys library & pthreads
   init_error_log_mutex();
 
   /* Set signal used to kill MySQL */
@@ -4744,6 +4748,12 @@ int mysqld_main(int argc, char **argv)
 
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
+
+  if (my_init())
+  {
+    fprintf(stderr, "my_init() failed.");
+    return 1;
+  }
 
   if (Service.GetOS())	/* true NT family */
   {
