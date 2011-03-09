@@ -910,3 +910,9 @@ select last_day(f2) from t1;
 select last_day(f2) from t1 where last_day(f2) is null;
 select * from t1 order by last_day (f2);
 drop table t1;
+
+#
+# lp:731815 Crash/valgrind warning Item::send with 5.1-micro
+#
+select timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime));
+select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime)), 'UTC', 'Europe/Moscow');

@@ -1468,3 +1468,11 @@ Warnings:
 Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '0'
 drop table t1;
+select timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime));
+timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime))
+-838:59:59.999999
+Warnings:
+Warning	1292	Truncated incorrect time value: '-596523:14:07'
+select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime)), 'UTC', 'Europe/Moscow');
+convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime)), 'UTC', 'Europe/Moscow')
+NULL

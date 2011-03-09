@@ -1872,7 +1872,8 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
     to_tz_cached= args[2]->const_item();
   }
 
-  if (from_tz==0 || to_tz==0 || get_arg0_date(ltime, TIME_NO_ZERO_DATE))
+  if (from_tz==0 || to_tz==0 ||
+      get_arg0_date(ltime, TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE))
   {
     null_value= 1;
     return 1;
@@ -2534,6 +2535,9 @@ bool Item_func_timediff::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
       l_time1.time_type != l_time2.time_type)
     goto null_date;
 
+  if (fuzzy_date & TIME_NO_ZERO_IN_DATE)
+    goto null_date;
+
   if (l_time1.neg != l_time2.neg)
     l_sign= -l_sign;
 
@@ -2550,7 +2554,11 @@ bool Item_func_timediff::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   if (l_time1.neg && (seconds || microseconds))
     l_time3.neg= 1-l_time3.neg;         // Swap sign of result
 
+  set_if_smaller(seconds, INT_MAX32);
   calc_time_from_sec(&l_time3, (long) seconds, microseconds);
+
+  if ((fuzzy_date & TIME_NO_ZERO_DATE) && (seconds == 0) && (microseconds == 0))
+    goto null_date;
 
   *ltime= l_time3;
   check_time_range(ltime, &was_cut);
