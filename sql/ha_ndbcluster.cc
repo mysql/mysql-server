@@ -10668,7 +10668,6 @@ static int ndbcluster_init(void *p)
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
     pthread_cond_destroy(&COND_ndb_setup_complete);
-    ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
 
@@ -10687,7 +10686,6 @@ static int ndbcluster_init(void *p)
     pthread_cond_destroy(&COND_ndb_util_thread);
     pthread_cond_destroy(&COND_ndb_util_ready);
     pthread_cond_destroy(&COND_ndb_setup_complete);
-    ndbcluster_global_schema_lock_deinit();
     goto ndbcluster_init_error;
   }
 
@@ -10704,6 +10702,8 @@ ndbcluster_init_error:
   /* disconnect from cluster and free connection resources */
   ndbcluster_disconnect();
   ndbcluster_hton->state= SHOW_OPTION_DISABLED;               // If we couldn't use handler
+
+  ndbcluster_global_schema_lock_deinit();
 
   DBUG_RETURN(TRUE);
 }
@@ -10739,6 +10739,8 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 
   ndbcluster_disconnect();
 
+  ndbcluster_global_schema_lock_deinit();
+
   // cleanup ndb interface
   ndb_end_internal();
 
@@ -10747,7 +10749,6 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   pthread_cond_destroy(&COND_ndb_util_thread);
   pthread_cond_destroy(&COND_ndb_util_ready);
   pthread_cond_destroy(&COND_ndb_setup_complete);
-  ndbcluster_global_schema_lock_deinit();
   DBUG_RETURN(0);
 }
 
