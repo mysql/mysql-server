@@ -753,7 +753,7 @@ int analyse::end_of_records()
 	tmp_str.append(STRING_WITH_LEN(" NOT NULL"));
       output_str_length = tmp_str.length();
       func_items[9]->set(tmp_str.ptr(), tmp_str.length(), tmp_str.charset());
-      if (result->send_data(result_fields))
+      if (result->send_data(result_fields) > 0)
 	return -1;
       continue;
     }
@@ -798,7 +798,7 @@ int analyse::end_of_records()
     if (!(*f)->nulls)
       ans.append(STRING_WITH_LEN(" NOT NULL"));
     func_items[9]->set(ans.ptr(), ans.length(), ans.charset());
-    if (result->send_data(result_fields))
+    if (result->send_data(result_fields) > 0)
       return -1;
   }
   return 0;

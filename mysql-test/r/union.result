@@ -414,7 +414,7 @@ a
 5
 select found_rows();
 found_rows()
-6
+5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
 a
 1
@@ -447,7 +447,7 @@ a
 4
 select found_rows();
 found_rows()
-6
+5
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
 a
 3
@@ -1208,9 +1208,12 @@ a	b
 select * from ((select * from t1 limit 1) union (select * from t1 limit 1)) a;
 a	b
 1	a
+2	b
 select * from ((select * from t1 limit 1) union (select * from t1 limit 1) union (select * from t1 limit 1)) a;
 a	b
 1	a
+2	b
+3	c
 select * from ((((select * from t1))) union (select * from t1) union (select * from t1)) a;
 a	b
 1	a
@@ -1647,4 +1650,17 @@ b
 1
 2
 DROP TABLE t1,t2;
+create table t1 (a int);
+insert into t1 values (10),(10),(10),(2),(3),(4),(5),(6),(7),(8),(9),(1),(10);
+select a from t1 where false UNION select a from t1 limit 8;
+a
+10
+2
+3
+4
+5
+6
+7
+8
+drop table t1;
 End of 5.1 tests

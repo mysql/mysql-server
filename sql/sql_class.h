@@ -2514,7 +2514,11 @@ public:
   virtual uint field_count(List<Item> &fields) const
   { return fields.elements; }
   virtual bool send_fields(List<Item> &list, uint flags)=0;
-  virtual bool send_data(List<Item> &items)=0;
+  /*
+    send_data returns 0 on ok, 1 on error and -1 if data was ignored, for
+    example for a duplicate row entry written to a temp table.
+  */
+  virtual int send_data(List<Item> &items)=0;
   virtual bool initialize_tables (JOIN *join=0) { return 0; }
   virtual void send_error(uint errcode,const char *err);
   virtual bool send_eof()=0;
@@ -2572,7 +2576,7 @@ class select_send :public select_result {
 public:
   select_send() :is_result_set_started(FALSE) {}
   bool send_fields(List<Item> &list, uint flags);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const { return FALSE; }
   void abort();
@@ -2643,7 +2647,7 @@ public:
   }
   ~select_export();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 
@@ -2660,7 +2664,7 @@ public:
     nest_level= nest_level_arg;
   }
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 
@@ -2681,7 +2685,7 @@ public:
   ~select_insert();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   virtual int prepare2(void);
-  bool send_data(List<Item> &items);
+  virtual int send_data(List<Item> &items);
   virtual void store_values(List<Item> &values);
   virtual bool can_rollback_data() { return 0; }
   void send_error(uint errcode,const char *err);
@@ -2836,7 +2840,7 @@ public:
 
   select_union() :table(0) {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool send_eof();
   bool flush();
 
@@ -2852,7 +2856,7 @@ protected:
   Item_subselect *item;
 public:
   select_subselect(Item_subselect *item);
-  bool send_data(List<Item> &items)=0;
+  int send_data(List<Item> &items)=0;
   bool send_eof() { return 0; };
 };
 
@@ -2863,7 +2867,7 @@ public:
   select_singlerow_subselect(Item_subselect *item_arg)
     :select_subselect(item_arg)
   {}
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 /* used in independent ALL/ANY optimisation */
@@ -2877,7 +2881,7 @@ public:
     :select_subselect(item_arg), cache(0), fmax(mx)
   {}
   void cleanup();
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool cmp_real();
   bool cmp_int();
   bool cmp_decimal();
@@ -2890,7 +2894,7 @@ class select_exists_subselect :public select_subselect
 public:
   select_exists_subselect(Item_subselect *item_arg)
     :select_subselect(item_arg){}
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
 };
 
 /* Structs used when sorting */
@@ -3055,7 +3059,7 @@ public:
   multi_delete(TABLE_LIST *dt, uint num_of_tables);
   ~multi_delete();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int do_deletes();
@@ -3099,7 +3103,7 @@ public:
 	       enum_duplicates handle_duplicates, bool ignore);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int  do_updates();
@@ -3143,7 +3147,7 @@ public:
   }
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
-  bool send_data(List<Item> &items);
+  int send_data(List<Item> &items);
   bool send_eof();
   virtual bool check_simple_select() const;
   void cleanup();
