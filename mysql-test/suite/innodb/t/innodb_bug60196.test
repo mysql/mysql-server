@@ -1,26 +1,20 @@
 # Bug#60196 - Setting lowercase_table_names to 2 on Windows causing
 # Foreign Key problems after an engine is restarted.
 
-# This test case needs InnoDB.
---source include/have_innodb.inc
+# This test case needs InnoDB, a lowercase file system,
+# lower-case-table-names=2, and cannot use the embedded server
+# because it restarts the server.
+--source include/not_embedded.inc
 --source include/have_lowercase2.inc
 --source include/have_case_insensitive_file_system.inc
-
-#
-# Precautionary clean up.
-#
---disable_warnings
-DROP TABLE IF EXISTS Bug_60196_FK1 ;
-DROP TABLE IF EXISTS Bug_60196_FK2 ;
-DROP TABLE IF EXISTS Bug_60196 ;
---enable_warnings
+--source include/have_innodb.inc
 
 #
 # Create test data.
 #
-CREATE TABLE `Bug_60196_FK1` (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE `Bug_60196_FK2` (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE `Bug_60196` (
+CREATE TABLE Bug_60196_FK1 (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE Bug_60196_FK2 (Primary_Key INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE Bug_60196 (
   FK1_Key INT NOT NULL,
   FK2_Key INT NOT NULL,
   PRIMARY KEY (FK2_Key, FK1_Key),
@@ -49,7 +43,7 @@ SELECT * FROM bug_60196_FK1;
 SELECT * FROM bug_60196_FK2;
 SELECT * FROM bug_60196;
 
---echo # Stop master server
+--echo # Stop server
 
 # Write file to make mysql-test-run.pl wait for the server to stop
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
