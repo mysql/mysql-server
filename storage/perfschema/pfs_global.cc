@@ -25,6 +25,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TBD: check this
+#ifdef __WIN__
+  #include <winsock2.h>
+#else
+  #include <arpa/inet.h>
+#endif
+
 bool pfs_initialized= false;
 ulonglong pfs_allocated_memory= 0;
 
@@ -65,5 +72,81 @@ void pfs_print_error(const char *format, ...)
   vfprintf(stderr, format, args);
   va_end(args);
   fflush(stderr);
+}
+
+#ifdef __WIN__
+
+/** inet_ntop() does not exist in Windows. Defined here for convenience. */
+
+const char *inet_ntop(int af, const void *src, char *host, socklen_t hostlen)
+{
+  if (af == AF_INET)
+  {
+    struct sockaddr_in in;
+    memset(&in, 0, sizeof(in));
+    in.sin_family = AF_INET;
+    memcpy(&in.sin_addr, src, sizeof(struct in_addr));
+    /** Convert ip address into readable form. Do not do a reverse DNS lookup. */
+    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in), host, hostlen, NULL, 0, NI_NUMERICHOST);
+    return host;
+  }
+  else if (af == AF_INET6)
+  {
+    struct sockaddr_in6 in;
+    memset(&in, 0, sizeof(in));
+    in.sin6_family = AF_INET6;
+    memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
+    /** Convert ip address into readable form. Do not do a reverse DNS lookup. */
+    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), host, hostlen, NULL, 0, NI_NUMERICHOST);
+    return host;
+  }
+  return NULL;
+}
+
+#endif // __WIN32
+
+/** Convert raw ip address into readable format */ // TBD: review this
+
+uint pfs_set_socket_address(char *host,
+                            uint host_len,
+                            uint *port,
+                            const struct sockaddr *src_addr,
+                            socklen_t src_len)
+{
+  DBUG_ASSERT(host);
+  DBUG_ASSERT(src_addr);
+  DBUG_ASSERT(port);
+
+  memset(host, 0, host_len);
+  *port= 0;
+
+  switch (src_addr->sa_family)
+  {
+    case AF_INET:
+    {
+      if (host_len < INET_ADDRSTRLEN+1)
+        return 0;
+      struct sockaddr_in *sa4= (struct sockaddr_in *)(src_addr);
+      inet_ntop(AF_INET, &(sa4->sin_addr), host, INET_ADDRSTRLEN);
+      *port= ntohs(sa4->sin_port);
+    }
+    break;
+
+    case AF_INET6:
+    {
+      if (host_len < INET6_ADDRSTRLEN+1)
+        return 0;
+      struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(src_addr);
+      inet_ntop(AF_INET6, &(sa6->sin6_addr), host, INET6_ADDRSTRLEN);
+      *port= ntohs(sa6->sin6_port);
+    }
+    break;
+
+    default:
+      break;
+  }
+
+  /* Return actual IP address string length */
+  return (strlen((const char*)host));
 }
 

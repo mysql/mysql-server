@@ -688,6 +688,8 @@ static inline int mysql_mutex_lock(...)
   - EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME
   - FILE_SUMMARY_BY_EVENT_NAME
   - FILE_SUMMARY_BY_INSTANCE
+  - SOCKET_SUMMARY_BY_INSTANCE
+  - SOCKET_SUMMARY_BY_EVENT_NAME
   - OBJECTS_SUMMARY_GLOBAL_BY_TYPE
 
   The instrumented code that generates waits events consist of:
@@ -695,6 +697,7 @@ static inline int mysql_mutex_lock(...)
   - rwlocks (mysql_rwlock_t)
   - conditions (mysql_cond_t)
   - file io (MYSQL_FILE)
+  - socket io (MYSQL_SOCKET)
   - table io
 
   The flow of data between aggregates tables varies for each instrumentation.
@@ -857,6 +860,39 @@ static inline int mysql_mutex_lock(...)
         @c table_file_summary_by_event_name::make_row()
   - [E] FILE_SUMMARY_BY_INSTANCE,
         @c table_file_summary_by_instance::make_row()
+
+  @subsection IMPL_WAIT_SOCKET Socket waits
+
+@verbatim
+  socket_locker(T, F)
+   |
+   | [1]
+   |
+   |-> pfs_socket(F)                            =====>> [B], [C], [D], [E]
+   |    |
+   |    | [2]
+   |    |
+   |    |-> pfs_socket_class(F.class)           =====>> [C], [D]
+   |
+   |-> pfs_thread(T).event_name(F)            =====>> [A]
+        |
+       ...
+@endverbatim
+
+  Implemented as:
+  - [1] @c get_thread_socket_name_locker_v1(), @c start_socket_wait_v1(),
+        @c end_socket_wait_v1(), ...
+  - [2] @c close_socket_v1()
+  - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
+        @c table_ews_by_thread_by_event_name::make_row()
+  - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
+        @c table_events_waits_summary_by_instance::make_socket_row()
+  - [C] EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME,
+        @c table_ews_global_by_event_name::make_socket_row()
+  - [D] SOCKET_SUMMARY_BY_EVENT_NAME,
+        @c table_socket_summary_by_event_name::make_row()
+  - [E] SOCKET_SUMMARY_BY_INSTANCE,
+        @c table_socket_summary_by_instance::make_row()
 
   @subsection IMPL_WAIT_TABLE Table waits
 
@@ -3596,7 +3632,6 @@ static void start_socket_wait_v1(PSI_socket_locker *locker,
     wait->m_timer_start= timer_start;
     wait->m_source_file= src_file;
     wait->m_source_line= src_line;
-    /** end_socket_wait() will overwrite with actual byte count. */
     wait->m_number_of_bytes= byte_count;
   }
 }
@@ -3612,37 +3647,31 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
 
-  PFS_socket *socket= reinterpret_cast<PFS_socket *> (state->m_socket);
+  PFS_socket *socket= reinterpret_cast<PFS_socket *>(state->m_socket);
   DBUG_ASSERT(socket != NULL);
-  PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+  PFS_thread *thread= reinterpret_cast<PFS_thread *>(state->m_thread);
 
-  PFS_single_stat *time_stat, *io_stat;
+  PFS_byte_stat *byte_stat;
 
   switch (state->m_operation)
   {
   case PSI_SOCKET_RECV:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_recv.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_recv.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_recv;
     break;
   case PSI_SOCKET_SEND:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_send.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_send.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_send;
     break;
   case PSI_SOCKET_RECVFROM:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom;
     break;
   case PSI_SOCKET_SENDTO:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_sendto.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_sendto.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_sendto;
     break;
   case PSI_SOCKET_RECVMSG:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg;
     break;
   case PSI_SOCKET_SENDMSG:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg;
     break;
 
   /** These operations are grouped as 'miscellaneous' */
@@ -3653,20 +3682,17 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   case PSI_SOCKET_OPT:
   case PSI_SOCKET_STAT:
   case PSI_SOCKET_SHUTDOWN:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
     break;
   case PSI_SOCKET_CLOSE:
-    time_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_waits;
-    io_stat= &socket->m_socket_stat.m_io_stat.m_misc.m_bytes;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_misc;
     /* This socket will no longer be used by the server */
     destroy_socket(socket);
     break;
 
   default:
     DBUG_ASSERT(false);
-    io_stat= NULL;
-    time_stat= NULL;
+    byte_stat= NULL;
     break;
   }
 
@@ -3679,14 +3705,14 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
     socket->m_wait_stat.aggregate_value(wait_time);
     /* Aggregate to current operation (timed) */
-    time_stat->aggregate_value(wait_time);
+    byte_stat->m_waits.aggregate_value(wait_time);
   }
   else
   {
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
     socket->m_wait_stat.aggregate_counted();
     /* Aggregate to current operation (counted) */
-    time_stat->aggregate_counted();
+    byte_stat->m_waits.aggregate_counted();
   }
 
   if (flags & STATE_FLAG_THREAD)
@@ -3721,14 +3747,12 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       if (flag_events_waits_history_long)
         insert_events_waits_history_long(wait);
       thread->m_events_waits_count--;
-      /** Actual number of bytes. */
-      wait->m_number_of_bytes= byte_count;
     }
   }
 
   /** Aggregate number of bytes for the operation */
   if ((int)byte_count > -1)
-    io_stat->aggregate_value(byte_count);
+    byte_stat->m_bytes+= byte_count;
 }
 
 static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)
@@ -3738,64 +3762,12 @@ static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)
   pfs->m_fd= fd;
 }
 
-#ifdef __WIN__
-/**
-  inet_ntop() and inet_pton() do not exist in Windows. They are defined here
-  for convenience.
-*/
-const char *inet_ntop(int af, const void *src, char *dst, socklen_t cnt)
-{
-  if (af == AF_INET)
-  {
-    struct sockaddr_in in;
-    memset(&in, 0, sizeof(in));
-    in.sin_family = AF_INET;
-    memcpy(&in.sin_addr, src, sizeof(struct in_addr));
-    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in), dst, cnt, NULL, 0, NI_NUMERICHOST);
-    return dst;
-  }
-  else if (af == AF_INET6)
-  {
-    struct sockaddr_in6 in;
-    memset(&in, 0, sizeof(in));
-    in.sin6_family = AF_INET6;
-    memcpy(&in.sin6_addr, src, sizeof(struct in_addr6));
-    getnameinfo((struct sockaddr *)&in, sizeof(struct sockaddr_in6), dst, cnt, NULL, 0, NI_NUMERICHOST);
-    return dst;
-  }
-  return NULL;
-}
-
-int inet_pton(int af, const char *src, void *dst)
-{
-  struct addrinfo hints, *res, *ressave;
-
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = af;
-
-  if (getaddrinfo(src, NULL, &hints, &res) != 0)
-  {
-    // dolog(LOG_ERR, "Couldn't resolve host %s\n", src); //TBD
-    return -1;
-  }
-
-  ressave = res;
-
-  while (res)
-  {
-    memcpy(dst, res->ai_addr, res->ai_addrlen);
-    res = res->ai_next;
-  }
-
-  freeaddrinfo(ressave);
-  return 0;
-}
-#endif // __WIN32
 
 static void set_socket_address_v1(PSI_socket *socket,
                                   const struct sockaddr *addr,
                                   socklen_t addr_len)
 {
+#if 0
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
@@ -3827,18 +3799,33 @@ static void set_socket_address_v1(PSI_socket *socket,
 
   /* Adjust IP address string length */
   pfs->m_ip_length= strlen((const char*)pfs->m_ip);
+#endif
 }
 
 static void set_socket_info_v1(PSI_socket *socket,
-                               uint fd,
+                               uint *fd,
                                const struct sockaddr *addr,
-                               socklen_t addr_len)
+                               socklen_t *addr_len)
 {
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
-  pfs->m_fd= fd;
-  set_socket_address_v1(socket, addr, addr_len);
+  /** Set socket descriptor */
+  if (likely(fd != NULL))
+    pfs->m_fd= *fd;
+
+  /** Set raw socket address and length */
+  if (likely(addr != NULL && addr_len != NULL))
+  {
+    pfs->m_sock_len= *addr_len;
+  
+    /** Restrict address length to size of struct */
+    if (unlikely(pfs->m_sock_len > sizeof(struct sockaddr)))
+      pfs->m_sock_len= sizeof(struct sockaddr);
+  
+    if (likely(pfs->m_sock_len > 0))
+      memcpy(&pfs->m_sock_addr, addr, pfs->m_sock_len);
+  }
 }
 
 /**

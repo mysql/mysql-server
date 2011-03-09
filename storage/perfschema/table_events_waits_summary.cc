@@ -203,7 +203,7 @@ void table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
     Sockets don't have a in memory structure associated to it,
     so we use the address of the PFS_socket buffer as object_instance_begin
   */
-  make_instr_row(pfs, safe_class, pfs); // TBD: check this
+  make_instr_row(pfs, safe_class, pfs);
 }
 
 int table_events_waits_summary_by_instance

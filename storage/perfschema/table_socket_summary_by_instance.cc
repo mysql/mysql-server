@@ -102,21 +102,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_READ") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
 
   /** Write */
   {
@@ -146,21 +131,6 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_WRITE") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_WRITE") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -196,21 +166,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_RECV") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
 
   /** Send */
   {
@@ -240,21 +195,6 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_SEND") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_SEND") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -290,21 +230,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_RECVFROM") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
 
   /** Sendto */
   {
@@ -334,21 +259,6 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_SENDTO") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_SENDTO") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -384,21 +294,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_RECVMSG") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
 
   /** Sendmsg */
   {
@@ -428,21 +323,6 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("SUM_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_NUMBER_OF_BYTES_SENDMSG") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_NUMBER_OF_BYTES_SENDMSG") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
@@ -477,7 +357,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_socket_summary_by_instance::m_field_def=
-{ 85, field_types };
+{ 61, field_types };
 
 PFS_engine_table_share
 table_socket_summary_by_instance::m_share=
@@ -642,227 +522,155 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.m_io_stat.m_all_read.m_waits.m_max);
         break;
       case 13: /* SUM_NUMBER_OF_BYTES_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_read.m_bytes.m_sum);
-        break;
-      case 14: /* MIN_NUMBER_OF_BYTES_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_read.m_bytes.m_min);
-        break;
-      case 15: /* AVG_NUMBER_OF_BYTES_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_read.m_bytes.m_avg);
-        break;
-      case 16: /* MAX_NUMBER_OF_BYTES_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_read.m_bytes.m_max);
+        set_field_ulonglong(f, m_row.m_io_stat.m_all_read.m_bytes);
         break;
 
-      case 17: /* COUNT_WRITE */
+      case 14: /* COUNT_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_waits.m_count);
         break;
-      case 18: /* SUM_TIMER_WRITE */
+      case 15: /* SUM_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_waits.m_sum);
         break;
-      case 19: /* MIN_TIMER_WRITE */
+      case 16: /* MIN_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_waits.m_min);
         break;
-      case 20: /* AVG_TIMER_WRITE */
+      case 17: /* AVG_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_waits.m_avg);
         break;
-      case 21: /* MAX_TIMER_WRITE */
+      case 18: /* MAX_TIMER_WRITE */
         set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_waits.m_max);
         break;
-      case 22: /* SUM_NUMBER_OF_BYTES_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_bytes.m_sum);
-        break;
-      case 23: /* MIN_NUMBER_OF_BYTES_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_bytes.m_min);
-        break;
-      case 24: /* AVG_NUMBER_OF_BYTES_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_bytes.m_avg);
-        break;
-      case 25: /* MAX_NUMBER_OF_BYTES_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_bytes.m_max);
+      case 19: /* SUM_NUMBER_OF_BYTES_WRITE */
+        set_field_ulonglong(f, m_row.m_io_stat.m_all_write.m_bytes);
         break;
 
-      case 26: /* COUNT_RECV */
+      case 20: /* COUNT_RECV */
         set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_count);
         break;
-      case 27: /* SUM_TIMER_RECV */
+      case 21: /* SUM_TIMER_RECV */
         set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_sum);
         break;
-      case 28: /* MIN_TIMER_RECV */
+      case 22: /* MIN_TIMER_RECV */
         set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_min);
         break;
-      case 29: /* AVG_TIMER_RECV */
+      case 23: /* AVG_TIMER_RECV */
         set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_avg);
         break;
-      case 30: /* MAX_TIMER_RECV */
+      case 24: /* MAX_TIMER_RECV */
         set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_max);
         break;
-      case 31: /* SUM_NUMBER_OF_BYTES_RECV */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_bytes.m_sum);
-        break;
-      case 32: /* MIN_NUMBER_OF_BYTES_RECV */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_bytes.m_min);
-        break;
-      case 33: /* AVG_NUMBER_OF_BYTES_RECV */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_bytes.m_avg);
-        break;
-      case 34: /* MAX_NUMBER_OF_BYTES_RECV */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_bytes.m_max);
+      case 25: /* SUM_NUMBER_OF_BYTES_RECV */
+        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_bytes);
         break;
 
-      case 35: /* COUNT_SEND */
+      case 26: /* COUNT_SEND */
         set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_count);
         break;
-      case 36: /* SUM_TIMER_SEND */
+      case 27: /* SUM_TIMER_SEND */
         set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_sum);
         break;
-      case 37: /* MIN_TIMER_SEND */
+      case 28: /* MIN_TIMER_SEND */
         set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_min);
         break;
-      case 38: /* AVG_TIMER_SEND */
+      case 29: /* AVG_TIMER_SEND */
         set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_avg);
         break;
-      case 39: /* MAX_TIMER_SEND */
+      case 30: /* MAX_TIMER_SEND */
         set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_max);
         break;
-      case 40: /* SUM_NUMBER_OF_BYTES_SEND */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_bytes.m_sum);
-        break;
-      case 41: /* MIN_NUMBER_OF_BYTES_SEND */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_bytes.m_min);
-        break;
-      case 42: /* AVG_NUMBER_OF_BYTES_SEND */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_bytes.m_avg);
-        break;
-      case 43: /* MAX_NUMBER_OF_BYTES_SEND */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_bytes.m_max);
+      case 31: /* SUM_NUMBER_OF_BYTES_SEND */
+        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_bytes);
         break;
 
-      case 44: /* COUNT_RECVFROM */
+      case 32: /* COUNT_RECVFROM */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_waits.m_count);
         break;
-      case 45: /* SUM_TIMER_RECVFROM */
+      case 33: /* SUM_TIMER_RECVFROM */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_waits.m_sum);
         break;
-      case 46: /* MIN_TIMER_RECVFROM */
+      case 34: /* MIN_TIMER_RECVFROM */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_waits.m_min);
         break;
-      case 47: /* AVG_TIMER_RECVFROM */
+      case 35: /* AVG_TIMER_RECVFROM */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_waits.m_avg);
         break;
-      case 48: /* MAX_TIMER_RECVFROM */
+      case 36: /* MAX_TIMER_RECVFROM */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_waits.m_max);
         break;
-      case 49: /* SUM_NUMBER_OF_BYTES_RECVFROM */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_bytes.m_sum);
-        break;
-      case 50: /* MIN_NUMBER_OF_BYTES_RECVFROM */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_bytes.m_min);
-        break;
-      case 51: /* AVG_NUMBER_OF_BYTES_RECVFROM */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_bytes.m_avg);
-        break;
-      case 52: /* MAX_NUMBER_OF_BYTES_RECVFROM */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_bytes.m_max);
+      case 37: /* SUM_NUMBER_OF_BYTES_RECVFROM */
+        set_field_ulonglong(f, m_row.m_io_stat.m_recvfrom.m_bytes);
         break;
 
-      case 53: /* COUNT_SENDTO */
+      case 38: /* COUNT_SENDTO */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_waits.m_count);
         break;
-      case 54: /* SUM_TIMER_SENDTO */
+      case 39: /* SUM_TIMER_SENDTO */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_waits.m_sum);
         break;
-      case 55: /* MIN_TIMER_SENDTO */
+      case 40: /* MIN_TIMER_SENDTO */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_waits.m_min);
         break;
-      case 56: /* AVG_TIMER_SENDTO */
+      case 41: /* AVG_TIMER_SENDTO */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_waits.m_avg);
         break;
-      case 57: /* MAX_TIMER_SENDTO */
+      case 42: /* MAX_TIMER_SENDTO */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_waits.m_max);
         break;
-      case 58: /* SUM_NUMBER_OF_BYTES_SENDTO */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_bytes.m_sum);
-        break;
-      case 59: /* MIN_NUMBER_OF_BYTES_SENDTO */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_bytes.m_min);
-        break;
-      case 60: /* AVG_NUMBER_OF_BYTES_SENDTO */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_bytes.m_avg);
-        break;
-      case 61: /* MAX_NUMBER_OF_BYTES_SENDTO */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_bytes.m_max);
+      case 43: /* SUM_NUMBER_OF_BYTES_SENDTO */
+        set_field_ulonglong(f, m_row.m_io_stat.m_sendto.m_bytes);
         break;
 
-      case 62: /* COUNT_RECVMSG */
+      case 44: /* COUNT_RECVMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_waits.m_count);
         break;
-      case 63: /* SUM_TIMER_RECVMSG */
+      case 45: /* SUM_TIMER_RECVMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_waits.m_sum);
         break;
-      case 64: /* MIN_TIMER_RECVMSG */
+      case 46: /* MIN_TIMER_RECVMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_waits.m_min);
         break;
-      case 65: /* AVG_TIMER_RECVMSG */
+      case 47: /* AVG_TIMER_RECVMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_waits.m_avg);
         break;
-      case 66: /* MAX_TIMER_RECVMSG */
+      case 48: /* MAX_TIMER_RECVMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_waits.m_max);
         break;
-      case 67: /* SUM_NUMBER_OF_BYTES_RECVMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_bytes.m_sum);
-        break;
-      case 68: /* MIN_NUMBER_OF_BYTES_RECVMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_bytes.m_min);
-        break;
-      case 69: /* AVG_NUMBER_OF_BYTES_RECVMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_bytes.m_avg);
-        break;
-      case 70: /* MAX_NUMBER_OF_BYTES_RECVMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_bytes.m_max);
+      case 49: /* SUM_NUMBER_OF_BYTES_RECVMSG */
+        set_field_ulonglong(f, m_row.m_io_stat.m_recvmsg.m_bytes);
         break;
 
-      case 71: /* COUNT_SENDMSG */
+      case 50: /* COUNT_SENDMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_waits.m_count);
         break;
-      case 72: /* SUM_TIMER_SENDMSG */
+      case 51: /* SUM_TIMER_SENDMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_waits.m_sum);
         break;
-      case 73: /* MIN_TIMER_SENDMSG */
+      case 52: /* MIN_TIMER_SENDMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_waits.m_min);
         break;
-      case 74: /* AVG_TIMER_SENDMSG */
+      case 53: /* AVG_TIMER_SENDMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_waits.m_avg);
         break;
-      case 75: /* MAX_TIMER_SENDMSG */
+      case 54: /* MAX_TIMER_SENDMSG */
         set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_waits.m_max);
         break;
-      case 76: /* SUM_NUMBER_OF_BYTES_SENDMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_bytes.m_sum);
-        break;
-      case 77: /* MIN_NUMBER_OF_BYTES_SENDMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_bytes.m_min);
-        break;
-      case 78: /* AVG_NUMBER_OF_BYTES_SENDMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_bytes.m_avg);
-        break;
-      case 79: /* MAX_NUMBER_OF_BYTES_SENDMSG */
-        set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_bytes.m_max);
+      case 55: /* SUM_NUMBER_OF_BYTES_SENDMSG */
+        set_field_ulonglong(f, m_row.m_io_stat.m_sendmsg.m_bytes);
         break;
 
-      case 80: /* COUNT_MISC */
+      case 56: /* COUNT_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_count);
         break;
-      case 81: /* SUM_TIMER_MISC */
+      case 57: /* SUM_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_sum);
         break;
-      case 82: /* MIN_TIMER_MISC */
+      case 58: /* MIN_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_min);
         break;
-      case 83: /* AVG_TIMER_MISC */
+      case 59: /* AVG_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_avg);
         break;
-      case 84: /* MAX_TIMER_MISC */
+      case 60: /* MAX_TIMER_MISC */
         set_field_ulonglong(f, m_row.m_io_stat.m_misc.m_waits.m_max);
         break;
       default:

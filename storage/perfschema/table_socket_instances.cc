@@ -147,14 +147,15 @@ void table_socket_instances::make_row(PFS_socket *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
+  /** Extract ip address and port from raw address */
+  m_row.m_ip_length= pfs_set_socket_address(m_row.m_ip, sizeof(m_row.m_ip),
+                                            &m_row.m_port,
+                                            &pfs->m_sock_addr, pfs->m_sock_len);
   m_row.m_event_name=         safe_class->m_name;
   m_row.m_event_name_length=  safe_class->m_name_length;
   m_row.m_identity=           pfs->m_identity;
   m_row.m_thread_id=          pfs->m_thread_id;
   m_row.m_fd=                 pfs->m_fd;
-  m_row.m_ip=                 pfs->m_ip;
-  m_row.m_ip_length=          pfs->m_ip_length;
-  m_row.m_port=               pfs->m_port;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;

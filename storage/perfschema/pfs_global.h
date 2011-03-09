@@ -29,6 +29,12 @@ void *pfs_malloc(size_t size, myf flags);
   reinterpret_cast<T*> (pfs_malloc((n) * sizeof(T), (f)))
 void pfs_free(void *ptr);
 
+uint pfs_set_socket_address(char *host,
+                            uint host_len,
+                            uint *port,
+                            const struct sockaddr *src_addr,
+                            socklen_t src_len);
+
 inline uint randomized_index(const void *ptr, uint max_size)
 {
   static uint seed1= 0;

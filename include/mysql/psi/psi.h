@@ -822,7 +822,7 @@ typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 /**
   Socket instrumentation initialisation API.
   @param key the registered mutex key
-  @param identity the address of the socket itself
+  @param socket descriptor
   @return an instrumented socket
 */
 typedef struct PSI_socket* (*init_socket_v1_t)
@@ -1321,9 +1321,9 @@ typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
     @param addr_len length of socket ip address
 */
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
-                                      uint fd,
-                                      const struct sockaddr * addr,
-                                      socklen_t addr_len);
+                                      uint *fd,
+                                      const struct sockaddr *addr,
+                                      socklen_t *addr_len);
 
 /**
   Performance Schema Interface, version 1.

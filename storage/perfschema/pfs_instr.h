@@ -206,7 +206,11 @@ struct PFS_socket : public PFS_instr
   uint m_thread_id;
   /** Socket file descriptor */
   uint m_fd;
-  /** Socket ip address, IPV4 or IPV6 */
+  /** Raw socket address */
+  struct sockaddr m_sock_addr;
+  /** Length of address */
+  socklen_t m_sock_len;
+  /** Socket ip address, IPV4 or IPV6 */ // TBD: Remove?
   char m_ip[INET6_ADDRSTRLEN];
   /** Socket ip address length in bytes */
   uint m_ip_length;

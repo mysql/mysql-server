@@ -70,7 +70,7 @@ typedef struct st_mysql_socket MYSQL_SOCKET;
   @def MYSQL_INVALID_SOCKET
   MYSQL_SOCKET initial value.
 */
-#define MYSQL_INVALID_SOCKET {INVALID_SOCKET, NULL}
+static MYSQL_SOCKET MYSQL_INVALID_SOCKET= {INVALID_SOCKET, NULL};
 
 /**
   @def mysql_socket_getfd
@@ -390,11 +390,8 @@ inline_mysql_socket_socket
   mysql_socket.fd= socket(domain, type, protocol);
 
 #ifdef HAVE_PSI_INTERFACE
-  mysql_socket.m_psi = PSI_server ? PSI_server->init_socket(key, NULL) // TBD: Doc why
+  mysql_socket.m_psi = PSI_server ? PSI_server->init_socket(key, &mysql_socket.fd)
                                   : NULL;
- 
- if (likely(mysql_socket.m_psi != NULL))
-   PSI_server->set_socket_descriptor(mysql_socket.m_psi, mysql_socket.fd);
 #endif
   return mysql_socket;
 }
@@ -643,7 +640,8 @@ inline_mysql_socket_recvfrom
 #ifdef HAVE_PSI_INTERFACE
   const char *src_file, uint src_line,
 #endif
- MYSQL_SOCKET mysql_socket, SOCKBUF_T *buf, size_t n, int flags, struct sockaddr *addr, socklen_t *addr_len)
+ MYSQL_SOCKET mysql_socket, SOCKBUF_T *buf, size_t n, int flags,
+ struct sockaddr *addr, socklen_t *addr_len)
 {
   ssize_t result;
 #ifdef HAVE_PSI_INTERFACE
@@ -652,7 +650,8 @@ inline_mysql_socket_recvfrom
 
   if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
   {
-    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_RECV);
+    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi,
+                                                 PSI_SOCKET_RECV);
     if (likely(locker !=NULL))
       PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
   }
@@ -797,8 +796,8 @@ inline_mysql_socket_accept
   /** Set socket address info */
   if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
       && socket_accept.fd != -1))
-    PSI_server->set_socket_info(socket_accept.m_psi, socket_accept.fd, addr);
-
+    PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
+                                addr, addr_len);
   if (likely(locker != NULL))
     PSI_server->end_socket_wait(locker, (size_t)0);
 #endif
@@ -881,7 +880,7 @@ inline_mysql_socket_shutdown
   #ifdef HAVE_PSI_INTERFACE
     PSI_socket_key key, const char *src_file, uint src_line,
   #endif
-   MYSQL_SOCKET socket_listen,  addr, socklen_t *addr_len, int flags)
+   MYSQL_SOCKET socket_listen,  const struct sockaddr *addr, socklen_t *addr_len, int flags)
   {
     MYSQL_SOCKET socket_accept = {0, NULL};
   #ifdef HAVE_PSI_INTERFACE
@@ -892,7 +891,8 @@ inline_mysql_socket_shutdown
                                      : NULL;
     if (likely(PSI_server != NULL && socket_accept.m_psi != NULL))
     {
-      locker= PSI_server->get_thread_socket_locker(socket_accept.m_psi, PSI_SOCKET_CONNECT);
+      locker= PSI_server->get_thread_socket_locker(socket_accept.m_psi,
+                                                   PSI_SOCKET_CONNECT);
       if (likely(locker !=NULL))
         PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
     }
@@ -904,8 +904,8 @@ inline_mysql_socket_shutdown
     /** Set socket address info */
     if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
         && socket_accept.fd != -1))
-      PSI_server->set_socket_info(socket_accept.m_psi, socket_accept.fd, addr);
-
+      PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd, addr,
+                                  addr_len);
     if (likely(locker != NULL))
       PSI_server->end_socket_wait(locker, (size_t)0);
   #endif

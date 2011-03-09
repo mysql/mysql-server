@@ -1181,13 +1181,22 @@ void destroy_table(PFS_table *pfs)
 /**
   Create instrumentation for a socket instance.
   @param klass                        the socket class
-  @param identity                     the socket address
+  @param identity                     the socket descriptor
   @return a socket instance, or NULL
 */
 PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
 {
   PFS_scan scan;
-  uint random= randomized_index(identity, socket_max);
+
+  /**
+    Unlike other instrumented objects, there is no socket 'object' to use as a
+    unique identifier. Instead, a pointer to the PFS_socket object will be used
+    to identify this socket instance. The socket descriptor will be used to
+    seed the the random index assignment.
+    */
+  my_socket fd= likely(identity != NULL) ?
+                *(reinterpret_cast<const my_socket*>(identity)) : 0;
+  uint random= randomized_index((const void *)fd, socket_max);
 
   for (scan.init(random, socket_max);
        scan.has_pass();
@@ -1201,7 +1210,8 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
       {
         if (pfs->m_lock.free_to_dirty())
         {
-          pfs->m_identity= (identity == NULL ? pfs : identity); // TBD: fix this
+          pfs->m_fd= fd;
+          pfs->m_identity= pfs;
           pfs->m_class= klass;
           pfs->m_wait_stat.reset();
           pfs->m_socket_stat.reset();
@@ -1225,7 +1235,6 @@ PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
 void release_socket(PFS_socket *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
-  pfs->m_socket_stat.m_open_count--;
 }
 
 /**
