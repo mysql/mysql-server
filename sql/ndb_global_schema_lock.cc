@@ -272,6 +272,12 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
     {
       sql_print_information("NDB: Global schema lock acquired");
     }
+
+    // Count number of global schema locks taken by this thread
+    thd_ndb->schema_locks_count++;
+    DBUG_PRINT("info", ("schema_locks_count: %d",
+                        thd_ndb->schema_locks_count));
+
     DBUG_RETURN(0);
   }
 

@@ -109,6 +109,7 @@ public:
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;
+  uint schema_locks_count; // Number of global schema locks taken by thread
   bool has_required_global_schema_lock(const char* func);
 
   unsigned m_connect_count;
