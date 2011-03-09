@@ -1,4 +1,4 @@
-/* Copyright (C) 2003-2006 MySQL AB
+/* Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -312,7 +312,7 @@ static void usage()
 {
   version();
 
-  printf("Copyright (C) 2003, 2004 MySQL AB.\n"
+  printf("Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.\n"
   "This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n"
   "and you are welcome to modify and redistribute it under the GPL license.\n");
   printf("Usage: %s [OPTIONS] \n", my_progname);

@@ -38,11 +38,13 @@ static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "aria_chk", 0 };
 static const char *set_collation_name, *opt_tmpdir, *opt_log_dir;
+static const char *default_log_dir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
-static my_bool opt_transaction_logging, opt_debug, opt_require_control_file;
-static my_bool opt_warning_for_wrong_transid;
+static my_bool opt_transaction_logging, opt_debug;
+static my_bool opt_ignore_control_file, opt_require_control_file;
+static my_bool opt_warning_for_wrong_transid, opt_update_state;
 
 static const char *type_names[]=
 {
@@ -105,7 +107,7 @@ int main(int argc, char **argv)
   int error;
   MY_INIT(argv[0]);
 
-  opt_log_dir= maria_data_root= (char *)".";
+  default_log_dir= opt_log_dir= maria_data_root= (char *)".";
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
@@ -115,10 +117,11 @@ int main(int argc, char **argv)
   maria_init();
 
   maria_block_size= 0;                 /* Use block size from control file */
-  if (ma_control_file_open(FALSE, opt_require_control_file ||
-                           !(check_param.testflag & T_SILENT)) &&
-      (opt_require_control_file ||
-       (opt_transaction_logging && (check_param.testflag & T_REP_ANY))))
+  if (!opt_ignore_control_file &&
+      (ma_control_file_open(FALSE, opt_require_control_file ||
+                            !(check_param.testflag & T_SILENT)) &&
+       (opt_require_control_file ||
+        (opt_transaction_logging && (check_param.testflag & T_REP_ANY)))))
   {
     error= 1;
     goto end;
@@ -203,8 +206,9 @@ enum options_mc {
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
-  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
-  OPT_LOG_DIR, OPT_DATADIR, OPT_WARNING_FOR_WRONG_TRANSID
+  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN,
+  OPT_REQUIRE_CONTROL_FILE, OPT_IGNORE_CONTROL_FILE,
+  OPT_LOG_DIR, OPT_WARNING_FOR_WRONG_TRANSID
 };
 
 static struct my_option my_long_options[] =
@@ -265,12 +269,16 @@ static struct my_option my_long_options[] =
   {"information", 'i',
    "Print statistics information about table that is checked.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "ignore-control-file", OPT_IGNORE_CONTROL_FILE,
+    "Ignore the control file",
+    (uchar**)&opt_ignore_control_file, 0, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
   {"keys-used", 'k',
    "Tell Aria to update only some specific keys. # is a bit mask of which keys to use. This can be used to get faster inserts.",
    &check_param.keys_in_use,
    &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
-  {"datadir", OPT_DATADIR,
+  {"datadir", 'h',
    "Path for control file (and logs if --logdir not used).",
    &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
@@ -345,10 +353,13 @@ static struct my_option my_long_options[] =
    &opt_transaction_logging, &opt_transaction_logging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"update-state", 'U',
-   "Mark tables as crashed if any errors were found and clean if check didn't "
-   "find any errors. This allows one to get rid of warnings like 'table not "
-   "properly closed'",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+   "Mark tables as crashed if any errors were found and clean if check "
+   "didn't find any errors but table was marked as 'not clean' before. This "
+   "allows one to get rid of warnings like 'table not properly closed'. "
+   "If table was updated, update also the timestamp for when check was made. "
+   "This option is on by default!",
+   &opt_update_state, &opt_update_state, 0, GET_BOOL, NO_ARG,
+   1, 0, 0, 0, 0, 0},
   {"unpack", 'u',
    "Unpack file packed with aria_pack.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -449,6 +460,9 @@ static void usage(void)
   -?, --help          Display this help and exit.\n\
   --datadir=path      Path for control file (and logs if --logdir not used)\n\
   --logdir=path       Path for log files\n\
+  --ignore-control-file  Don't open the control file. Only use this if you\n\
+                         are sure the tables are not in use by another\n\
+                         program!\n\
   --require-control-file  Abort if we can't find/read the maria_log_control\n\
                           file\n\
   -s, --silent	      Only print errors.  One can use two -s to make\n\
@@ -483,8 +497,18 @@ static void usage(void)
   -i, --information   Print statistics information about table that is checked.\n\
   -m, --medium-check  Faster than extend-check, but only finds 99.99% of\n\
 		      all errors.  Should be good enough for most cases.\n\
-  -U, --update-state  Mark tables as crashed if you find any errors.\n\
-  -T, --read-only     Don't mark table as checked.\n");
+  -T, --read-only     Don't mark table as checked.\n\
+  -U, --update-state  Mark tables as crashed if any errors were found and\n\
+                      clean if check didn't find any errors but table was\n\
+	              marked as 'not clean' before. This allows one to get\n\
+ 		      rid of warnings like 'table not properly closed'. If\n\
+		      table was updated, update also the timestamp for when\n\
+ 		      the check was made. This option is on by default!\n\
+		      Use --skip-update-state to disable.\n\
+  --warning-for-wrong-transaction-id\n\
+   Give a warning if we find a transaction id in the table that is bigger\n\
+   than what exists in the control file. Use --skip-... to disable warning\n\
+  ");
 
   puts("\
 Recover (repair)/ options (When using '--recover' or '--safe-recover'):\n\
@@ -856,6 +880,7 @@ static void get_options(register int *argc,register char ***argv)
   default_argv= *argv;
   if (isatty(fileno(stdout)))
     check_param.testflag|=T_WRITE_LOOP;
+  check_param.testflag= T_UPDATE_STATE;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -904,6 +929,11 @@ static void get_options(register int *argc,register char ***argv)
                                              MYF(MY_WME))))
       exit(1);
 
+  if (maria_data_root != default_log_dir && opt_log_dir == default_log_dir)
+  {
+    /* --datadir was used and --log-dir was not. Set log-dir to datadir */
+    opt_log_dir= maria_data_root;
+  }
   return;
 } /* get options */
 
@@ -1012,8 +1042,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
                             share->state.open_count != 0);
 
     if ((param->testflag & (T_REP_ANY | T_SORT_RECORDS)) &&
-	((share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				  STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR) ||
+	((share->state.changed & (STATE_CHANGED | STATE_CRASHED_FLAGS |
+				  STATE_IN_REPAIR) ||
 	  !(param->testflag & T_CHECK_ONLY_CHANGED))))
       need_to_check=1;
 
@@ -1030,8 +1060,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
         need_to_check=1;
     }
     if ((param->testflag & T_CHECK_ONLY_CHANGED) &&
-	(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-				 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR)))
+	(share->state.changed & (STATE_CHANGED | STATE_CRASHED_FLAGS |
+				 STATE_IN_REPAIR)))
       need_to_check=1;
     if (!need_to_check)
     {
@@ -1250,8 +1280,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error)
     {
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
     }
     else
       maria_mark_crashed(info);
@@ -1304,14 +1334,13 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error)
     {
       if (((share->state.changed &
-            (STATE_CHANGED | STATE_CRASHED | STATE_CRASHED_ON_REPAIR |
-             STATE_IN_REPAIR)) ||
+            (STATE_CHANGED | STATE_CRASHED_FLAGS | STATE_IN_REPAIR)) ||
            share->state.open_count != 0)
           && (param->testflag & T_UPDATE_STATE))
         info->update|=HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
     }
     else if (!maria_is_crashed(info) &&
              (param->testflag & T_UPDATE_STATE))
@@ -1327,13 +1356,18 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                   (my_bool) !test(param->testflag & T_AUTO_INC));
 
   if (info->update & HA_STATE_CHANGED && ! (param->testflag & T_READONLY))
+  {
     error|=maria_update_state_info(param, info,
                                    UPDATE_OPEN_COUNT |
-                                   (((param->testflag & T_REP_ANY) ?
+                                   (((param->testflag &
+                                      (T_REP_ANY | T_UPDATE_STATE)) ?
                                      UPDATE_TIME : 0) |
                                     (state_updated ? UPDATE_STAT : 0) |
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
+    if (!(param->testflag & T_SILENT))
+      printf("State updated\n");
+  }
   info->update&= ~HA_STATE_CHANGED;
   _ma_reenable_logging_for_table(info, FALSE);
   maria_lock_database(info, F_UNLCK);
@@ -1439,7 +1473,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     if (share->state.check_time)
     {
       get_date(buff,1,share->state.check_time);
-      printf("Recover time:        %s\n",buff);
+      printf("Check/recover time:  %s\n",buff);
     }
     if (share->base.born_transactional)
     {

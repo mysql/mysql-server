@@ -862,6 +862,13 @@ let $var2= `failing query`;
 echo $var2;
 EOF
 
+create table t1 (a varchar(100));
+insert into t1 values ('`select 42`');
+let $a= `select * from t1`;
+# This should output `select 42`, not evaluate it again to 42
+echo $a;
+drop table t1;
+
 --error 1
 --exec $MYSQL_TEST < $MYSQLTEST_VARDIR/tmp/let.sql 2>&1
 
@@ -1139,6 +1146,11 @@ if (!$counter)
 {
   echo Counter is not 0, (counter=10);
 }
+if (! $counter)
+{
+  let $counter=5;
+}
+echo Counter should still be 10, is $counter;
 let $counter=0;
 if($counter)
 {
@@ -1147,6 +1159,10 @@ if($counter)
 if (!$counter)
 {
   echo Counter is not 0, (counter=0);
+}
+if (! $counter)
+{
+  echo Not space var works;
 }
 
 # ----------------------------------------------------------------------------
@@ -1932,6 +1948,7 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 remove_file $MYSQLTEST_VARDIR/tmp/test_file1.tmp;
 
+--replace_regex /my_errno=[0-9]*/(my_errno)/
 --error 1
 --exec echo "cat_file non_existing_file;" | $MYSQL_TEST 2>&1
 
@@ -2512,6 +2529,8 @@ write_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
 hello
 EOF
 
+# Verify that --replace_result also work on list_files
+--replace_result file REPLACED_FILE
 list_files $MYSQLTEST_VARDIR/tmp/testdir;
 # list_files gets the directory list before creating the new file
 list_files_write_file $MYSQLTEST_VARDIR/tmp/testdir/file2.txt $MYSQLTEST_VARDIR/tmp/testdir *;

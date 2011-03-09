@@ -27,7 +27,7 @@
  */
 
 #include "my_base.h"			/* Includes errno.h + EOVERFLOW */
-#include "m_ctype.h"
+#include <m_ctype.h>
 #ifdef HAVE_IEEEFP_H
 #include <ieeefp.h>
 #endif

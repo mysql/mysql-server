@@ -4523,6 +4523,12 @@ opt_part_option:
             lex->part_info->curr_part_elem->engine_type= $4;
             lex->part_info->default_engine_type= $4;
           }
+        | CONNECTION_SYM opt_equal TEXT_STRING_sys
+          {
+            LEX *lex= Lex;
+            lex->part_info->curr_part_elem->connect_string.str= $3.str;
+            lex->part_info->curr_part_elem->connect_string.length= $3.length;
+          }
         | NODEGROUP_SYM opt_equal real_ulong_num
           { Lex->part_info->curr_part_elem->nodegroup_id= (uint16) $3; }
         | MAX_ROWS opt_equal real_ulonglong_num

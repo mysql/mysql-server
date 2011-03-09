@@ -5,6 +5,8 @@ set global use_global_log_slow_control="log_slow_verbosity,long_query_time";
 SELECT sleep(2);
 set global use_global_log_slow_control=none;
 set global log_slow_verbosity=microtime;
-let $cmd = cat var/mysqld.1/data/percona_slow_query_log-control_global_slow.log | grep "No InnoDB statistics available for this query" | wc -l;
-echo $cmd;
-exec $cmd;
+
+FLUSH LOGS;
+--let grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-control_global_slow.log
+--let grep_pattern = No InnoDB statistics available for this query
+--source include/grep.inc

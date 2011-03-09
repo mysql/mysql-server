@@ -29,7 +29,7 @@
 *  Multithreaded Demo Source
 *
 *  Copyright (C) 1995 by Sun Microsystems, Inc.
-*  All rights reserved.
+* 
 *
 *  This file is a product of SunSoft, Inc. and is provided for
 *  unrestricted use provided that this legend is included on all

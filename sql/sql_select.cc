@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2009-2010 Monty Program Ab
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
+   2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4420,10 +4420,13 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
         found_eq_constant= !use->used_tables;
         use->table->reginfo.join_tab->checked_keys.set_bit(use->key);
       }
-#ifdef HAVE_valgrind
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+      /*
+        Old gcc used a memcpy(), which is undefined if save_pos==use:
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39480
+        This also disables a valgrind warning, so better to have the test.
+      */
       if (save_pos != use)
-#endif
         *save_pos= *use;
       /* Save ptr to first use */
       if (!use->table->reginfo.join_tab->keyuse)
@@ -7264,7 +7267,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
 	  if (thd->variables.engine_condition_pushdown && !first_inner_tab)
           {
             COND *push_cond= 
@@ -11735,7 +11737,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
-    if (field->field->eq_def(result))
+    /*
+      Fields that are used as arguments to the DEFAULT() function already have
+      their data pointers set to the default value during name resolution. See
+      Item_default_value::fix_fields.
+    */
+    if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
     return result;
   }
@@ -12010,7 +12017,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->alias.set(table_alias, strlen(table_alias), table_alias_charset);
 
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
-  table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->map=1;
   table->temp_pool_slot = temp_pool_slot;
   table->copy_blobs= 1;
@@ -12579,8 +12585,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       goto err;
   }
   DBUG_PRINT("info", ("skip_create_table: %d", (int)param->skip_create_table));
-  if (!param->skip_create_table && open_tmp_table(table))
-    goto err;
+  if (!param->skip_create_table)
+  {
+    if (open_tmp_table(table))
+      goto err;
+    table->db_stat= HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
+  }
 
   thd->mem_root= mem_root_save;
 
@@ -17724,6 +17734,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*

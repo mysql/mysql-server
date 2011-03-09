@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
 CREATE TABLE tinnodb (a int) ENGINE = INNODB;
 CREATE TABLE tndb (a int) ENGINE = NDB;
@@ -477,10 +473,11 @@ a
 151
 152
 [on slave]
-Comparing tables master:test.tmyisam and slave:test.tmyisam
-Comparing tables master:test.tinnodb and slave:test.tinnodb
-Comparing tables master:test.tndb and slave:test.tndb
+include/diff_tables.inc [master:tmyisam, slave:tmyisam]
+include/diff_tables.inc [master:tinnodb, slave:tinnodb]
+include/diff_tables.inc [master:tndb, slave:tndb]
 ==== Clean up ====
 [on master]
 DROP TABLE tmyisam, tinnodb, tndb;
 [on slave]
+include/rpl_end.inc

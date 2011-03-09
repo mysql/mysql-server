@@ -1037,4 +1037,16 @@ INSERT INTO t1 values (0),(0);
 SELECT POLYGON((SELECT 1 FROM (SELECT 1 IN (GROUP_CONCAT(t1.f1)) FROM t1, t1 t GROUP BY t.f1 ) d));
 ERROR 22007: Illegal non geometric '(select 1 from (select (1 = group_concat(`test`.`t1`.`f1` separator ',')) AS `1 IN (GROUP_CONCAT(t1.f1))` from `test`.`t1` join `test`.`t1` `t` group by `t`.`f1`) `d`)' value found during parsing
 DROP TABLE t1;
+#
+# Bug#58396 group_concat and explain extended are still crashy
+#
+CREATE TABLE t1(a INT);
+EXPLAIN EXTENDED SELECT UPDATEXML('1', a, '1')
+FROM t1 ORDER BY (SELECT GROUP_CONCAT(1) FROM t1);
+ERROR HY000: Only constant XPATH queries are supported
+SHOW WARNINGS;
+Level	Code	Message
+Error	1105	Only constant XPATH queries are supported
+Note	1003	select updatexml('1',`test`.`t1`.`a`,'1') AS `UPDATEXML('1', a, '1')` from `test`.`t1` order by (select group_concat(1 separator ',') from `test`.`t1`)
+DROP TABLE t1;
 End of 5.1 tests

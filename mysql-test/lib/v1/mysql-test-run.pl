@@ -2407,8 +2407,8 @@ sub remove_stale_vardir () {
 
     # Remove the var/ dir in mysql-test dir if any
     # this could be an old symlink that shouldn't be there
-    mtr_verbose("Removing $default_vardir");
-    mtr_rmtree($default_vardir);
+    # mtr_verbose("Removing $default_vardir");
+    # mtr_rmtree($default_vardir);
 
     # Remove the "var" dir
     mtr_verbose("Removing $opt_vardir/");

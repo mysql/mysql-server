@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP TABLE IF EXISTS t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -70,3 +66,4 @@ drop datafile 'datafile02.dat'
 engine=ndb;
 DROP TABLESPACE ts1 ENGINE=NDB;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
+include/rpl_end.inc

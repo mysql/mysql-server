@@ -3,6 +3,10 @@
 #
 
 --source include/big_test.inc
+# The test would allocate and initialize 5GB of memory
+# if compiled with debug. It can take a lot of time
+# of for paging/swapping.
+--source include/not_debug.inc
 
 #
 # Bug#27322 failure to allocate transaction_prealloc_size causes crash
@@ -37,28 +41,28 @@
 
 --disable_warnings
 SET SESSION transaction_prealloc_size=1024*1024*1024*1;
---replace_column 1 <Id> 6 <Time>
+--replace_column 1 <Id> 3 <Host> 6 <Time>
 # Embedded server is hardcoded to show "Writing to net" as STATE.
 --replace_result "Writing to net" "NULL"
 --replace_regex /localhost[:0-9]*/localhost/
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*2;
---replace_column 1 <Id> 6 <Time>
+--replace_column 1 <Id> 3 <Host> 6 <Time>
 --replace_result "Writing to net" "NULL"
 --replace_regex /localhost[:0-9]*/localhost/
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*3;
---replace_column 1 <Id> 6 <Time>
+--replace_column 1 <Id> 3 <Host> 6 <Time>
 --replace_result "Writing to net" "NULL"
 --replace_regex /localhost[:0-9]*/localhost/
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*4;
---replace_column 1 <Id> 6 <Time>
+--replace_column 1 <Id> 3 <Host> 6 <Time>
 --replace_result "Writing to net" "NULL"
 --replace_regex /localhost[:0-9]*/localhost/
 SHOW PROCESSLIST;
 SET SESSION transaction_prealloc_size=1024*1024*1024*5;
---replace_column 1 <Id> 6 <Time>
+--replace_column 1 <Id> 3 <Host> 6 <Time>
 --replace_result "Writing to net" "NULL"
 SHOW PROCESSLIST;
 --enable_warnings

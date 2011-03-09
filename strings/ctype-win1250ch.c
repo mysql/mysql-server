@@ -39,9 +39,8 @@
 #define REAL_MYSQL
 #ifdef REAL_MYSQL
 
-#include "my_global.h"
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #else
 

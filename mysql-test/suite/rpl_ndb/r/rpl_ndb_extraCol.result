@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
 **** Diff Table Def Start ****
 *** On Slave ***
@@ -54,7 +50,8 @@ a	b	c
 3	4	QA TESTING
 *** Start Slave ***
 START SLAVE;
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 size mismatch - master has size 10, test.t2 on slave has size 6. Master's column size should be <= the slave's column size.'
 STOP SLAVE;
 RESET SLAVE;
 SELECT * FROM t2 ORDER BY a;
@@ -83,10 +80,8 @@ INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TEST
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 type mismatch - received type 252, test.t3 has type 3'
 *** Drop t3  ***
 DROP TABLE t3;
 *** Create t4 on slave  ***
@@ -108,10 +103,8 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 type mismatch - received type 246, test.t4 has type 3'
 *** Drop t4  ***
 DROP TABLE t4;
 *** Create t5 on slave  ***
@@ -133,10 +126,8 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 5 type mismatch - received type 4, test.t5 has type 246'
 *** Drop t5  ***
 DROP TABLE t5;
 *** Create t6 on slave  ***
@@ -157,7 +148,8 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
-Last_SQL_Error = Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3
+include/wait_for_slave_sql_error.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 3 type mismatch - received type 16, test.t6 has type 3'
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=3;
 *** Drop t6  ***
 DROP TABLE t6;
@@ -231,10 +223,8 @@ INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 type mismatch - received type 254, test.t10 has type 5'
 *** Drop t10  ***
 DROP TABLE t10;
 *** Create t11 on slave  ***
@@ -255,10 +245,8 @@ INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 type mismatch - received type 15, test.t11 has type 252'
 *** Drop t11  ***
 DROP TABLE t11;
 *** Create t12 on slave  ***
@@ -468,10 +456,8 @@ ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
 ********************************************
 *** Expect slave to fail with Error 1060 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 1;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1060]
+Last_SQL_Error = 'Error 'Duplicate column name 'c6'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5''
 *** Try to insert in master ****
 INSERT INTO t15 () VALUES(5,2.00,'Replication Testing',@b1,'Buda',2);
 SELECT * FROM t15 ORDER BY c1;
@@ -571,9 +557,8 @@ INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ********************************************
 *** Expect slave to fail with Error 1535 ***
 ********************************************
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 0 type mismatch - received type 8, test.t17 has type 2'
 ** DROP table t17 ***
 DROP TABLE t17;
+include/rpl_end.inc

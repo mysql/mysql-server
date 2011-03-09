@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 reset master;
 SHOW TABLES;
@@ -27,11 +23,8 @@ SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 FROM mysql.ndb_binlog_index WHERE epoch = <the_epoch> ;
 @the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
 106	master-bin.000001
-CHANGE MASTER TO
-master_port=<MASTER_PORT1>,
-master_log_file = 'MASTER_LOG_FILE',
-master_log_pos = MASTER_LOG_POS ;
-start slave;
+include/rpl_change_topology.inc [new topology=3->2]
+include/start_slave.inc
 INSERT INTO t1 VALUES ("row2","will go away",2),("row3","will change",3),("row4","D",4);
 DELETE FROM t1 WHERE c3 = 1;
 UPDATE t1 SET c2="should go away" WHERE c3 = 2;
@@ -54,4 +47,4 @@ row4	D	4
 row5	E	5
 ==== clean up ====
 DROP TABLE t1;
-STOP SLAVE;
+include/rpl_end.inc

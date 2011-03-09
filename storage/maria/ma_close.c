@@ -39,9 +39,6 @@ int maria_close(register MARIA_HA *info)
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
-  if (share->reopen == 1 && share->kfile.file >= 0)
-    _ma_decrement_open_count(info);
-
   if (info->lock_type != F_UNLCK)
   {
     if (maria_lock_database(info,F_UNLCK))
@@ -76,6 +73,11 @@ int maria_close(register MARIA_HA *info)
 
     if (share->kfile.file >= 0)
     {
+      my_bool save_global_changed= share->global_changed;
+
+      /* Avoid _ma_mark_file_changed() when flushing pages */
+      share->global_changed= 1;
+
       if ((*share->once_end)(share))
         error= my_errno;
       if (flush_pagecache_blocks(share->pagecache, &share->kfile,
@@ -97,6 +99,16 @@ int maria_close(register MARIA_HA *info)
       if (((share->changed && share->base.born_transactional) ||
            maria_is_crashed(info)))
       {
+        if (save_global_changed)
+        {
+          /*
+            Reset effect of _ma_mark_file_changed(). Better to do it
+            here than in _ma_decrement_open_count(), as
+            _ma_state_info_write() will write the open_count.
+           */
+          save_global_changed= 0;
+          share->state.open_count--;
+        }        
         /*
           State must be written to file as it was not done at table's
           unlocking.
@@ -104,6 +116,19 @@ int maria_close(register MARIA_HA *info)
         if (_ma_state_info_write(share, MA_STATE_INFO_WRITE_DONT_MOVE_OFFSET))
           error= my_errno;
       }
+      DBUG_ASSERT(maria_is_crashed(info) || !share->base.born_transactional ||
+                  share->state.open_count == 0 ||
+                  share->open_count_not_zero_on_open);
+
+      /* Ensure that open_count is zero on close */
+      share->global_changed= save_global_changed;
+      _ma_decrement_open_count(info, 0);
+
+      /* Ensure that open_count really is zero */
+      DBUG_ASSERT(maria_is_crashed(info) || share->temporary ||
+                  share->state.open_count == 0 ||
+                  share->open_count_not_zero_on_open);
+
       /*
         File must be synced as it is going out of the maria_open_list and so
         becoming unknown to future Checkpoints.

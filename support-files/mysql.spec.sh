@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 # Copyright (c) 2010 Monty Program Ab
 #
 # This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,7 @@
 # change these, has to be exactly as is.
 %define mysql_old_vendor	MySQL AB
 %define mysql_vendor_2		Sun Microsystems, Inc.
-%define mysql_vendor		Oracle and/or its affiliates
+%define mysql_vendor		Oracle and/or its affiliates & Monty Program Ab
 
 %define mysql_version @VERSION@
 
@@ -140,14 +140,14 @@
 ##############################################################################
 
 Name:		MySQL
-Summary:	MySQL: a very fast and reliable SQL database server
+Summary:	MariaDB: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
-Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
-URL:		http://www.mysql.com/
-Packager:	%{mysql_vendor} Product Engineering Team <build@mysql.com>
+License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}   Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
+Source:		http://http://askmonty.org/wiki/MariaDB:Download
+URL:		http://www.askmonty.org/
+Packager:	Monty Program Ab
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -159,51 +159,53 @@ BuildRoot:    %{_tmppath}/%{name}-%{version}-build
 
 # From the manual
 %description
-The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
-and robust SQL (Structured Query Language) database server. MySQL Server
-is intended for mission-critical, heavy-load production systems as well
-as for embedding into mass-deployed software. MySQL is a trademark of
-%{mysql_vendor}
+The MariaDB(TM) software delivers a very fast, multi-threaded,
+multi-user, and robust SQL (Structured Query Language) database server
+that is binary compatible with MySQL(TM). MariaDB Server is intended
+for mission-critical, heavy-load production systems as well as for
+embedding into mass-deployed software.
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
+MariaDB is a trademark of Monty Program Ab.
+
+Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor} 
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
-The MySQL web site (http://www.mysql.com/) provides the latest
-news and information about the MySQL software. Also please see the
-documentation and the manual for more information.
+The MariaDB web sites (http://askmonty.org && http://mariadb.org/)
+provides the latest news and information about the MariaDB
+software.
 
 ##############################################################################
 # Sub package definition
 ##############################################################################
 
 %package server
-Summary:	MySQL: a very fast and reliable SQL database server
+Summary:	MariaDB: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
 Provides:	msqlormysql mysql-server mysql MySQL
 Obsoletes:	MySQL mysql mysql-server
 
 %description server
-The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
-and robust SQL (Structured Query Language) database server. MySQL Server
-is intended for mission-critical, heavy-load production systems as well
-as for embedding into mass-deployed software. MySQL is a trademark of
-%{mysql_vendor}
+The MariaDB(TM) software delivers a very fast, multi-threaded,
+multi-user, and robust SQL (Structured Query Language) database server
+that is binary compatible with MySQL(TM). MariaDB Server is intended
+for mission-critical, heavy-load production systems as well as for
+embedding into mass-deployed software.
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
+Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor} 
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
 and you are welcome to modify and redistribute it under the GPL license.
 
-The MySQL web site (http://www.mysql.com/) provides the latest
-news and information about the MySQL software. Also please see the
-documentation and the manual for more information.
+The MariaDB web sites (http://askmonty.org && http://mariadb.org/)
+provides the latest news and information about the MariaDB
+software.
 
-This package includes the MySQL server binary
+This package includes the MariaDB server binary
 %if %{INNODB_BUILD}
 (configured including InnoDB)
 %endif
@@ -221,7 +223,8 @@ Obsoletes: mysql-client
 Provides: mysql-client
 
 %description client
-This package contains the standard MySQL clients and administration tools.
+This package contains the standard MariaDB & MySQL clients and
+administration tools.
 
 %{see_base}
 
@@ -229,7 +232,7 @@ This package contains the standard MySQL clients and administration tools.
 
 %if %{CLUSTER_BUILD}
 %package ndb-storage
-Summary:	MySQL - ndbcluster storage engine
+Summary:	MariaDB - ndbcluster storage engine
 Group:		Applications/Databases
 
 %description ndb-storage
@@ -242,7 +245,7 @@ computers that should store ndbcluster table data.
 # ------------------------------------------------------------------------------
 
 %package ndb-management
-Summary:	MySQL - ndbcluster storage engine management
+Summary:	MariaDB - ndbcluster storage engine management
 Group:		Applications/Databases
 
 %description ndb-management
@@ -255,7 +258,7 @@ one computer in the cluster.
 # ------------------------------------------------------------------------------
 
 %package ndb-tools
-Summary:	MySQL - ndbcluster storage engine basic tools
+Summary:	MariaDB - ndbcluster storage engine basic tools
 Group:		Applications/Databases
 
 %description ndb-tools
@@ -266,7 +269,7 @@ This package contains ndbcluster storage engine basic tools.
 # ------------------------------------------------------------------------------
 
 %package ndb-extra
-Summary:	MySQL - ndbcluster storage engine extra tools
+Summary:	MariaDB - ndbcluster storage engine extra tools
 Group:		Applications/Databases
 
 %description ndb-extra
@@ -280,40 +283,40 @@ They should be used with caution.
 
 %package test
 Requires: %{name}-client perl
-Summary: MySQL - Test suite
+Summary: MariaDB - Test suite
 Group: Applications/Databases
 Provides: mysql-test
 Obsoletes: mysql-bench mysql-test
 AutoReqProv: no
 
 %description test
-This package contains the MySQL regression test suite.
+This package contains the MariaDB regression test suite.
 
 %{see_base}
 
 # ------------------------------------------------------------------------------
 
 %package devel
-Summary: MySQL - Development header files and libraries
+Summary: MariaDB - Development header files and libraries
 Group: Applications/Databases
 Provides: mysql-devel
 Obsoletes: mysql-devel
 
 %description devel
 This package contains the development header files and libraries
-necessary to develop MySQL client applications.
+necessary to develop MariaDB client applications.
 
 %{see_base}
 
 # ------------------------------------------------------------------------------
 
 %package shared
-Summary: MySQL - Shared libraries
+Summary: MariaDB - Shared libraries
 Group: Applications/Databases
 
 %description shared
 This package contains the shared libraries (*.so*) which certain
-languages and applications need to dynamically load and use MySQL.
+languages and applications need to dynamically load and use MariaDB.
 
 # ------------------------------------------------------------------------------
 
@@ -321,19 +324,19 @@ languages and applications need to dynamically load and use MySQL.
 
 %package embedded
 Requires: %{name}-devel
-Summary: MySQL - embedded library
+Summary: MariaDB - embedded library
 Group: Applications/Databases
 Obsoletes: mysql-embedded
 
 %description embedded
-This package contains the MySQL server as an embedded library.
+This package contains the MariaDB server as an embedded library.
 
-The embedded MySQL server library makes it possible to run a
-full-featured MySQL server inside the client application.
+The embedded MariaDB server library makes it possible to run a
+full-featured MariaDB server inside the client application.
 The main benefits are increased speed and more simple management
 for embedded applications.
 
-The API is identical for the embedded MySQL version and the
+The API is identical for the embedded MariaDB version and the
 client/server version.
 
 %{see_base}
@@ -703,7 +706,8 @@ A manual upgrade is required.
 - Run the 'mysql_upgrade' program
 
 This is a brief description of the upgrade process.  Important details
-can be found in the MySQL manual, in the Upgrading section.
+can be found in the MySQL manual, in the Upgrading section and in the
+MariaDB knowledge base at http://www.askmonty.org
 ******************************************************************
 HERE
     exit 1
@@ -1161,6 +1165,9 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+
+* Sun Feb 20 2011 Monty
+ Updated texts to include information about MariaDB
 
 * Tue Jun 15 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 

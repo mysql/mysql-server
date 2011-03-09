@@ -928,7 +928,8 @@ MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
       for ( ; locks_start != locks ; locks_start++)
       {
 	(*locks_start)->debug_print_param= (void *) table;
-	(*locks_start)->org_type= (*locks_start)->type;
+	(*locks_start)->lock->name=         table->alias.c_ptr();
+	(*locks_start)->org_type=           (*locks_start)->type;
       }
     }
   }

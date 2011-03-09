@@ -400,4 +400,15 @@ SELECT 0 FROM
 (SELECT 0) t61;
 0
 0
+#
+#  A nested materialized derived table is used before being populated.
+#  (addon for bug#19077)
+#
+CREATE TABLE t1 (i INT, j BIGINT);
+INSERT INTO t1 VALUES (1, 2), (2, 2), (3, 2);
+SELECT * FROM (SELECT MIN(i) FROM t1
+WHERE j = SUBSTRING('12', (SELECT * FROM (SELECT MIN(j) FROM t1) t2))) t3;
+MIN(i)
+1
+DROP TABLE t1;
 # End of 5.0 tests

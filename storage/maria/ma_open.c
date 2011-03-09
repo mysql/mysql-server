@@ -41,10 +41,10 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state);
 					pos+=size;}
 
 
-#define disk_pos_assert(pos, end_pos) \
+#define disk_pos_assert(share, pos, end_pos)     \
 if (pos > end_pos)             \
 {                              \
-  my_errno=HA_ERR_CRASHED;     \
+  _ma_set_fatal_error(share, HA_ERR_CRASHED);    \
   goto err;                    \
 }
 
@@ -390,7 +390,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     errpos= 3;
     if (my_pread(kfile, disk_cache, info_length, 0L, MYF(MY_NABP)))
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       goto err;
     }
     len=mi_uint2korr(share->state.header.state_info_length);
@@ -416,9 +416,11 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
     disk_pos= _ma_base_info_read(disk_cache + base_pos, &share->base);
     share->state.state_length=base_pos;
+    /* For newly opened tables we reset the error-has-been-printed flag */
+    share->state.changed&= ~STATE_CRASHED_PRINTED;
 
     if (!(open_flags & HA_OPEN_FOR_REPAIR) &&
-	((share->state.changed & STATE_CRASHED) ||
+	((share->state.changed & STATE_CRASHED_FLAGS) ||
 	 ((open_flags & HA_OPEN_ABORT_IF_CRASHED) &&
 	  (my_disable_locking && share->state.open_count))))
     {
@@ -430,6 +432,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 		HA_ERR_CRASHED_ON_REPAIR : HA_ERR_CRASHED_ON_USAGE);
       goto err;
     }
+    if (share->state.open_count)
+      share->open_count_not_zero_on_open= 1;
 
     /*
       We can ignore testing uuid if STATE_NOT_MOVABLE is set, as in this
@@ -459,7 +463,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     /* sanity check */
     if (share->base.keystart > 65535 || share->base.rec_reflength > 8)
     {
-      my_errno=HA_ERR_CRASHED;
+      _ma_set_fatal_error(share, HA_ERR_CRASHED);
       goto err;
     }
 
@@ -574,7 +578,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         share->keyinfo[i].share= share;
 	disk_pos=_ma_keydef_read(disk_pos, &share->keyinfo[i]);
         share->keyinfo[i].key_nr= i;
-        disk_pos_assert(disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
+        disk_pos_assert(share,
+                        disk_pos + share->keyinfo[i].keysegs * HA_KEYSEG_SIZE,
  			end_pos);
         if (share->keyinfo[i].key_alg == HA_KEY_ALG_RTREE)
           share->have_rtree= 1;
@@ -622,7 +627,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
               pos[0].language= pos[-1].language;
               if (!(pos[0].charset= pos[-1].charset))
               {
-                my_errno=HA_ERR_CRASHED;
+                _ma_set_fatal_error(share, HA_ERR_CRASHED);
                 goto err;
               }
               pos++;
@@ -654,7 +659,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       for (i=0 ; i < uniques ; i++)
       {
 	disk_pos=_ma_uniquedef_read(disk_pos, &share->uniqueinfo[i]);
-        disk_pos_assert(disk_pos + share->uniqueinfo[i].keysegs *
+        disk_pos_assert(share,
+                        disk_pos + share->uniqueinfo[i].keysegs *
 			HA_KEYSEG_SIZE, end_pos);
 	share->uniqueinfo[i].seg=pos;
 	for (j=0 ; j < share->uniqueinfo[i].keysegs; j++,pos++)
@@ -758,7 +764,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                                            share->base.extra_rec_buff_size,
                                            share->base.max_key_length);
 
-    disk_pos_assert(disk_pos + share->base.fields *MARIA_COLUMNDEF_SIZE,
+    disk_pos_assert(share,
+                    disk_pos + share->base.fields *MARIA_COLUMNDEF_SIZE,
                     end_pos);
     for (i= j= 0 ; i < share->base.fields ; i++)
     {
@@ -796,7 +803,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->options|= HA_OPTION_READ_ONLY_DATA;
     share->is_log_table= FALSE;
 
-    if (open_flags & HA_OPEN_TMP_TABLE)
+    if (open_flags & HA_OPEN_TMP_TABLE ||
+        (share->options & HA_OPTION_TMP_TABLE))
     {
       share->options|= HA_OPTION_TMP_TABLE;
       share->temporary= share->delay_key_write= 1;
@@ -918,6 +926,19 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
         DBUG_ASSERT(share->data_file_type == BLOCK_RECORD);
         share->lock.start_trans=    _ma_block_start_trans_no_versioning;
       }
+    }
+#endif
+#ifdef SAFE_MUTEX
+    if (share->data_file_type == BLOCK_RECORD)
+    {
+      /*
+        We must have internal_lock before bitmap_lock because we call
+        _ma_flush_tables_files() with internal_lock locked.
+      */
+      pthread_mutex_lock(&share->intern_lock);
+      pthread_mutex_lock(&share->bitmap.bitmap_lock);
+      pthread_mutex_unlock(&share->bitmap.bitmap_lock);
+      pthread_mutex_unlock(&share->intern_lock);
     }
 #endif
     /*
@@ -1273,7 +1294,8 @@ uint _ma_state_info_write(MARIA_SHARE *share, uint pWrite)
   res= _ma_state_info_write_sub(share->kfile.file, &share->state, pWrite);
   if (pWrite & MA_STATE_INFO_WRITE_LOCK)
     pthread_mutex_unlock(&share->intern_lock);
-  share->changed= 0;
+  /* If open_count != 0 we have to write the state again at close */
+  share->changed= share->state.open_count != 0;
   return res;
 }
 
@@ -1902,7 +1924,7 @@ int maria_enable_indexes(MARIA_HA *info)
     DBUG_PRINT("error", ("data_file_length: %lu  key_file_length: %lu",
                          (ulong) share->state.state.data_file_length,
                          (ulong) share->state.state.key_file_length));
-    maria_print_error(info->s, HA_ERR_CRASHED);
+    _ma_set_fatal_error(share, HA_ERR_CRASHED);
     error= HA_ERR_CRASHED;
   }
   else

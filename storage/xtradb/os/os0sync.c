@@ -442,12 +442,12 @@ os_event_wait_time(
 		return(1000000); /* dummy value to eliminate compiler warn. */
 	}
 #else
-	int	err;
-	int	ret = 0;
-	ulint	tmp;
+	int		err;
+	int		ret = 0;
+	ulint		tmp;
 	ib_int64_t	old_count;
-	struct timeval tv_start;
-	struct timespec timeout;
+	struct timeval	tv_start;
+	struct timespec	timeout;
 
 	if (wtime == OS_SYNC_INFINITE_TIME) {
 		os_event_wait(event);

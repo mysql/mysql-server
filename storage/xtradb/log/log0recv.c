@@ -2260,7 +2260,7 @@ recv_report_corrupt_log(
 	      "InnoDB: far enough in recovery! Please run CHECK TABLE\n"
 	      "InnoDB: on your InnoDB tables to check that they are ok!\n"
 	      "InnoDB: If mysqld crashes after this recovery, look at\n"
-	      "InnoDB: " REFMAN "forcing-recovery.html\n"
+	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 
 	fflush(stderr);
@@ -2899,6 +2899,7 @@ recv_init_crash_recovery(void)
 /*==========================*/
 {
 	ut_a(!recv_needed_recovery);
+	ut_a(!srv_buffer_pool_shm_is_reused);
 
 	recv_needed_recovery = TRUE;
 
@@ -2956,6 +2957,7 @@ recv_recovery_from_checkpoint_start_func(
 	log_group_t*	max_cp_group;
 	log_group_t*	up_to_date_group;
 	ulint		max_cp_field;
+	ulint		log_hdr_log_block_size;
 	ib_uint64_t	checkpoint_lsn;
 	ib_uint64_t	checkpoint_no;
 	ib_uint64_t	old_scanned_lsn;
@@ -2966,9 +2968,10 @@ recv_recovery_from_checkpoint_start_func(
 #endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
 	byte*		log_hdr_buf;
-	byte		log_hdr_buf_base[LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE];
+	byte		*log_hdr_buf_base;
 	ulint		err;
 
+        log_hdr_buf_base= alloca(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 	log_hdr_buf = ut_align(log_hdr_buf_base, OS_FILE_LOG_BLOCK_SIZE);
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -3055,6 +3058,20 @@ recv_recovery_from_checkpoint_start_func(
 		       max_cp_group->space_id, 0,
 		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
 		       log_hdr_buf, max_cp_group);
+	}
+
+	log_hdr_log_block_size
+		= mach_read_from_4(log_hdr_buf + LOG_FILE_OS_FILE_LOG_BLOCK_SIZE);
+	if (log_hdr_log_block_size == 0) {
+		/* 0 means default value */
+		log_hdr_log_block_size = 512;
+	}
+	if (log_hdr_log_block_size != srv_log_block_size) {
+		fprintf(stderr,
+			"InnoDB: Error: The block size of ib_logfile (%lu) "
+			"is not equal to innodb_log_block_size.\n",
+			log_hdr_log_block_size);
+		return(DB_ERROR);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE

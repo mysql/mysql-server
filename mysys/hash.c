@@ -130,7 +130,8 @@ static inline void my_hash_free_elements(HASH *hash)
 void my_hash_free(HASH *hash)
 {
   DBUG_ENTER("my_hash_free");
-  DBUG_PRINT("enter",("hash: 0x%lx", (long) hash));
+  DBUG_PRINT("enter",("hash: 0x%lx  elements: %ld",
+                      (long) hash, hash->records));
 
   my_hash_free_elements(hash);
   hash->free= 0;

@@ -70,12 +70,13 @@ extern int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
 
 int main(int argc,char *argv[])
 {
+  char buff[FN_REFLEN];
 #if defined(SAFE_MUTEX) && defined(THREAD)
   safe_mutex_deadlock_detector= 1;
 #endif
   MY_INIT(argv[0]);
-  get_options(argc,argv);
   maria_data_root= (char *)".";
+  get_options(argc,argv);
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
@@ -95,7 +96,7 @@ int main(int argc,char *argv[])
   if (opt_versioning)
     init_thr_lock();
 
-  exit(run_test("test1"));
+  exit(run_test(fn_format(buff, "test1", maria_data_root, "", MYF(0))));
 }
 
 
@@ -734,6 +735,8 @@ static struct my_option my_long_options[] =
   {"debug", '#', "Undocumented",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"datadir", 'h', "Path to the database root.", &maria_data_root,
+   &maria_data_root, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delete-rows", 'd', "Abort after this many rows has been deleted",
    (uchar**) &remove_count, (uchar**) &remove_count, 0, GET_UINT, REQUIRED_ARG,
    1000, 0, 0, 0, 0, 0},

@@ -7,12 +7,6 @@
 # So they can't be verified by test case here.
 # Finish the following tests by calling its common test script:  
 # extra/rpl_tests/rpl_get_master_version_and_clock.test. 
-# And meanwhile this test checks that the slave I/O thread refuses to start if slave
-# and master have the same server id (because this is a useless setup,
-# and otherwise SHOW SLAVE STATUS shows progress but all queries are
-# ignored, which has caught our customers), unless
-# --replicate-same-server-id.
-#
 
 source include/master-slave.inc;
 source include/have_debug.inc;
@@ -47,20 +41,6 @@ source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
 eval set global debug= '$debug_saved';
 
-#Test case 3: This test checks that the slave I/O thread refuses to start
-#if slave and master have the same server id.
-connection slave;
-reset master;
-# replicate ourselves
-source include/stop_slave.inc;
---replace_result $SLAVE_MYPORT SLAVE_PORT
-eval change master to master_port=$SLAVE_MYPORT;
-start slave;
-
---echo *** must be having the replicate-same-server-id IO thread error ***
-let $slave_io_errno= 1593;
-let $show_slave_io_error= 1;
-source include/wait_for_slave_io_error.inc;
 
 # cleanup
 
@@ -68,3 +48,4 @@ source include/wait_for_slave_io_error.inc;
 SET DEBUG_SYNC= 'RESET';
 
 # End of tests
+--source include/rpl_end.inc

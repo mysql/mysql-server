@@ -22,6 +22,7 @@
 *.lai
 *.lib
 *.lo
+*.manifest
 *.map
 *.o
 *.obj
@@ -96,7 +97,8 @@ BitKeeper/tmp/gone
 BitKeeper/tmp
 BitKeeper/log
 BitKeeper/etc/SCCS
-CMakeFiles/
+CMakeFiles/*
+CMakeFiles
 COPYING
 COPYING.LIB
 Docs/#manual.texi#
@@ -156,6 +158,7 @@ Makefile
 Makefile.in
 Makefile.in'
 PENDING/*
+scripts/scripts
 TAGS
 ac_available_languages_fragment
 acinclude.m4
@@ -1224,9 +1227,11 @@ sql-bench/test-transactions
 sql-bench/test-wisconsin
 sql/*.cpp
 sql/*.ds?
+sql/*.def
 sql/*.vcproj
 sql/.gdbinit
 sql/client.c
+sql/cmake_dummy.cc
 sql/Doxyfile
 sql/f.c
 sql/gen_lex_hash
@@ -1888,6 +1893,7 @@ vio/viotest.cpp
 win/configure.data
 win/vs71cache.txt
 win/vs8cache.txt
+win/nmake_cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
@@ -1944,3 +1950,6 @@ libmysqld/sql_expression_cache.cc
 mysql-test/mtr_command
 scripts/convert-debug-for-diff
 plugin/handler_socket/client/hsclient
+client/strings_def.h
+libmysql/strings_def.h
+libmysql_r/strings_def.h

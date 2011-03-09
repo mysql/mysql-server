@@ -636,11 +636,16 @@ static bool shall_skip_database(const char *log_dbname)
   producing USE statements by corresponding log event print-functions.
 */
 
-void print_use_stmt(PRINT_EVENT_INFO* pinfo, const char* db, size_t db_len)
+static void
+print_use_stmt(PRINT_EVENT_INFO* pinfo, const Query_log_event *ev)
 {
+  const char* db= ev->db;
+  const size_t db_len= ev->db_len;
+
   // pinfo->db is the current db.
   // If current db is the same as required db, do nothing.
-  if (!db || !memcmp(pinfo->db, db, db_len + 1))
+  if ((ev->flags & LOG_EVENT_SUPPRESS_USE_F) || !db ||
+      !memcmp(pinfo->db, db, db_len + 1))
     return;
 
   // Current db and required db are different.
@@ -779,7 +784,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       Query_log_event *qe= (Query_log_event*)ev;
       if (!qe->is_trans_keyword() && shall_skip_database(qe->db))
         goto end;
-      print_use_stmt(print_event_info, qe->db, qe->db_len);
+      print_use_stmt(print_event_info, qe);
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
       {
         if ((retval= write_event_header_and_base64(ev, result_file,
@@ -912,7 +917,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (!shall_skip_database(exlq->db))
       {
-        print_use_stmt(print_event_info, exlq->db, exlq->db_len);
+        print_use_stmt(print_event_info, exlq);
         if (fname)
         {
           convert_path_to_forward_slashes(fname);
@@ -1491,7 +1496,7 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
-  /* Close and old connections to MySQL */
+  /* Close any old connections to MySQL */
   if (mysql)
     mysql_close(mysql);
 

@@ -2,35 +2,49 @@
 #
 # Waits until the slave IO thread has been synced, i.e., all events
 # have been copied over to slave.  Does not care if the SQL thread is
-# in sync.
+# in sync (or even running).
 #
 #
 # ==== Usage ====
 #
-# source include/sync_slave_io_with_master.inc;
+# [--let $sync_slave_connection= <connection_name>]
+# [--let $slave_timeout= NUMBER]
+# [--let $rpl_debug= 1]
+# --source include/sync_slave_io_with_master.inc
 #
-# Syncs to the current position on master, as found by SHOW MASTER
-# STATUS.
+# Syncs slave to the current position on master, as found by SHOW
+# MASTER STATUS.
 #
 # Must be called on the master. Will change connection to the slave.
 #
-# Parameters to this macro are $slave_timeout and
-# $master_connection. See wait_for_slave_param.inc for
-# descriptions.
+# Parameters:
+#   $sync_slave_connection
+#     By default, this script switches connection to 'slave'. If
+#     $sync_slave_connection is set, then '$sync_slave_connection' is
+#     used instead of 'slave'.
+#
+#   $slave_timeout
+#      See include/wait_for_slave_param.inc.
+#
+#   $rpl_debug
+#      See include/rpl_init.inc
 
-let $_master_file= query_get_value("SHOW MASTER STATUS", File, 1);
-let $_master_pos= query_get_value("SHOW MASTER STATUS", Position, 1);
+--let $include_filename= sync_slave_io_with_master.inc
+--source include/begin_include_file.inc
 
-connection slave;
 
-let $slave_error_message= Failed while waiting for slave IO thread to sync;
+--source include/save_master_pos.inc
 
-let $slave_param= Master_Log_File;
-let $slave_param_value= $_master_file;
-source include/wait_for_slave_param.inc;
+--let $rpl_connection_name= slave
+if (`SELECT '$sync_slave_connection' != ''`)
+{
+  --let $rpl_connection_name= $sync_slave_connection
+}
+--source include/rpl_connection.inc
 
-let $slave_param= Read_Master_Log_Pos;
-let $slave_param_value= $_master_pos;
-source include/wait_for_slave_param.inc;
+--source include/sync_io_with_master.inc
 
-let $slave_error_message= ;
+
+--let $include_filename= sync_slave_io_with_master.inc
+--let $skip_restore_connection= 1
+--source include/end_include_file.inc

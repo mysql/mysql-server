@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1540,6 +1540,7 @@ void close_temporary_tables(THD *thd)
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
 
       db.copy(table->s->db.str, table->s->db.length, system_charset_info);
+      /* Reset s_query() if changed by previous loop */
       s_query.length(sizeof(stub)-1);
 
       /* Loop forward through all tables that belong to a common database
@@ -3018,6 +3019,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->insert_values= 0;
   table->fulltext_searched= 0;
   table->file->ha_start_of_new_statement();
+  table->file->ft_handler= 0;
+  /*
+    Check that there is no reference to a condition from an earlier query
+    (cf. Bug#58553). 
+  */
+  DBUG_ASSERT(table->file->pushed_cond == NULL);
   table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
@@ -4366,7 +4373,7 @@ void detach_merge_children(TABLE *table, bool clear_refs)
           Set alias to "" to ensure that table is not used if we are in
           LOCK TABLES
         */
-        child_l->table->alias.copy("", 0, child_l->table->alias.charset());
+        child_l->table->alias.length(0);
 
         /* Clear the table reference to force new assignment at next open. */
         child_l->table= NULL;
@@ -6009,6 +6016,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 /*
   Find field by name in a base table or a view with temp table algorithm.
 
+  The caller is expected to check column-level privileges.
+
   SYNOPSIS
     find_field_in_table()
     thd				thread handler
@@ -6116,6 +6125,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
     - a list of Natural_join_column objects for NATURAL/USING joins.
     This procedure detects the type of the table reference 'table_list'
     and calls the corresponding search routine.
+
+    The routine checks column-level privieleges for the found field.
 
   RETURN
     0			field is not found
@@ -6390,8 +6401,16 @@ find_field_in_tables(THD *thd, Item_ident *item,
       when table_ref->field_translation != NULL.
       */
     if (table_ref->table && !table_ref->view)
+    {
       found= find_field_in_table(thd, table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* Check if there are sufficient access rights to the found field. */
+      if (found && check_privileges &&
+          check_column_grant_in_table_ref(thd, table_ref, name, length))
+        found= WRONG_GRANT;
+#endif
+    }
     else
       found= find_field_in_table_ref(thd, table_ref, name, length, item->name,
                                      NULL, NULL, ref, check_privileges,
@@ -8284,11 +8303,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
-  TABLE *table= 0;
-  List<TABLE> tbl_list;
+  TABLE *table= 0, *vcol_table= 0;
   bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
-  tbl_list.empty();
 
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
@@ -8311,7 +8328,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     f.rewind();
   }
   else if (thd->lex->unit.insert_table_with_stored_vcol)
-    tbl_list.push_back(thd->lex->unit.insert_table_with_stored_vcol);
+    vcol_table= thd->lex->unit.insert_table_with_stored_vcol;
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
@@ -8341,31 +8358,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
-    tbl_list.push_back(table);
+    DBUG_ASSERT(vcol_table == 0 || vcol_table == table);
+    vcol_table= table;
   }
   /* Update virtual fields*/
   thd->abort_on_warning= FALSE;
-  if (tbl_list.head())
+  if (vcol_table)
   {
-    List_iterator_fast<TABLE> it(tbl_list);
-    TABLE *prev_table= 0;
-    while ((table= it++))
+    if (vcol_table->vfield)
     {
-      /*
-        Do simple optimization to prevent unnecessary re-generating 
-        values for virtual fields
-      */
-      if (table != prev_table)
-      {
-        prev_table= table;
-        if (table->vfield)
-        {
-          if (update_virtual_fields(thd, table, TRUE))
-          {
-            goto err;
-          }
-        }
-      }
+      if (update_virtual_fields(thd, vcol_table, TRUE))
+        goto err;
     }
   }
   thd->abort_on_warning= abort_on_warning_saved;

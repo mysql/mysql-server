@@ -26,6 +26,7 @@ SELECT sleep(2);
 drop table if exists t;
 --enable_warnings
 
-let $cmd = cat var/mysqld.1/data/percona_slow_query_log-min_examined_row_limit.log | grep Query_time | wc -l;
-echo $cmd;
-exec $cmd;
+FLUSH LOGS;
+--let grep_file = $MYSQLTEST_VARDIR/mysqld.1/data/percona_slow_query_log-min_examined_row_limit.log
+--let grep_pattern = Query_time
+--source include/grep.inc

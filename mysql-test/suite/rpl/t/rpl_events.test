@@ -111,3 +111,4 @@ DROP EVENT event44331_2;
 DROP EVENT event44331_3;
 DROP EVENT event44331_4;
 sync_slave_with_master;
+--source include/rpl_end.inc

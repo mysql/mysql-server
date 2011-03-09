@@ -66,10 +66,10 @@ if ($found_garbage)
    }
    # Do a manual cleanup, because the following tests should not suffer from
    # remaining files
-   --exec perl -e "unlink(<$MYSQLD_DATADIR/test/t1*>)"
+   --remove_files_wildcard $MYSQLD_DATADIR/test t1*
    if ($with_directories)
    {
-	   --exec perl -e "unlink(<$MYSQLD_DATADIR/test/tmp/t1*>)"
+      --remove_files_wildcard $MYSQLD_DATADIR/test/tmp t1*
    }
 }
 --enable_query_log

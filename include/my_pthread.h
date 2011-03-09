@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc,
+   2010-2011 Oracle and/or its affiliates, 2009-2010 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,11 +126,10 @@ int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
 struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
-
 void pthread_exit(void *a);	 /* was #define pthread_exit(A) ExitThread(A)*/
 
 #ifndef ETIMEDOUT
-#define ETIMEDOUT 145		    /* Win32 doesn't have this */
+#define ETIMEDOUT 145		    /* Win32 might not have this */
 #endif
 #define getpid() GetCurrentThreadId()
 #define HAVE_LOCALTIME_R		1
@@ -224,7 +224,11 @@ extern int my_pthread_getprio(pthread_t thread_id);
 typedef void *(* pthread_handler)(void *);
 
 #define my_pthread_once_t pthread_once_t
+#if defined(PTHREAD_ONCE_INITIALIZER)
+#define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INITIALIZER
+#else
 #define MY_PTHREAD_ONCE_INIT PTHREAD_ONCE_INIT
+#endif
 #define my_pthread_once(C,F) pthread_once(C,F)
 
 /* Test first for RTS or FSU threads */

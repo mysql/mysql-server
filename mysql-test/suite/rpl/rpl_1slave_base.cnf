@@ -7,6 +7,7 @@
 #!run-master-sh
 
 log-bin=                 master-bin
+relay-log=               master-relay-bin
 
 [mysqld.2]
 # Run the slave.sh script before starting this process

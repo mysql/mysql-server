@@ -24,8 +24,7 @@
 
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 char * strcont(reg1 const char *str,reg2 const char *set)
 {

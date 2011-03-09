@@ -35,7 +35,7 @@ connection master1;
 # This sleep is picked so that the query above has started to insert
 # some rows into t2. If it hasn't the slave will not stop below.
 let $wait_condition= SELECT COUNT(*) > 1000 FROM t1;
-source include/wait_condition.inc
+--source include/wait_condition.inc
 
 # SHOW PROCESSLIST;
 
@@ -62,4 +62,5 @@ connection slave;
 # The following should be 0
 SELECT COUNT(*) FROM t2;
 
+--source include/rpl_end.inc
 enable_parsing;

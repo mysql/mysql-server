@@ -20,8 +20,7 @@
   _dig_vector in a portable manner.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 extern char *longlong2str_with_dig_vector(longlong val,char *dst,int radix,
                                           const char *dig_vector);
