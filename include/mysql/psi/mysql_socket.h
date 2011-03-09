@@ -66,12 +66,26 @@ struct st_mysql_socket
 */
 typedef struct st_mysql_socket MYSQL_SOCKET;
 
+
 /**
   @def MYSQL_INVALID_SOCKET
   MYSQL_SOCKET initial value.
 */
-static MYSQL_SOCKET MYSQL_INVALID_SOCKET= {INVALID_SOCKET, NULL};
+//MYSQL_SOCKET MYSQL_INVALID_SOCKET= {INVALID_SOCKET, NULL};
+#define MYSQL_INVALID_SOCKET mysql_socket_invalid()
 
+/**
+  @def mysql_socket_invalid
+  MYSQL_SOCKET helper. Initialize instrumented socket.
+  @sa mysql_socket_getfd
+  @sa mysql_socket_setfd
+*/
+static inline MYSQL_SOCKET
+mysql_socket_invalid()
+{
+  MYSQL_SOCKET mysql_socket= {INVALID_SOCKET, NULL};
+  return mysql_socket;
+}
 /**
   @def mysql_socket_getfd
   MYSQL_SOCKET helper. Get socket descriptor.

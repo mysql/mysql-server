@@ -1075,7 +1075,7 @@ static void close_connections(void)
     (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
     (void) mysql_socket_close(unix_sock);
     (void) unlink(mysqld_unix_port);
-    unix_sock= MYSQL_INVALID_SOCKET);
+    unix_sock= MYSQL_INVALID_SOCKET;
   }
 #endif
   end_thr_alarm(0);			 // Abort old alarms.
