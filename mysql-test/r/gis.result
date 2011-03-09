@@ -1040,7 +1040,7 @@ drop table t1;
 #
 create table t1(a char(32) not null) engine=myisam;
 create spatial index i on t1 (a);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 140)
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
 drop table t1;
 CREATE TABLE t0 (a BINARY(32) NOT NULL);
 CREATE SPATIAL INDEX i on t0 (a);

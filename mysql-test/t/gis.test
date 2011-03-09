@@ -760,8 +760,7 @@ drop table t1;
 --echo #                      on char > 31 bytes".
 --echo #
 create table t1(a char(32) not null) engine=myisam;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_ARGUMENTS
 create spatial index i on t1 (a);
 drop table t1;
 
