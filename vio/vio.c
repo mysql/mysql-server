@@ -63,9 +63,10 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
   flags&= ~VIO_BUFFERED_READ;
 #endif
   bzero((char*) vio, sizeof(*vio));
-  vio->type	= type;
-  vio->sd	= sd;
-  vio->hPipe	= hPipe;
+  vio->type= type;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
+  mysql_socket_setfd(&vio->mysql_socket, sd);
+  vio->hPipe= hPipe;
   vio->localhost= flags & VIO_LOCALHOST;
   if ((flags & VIO_BUFFERED_READ) &&
       !(vio->read_buffer= (char*)my_malloc(VIO_READ_BUFFER_SIZE, MYF(MY_WME))))
@@ -73,24 +74,24 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 #ifdef _WIN32
   if (type == VIO_TYPE_NAMEDPIPE)
   {
-    vio->viodelete	=vio_delete;
-    vio->vioerrno	=vio_errno;
-    vio->read           =vio_read_pipe;
-    vio->write          =vio_write_pipe;
-    vio->fastsend	=vio_fastsend;
-    vio->viokeepalive	=vio_keepalive;
-    vio->should_retry	=vio_should_retry;
-    vio->was_interrupted=vio_was_interrupted;
-    vio->vioclose	=vio_close_pipe;
-    vio->peer_addr	=vio_peer_addr;
-    vio->vioblocking	=vio_blocking;
-    vio->is_blocking	=vio_is_blocking;
-
-    vio->poll_read      =no_poll_read;
-    vio->is_connected   =vio_is_connected_pipe;
-    vio->has_data       =has_no_data;
-
-    vio->timeout=vio_win32_timeout;
+    vio->viodelete=       vio_delete;
+    vio->vioerrno=        vio_errno;
+    vio->read=            vio_read_pipe;
+    vio->write=           vio_write_pipe;
+    vio->fastsend=        vio_fastsend;
+    vio->viokeepalive=    vio_keepalive;
+    vio->should_retry=    vio_should_retry;
+    vio->was_interrupted= vio_was_interrupted;
+    vio->vioclose=        vio_close_pipe;
+    vio->peer_addr=       vio_peer_addr;
+    vio->vioblocking=     vio_blocking;
+    vio->is_blocking=     vio_is_blocking;
+    vio->poll_read=       no_poll_read;
+    vio->is_connected=    vio_is_connected_pipe;
+    vio->has_data=        has_no_data;
+    vio->timeout=         vio_win32_timeout;
+    vio->viogetfd=        vio_getfd;
+    
     /* Set default timeout */
     vio->read_timeout_ms= INFINITE;
     vio->write_timeout_ms= INFINITE;
@@ -101,25 +102,26 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 #ifdef HAVE_SMEM 
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
-    vio->viodelete	=vio_delete;
-    vio->vioerrno	=vio_errno;
-    vio->read           =vio_read_shared_memory;
-    vio->write          =vio_write_shared_memory;
-    vio->fastsend	=vio_fastsend;
-    vio->viokeepalive	=vio_keepalive;
-    vio->should_retry	=vio_should_retry;
-    vio->was_interrupted=vio_was_interrupted;
-    vio->vioclose	=vio_close_shared_memory;
-    vio->peer_addr	=vio_peer_addr;
-    vio->vioblocking	=vio_blocking;
-    vio->is_blocking	=vio_is_blocking;
-
-    vio->poll_read      =no_poll_read;
-    vio->is_connected   =vio_is_connected_shared_memory;
-    vio->has_data       =has_no_data;
+    vio->viodelete=       vio_delete;
+    vio->vioerrno=        vio_errno;
+    vio->read=            vio_read_shared_memory;
+    vio->write=           vio_write_shared_memory;
+    vio->fastsend=        vio_fastsend;
+    vio->viokeepalive=    vio_keepalive;
+    vio->should_retry=    vio_should_retry;
+    vio->was_interrupted= vio_was_interrupted;
+    vio->vioclose=        vio_close_shared_memory;
+    vio->peer_addr=       vio_peer_addr;
+    vio->vioblocking=     vio_blocking;
+    vio->is_blocking=     vio_is_blocking;
+    vio->poll_read=       no_poll_read;
+    vio->is_connected=    vio_is_connected_shared_memory;
+    vio->has_data=        has_no_data;
+    vio->viogetfd=        vio_getfd;
 
     /* Currently, shared memory is on Windows only, hence the below is ok*/
     vio->timeout= vio_win32_timeout; 
+
     /* Set default timeout */
     vio->read_timeout_ms= INFINITE;
     vio->write_timeout_ms= INFINITE;
@@ -129,46 +131,44 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
 #ifdef HAVE_OPENSSL 
   if (type == VIO_TYPE_SSL)
   {
-    vio->viodelete	=vio_ssl_delete;
-    vio->vioerrno	=vio_errno;
-    vio->read		=vio_ssl_read;
-    vio->write		=vio_ssl_write;
-    vio->fastsend	=vio_fastsend;
-    vio->viokeepalive	=vio_keepalive;
-    vio->should_retry	=vio_should_retry;
-    vio->was_interrupted=vio_was_interrupted;
-    vio->vioclose	=vio_ssl_close;
-    vio->peer_addr	=vio_peer_addr;
-    vio->vioblocking	=vio_ssl_blocking;
-    vio->is_blocking	=vio_is_blocking;
-    vio->timeout	=vio_timeout;
-    vio->poll_read      =vio_poll_read;
-    vio->is_connected   =vio_is_connected;
-    vio->has_data       =vio_ssl_has_data;
+    vio->viodelete=       vio_ssl_delete;
+    vio->vioerrno=        vio_errno;
+    vio->read=            vio_ssl_read;
+    vio->write=           vio_ssl_write;
+    vio->fastsend=        vio_fastsend;
+    vio->viokeepalive=    vio_keepalive;
+    vio->should_retry=    vio_should_retry;
+    vio->was_interrupted= vio_was_interrupted;
+    vio->vioclose=        vio_ssl_close;
+    vio->peer_addr=       vio_peer_addr;
+    vio->vioblocking=     vio_ssl_blocking;
+    vio->is_blocking=     vio_is_blocking;
+    vio->timeout=         vio_timeout;
+    vio->poll_read=       vio_poll_read;
+    vio->is_connected=    vio_is_connected;
+    vio->has_data=        vio_ssl_has_data;
+    vio->viogetfd=        vio_getfd;
+
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
-  vio->viodelete        =vio_delete;
-  vio->vioerrno         =vio_errno;
+  vio->viodelete=       vio_delete;
+  vio->vioerrno=        vio_errno;
   vio->read=            (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
-  vio->write            =vio_write;
-  vio->fastsend         =vio_fastsend;
-  vio->viokeepalive     =vio_keepalive;
-  vio->should_retry     =vio_should_retry;
-  vio->was_interrupted  =vio_was_interrupted;
-  vio->vioclose         =vio_close;
-  vio->peer_addr        =vio_peer_addr;
-  vio->vioblocking      =vio_blocking;
-  vio->is_blocking      =vio_is_blocking;
-  vio->timeout          =vio_timeout;
-  vio->poll_read        =vio_poll_read;
-  vio->is_connected     =vio_is_connected;
-  vio->has_data=        (flags & VIO_BUFFERED_READ) ?
-                            vio_buff_has_data : has_no_data;
-#ifdef HAVE_PSI_INTERFACE
-  mysql_socket_getfd(vio->mysql_socket)= sd;
-  vio->mysql_socket.m_psi= NULL; // TBD
-#endif
+  vio->write=           vio_write;
+  vio->fastsend=        vio_fastsend;
+  vio->viokeepalive=    vio_keepalive;
+  vio->should_retry=    vio_should_retry;
+  vio->was_interrupted= vio_was_interrupted;
+  vio->vioclose=        vio_close;
+  vio->peer_addr=       vio_peer_addr;
+  vio->vioblocking=     vio_blocking;
+  vio->is_blocking=     vio_is_blocking;
+  vio->timeout=         vio_timeout;
+  vio->poll_read=       vio_poll_read;
+  vio->is_connected=    vio_is_connected;
+  vio->has_data= (flags & VIO_BUFFERED_READ) ? vio_buff_has_data : has_no_data;
+  vio->viogetfd=        vio_getfd;
   DBUG_VOID_RETURN;
 }
 
@@ -182,18 +182,6 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
   vio_init(vio, type, sd, hPipe, flags);
 }
 
-Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags)
-{
-  Vio *vio = vio_new(mysql_socket_getfd(mysql_socket), type, flags);
-
-  if (vio)
-  {
-    vio->mysql_socket= mysql_socket;
-  }
-
-  return (vio);
-}
-
 /* Open the socket or TCP/IP connection and read the fnctl() status */
 
 Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
@@ -205,8 +193,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
   {
     vio_init(vio, type, sd, 0, flags);
     sprintf(vio->desc,
-	    (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
-	    vio->sd);
+     (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"), sd);
 #if !defined(__WIN__)
 #if !defined(NO_FCNTL_NONBLOCK)
     /*
@@ -221,7 +208,7 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
     */
     fcntl(sd, F_SETFL, 0);
     vio->fcntl_mode= fcntl(sd, F_GETFL);
-#elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
+#elif defined(HAVE_SYS_IOCTL_H)   /* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
     (void) ioctl(sd,FIOSNBIO,0);
     vio->fcntl_mode &= ~O_NONBLOCK;
@@ -238,6 +225,22 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
   DBUG_RETURN(vio);
 }
 
+/* Instrumented version of vio_new() for use in the server. The
+ * non-instrumented vio_new() is used in the client library.
+ */
+
+Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags)
+{
+  Vio *vio = vio_new(mysql_socket_getfd(mysql_socket), type, flags);
+
+  /* mysql_socket will likely be more complete than vio->mysql_socket */ 
+  if (vio)
+  {
+    vio->mysql_socket= mysql_socket;
+  }
+
+  return (vio);
+}
 
 #ifdef __WIN__
 

@@ -32,19 +32,20 @@ size_t vio_read(Vio* vio, uchar* buf, size_t size)
 {
   size_t r;
   size_t bytes_read= 0;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_read");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                      (uint) size));
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_RECV, 0);
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
+                      (uint)size));
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_RECV, size);
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
 #ifdef __WIN__
-  r = recv(vio->sd, buf, size,0);
+  r = recv(sd, buf, size,0);
 #else
   errno=0;					/* For linux */
-  r = read(vio->sd, buf, size);
+  r = read(sd, buf, size);
 #endif /* __WIN__ */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -72,10 +73,11 @@ size_t vio_read(Vio* vio, uchar* buf, size_t size)
 size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 {
   size_t rc;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_ENTER("vio_read_buff");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
+                       (uint)size));
 
   if (vio->read_pos < vio->read_end)
   {
@@ -118,15 +120,16 @@ size_t vio_write(Vio * vio, const uchar* buf, size_t size)
   size_t r;
   size_t bytes_written= 0;
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_write");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SEND, 0);
-
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
+             (uint)size));
+  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SEND,
+                          size);
 #ifdef __WIN__
-  r = send(vio->sd, buf, size,0);
+  r = send(sd, buf, size,0);
 #else
-  r = write(vio->sd, buf, size);
+  r = write(sd, buf, size);
 #endif /* __WIN__ */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -148,6 +151,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
 		 my_bool *old_mode)
 {
   int r=0;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_blocking");
 
   *old_mode= test(!(vio->fcntl_mode & O_NONBLOCK));
@@ -156,7 +160,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
 
 #if !defined(__WIN__)
 #if !defined(NO_FCNTL_NONBLOCK)
-  if (vio->sd >= 0)
+  if (sd >= 0)
   {
     int old_fcntl=vio->fcntl_mode;
     if (set_blocking_mode)
@@ -165,7 +169,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     if (old_fcntl != vio->fcntl_mode)
     {
-      r= fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
+      r= fcntl(sd, F_SETFL, vio->fcntl_mode);
       if (r == -1)
       {
         DBUG_PRINT("info", ("fcntl failed, errno %d", errno));
@@ -192,7 +196,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     }
     if (old_fcntl != vio->fcntl_mode)
-      r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg);
+      r = ioctlsocket(sd, FIONBIO, (void*) &arg);
   }
   else
     r=  test(!(vio->fcntl_mode & O_NONBLOCK)) != set_blocking_mode;
@@ -215,6 +219,7 @@ vio_is_blocking(Vio * vio)
 int vio_fastsend(Vio* vio __attribute__((unused)))
 {
   int r=0;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
   DBUG_ENTER("vio_fastsend");
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_OPT, 0);
@@ -222,7 +227,7 @@ int vio_fastsend(Vio* vio __attribute__((unused)))
 #if defined(IPTOS_THROUGHPUT)
   {
     int tos = IPTOS_THROUGHPUT;
-    r= setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
+    r= setsockopt(sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
   }
 #endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
@@ -233,7 +238,7 @@ int vio_fastsend(Vio* vio __attribute__((unused)))
     int nodelay = 1;
 #endif
 
-    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
+    r= setsockopt(sd, IPPROTO_TCP, TCP_NODELAY,
                   IF_WIN((const char*), (void*)) &nodelay,
                   sizeof(nodelay));
   }
@@ -254,17 +259,16 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
   int r=0;
   uint opt = 0;
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_keepalive");
-  DBUG_PRINT("enter", ("sd: %d  set_keep_alive: %d", vio->sd, (int)
-		       set_keep_alive));
+  DBUG_PRINT("enter", ("sd: %d  set_keep_alive: %d", sd, (int)set_keep_alive));
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_OPT, 0);
 
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
     if (set_keep_alive)
       opt = 1;
-    r = setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
-		   sizeof(opt));
+    r = setsockopt(sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt, sizeof(opt));
   }
 
   MYSQL_END_SOCKET_WAIT(locker, 0);
@@ -290,8 +294,7 @@ vio_should_retry(Vio * vio)
 }
 
 
-my_bool
-vio_was_interrupted(Vio *vio __attribute__((unused)))
+my_bool vio_was_interrupted(Vio *vio __attribute__((unused)))
 {
   int en= socket_errno;
   return (en == SOCKET_EAGAIN || en == SOCKET_EINTR ||
@@ -302,6 +305,7 @@ vio_was_interrupted(Vio *vio __attribute__((unused)))
 int vio_close(Vio * vio)
 {
   int r=0;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_close");
 
  if (vio->type != VIO_CLOSED)
@@ -309,7 +313,7 @@ int vio_close(Vio * vio)
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
-    DBUG_ASSERT(vio->sd >= 0);
+    DBUG_ASSERT(sd >= 0);
 
     if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
       r= -1;
@@ -322,8 +326,7 @@ int vio_close(Vio * vio)
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
-  vio->sd=   -1;
-  mysql_socket_getfd(vio->mysql_socket)= vio->sd;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
 
@@ -338,9 +341,9 @@ enum enum_vio_type vio_type(Vio* vio)
   return vio->type;
 }
 
-my_socket vio_fd(Vio* vio)
+my_socket vio_getfd(Vio *vio)
 {
-  return vio->sd;
+  return mysql_socket_getfd(vio->mysql_socket);
 }
 
 /**
@@ -480,8 +483,9 @@ my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
 my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
                       size_t ip_buffer_size)
 {
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_peer_addr");
-  DBUG_PRINT("enter", ("Client socked fd: %d", (int) vio->sd));
+  DBUG_PRINT("enter", ("Client socked fd: %d", (int)sd));
 
   if (vio->localhost)
   {
@@ -512,7 +516,7 @@ my_bool vio_peer_addr(Vio *vio, char *ip_buffer, uint16 *port,
 
     /* Get sockaddr by socked fd. */
 
-    err_code= getpeername(vio->sd, addr, &addr_length);
+    err_code= getpeername(sd, addr, &addr_length);
 
     if (err_code)
     {
@@ -613,31 +617,27 @@ static my_bool socket_poll_read(my_socket sd, uint timeout)
 
 static my_bool socket_peek_read(Vio *vio, uint *bytes)
 {
-  MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
-  MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_RECV, 0);
-
-#ifdef __WIN__
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
+ #ifdef __WIN__
   int len;
-  if (ioctlsocket(vio->sd, FIONREAD, &len))
+  if (ioctlsocket(sd, FIONREAD, &len))
     return TRUE;
   *bytes= len;
   return FALSE;
 #elif FIONREAD_IN_SYS_IOCTL
   int len;
-  if (ioctl(vio->sd, FIONREAD, &len) < 0)
+  if (ioctl(sd, FIONREAD, &len) < 0)
     return TRUE;
   *bytes= len;
   return FALSE;
 #else
   char buf[1024];
-  ssize_t res= recv(vio->sd, &buf, sizeof(buf), MSG_PEEK);
+  ssize_t res= recv(sd, &buf, sizeof(buf), MSG_PEEK);
   if (res < 0)
     return TRUE;
   *bytes= res;
   return FALSE;
 #endif
-
-  MYSQL_END_SOCKET_WAIT(locker, 0);
 }
 
 
@@ -655,7 +655,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 
 my_bool vio_poll_read(Vio *vio, uint timeout)
 {
-  my_socket sd= vio->sd;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_poll_read");
 #ifdef HAVE_OPENSSL
   if (vio->type == VIO_TYPE_SSL)
@@ -714,10 +714,10 @@ my_bool vio_is_connected(Vio *vio)
 
 void vio_timeout(Vio *vio, uint which, uint timeout)
 {
+my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 #if defined(SO_SNDTIMEO) && defined(SO_RCVTIMEO)
   int r;
   DBUG_ENTER("vio_timeout");
-
   {
 #ifdef __WIN__
   /* Windows expects time in milliseconds as int */
@@ -729,7 +729,7 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
   wait_timeout.tv_usec= 0;
 #endif
 
-  r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
+  r= setsockopt(sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
                 IF_WIN((const char*), (const void*))&wait_timeout,
                 sizeof(wait_timeout));
 
@@ -787,9 +787,10 @@ size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
 {
   DWORD bytes_read;
   size_t retval;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_read_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
+             (uint)size));
 
   if (ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
       &(vio->pipe_overlapped)))
@@ -801,7 +802,7 @@ size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
     if (GetLastError() != ERROR_IO_PENDING)
     {
       DBUG_PRINT("error",("ReadFile() returned last error %d",
-        GetLastError()));
+                 GetLastError()));
       DBUG_RETURN((size_t)-1);
     }
     retval= pipe_complete_io(vio, buf, size,vio->read_timeout_ms);
@@ -816,9 +817,10 @@ size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 {
   DWORD bytes_written;
   size_t retval;
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_write_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
-                       (uint) size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
+                       (uint)size));
 
   if (WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written,
       &(vio->pipe_overlapped)))
@@ -865,7 +867,7 @@ int vio_close_pipe(Vio * vio)
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
-  vio->sd=   -1;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
 
@@ -898,10 +900,10 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
   size_t remain_local;
   char *current_postion;
   HANDLE events[2];
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   DBUG_ENTER("vio_read_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", sd, (long)buf, size));
 
   remain_local = size;
   current_postion=buf;
@@ -964,10 +966,10 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
   HANDLE pos;
   const uchar *current_postion;
   HANDLE events[2];
+  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   DBUG_ENTER("vio_write_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", vio->sd, (long) buf,
-                       size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", sd, (long)buf, size));
 
   remain = size;
   current_postion = buf;
@@ -1063,7 +1065,7 @@ int vio_close_shared_memory(Vio * vio)
     }
   }
   vio->type= VIO_CLOSED;
-  vio->sd=   -1;
+  vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(error_count);
 }
 #endif /* HAVE_SMEM */

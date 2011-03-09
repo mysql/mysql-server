@@ -70,8 +70,8 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
-#include <mysql/psi/mysql_socket.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#include <mysql/psi/mysql_socket.h>
 
 #include "keycaches.h"
 #include "../storage/myisam/ha_myisam.h"
@@ -1042,7 +1042,7 @@ static void close_connections(void)
     {
       (void) mysql_socket_shutdown(ip_sock, SHUT_RDWR);
       (void) mysql_socket_close(ip_sock);
-      mysql_socket_setfd(&ip_sock, INVALID_SOCKET);
+      ip_sock= MYSQL_INVALID_SOCKET;
     }
   }
 #ifdef _WIN32
@@ -1075,7 +1075,7 @@ static void close_connections(void)
     (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
     (void) mysql_socket_close(unix_sock);
     (void) unlink(mysqld_unix_port);
-    mysql_socket_setfd(&unix_sock, INVALID_SOCKET);
+    unix_sock= MYSQL_INVALID_SOCKET);
   }
 #endif
   end_thr_alarm(0);			 // Abort old alarms.
@@ -1182,14 +1182,14 @@ static void close_server_sock()
   tmp_sock=ip_sock;
   if (mysql_socket_getfd(tmp_sock) != INVALID_SOCKET)
   {
-    mysql_socket_setfd(&ip_sock, INVALID_SOCKET);
+    ip_sock= MYSQL_INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
     (void) mysql_socket_shutdown(tmp_sock, SHUT_RDWR);
   }
   tmp_sock=unix_sock;
   if (mysql_socket_getfd(tmp_sock) != INVALID_SOCKET)
   {
-    mysql_socket_setfd(&unix_sock, INVALID_SOCKET);
+    unix_sock= MYSQL_INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
     (void) mysql_socket_shutdown(tmp_sock, SHUT_RDWR);
     (void) unlink(mysqld_unix_port);
@@ -1808,7 +1808,7 @@ static void network_init(void)
 
     for (a= ai; a != NULL; a= a->ai_next)
     {
-      ip_sock= mysql_socket_socket(key_socket_network_init, a->ai_family, a->ai_socktype, a->ai_protocol);
+      ip_sock= mysql_socket_socket(key_socket_tcpip, a->ai_family, a->ai_socktype, a->ai_protocol);
       if (mysql_socket_getfd(ip_sock) != INVALID_SOCKET)
         break;
     }
@@ -1942,7 +1942,10 @@ static void network_init(void)
                       (uint) sizeof(UNIXaddr.sun_path) - 1, mysqld_unix_port);
       unireg_abort(1);
     }
-    if (mysql_socket_getfd((unix_sock= mysql_socket_socket(key_socket_network_init, AF_UNIX, SOCK_STREAM, 0))) < 0)
+
+    unix_sock= mysql_socket_socket(key_socket_unix, AF_UNIX, SOCK_STREAM, 0);
+
+    if (mysql_socket_getfd(unix_sock) < 0)
     {
       sql_perror("Can't start server : UNIX Socket "); /* purecov: inspected */
       unireg_abort(1);				/* purecov: inspected */
@@ -1955,8 +1958,8 @@ static void network_init(void)
     (void) mysql_socket_setsockopt(unix_sock, SOL_SOCKET, SO_REUSEADDR, (char*)&arg,
 		      sizeof(arg));
     umask(0);
-    if (bind(mysql_socket_getfd(unix_sock), reinterpret_cast<struct sockaddr *> (&UNIXaddr),
-	     sizeof(UNIXaddr)) < 0)
+    if (mysql_socket_bind(unix_sock, reinterpret_cast<struct sockaddr *> (&UNIXaddr),
+                          sizeof(UNIXaddr)) < 0)
     {
       sql_perror("Can't start server : Bind on unix socket"); /* purecov: tested */
       sql_print_error("Do you already have another mysqld server running on socket: %s ?",mysqld_unix_port);
@@ -5415,7 +5418,7 @@ void handle_connections_sockets()
     {
       if (fds[i].revents & POLLIN)
       {
-        mysql_socket_getfd(sock)= fds[i].fd;
+        mysql_socket_setfd(&sock, fds[i].fd);
 #ifdef HAVE_FCNTL
         flags= fcntl(mysql_socket_getfd(sock), F_GETFL, 0);
 #else
@@ -5452,7 +5455,7 @@ void handle_connections_sockets()
     for (uint retry=0; retry < MAX_ACCEPT_RETRY; retry++)
     {
       size_socket length= sizeof(struct sockaddr_storage);
-      new_sock= mysql_socket_accept(key_socket_handle_connection, sock,
+      new_sock= mysql_socket_accept(key_socket_client_connection, sock,
                                     (struct sockaddr *)(&cAddr), &length);
       if (mysql_socket_getfd(new_sock) != INVALID_SOCKET ||
           (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
@@ -5509,7 +5512,7 @@ void handle_connections_sockets()
 	    ((void (*)(int))req.sink)(req.fd);
 
           (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
-          (void) mysql_socket_ closesocket(new_sock);
+          (void) mysql_socket_close(new_sock);
           continue;
         }
       }
@@ -5540,11 +5543,14 @@ void handle_connections_sockets()
       (void) mysql_socket_close(new_sock);
       continue;
     }
-    if (!(vio_tmp=mysql_socket_vio_new(new_sock,
-          mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock) ? VIO_TYPE_SOCKET :
-          VIO_TYPE_TCPIP,
-          mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock) ? VIO_LOCALHOST: 0)) ||
-          my_net_init(&thd->net,vio_tmp))
+    
+    bool is_unix_sock= (mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock));
+    enum_vio_type vio_type= (is_unix_sock ? VIO_TYPE_SOCKET : VIO_TYPE_TCPIP);
+    uint vio_flags= (is_unix_sock ? VIO_LOCALHOST : 0);
+
+    vio_tmp= mysql_socket_vio_new(new_sock, vio_type, vio_flags);
+
+    if (!vio_tmp || my_net_init(&thd->net, vio_tmp))
     {
       /*
         Only delete the temporary vio if we didn't already attach it to the
@@ -6996,8 +7002,8 @@ static int mysql_init_variables(void)
   character_set_filesystem= &my_charset_bin;
 
   opt_specialflag= SPECIAL_ENGLISH;
-  mysql_socket_setfd(&unix_sock, INVALID_SOCKET);
-  mysql_socket_setfd(&ip_sock, INVALID_SOCKET);
+  unix_sock= MYSQL_INVALID_SOCKET;
+  ip_sock= MYSQL_INVALID_SOCKET;
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
@@ -8142,12 +8148,13 @@ static PSI_file_info all_server_files[]=
   { &key_file_init, "init", 0}
 };
 
-PSI_socket_key key_socket_network_init, key_socket_handle_connection;
+PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
 static PSI_socket_info all_server_sockets[]=
 {
-  { &key_socket_network_init, "network_init", 0},
-  { &key_socket_handle_connection, "handle_connection", 0}
+  { &key_socket_tcpip, "server_tcpip_socket", 0},
+  { &key_socket_unix, "server_unix_socket", 0},
+  { &key_socket_client_connection, "client_connection", 0}
 };
 
 /**

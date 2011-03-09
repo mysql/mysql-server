@@ -132,7 +132,7 @@ my_bool my_net_init(NET *net, Vio* vio)
 
   if (vio != 0)					/* If real connection */
   {
-    net->fd  = vio_fd(vio);			/* For perl DBI/DBD */
+    net->fd  = vio_getfd(vio);			/* For perl DBI/DBD */
 #if defined(MYSQL_SERVER) && !defined(__WIN__)
     if (!(test_flags & TEST_BLOCKING))
     {
@@ -282,7 +282,7 @@ void net_clear(NET *net, my_bool clear_buffer)
 #if !defined(EMBEDDED_LIBRARY)
   if (clear_buffer)
   {
-    while ((ready= net_data_is_ready(net->vio->sd)) > 0)
+    while ((ready= net_data_is_ready(vio_getfd(net->vio))) > 0)
     {
       /* The socket is ready */
       if ((long) (count= vio_read(net->vio, net->buff,

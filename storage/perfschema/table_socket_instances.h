@@ -42,8 +42,8 @@ struct row_socket_instances
   uint m_thread_id;
   /** Column SOCKET_ID */
   uint m_fd;
-  /** Column IP. */
-  const char *m_ip;
+  /** Socket ip address, IPV4 or IPV6 */
+  char m_ip[INET6_ADDRSTRLEN];
   /** Length in bytes of @c m_ip. */
   uint m_ip_length;
   /** Column PORT */
