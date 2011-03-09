@@ -504,5 +504,4 @@ trx_sys_get_n_trx(void)
 
 	return(n_trx);
 }
-
 #endif /* !UNIV_HOTBACKUP */

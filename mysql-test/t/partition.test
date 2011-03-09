@@ -15,6 +15,16 @@ drop table if exists t1, t2;
 --enable_warnings
 
 --echo #
+--echo # Bug#59503: explain extended crash in get_mm_leaf
+--echo #
+CREATE TABLE t1 (a VARCHAR(51) CHARACTER SET latin1)
+ENGINE=MyISAM
+PARTITION BY KEY (a) PARTITIONS 1;
+INSERT INTO t1 VALUES ('a'),('b'),('c');
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#57778: failed primary key add to partitioned innodb table
 --echo #            inconsistent and crashes
 --echo #
@@ -2266,6 +2276,7 @@ DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 
 --echo End of 5.1 tests
+--echo # Start of 5.5 tests
 
 --echo #
 --echo # BUG#55385: UPDATE statement throws an error, but still updates
@@ -2316,3 +2327,18 @@ SELECT * FROM t1_part;
 # Cleanup
 DROP VIEW v1;
 DROP TABLE t1_part;
+
+--echo # Moved from lock.test
+--echo # Separate case for partitioned tables is important
+--echo # because each partition has an own thr_lock object.
+
+create table t1 (i int) partition by list (i)
+  (partition p0 values in (1),
+   partition p1 values in (2,3),
+   partition p2 values in (4,5));
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+
+--echo # End of 5.5 tests

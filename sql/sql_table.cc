@@ -2095,7 +2095,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
             by parser) it is safe to cache pointer to the TABLE instances
             in its elements.
           */
-          table->table= find_table_for_mdl_upgrade(thd->open_tables, table->db,
+          table->table= find_table_for_mdl_upgrade(thd, table->db,
                                                    table->table_name, false);
           if (!table->table)
             DBUG_RETURN(true);

@@ -195,6 +195,43 @@ static CHARSET_INFO *charset_info= &my_charset_latin1;
 
 const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
+#ifdef __WIN__
+/*
+  A flag that indicates if --execute buffer has already been converted,
+  to avoid double conversion on reconnect.
+*/
+static my_bool execute_buffer_conversion_done= 0;
+
+/*
+  my_win_is_console(...) is quite slow.
+  We cache my_win_is_console() results for stdout and stderr.
+  Any other output files, except stdout and stderr,
+  cannot be Windows console.
+  Note, if mysql.exe is executed from a service, its _fileno(stdout) is -1,
+  so shift (1 << -1) can return implementation defined result.
+  This corner case is taken into account, as the shift result
+  will be multiplied to 0 and we'll get 0 as a result.
+  The same is true for stderr.
+*/
+static uint win_is_console_cache= 
+  (test(my_win_is_console(stdout)) * (1 << _fileno(stdout))) |
+  (test(my_win_is_console(stderr)) * (1 << _fileno(stderr)));
+
+static inline my_bool
+my_win_is_console_cached(FILE *file)
+{
+  return win_is_console_cache & (1 << _fileno(file));
+}
+#endif /* __WIN__ */
+
+/* Various printing flags */
+#define MY_PRINT_ESC_0 1  /* Replace 0x00 bytes to "\0"              */
+#define MY_PRINT_SPS_0 2  /* Replace 0x00 bytes to space             */
+#define MY_PRINT_XML   4  /* Encode XML entities                     */
+#define MY_PRINT_MB    8  /* Recognize multi-byte characters         */
+#define MY_PRINT_CTRL 16  /* Replace TAB, NL, CR to "\t", "\n", "\r" */
+
+void tee_write(FILE *file, const char *s, size_t slen, int flags);
 void tee_fprintf(FILE *file, const char *fmt, ...);
 void tee_fputs(const char *s, FILE *file);
 void tee_puts(const char *s, FILE *file);
@@ -1113,6 +1150,11 @@ int main(int argc,char *argv[])
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
 
+#ifdef __WIN__
+  /* Convert command line parameters from UTF16LE to UTF8MB4. */
+  my_win_translate_command_line_args(&my_charset_utf8mb4_bin, &argc, &argv);
+#endif
+
   if (load_defaults("my",load_default_groups,&argc,&argv))
   {
     my_end(0);
@@ -1885,22 +1927,9 @@ static int read_and_execute(bool interactive)
         tmpbuf.alloc(65535);
       tmpbuf.length(0);
       buffer.length(0);
-      size_t clen;
-      do
-      {
-	line= my_cgets((char*)tmpbuf.ptr(), tmpbuf.alloced_length()-1, &clen);
-        buffer.append(line, clen);
-        /* 
-           if we got buffer fully filled than there is a chance that
-           something else is still in console input buffer
-        */
-      } while (tmpbuf.alloced_length() <= clen);
-      /* 
-        An empty line is returned from my_cgets when there's error reading :
-        Ctrl-c for example
-      */
-      if (line)
-        line= buffer.c_ptr();
+      line= my_win_console_readline(charset_info,
+                                    (char *) tmpbuf.ptr(),
+                                    tmpbuf.alloced_length());
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
@@ -3455,19 +3484,12 @@ tee_print_sized_data(const char *data, unsigned int data_length, unsigned int to
     grid.  (The \0 is also the reason we can't use fprintf() .) 
   */
   unsigned int i;
-  const char *p;
 
   if (right_justified) 
     for (i= data_length; i < total_bytes_to_send; i++)
       tee_putc((int)' ', PAGER);
 
-  for (i= 0, p= data; i < data_length; i+= 1, p+= 1)
-  {
-    if (*p == '\0')
-      tee_putc((int)' ', PAGER);
-    else
-      tee_putc((int)*p, PAGER);
-  }
+  tee_write(PAGER, data, data_length, MY_PRINT_SPS_0 | MY_PRINT_MB);
 
   if (! right_justified) 
     for (i= data_length; i < total_bytes_to_send; i++)
@@ -3587,16 +3609,7 @@ print_table_data_vertically(MYSQL_RES *result)
         tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
-        unsigned int i;
-        const char *p;
-
-        for (i= 0, p= cur[off]; i < lengths[off]; i+= 1, p+= 1)
-        {
-          if (*p == '\0')
-            tee_putc((int)' ', PAGER);
-          else
-            tee_putc((int)*p, PAGER);
-        }
+        tee_write(PAGER, cur[off], lengths[off], MY_PRINT_SPS_0 | MY_PRINT_MB);
         tee_putc('\n', PAGER);
       }
       else
@@ -3666,16 +3679,7 @@ xmlencode_print(const char *src, uint length)
   if (!src)
     tee_fputs("NULL", PAGER);
   else
-  {
-    for (const char *p = src; length; p++, length--)
-    {
-      const char *t;
-      if ((t = array_value(xmlmeta, *p)))
-	tee_fputs(t, PAGER);
-      else
-	tee_putc(*p, PAGER);
-    }
-  }
+    tee_write(PAGER, src, length, MY_PRINT_XML | MY_PRINT_MB);
 }
 
 
@@ -3686,37 +3690,9 @@ safe_put_field(const char *pos,ulong length)
     tee_fputs("NULL", PAGER);
   else
   {
-    if (opt_raw_data)
-    {
-      unsigned long i;
-      /* Can't use tee_fputs(), it stops with NUL characters. */
-      for (i= 0; i < length; i++, pos++)
-        tee_putc(*pos, PAGER);
-    }
-    else for (const char *end=pos+length ; pos != end ; pos++)
-    {
-#ifdef USE_MB
-      int l;
-      if (use_mb(charset_info) &&
-          (l = my_ismbchar(charset_info, pos, end)))
-      {
-	  while (l--)
-	    tee_putc(*pos++, PAGER);
-	  pos--;
-	  continue;
-      }
-#endif
-      if (!*pos)
-	tee_fputs("\\0", PAGER); // This makes everything hard
-      else if (*pos == '\t')
-	tee_fputs("\\t", PAGER); // This would destroy tab format
-      else if (*pos == '\n')
-	tee_fputs("\\n", PAGER); // This too
-      else if (*pos == '\\')
-	tee_fputs("\\\\", PAGER);
-	else
-	tee_putc(*pos, PAGER);
-    }
+    int flags= MY_PRINT_MB | (opt_raw_data ? 0 : (MY_PRINT_ESC_0 | MY_PRINT_CTRL));
+    /* Can't use tee_fputs(), it stops with NUL characters. */
+    tee_write(PAGER, pos, length, flags);
   }
 }
 
@@ -4317,7 +4293,29 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
   }
 
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_set_character_set(&mysql, default_charset);
+#ifdef __WIN__
+  uint cnv_errors;
+  String converted_database, converted_user;
+  if (!my_charset_same(&my_charset_utf8mb4_bin, mysql.charset))
+  {
+    /* Convert user and database from UTF8MB4 to connection character set */
+    if (user)
+    {
+      converted_user.copy(user, strlen(user) + 1,
+                          &my_charset_utf8mb4_bin, mysql.charset,
+                          &cnv_errors);
+      user= (char *) converted_user.ptr();
+    }
+    if (database)
+    {
+      converted_database.copy(database, strlen(database) + 1,
+                              &my_charset_utf8mb4_bin, mysql.charset,
+                              &cnv_errors);
+      database= (char *) converted_database.ptr();
+    }
+  }
+#endif
   
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
@@ -4339,7 +4337,38 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     }
     return -1;					// Retryable
   }
-  
+
+#ifdef __WIN__
+  /* Convert --execute buffer from UTF8MB4 to connection character set */
+  if (!execute_buffer_conversion_done++ &&
+      status.line_buff &&
+      !status.line_buff->file && /* Convert only -e buffer, not real file */
+      status.line_buff->buffer < status.line_buff->end && /* Non-empty */
+      !my_charset_same(&my_charset_utf8mb4_bin, mysql.charset))
+  {
+    String tmp;
+    size_t len= status.line_buff->end - status.line_buff->buffer;
+    uint dummy_errors;
+    /*
+      Don't convert trailing '\n' character - it was appended during
+      last batch_readline_command() call. 
+      Oherwise we'll get an extra line, which makes some tests fail.
+    */
+    if (status.line_buff->buffer[len - 1] == '\n')
+      len--;
+    if (tmp.copy(status.line_buff->buffer, len,
+                 &my_charset_utf8mb4_bin, mysql.charset, &dummy_errors))
+      return 1;
+
+    /* Free the old line buffer */
+    batch_readline_end(status.line_buff);
+
+    /* Re-initialize line buffer from the converted string */
+    if (!(status.line_buff= batch_readline_command(NULL, (char *) tmp.c_ptr_safe())))
+      return 1;
+  }
+#endif /* __WIN__ */
+
   charset_info= mysql.charset;
   
   connected=1;
@@ -4645,11 +4674,82 @@ static void remove_cntrl(String &buffer)
 }
 
 
+/**
+  Write data to a stream.
+  Various modes, corresponding to --tab, --xml, --raw parameters,
+  are supported.
+
+  @param file   Stream to write to
+  @param s      String to write
+  @param slen   String length
+  @flags        Flags for --tab, --xml, --raw.
+*/
+void tee_write(FILE *file, const char *s, size_t slen, int flags)
+{
+#ifdef __WIN__
+  my_bool is_console= my_win_is_console_cached(file);
+#endif
+  const char *se;
+  for (se= s + slen; s < se; s++)
+  {
+    const char *t;
+
+    if (flags & MY_PRINT_MB)
+    {
+      int mblen;
+      if (use_mb(charset_info) &&
+          (mblen= my_ismbchar(charset_info, s, se)))
+      {
+#ifdef __WIN__
+        if (is_console)
+          my_win_console_write(charset_info, s, mblen);
+        else
+#endif
+        fwrite(s, 1, mblen, file);
+        if (opt_outfile)
+          fwrite(s, 1, mblen, OUTFILE);
+        s+= mblen - 1;
+        continue;
+      }
+    }
+
+    if ((flags & MY_PRINT_XML) && (t= array_value(xmlmeta, *s)))
+      tee_fputs(t, file);
+    else if ((flags & MY_PRINT_SPS_0) && *s == '\0')
+      tee_putc((int) ' ', file);   // This makes everything hard
+    else if ((flags & MY_PRINT_ESC_0) && *s == '\0')
+      tee_fputs("\\0", file);      // This makes everything hard
+    else if ((flags & MY_PRINT_CTRL) && *s == '\t')
+      tee_fputs("\\t", file);      // This would destroy tab format
+    else if ((flags & MY_PRINT_CTRL) && *s == '\n')
+      tee_fputs("\\n", file);      // This too
+    else if ((flags & MY_PRINT_CTRL) && *s == '\\')
+      tee_fputs("\\\\", file);
+    else
+    {
+#ifdef __WIN__
+      if (is_console)
+        my_win_console_putc(charset_info, (int) *s);
+      else
+#endif
+      putc((int) *s, file);
+      if (opt_outfile)
+        putc((int) *s, OUTFILE);
+    }
+  }
+}
+
+
 void tee_fprintf(FILE *file, const char *fmt, ...)
 {
   va_list args;
 
   va_start(args, fmt);
+#ifdef __WIN__
+  if (my_win_is_console_cached(file))
+    my_win_console_vfprintf(charset_info, fmt, args);
+  else
+#endif
   (void) vfprintf(file, fmt, args);
   va_end(args);
 
@@ -4662,8 +4762,20 @@ void tee_fprintf(FILE *file, const char *fmt, ...)
 }
 
 
+/*
+  Write a 0-terminated string to file and OUTFILE.
+  TODO: possibly it's nice to have a version with length some day,
+  e.g. tee_fnputs(s, slen, file),
+  to print numerous ASCII constant strings among mysql.cc
+  code, to avoid strlen(s) in my_win_console_fputs().
+*/
 void tee_fputs(const char *s, FILE *file)
 {
+#ifdef __WIN__
+  if (my_win_is_console_cached(file))
+    my_win_console_fputs(charset_info, s);
+  else
+#endif
   fputs(s, file);
   if (opt_outfile)
     fputs(s, OUTFILE);
@@ -4672,17 +4784,17 @@ void tee_fputs(const char *s, FILE *file)
 
 void tee_puts(const char *s, FILE *file)
 {
-  fputs(s, file);
-  fputc('\n', file);
-  if (opt_outfile)
-  {
-    fputs(s, OUTFILE);
-    fputc('\n', OUTFILE);
-  }
+  tee_fputs(s, file);
+  tee_putc('\n', file);
 }
 
 void tee_putc(int c, FILE *file)
 {
+#ifdef __WIN__
+  if (my_win_is_console_cached(file))
+    my_win_console_putc(charset_info, c);
+  else
+#endif
   putc(c, file);
   if (opt_outfile)
     putc(c, OUTFILE);

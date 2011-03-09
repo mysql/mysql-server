@@ -1085,6 +1085,8 @@ static void close_connections(void)
     statements and inform their clients that the server is about to die.
   */
 
+  sql_print_information("Giving client threads a chance to die gracefully");
+
   THD *tmp;
   mysql_mutex_lock(&LOCK_thread_count); // For unlink from list
 
@@ -1117,6 +1119,8 @@ static void close_connections(void)
   mysql_mutex_unlock(&LOCK_thread_count); // For unlink from list
 
   Events::deinit();
+
+  sql_print_information("Shutting down slave threads");
   end_slave();
 
   if (thread_count)
@@ -1128,6 +1132,7 @@ static void close_connections(void)
     client on a blocking read call are aborted.
   */
 
+  sql_print_information("Forcefully disconnecting remaining clients");
   for (;;)
   {
     DBUG_PRINT("quit",("Locking LOCK_thread_count"));
@@ -1284,11 +1289,14 @@ static void __cdecl kill_server(int sig_ptr)
   /*    
    Send event to smem_event_connect_request for aborting    
    */    
-  if (!SetEvent(smem_event_connect_request))    
-  {      
-	  DBUG_PRINT("error",
-		("Got error: %ld from SetEvent of smem_event_connect_request",
-		 GetLastError()));    
+  if (opt_enable_shared_memory)
+  {
+    if (!SetEvent(smem_event_connect_request))    
+    {      
+      DBUG_PRINT("error",
+                 ("Got error: %ld from SetEvent of smem_event_connect_request",
+                  GetLastError()));    
+    }
   }
 #endif  
   
@@ -1428,6 +1436,7 @@ void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
+  sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
   logger.cleanup_base();
@@ -4461,11 +4470,14 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-  if (my_basic_init())
+#ifndef _WIN32
+  // For windows, my_init() is called from the win specific mysqld_main
+  if (my_init())                 // init my_sys library & pthreads
   {
-    fprintf(stderr, "my_basic_init() failed.");
+    fprintf(stderr, "my_init() failed.");
     return 1;
   }
+#endif
 
   orig_argc= argc;
   orig_argv= argv;
@@ -4565,11 +4577,10 @@ int mysqld_main(int argc, char **argv)
       recreate objects which were initialised early,
       so that they are instrumented as well.
     */
-    my_thread_basic_global_reinit();
+    my_thread_global_reinit();
   }
 #endif /* HAVE_PSI_INTERFACE */
 
-  my_init();                                   // init my_sys library & pthreads
   init_error_log_mutex();
 
   /* Set signal used to kill MySQL */
@@ -5007,6 +5018,12 @@ int mysqld_main(int argc, char **argv)
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
 
+  if (my_init())
+  {
+    fprintf(stderr, "my_init() failed.");
+    return 1;
+  }
+
   if (Service.GetOS())	/* true NT family */
   {
     char file_path[FN_REFLEN];
@@ -5147,11 +5164,17 @@ static bool read_init_file(char *file_name)
   MYSQL_FILE *file;
   DBUG_ENTER("read_init_file");
   DBUG_PRINT("enter",("name: %s",file_name));
+
+  sql_print_information("Execution of init_file \'%s\' started.", file_name);
+
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
     DBUG_RETURN(TRUE);
   bootstrap(file);
   mysql_file_fclose(file, MYF(MY_WME));
+
+  sql_print_information("Execution of init_file \'%s\' ended.", file_name);
+
   DBUG_RETURN(FALSE);
 }
 

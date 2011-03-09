@@ -4246,11 +4246,31 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
   if (mysql->options.charset_dir)
     charsets_dir= mysql->options.charset_dir;
 
+  if (!mysql->net.vio)
+  {
+    /* Initialize with automatic OS character set detection. */
+    mysql_options(mysql, MYSQL_SET_CHARSET_NAME, cs_name);
+    mysql_init_character_set(mysql);
+    /* 
+      In case of automatic OS character set detection
+      mysql_init_character_set changes mysql->options.charset_name
+      from "auto" to the real character set name.
+      Reset cs_name to the detected character set name, accordingly.
+    */
+    cs_name= mysql->options.charset_name;
+  }
+
   if (strlen(cs_name) < MY_CS_NAME_SIZE &&
      (cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0))))
   {
     char buff[MY_CS_NAME_SIZE + 10];
     charsets_dir= save_csdir;
+    if (!mysql->net.vio)
+    {
+      /* If there is no connection yet we don't send "SET NAMES" query */
+      mysql->charset= cs;
+      return 0;
+    }
     /* Skip execution of "SET NAMES" for pre-4.1 servers */
     if (mysql_get_server_version(mysql) < 40100)
       return 0;
