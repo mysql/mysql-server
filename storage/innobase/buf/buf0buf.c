@@ -308,14 +308,14 @@ Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return oldest modification in pool, zero if none */
 UNIV_INTERN
-ib_uint64_t
+lsn_t
 buf_pool_get_oldest_modification(void)
 /*==================================*/
 {
 	ulint		i;
 	buf_page_t*	bpage;
-	ib_uint64_t	lsn = 0;
-	ib_uint64_t	oldest_lsn = 0;
+	lsn_t		lsn = 0;
+	lsn_t		oldest_lsn = 0;
 
 	/* When we traverse all the flush lists we don't want another
 	thread to add a dirty page to any flush list. */
@@ -527,7 +527,7 @@ buf_page_is_corrupted(
 
 #ifndef UNIV_HOTBACKUP
 	if (recv_lsn_checks_on) {
-		ib_uint64_t	current_lsn;
+		lsn_t	current_lsn;
 
 		if (log_peek_lsn(&current_lsn)
 		    && UNIV_UNLIKELY
@@ -539,7 +539,7 @@ buf_page_is_corrupted(
 				"  InnoDB: Error: page %lu log sequence number"
 				" %llu\n"
 				"InnoDB: is in the future! Current system "
-				"log sequence number %llu.\n"
+				"log sequence number " LSN_PF ".\n"
 				"InnoDB: Your database may be corrupt or "
 				"you may have copied the InnoDB\n"
 				"InnoDB: tablespace but not the InnoDB "

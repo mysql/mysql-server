@@ -734,7 +734,7 @@ Assign the transaction its history serialisation number and write the
 update UNDO log record to the assigned rollback segment.
 @return the LSN of the UNDO log write. */
 static
-ib_uint64_t
+lsn_t
 trx_write_serialisation_history(
 /*============================*/
 	trx_t*		trx)	/*!< in: transaction */
@@ -837,7 +837,7 @@ trx_commit(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_named_savept_t*	savep;
-	ib_uint64_t		lsn = 0;
+	lsn_t			lsn = 0;
 
 	ut_ad(trx->in_trx_list);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
@@ -1188,7 +1188,7 @@ trx_commit_complete_for_mysql(
 /*==========================*/
 	trx_t*	trx)	/*!< in: trx handle */
 {
-	ib_uint64_t	lsn	= trx->commit_lsn;
+	lsn_t	lsn	= trx->commit_lsn;
 
 	ut_a(trx);
 
@@ -1522,7 +1522,7 @@ trx_prepare(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx_rseg_t*	rseg;
-	ib_uint64_t	lsn;
+	lsn_t		lsn;
 	mtr_t		mtr;
 
 	rseg = trx->rseg;

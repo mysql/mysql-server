@@ -2584,7 +2584,7 @@ row_import_tablespace_for_mysql(
 {
 	dict_table_t*	table;
 	ibool		success;
-	ib_uint64_t	current_lsn;
+	lsn_t		current_lsn;
 	ulint		err		= DB_SUCCESS;
 
 	ut_ad(trx->mysql_thd == NULL

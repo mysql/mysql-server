@@ -163,7 +163,7 @@ UNIV_INTERN char**	srv_log_group_home_dirs = NULL;
 UNIV_INTERN ulint	srv_n_log_groups	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_log_files		= ULINT_MAX;
 /* size in database pages */
-UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
+UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
@@ -272,7 +272,7 @@ UNIV_INTERN ulint srv_log_write_requests = 0;
 UNIV_INTERN ulint srv_log_writes = 0;
 
 /* amount of data written to the log files in bytes */
-UNIV_INTERN ulint srv_os_log_written = 0;
+UNIV_INTERN lsn_t srv_os_log_written = 0;
 
 /* amount of writes being done to the log files */
 UNIV_INTERN ulint srv_os_log_pending_writes = 0;
@@ -1848,8 +1848,8 @@ srv_error_monitor_thread(
 {
 	/* number of successive fatal timeouts observed */
 	ulint		fatal_cnt	= 0;
-	ib_uint64_t	old_lsn;
-	ib_uint64_t	new_lsn;
+	lsn_t		old_lsn;
+	lsn_t		new_lsn;
 	ib_int64_t	sig_count;
 
 	old_lsn = srv_start_lsn;
@@ -1873,9 +1873,9 @@ loop:
 	if (new_lsn < old_lsn) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			"  InnoDB: Error: old log sequence number %llu"
+			"  InnoDB: Error: old log sequence number " LSN_PF
 			" was greater\n"
-			"InnoDB: than the new log sequence number %llu!\n"
+			"InnoDB: than the new log sequence number " LSN_PF "!\n"
 			"InnoDB: Please submit a bug report"
 			" to http://bugs.mysql.com\n",
 			old_lsn, new_lsn);

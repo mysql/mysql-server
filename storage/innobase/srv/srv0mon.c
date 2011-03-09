@@ -1174,7 +1174,7 @@ srv_mon_process_existing_counter(
 
 	/* innodb_os_log_written */
 	case MONITOR_OVLD_OS_LOG_WRITTEN:
-		value = srv_os_log_written;
+		value = (mon_type_t) srv_os_log_written;
 		break;
 
 	/* innodb_os_log_fsyncs */

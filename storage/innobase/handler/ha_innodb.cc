@@ -456,7 +456,7 @@ static SHOW_VAR innodb_status_variables[]= {
   {"os_log_pending_writes",
   (char*) &export_vars.innodb_os_log_pending_writes,	  SHOW_LONG},
   {"os_log_written",
-  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONG},
+  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONGLONG},
   {"page_size",
   (char*) &export_vars.innodb_page_size,		  SHOW_LONG},
   {"pages_created",
@@ -2438,14 +2438,6 @@ innobase_init(
 
 			goto error;
 		}
-
-		if (innobase_log_file_size > UINT_MAX32) {
-			sql_print_error(
-				"innobase_log_file_size can't be over 4GB"
-				" on 32-bit systems");
-
-			goto error;
-		}
 	}
 
 	os_innodb_umask = (ulint)my_umask;
@@ -2619,7 +2611,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
-	srv_log_file_size = (ulint) innobase_log_file_size;
+	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
 
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;

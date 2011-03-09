@@ -121,9 +121,9 @@ struct buffer_page_info_struct{
 					/*!< Number of records on Page */
 	unsigned	data_size:UNIV_PAGE_SIZE_SHIFT;
 					/*!< Sum of the sizes of the records */
-	ib_uint64_t	newest_mod;	/*!< Log sequence number of
+	lsn_t		newest_mod;	/*!< Log sequence number of
 					the youngest modification */
-	ib_uint64_t	oldest_mod;	/*!< Log sequence number of
+	lsn_t		oldest_mod;	/*!< Log sequence number of
 					the oldest modification */
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
