@@ -34,6 +34,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "mtr0types.h"
 #include "page0types.h"
+#include "log0log.h"
 
 /* Logging modes for a mini-transaction */
 #define MTR_LOG_ALL		21	/* default mode: log all operations
@@ -386,9 +387,9 @@ struct mtr_struct{
 				have been written to the mtr log */
 	ulint		log_mode; /* specifies which operations should be
 				logged; default value MTR_LOG_ALL */
-	ib_uint64_t	start_lsn;/* start lsn of the possible log entry for
+	lsn_t		start_lsn;/* start lsn of the possible log entry for
 				this mtr */
-	ib_uint64_t	end_lsn;/* end lsn of the possible log entry for
+	lsn_t		end_lsn;/* end lsn of the possible log entry for
 				this mtr */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;

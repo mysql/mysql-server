@@ -36,6 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0rbt.h"
 #include "os0proc.h"
+#include "log0log.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
@@ -273,7 +274,7 @@ Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return	oldest modification in pool, zero if none */
 UNIV_INTERN
-ib_uint64_t
+lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
 /********************************************************************//**
@@ -558,7 +559,7 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
 UNIV_INLINE
-ib_uint64_t
+lsn_t
 buf_page_get_newest_modification(
 /*=============================*/
 	const buf_page_t*	bpage);	/*!< in: block containing the
@@ -1447,13 +1448,13 @@ struct buf_page_struct{
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
-	ib_uint64_t	newest_modification;
+	lsn_t		newest_modification;
 					/*!< log sequence number of
 					the youngest modification to
 					this block, zero if not
 					modified. Protected by block
 					mutex */
-	ib_uint64_t	oldest_modification;
+	lsn_t		oldest_modification;
 					/*!< log sequence number of
 					the START of the log entry
 					written of the oldest

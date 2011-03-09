@@ -31,6 +31,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
+#include "log0log.h"
 #include "usr0types.h"
 #include "que0types.h"
 #include "mem0mem.h"
@@ -660,7 +661,7 @@ struct trx_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
+	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or 0. */
 	/*------------------------------*/

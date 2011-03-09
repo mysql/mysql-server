@@ -90,9 +90,9 @@ Created 2/16/1996 Heikki Tuuri
 # include "zlib.h" /* for ZLIB_VERSION */
 
 /** Log sequence number immediately after startup */
-UNIV_INTERN ib_uint64_t	srv_start_lsn;
+UNIV_INTERN lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
-UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
+UNIV_INTERN lsn_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
@@ -721,9 +721,9 @@ open_or_create_data_files(
 	ulint*		max_arch_log_no,/*!< out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,/*!< out: min of flushed lsn
+	lsn_t*		min_flushed_lsn,/*!< out: min of flushed lsn
 					values in data files */
-	ib_uint64_t*	max_flushed_lsn,/*!< out: max of flushed lsn
+	lsn_t*		max_flushed_lsn,/*!< out: max of flushed lsn
 					values in data files */
 	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
 					new files added */
@@ -1000,8 +1000,8 @@ innobase_start_or_create_for_mysql(void)
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
 	ibool		log_opened	= FALSE;
-	ib_uint64_t	min_flushed_lsn;
-	ib_uint64_t	max_flushed_lsn;
+	lsn_t		min_flushed_lsn;
+	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		min_arch_log_no;
 	ulint		max_arch_log_no;
@@ -1422,11 +1422,18 @@ innobase_start_or_create_for_mysql(void)
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if (srv_n_log_files * srv_log_file_size >= 262144) {
+	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
+		/* fil_io() takes ulint as an argument and we are passing
+		(next_offset / UNIV_PAGE_SIZE) to it in log_group_write_buf().
+		So (next_offset / UNIV_PAGE_SIZE) must be less than ULINT_MAX.
+		So next_offset must be < ULINT_MAX * UNIV_PAGE_SIZE. This
+		means that we are limited to ULINT_MAX * UNIV_PAGE_SIZE which
+		is 64 TB on 32 bit systems. */
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Error: combined size of log files"
-			" must be < 4 GB\n");
+			" must be < %lu GB\n",
+			ULINT_MAX / 1073741824 * UNIV_PAGE_SIZE);
 
 		return(DB_ERROR);
 	}
@@ -1576,7 +1583,7 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		if (max_flushed_lsn < (ib_uint64_t) 1000) {
+		if (max_flushed_lsn < (lsn_t) 1000) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Cannot initialize created"
@@ -2017,7 +2024,7 @@ innobase_start_or_create_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: %s started; "
-			"log sequence number %llu\n",
+			"log sequence number " LSN_PF "\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 
@@ -2305,7 +2312,7 @@ innobase_shutdown_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Shutdown completed;"
-			" log sequence number %llu\n",
+			" log sequence number " LSN_PF "\n",
 			srv_shutdown_lsn);
 	}
 
