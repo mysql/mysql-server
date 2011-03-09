@@ -1,0 +1,31 @@
+CREATE DATABASE test2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+ALTER DATABASE test2 CHARACTER SET latin2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+DROP DATABASE test2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+CREATE TABLE t1(a int not null primary key) ENGINE ndb;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+RENAME TABLE t1 TO t2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+CREATE TABLE t3 LIKE t2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+ALTER TABLE t3 ADD COLUMN b int default NULL;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+INSERT INTO t2 VALUES(1);
+TRUNCATE TABLE t2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+DROP TABLE t2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
+DROP TABLE t3;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1

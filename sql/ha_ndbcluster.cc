@@ -385,6 +385,7 @@ struct st_ndb_status {
   long execute_count;
   long scan_count;
   long pruned_scan_count;
+  long schema_locks_count;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
@@ -444,6 +445,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
     {
       ns->api_client_stats[i] = thd_ndb->ndb->getClientStat(i);
     }
+    ns->schema_locks_count= thd_ndb->schema_locks_count;
   }
   return 0;
 }
@@ -518,6 +520,7 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
   {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG},
   {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG},
+  {"schema_locks_count", (char*) &g_ndb_status.schema_locks_count,    SHOW_LONG},
   NDBAPI_COUNTERS("_session", &g_ndb_status.api_client_stats),
   {NullS, NullS, SHOW_LONG}
 };
@@ -989,7 +992,8 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 }
 
 Thd_ndb::Thd_ndb(THD* thd) :
-  m_thd(thd)
+  m_thd(thd),
+  schema_locks_count(0)
 {
   connection= ndb_get_cluster_connection();
   m_connect_count= connection->get_connect_count();

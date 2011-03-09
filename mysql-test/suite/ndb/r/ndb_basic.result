@@ -74,6 +74,7 @@ Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_pruned_scan_count	#
 Ndb_scan_count	#
+Ndb_schema_locks_count	#
 SHOW GLOBAL VARIABLES LIKE 'ndb\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
