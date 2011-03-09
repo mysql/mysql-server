@@ -1,3 +1,15 @@
+2011-02-15	The InnoDB Team
+
+	* sync/sync0rw.c, innodb_bug59307.test:
+	Bug#59307 Valgrind: uninitialized value in
+	rw_lock_set_writer_id_and_recursion_flag()
+
+2011-02-14	The InnoDB Team
+
+	* handler/handler0alter.cc:
+	Bug#59749 Enabling concurrent reads while creating non-primary
+	unique index gives failures
+
 2011-01-31	The InnoDB Team
 
 	* btr/btr0cur.c, include/row0upd.h,
