@@ -172,7 +172,7 @@ extern ulong    srv_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
-#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
+#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) (p) / 100.0)))
 
 /* The "innodb_stats_method" setting, decides how InnoDB is going
 to treat NULL value when collecting statistics. It is not defined
@@ -297,8 +297,11 @@ extern ulint srv_log_waits;
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
 
-/* the number of records to purge in one batch */
+/* the number of pages to purge in one batch */
 extern ulong srv_purge_batch_size;
+
+/* the number of rollback segments to use */
+extern ulong srv_rollback_segments;
 
 /* variable that counts amount of data read in total (in bytes) */
 extern ulint srv_data_read;

@@ -53,18 +53,13 @@ typedef byte lock_word_t;
 #endif
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
-/* There are mutexes/rwlocks that we want to exclude from
-instrumentation even if their corresponding performance schema
-define is set. And this PFS_NOT_INSTRUMENTED is used
-as the key value to dentify those objects that would
-be excluded from instrumentation. */
-# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
-
-# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
 
 /* By default, buffer mutexes and rwlocks will be excluded from
 instrumentation due to their large number of instances. */
 # define PFS_SKIP_BUFFER_MUTEX_RWLOCK
+
+/* By default, event->mutex will also be excluded from instrumentation */
+# define PFS_SKIP_EVENT_MUTEX
 
 #endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
 
@@ -95,7 +90,7 @@ extern mysql_pfs_key_t	mem_hash_mutex_key;
 # endif /* UNIV_MEM_DEBUG */
 extern mysql_pfs_key_t	mem_pool_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;
-extern mysql_pfs_key_t	purge_sys_mutex_key;
+extern mysql_pfs_key_t	purge_sys_bh_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	rseg_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -122,6 +117,11 @@ extern mysql_pfs_key_t	trx_sys_rw_lock_key;
 extern mysql_pfs_key_t	read_view_mutex_key;
 extern mysql_pfs_key_t	srv_sys_mutex_key;
 extern mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+extern mysql_pfs_key_t	srv_conc_mutex_key;
+extern mysql_pfs_key_t	event_os_mutex_key;
+extern mysql_pfs_key_t	ut_list_mutex_key;
+extern mysql_pfs_key_t	os_mutex_key;
+
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
@@ -660,7 +660,6 @@ or row lock! */
 #define SYNC_TREE_NODE_NEW	892
 #define SYNC_TREE_NODE_FROM_HASH 891
 #define SYNC_TREE_NODE		890
-#define	SYNC_PURGE_SYS		810
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
 #define SYNC_RSEG		600
@@ -686,6 +685,7 @@ or row lock! */
 #define SYNC_THREADS		295
 #define SYNC_REC_LOCK		294
 #define SYNC_TRX_SYS_HEADER	290
+#define	SYNC_PURGE_QUEUE	200
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168

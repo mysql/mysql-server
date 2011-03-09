@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @defgroup Semantic_Analysis Semantic Analysis
@@ -196,8 +196,7 @@ typedef struct st_lex_server_options
 
 
 /**
-  Structure to hold parameters for CHANGE MASTER or START/STOP SLAVE
-  or SHOW NEW MASTER.
+  Structure to hold parameters for CHANGE MASTER, START SLAVE, and STOP SLAVE.
 
   Remark: this should not be confused with Master_info (and perhaps
   would better be renamed to st_lex_replication_info).  Some fields,
@@ -481,6 +480,7 @@ public:
 					thr_lock_type flags= TL_UNLOCK,
                                         enum_mdl_type mdl_type= MDL_SHARED_READ,
 					List<Index_hint> *hints= 0,
+                                        List<String> *partition_names= 0,
                                         LEX_STRING *option= 0);
   virtual void set_lock_for_tables(thr_lock_type lock_type) {}
 
@@ -792,6 +792,7 @@ public:
 				thr_lock_type flags= TL_UNLOCK,
                                 enum_mdl_type mdl_type= MDL_SHARED_READ,
 				List<Index_hint> *hints= 0,
+                                List<String> *partition_names= 0,
                                 LEX_STRING *option= 0);
   TABLE_LIST* get_table_list();
   bool init_nested_join(THD *thd);
@@ -888,21 +889,20 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
 #define ALTER_KEYS_ONOFF        (1L << 9)
 #define ALTER_CONVERT           (1L << 10)
-#define ALTER_FORCE		(1L << 11)
-#define ALTER_RECREATE          (1L << 12)
-#define ALTER_ADD_PARTITION     (1L << 13)
-#define ALTER_DROP_PARTITION    (1L << 14)
-#define ALTER_COALESCE_PARTITION (1L << 15)
-#define ALTER_REORGANIZE_PARTITION (1L << 16) 
-#define ALTER_PARTITION          (1L << 17)
-#define ALTER_ADMIN_PARTITION    (1L << 18)
-#define ALTER_TABLE_REORG        (1L << 19)
-#define ALTER_REBUILD_PARTITION  (1L << 20)
-#define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_REMOVE_PARTITIONING (1L << 22)
-#define ALTER_FOREIGN_KEY        (1L << 23)
-#define ALTER_EXCHANGE_PARTITION (1L << 24)
-#define ALTER_TRUNCATE_PARTITION (1L << 25)
+#define ALTER_RECREATE          (1L << 11)
+#define ALTER_ADD_PARTITION     (1L << 12)
+#define ALTER_DROP_PARTITION    (1L << 13)
+#define ALTER_COALESCE_PARTITION (1L << 14)
+#define ALTER_REORGANIZE_PARTITION (1L << 15) 
+#define ALTER_PARTITION          (1L << 16)
+#define ALTER_ADMIN_PARTITION    (1L << 17)
+#define ALTER_TABLE_REORG        (1L << 18)
+#define ALTER_REBUILD_PARTITION  (1L << 19)
+#define ALTER_ALL_PARTITION      (1L << 20)
+#define ALTER_REMOVE_PARTITIONING (1L << 21)
+#define ALTER_FOREIGN_KEY        (1L << 22)
+#define ALTER_EXCHANGE_PARTITION (1L << 23)
+#define ALTER_TRUNCATE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {

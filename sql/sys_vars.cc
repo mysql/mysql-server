@@ -359,6 +359,9 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static Sys_var_test_flag Sys_core_file(
+       "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
+
 static Sys_var_enum Sys_binlog_format(
        "binlog_format", "What form of binary logging the master will "
        "use: either ROW for row-based binary logging, STATEMENT "
@@ -1520,7 +1523,7 @@ static Sys_var_proxy_user Sys_proxy_user(
        "proxy_user", "The proxy user account name used when logging in",
        IN_SYSTEM_CHARSET);
 
-static Sys_var_external_user Sys_exterenal_user(
+static Sys_var_external_user Sys_external_user(
        "external_user", "The external user account used when logging in",
        IN_SYSTEM_CHARSET);
 
@@ -3178,7 +3181,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
       return true;
-    else if (!(locale= my_locale_by_name(res->c_ptr())))
+    else if (!(locale= my_locale_by_name(res->c_ptr_safe())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());

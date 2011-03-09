@@ -263,6 +263,9 @@ cp1250_czech_cs	61
 cp1250_czech_cs	6109
 cp1250_czech_cs	6120
 drop table t1;
+set global LC_MESSAGES=convert((@@global.log_bin_trust_function_creators) 
+using cp1250);
+ERROR HY000: Unknown locale: '1'
 #
 # Start of 5.6 tests
 #

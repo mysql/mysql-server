@@ -639,7 +639,6 @@ extern int my_error_register(const char** (*get_errmsgs) (),
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
-extern my_bool my_basic_init(void);
 extern my_bool my_init(void);
 extern void my_end(int infoflag);
 extern int my_redel(const char *from, const char *to, int MyFlags);
@@ -946,9 +945,14 @@ int my_security_attr_create(SECURITY_ATTRIBUTES **psa, const char **perror,
 void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
 /* implemented in my_conio.c */
-char* my_cgets(char *string, size_t clen, size_t* plen);
-
-#endif
+my_bool my_win_is_console(FILE *file);
+char *my_win_console_readline(CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
+void my_win_console_write(CHARSET_INFO *cs, const char *data, size_t datalen);
+void my_win_console_fputs(CHARSET_INFO *cs, const char *data);
+void my_win_console_putc(CHARSET_INFO *cs, int c);
+void my_win_console_vfprintf(CHARSET_INFO *cs, const char *fmt, va_list args);
+int my_win_translate_command_line_args(CHARSET_INFO *cs, int *ac, char ***av);
+#endif /* __WIN__ */
 
 #include <mysql/psi/psi.h>
 
