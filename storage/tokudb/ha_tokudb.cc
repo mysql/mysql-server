@@ -2919,14 +2919,21 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
 }
 
 bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes) {
-    //
-    // This is a horrendous hack for now, as copied by InnoDB.
-    // This states that if the auto increment create field has changed,
-    // via a "alter table foo auto_increment=new_val", that this
-    // change is incompatible, and to rebuild the entire table
-    // This will need to be fixed
-    //
+  //
+  // This is a horrendous hack for now, as copied by InnoDB.
+  // This states that if the auto increment create field has changed,
+  // via a "alter table foo auto_increment=new_val", that this
+  // change is incompatible, and to rebuild the entire table
+  // This will need to be fixed
+  //
+  if ((info->used_fields & HA_CREATE_USED_AUTO) &&
+      info->auto_increment_value != 0) {
+
     return COMPATIBLE_DATA_NO;
+  }
+  if (table_changes != IS_EQUAL_YES)
+    return COMPATIBLE_DATA_NO;
+  return COMPATIBLE_DATA_YES;
 }
 
 //
