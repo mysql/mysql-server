@@ -1,4 +1,4 @@
-/* Copyright (C) 2010 Monty Program Ab
+/* Copyright (C) 2010-2011 Monty Program Ab & Vladislav Vaintroub
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,15 +28,14 @@
 #include <mysql_version.h>
 #include <winservice.h>
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <windows.h>
 
 /* We're using version APIs */
 #pragma comment(lib, "version")
 
 #define USAGETEXT \
-"mysql_upgrade_service.exe  Ver 1.42 for Windows\n" \
+"mysql_upgrade_service.exe  Ver 1.00 for Windows\n" \
+"Copyright (C) 2010-2011 Monty Program Ab & Vladislav Vaintroub" \
 "This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n" \
 "and you are welcome to modify and redistribute it under the GPL v2 license\n" \
 "Usage: mysql_upgrade_service.exe [OPTIONS]\n" \
@@ -66,7 +65,7 @@ static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"service", 's', "Name of the existing Windows service",
+  {"service", 'S', "Name of the existing Windows service",
   &opt_service, &opt_service, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 };
 
@@ -93,17 +92,12 @@ get_one_option(int optid,
 static void log(const char *fmt, ...)
 {
   va_list args;
-  char buf[4096];
-
   /* Print the error message */
   va_start(args, fmt);
-  if (fmt)
-  {
-    vsprintf_s(buf,  fmt, args);
-    fprintf(stdout, "%s\n", buf);
-  }
+  vfprintf(stdout,fmt, args);
   va_end(args);
-  my_end(0);
+  fputc('\n', stdout);
+  fflush(stdout);
 }
 
 
@@ -111,45 +105,46 @@ static void die(const char *fmt, ...)
 {
   va_list args;
   DBUG_ENTER("die");
-  char buf[4096];
 
   /* Print the error message */
   va_start(args, fmt);
-  if (fmt)
+
+  fprintf(stderr, "FATAL ERROR: ");
+  vfprintf(stderr, fmt, args);
+  if (logfile_path[0])
   {
-    fprintf(stderr, "FATAL ERROR: ");
-    int count= vsprintf_s(buf,  fmt, args);
-    fprintf(stderr, "%s.", buf);
-    if(logfile_path[0])
-    {
-      fprintf(stderr, "Additional information can be found in the log file %s",
-        logfile_path);
-    }
+    fprintf(stderr, "Additional information can be found in the log file %s",
+      logfile_path);
   }
   va_end(args);
-
+  fputc('\n', stderr);
+  fflush(stdout);
   /* Cleanup */
-  if(service && initial_service_state != -1)
-  {
-    /* Stop service if it was not running */
-    if(initial_service_state != SERVICE_RUNNING)
-    {
-      SERVICE_STATUS service_status;
-      ControlService(service, SERVICE_CONTROL_STOP, &service_status);
-    }
-    CloseServiceHandle(service);
-  }
-  if(scm)
-    CloseServiceHandle(scm);
 
-  /* Stop mysqld.exe if it was started for upgrade */
-  if(mysqld_process)
+  /*
+    Stop service that we started, if it was not initally running at
+    program start.
+  */
+  if (initial_service_state != -1 && initial_service_state != SERVICE_RUNNING)
+  {
+    SERVICE_STATUS service_status;
+    ControlService(service, SERVICE_CONTROL_STOP, &service_status);
+  }
+
+  if (scm)
+    CloseServiceHandle(scm);
+  if (service)
+    CloseServiceHandle(service);
+  /* Stop mysqld.exe, if it was started for upgrade */
+  if (mysqld_process)
     TerminateProcess(mysqld_process, 3);
-  if(logfile_handle)
+  if (logfile_handle)
     CloseHandle(logfile_handle);
   my_end(0);
+
   exit(1);
 }
+
 
 /*
   spawn-like function to run subprocesses. 
@@ -166,43 +161,44 @@ static void die(const char *fmt, ...)
   @return intptr containing either process handle, if P_NOWAIT is used
   or return code of the process (if P_WAIT is used)
 */
+
 static intptr_t run_tool(int wait_flag, const char *program,...)
 {
   static char cmdline[32*1024];
+  char *end;
   va_list args;
   va_start(args, program);
-  if(!program)
+  if (!program)
     die("Invalid call to run_tool");
+  end= strxmov(cmdline, "\"", program, "\"", NullS);
 
-  strcpy_s(cmdline, "\"");
-  strcat_s(cmdline, program);
-  strcat_s(cmdline, "\"");
   for(;;) 
   {
     char *param= va_arg(args,char *);
     if(!param)
       break;
-    strcat_s(cmdline, " \"");
-    strcat_s(cmdline, param);
-    strcat_s(cmdline, "\"");
+    end= strxmov(end, " \"", param, "\"", NullS);
   }
   va_end(args);
   
   /* Create output file if not alredy done */
-  if(!logfile_handle)
+  if (!logfile_handle)
   {
     char tmpdir[FN_REFLEN];
     GetTempPath(FN_REFLEN, tmpdir);
     sprintf_s(logfile_path, "%s\\mysql_upgrade_service.%s.log", tmpdir, 
       opt_service);
-    logfile_handle = CreateFile(logfile_path, GENERIC_WRITE,  FILE_SHARE_READ, 
+    logfile_handle= CreateFile(logfile_path, GENERIC_WRITE,  FILE_SHARE_READ, 
       NULL, TRUNCATE_EXISTING, 0, NULL);
-    if(!logfile_handle)
-      die("Cannot open log file %s", logfile_path);
+    if (!logfile_handle)
+    {
+      die("Cannot open log file %s, windows error %u", 
+        logfile_path, GetLastError());
+    }
   }
 
   /* Start child process */
-  STARTUPINFO si={0};
+  STARTUPINFO si= {0};
   si.cb= sizeof(si);
   si.hStdInput= GetStdHandle(STD_INPUT_HANDLE);
   si.hStdError= logfile_handle;
@@ -216,13 +212,13 @@ static intptr_t run_tool(int wait_flag, const char *program,...)
   }
   CloseHandle(pi.hThread);
 
-  if(wait_flag == P_NOWAIT)
+  if (wait_flag == P_NOWAIT)
   {
-    /* Do not wait for process to complete, return handle */
+    /* Do not wait for process to complete, return handle. */
     return (intptr_t)pi.hProcess;
   }
 
-  /* Eait for process to complete */
+  /* Wait for process to complete. */
   if (WaitForSingleObject(pi.hProcess, INFINITE) != WAIT_OBJECT_0)
   {
     die("WaitForSingleObject() failed");
@@ -234,7 +230,6 @@ static intptr_t run_tool(int wait_flag, const char *program,...)
   }
   return (intptr_t)exit_code;
 }
-
 
 
 void stop_mysqld_service()
@@ -249,7 +244,7 @@ void stop_mysqld_service()
           sizeof(SERVICE_STATUS_PROCESS),
           &needed))
     {
-      die("QueryServiceStatusEx failed (%d)\n", GetLastError()); 
+      die("QueryServiceStatusEx failed (%u)\n", GetLastError()); 
     }
 
     /*
@@ -257,7 +252,7 @@ void stop_mysqld_service()
       exit.
     */
     if(initial_service_state == -1)
-      initial_service_state =ssp.dwCurrentState;
+      initial_service_state= ssp.dwCurrentState;
 
     switch(ssp.dwCurrentState)
     {
@@ -266,12 +261,13 @@ void stop_mysqld_service()
       case SERVICE_RUNNING:
         if(!ControlService(service, SERVICE_CONTROL_STOP, 
              (SERVICE_STATUS *)&ssp))
-            die("ControlService failed, error %d\n", GetLastError());
+            die("ControlService failed, error %u\n", GetLastError());
       case SERVICE_START_PENDING:
       case SERVICE_STOP_PENDING:
         if(timeout < 0)
-          die("Service does not stop after 1 minute timeout");
+          die("Service does not stop after %d seconds timeout",shutdown_timeout);
         Sleep(100);
+        timeout -= 100;
         break;
       default:
         die("Unexpected service state %d",ssp.dwCurrentState);
@@ -279,33 +275,6 @@ void stop_mysqld_service()
   }
 }
 
-
-/* Helper routine. Used to prevent downgrades by mysql_upgrade_service */
-void get_file_version(const wchar_t *path, int *major, int *minor)
-{
-  *major= *minor=0;
-  DWORD version_handle;
-  char *ver= 0;
-  VS_FIXEDFILEINFO info;
-  UINT len;
-  void *p;
-
-  DWORD size = GetFileVersionInfoSizeW(path, &version_handle);
-  if (size == 0) 
-    return;
-  ver = new char[size];
-  if(!GetFileVersionInfoW(path, version_handle, size, ver))
-    goto end;
-
-  if(!VerQueryValue(ver,"\\",&p,&len))
-    goto end;
-  memcpy(&info,p ,sizeof(VS_FIXEDFILEINFO));
-
-  *major = (info.dwFileVersionMS & 0xFFFF0000) >> 16;
-  *minor = (info.dwFileVersionMS & 0x0000FFFF);
-end:
-  delete []ver;
-}
 
 /* 
   Shutdown mysql server. Not using mysqladmin, since 
@@ -340,21 +309,22 @@ static void change_service_config()
   char defaults_file[MAX_PATH];
   char default_character_set[64];
   char buf[MAX_PATH];
+  char commandline[3*MAX_PATH + 19];
   int i;
 
-  scm = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+  scm= OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
   if(!scm)
-    die("OpenSCManager failed with %d", GetLastError());
+    die("OpenSCManager failed with %u", GetLastError());
   service= OpenService(scm, opt_service, SERVICE_ALL_ACCESS);
   if (!service)
-    die("OpenService failed with %d", GetLastError());
+    die("OpenService failed with %u", GetLastError());
 
   BYTE config_buffer[8*1024];
   LPQUERY_SERVICE_CONFIGW config= (LPQUERY_SERVICE_CONFIGW)config_buffer;
-  DWORD size=sizeof(config_buffer);
+  DWORD size= sizeof(config_buffer);
   DWORD needed;
   if (!QueryServiceConfigW(service, config, size, &needed))
-    die("QueryServiceConfig failed with %d\n", GetLastError());
+    die("QueryServiceConfig failed with %u", GetLastError());
 
   mysqld_service_properties props;
   if (get_mysql_service_properties(config->lpBinaryPathName, &props))
@@ -363,14 +333,15 @@ static void change_service_config()
   }
 
   int my_major= MYSQL_VERSION_ID/10000;
-  int my_minor= (MYSQL_VERSION_ID - 10000*my_major)/100;
+  int my_minor= (MYSQL_VERSION_ID %10000)/100;
+  int my_patch= MYSQL_VERSION_ID%100;
 
   if(my_major < props.version_major || 
-    (my_major == props.version_minor && my_minor < props.version_patch))
+    (my_major == props.version_major && my_minor < props.version_minor))
   {
-    die("Can not downgrade, the service is currently running as version %d.%d"
-      ", my version is %d.%d", props.version_major, props.version_minor, 
-      my_major, my_minor);
+    die("Can not downgrade, the service is currently running as version %d.%d.%d"
+      ", my version is %d.%d.%d", props.version_major, props.version_minor, 
+      props.version_patch, my_major, my_minor, my_patch);
   }
 
   if(props.inifile[0] == 0)
@@ -386,7 +357,7 @@ static void change_service_config()
     unix style slashes.
   */
   strcpy_s(buf, MAX_PATH, props.datadir);
-  for(i=0; buf[i]; i++)
+  for(i= 0; buf[i]; i++)
   {
     if (buf[i] == '\\')
       buf[i]= '/';
@@ -395,7 +366,7 @@ static void change_service_config()
 
   /*
     Remove basedir from defaults file, otherwise the service wont come up in 
-    the new  version, and will complain about mismatched message file.
+    the new version, and will complain about mismatched message file.
   */
   WritePrivateProfileString("mysqld", "basedir",NULL, props.inifile);
 
@@ -404,10 +375,10 @@ static void change_service_config()
     "default-character-set is deprecated and will be replaced ..."
     message.
   */
-  default_character_set[0]=0;
+  default_character_set[0]= 0;
   GetPrivateProfileString("mysqld", "default-character-set", NULL,
     default_character_set, sizeof(default_character_set), defaults_file);
-  if(default_character_set[0])
+  if (default_character_set[0])
   {
     WritePrivateProfileString("mysqld", "default-character-set", NULL, 
       defaults_file);
@@ -416,17 +387,15 @@ static void change_service_config()
   }
 
   sprintf(defaults_file_param,"--defaults-file=%s", props.inifile);
-  char commandline[3*MAX_PATH + 19];
   sprintf_s(commandline, "\"%s\" \"%s\" \"%s\"", mysqld_path, 
    defaults_file_param, opt_service);
   if (!ChangeServiceConfig(service, SERVICE_NO_CHANGE, SERVICE_NO_CHANGE, 
          SERVICE_NO_CHANGE, commandline, NULL, NULL, NULL, NULL, NULL, NULL))
   {
-    die("ChangeServiceConfigW failed with %d", GetLastError());
+    die("ChangeServiceConfig failed with %u", GetLastError());
   }
 
 }
-
 
 
 int main(int argc, char **argv)
@@ -439,8 +408,8 @@ int main(int argc, char **argv)
   /* Parse options */
   if ((error= handle_options(&argc, &argv, my_long_options, get_one_option)))
     die("");
-  if(!opt_service)
-    die("service parameter is mandatory");
+  if (!opt_service)
+    die("--service=# parameter is mandatory");
  
  /*
     Get full path to mysqld, we need it when changing service configuration.
@@ -448,17 +417,17 @@ int main(int argc, char **argv)
     and mysql_upgrade_service.exe are in the same directory.
   */
   GetModuleFileName(NULL, bindir, FN_REFLEN);
-  p = strrchr(bindir, FN_LIBCHAR);
+  p= strrchr(bindir, FN_LIBCHAR);
   if(p)
   {
-    *p=0;
+    *p= 0;
   }
   sprintf_s(mysqld_path, "%s\\mysqld.exe", bindir);
   sprintf_s(mysqladmin_path, "%s\\mysqladmin.exe", bindir);
   sprintf_s(mysqlupgrade_path, "%s\\mysql_upgrade.exe", bindir);
 
   char *paths[]= {mysqld_path, mysqladmin_path, mysqlupgrade_path};
-  for(int i=0; i< 3;i++)
+  for(int i= 0; i< 3;i++)
   {
     if(GetFileAttributes(paths[i]) == INVALID_FILE_ATTRIBUTES)
       die("File %s does not exist", paths[i]);
@@ -466,7 +435,7 @@ int main(int argc, char **argv)
 
   /*
     Messages written on stdout should not be buffered,  GUI upgrade program 
-    read them from pipe and uses as progress indicator.
+    reads them from pipe and uses as progress indicator.
   */
   setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -475,7 +444,6 @@ int main(int argc, char **argv)
 
   log("Phase 2/8: Stopping service");
   stop_mysqld_service();
-
 
   /* 
     Start mysqld.exe as non-service skipping privileges (so we do not 
@@ -491,14 +459,14 @@ int main(int argc, char **argv)
     defaults_file_param, "--skip-networking",  "--skip-grant-tables", 
     "--enable-named-pipe",  socket_param, NULL);
 
-  if(mysqld_process == INVALID_HANDLE_VALUE)
+  if (mysqld_process == INVALID_HANDLE_VALUE)
   {
     die("Cannot start mysqld.exe process, errno=%d", errno);
   }
 
   log("Phase 4/8: Waiting for startup to complete");
   DWORD start_duration_ms= 0;
-  for (int i=0; ; i++)
+  for(;;)
   {
     if (WaitForSingleObject(mysqld_process, 0) != WAIT_TIMEOUT)
       die("mysqld.exe did not start");
@@ -515,9 +483,12 @@ int main(int argc, char **argv)
   }
 
   log("Phase 5/8: Running mysql_upgrade");
-  int upgrade_err = (int) run_tool(P_WAIT,  mysqlupgrade_path, 
+  int upgrade_err= (int) run_tool(P_WAIT,  mysqlupgrade_path, 
     "--protocol=pipe", "--force",  socket_param,
     NULL);
+
+  if (upgrade_err)
+    die("mysql_upgrade failed with error code %d\n", upgrade_err);
 
   log("Phase 6/8: Initiating server shutdown");
   initiate_mysqld_shutdown();
@@ -543,7 +514,7 @@ int main(int argc, char **argv)
     opt_service, logfile_path);
   CloseServiceHandle(service);
   CloseServiceHandle(scm);
-  if(logfile_handle)
+  if (logfile_handle)
     CloseHandle(logfile_handle);
   my_end(0);
   exit(0);
