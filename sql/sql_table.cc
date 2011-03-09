@@ -5802,6 +5802,32 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     DBUG_RETURN(TRUE);
   }
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  if (ha_legacy_type(table->s->db_type()) == DB_TYPE_NDBCLUSTER ||
+      ha_legacy_type(create_info->db_type) == DB_TYPE_NDBCLUSTER)
+  {
+    // From or to engine is NDB 
+    if (thd->locked_tables_mode)
+    {
+      /*
+        To avoid deadlock in this situation:
+        - if other thread has lock do not enter lock queue
+        and report an error instead
+      */
+      if (global_schema_lock_guard.lock(true))
+      {
+        my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+    }
+    else
+    {
+      global_schema_lock_guard.lock();
+    }
+  }
+#endif
+
   /* Check that we are not trying to rename to an existing table */
   if (new_name)
   {
