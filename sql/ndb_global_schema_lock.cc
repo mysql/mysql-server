@@ -417,7 +417,8 @@ Ndb_global_schema_lock_guard::~Ndb_global_schema_lock_guard()
 }
 
 
-int Ndb_global_schema_lock_guard::lock(bool no_lock_queue)
+int Ndb_global_schema_lock_guard::lock(bool no_lock_queue,
+                                       bool report_cluster_disconnected)
 {
   /* only one lock call allowed */
   assert(!m_locked);
@@ -429,5 +430,6 @@ int Ndb_global_schema_lock_guard::lock(bool no_lock_queue)
   */
   m_locked= true;
 
-  return ndbcluster_global_schema_lock(m_thd, no_lock_queue, true);  
+  return ndbcluster_global_schema_lock(m_thd, no_lock_queue,
+                                       report_cluster_disconnected);  
 }
