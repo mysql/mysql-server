@@ -190,8 +190,8 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
   if (thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP)
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
-  DBUG_PRINT("enter", ("query: %s, no_lock_queue: %d",
-                       thd_query(thd), no_lock_queue));
+  DBUG_PRINT("enter", ("query: '%-.4096s', no_lock_queue: %d",
+                       *thd_query(thd), no_lock_queue));
   if (thd_ndb->global_schema_lock_count)
   {
     if (thd_ndb->global_schema_lock_trans)
@@ -387,8 +387,10 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
 
   // No attempt at taking global schema lock has been done, neither
   // error or trans set -> programming error
+  LEX_STRING* query= thd_query_string(m_thd);
   sql_print_error("NDB: programming error, no lock taken while running "
-                  "query '%s' in function '%s'", thd_query(m_thd), func);
+                  "query '%*s' in function '%s'",
+                  query->length, query->str, func);
   abort();
   return false;
 }
