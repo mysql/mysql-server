@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -2128,7 +2128,7 @@ bool Item_func_user::init(const char *user, const char *host)
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user)
   {
-    CHARSET_INFO *cs= str_value.charset();
+    const CHARSET_INFO *cs= str_value.charset();
     size_t res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
     if (str_value.alloc((uint) res_length))
@@ -2224,7 +2224,7 @@ String *Item_func_soundex::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
   my_wc_t wc;
   uint nchars;
   int rc;
@@ -3160,7 +3160,7 @@ String *Item_func_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
 
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
   str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
@@ -3171,7 +3171,7 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
   str->copy(cs->name, (uint) strlen(cs->name),
@@ -3182,7 +3182,7 @@ String *Item_func_collation::val_str(String *str)
 
 void Item_func_weight_string::fix_length_and_dec()
 {
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
   /* 
@@ -3200,7 +3200,7 @@ void Item_func_weight_string::fix_length_and_dec()
 String *Item_func_weight_string::val_str(String *str)
 {
   String *res;
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   uint tmp_length, frm_length;
   DBUG_ASSERT(fixed == 1);
 
@@ -3329,7 +3329,7 @@ String *Item_func_like_range::val_str(String *str)
   longlong nbytes= args[1]->val_int();
   String *res= args[0]->val_str(str);
   size_t min_len, max_len;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
 
   if (!res || args[0]->null_value || args[1]->null_value ||
       nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
@@ -3617,7 +3617,7 @@ String *Item_func_quote::val_str(String *str)
 
   if (collation.collation->mbmaxlen > 1)
   {
-    CHARSET_INFO *cs= collation.collation;
+    const CHARSET_INFO *cs= collation.collation;
     int mblen;
     uchar *to_end;
     to= (char*) tmp_value.ptr();

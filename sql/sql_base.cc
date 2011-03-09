@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* Basic functions needed by many modules */
 
 #include "sql_base.h"                           // setup_table_map
@@ -1690,7 +1689,7 @@ bool close_temporary_tables(THD *thd)
         close_temporary(table, 1, 1);
       }
       thd->clear_error();
-      CHARSET_INFO *cs_save= thd->variables.character_set_client;
+      const CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
       thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),

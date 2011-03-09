@@ -992,11 +992,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char *save_db= thd->db;
     USER_CONN *save_user_connect= thd->user_connect;
     Security_context save_security_ctx= *thd->security_ctx;
-    CHARSET_INFO *save_character_set_client=
+    const CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
-    CHARSET_INFO *save_collation_connection=
+    const CHARSET_INFO *save_collation_connection=
       thd->variables.collation_connection;
-    CHARSET_INFO *save_character_set_results=
+    const CHARSET_INFO *save_character_set_results=
       thd->variables.character_set_results;
 
     rc= acl_authenticate(thd, 0, packet_length);
@@ -5623,7 +5623,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       Item *default_value, Item *on_update_value,
                        LEX_STRING *comment,
 		       char *change,
-                       List<String> *interval_list, CHARSET_INFO *cs,
+                       List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
   register Create_field *new_field;
@@ -7141,7 +7141,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 
 
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
-                              uint max_char_length, CHARSET_INFO *cs,
+                              uint max_char_length, const CHARSET_INFO *cs,
                               bool no_error)
 {
   int well_formed_error;
@@ -7327,8 +7327,8 @@ bool parse_sql(THD *thd,
 */
 
 
-CHARSET_INFO*
-merge_charset_and_collation(CHARSET_INFO *cs, CHARSET_INFO *cl)
+const CHARSET_INFO*
+merge_charset_and_collation(const CHARSET_INFO *cs, const CHARSET_INFO *cl)
 {
   if (cl)
   {

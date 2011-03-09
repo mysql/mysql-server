@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_priv.h"
 #include "unireg.h"
@@ -201,9 +201,9 @@ private:
     : Stored_program_creation_ctx(thd)
   { }
 
-  Stored_routine_creation_ctx(CHARSET_INFO *client_cs,
-                              CHARSET_INFO *connection_cl,
-                              CHARSET_INFO *db_cl)
+  Stored_routine_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl,
+                              const CHARSET_INFO *db_cl)
     : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
   { }
 };
@@ -214,8 +214,8 @@ private:
 
 bool load_charset(MEM_ROOT *mem_root,
                   Field *field,
-                  CHARSET_INFO *dflt_cs,
-                  CHARSET_INFO **cs)
+                  const CHARSET_INFO *dflt_cs,
+                  const CHARSET_INFO **cs)
 {
   String cs_name;
 
@@ -240,8 +240,8 @@ bool load_charset(MEM_ROOT *mem_root,
 
 bool load_collation(MEM_ROOT *mem_root,
                     Field *field,
-                    CHARSET_INFO *dflt_cl,
-                    CHARSET_INFO **cl)
+                    const CHARSET_INFO *dflt_cl,
+                    const CHARSET_INFO **cl)
 {
   String cl_name;
 
@@ -271,9 +271,9 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
 {
   /* Load character set/collation attributes. */
 
-  CHARSET_INFO *client_cs;
-  CHARSET_INFO *connection_cl;
-  CHARSET_INFO *db_cl;
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
 
   const char *db_name= thd->strmake(name->m_db.str, name->m_db.length);
   const char *sr_name= thd->strmake(name->m_name.str, name->m_name.length);
@@ -925,7 +925,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   MDL_key::enum_mdl_namespace mdl_type= type == TYPE_ENUM_FUNCTION ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
-  CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
+  const CHARSET_INFO *db_cs= get_default_db_collation(thd, sp->m_db.str);
 
   enum_check_fields saved_count_cuted_fields;
 
