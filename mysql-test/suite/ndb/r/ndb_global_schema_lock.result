@@ -23,9 +23,12 @@ INSERT INTO t2 VALUES(1);
 TRUNCATE TABLE t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
+CREATE TABLE t4 ENGINE=NDB AS SELECT * FROM t2;
+@ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
+1
 DROP TABLE t2;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
-DROP TABLE t3;
+DROP TABLE t3, t4;
 @ndb_schema_locks_count:=VARIABLE_VALUE-@ndb_init_schema_locks_count
 1
