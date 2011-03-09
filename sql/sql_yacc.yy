@@ -6747,7 +6747,7 @@ alter_list_item:
           }
         | FORCE_SYM
           {
-            Lex->alter_info.flags|= ALTER_FORCE;
+            Lex->alter_info.flags|= ALTER_RECREATE;
           }
         | alter_order_clause
           {
@@ -10920,19 +10920,6 @@ show_param:
               $4->change_db($5);
             if (prepare_schema_table(YYTHD, lex, $4, SCH_COLUMNS))
               MYSQL_YYABORT;
-          }
-        | NEW_SYM MASTER_SYM FOR_SYM SLAVE
-          WITH MASTER_LOG_FILE_SYM EQ
-          TEXT_STRING_sys /* $8 */
-          AND_SYM MASTER_LOG_POS_SYM EQ
-          ulonglong_num /* $12 */
-          AND_SYM MASTER_SERVER_ID_SYM EQ
-          ulong_num /* $16 */
-          {
-            Lex->sql_command = SQLCOM_SHOW_NEW_MASTER;
-            Lex->mi.log_file_name = $8.str;
-            Lex->mi.pos = $12;
-            Lex->mi.server_id = $16;
           }
         | master_or_binary LOGS_SYM
           {

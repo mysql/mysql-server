@@ -316,7 +316,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOGS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
@@ -2144,19 +2143,6 @@ case SQLCOM_PREPARE:
     goto error;
 #endif
     break;
-  }
-  case SQLCOM_SHOW_NEW_MASTER:
-  {
-    if (check_global_access(thd, REPL_SLAVE_ACL))
-      goto error;
-    /* This query don't work now. See comment in repl_failsafe.cc */
-#ifndef WORKING_NEW_MASTER
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "SHOW NEW MASTER");
-    goto error;
-#else
-    res = show_new_master(thd);
-    break;
-#endif
   }
 
 #ifdef HAVE_REPLICATION
@@ -4453,7 +4439,11 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         char buff[1024];
         String str(buff,(uint32) sizeof(buff), system_charset_info);
         str.length(0);
-        thd->lex->unit.print(&str, QT_ORDINARY);
+        /*
+          The warnings system requires input in utf8, @see
+          mysqld_show_warnings().
+        */
+        thd->lex->unit.print(&str, QT_TO_SYSTEM_CHARSET);
         str.append('\0');
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                      ER_YES, str.ptr());
