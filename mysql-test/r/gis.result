@@ -1076,6 +1076,7 @@ SPATIAL INDEX i1 (col1, col2)
 );
 ERROR HY000: Incorrect arguments to SPATIAL INDEX
 DROP TABLE t0, t1, t2;
+End of 5.5 tests
 DROP DATABASE IF EXISTS gis_ogs;
 CREATE DATABASE gis_ogs;
 USE gis_ogs;
