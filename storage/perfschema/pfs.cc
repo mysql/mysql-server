@@ -3803,7 +3803,7 @@ static void set_socket_address_v1(PSI_socket *socket,
 }
 
 static void set_socket_info_v1(PSI_socket *socket,
-                               uint *fd,
+                               my_socket *fd,
                                const struct sockaddr *addr,
                                socklen_t *addr_len)
 {

@@ -1321,9 +1321,9 @@ typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
     @param addr_len length of socket ip address
 */
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
-                                      uint *fd,
-                                      const struct sockaddr *addr,
-                                      socklen_t *addr_len);
+                                     my_socket *fd,
+                                     const struct sockaddr *addr,
+                                     socklen_t *addr_len);
 
 /**
   Performance Schema Interface, version 1.

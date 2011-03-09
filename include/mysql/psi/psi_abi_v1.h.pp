@@ -337,10 +337,12 @@ typedef void (*end_socket_wait_v1_t)
 typedef void (*set_socket_descriptor_v1_t)(struct PSI_socket *socket,
                                              uint fd);
 typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
-                                         const struct sockaddr * addr);
+                                        const struct sockaddr * addr,
+                                        socklen_t addr_len);
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
-                                      uint fd,
-                                      const struct sockaddr * addr);
+                                     my_socket *fd,
+                                     const struct sockaddr *addr,
+                                     socklen_t *addr_len);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
