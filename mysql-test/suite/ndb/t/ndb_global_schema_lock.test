@@ -40,9 +40,13 @@ TRUNCATE TABLE t2;
 --source ndb_schema_locks_count.inc
 
 --source ndb_init_schema_locks_count.inc
+CREATE TABLE t4 ENGINE=NDB AS SELECT * FROM t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
 DROP TABLE t2;
 --source ndb_schema_locks_count.inc
 
 --source ndb_init_schema_locks_count.inc
-DROP TABLE t3;
+DROP TABLE t3, t4;
 --source ndb_schema_locks_count.inc
