@@ -1201,7 +1201,7 @@ ndb_binlog_setup(THD *thd)
     return true; // Already setup -> OK
 
   Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (global_schema_lock_guard.lock())
+  if (global_schema_lock_guard.lock(false, false))
     return false;
   if (!ndb_schema_share &&
       ndbcluster_check_ndb_schema_share() == 0)
