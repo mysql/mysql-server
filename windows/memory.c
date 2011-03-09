@@ -9,60 +9,45 @@
 
 int toku_memory_check=0;
 
-typedef void *(*malloc_fun_t)(size_t);
-typedef void  (*free_fun_t)(void*);
-typedef void *(*realloc_fun_t)(void*,size_t);
-
 static malloc_fun_t  t_malloc  = 0;
+static malloc_fun_t  t_xmalloc = 0;
 static free_fun_t    t_free    = 0;
 static realloc_fun_t t_realloc = 0;
+static realloc_fun_t t_xrealloc = 0;
 
 void *toku_malloc(size_t size) {
-    void *p;
-    if (t_malloc)
-	p = t_malloc(size);
-    else
-	p = os_malloc(size);
+    void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     return p;
 }
 
 void *
-toku_calloc(size_t nmemb, size_t size)
-{
+toku_calloc(size_t nmemb, size_t size) {
     size_t newsize = nmemb * size;
-    void *vp = toku_malloc(newsize);
-    if (vp) memset(vp, 0, newsize);
-    return vp;
+    void *p = toku_malloc(newsize);
+    if (p) memset(p, 0, newsize);
+    return p;
 }
 
 void *
-toku_realloc(void *p, size_t size)
-{
-    void *q;
-    if (t_realloc)
-	q = t_realloc(p, size);
-    else
-	q = os_realloc(p, size);
+toku_realloc(void *p, size_t size) {
+    void *q = t_realloc ? t_realloc(p, size) : os_realloc(p, size);
     return q;
 }
 
 void *
-toku_memdup (const void *v, size_t len)
-{
-    void *r=toku_malloc(len);
-    if (r) memcpy(r,v,len);
-    return r;
+toku_memdup(const void *v, size_t len) {
+    void *p = toku_malloc(len);
+    if (p) memcpy(p, v,len);
+    return p;
 }
 
 char *
-toku_strdup (const char *s)
-{
+toku_strdup(const char *s) {
     return toku_memdup(s, strlen(s)+1);
 }
 
 void
-toku_free(void *p)
-{
+toku_free(void *p) {
     if (t_free)
 	t_free(p);
     else
@@ -70,22 +55,20 @@ toku_free(void *p)
 }
 
 void
-toku_free_n(void* p, size_t size __attribute__((unused)))
-{
+toku_free_n(void* p, size_t size __attribute__((unused))) {
     toku_free(p);
 }
 
 void *
 toku_xmalloc(size_t size) {
-    void *r = toku_malloc(size);
-    if (r == 0)  // avoid function call in common case
-      resource_assert(r);
-    return r;
+    void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
+    if (p == NULL)  // avoid function call in common case
+        resource_assert(p);
+    return p;
 }
 
 void *
-toku_xcalloc(size_t nmemb, size_t size)
-{
+toku_xcalloc(size_t nmemb, size_t size) {
     size_t newsize = nmemb * size;
     void *vp = toku_xmalloc(newsize);
     if (vp) memset(vp, 0, newsize);
@@ -93,42 +76,60 @@ toku_xcalloc(size_t nmemb, size_t size)
 }
 
 void *
-toku_xrealloc(void *v, size_t size)
-{
-    void *r = toku_realloc(v, size);
-    if (r == 0)  // avoid function call in common case
-      resource_assert(r);
-    return r;
+toku_xrealloc(void *v, size_t size) {
+    void *p = t_xrealloc ? t_xrealloc(v, size) : os_realloc(v, size);
+    if (p == 0)  // avoid function call in common case
+        resource_assert(p);
+    return p;
 }
 
 void *
-toku_xmemdup (const void *v, size_t len)
-{
-    void *r=toku_xmalloc(len);
-    memcpy(r,v,len);
-    return r;
+toku_xmemdup (const void *v, size_t len) {
+    void *p = toku_xmalloc(len);
+    memcpy(p, v, len);
+    return p;
 }
 
 char *
-toku_xstrdup (const char *s)
-{
+toku_xstrdup (const char *s) {
     return toku_xmemdup(s, strlen(s)+1);
 }
 
-int
+void
 toku_set_func_malloc(malloc_fun_t f) {
     t_malloc = f;
-    return 0;
+    t_xmalloc = f;
 }
 
-int
+void
+toku_set_func_xmalloc_only(malloc_fun_t f) {
+    t_xmalloc = f;
+}
+
+void
+toku_set_func_malloc_only(malloc_fun_t f) {
+    t_malloc = f;
+}
+
+void
 toku_set_func_realloc(realloc_fun_t f) {
     t_realloc = f;
-    return 0;
+    t_xrealloc = f;
 }
 
-int
+void
+toku_set_func_xrealloc_only(realloc_fun_t f) {
+    t_xrealloc = f;
+}
+
+void
+toku_set_func_realloc_only(realloc_fun_t f) {
+    t_realloc = f;
+
+}
+
+void
 toku_set_func_free(free_fun_t f) {
     t_free = f;
-    return 0;
 }
+

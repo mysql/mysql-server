@@ -95,8 +95,20 @@ extern int toku_realloc_counter;
 extern int toku_calloc_counter;
 extern int toku_free_counter;
 
+typedef void *(*malloc_fun_t)(size_t);
+typedef void  (*free_fun_t)(void*);
+typedef void *(*realloc_fun_t)(void*,size_t);
+
+void toku_set_func_malloc(malloc_fun_t f);
+void toku_set_func_xmalloc_only(malloc_fun_t f);
+void toku_set_func_malloc_only(malloc_fun_t f);
+void toku_set_func_realloc(realloc_fun_t f);
+void toku_set_func_xrealloc_only(realloc_fun_t f);
+void toku_set_func_realloc_only(realloc_fun_t f);
+void toku_set_func_free(free_fun_t f);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 #endif

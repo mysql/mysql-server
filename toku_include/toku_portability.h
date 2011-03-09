@@ -191,9 +191,6 @@ void toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time);
 // set a new fsync function (for debugging)
 int toku_set_func_fsync (int (*fsync_function)(int));
 
-int toku_set_func_malloc  (void *(*)(size_t));
-int toku_set_func_realloc (void *(*)(void*,size_t));
-int toku_set_func_free    (void (*)(void*));
 int toku_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
 int toku_set_func_full_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
 int toku_set_func_write (ssize_t (*)(int, const void *, size_t));
@@ -208,7 +205,7 @@ int toku_portability_init    (void);
 int toku_portability_destroy (void);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 #endif

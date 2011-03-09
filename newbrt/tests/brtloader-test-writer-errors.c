@@ -124,8 +124,8 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
 
-    toku_set_func_malloc(my_malloc);
-    toku_set_func_realloc(my_realloc);
+    toku_set_func_malloc_only(my_malloc);
+    toku_set_func_realloc_only(my_realloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
@@ -136,8 +136,8 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     // if (!(expect_error ? r != 0 : r == 0)) printf("WARNING%%d expect_error=%d r=%d\n", __LINE__, expect_error, r); 
     assert(expect_error ? r != 0 : r == 0);
 
-    toku_set_func_malloc(NULL);
-    toku_set_func_realloc(NULL);
+    toku_set_func_malloc_only(NULL);
+    toku_set_func_realloc_only(NULL);
     brtloader_set_os_fwrite(NULL);
     toku_set_func_write(NULL);
     toku_set_func_pwrite(NULL);
