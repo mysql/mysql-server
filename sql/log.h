@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef LOG_H
 #define LOG_H
@@ -303,7 +303,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs)= 0;
+                           const CHARSET_INFO *client_cs)= 0;
   virtual ~Log_event_handler() {}
 };
 
@@ -332,7 +332,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs);
+                           const CHARSET_INFO *client_cs);
 
   int activate_log(THD *thd, uint log_type);
 };
@@ -364,7 +364,7 @@ public:
                            uint user_host_len, int thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
-                           CHARSET_INFO *client_cs);
+                           const CHARSET_INFO *client_cs);
   void flush();
   void init_pthread_objects();
   MYSQL_QUERY_LOG *get_mysql_slow_log() { return &mysql_slow_log; }

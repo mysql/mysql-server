@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Delete of records tables.
@@ -475,7 +475,7 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 
 #define MEM_STRIP_BUF_SIZE current_thd->variables.sortbuff_size
 
-extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
+extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
 {
   handler *file= (handler*)arg;
   return file->cmp_ref((const uchar*)a, (const uchar*)b);

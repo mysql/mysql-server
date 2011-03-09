@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef THR_MALLOC_INCLUDED
 #define THR_MALLOC_INCLUDED
@@ -28,8 +28,8 @@ char *sql_strdup(const char *str);
 char *sql_strmake(const char *str, size_t len);
 void *sql_memdup(const void * ptr, size_t size);
 char *sql_strmake_with_convert(const char *str, size_t arg_length,
-			       CHARSET_INFO *from_cs,
+			       const CHARSET_INFO *from_cs,
 			       size_t max_res_length,
-			       CHARSET_INFO *to_cs, size_t *result_length);
+			       const CHARSET_INFO *to_cs, size_t *result_length);
 
 #endif /* THR_MALLOC_INCLUDED */
