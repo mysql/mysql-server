@@ -820,3 +820,5 @@ CREATE TABLE t3 (
 # cleanup
 DROP TABLE t0, t1, t2;
 
+
+--echo End of 5.5 tests
