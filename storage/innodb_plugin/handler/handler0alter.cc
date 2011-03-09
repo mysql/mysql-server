@@ -782,10 +782,6 @@ err_exit:
 
 	ut_ad(error == DB_SUCCESS);
 
-	/* We will need to rebuild index translation table. Set
-	valid index entry count in the translation table to zero */
-	share->idx_trans_tbl.index_count = 0;
-
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
 	MySQL crashes while creating a new primary key inside
@@ -911,6 +907,14 @@ error:
 		}
 
 convert_error:
+		if (error == DB_SUCCESS) {
+			/* Build index is successful. We will need to
+			rebuild index translation table.  Reset the
+			index entry count in the translation table
+			to zero, so that translation table will be rebuilt */
+			share->idx_trans_tbl.index_count = 0;
+		}
+
 		error = convert_error_code_to_mysql(error,
 						    innodb_table->flags,
 						    user_thd);
