@@ -2700,6 +2700,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_KEY_NOT_FOUND:
   case HA_ERR_NO_ACTIVE_RECORD:
+  case HA_ERR_RECORD_DELETED:
   case HA_ERR_END_OF_FILE:
     textno=ER_KEY_NOT_FOUND;
     break;
@@ -3213,9 +3214,13 @@ int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 
   mark_trx_read_write();
 
-  if ((result= repair(thd, check_opt)))
-    return result;
-  return update_frm_version(table);
+  result= repair(thd, check_opt);
+  DBUG_ASSERT(result == HA_ADMIN_NOT_IMPLEMENTED ||
+              ha_table_flags() & HA_CAN_REPAIR);
+
+  if (result == HA_ADMIN_OK)
+    result= update_frm_version(table);
+  return result;
 }
 
 

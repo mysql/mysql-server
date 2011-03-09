@@ -153,5 +153,15 @@ SET DEBUG_SYNC= "now SIGNAL query";
 a	b
 # Test 4: Secondary unique index, should not block reads.
 # Connection default
+SET DEBUG_SYNC= "alter_table_manage_keys SIGNAL manage WAIT_FOR query";
+# Sending:
+ALTER TABLE t1 ADD UNIQUE (b);
+# Connection con1
+SET DEBUG_SYNC= "now WAIT_FOR manage";
+SELECT * FROM t1;
+a	b
+SET DEBUG_SYNC= "now SIGNAL query";
+# Connection default
+# Reaping: ALTER TABLE t1 ADD UNIQUE (b)
 SET DEBUG_SYNC= "RESET";
 DROP TABLE t1;
