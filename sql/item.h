@@ -609,6 +609,12 @@ public:
   virtual enum_field_types string_field_type() const;
   virtual enum_field_types field_type() const;
   virtual enum Type type() const =0;
+  /*
+    real_type() is the type of base item.  This is same as type() for
+    most items, except Item_ref() and Item_cache_wrapper() where it
+    shows the type for the underlaying item.
+  */
+  virtual enum Type real_type() const { return type(); }
   
   /*
     Return information about function monotonicity. See comment for
@@ -1185,7 +1191,6 @@ public:
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 
   Item* set_expr_cache(THD *thd, List<Item*> &depends_on);
-  virtual Item *get_cached_item() { return NULL; }
 };
 
 
@@ -2437,6 +2442,8 @@ public:
   Item_ref(THD *thd, Item_ref *item)
     :Item_ident(thd, item), result_field(item->result_field), ref(item->ref) {}
   enum Type type() const		{ return REF_ITEM; }
+  enum Type real_type() const           { return ref ? (*ref)->type() :
+                                          REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const
   { 
     Item *it= ((Item *) item)->real_item();
@@ -2628,7 +2635,7 @@ public:
 
   const char *func_name() const { return "<expr_cache>"; }
   enum Type type() const { return EXPR_CACHE_ITEM; }
-  virtual Item *get_cached_item() { return orig_item; }
+  enum Type real_type() const { return orig_item->type(); }
 
   bool set_cache(THD *thd, List<Item*> &depends_on);
 

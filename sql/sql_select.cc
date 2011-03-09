@@ -12055,9 +12055,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       {
         if (item->used_tables() & OUTER_REF_TABLE_BIT)
           item->update_used_tables();
-        if (type == Item::SUBSELECT_ITEM ||
-            (item->get_cached_item() &&
-             item->get_cached_item()->type() == Item::SUBSELECT_ITEM ) ||
+        if ((item->real_type() == Item::SUBSELECT_ITEM) ||
             (item->used_tables() & ~OUTER_REF_TABLE_BIT))
         {
 	  /*
@@ -17989,9 +17987,7 @@ setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
       }
     }
     else if ((real_pos->type() == Item::FUNC_ITEM ||
-	      real_pos->type() == Item::SUBSELECT_ITEM ||
-              (real_pos->get_cached_item() &&
-               real_pos->get_cached_item()->type() == Item::SUBSELECT_ITEM) ||
+	      real_pos->real_type() == Item::SUBSELECT_ITEM ||
 	      real_pos->type() == Item::CACHE_ITEM ||
 	      real_pos->type() == Item::COND_ITEM) &&
 	     !real_pos->with_sum_func)

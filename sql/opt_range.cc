@@ -11707,9 +11707,7 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     the MIN/MAX argument field, and disallow the optimization only if this is
     so.
   */
-  if (cond_type == Item::SUBSELECT_ITEM ||
-      (cond->get_cached_item() &&
-       cond->get_cached_item()->type() == Item::SUBSELECT_ITEM))
+  if (cond->real_type() == Item::SUBSELECT_ITEM)
     DBUG_RETURN(FALSE);
 
   /*

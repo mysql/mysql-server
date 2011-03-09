@@ -3003,10 +3003,7 @@ bool uses_only_table_name_fields(Item *item, TABLE_LIST *table)
   else if (item->type() == Item::REF_ITEM)
     return uses_only_table_name_fields(item->real_item(), table);
 
-  if ((item->type() == Item::SUBSELECT_ITEM ||
-      (item->get_cached_item() &&
-       item->get_cached_item()->type() == Item::SUBSELECT_ITEM))
-      && !item->const_item())
+  if (item->real_type() == Item::SUBSELECT_ITEM && !item->const_item())
     return 0;
 
   return 1;
