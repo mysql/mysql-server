@@ -1015,6 +1015,8 @@ innobase_start_or_create_for_mysql(void)
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1628,12 +1630,12 @@ innobase_start_or_create_for_mysql(void)
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		dict_create();
 
@@ -1657,12 +1659,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1720,12 +1722,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
