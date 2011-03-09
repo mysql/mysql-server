@@ -889,21 +889,20 @@ inline bool st_select_lex_unit::is_union ()
 #define ALTER_CHANGE_COLUMN_DEFAULT (1L << 8)
 #define ALTER_KEYS_ONOFF        (1L << 9)
 #define ALTER_CONVERT           (1L << 10)
-#define ALTER_FORCE		(1L << 11)
-#define ALTER_RECREATE          (1L << 12)
-#define ALTER_ADD_PARTITION     (1L << 13)
-#define ALTER_DROP_PARTITION    (1L << 14)
-#define ALTER_COALESCE_PARTITION (1L << 15)
-#define ALTER_REORGANIZE_PARTITION (1L << 16) 
-#define ALTER_PARTITION          (1L << 17)
-#define ALTER_ADMIN_PARTITION    (1L << 18)
-#define ALTER_TABLE_REORG        (1L << 19)
-#define ALTER_REBUILD_PARTITION  (1L << 20)
-#define ALTER_ALL_PARTITION      (1L << 21)
-#define ALTER_REMOVE_PARTITIONING (1L << 22)
-#define ALTER_FOREIGN_KEY        (1L << 23)
-#define ALTER_EXCHANGE_PARTITION (1L << 24)
-#define ALTER_TRUNCATE_PARTITION (1L << 25)
+#define ALTER_RECREATE          (1L << 11)
+#define ALTER_ADD_PARTITION     (1L << 12)
+#define ALTER_DROP_PARTITION    (1L << 13)
+#define ALTER_COALESCE_PARTITION (1L << 14)
+#define ALTER_REORGANIZE_PARTITION (1L << 15) 
+#define ALTER_PARTITION          (1L << 16)
+#define ALTER_ADMIN_PARTITION    (1L << 17)
+#define ALTER_TABLE_REORG        (1L << 18)
+#define ALTER_REBUILD_PARTITION  (1L << 19)
+#define ALTER_ALL_PARTITION      (1L << 20)
+#define ALTER_REMOVE_PARTITIONING (1L << 21)
+#define ALTER_FOREIGN_KEY        (1L << 22)
+#define ALTER_EXCHANGE_PARTITION (1L << 23)
+#define ALTER_TRUNCATE_PARTITION (1L << 24)
 
 enum enum_alter_table_change_level
 {
@@ -1893,7 +1892,7 @@ public:
   void body_utf8_append(const char *ptr, const char *end_ptr);
   void body_utf8_append_literal(THD *thd,
                                 const LEX_STRING *txt,
-                                CHARSET_INFO *txt_cs,
+                                const CHARSET_INFO *txt_cs,
                                 const char *end_ptr);
 
   /** Current thread. */
@@ -2066,7 +2065,7 @@ struct LEX: public Query_tables_list
   DYNAMIC_ARRAY plugins;
   plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
 
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   bool text_string_is_7bit;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
@@ -2582,7 +2581,7 @@ extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
 extern int MYSQLlex(void *arg, void *yythd);
 
-extern void trim_whitespace(CHARSET_INFO *cs, LEX_STRING *str);
+extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 
 extern bool is_lex_native_function(const LEX_STRING *name);
 

@@ -153,6 +153,12 @@
     ordered.
 */
 #define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
+/*
+  Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
+  incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
+  will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
+*/
+#define HA_CAN_REPAIR                    (LL(1) << 37)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -992,7 +998,7 @@ enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
-  CHARSET_INFO *table_charset, *default_table_charset;
+  const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;
   LEX_STRING comment;
@@ -2337,7 +2343,10 @@ private:
      upon the table.
   */
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  {
+    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+    return HA_ADMIN_NOT_IMPLEMENTED;
+  }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
 protected:
