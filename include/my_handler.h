@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -11,9 +11,8 @@
    Library General Public License for more details.
 
    You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef _my_handler_h
 #define _my_handler_h
@@ -49,7 +48,7 @@ extern "C" {
 
 typedef struct st_HA_KEYSEG		/* Key-portion */
 {
-  CHARSET_INFO *charset;
+  const CHARSET_INFO *charset;
   uint32 start;				/* Start of key in record */
   uint32 null_pos;			/* position to NULL indicator */
   uint16 bit_pos;                       /* Position to bit part */
@@ -108,8 +107,8 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
-extern int ha_compare_text(CHARSET_INFO *, uchar *, uint, uchar *, uint ,
-			   my_bool, my_bool);
+extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *,
+                           uint, my_bool, my_bool);
 extern int ha_key_cmp(register HA_KEYSEG *keyseg, register uchar *a,
 		      register uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);

@@ -104,7 +104,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
-                                          CHARSET_INFO *cs,
+                                          const CHARSET_INFO *cs,
                                           bool use_hex);
 #endif
 
@@ -2184,7 +2184,7 @@ static bool show_status_array(THD *thd, const char *wild,
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool res= FALSE;
-  CHARSET_INFO *charset= system_charset_info;
+  const CHARSET_INFO *charset= system_charset_info;
   DBUG_ENTER("show_status_array");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
@@ -3706,7 +3706,7 @@ err:
 
 
 bool store_schema_shemata(THD* thd, TABLE *table, LEX_STRING *db_name,
-                          CHARSET_INFO *cs)
+                          const CHARSET_INFO *cs)
 {
   restore_record(table, s->default_values);
   table->field[0]->store(STRING_WITH_LEN("def"), system_charset_info);
@@ -5406,7 +5406,7 @@ int get_cs_converted_part_value_from_string(THD *thd,
                                             Item *item,
                                             String *input_str,
                                             String *output_str,
-                                            CHARSET_INFO *cs,
+                                            const CHARSET_INFO *cs,
                                             bool use_hex)
 {
   if (item->result_type() == INT_RESULT)
@@ -7607,7 +7607,7 @@ static bool show_create_trigger_impl(THD *thd,
   LEX_STRING trg_connection_cl_name;
   LEX_STRING trg_db_cl_name;
 
-  CHARSET_INFO *trg_client_cs;
+  const CHARSET_INFO *trg_client_cs;
 
   /*
     TODO: Check privileges here. This functionality will be added by
@@ -7936,7 +7936,7 @@ void initialize_information_schema_acl()
 static void get_cs_converted_string_value(THD *thd,
                                           String *input_str,
                                           String *output_str,
-                                          CHARSET_INFO *cs,
+                                          const CHARSET_INFO *cs,
                                           bool use_hex)
 {
 

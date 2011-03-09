@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <m_ctype.h>
@@ -821,7 +821,7 @@ my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
   Check repertoire: detect pure ascii strings
 */
 uint
-my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
+my_string_repertoire(const CHARSET_INFO *cs, const char *str, ulong length)
 {
   const char *strend= str + length;
   if (cs->mbminlen == 1)
@@ -851,7 +851,7 @@ my_string_repertoire(CHARSET_INFO *cs, const char *str, ulong length)
 /*
   Returns repertoire for charset
 */
-uint my_charset_repertoire(CHARSET_INFO *cs)
+uint my_charset_repertoire(const CHARSET_INFO *cs)
 {
   return cs->state & MY_CS_PUREASCII ?
     MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
@@ -885,7 +885,7 @@ uint my_charset_repertoire(CHARSET_INFO *cs)
   to introduce new tricky character sets between 5.0 and 5.2.
 */
 my_bool
-my_charset_is_ascii_based(CHARSET_INFO *cs)
+my_charset_is_ascii_based(const CHARSET_INFO *cs)
 {
   return 
     (cs->mbmaxlen == 1 && cs->tab_to_uni && cs->tab_to_uni['{'] == '{') ||
@@ -901,7 +901,7 @@ my_charset_is_ascii_based(CHARSET_INFO *cs)
   and dynamic charsets loader in "mysqld".
 */
 my_bool
-my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
+my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs)
 {
   size_t code;
   if (!cs->tab_to_uni)
@@ -921,7 +921,7 @@ my_charset_is_8bit_pure_ascii(CHARSET_INFO *cs)
   ascii on the range 0x00..0x7F.
 */
 my_bool
-my_charset_is_ascii_compatible(CHARSET_INFO *cs)
+my_charset_is_ascii_compatible(const CHARSET_INFO *cs)
 {
   uint i;
   if (!cs->tab_to_uni)
@@ -951,9 +951,10 @@ my_charset_is_ascii_compatible(CHARSET_INFO *cs)
 */
 
 static uint32
-my_convert_internal(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-                    const char *from, uint32 from_length,CHARSET_INFO *from_cs,
-                    uint *errors)
+my_convert_internal(char *to, uint32 to_length,
+                    const CHARSET_INFO *to_cs,
+                    const char *from, uint32 from_length,
+                    const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;
@@ -1021,9 +1022,9 @@ outp:
 */
 
 uint32
-my_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs, 
-           const char *from, uint32 from_length, CHARSET_INFO *from_cs,
-           uint *errors)
+my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
+           const char *from, uint32 from_length,
+           const CHARSET_INFO *from_cs, uint *errors)
 {
   uint32 length, length2;
   /*
