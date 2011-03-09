@@ -1578,9 +1578,10 @@ drop database mysqltest1;
 #
 # Bug#21432 Database/Table name limited to 64 bytes, not chars, problems with multi-byte
 #
+--character_set utf8
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;
---exec $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
+--execw $MYSQL --default-character-set=utf8 --user=юзер_юзер -e "select user()"
 revoke all on test.* from юзер_юзер@localhost;
 drop user юзер_юзер@localhost;
 --error ER_WRONG_STRING_LENGTH

@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"
@@ -354,7 +354,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_VARIABLES]=   CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_CHARSETS]=    CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SHOW_COLLATIONS]=  CF_STATUS_COMMAND | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_SHOW_NEW_MASTER]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOGS]=     CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
@@ -2187,14 +2186,6 @@ case SQLCOM_PREPARE:
 #endif
     break;
   }
-  case SQLCOM_SHOW_NEW_MASTER:
-  {
-    if (check_global_access(thd, REPL_SLAVE_ACL))
-      goto error;
-    /* This query don't work now.*/
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "SHOW NEW MASTER");
-    goto error;
-  }
 
 #ifdef HAVE_REPLICATION
   case SQLCOM_SHOW_SLAVE_HOSTS:
@@ -2427,7 +2418,7 @@ case SQLCOM_PREPARE:
       if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
       {
         /* The table already exists */
-        if (create_table->table)
+        if (create_table->table || create_table->view)
         {
           if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
@@ -2451,6 +2442,17 @@ case SQLCOM_PREPARE:
           statements like "CREATE TABLE IF NOT EXISTS existing_view SELECT".
         */
         lex->unlink_first_table(&link_to_local);
+
+        /* Updating any other table is prohibited in CTS statement */
+        for (TABLE_LIST *table= lex->query_tables; table;
+             table= table->next_global)
+          if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+          {
+            res= 1;
+            my_error(ER_CANT_UPDATE_TABLE_IN_CREATE_TABLE_SELECT, MYF(0),
+                     table->table_name, create_info.alias);
+            goto end_with_restore_list;
+          }
 
         /* So that CREATE TEMPORARY TABLE gets to binlog at commit/rollback */
         if (create_info.options & HA_LEX_CREATE_TMP_TABLE)
@@ -4493,7 +4495,11 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         char buff[1024];
         String str(buff,(uint32) sizeof(buff), system_charset_info);
         str.length(0);
-        thd->lex->unit.print(&str, QT_ORDINARY);
+        /*
+          The warnings system requires input in utf8, @see
+          mysqld_show_warnings().
+        */
+        thd->lex->unit.print(&str, QT_TO_SYSTEM_CHARSET);
         str.append('\0');
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                      ER_YES, str.ptr());
@@ -5774,6 +5780,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 					     thr_lock_type lock_type,
 					     enum_mdl_type mdl_type,
 					     List<Index_hint> *index_hints_arg,
+                                             List<String> *partition_names,
                                              LEX_STRING *option)
 {
   register TABLE_LIST *ptr;
@@ -5918,6 +5925,9 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   */
   table_list.link_in_list(ptr, &ptr->next_local);
   ptr->next_name_resolution_table= NULL;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  ptr->partition_names= partition_names;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
   ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,

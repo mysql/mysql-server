@@ -72,7 +72,10 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache);
 void flush_thread_cache();
 void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
-int init_thread_environment();
+
+// These are needed for unit testing.
+void set_remaining_args(int argc, char **argv);
+int init_common_variables();
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
@@ -411,16 +414,16 @@ enum options_mysqld
 
 
 /**
-  Query type constants.
-
-  QT_ORDINARY -- ordinary SQL query.
-  QT_IS -- SQL query to be shown in INFORMATION_SCHEMA (in utf8 and without
-  character set introducers).
+   Query type constants (usable as bitmap flags).
 */
 enum enum_query_type
 {
-  QT_ORDINARY,
-  QT_IS
+  /// Nothing specific, ordinary SQL query.
+  QT_ORDINARY= 0,
+  /// In utf8.
+  QT_TO_SYSTEM_CHARSET= (1 << 0),
+  /// Without character set introducers.
+  QT_WITHOUT_INTRODUCERS= (1 << 1)
 };
 
 /* query_id */

@@ -1015,6 +1015,8 @@ innobase_start_or_create_for_mysql(void)
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1082,6 +1084,12 @@ innobase_start_or_create_for_mysql(void)
 		" InnoDB: Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG\n");
 # endif
 #endif
+
+#ifdef UNIV_BLOB_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
+#endif /* UNIV_BLOB_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_print_timestamp(stderr);
@@ -1622,12 +1630,12 @@ innobase_start_or_create_for_mysql(void)
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		dict_create();
 
@@ -1651,12 +1659,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1714,12 +1722,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
@@ -1984,7 +1992,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Check that os_fast_mutexes work as expected */
-	os_fast_mutex_init(&srv_os_test_mutex);
+	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
 
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
 		ut_print_timestamp(stderr);

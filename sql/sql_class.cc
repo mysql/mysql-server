@@ -929,8 +929,7 @@ extern "C"   THD *_current_thd_noinline(void)
 void THD::init(void)
 {
   mysql_mutex_lock(&LOCK_global_system_variables);
-  if (m_enable_plugins)
-    plugin_thdvar_init(this);
+  plugin_thdvar_init(this, m_enable_plugins);
   /*
     variables= global_system_variables above has reset
     variables.pseudo_thread_id to 0. We need to correct it here to
