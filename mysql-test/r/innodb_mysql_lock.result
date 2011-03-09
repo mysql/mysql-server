@@ -148,3 +148,25 @@ COMMIT;
 # Connection default
 DROP TABLE t1, t2;
 DROP VIEW v1;
+#
+# Bug#11815600 [ERROR] INNODB COULD NOT FIND INDEX PRIMARY
+#              KEY NO 0 FOR TABLE IN ERROR LOG 
+#
+DROP TABLE IF EXISTS t1;
+# Connection default
+CREATE TABLE t1 (id INT PRIMARY KEY, value INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 12345);
+START TRANSACTION;
+SELECT * FROM t1;
+id	value
+1	12345
+# Connection con1
+SET lock_wait_timeout=1;
+ALTER TABLE t1 ADD INDEX idx(value);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+SELECT * FROM t1;
+id	value
+1	12345
+COMMIT;
+DROP TABLE t1;
