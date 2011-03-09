@@ -1255,6 +1255,7 @@ public:
   const uchar *unpack(uchar* to, const uchar *from, uint param_data,
                       bool low_byte_first)
   { return Field::unpack(to, from, param_data, low_byte_first); }
+  uint size_of() const { return sizeof(*this); }
 };
 
 
@@ -1419,6 +1420,7 @@ public:
   uint32 pack_length() const;
   void sql_type(String &str) const;
   void make_field(Send_field *);
+  uint size_of() const { return sizeof(*this); }
 };
 
 class Field_datetime :public Field_temporal {
@@ -1494,6 +1496,7 @@ public:
   const uchar *unpack(uchar* to, const uchar *from, uint param_data,
                       bool low_byte_first)
   { return Field::unpack(to, from, param_data, low_byte_first); }
+  uint size_of() const { return sizeof(*this); }
 };
 
 static inline Field_timestamp *
