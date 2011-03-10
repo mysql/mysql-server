@@ -303,7 +303,7 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
 
 #ifdef HAVE_PSI_INTERFACE
   #define mysql_socket_accept(K, FD, A, LP) \
-    inline_mysql_socket_accept(K, __FILE__, __LINE__, FD, A, LP)
+    inline_mysql_socket_accept(K, /*__FILE__, __LINE__,*/ FD, A, LP)
 #else
   #define mysql_socket_accept(FD, A, LP) \
     inline_mysql_socket_accept(FD, A, LP)
@@ -785,7 +785,7 @@ static inline MYSQL_SOCKET
 inline_mysql_socket_accept
 (
 #ifdef HAVE_PSI_INTERFACE
-  PSI_socket_key key, const char *src_file, uint src_line,
+  PSI_socket_key key, //const char *src_file, uint src_line,
 #endif
   MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len)
 {
@@ -797,6 +797,7 @@ inline_mysql_socket_accept
   #ifdef HAVE_PSI_INTERFACE
   socket_accept.m_psi = PSI_server ?
           PSI_server->init_socket(key, (const void *)&socket_accept.fd) : NULL;
+
   if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
              && socket_accept.fd != -1))
     PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
