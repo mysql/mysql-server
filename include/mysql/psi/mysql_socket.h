@@ -790,30 +790,17 @@ inline_mysql_socket_accept
   MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len)
 {
   MYSQL_SOCKET socket_accept = {0, NULL};
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  socket_accept.m_psi = PSI_server ? PSI_server->init_socket(key, NULL) // TBD: Doc this
-                                   : NULL;
-  if (likely(PSI_server != NULL && socket_accept.m_psi != NULL))
-  {
-    locker= PSI_server->get_thread_socket_locker(&state, socket_accept.m_psi, PSI_SOCKET_CONNECT);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-  }
-#endif
 
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
 
-#ifdef HAVE_PSI_INTERFACE
-  /** Set socket address info */
+  /** Initialize the instrument with the new socket descriptor and address */
+  #ifdef HAVE_PSI_INTERFACE
+  socket_accept.m_psi = PSI_server ?
+          PSI_server->init_socket(key, (const void *)&socket_accept.fd) : NULL;
   if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
-      && socket_accept.fd != -1))
+             && socket_accept.fd != -1))
     PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
                                 addr, addr_len);
-  if (likely(locker != NULL))
-    PSI_server->end_socket_wait(locker, (size_t)0);
 #endif
   return socket_accept;
 }

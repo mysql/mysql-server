@@ -96,6 +96,11 @@ struct PFS_byte_stat
     m_bytes+= stat->m_bytes;
   }
 
+  PFS_byte_stat()
+  {
+    reset();
+  }
+
   inline void reset(void)
   {
     m_waits.reset();

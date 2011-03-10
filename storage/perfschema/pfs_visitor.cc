@@ -516,8 +516,7 @@ void PFS_table_lock_stat_visitor::visit_table(PFS_table *pfs)
 /** Socket IO stat visitor */
 
 PFS_instance_socket_io_stat_visitor::PFS_instance_socket_io_stat_visitor()
-{
-}
+{}
 
 PFS_instance_socket_io_stat_visitor::~PFS_instance_socket_io_stat_visitor()
 {}
