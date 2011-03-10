@@ -19,13 +19,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>${versionNumber}</version>
+    <version>7.1.12-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>clusterj</groupId>
   <artifactId>clusterj-jdbc</artifactId>
   <name>ClusterJ JDBC Plugin</name>
-  <version>${versionNumber}</version>
+  <version>7.1.12-SNAPSHOT</version>
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
