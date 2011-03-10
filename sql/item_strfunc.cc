@@ -2075,7 +2075,7 @@ void Item_func_decode::crypto_transform(String *res)
 }
 
 
-Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
