@@ -125,6 +125,9 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
     }
     
     r = txn->commit(txn, 0); assert(r == 0);
+    struct timeval tnow;
+    r = gettimeofday(&tnow, NULL); assert(r == 0);
+    printf("total %.3f %.0f/s\n", tdiff(&tnow, &tstart), nrows/tdiff(&tnow, &tstart)); fflush(stdout);
 }
 
 int main(int argc, char *argv[]) {
