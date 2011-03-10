@@ -947,12 +947,12 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
 /* implemented in my_conio.c */
 my_bool my_win_is_console(FILE *file);
-char *my_win_console_readline(CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
-void my_win_console_write(CHARSET_INFO *cs, const char *data, size_t datalen);
-void my_win_console_fputs(CHARSET_INFO *cs, const char *data);
-void my_win_console_putc(CHARSET_INFO *cs, int c);
-void my_win_console_vfprintf(CHARSET_INFO *cs, const char *fmt, va_list args);
-int my_win_translate_command_line_args(CHARSET_INFO *cs, int *ac, char ***av);
+char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
+void my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen);
+void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
+void my_win_console_putc(const CHARSET_INFO *cs, int c);
+void my_win_console_vfprintf(const CHARSET_INFO *cs, const char *fmt, va_list args);
+int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***av);
 #endif /* __WIN__ */
 
 #include <mysql/psi/psi.h>
