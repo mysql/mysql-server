@@ -18,13 +18,13 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <properties>
-    <versionNumber>7.1.12-SNAPSHOT</versionNumber>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-aggregate</artifactId>
   <packaging>pom</packaging>
-  <version>${versionNumber}</version>
+  <version>7.1.12-SNAPSHOT</version>
   <name>ClusterJ Aggregate</name>
   <description>The aggregate maven project of ClusterJ</description>
   <modules>
@@ -36,6 +36,25 @@
     <module>clusterj-jpatest</module>
     <module>clusterj-openjpa</module>
   </modules>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>1.0</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>2.3.2</version>
+        </plugin>
+        <plugin>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.7.2</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
   <dependencyManagement>
     <dependencies>
     <dependency>
@@ -63,32 +82,32 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>${versionNumber}</version>
+      <version>7.1.12-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-core</artifactId>
-      <version>${versionNumber}</version>
+      <version>7.1.12-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-test</artifactId>
-      <version>${versionNumber}</version>
+      <version>7.1.12-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-tie</artifactId>
-      <version>${versionNumber}</version>
+      <version>7.1.12-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-jpatest</artifactId>
-      <version>${versionNumber}</version>
+      <version>7.1.12-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>ndbjtie</groupId>
       <artifactId>ndbjtie</artifactId>
-      <version>${versionNumber}</version>
+      <version>7.1.12-SNAPSHOT</version>
     </dependency>
     </dependencies>
   </dependencyManagement>
