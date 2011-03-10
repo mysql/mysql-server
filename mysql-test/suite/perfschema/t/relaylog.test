@@ -44,7 +44,7 @@ select * from performance_schema.file_summary_by_instance
 select * from performance_schema.file_summary_by_instance
   where file_name like "%slave-%" order by file_name;
 
-# Expect a master binlog + binlog_index
+-- echo "Expect a master binlog + binlog_index"
 
 --replace_result $MYSQLD_DATADIR [DATADIR]
 select * from performance_schema.file_summary_by_instance
@@ -57,7 +57,7 @@ select event_name, count_star
   from performance_schema.events_waits_summary_global_by_event_name
   where event_name like "%MYSQL_BIN_LOG%" order by event_name;
 
-# Expect no slave relay log.
+-- echo "Expect no slave relay log"
 
 --replace_result $MYSQLD_DATADIR [DATADIR]
 select * from performance_schema.file_summary_by_instance
@@ -82,7 +82,7 @@ select * from performance_schema.file_summary_by_instance
 select * from performance_schema.file_summary_by_instance
   where file_name like "%slave-%" order by file_name;
 
-# Expect a slave binlog + binlog_index
+-- echo "Expect a slave binlog + binlog_index"
 
 --replace_result $MYSQLD_DATADIR [DATADIR]
 select * from performance_schema.file_summary_by_instance
@@ -95,7 +95,7 @@ select event_name, count_star
   from performance_schema.events_waits_summary_global_by_event_name
   where event_name like "%MYSQL_BIN_LOG%" order by event_name;
 
-# Expect a slave relay log.
+-- echo "Expect a slave relay log"
 
 --replace_result $MYSQLD_DATADIR [DATADIR]
 select * from performance_schema.file_summary_by_instance
