@@ -1091,7 +1091,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   param.thd= thd;
   param.op_name= "check";
   param.db_name= table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= check_opt->flags | T_CHECK | T_SILENT;
   param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
 
@@ -1101,8 +1101,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
 
   if (!maria_is_crashed(file) &&
       (((param.testflag & T_CHECK_ONLY_CHANGED) &&
-        !(share->state.changed & (STATE_CHANGED | STATE_CRASHED |
-                                  STATE_CRASHED_ON_REPAIR |
+        !(share->state.changed & (STATE_CHANGED | STATE_CRASHED_FLAGS |
                                   STATE_IN_REPAIR)) &&
         share->state.open_count == 0) ||
        ((param.testflag & T_FAST) && (share->state.open_count ==
@@ -1140,15 +1139,15 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   if (!error)
   {
     if ((share->state.changed & (STATE_CHANGED |
-                                 STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR |
-                                 STATE_CRASHED | STATE_NOT_ANALYZED)) ||
+                                 STATE_CRASHED_FLAGS |
+                                 STATE_IN_REPAIR | STATE_NOT_ANALYZED)) ||
         (param.testflag & T_STATISTICS) || maria_is_crashed(file))
     {
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
       pthread_mutex_lock(&share->intern_lock);
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
         error= maria_update_state_info(&param, file,
                                        UPDATE_TIME | UPDATE_OPEN_COUNT |
@@ -1190,7 +1189,7 @@ int ha_maria::analyze(THD *thd, HA_CHECK_OPT * check_opt)
   param.thd= thd;
   param.op_name= "analyze";
   param.db_name= table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache= 1;
@@ -1485,7 +1484,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     _ma_copy_nontrans_state_information(file);
 
   param->db_name= table->s->db.str;
-  param->table_name= table->alias;
+  param->table_name= table->alias.c_ptr();
   param->tmpfile_createflag= O_RDWR | O_TRUNC;
   param->using_global_keycache= 1;
   param->thd= thd;
@@ -1580,8 +1579,8 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
     if ((share->state.changed & STATE_CHANGED) || maria_is_crashed(file))
     {
       DBUG_PRINT("info", ("Reseting crashed state"));
-      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED |
-                               STATE_CRASHED_ON_REPAIR | STATE_IN_REPAIR);
+      share->state.changed&= ~(STATE_CHANGED | STATE_CRASHED_FLAGS |
+                               STATE_IN_REPAIR);
       file->update |= HA_STATE_CHANGED | HA_STATE_ROW_CHANGED;
     }
     /*
@@ -1605,7 +1604,7 @@ int ha_maria::repair(THD *thd, HA_CHECK *param, bool do_optimize)
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
       /* Abort if warning was converted to error */
-      if (current_thd->is_error())
+      if (table->in_use->is_error())
         error= 1;
     }
   }
@@ -1840,7 +1839,7 @@ int ha_maria::enable_indexes(uint mode)
   }
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
-    THD *thd= current_thd;
+    THD *thd= table->in_use;
     HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
     if (!&param)
       return HA_ADMIN_INTERNAL_ERROR;
@@ -1942,7 +1941,7 @@ int ha_maria::indexes_are_disabled(void)
 void ha_maria::start_bulk_insert(ha_rows rows)
 {
   DBUG_ENTER("ha_maria::start_bulk_insert");
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   ulong size= min(thd->variables.read_buff_size,
                   (ulong) (table->s->avg_row_length * rows));
   MARIA_SHARE *share= file->s;
@@ -2061,8 +2060,7 @@ bool ha_maria::check_and_repair(THD *thd)
   check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
 
   error= 1;
-  if ((file->s->state.changed &
-       (STATE_CRASHED | STATE_CRASHED_ON_REPAIR | STATE_MOVED)) ==
+  if ((file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED)) ==
       STATE_MOVED)
   {
     sql_print_information("Zerofilling moved table:  '%s'",
@@ -2113,7 +2111,7 @@ bool ha_maria::check_and_repair(THD *thd)
 
 bool ha_maria::is_crashed() const
 {
-  return (file->s->state.changed & (STATE_CRASHED | STATE_MOVED) ||
+  return (file->s->state.changed & (STATE_CRASHED_FLAGS | STATE_MOVED) ||
           (my_disable_locking && file->s->state.open_count));
 }
 
@@ -2414,7 +2412,7 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
-  THD *thd= current_thd;
+  THD *thd= table->in_use;
   (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
                                  (uchar*) thd->query(), thd->query_length());
   if (file->s->now_transactional &&
@@ -2444,8 +2442,9 @@ int ha_maria::delete_table(const char *name)
 
 void ha_maria::drop_table(const char *name)
 {
+  DBUG_ASSERT(file->s->temporary);
   (void) close();
-  (void) maria_delete_table(name);
+  (void) maria_delete_table_files(name, 0);
 }
 
 
@@ -2540,6 +2539,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       {
         DBUG_PRINT("info",
                    ("locked_tables: %u", trnman_has_locked_tables(trn)));
+        DBUG_ASSERT(trnman_has_locked_tables(trn) > 0);
         if (trnman_has_locked_tables(trn) &&
             !trnman_decrement_locked_tables(trn))
         {
@@ -2673,12 +2673,12 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
       statement assuming they have a trn (see ha_maria::start_stmt()).
     */
     trn= trnman_new_trn(& thd->transaction.wt);
-    /* This is just a commit, tables stay locked if they were: */
-    trnman_reset_locked_tables(trn, locked_tables);
     THD_TRN= trn;
     if (unlikely(trn == NULL))
+    {
       error= HA_ERR_OUT_OF_MEM;
-
+      goto end;
+    }
     /*
       Move all locked tables to the new transaction
       We must do it here as otherwise file->thd and file->state may be
@@ -2703,6 +2703,8 @@ int ha_maria::implicit_commit(THD *thd, bool new_trn)
         }
       }
     }
+    /* This is just a commit, tables stay locked if they were: */
+    trnman_reset_locked_tables(trn, locked_tables);
   }
 end:
   DBUG_RETURN(error);
@@ -2839,7 +2841,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
       ha_create_info->row_type != ROW_TYPE_PAGE &&
       ha_create_info->row_type != ROW_TYPE_NOT_USED &&
       ha_create_info->row_type != ROW_TYPE_DEFAULT)
-    push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+    push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                  ER_ILLEGAL_HA_CREATE_OPTION,
                  "Row format set to PAGE because of TRANSACTIONAL=1 option");
 
@@ -3315,6 +3317,8 @@ static int ha_maria_init(void *p)
     ma_checkpoint_init(checkpoint_interval);
   maria_multi_threaded= maria_in_ha_maria= TRUE;
   maria_create_trn_hook= maria_create_trn_for_mysql;
+  maria_pagecache->extra_debug= 1;
+  maria_assert_if_crashed_table= debug_assert_if_crashed_table;
 
 #if defined(HAVE_REALPATH) && !defined(HAVE_valgrind) && !defined(HAVE_BROKEN_REALPATH)
   /*  We can only test for sub paths if my_symlink.c is using realpath */

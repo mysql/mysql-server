@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 DROP DATABASE IF EXISTS d1;
 DROP DATABASE IF EXISTS d2;
 DROP DATABASE IF EXISTS d3;
@@ -59,62 +55,62 @@ CREATE VIEW v1 AS SELECT a FROM t1 WHERE a < 100;
 [on master1]
 CREATE DATABASE d2;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP DATABASE d1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP DATABASE IF EXISTS d2;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE EVENT e2
 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
 DO INSERT INTO test.t1 VALUES (2);
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP EVENT e1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP EVENT IF EXISTS e2;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE FUNCTION f2 () RETURNS INT DETERMINISTIC
 RETURN 1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 ALTER FUNCTION f1 SQL SECURITY INVOKER;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP FUNCTION f1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE PROCEDURE p2 (OUT rows INT)
 BEGIN
 SELECT COUNT(*) INTO rows FROM t2;
 END;
 //
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 ALTER PROCEDURE p1 SQL SECURITY INVOKER COMMENT 'return rows of table t1';
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP PROCEDURE p1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE TABLE t2 (b int);
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 ALTER TABLE t1 ADD (d int);
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 RENAME TABLE t3 TO t4;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE INDEX i2 on t1 (a);
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP INDEX i1 on t1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE TABLE IF NOT EXISTS t4 (a int);
 CREATE TRIGGER tr2 BEFORE INSERT ON t4
 FOR EACH ROW BEGIN
@@ -122,28 +118,28 @@ DELETE FROM t1 WHERE a=NEW.a;
 END;
 //
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP TRIGGER tr1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP TRIGGER IF EXISTS tr2;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 CREATE VIEW v2 AS SELECT a FROM t1 WHERE a > 100;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP VIEW v1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP VIEW IF EXISTS v2;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP TABLE t1;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP TABLE IF EXISTS t2;
 source include/kill_query.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
 DROP DATABASE IF EXISTS d1;
 DROP DATABASE IF EXISTS d2;
 DROP DATABASE IF EXISTS d3;
@@ -168,3 +164,4 @@ DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP PROCEDURE IF EXISTS p3;
 DROP PROCEDURE IF EXISTS p4;
+include/rpl_end.inc

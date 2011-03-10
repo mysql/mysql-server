@@ -30,8 +30,7 @@
     character pointer, or not the same bit pattern as NullS.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 char *strxmov(char *dst,const char *src, ...)
 {

@@ -1,3 +1,5 @@
+call mtr.add_suppression("Table 'test_repair_table2' is marked as crashed and should be repaired");
+call mtr.add_suppression("Table 'test_repair_table4' is marked as crashed and should be repaired");
 drop table if exists t1,t2,t3,t4;
 CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,

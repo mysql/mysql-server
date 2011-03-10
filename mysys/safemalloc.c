@@ -60,7 +60,7 @@
 */
 
 #ifndef SAFEMALLOC
-#define SAFEMALLOC			/* Get protos from my_sys */
+#define SAFEMALLOC 1                    /* Get protos from my_sys */
 #endif
 
 #include "mysys_priv.h"
@@ -124,7 +124,8 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   struct st_irem *irem;
   uchar *data;
   DBUG_ENTER("_mymalloc");
-  DBUG_PRINT("enter",("Size: %lu", (ulong) size));
+  DBUG_PRINT("enter",("Size: %lu  Total alloc: %lu", (ulong) size,
+                      (ulong) sf_malloc_cur_memory));
 
   if (!sf_malloc_quick)
     (void) _sanity (filename, lineno);
@@ -224,6 +225,8 @@ void *_myrealloc(register void *ptr, register size_t size,
   struct st_irem *irem;
   char *data;
   DBUG_ENTER("_myrealloc");
+  DBUG_PRINT("my",("ptr: 0x%lx  size: %lu  my_flags: %d", (long) ptr,
+                   (ulong) size, MyFlags));
 
   if (!ptr && (MyFlags & MY_ALLOW_ZERO_PTR))
     DBUG_RETURN(_mymalloc(size, filename, lineno, MyFlags));
@@ -245,6 +248,8 @@ void *_myrealloc(register void *ptr, register size_t size,
     (void) fflush(stderr);
     DBUG_RETURN((uchar*) NULL);
   }
+  DBUG_PRINT("my", ("old_size: %lu  -> new_size: %lu",
+                    (ulong) irem->datasize, (ulong) size));
 
   if ((data= _mymalloc(size,filename,lineno,MyFlags))) /* Allocate new area */
   {
@@ -316,6 +321,7 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   sf_malloc_cur_memory-= irem->datasize;
   sf_malloc_count--;
   pthread_mutex_unlock(&THR_LOCK_malloc);
+  DBUG_PRINT("info", ("bytes freed: %ld", (ulong) irem->datasize));
 
 #ifndef HAVE_valgrind
   /* Mark this data as free'ed */

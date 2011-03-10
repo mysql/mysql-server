@@ -1104,7 +1104,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
                          (sp->m_explicit_name ? sp->m_db.length : 0), 
                          sp->m_name.str, sp->m_name.length,
                          sp->m_params.str, sp->m_params.length,
-                         retstr.c_ptr(), retstr.length(),
+                         retstr.ptr(), retstr.length(),
                          sp->m_body.str, sp->m_body.length,
                          sp->m_chistics, &(thd->lex->definer->user),
                          &(thd->lex->definer->host)))
@@ -1116,7 +1116,7 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
       thd->variables.sql_mode= saved_mode;
       /* Such a statement can always go directly to binlog, no trans cache */
       if (thd->binlog_query(THD::MYSQL_QUERY_TYPE,
-                            log_query.c_ptr(), log_query.length(),
+                            log_query.ptr(), log_query.length(),
                             FALSE, FALSE, 0))
         ret= SP_INTERNAL_ERROR;
       thd->variables.sql_mode= 0;

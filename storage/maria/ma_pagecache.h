@@ -173,6 +173,7 @@ typedef struct st_pagecache
   my_bool resize_in_flush;       /* true during flush of resize operation    */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
+  my_bool extra_debug;	        /* set to 1 if one wants extra logging */
   HASH    files_in_flush;       /**< files in flush_pagecache_blocks_int() */
 } PAGECACHE;
 

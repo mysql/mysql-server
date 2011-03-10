@@ -1449,12 +1449,13 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
     /* 
       Here is where we get into the guts of a row level lock.
       If TL_UNLOCK is set 
-      If we are not doing a LOCK TABLE or DISCARD/IMPORT
+      If we are not doing a LOCK TABLE, DELAYED LOCK or DISCARD/IMPORT
       TABLESPACE, then allow multiple writers 
     */
 
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT &&
-         lock_type <= TL_WRITE) && !thd_in_lock_tables(thd)
+         lock_type <= TL_WRITE) && delayed_insert == FALSE &&
+        !thd_in_lock_tables(thd)
         && !thd_tablespace_op(thd))
       lock_type = TL_WRITE_ALLOW_WRITE;
 

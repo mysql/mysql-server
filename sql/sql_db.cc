@@ -948,9 +948,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     remove_db_from_cache(db);
     pthread_mutex_unlock(&LOCK_open);
 
-    Drop_table_error_handler err_handler(thd->get_internal_handler());
-    thd->push_internal_handler(&err_handler);
-
     error= -1;
     /*
       We temporarily disable the binary log while dropping the objects
@@ -983,8 +980,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
       error = 0;
       reenable_binlog(thd);
     }
-    thd->pop_internal_handler();
   }
+
   if (!silent && deleted>=0)
   {
     const char *query;
@@ -1213,15 +1210,33 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
     else
     {
       strxmov(filePath, org_path, "/", file->name, NullS);
-      if (my_delete_with_symlink(filePath,MYF(MY_WME)))
+      /*
+        We ignore ENOENT error in order to skip files that was deleted
+        by concurrently running statement like REAPIR TABLE ...
+      */
+      if (my_delete_with_symlink(filePath, MYF(0)) &&
+          my_errno != ENOENT)
       {
-	goto err;
+        my_error(EE_DELETE, MYF(0), filePath, my_errno);
+        goto err;
       }
     }
   }
-  if (thd->killed ||
-      (tot_list && mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1)))
+
+  if (thd->killed)
     goto err;
+
+  if (tot_list)
+  {
+    int res= 0;
+    Drop_table_error_handler err_handler(thd->get_internal_handler());
+
+    thd->push_internal_handler(&err_handler);
+    res= mysql_rm_table_part2(thd, tot_list, 1, 0, 1, 1);
+    thd->pop_internal_handler();
+    if (res)
+      goto err;
+  }
 
   /* Remove RAID directories */
   {

@@ -1190,6 +1190,8 @@ void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var)
   /* Handle the not ulong variables. See end of system_status_var */
   to_var->bytes_received=       from_var->bytes_received;
   to_var->bytes_sent+=          from_var->bytes_sent;
+  to_var->rows_read+=           from_var->rows_read;
+  to_var->rows_sent+=           from_var->rows_sent;
   to_var->binlog_bytes_written= from_var->binlog_bytes_written;
   to_var->cpu_time+=            from_var->cpu_time;
   to_var->busy_time+=           from_var->busy_time;
@@ -1223,6 +1225,8 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
   to_var->bytes_received+=       from_var->bytes_received -
                                  dec_var->bytes_received;
   to_var->bytes_sent+=           from_var->bytes_sent - dec_var->bytes_sent;
+  to_var->rows_read+=            from_var->rows_read - dec_var->rows_read;
+  to_var->rows_sent+=            from_var->rows_sent - dec_var->rows_sent;
   to_var->binlog_bytes_written+= from_var->binlog_bytes_written -
                                  dec_var->binlog_bytes_written;
   to_var->cpu_time+=             from_var->cpu_time - dec_var->cpu_time;
@@ -4065,8 +4069,8 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
                       int errcode)
 {
   DBUG_ENTER("THD::binlog_query");
-  DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
-                       show_query_type(qtype), query_arg));
+  DBUG_PRINT("enter", ("qtype: %s  query: '%-.*s'",
+                       show_query_type(qtype), (int) query_len, query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
 
   /*
@@ -4102,7 +4106,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     {
       sql_print_warning("%s Statement: %.*s",
                         ER(ER_BINLOG_UNSAFE_STATEMENT),
-                        MYSQL_ERRMSG_SIZE, query_arg);
+                        (int) min(MYSQL_ERRMSG_SIZE, query_len), query_arg);
       binlog_flags|= BINLOG_FLAG_UNSAFE_STMT_PRINTED;
     }
   }

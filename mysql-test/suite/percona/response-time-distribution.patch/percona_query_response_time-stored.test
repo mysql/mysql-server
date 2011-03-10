@@ -1,0 +1,90 @@
+--source include/have_response_time_distribution.inc
+--source include/have_debug.inc
+SET SESSION debug="+d,response_time_distribution_log_only_more_300_milliseconds";
+
+delimiter /;
+CREATE FUNCTION test_f()
+RETURNS CHAR(30) DETERMINISTIC
+BEGIN
+	DECLARE first  VARCHAR(5);
+	DECLARE second VARCHAR(5);
+	DECLARE result VARCHAR(20);
+	SELECT SLEEP(1.11) INTO first;
+	SET first= 'Hello';
+	SET second=', ';
+	SET result= CONCAT(first,second);
+	SET result= CONCAT(result,'world!');
+	RETURN result;
+END/
+delimiter ;/
+
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 2;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+
+source include/percona_query_response_time_flush.inc;
+source include/percona_query_response_time_show.inc;
+
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
+SELECT test_f();
+SELECT test_f();
+SELECT test_f();
+SELECT test_f();
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+
+source include/percona_query_response_time_show.inc;
+
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 10;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+
+source include/percona_query_response_time_flush.inc;
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
+SELECT test_f();
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+
+source include/percona_query_response_time_show.inc;
+
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 7;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+
+source include/percona_query_response_time_flush.inc;
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
+SELECT test_f();
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+
+source include/percona_query_response_time_show.inc;
+
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 156;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+
+source include/percona_query_response_time_flush.inc;
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
+SELECT test_f();
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+
+source include/percona_query_response_time_show.inc;
+
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1000;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+
+source include/percona_query_response_time_flush.inc;
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=1;
+SELECT test_f();
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+
+source include/percona_query_response_time_show.inc;
+
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE = 1001;
+SHOW GLOBAL VARIABLES where Variable_name like 'QUERY_RESPONSE_TIME_RANGE_BASE';
+
+SET GLOBAL ENABLE_QUERY_RESPONSE_TIME_STATS=0;
+SET GLOBAL QUERY_RESPONSE_TIME_RANGE_BASE  =10;
+
+DROP FUNCTION test_f;
+SET SESSION debug="-d,response_time_distribution_log_only_more_300_milliseconds";

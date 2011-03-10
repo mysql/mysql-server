@@ -409,3 +409,11 @@ select hex(cast(_ascii 0x7f as char(1) character set latin1));
 hex(cast(_ascii 0x7f as char(1) character set latin1))
 7F
 End of 5.0 tests
+#
+# Bug#58022 ... like ... escape export_set ( ... ) crashes when export_set returns warnings
+#
+SELECT '' LIKE '' ESCAPE EXPORT_SET(1, 1, 1, 1, '');
+'' LIKE '' ESCAPE EXPORT_SET(1, 1, 1, 1, '')
+1
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''

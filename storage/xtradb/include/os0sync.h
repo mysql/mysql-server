@@ -196,7 +196,7 @@ ulint
 os_event_wait_time(
 /*===============*/
 	os_event_t	event,	/*!< in: event to wait */
-	ulint		time);	/*!< in: timeout in microseconds, or
+	ulint		wtime);	/*!< in: timeout in microseconds, or
 				OS_SYNC_INFINITE_TIME */
 #ifdef __WIN__
 /**********************************************************//**

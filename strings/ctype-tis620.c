@@ -47,11 +47,10 @@
  * .configure. strxfrm_multiply_tis620=4
  */
 
-#include <my_global.h>
-#include <my_sys.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 #include "t_ctype.h"
+#include <my_sys.h>
 
 #ifdef HAVE_CHARSET_tis620
 

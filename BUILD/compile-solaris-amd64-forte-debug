@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# See file compile-solaris-amd64 for basic pre-requisites.
+
+# This build uses the Sun Studio compilers (cc, CC), available from:
+#     http://developers.sun.com/sunstudio/downloads/index.jsp
+# Note that you may want to apply current patches, as the downloaded version
+# is typically out of date. Download the PKG version if you intend to patch!
+
+# After installing, add /opt/SUNWspro/bin to your $PATH
+
+
+gmake -k clean || true
+/bin/rm -f */.deps/*.P config.cache
+ 
+. "$path/SETUP.sh"
+
+extra_flags="-g -m64 -mt -D_FORTEC_ -xbuiltin=%all -xlibmil -xlibmopt -fns=no -xprefetch=auto -xprefetch_level=3"
+extra_configs="$max_configs --with-libevent"
+
+warnings=""
+c_warnings=""
+cxx_warnings=""
+base_cxxflags="-noex"
+
+CC=cc
+CFLAGS="-xstrconst"
+CXX=CC
+LDFLAGS="-lmtmalloc"
+
+. "$path/FINISH.sh"

@@ -18,10 +18,8 @@
 /* UTF8 according RFC 2279 */
 /* Written by Alexander Barkov <bar@udm.net> */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
-#include <errno.h>
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT

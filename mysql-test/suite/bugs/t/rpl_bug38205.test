@@ -163,4 +163,4 @@ start slave sql_thread;
 connection master;
 drop table t1i, t2m;
 
-sync_slave_with_master;
+--source include/rpl_end.inc

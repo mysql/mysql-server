@@ -39,7 +39,7 @@ class TC_LOG
   virtual int open(const char *opt_name)=0;
   virtual void close()=0;
   virtual int log_xid(THD *thd, my_xid xid)=0;
-  virtual void unlog(ulong cookie, my_xid xid)=0;
+  virtual int unlog(ulong cookie, my_xid xid)=0;
 };
 
 class TC_LOG_DUMMY: public TC_LOG // use it to disable the logging
@@ -49,7 +49,7 @@ public:
   int open(const char *opt_name)        { return 0; }
   void close()                          { }
   int log_xid(THD *thd, my_xid xid)         { return 1; }
-  void unlog(ulong cookie, my_xid xid)  { }
+  int unlog(ulong cookie, my_xid xid)  { return 0; }
 };
 
 #ifdef HAVE_MMAP
@@ -94,7 +94,7 @@ class TC_LOG_MMAP: public TC_LOG
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:
@@ -283,8 +283,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
-  void new_file_without_locking();
-  void new_file_impl(bool need_lock);
+  int new_file_without_locking();
+  int new_file_impl(bool need_lock);
 
 public:
   MYSQL_LOG::generate_name;
@@ -314,7 +314,7 @@ public:
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
@@ -354,7 +354,7 @@ public:
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
-  void new_file();
+  int new_file();
 
   void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info); // binary log write
@@ -379,7 +379,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  void rotate_and_purge(uint flags);
+  int rotate_and_purge(uint flags);
   bool flush_and_sync();
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,

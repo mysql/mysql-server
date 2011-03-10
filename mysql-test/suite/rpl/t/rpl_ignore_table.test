@@ -2,6 +2,10 @@ source include/master-slave.inc;
 let collation=utf8_unicode_ci;
 --source include/have_collation.inc
 
+call mtr.add_suppression("Can't find record in 't.'");
+call mtr.add_suppression("Can't find record in 'user'");
+call mtr.add_suppression("Can't find record in 'tables_priv'");
+
 #
 # BUG#16487
 #  
@@ -176,3 +180,7 @@ SELECT * FROM tmptbl504451f4258$1;
 connection master;
 DROP TABLE t5;
 sync_slave_with_master;
+
+--source include/force_restart.inc
+
+--source include/rpl_end.inc

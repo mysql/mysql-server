@@ -98,9 +98,9 @@ FileSink::~FileSink()
 
 
 // fill source from file sink
-void FileSink::put(Source& source)
+size_t FileSink::put(Source& source)
 {
-    fwrite(source.get_buffer(), 1, source.size(), file_);
+    return fwrite(source.get_buffer(), 1, source.size(), file_);
 }
 
 

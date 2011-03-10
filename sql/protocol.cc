@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -631,6 +631,9 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
 					      list->elements);
   uint count= 0;
 #endif
+
+  /* We have to reallocate it here as a stored procedure may have reset it */
+  (void) local_packet->alloc(thd->variables.net_buffer_length);
 
   while ((item=it++))
   {

@@ -470,7 +470,7 @@ trx_sys_file_format_id_to_name(
 
 /* Space id and page no where the trx system file copy resides */
 #define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-#define	TRX_DOUBLEWRITE_SPACE	1	/* the doublewrite buffer tablespace if used */
+#define	TRX_DOUBLEWRITE_SPACE	0xFFFFFFE0UL	/* the doublewrite buffer tablespace if used */
 #define	TRX_SYS_SPACE_MAX	9	/* reserved max space id for system tablespaces */
 #include "fsp0fsp.h"
 #define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO

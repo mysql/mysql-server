@@ -182,8 +182,10 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
           last_lock_type != TL_WRITE_CONCURRENT_INSERT)
       {
 	fprintf(stderr,
-		"Warning: Found locks from different threads in %s at '%s'.  org_lock_type: %d  last_lock_type: %d  new_lock_type: %d\n",
-		lock_type, where, list->data->type, last_lock_type, data->type);
+		"Warning: Found locks from different threads for lock '%s' in '%s' at '%s'.  org_lock_type: %d  last_lock_type: %d  new_lock_type: %d\n",
+                data->lock->name ? data->lock->name : "",
+		lock_type, where, list->data->type, last_lock_type,
+                data->type);
 	return 1;
       }
       if (no_cond && data->cond)
@@ -405,6 +407,7 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data, void *param)
   data->status_param=param;
   data->cond=0;
   data->priority= 0;
+  data->debug_print_param= 0;
 }
 
 
@@ -879,6 +882,7 @@ void thr_unlock(THR_LOCK_DATA *data, uint unlock_flags)
   data->type=TL_UNLOCK;				/* Mark unlocked */
   check_locks(lock,"after releasing lock",1);
   wake_up_waiters(lock);
+  check_locks(lock,"end of thr_unlock",1);
   pthread_mutex_unlock(&lock->mutex);
   DBUG_VOID_RETURN;
 }

@@ -573,7 +573,7 @@ append_query_string(CHARSET_INFO *csinfo,
   if (to->reserve(orig_len + from->length()*2+3))
     return 1;
 
-  beg= to->c_ptr_quick() + to->length();
+  beg= (char*) to->ptr() + to->length();
   ptr= beg;
   if (csinfo->escape_with_backslash_is_dangerous)
     ptr= str_to_hex(ptr, from->ptr(), from->length());
@@ -2893,7 +2893,12 @@ void Query_log_event::print_query_header(IO_CACHE* file,
                 error_code);
   }
 
-  if (!(flags & LOG_EVENT_SUPPRESS_USE_F) && db)
+  if ((flags & LOG_EVENT_SUPPRESS_USE_F))
+  {
+    if (!is_trans_keyword())
+      print_event_info->db[0]= '\0';
+  }
+  else if (db)
   {
     different_db= memcmp(print_event_info->db, db, db_len + 1);
     if (different_db)
@@ -3349,7 +3354,8 @@ compare_errors:
       rli->report(ERROR_LEVEL, 0,
                       "\
 Query caused different errors on master and slave.     \
-Error on master: '%s' (%d), Error on slave: '%s' (%d). \
+Error on master: message (format)='%s' error code=%d ; \
+Error on slave: actual message='%s', error code=%d. \
 Default database: '%s'. Query: '%s'",
                       ER_SAFE(expected_error),
                       expected_error,
@@ -7586,6 +7592,14 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     // Do event specific preparations 
     error= do_before_row_operations(rli);
 
+    /*
+      Bug#56662 Assertion failed: next_insert_id == 0, file handler.cc
+      Don't allow generation of auto_increment value when processing
+      rows event by setting 'MODE_NO_AUTO_VALUE_ON_ZERO'.
+    */
+    ulong saved_sql_mode= thd->variables.sql_mode;
+    thd->variables.sql_mode= MODE_NO_AUTO_VALUE_ON_ZERO;
+
     // row processing loop
 
     while (error == 0 && m_curr_row < m_rows_end)
@@ -7647,6 +7661,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->transaction.all.modified_non_trans_table=
           thd->transaction.stmt.modified_non_trans_table= TRUE;
     } // row processing loop
+
+    /*
+      Restore the sql_mode after the rows event is processed.
+    */
+    thd->variables.sql_mode= saved_sql_mode;
 
     DBUG_EXECUTE_IF("STOP_SLAVE_after_first_Rows_event",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
@@ -8722,16 +8741,11 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   int UNINIT_VAR(keynum);
   auto_afree_ptr<char> key(NULL);
 
-  /* fill table->record[0] with default values */
-  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
-  if ((error= prepare_record(table, m_width,
-                             table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
-                             abort_on_warnings, m_curr_row == m_rows_buf)))
-    DBUG_RETURN(error);
-  
+  prepare_record(table, m_width,
+                 table->file->ht->db_type != DB_TYPE_NDBCLUSTER);
+
   /* unpack row into table->record[0] */
-  if ((error= unpack_current_row(rli, abort_on_warnings)))
+  if ((error= unpack_current_row(rli)))
     DBUG_RETURN(error);
 
   if (m_curr_row == m_rows_buf)
@@ -9582,11 +9596,9 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
-  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
-                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
   /* this also updates m_curr_row_end */
-  if ((error= unpack_current_row(rli, abort_on_warnings)))
+  if ((error= unpack_current_row(rli)))
     return error;
 
   /*

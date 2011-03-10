@@ -168,6 +168,7 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
    m_is_sub_partitioned(0)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
+  init_alloc_root(&m_mem_root, 512, 512);
   init_handler_variables();
   DBUG_VOID_RETURN;
 }
@@ -189,6 +190,7 @@ ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
    m_is_sub_partitioned(m_part_info->is_sub_partitioned())
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
+  init_alloc_root(&m_mem_root, 512, 512);
   init_handler_variables();
   DBUG_ASSERT(m_part_info);
   DBUG_VOID_RETURN;
@@ -213,6 +215,7 @@ void ha_partition::init_handler_variables()
   m_file_buffer= NULL;
   m_name_buffer_ptr= NULL;
   m_engine_array= NULL;
+  m_connect_string= NULL;
   m_file= NULL;
   m_file_tot_parts= 0;
   m_reorged_file= NULL;
@@ -287,9 +290,14 @@ ha_partition::~ha_partition()
     for (i= 0; i < m_tot_parts; i++)
       delete m_file[i];
   }
-  my_free((char*) m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
+
+  my_free(m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  m_ordered_rec_buffer= NULL;
 
   clear_handler_file();
+
+  free_root(&m_mem_root, MYF(0));
+
   DBUG_VOID_RETURN;
 }
 
@@ -555,6 +563,13 @@ int ha_partition::create(const char *name, TABLE *table_arg,
 {
   char t_name[FN_REFLEN];
   DBUG_ENTER("ha_partition::create");
+
+  if (create_info->used_fields & HA_CREATE_USED_CONNECTION)
+  {
+    my_error(ER_CONNECT_TO_FOREIGN_DATA_SOURCE, MYF(0),
+             "CONNECTION not valid for partition");
+    DBUG_RETURN(1);
+  }
 
   strmov(t_name, name);
   DBUG_ASSERT(*fn_rext((char*)name) == '\0');
@@ -1099,7 +1114,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                 error != HA_ADMIN_ALREADY_DONE &&
                 error != HA_ADMIN_TRY_ALTER)
             {
-              print_admin_msg(thd, "error", table_share->db.str, table->alias,
+              print_admin_msg(thd, "error", table_share->db.str,
+                              table->alias.c_ptr(),
                               opt_op_name[flag],
                               "Subpartition %s returned error", 
                               sub_elem->partition_name);
@@ -1126,7 +1142,8 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
               error != HA_ADMIN_ALREADY_DONE &&
               error != HA_ADMIN_TRY_ALTER)
           {
-            print_admin_msg(thd, "error", table_share->db.str, table->alias,
+            print_admin_msg(thd, "error", table_share->db.str,
+                            table->alias.c_ptr(),
                             opt_op_name[flag], "Partition %s returned error", 
                             part_elem->partition_name);
           }
@@ -1228,6 +1245,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
   if ((error= set_up_table_before_create(tbl, part_name, create_info,
                                          0, p_elem)))
     goto error_create;
+  tbl->s->connect_string = p_elem->connect_string;
   if ((error= file->ha_create(part_name, tbl, create_info)))
   {
     /*
@@ -1748,6 +1766,8 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
     create_info->auto_increment_value= stats.auto_increment_value;
 
   create_info->data_file_name= create_info->index_file_name = NULL;
+  create_info->connect_string.str= NULL;
+  create_info->connect_string.length= 0;
   return;
 }
 
@@ -2037,6 +2057,10 @@ int ha_partition::set_up_table_before_create(TABLE *tbl,
   }
   info->index_file_name= part_elem->index_file_name;
   info->data_file_name= part_elem->data_file_name;
+  info->connect_string= part_elem->connect_string;
+  if (info->connect_string.length)
+    info->used_fields|= HA_CREATE_USED_CONNECTION;
+  tbl->s->connect_string= part_elem->connect_string;
   DBUG_RETURN(0);
 }
 
@@ -2151,8 +2175,10 @@ bool ha_partition::create_handler_file(const char *name)
   tot_name_words= (tot_name_len + 3) / 4;
   tot_len_words= 4 + tot_partition_words + tot_name_words;
   tot_len_byte= 4 * tot_len_words;
-  if (!(file_buffer= (uchar *) my_malloc(tot_len_byte, MYF(MY_ZEROFILL))))
+  file_buffer= (uchar *) my_alloca(tot_len_byte);
+  if (!file_buffer)
     DBUG_RETURN(TRUE);
+  bzero(file_buffer, tot_len_byte);
   engine_array= (file_buffer + 12);
   name_buffer_ptr= (char*) (file_buffer + ((4 + tot_partition_words) * 4));
   part_it.rewind();
@@ -2208,11 +2234,24 @@ bool ha_partition::create_handler_file(const char *name)
   {
     result= my_write(file, (uchar *) file_buffer, tot_len_byte,
                      MYF(MY_WME | MY_NABP)) != 0;
+
+    part_it.rewind();
+    for (i= 0; i < no_parts && !result; i++)
+    {
+      uchar buffer[4];
+      part_elem= part_it++;
+      uint length = part_elem->connect_string.length;
+      int4store(buffer, length);
+      if (my_write(file, buffer, 4, MYF(MY_WME | MY_NABP)) ||
+          my_write(file, (uchar *) part_elem->connect_string.str, length,
+                   MYF(MY_WME | MY_NABP)))
+        result= TRUE;
+    }
     VOID(my_close(file, MYF(0)));
   }
   else
     result= TRUE;
-  my_free((char*) file_buffer, MYF(0));
+  my_afree((char*) file_buffer);
   DBUG_RETURN(result);
 }
 
@@ -2230,10 +2269,10 @@ void ha_partition::clear_handler_file()
 {
   if (m_engine_array)
     plugin_unlock_list(NULL, m_engine_array, m_tot_parts);
-  my_free((char*) m_file_buffer, MYF(MY_ALLOW_ZERO_PTR));
-  my_free((char*) m_engine_array, MYF(MY_ALLOW_ZERO_PTR));
+  free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
   m_file_buffer= NULL;
   m_engine_array= NULL;
+  m_connect_string= NULL;
 }
 
 /*
@@ -2392,7 +2431,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
     goto err1;
   len_words= uint4korr(buff);
   len_bytes= 4 * len_words;
-  if (!(file_buffer= (char*) my_malloc(len_bytes, MYF(0))))
+  if (!(file_buffer= (char*) alloc_root(&m_mem_root, len_bytes)))
     goto err1;
   VOID(my_seek(file, 0, MY_SEEK_SET, MYF(0)));
   if (my_read(file, (uchar *) file_buffer, len_bytes, MYF(MY_NABP)))
@@ -2421,12 +2460,33 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   if (len_words != (tot_partition_words + tot_name_words + 4))
     goto err3;
   name_buffer_ptr= file_buffer + 16 + 4 * tot_partition_words;
+
+  if (!(m_connect_string= (LEX_STRING*)
+        alloc_root(&m_mem_root, m_tot_parts * sizeof(LEX_STRING))))
+    goto err3;
+  bzero(m_connect_string, m_tot_parts * sizeof(LEX_STRING));
+
+  for (i= 0; i < m_tot_parts; i++)
+  {
+    LEX_STRING connect_string;
+    uchar buffer[4];
+    if (my_read(file, buffer, 4, MYF(MY_NABP)))
+      break;
+    connect_string.length= uint4korr(buffer);
+    connect_string.str= (char*) alloc_root(&m_mem_root, connect_string.length+1);
+    if (my_read(file, (uchar*) connect_string.str, connect_string.length,
+                MYF(MY_NABP)))
+      break;
+    connect_string.str[connect_string.length]= 0;
+    m_connect_string[i]= connect_string;
+  }
+
   VOID(my_close(file, MYF(0)));
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= name_buffer_ptr;
   
   if (!(m_engine_array= (plugin_ref*)
-                my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
+        alloc_root(&m_mem_root, m_tot_parts * sizeof(plugin_ref))))
     goto err3;
 
   for (i= 0; i < m_tot_parts; i++)
@@ -2444,7 +2504,6 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
 err3:
   my_afree(engine_array);
 err2:
-  my_free(file_buffer, MYF(0));
 err1:
   VOID(my_close(file, MYF(0)));
   DBUG_RETURN(TRUE);
@@ -2560,9 +2619,11 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   {
     create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
+    table->s->connect_string = m_connect_string[(uint)(file-m_file)];
     if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
                                  test_if_locked)))
       goto err_handler;
+    bzero(&table->s->connect_string, sizeof(LEX_STRING));
     m_no_locks+= (*file)->lock_count();
     name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
     set_if_bigger(ref_length, ((*file)->ref_length));
@@ -3053,7 +3114,9 @@ int ha_partition::write_row(uchar * buf)
   my_bitmap_map *old_map;
   HA_DATA_PARTITION *ha_data= (HA_DATA_PARTITION*) table_share->ha_data;
   THD *thd= ha_thd();
-  timestamp_auto_set_type orig_timestamp_type= table->timestamp_field_type;
+  timestamp_auto_set_type saved_timestamp_type= table->timestamp_field_type;
+  ulong saved_sql_mode= thd->variables.sql_mode;
+  bool saved_auto_inc_field_not_null= table->auto_increment_field_not_null;
 #ifdef NOT_NEEDED
   uchar *rec0= m_rec0;
 #endif
@@ -3089,6 +3152,22 @@ int ha_partition::write_row(uchar * buf)
     */
     if (error)
       goto exit;
+
+    /*
+      Don't allow generation of auto_increment value the partitions handler.
+      If a partitions handler would change the value, then it might not
+      match the partition any longer.
+      This can occur if 'SET INSERT_ID = 0; INSERT (NULL)',
+      So allow this by adding 'MODE_NO_AUTO_VALUE_ON_ZERO' to sql_mode.
+      The partitions handler::next_insert_id must always be 0. Otherwise
+      we need to forward release_auto_increment, or reset it for all
+      partitions.
+    */
+    if (table->next_number_field->val_int() == 0)
+    {
+      table->auto_increment_field_not_null= TRUE;
+      thd->variables.sql_mode|= MODE_NO_AUTO_VALUE_ON_ZERO;
+    }
   }
 
   old_map= dbug_tmp_use_all_columns(table, table->read_set);
@@ -3122,7 +3201,9 @@ int ha_partition::write_row(uchar * buf)
     set_auto_increment_if_higher(table->next_number_field);
   reenable_binlog(thd);
 exit:
-  table->timestamp_field_type= orig_timestamp_type;
+  thd->variables.sql_mode= saved_sql_mode;
+  table->auto_increment_field_not_null= saved_auto_inc_field_not_null;
+  table->timestamp_field_type= saved_timestamp_type;
   DBUG_RETURN(error);
 }
 
@@ -3189,11 +3270,24 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   }
   else
   {
+    Field *saved_next_number_field= table->next_number_field;
+    /*
+      Don't allow generation of auto_increment value for update.
+      table->next_number_field is never set on UPDATE.
+      But is set for INSERT ... ON DUPLICATE KEY UPDATE,
+      and since update_row() does not generate or update an auto_inc value,
+      we cannot have next_number_field set when moving a row
+      to another partition with write_row(), since that could
+      generate/update the auto_inc value.
+      This gives the same behavior for partitioned vs non partitioned tables.
+    */
+    table->next_number_field= NULL;
     DBUG_PRINT("info", ("Update from partition %d to partition %d",
 			old_part_id, new_part_id));
     tmp_disable_binlog(thd); /* Do not replicate the low-level changes. */
     error= m_file[new_part_id]->ha_write_row(new_data);
     reenable_binlog(thd);
+    table->next_number_field= saved_next_number_field;
     if (error)
       goto exit;
 

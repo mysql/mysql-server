@@ -71,9 +71,9 @@ source include/have_binlog_format_statement.inc;
 --echo ==== Setup tables ====
 
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t2 (a TEXT);
 CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
-CREATE TABLE trigger_table (a CHAR(7));
+CREATE TABLE trigger_table (a TEXT);
 CREATE TABLE trigger_table2 (a INT);
 
 
@@ -329,7 +329,7 @@ DROP TABLE t1,t2;
 
 --echo "Should NOT have any warning message issued in the following func7() and trig"
 CREATE TABLE t1 (a INT);
-CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t2 (a TEXT);
 CREATE TABLE trigger_table (a CHAR(7));
 DELIMITER |;
 CREATE FUNCTION func7()

@@ -591,7 +591,11 @@ int ha_myisam::net_read_dump(NET* net)
   int data_fd = file->dfile;
   int error = 0;
 
-  my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
+  if (my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  {
+    error= my_errno;
+    goto err;
+  }
   for (;;)
   {
     ulong packet_len = my_net_read(net);
@@ -627,7 +631,11 @@ int ha_myisam::dump(THD* thd, int fd)
     return ENOMEM;
 
   int error = 0;
-  my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME));
+  if (my_seek(data_fd, 0L, MY_SEEK_SET, MYF(MY_WME)) == MY_FILEPOS_ERROR)
+  {
+    error= my_errno;
+    goto err;
+  }
   for (; bytes_to_read > 0;)
   {
     size_t bytes = my_read(data_fd, buf, blocksize, MYF(MY_WME));
@@ -810,7 +818,7 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name =   "check";
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag = check_opt->flags | T_CHECK | T_SILENT;
   param.stats_method= (enum_handler_stats_method)thd->variables.myisam_stats_method;
 
@@ -903,7 +911,7 @@ int ha_myisam::analyze(THD *thd, HA_CHECK_OPT* check_opt)
   param.thd = thd;
   param.op_name=    "analyze";
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.testflag= (T_FAST | T_CHECK | T_SILENT | T_STATISTICS |
                    T_DONT_CHECK_CHECKSUM);
   param.using_global_keycache = 1;
@@ -1129,7 +1137,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   DBUG_ENTER("ha_myisam::repair");
 
   param.db_name=    table->s->db.str;
-  param.table_name= table->alias;
+  param.table_name= table->alias.c_ptr();
   param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd= thd;
@@ -1470,7 +1478,7 @@ int ha_myisam::enable_indexes(uint mode)
   }
   else if (mode == HA_KEY_SWITCH_NONUNIQ_SAVE)
   {
-    THD *thd=current_thd;
+    THD *thd= table->in_use;
     HA_CHECK &param= *(HA_CHECK*) thd->alloc(sizeof(param));
     const char *save_proc_info=thd->proc_info;
 

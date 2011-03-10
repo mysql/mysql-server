@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET storage_engine=ndb;
 
 === NDB -> MYISAM ===
@@ -805,3 +801,4 @@ TRUNCATE TABLE t1;
 DROP TABLE IF EXISTS t1;
 drop table mysql.ndb_apply_status;
 set @@global.slave_exec_mode= @old_slave_exec_mode;
+include/rpl_end.inc

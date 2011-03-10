@@ -13,7 +13,9 @@ BEGIN
   -- that are supposed to change
   SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
    WHERE variable_name != 'timestamp'
-     AND variable_name != 'INNODB_IBUF_MAX_SIZE'
+     AND variable_name not like "Last_IO_Err*"
+     AND variable_name != 'INNODB_IBUF_MAX_SIZE' AND
+         variable_name != 'INNODB_FILE_FORMAT_CHECK'
    ORDER BY variable_name;
 
   -- Dump all databases, there should be none
@@ -58,14 +60,4 @@ BEGIN
     mysql.time_zone_transition_type,
     mysql.user;
 
-END||
-
---
--- Procedure used by test case used to force all
--- servers to restart after testcase and thus skipping
--- check test case after test
---
-CREATE DEFINER=root@localhost PROCEDURE force_restart()
-BEGIN
-  SELECT 1 INTO OUTFILE 'force_restart';
 END||

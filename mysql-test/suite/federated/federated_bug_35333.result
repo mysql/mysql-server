@@ -1,0 +1,41 @@
+#
+# Bug 35333 "If a Federated table can't connect to the remote hose, can't retrieve metadata"
+#
+# Queries such as SHOW TABLE STATUS and SELECT * FROM INFORMATION_SCHEMA.TABLES fail
+# when encountering a federated table that cannot connect to its remote table.
+#
+# The fix is to store the error text in the TABLE COMMENTS column of I_S.TABLES, clear
+# the remote connection error and push a warning instead. This allows the SELECT operation
+# to complete while still indicating a problem. This fix applies to any non-fatal system
+# error that occurs during a query against I_S.TABLES.de
+CREATE DATABASE federated;
+CREATE DATABASE federated;
+DROP TABLE IF EXISTS federated.t0;
+#
+# Create a MyISAM table then corrupt the file
+#
+CREATE TABLE t1 (c1 int) ENGINE=MYISAM;
+#
+# Corrupt the MyISAM table by deleting the base file
+#
+#
+# Trigger a MyISAM system error during an INFORMATION_SCHEMA.TABLES query
+#
+SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, ROW_FORMAT, TABLE_ROWS, DATA_LENGTH, TABLE_COMMENT
+FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 't1';
+TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_ROWS	DATA_LENGTH	TABLE_COMMENT
+test	t1	BASE TABLE	NULL	NULL	NULL	NULL	Can't find file: 't1' (errno: 2)
+Warnings:
+Warning	1017	Can't find file: 't1' (errno: 2)
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1017	Can't find file: 't1' (errno: 2)
+DROP TABLE t1;
+ERROR 42S02: Unknown table 't1'
+#
+# Cleanup
+#
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;
+DROP TABLE IF EXISTS federated.t1;
+DROP DATABASE IF EXISTS federated;

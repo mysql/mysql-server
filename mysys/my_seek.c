@@ -101,6 +101,7 @@ my_off_t my_tell(File fd, myf MyFlags)
     my_errno= errno;
     if (MyFlags & MY_WME)
       my_error(EE_CANT_SEEK, MYF(0), my_filename(fd), my_errno);
+    DBUG_PRINT("error", ("tell: %lu  errno: %d", (ulong) pos, my_errno));
   }
   DBUG_PRINT("exit",("pos: %lu", (ulong) pos));
   DBUG_RETURN((my_off_t) pos);

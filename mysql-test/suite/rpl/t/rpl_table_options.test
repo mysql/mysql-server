@@ -28,4 +28,7 @@ connection master;
 drop table t1;
 set storage_engine=default;
 select 1;
+
+# Cleanup
 uninstall plugin example;
+--source include/rpl_end.inc

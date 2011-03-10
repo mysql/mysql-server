@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates.
+   2009-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -975,7 +976,7 @@ bool sys_var_str::check(THD *thd, set_var *var)
 
   if ((res=(*check_func)(thd, var)) < 0)
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
-             name, var->value->str_value.ptr());
+             name, var->value->str_value.c_ptr());
   return res;
 }
 
@@ -1487,44 +1488,6 @@ bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
 
 
 /**
-  check an unsigned user-supplied value for a systemvariable against bounds.
-
-  TODO: This is a wrapper function to call clipping from within an update()
-        function.  Calling bounds from within update() is fair game in theory,
-        but we can only send warnings from in there, not errors, and besides,
-        it violates our model of separating check from update phase.
-        To avoid breaking out of the server with an ASSERT() in strict mode,
-        we pretend we're not in strict mode when we go through here. Bug#43233
-        was opened to remind us to replace this kludge with The Right Thing,
-        which of course is to do the check in the actual check phase, and then
-        throw an error or warning accordingly.
-
-  @param thd             thread handle
-  @param num             the value to limit
-  @param option_limits   the bounds-record, or NULL if none
- */
-static void bound_unsigned(THD *thd, ulonglong *num,
-                              const struct my_option *option_limits)
-{
-  if (option_limits)
-  {
-    my_bool   fixed     = FALSE;
-    ulonglong unadjusted= *num;
-
-    *num= getopt_ull_limit_value(unadjusted, option_limits, &fixed);
-
-    if (fixed)
-    {
-      ulong ssm= thd->variables.sql_mode;
-      thd->variables.sql_mode&= ~MODE_STRICT_ALL_TABLES;
-      throw_bounds_warning(thd, fixed, TRUE, option_limits->name, unadjusted);
-      thd->variables.sql_mode= ssm;
-    }
-  }
-}
-
-
-/**
   Get unsigned system-variable.
   Negative value does not wrap around, but becomes zero.
   Check user-supplied value for a systemvariable against bounds.
@@ -1642,11 +1605,16 @@ void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 }
 
 
+bool sys_var_ulonglong_ptr::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULL);
+}
+
+
 bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
   pthread_mutex_lock(&LOCK_global_system_variables);
-  bound_unsigned(thd, &tmp, option_limits);
   *value= (ulonglong) tmp;
   pthread_mutex_unlock(&LOCK_global_system_variables);
   return 0;
@@ -1731,25 +1699,30 @@ uchar *sys_var_thd_ulong::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+bool sys_var_thd_ha_rows::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, max_system_variables.*offset,
+#ifdef BIG_TABLES
+                      GET_ULL
+#else
+                      GET_ULONG
+#endif
+                     );
+}
+
+
 bool sys_var_thd_ha_rows::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->save_result.ulonglong_value;
-
-  /* Don't use bigger value than given with --maximum-variable-name=.. */
-  if ((ha_rows) tmp > max_system_variables.*offset)
-    tmp= max_system_variables.*offset;
-
-  bound_unsigned(thd, &tmp, option_limits);
-
   if (var->type == OPT_GLOBAL)
   {
     /* Lock is needed to make things safe on 32 bit systems */
     pthread_mutex_lock(&LOCK_global_system_variables);
-    global_system_variables.*offset= (ha_rows) tmp;
+    global_system_variables.*offset= (ha_rows)
+                                     var->save_result.ulonglong_value;
     pthread_mutex_unlock(&LOCK_global_system_variables);
   }
   else
-    thd->variables.*offset= (ha_rows) tmp;
+    thd->variables.*offset= (ha_rows) var->save_result.ulonglong_value;
   return 0;
 }
 
@@ -2266,11 +2239,15 @@ bool sys_var_character_set::check(THD *thd, set_var *var)
       }
       tmp= NULL;
     }
-    else if (!(tmp=get_charset_by_csname(res->c_ptr(),MY_CS_PRIMARY,MYF(0))) &&
-             !(tmp=get_old_charset_by_name(res->c_ptr())))
+    else
     {
-      my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), res->c_ptr());
-      return 1;
+      const char *name= res->c_ptr_safe();
+      if (!(tmp=get_charset_by_csname(name,MY_CS_PRIMARY,MYF(0))) &&
+             !(tmp=get_old_charset_by_name(name)))
+      {
+        my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), name);
+        return 1;
+      }
     }
   }
   else // INT_RESULT
@@ -2417,6 +2394,12 @@ uchar *sys_var_key_cache_param::value_ptr(THD *thd, enum_var_type type,
 }
 
 
+bool sys_var_key_buffer_size::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULL);
+}
+
+
 bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 {
   ulonglong tmp= var->save_result.ulonglong_value;
@@ -2430,10 +2413,10 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache= get_key_cache(base_name);
-                            
+
   if (!key_cache)
   {
-    /* Key cache didn't exists */
+    /* Key cache didn't exist */
     if (!tmp)					// Tried to delete cache
       goto end;					// Ok, nothing to do
     if (!(key_cache= create_key_cache(base_name->str, base_name->length)))
@@ -2455,9 +2438,8 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
   {
     if (key_cache == dflt_key_cache)
     {
-      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                          ER_WARN_CANT_DROP_DEFAULT_KEYCACHE,
-                          ER(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE));
+      error= 1;
+      my_error(ER_WARN_CANT_DROP_DEFAULT_KEYCACHE, MYF(0));
       goto end;					// Ignore default key cache
     }
 
@@ -2483,7 +2465,6 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
     goto end;
   }
 
-  bound_unsigned(thd, &tmp, option_limits);
   key_cache->param_buff_size= (ulonglong) tmp;
 
   /* If key cache didn't exist initialize it, else resize it */
@@ -2500,7 +2481,16 @@ bool sys_var_key_buffer_size::update(THD *thd, set_var *var)
 
 end:
   pthread_mutex_unlock(&LOCK_global_system_variables);
+
+ var->save_result.ulonglong_value = SIZE_T_MAX;
+
   return error;
+}
+
+
+bool sys_var_key_cache_long::check(THD *thd, set_var *var)
+{
+  return get_unsigned(thd, var, 0, GET_ULONG);
 }
 
 
@@ -2512,7 +2502,6 @@ end:
 */
 bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 {
-  ulonglong tmp= var->value->val_int();
   LEX_STRING *base_name= &var->base;
   bool error= 0;
 
@@ -2537,8 +2526,8 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
   if (key_cache->in_init)
     goto end;
 
-  bound_unsigned(thd, &tmp, option_limits);
-  *((ulong*) (((char*) key_cache) + offset))= (ulong) tmp;
+  *((ulong*) (((char*) key_cache) + offset))= (ulong)
+                                              var->save_result.ulonglong_value;
 
   /*
     Don't create a new key cache if it didn't exist
@@ -2607,7 +2596,7 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
   if (!(res= var->value->val_str(&str)))
     goto err;
 
-  log_file_str= res->c_ptr();
+  log_file_str= res->c_ptr_safe();
   bzero(&f_stat, sizeof(MY_STAT));
 
   path_length= unpack_filename(path, log_file_str);
@@ -3070,7 +3059,7 @@ bool sys_var_thd_lc_time_names::check(THD *thd, set_var *var)
       my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, "NULL");
       return 1;
     }
-    const char *locale_str= res->c_ptr();
+    const char *locale_str= res->c_ptr_safe();
     if (!(locale_match= my_locale_by_name(locale_str)))
     {
       my_printf_error(ER_UNKNOWN_ERROR,
@@ -4102,7 +4091,7 @@ bool sys_var_thd_optimizer_switch::check(THD *thd, set_var *var)
                                optimizer_switch_typelib.count, 
                                thd->variables.optimizer_switch,
                                global_system_variables.optimizer_switch,
-                               res->c_ptr_safe(), res->length(), NULL,
+                               res->ptr(), res->length(), NULL,
                                &error, &error_len, &not_used);
   if (error_len)
   {

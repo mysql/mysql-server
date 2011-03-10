@@ -75,8 +75,7 @@ ADD_DEFINITIONS(-DPLUGINDIR="lib/plugin")
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
 
-
-SET(localstatedir "C:\\mysql\\data")
+SET(localstatedir "C:\\\\mysql\\\\data\\\\")
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-huge.cnf.sh
                ${CMAKE_BINARY_DIR}/support-files/my-huge.ini @ONLY)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/support-files/my-innodb-heavy-4G.cnf.sh

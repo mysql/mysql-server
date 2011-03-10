@@ -28,10 +28,6 @@
 
 int maria_delete_table(const char *name)
 {
-  char from[FN_REFLEN];
-#ifdef USE_RAID
-  uint raid_type=0,raid_chunks=0;
-#endif
   MARIA_HA *info;
   myf sync_dir;
   DBUG_ENTER("maria_delete_table");
@@ -53,17 +49,10 @@ int maria_delete_table(const char *name)
   */
   if (!(info= maria_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR)))
   {
-#ifdef USE_RAID
-    raid_type= 0;
-#endif
     sync_dir= 0;
   }
   else
   {
-#ifdef USE_RAID
-    raid_type=      info->s->base.raid_type;
-    raid_chunks=    info->s->base.raid_chunks;
-#endif
     sync_dir= (info->s->now_transactional && !info->s->temporary &&
                !maria_in_recovery) ?
       MY_SYNC_DIR : 0;
@@ -93,15 +82,19 @@ int maria_delete_table(const char *name)
       DBUG_RETURN(1);
   }
 
+  DBUG_RETURN(maria_delete_table_files(name, sync_dir));
+}
+
+
+int maria_delete_table_files(const char *name, myf sync_dir)
+{
+  char from[FN_REFLEN];
+  DBUG_ENTER("maria_delete_table_files");
+
   fn_format(from,name,"",MARIA_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
   if (my_delete_with_symlink(from, MYF(MY_WME | sync_dir)))
     DBUG_RETURN(my_errno);
   fn_format(from,name,"",MARIA_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-#ifdef USE_RAID
-  if (raid_type)
-    DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME | sync_dir)) ?
-                my_errno : 0);
-#endif
   DBUG_RETURN(my_delete_with_symlink(from, MYF(MY_WME | sync_dir)) ?
               my_errno : 0);
 }

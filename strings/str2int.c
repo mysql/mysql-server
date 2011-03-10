@@ -37,9 +37,8 @@
   call has no problems.
 */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 #include "my_sys.h"			/* defines errno */
 #include <errno.h>
 

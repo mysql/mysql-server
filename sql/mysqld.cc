@@ -1,4 +1,5 @@
 /* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+   2010 Oracle and/or its affiliates
    2009-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -66,13 +67,6 @@
 #else
 #define MAX_MEM_TABLE_SIZE ~(ulonglong) 0
 #endif
-
-/* stack traces are only supported on linux intel */
-#if defined(__linux__)  && defined(__i386__) && defined(USE_PSTACK)
-#define	HAVE_STACK_TRACE_ON_SEGV
-#include "../pstack/pstack.h"
-char pstack_file_name[80];
-#endif /* __linux__ */
 
 /* We have HAVE_valgrind below as this speeds up the shutdown of MySQL */
 
@@ -750,9 +744,7 @@ char *opt_logname, *opt_slow_logname;
 /* Static variables */
 
 static bool kill_in_progress, segfaulted;
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-static my_bool opt_do_pstack;
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
+static my_bool opt_stack_trace;
 static my_bool opt_bootstrap, opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag, opt_myisam_block_size;
@@ -2654,9 +2646,9 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
 
 #ifdef HAVE_STACKTRACE
 
-  if (!(test_flags & TEST_NO_STACKTRACE))
+  if (opt_stack_trace)
   {
-    fprintf(stderr, "thd: 0x%lx\n",(long) thd);
+    fprintf(stderr, "Thread pointer: 0x%lx\n", (long) thd);
     fprintf(stderr, "Attempting backtrace. You can use the following "
                     "information to find out\nwhere mysqld died. If "
                     "you see no messages after this, something went\n"
@@ -2684,11 +2676,13 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
       kreason= "KILLED_NO_VALUE";
       break;
     }
-    fprintf(stderr, "Trying to get some variables.\n\
-Some pointers may be invalid and cause the dump to abort...\n");
-    my_safe_print_str("thd->query", thd->query(), 1024);
-    fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
-    fprintf(stderr, "thd->killed=%s\n", kreason);
+    fprintf(stderr, "\nTrying to get some variables.\n"
+                    "Some pointers may be invalid and cause the dump to abort.\n");
+    fprintf(stderr, "Query (%p): ", thd->query());
+    my_safe_print_str(thd->query(), min(1024, thd->query_length()));
+    fprintf(stderr, "Connection ID (thread ID): %lu\n", (ulong) thd->thread_id);
+    fprintf(stderr, "Status: %s\n", kreason);
+    fputc('\n', stderr);
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
@@ -2765,7 +2759,7 @@ static void init_signals(void)
 
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
-  if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
+  if (opt_stack_trace || (test_flags & TEST_CORE_ON_SIGNAL))
   {
     sa.sa_flags = SA_RESETHAND | SA_NODEFER;
     sigemptyset(&sa.sa_mask);
@@ -2912,14 +2906,6 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   if (!opt_bootstrap)
     create_pid_file();
 
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  if (opt_do_pstack)
-  {
-    sprintf(pstack_file_name,"mysqld-%lu-%%d-%%d.backtrace", (ulong)getpid());
-    pstack_install_segv_action(pstack_file_name);
-  }
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
-
   /*
     signal to start_signal_handler that we are ready
     This works by waiting for start_signal_handler to free mutex,
@@ -2980,7 +2966,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     case SIGHUP:
       if (!abort_loop)
       {
-        bool not_used;
+        int not_used;
 	mysql_print_status();		// Print some debug info
 	reload_acl_and_cache((THD*) 0,
 			     (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
@@ -5898,7 +5884,7 @@ enum options_mysqld
   OPT_NDB_USE_COPYING_ALTER_TABLE,
   OPT_SKIP_SAFEMALLOC, OPT_MUTEX_DEADLOCK_DETECTOR,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
-  OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
+  OPT_SKIP_SYMLINKS,
   OPT_MAX_BINLOG_DUMP_EVENTS, OPT_SPORADIC_BINLOG_DUMP_FAIL,
   OPT_SAFE_USER_CREATE, OPT_SQL_MODE,
   OPT_HAVE_NAMED_PIPE,
@@ -6234,11 +6220,11 @@ struct my_option my_long_options[] =
    &opt_enable_named_pipe, &opt_enable_named_pipe, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-#ifdef HAVE_STACK_TRACE_ON_SEGV
-  {"enable-pstack", OPT_DO_PSTACK, "Print a symbolic stack trace on failure.",
-   &opt_do_pstack, &opt_do_pstack, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
-#endif /* HAVE_STACK_TRACE_ON_SEGV */
+#ifdef HAVE_STACKTRACE
+  {"stack-trace", OPT_DO_PSTACK, "Print a symbolic stack trace on failure. "
+   "On by default. Disable with --disable-stack-trace.",
+   &opt_stack_trace, &opt_stack_trace, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+#endif /* HAVE_STACKTRACE */
   {"engine-condition-pushdown",
    OPT_ENGINE_CONDITION_PUSHDOWN,
    "Push supported query conditions to the storage engine.",
@@ -6832,9 +6818,6 @@ thread is in the relay logs.",
   {"skip-slave-start", OPT_SKIP_SLAVE_START,
    "If set, slave is not autostarted.", &opt_skip_slave_start,
    &opt_skip_slave_start, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
-   "Don't print a stack trace on failure.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0,
-   0, 0, 0, 0},
   {"skip-symlink", OPT_SKIP_SYMLINKS, "Don't allow symlinking of tables. "
   "Deprecated option. Use --skip-symbolic-links instead.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7077,7 +7060,7 @@ thread is in the relay logs.",
    "as much as you can afford; 1GB on a 4GB machine that mainly runs MySQL is "
    "quite common.",
    &dflt_key_cache_var.param_buff_size, NULL, NULL, (GET_ULL | GET_ASK_ADDR),
-   REQUIRED_ARG, KEY_CACHE_SIZE, MALLOC_OVERHEAD, SIZE_T_MAX, MALLOC_OVERHEAD,
+   REQUIRED_ARG, KEY_CACHE_SIZE, 0, SIZE_T_MAX, MALLOC_OVERHEAD,
    IO_SIZE, 0},
   {"key_cache_age_threshold", OPT_KEY_CACHE_AGE_THRESHOLD,
    "This characterizes the number of hits a hot block has to be untouched "
@@ -8052,8 +8035,8 @@ SHOW_VAR status_vars[]= {
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
-  {"Rows_sent",                (char*) offsetof(STATUS_VAR, rows_sent), SHOW_LONG_STATUS},
-  {"Rows_read",                (char*) offsetof(STATUS_VAR, rows_read), SHOW_LONG_STATUS},
+  {"Rows_sent",                (char*) offsetof(STATUS_VAR, rows_sent), SHOW_LONGLONG_STATUS},
+  {"Rows_read",                (char*) offsetof(STATUS_VAR, rows_read), SHOW_LONGLONG_STATUS},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_NOFLUSH},
@@ -8833,9 +8816,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_WANT_CORE:
     test_flags |= TEST_CORE_ON_SIGNAL;
     break;
-  case (int) OPT_SKIP_STACK_TRACE:
-    test_flags|=TEST_NO_STACKTRACE;
-    break;
   case (int) OPT_SKIP_SYMLINKS:
     WARN_DEPRECATED(NULL, VER_CELOSIA, "--skip-symlink", "--skip-symbolic-links");
     my_use_symdir=0;
@@ -9260,7 +9240,8 @@ static int get_options(int *argc,char **argv)
   if (opt_debugging)
   {
     /* Allow break with SIGINT, no core or stack trace */
-    test_flags|= TEST_SIGINT | TEST_NO_STACKTRACE;
+    test_flags|= TEST_SIGINT;
+    opt_stack_trace= 1;
     test_flags&= ~TEST_CORE_ON_SIGNAL;
   }
   /* Set global MyISAM variables from delay_key_write_options */
