@@ -2,6 +2,8 @@
 # Embedded server doesn't support external clients
 --source include/not_embedded.inc
 
+--source include/have_innodb.inc
+
 # check that CSV engine was compiled in, as the result of the test
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
@@ -34,7 +36,7 @@ drop database if exists client_test_db;
 #
 # Bug #16502: mysqlcheck tries to check views
 #
-create table t1 (a int);
+create table t1 (a int) engine=myisam;
 create view v1 as select * from t1;
 --replace_result 'Table is already up to date' OK
 --exec $MYSQL_CHECK --analyze --databases test
@@ -48,8 +50,8 @@ drop table t1;
 #
 # Bug #30654: mysqlcheck fails during upgrade of tables whose names include backticks
 #
-create table `t``1`(a int);
-create table `t 1`(a int);
+create table `t``1`(a int) engine=myisam;
+create table `t 1`(a int) engine=myisam;
 --replace_result 'Table is already up to date' OK
 --exec $MYSQL_CHECK --databases test
 drop table `t``1`, `t 1`;
@@ -59,7 +61,7 @@ drop table `t``1`, `t 1`;
 #
 create database d_bug25347;
 use d_bug25347;
-create table t_bug25347 (a int);
+create table t_bug25347 (a int) engine=myisam;
 create view v_bug25347 as select * from t_bug25347;
 insert into t_bug25347 values (1),(2),(3);
 flush tables;
@@ -91,8 +93,8 @@ drop view v1;
 # Bug#37527: mysqlcheck fails to report entire database 
 # when frm file corruption
 #
-CREATE TABLE t1(a INT);
-CREATE TABLE t2(a INT);
+CREATE TABLE t1(a INT) engine=myisam;
+CREATE TABLE t2(a INT) engine=myisam;
 # backup then null t1.frm
 --copy_file $MYSQLD_DATADIR/test/t1.frm $MYSQLD_DATADIR/test/t1.frm.bak
 --remove_file $MYSQLD_DATADIR/test/t1.frm
@@ -112,7 +114,7 @@ DROP TABLE t1, t2;
 #
 # Bug #30679: 5.1 name encoding not performed for views during upgrade
 #
-create table t1(a int);
+create table t1(a int) engine=myisam;
 create view v1 as select * from t1;
 show tables;
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -131,7 +133,7 @@ drop table t1;
 #             triggers
 #
 SET NAMES utf8;
-CREATE TABLE `#mysql50#@` (a INT);
+CREATE TABLE `#mysql50#@` (a INT) engine=myisam;
 SHOW TABLES;
 SET NAMES DEFAULT;
 --echo mysqlcheck --fix-table-names --databases test
@@ -140,7 +142,7 @@ SET NAMES utf8;
 SHOW TABLES;
 DROP TABLE `@`;
 
-CREATE TABLE `я` (a INT);
+CREATE TABLE `я` (a INT) engine=myisam;
 SET NAMES DEFAULT;
 --echo mysqlcheck --default-character-set="latin1" --databases test
 # Error returned depends on platform, replace it with "Table doesn't exist"
@@ -154,8 +156,8 @@ SET NAMES DEFAULT;
 
 CREATE DATABASE `#mysql50#a@b`;
 USE `#mysql50#a@b`;
-CREATE TABLE `#mysql50#c@d` (a INT);
-CREATE TABLE t1 (a INT);
+CREATE TABLE `#mysql50#c@d` (a INT) engine=myisam;
+CREATE TABLE t1 (a INT) engine=myisam;
 
 # Create 5.0 like triggers
 let $MYSQLTEST_VARDIR= `select @@datadir`;
@@ -207,12 +209,12 @@ USE test;
 drop table if exists `#mysql50#t1-1`;
 --enable_warnings
 
-create table `#mysql50#t1-1` (a int);
+create table `#mysql50#t1-1` (a int) engine=myisam;
 --exec $MYSQL_CHECK --all-in-1 --fix-table-names --databases test
 show tables like 't1-1';
 drop table `t1-1`;
 
-create table `#mysql50#t1-1` (a int);
+create table `#mysql50#t1-1` (a int) engine=myisam;
 --exec $MYSQL_CHECK --all-in-1 --fix-table-names test "#mysql50#t1-1"
 show tables like 't1-1';
 drop table `t1-1`;
@@ -229,3 +231,83 @@ drop table `t1-1`;
 --error 1
 --exec $MYSQL_CHECK -aoc test "#mysql50#t1-1"
 
+
+--echo #
+--echo # Bug#11755431 47205: MAP 'REPAIR TABLE' TO RECREATE +ANALYZE FOR
+--echo #              ENGINES NOT SUPPORTING NATIVE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS bug47205;
+--enable_warnings
+
+--echo #
+--echo # Test 1: Check that ALTER TABLE ... rebuilds the table
+
+CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
+  DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci engine=innodb;
+
+INSERT INTO bug47205 VALUES ("foobar");
+FLUSH TABLE bug47205;
+
+--echo # Replace the FRM with a 5.0 FRM that will require upgrade
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/test/bug47205.frm
+--copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/bug47205.frm
+
+--echo # Should indicate that ALTER TABLE ... FORCE is needed
+CHECK TABLE bug47205 FOR UPGRADE;
+
+--echo # ALTER TABLE ... FORCE should rebuild the table
+--echo # and therefore output "affected rows: 1"
+--enable_info
+ALTER TABLE bug47205 FORCE;
+--disable_info
+
+--echo # Table should now be ok
+CHECK TABLE bug47205 FOR UPGRADE;
+
+DROP TABLE bug47205;
+
+--echo #
+--echo # Test 2: InnoDB - REPAIR not supported
+
+CREATE TABLE bug47205(a VARCHAR(20) PRIMARY KEY)
+  DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci engine=innodb;
+
+FLUSH TABLE bug47205;
+
+--echo # Replace the FRM with a 5.0 FRM that will require upgrade
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/test/bug47205.frm
+--copy_file std_data/bug47205.frm $MYSQLD_DATADIR/test/bug47205.frm
+
+--echo # Should indicate that ALTER TABLE .. FORCE is needed
+CHECK TABLE bug47205 FOR UPGRADE;
+
+--echo # Running mysqlcheck to check and upgrade
+--exec $MYSQL_CHECK --check-upgrade --auto-repair test
+
+--echo # Table should now be ok
+CHECK TABLE bug47205 FOR UPGRADE;
+
+DROP TABLE bug47205;
+
+--echo #
+--echo # Test 3: MyISAM - REPAIR supported
+
+--echo # Use an old FRM that will require upgrade
+--copy_file std_data/bug36055.frm $MYSQLD_DATADIR/test/bug47205.frm
+--copy_file std_data/bug36055.MYD $MYSQLD_DATADIR/test/bug47205.MYD
+--copy_file std_data/bug36055.MYI $MYSQLD_DATADIR/test/bug47205.MYI
+
+--echo # Should indicate that REPAIR TABLE is needed
+CHECK TABLE bug47205 FOR UPGRADE;
+
+--echo # Running mysqlcheck to check and upgrade
+--exec $MYSQL_CHECK --check-upgrade --auto-repair test
+
+--echo # Table should now be ok
+CHECK TABLE bug47205 FOR UPGRADE;
+
+DROP TABLE bug47205;
