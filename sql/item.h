@@ -1231,7 +1231,7 @@ public:
       maybe_null= 1;
     }
     else
-      max_length= max_result_length;
+      max_length= (uint32) max_result_length;
   }
   void fix_length_and_charset_datetime(uint32 max_char_length_arg)
   {
