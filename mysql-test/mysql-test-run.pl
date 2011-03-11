@@ -94,6 +94,7 @@ $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 our $mysql_version_id;
 our $glob_mysql_test_dir;
 our $basedir;
+our $bindir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
@@ -515,7 +516,7 @@ sub run_test_server ($$$) {
   my $completed= [];
   my %running;
   my $result;
-  my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
+  my $exe_mysqld= find_mysqld($bindir) || ""; # Used as hint to CoreDump
 
   my $suite_timeout= start_timer(suite_timeout());
 
@@ -891,7 +892,7 @@ sub run_worker ($) {
         $valgrind_reports= valgrind_exit_reports();
       }
       if ( $opt_gprof ) {
-	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
+	gprof_collect (find_mysqld($bindir), keys %gprof_dirs);
       }
       exit($valgrind_reports);
     }
@@ -1130,6 +1131,10 @@ sub command_line_setup {
     $basedir= dirname($basedir);
   }
 
+  # Respect MTR_BINDIR variable, which is typically set in to the 
+  # build directory in out-of-source builds.
+  $bindir=$ENV{MTR_BINDIR}||$basedir;
+  
   fix_vs_config_dir();
 
   # Look for the client binaries directory
@@ -1140,21 +1145,25 @@ sub command_line_setup {
   }
   else
   {
-    $path_client_bindir= mtr_path_exists("$basedir/client_release",
-					 "$basedir/client_debug",
-					 "$basedir/client$opt_vs_config",
-					 "$basedir/client",
-					 "$basedir/bin");
+    $path_client_bindir= mtr_path_exists("$bindir/client_release",
+					 "$bindir/client_debug",
+					 "$bindir/client$opt_vs_config",
+					 "$bindir/client",
+					 "$bindir/bin");
   }
 
-  # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$basedir/share/mariadb/english",
-                                    "$basedir/share/mysql/english",
-                                    "$basedir/sql/share/english",
-                                    "$basedir/share/english");
+
+  $path_language=   mtr_path_exists("$bindir/share/mariadb/english",
+                                    "$bindir/share/mysql/english",
+                                    "$bindir/sql/share/english",
+                                    "$bindir/share/english");
 
   my $path_share= dirname($path_language);
-  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
+
+  $path_charsetsdir=   mtr_path_exists("$basedir/share/charsets",
+                                    "$basedir/share/mysql/charsets",
+                                    "$basedir/sql/share/charsets",
+                                    "$basedir/share/charsets");
 
   if ( $opt_comment )
   {
@@ -1306,7 +1315,15 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Set the "var/" directory, the base for everything else
   # --------------------------------------------------------------------------
-  $default_vardir= "$glob_mysql_test_dir/var";
+  if(defined $ENV{MTR_BINDIR})
+  {
+    $default_vardir= "$ENV{MTR_BINDIR}/mysql-test/var";
+  }
+  else
+  {
+    $default_vardir= "$glob_mysql_test_dir/var";
+  }
+  
   if ( ! $opt_vardir )
   {
     $opt_vardir= $default_vardir;
@@ -1377,19 +1394,6 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ( $opt_embedded_server )
   {
-    if ( IS_WINDOWS )
-    {
-      # Add the location for libmysqld.dll to the path.
-      my $separator= ";";
-      my $lib_mysqld=
-        mtr_path_exists("$basedir/libmysqld$opt_vs_config");
-      if ( IS_CYGWIN )
-      {
-	$lib_mysqld= posix_path($lib_mysqld);
-	$separator= ":";
-      }
-      $ENV{'PATH'}= "$ENV{'PATH'}".$separator.$lib_mysqld;
-    }
     $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
@@ -1683,7 +1687,7 @@ sub collect_mysqld_features {
     mtr_add_arg($args, "--user=root");
   }
 
-  my $exe_mysqld= find_mysqld($basedir);
+  my $exe_mysqld= find_mysqld($bindir);
   my $cmd= join(" ", $exe_mysqld, @$args);
   my $list= `$cmd`;
 
@@ -1808,7 +1812,7 @@ sub find_mysqld {
     unshift(@mysqld_names, "mysqld-debug");
   }
 
-  return my_find_bin($mysqld_basedir,
+  return my_find_bin($bindir,
 		     ["sql", "libexec", "sbin", "bin"],
 		     [@mysqld_names]);
 }
@@ -1858,7 +1862,7 @@ sub executable_setup () {
   if ( $opt_embedded_server )
   {
     $exe_mysqltest=
-      mtr_exe_exists("$basedir/libmysqld/examples$opt_vs_config/mysqltest_embedded",
+      mtr_exe_exists("$bindir/libmysqld/examples$opt_vs_config/mysqltest_embedded",
                      "$path_client_bindir/mysqltest_embedded");
   }
   else
@@ -1968,11 +1972,11 @@ sub mysql_client_test_arguments(){
   # mysql_client_test executable may _not_ exist
   if ( $opt_embedded_server ) {
     $exe= mtr_exe_maybe_exists(
-            "$basedir/libmysqld/examples$opt_vs_config/mysql_client_test_embedded",
-		"$basedir/bin/mysql_client_test_embedded");
+            "$bindir/libmysqld/examples$opt_vs_config/mysql_client_test_embedded",
+		"$bindir/bin/mysql_client_test_embedded");
   } else {
-    $exe= mtr_exe_maybe_exists("$basedir/tests$opt_vs_config/mysql_client_test",
-			       "$basedir/bin/mysql_client_test");
+    $exe= mtr_exe_maybe_exists("$bindir/tests$opt_vs_config/mysql_client_test",
+			       "$bindir/bin/mysql_client_test");
   }
 
   my $args;
@@ -1984,13 +1988,13 @@ sub mysql_client_test_arguments(){
   mtr_add_arg($args, "--testcase");
   mtr_add_arg($args, "--vardir=$opt_vardir");
   client_debug_arg($args,"mysql_client_test");
-
-  return mtr_args2str($exe, @$args);
+  my $ret=mtr_args2str($exe, @$args);
+  return $ret;
 }
 
 sub tool_arguments ($$) {
   my($sedir, $tool_name) = @_;
-  my $exe= my_find_bin($basedir,
+  my $exe= my_find_bin($bindir,
 		       [$sedir, "bin"],
 		       $tool_name);
 
@@ -2004,7 +2008,7 @@ sub tool_arguments ($$) {
 # scripts to run the mysqld binary to test invalid server startup options.
 sub mysqld_client_arguments () {
   my $default_mysqld= default_mysqld();
-  my $exe = find_mysqld($basedir);
+  my $exe = find_mysqld($bindir);
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
@@ -2195,24 +2199,24 @@ sub environment_setup {
   # some versions, test using it should be skipped
   # ----------------------------------------------------
   my $exe_bug25714=
-      mtr_exe_maybe_exists("$basedir/tests$opt_vs_config/bug25714");
+      mtr_exe_maybe_exists("$bindir/tests$opt_vs_config/bug25714");
   $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
   # ----------------------------------------------------
   my $file_mysql_fix_privilege_tables=
-    mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mariadb/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
+    mtr_file_exists("$bindir/scripts/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mariadb/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
   # my_print_defaults
   # ----------------------------------------------------
   my $exe_my_print_defaults=
-    mtr_exe_exists("$basedir/extra$opt_vs_config/my_print_defaults",
+    mtr_exe_exists("$bindir/extra$opt_vs_config/my_print_defaults",
 		   "$path_client_bindir/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
@@ -2237,7 +2241,7 @@ sub environment_setup {
   # mysqlhotcopy
   # ----------------------------------------------------
   my $mysqlhotcopy=
-    mtr_pl_maybe_exists("$basedir/scripts/mysqlhotcopy");
+    mtr_pl_maybe_exists("$bindir/scripts/mysqlhotcopy");
   # Since mysqltest interprets the real path as "false" in an if,
   # use 1 ("true") to indicate "not exists" so it can be tested for
   $ENV{'MYSQLHOTCOPY'}= $mysqlhotcopy || 1;
@@ -2245,7 +2249,7 @@ sub environment_setup {
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
-  my $exe_perror= mtr_exe_exists("$basedir/extra$opt_vs_config/perror",
+  my $exe_perror= mtr_exe_exists("$bindir/extra$opt_vs_config/perror",
 				 "$path_client_bindir/perror");
   $ENV{'MY_PERROR'}= native_path($exe_perror);
 
@@ -2426,9 +2430,9 @@ sub setup_vardir() {
     mkpath($plugindir);
     if (IS_WINDOWS && !$opt_embedded_server)
     {
-      for (<../storage/*$opt_vs_config/*.dll>,
-           <../plugin/*$opt_vs_config/*.dll>,
-           <../sql$opt_vs_config/*.dll>)
+      for (<$bindir/storage/*$opt_vs_config/*.dll>,
+           <$bindir/plugin/*$opt_vs_config/*.dll>,
+           <$bindir/sql$opt_vs_config/*.dll>)
       {
         my $pname=basename($_);
         copy rel2abs($_), "$plugindir/$pname";
@@ -2437,7 +2441,7 @@ sub setup_vardir() {
     }
     else
     {
-      for (<../storage/*/.libs/*.so>,<../plugin/*/.libs/*.so>,<../sql/.libs/*.so>)
+      for (<$bindir/storage/*/.libs/*.so>,<$bindir/plugin/*/.libs/*.so>,<$bindir/sql/.libs/*.so>)
       {
         my $pname=basename($_);
         symlink rel2abs($_), "$plugindir/$pname";
@@ -2448,8 +2452,8 @@ sub setup_vardir() {
   else
   {
     # hm, what paths work for debs and for rpms ?
-    for (<$basedir/lib/mysql/plugin/*.so>,
-         <$basedir/lib/plugin/*.dll>)
+    for (<$bindir/lib/mysql/plugin/*.so>,
+         <$bindir/lib/plugin/*.dll>)
     {
       my $pname=basename($_);
       set_plugin_var($pname);
@@ -2564,7 +2568,7 @@ sub fix_vs_config_dir () {
   $opt_vs_config="";
 
 
-  for (<$basedir/sql/*/mysqld.exe>) {
+  for (<$bindir/sql/*/mysqld.exe>) {
     if (-M $_ < $modified)
     {
       $modified = -M _;

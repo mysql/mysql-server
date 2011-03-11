@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <Property Id="PortTemplate" Value="####" />
+    <Property Id="PORT" Value="3306"></Property>
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable"/>
+    <Property Id="CREATEDBINSTANCE"><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Property>
+    <UI>
+      <Dialog Id="DatabaseCreationDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+        <Control Id="ServiceNameLabel" Type="Text" X="20" Y="73" Width="70" Height="15" TabSkip="no" Text="Service Name:" />
+        <Control Id="ServiceName" Type="Edit" X="90" Y="73" Width="120" Height="15" Property="SERVICENAME" Text="{20}" />
+
+        <Control Id="RootPasswordLabel" Type="Text" X="20" Y="90" Width="120" Height="15" TabSkip="no" Text="&amp;Root password:" />
+        <Control Id="RootPassword" Type="Edit"  X="20" Y="105" Width="120" Height="18" Property="ROOT_PASSWORD" Password="yes" Text="{20}" />
+
+        <Control Id="RootPasswordConfirmLabel" Type="Text" X="150" Y="90" Width="150" Height="15" TabSkip="no" Text="&amp;Confirm Root password:" />
+        <Control Id="RootPasswordConfirm" Type="Edit" X="150" Y="105" Width="120" Height="18" Property="ROOT_PASSWORD_CONFIRM" Password="yes" Text="{20}" />
+        <Control Id="BannerLine0" Type="Line" X="0" Y="128" Width="370" Height="0" />
+
+        <Control Id="PortLabel" Type="Text" X="20" Y="137" Width="40" Height="15" TabSkip="no" Text="TCP port:"  />
+
+        <Control Id="Port" Type="MaskedEdit" X="60" Y="136" Width="30" Height="15"  Property="PORT" Text="[PortTemplate]"/>
+        <!--<Control Id="FirewallExceptionCheckBox" Type="CheckBox" X="150" Y="136" Height="15" Property="FIREWALL_EXCEPTION" Width="200" CheckBoxValue="1"
+                 Text="Create Firewall exception for this port"/>-->
+
+        <Control Id="BannerLine2" Type="Line" X="0" Y="155" Width="370" Height="0" />
+
+        <Control Id="FolderLabel" Type="Text" X="20" Y="181" Width="100" Height="15" TabSkip="no" Text="Database location:"  />
+        <Control Id="Folder" Type="PathEdit" X="20" Y="204" Width="200" Height="18" Property="DATABASELOCATION" Indirect="no" />
+
+        <!-- Navigation buttons-->
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+          <Publish Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+          <!--
+          <Publish Event="ValidateProductID" Value="0">1</Publish>
+          <Publish Event="SpawnWaitDialog" Value="WaitForCostingDlg">CostingComplete = 1</Publish>
+          -->
+          <!--<Publish Event="NewDialog" Value="SetupTypeDlg">ProductID</Publish>-->
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>Create default [ProductName] instance</Text>
+        </Control>
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}Default instance properties</Text>
+        </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+      </Dialog>
+
+      <Dialog Id="ConfirmDataCleanupDlg" Width="370" Height="270" Title="[ProductName] Setup" NoMinimize="yes">
+        <Control Id="ServiceRemoveText" Type="Text" X="20" Y="73" Width="300" Height="15" TabSkip="no">
+          <Text>Service '[SERVICENAME]' will be removed</Text>
+        </Control>
+        <Control Id="CleanupDataCheckBox" Type="CheckBox" X="20" Y="100" Height="15" Property="CLEANUP_DATA" Width="15" CheckBoxValue="0"/>
+        <Control Id="RemoveDataText" Type="Text" X="37" Y="101" Width="300" Height="200" TabSkip="no">
+          <Text>Remove default database directory '[DATABASELOCATION]'</Text>
+        </Control>
+        
+      <!-- Navigation buttons-->
+      <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+        <Publish Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+      </Control>
+      <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+        <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      </Control>
+      <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+        <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+      </Control>
+      <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+      <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+        <Text>Remove default [ProductName] database</Text>
+      </Control>
+      <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+      <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+        <Text>{\WixUI_Font_Title}Default instance properties</Text>
+      </Control>
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+      </Dialog>
+    </UI>
+    <UI Id="MyWixUI_Mondo">
+      <UIRef Id="WixUI_FeatureTree" />
+      <UIRef Id="WixUI_ErrorProgressText" />
+      <DialogRef Id="DatabaseCreationDlg" />
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="DatabaseCreationDlg" Order="999"><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
+      <Publish Dialog="DatabaseCreationDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="3">1</Publish>
+      <Publish Dialog="DatabaseCreationDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="3">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="DatabaseCreationDlg" Order="3" ><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="3" ><![CDATA[(&DBInstance=2) AND (!DBInstance=3)]]></Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="999"><![CDATA[(&DBInstance=2) AND (!DBInstance=3)]]></Publish>
+      <Publish Dialog="ConfirmDataCleanupDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg">WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="ConfirmDataCleanupDlg" Order="999">!DBInstance=3</Publish>
+      <Publish Dialog="ConfirmDataCleanupDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg">WixUI_InstallMode = "Remove"</Publish>
+    </UI>
+
+    <DirectoryRef Id='TARGETDIR'>
+      <Directory Id="CommonAppDataFolder">
+        <Directory Id="DatabasesRoot" Name="MariaDB">
+          <Directory Id="DATABASELOCATION" Name="MariaDB Server 5.1">
+          </Directory>
+        </Directory>
+      </Directory>
+    </DirectoryRef>
+
+    <Feature Id='DBInstance'
+         Title='Database instance'
+         Description='Install database instance'
+         ConfigurableDirectory='DATABASELOCATION'
+         AllowAdvertise='no'
+         Level='1'>
+      <Component Id="C.datadir" Guid="*" Directory="DATABASELOCATION">
+        <RegistryValue Root='HKLM'
+           Key='SOFTWARE\[Manufacturer]\[ProductName]'
+           Name='DatabaseLocation' Value='[DATABASELOCATION]' Type='string' KeyPath='yes'/>
+        <CreateFolder />
+      </Component>
+      <Component Id="C.service" Guid="*" Directory="DATABASELOCATION">
+        <Condition>SERVICENAME</Condition>
+        <RegistryValue Root='HKLM' 
+           Key='SOFTWARE\[Manufacturer]\[ProductName]' 
+           Name='ServiceName' Value='[SERVICENAME]' Type='string' KeyPath='yes'/>
+        <ServiceControl Id='DBInstanceServiceStop' Name='[SERVICENAME]'  Stop='uninstall'  Wait='yes'></ServiceControl>
+        <ServiceControl Id='DBInstanceServiceStart' Name='[SERVICENAME]' Start='install' Wait='no'></ServiceControl>
+        <ServiceControl Id='DBInstanceServiceRemove' Name='[SERVICENAME]' Remove='uninstall'  Wait='yes'></ServiceControl>
+      </Component>
+   </Feature>
+    
+    <CustomAction Id="QtExecDeferredExampleWithProperty_Cmd" Property="QtExecDeferredExampleWithProperty"
+            Value="&quot;[#F.bin.mysql_install_db.exe]&quot; &quot;--service=[SERVICENAME]&quot; &quot;--password=[ROOT_PASSWORD]&quot; &quot;--datadir=[DATABASELOCATION]&quot;"
+            Execute="immediate"/>
+    <CustomAction Id="QtExecDeferredExampleWithProperty" BinaryKey="WixCA" DllEntry="CAQuietExec"
+            Execute="deferred" Return="check" Impersonate="no"/>
+
+    <UI>
+      <ProgressText Action="QtExecDeferredExampleWithProperty">Running mysql_install_db.exe</ProgressText>
+    </UI>
+
+    <!-- Use Wix toolset "remember property" pattern to store properties between major upgrades etc -->
+    <InstallExecuteSequence>
+      <Custom Action="QtExecDeferredExampleWithProperty_Cmd" After="CostFinalize"><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Custom>
+      <Custom Action="QtExecDeferredExampleWithProperty" After="InstallFiles"><![CDATA[&DBInstance=3 AND NOT !DBInstance=3]]></Custom>
+    </InstallExecuteSequence>
+    
+    <Property Id='SERVICENAME'>
+    <RegistrySearch Id='ServiceNameProperty' Root='HKLM' 
+                    Key='SOFTWARE\[Manufacturer]\[ProductName]'
+                    Name='ServiceName' Type='raw' />
+    </Property>
+     <SetProperty After='AppSearch' Id="SERVICENAME" Value="MariaDB_51"><![CDATA[NOT SERVICENAME]]></SetProperty>
+     <Property Id="DATABASELOCATION">
+      <RegistrySearch Id='DatabaseLocationProperty' Root='HKLM'
+                   Key='SOFTWARE\[Manufacturer]\[ProductName]'
+                   Name='´DatabaseLocation' Type='raw' />
+    </Property>
+    <SetProperty After='AppSearch' Id="DATABASELOCATION" Value="[CommonAppDataFolder]\MariaDB\[ProductName]"><![CDATA[NOT DATABASELOCATION]]></SetProperty>
+    <CustomAction Id='SaveCmdLineValue_SERVICENAME' Property='CMDLINE_SERVICENAME' 
+                  Value='[SERVICENAME]' Execute='firstSequence' /> 
+    <CustomAction Id='SetFromCmdLineValue_SERVICENAME' Property='SERVICENAME'  Value='[CMDLINE_SERVICENAME]' Execute='firstSequence' />
+    <CustomAction Id='SaveCmdLineValue_DATABASELOCATION' Property='CMDLINE_DATABASELOCATION'
+              Value='[DATABASELOCATION]' Execute='firstSequence' />
+    <CustomAction Id='SetFromCmdLineValue_DATABASELOCATION' Property='DATABASELOCATION'  Value='[CMDLINE_DATABASELOCATION]' Execute='firstSequence' />
+
+    <InstallUISequence>
+       <Custom Action='SaveCmdLineValue_SERVICENAME' Before='AppSearch' />  
+       <Custom Action='SetFromCmdLineValue_SERVICENAME' After='AppSearch'>CMDLINE_SERVICENAME</Custom>
+       <Custom Action='SaveCmdLineValue_DATABASELOCATION' Before='AppSearch' />
+       <Custom Action='SetFromCmdLineValue_DATABASELOCATION' After='AppSearch'>CMDLINE_DATABASELOCATION</Custom>
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action='SaveCmdLineValue_SERVICENAME' Before='AppSearch' />
+      <Custom Action='SetFromCmdLineValue_SERVICENAME' After='AppSearch'>CMDLINE_SERVICENAME</Custom>
+      <Custom Action='SaveCmdLineValue_DATABASELOCATION' Before='AppSearch' />
+      <Custom Action='SetFromCmdLineValue_DATABASELOCATION' After='AppSearch'>CMDLINE_DATABASELOCATION</Custom>
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>

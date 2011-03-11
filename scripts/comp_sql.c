@@ -25,6 +25,10 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
+
+/* Compiler-dependent constant for maximum string constant */
+#define MAX_STRING_CONSTANT_LENGTH 65535
 
 FILE *in, *out;
 
@@ -58,9 +62,11 @@ static void die(const char *fmt, ...)
 int main(int argc, char *argv[])
 {
   char buff[512];
+  struct stat st;
   char* struct_name= argv[1];
   char* infile_name= argv[2];
   char* outfile_name= argv[3];
+
 
   if (argc != 4)
     die("Usage: comp_sql <struct_name> <sql_filename> <c_filename>");
@@ -68,54 +74,87 @@ int main(int argc, char *argv[])
   /* Open input and output file */
   if (!(in= fopen(infile_name, "r")))
     die("Failed to open SQL file '%s'", infile_name);
+
+  
   if (!(out= fopen(outfile_name, "w")))
     die("Failed to open output file '%s'", outfile_name);
+  fprintf(out, "const char %s[]={\n",struct_name);
 
-  fprintf(out, "const char* %s={\n\"", struct_name);
-
-  while (fgets(buff, sizeof(buff), in))
+  /* 
+    Some compilers have limitations how long a string constant can be.
+    We'll output very long strings as hexadecimal arrays, and short ones
+    as strings (prettier)
+  */
+  stat(infile_name, &st);
+  if (st.st_size > MAX_STRING_CONSTANT_LENGTH)
   {
-    char *curr= buff;
-    while (*curr)
+    int cnt=0;
+    int c;
+    int first_char= 1;
+    for(cnt=0;;cnt++)
     {
-      if (*curr == '\n')
+      c= fgetc(in);
+      if (c== -1)
+        break;
+
+      if(cnt != 0)
+        fputc(',', out);
+
+      /* Put line break after each 16 hex characters */
+      if(cnt && (cnt%16 == 0))
+        fputc('\n', out);
+
+      fprintf(out,"0x%02x",c);
+    }
+    fprintf(out,",0x00",c);
+  }
+  else
+  {
+    fprintf(out,"\"");
+    while (fgets(buff, sizeof(buff), in))
+    {
+      char *curr= buff;
+      while (*curr)
+      {
+        if (*curr == '\n')
+        {
+          /*
+            Reached end of line, add escaped newline, escaped
+            backslash and a newline to outfile
+          */
+          fprintf(out, "\\n \"\n\"");
+          curr++;
+        }
+        else if (*curr == '\r')
+        {
+          curr++; /* Skip */
+        }
+        else
+        {
+          if (*curr == '"')
+          {
+            /* Needs escape */
+            fputc('\\', out);
+          }
+
+          fputc(*curr, out);
+          curr++;
+        }
+      }
+      if (*(curr-1) != '\n')
       {
         /*
-          Reached end of line, add escaped newline, escaped
-          backslash and a newline to outfile
+          Some compilers have a max string length,
+          insert a newline at every 512th char in long
+          strings
         */
-        fprintf(out, "\\n \"\n\"");
-        curr++;
-      }
-      else if (*curr == '\r')
-      {
-        curr++; /* Skip */
-      }
-      else
-      {
-        if (*curr == '"')
-        {
-          /* Needs escape */
-          fputc('\\', out);
-        }
-
-        fputc(*curr, out);
-        curr++;
+        fprintf(out, "\"\n\"");
       }
     }
-    if (*(curr-1) != '\n')
-    {
-      /*
-        Some compilers have a max string length,
-        insert a newline at every 512th char in long
-        strings
-      */
-      fprintf(out, "\"\n\"");
-    }
+    fprintf(out, "\\\n\"");
   }
-
-  fprintf(out, "\\\n\"};\n");
-
+  
+  fprintf(out, "};\n");
   fclose(in);
   fclose(out);
 

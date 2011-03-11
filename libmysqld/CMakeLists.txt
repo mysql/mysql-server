@@ -28,14 +28,15 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include 
-                    ${CMAKE_SOURCE_DIR}/zlib)
+                    ${CMAKE_SOURCE_DIR}/zlib
+                    ${CMAKE_BINARY_DIR}/sql)
 
-SET(GEN_SOURCES     ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
-                    ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+SET(GEN_SOURCES     ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+                    ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
                     ${CMAKE_SOURCE_DIR}/sql/message.h
                     ${CMAKE_SOURCE_DIR}/sql/message.rc
-                    ${CMAKE_SOURCE_DIR}/sql/sql_builtin.cc
-                    ${CMAKE_SOURCE_DIR}/sql/lex_hash.h)
+                    ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+                    ${CMAKE_BINARY_DIR}/sql/lex_hash.h)
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
 
@@ -97,7 +98,7 @@ ENDFOREACH(ENGINE_LIB)
 
 SET(SOURCE_SUBLIBS FALSE)
                             
-SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc 
+SET(LIBMYSQLD_SOURCES  libmysqld.c emb_qcache.cc lib_sql.cc 
            ../libmysql/libmysql.c ../libmysql/errmsg.c ../client/get_password.c
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
@@ -177,6 +178,9 @@ ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
 
-INSTALL(TARGETS mysqlserver DESTINATION Embedded/static COMPONENT embedded)
+INSTALL(TARGETS mysqlserver DESTINATION lib COMPONENT Embedded)
+INSTALL_DEBUG_SYMBOLS(mysqlserver)
+INSTALL_DEBUG_TARGET(mysqlserver DESTINATION lib/debug COMPONENT Embedded)
 
-INSTALL(TARGETS libmysqld DESTINATION Embedded/DLL COMPONENT embedded)
+INSTALL(TARGETS libmysqld DESTINATION lib COMPONENT Embedded)
+INSTALL_DEBUG_SYMBOLS(libmysqld)

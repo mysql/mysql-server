@@ -22,19 +22,19 @@ TARGET_LINK_LIBRARIES(comp_err debug dbug mysys strings zlib wsock32)
 
 GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
 
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/include/mysqld_error.h
+ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/include/mysqld_error.h
                    COMMAND ${COMP_ERR_EXE}
                     --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-                    --out-dir=${PROJECT_SOURCE_DIR}/sql/share/
-                    --header_file=${PROJECT_SOURCE_DIR}/include/mysqld_error.h 
-                    --name_file=${PROJECT_SOURCE_DIR}/include/mysqld_ername.h
-                    --state_file=${PROJECT_SOURCE_DIR}/include/sql_state.h
+                    --out-dir=${CMAKE_BINARY_DIR}/sql/share/
+                    --header_file=${CMAKE_BINARY_DIR}/include/mysqld_error.h 
+                    --name_file=${CMAKE_BINARY_DIR}/include/mysqld_ername.h
+                    --state_file=${CMAKE_BINARY_DIR}/include/sql_state.h
                     --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
                    DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
-                  DEPENDS ${PROJECT_SOURCE_DIR}/include/mysqld_error.h)
+                  DEPENDS ${CMAKE_BINARY_DIR}/include/mysqld_error.h)
 
 ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults strings mysys debug dbug taocrypt wsock32)
@@ -48,8 +48,4 @@ TARGET_LINK_LIBRARIES(resolveip strings mysys debug dbug wsock32)
 ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace strings mysys debug dbug wsock32)
 
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
-
-INSTALL(TARGETS comp_err my_print_defaults perror resolveip replace DESTINATION bin COMPONENT runtime)
+MYSQL_INSTALL_TARGETS(comp_err my_print_defaults perror resolveip replace DESTINATION bin COMPONENT Server)

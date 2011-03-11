@@ -124,14 +124,8 @@ ADD_DEPENDENCIES(libmysql GenError)
 TARGET_LINK_LIBRARIES(libmysql wsock32)
 ADD_DEFINITIONS(-DHAVE_DLOPEN)
 
-IF(EMBED_MANIFESTS)
-  MYSQL_EMBED_MANIFEST("myTest" "asInvoker")
-ENDIF(EMBED_MANIFESTS)
 
-# TODO: Install mysqlclient_notls?
-# TODO: Which component should these be part of, development?
-INSTALL(TARGETS mysqlclient DESTINATION lib/opt COMPONENT runtime)
-INSTALL(TARGETS libmysql DESTINATION lib/opt COMPONENT runtime)
-
-# Also install libmysql.dll to the bin dir
-INSTALL(TARGETS libmysql DESTINATION bin COMPONENT runtime)
+INSTALL(TARGETS mysqlclient DESTINATION lib COMPONENT Development)
+INSTALL_DEBUG_SYMBOLS(mysqlclient DESTINATION lib)
+INSTALL(TARGETS libmysql DESTINATION lib COMPONENT SharedLibraries)
+INSTALL_DEBUG_SYMBOLS(libmysql DESTINATION lib)

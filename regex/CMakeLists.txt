@@ -20,6 +20,4 @@ SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(regex ${REGEX_SOURCES})
-  
-  INSTALL(TARGETS regex DESTINATION lib/opt COMPONENT runtime) # TODO: Component
 ENDIF(NOT SOURCE_SUBLIBS)
