@@ -2861,11 +2861,9 @@ void MYSQL_BIN_LOG::init(bool no_auto_events_arg, ulong max_size_arg)
 
 void MYSQL_BIN_LOG::init_pthread_objects()
 {
-  DBUG_ASSERT(inited == 0);
-  inited= 1;
-  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
-  mysql_mutex_init(key_BINLOG_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
-  mysql_cond_init(key_BINLOG_update_cond, &update_cond, 0);
+  MYSQL_LOG::init_pthread_objects();
+  mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
+  mysql_cond_init(m_key_update_cond, &update_cond, 0);
 }
 
 
@@ -2888,7 +2886,7 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   }
   fn_format(index_file_name, index_file_name_arg, mysql_data_home,
             ".index", opt);
-  if ((index_file_nr= mysql_file_open(key_file_binlog_index,
+  if ((index_file_nr= mysql_file_open(m_key_file_log_index,
                                       index_file_name,
                                       O_RDWR | O_CREAT | O_BINARY,
                                       MYF(MY_WME))) < 0 ||
@@ -3004,7 +3002,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
   /* open the main log file */
   if (MYSQL_LOG::open(
 #ifdef HAVE_PSI_INTERFACE
-                      key_file_binlog,
+                      m_key_file_log,
 #endif
                       log_name, log_type_arg, new_name, io_cache_type_arg))
   {
@@ -3874,7 +3872,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
     /* Get rid of the trailing '\n' */
     log_info.log_file_name[length-1]= 0;
 
-    if (!mysql_file_stat(key_file_binlog, log_info.log_file_name, &s, MYF(0)))
+    if (!mysql_file_stat(m_key_file_log, log_info.log_file_name, &s, MYF(0)))
     {
       if (my_errno == ENOENT) 
       {
@@ -4049,7 +4047,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
 	 !is_active(log_info.log_file_name) &&
          !log_in_use(log_info.log_file_name))
   {
-    if (!mysql_file_stat(key_file_binlog,
+    if (!mysql_file_stat(m_key_file_log,
                          log_info.log_file_name, &stat_area, MYF(0)))
     {
       if (my_errno == ENOENT) 
