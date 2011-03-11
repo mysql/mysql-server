@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -12231,7 +12231,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
       if (field_item->result_type() == STRING_RESULT)
       {
-        CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        const CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
         if (!item)
         {
           Item_func_eq *eq_item;
