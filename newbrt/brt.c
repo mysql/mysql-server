@@ -3307,6 +3307,8 @@ toku_brt_change_descriptor(
     new_d.dbt = *new_descriptor;
     fd = toku_cachefile_get_and_pin_fd (t->cf);
     r = toku_update_descriptor(t->h, &new_d, fd);
+    if (r == 0)  // very infrequent operation, worth precise threadsafe count
+        (void) toku_sync_fetch_and_increment_uint64(&update_status.descriptor_set);
     toku_cachefile_unpin_fd(t->cf);
     if (r!=0) goto cleanup;
 

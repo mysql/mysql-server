@@ -142,6 +142,7 @@ typedef struct __toku_engine_status {
   u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ 
   u_int64_t        le_updates;              /* leafentry update operations                        */ 
   u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ 
+  u_int64_t        descriptor_set;          /* descriptor set operations              */ 
   u_int64_t        point_queries;           /* ydb point queries                      */ 
   u_int64_t        sequential_queries;      /* ydb sequential queries                 */ 
   u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ 
@@ -282,7 +283,6 @@ typedef enum {
 #define TOKUDB_UPGRADE_FAILURE -100011
 #define TOKUDB_TRY_AGAIN -100012
 #define TOKUDB_NEEDS_REPAIR -100013
-#define TOKUDB_FINGERPRINT_ERROR -100014
 /* LOADER flags */
 #define LOADER_USE_PUTS 1
 typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val);

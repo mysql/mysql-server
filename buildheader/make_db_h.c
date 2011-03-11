@@ -535,6 +535,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        multi_updates_fail;      /* ydb row update operations that failed, dictionary count  */ \n");
     printf("  u_int64_t        le_updates;              /* leafentry update operations                        */ \n");
     printf("  u_int64_t        le_updates_broadcast;    /* leafentry update broadcast operations              */ \n");
+    printf("  u_int64_t        descriptor_set;          /* descriptor set operations              */ \n");
     printf("  u_int64_t        point_queries;           /* ydb point queries                      */ \n");
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries                 */ \n");
     printf("  u_int64_t        le_max_committed_xr;     /* max committed transaction records in any packed le  */ \n");

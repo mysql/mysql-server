@@ -144,7 +144,6 @@ BDB_DONTRUN_TESTS = \
         powerfail \
 	preload-db \
 	preload-db-nested \
-	preload-3.1-db \
         progress \
 	put-multiple \
         recover-2483 \
