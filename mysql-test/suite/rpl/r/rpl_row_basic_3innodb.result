@@ -478,6 +478,8 @@ include/diff_tables.inc [master:t2, slave:t2]
 [expecting slave to stop]
 INSERT INTO t3 VALUES (1, "", 1);
 INSERT INTO t3 VALUES (2, repeat(_utf8'a', 128), 2);
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: 1535");
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table test.t1.* Error_code: 1032");
 include/wait_for_slave_sql_error.inc [errno=1535]
 Last_SQL_Error = 'Table definition on master and slave does not match: Column 1 size mismatch - master has size 384, test.t3 on slave has size 49. Master's column size should be <= the slave's column size.'
 include/rpl_reset.inc
