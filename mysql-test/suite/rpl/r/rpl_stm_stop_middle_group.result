@@ -11,6 +11,8 @@ insert into tm set a=null;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 commit;
+call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
+call mtr.add_suppression("Slave SQL.*The slave SQL is stopped, leaving the current group of events unfinished with a non-transaction table changed.");
 include/wait_for_slave_sql_to_stop.inc
 SELECT "NO" AS Last_SQL_Error, @check as `true`;
 Last_SQL_Error	true

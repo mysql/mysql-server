@@ -75,6 +75,7 @@ include/wait_for_slave_sql_to_start.inc
 # Test end
 SET GLOBAL debug= '$debug_save';
 include/restart_slave.inc
+call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
 [connection master]
 DROP TABLE t1, t2;
 
