@@ -138,6 +138,7 @@ Tables_in_test
 DROP TABLE `@`;
 CREATE TABLE `я` (a INT);
 SET NAMES DEFAULT;
+call mtr.add_suppression("@003f.frm' \\(errno: 22\\)");
 mysqlcheck --default-character-set="latin1" --databases test
 test.?
 Error    : Table doesn't exist
