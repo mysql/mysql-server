@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 
       fprintf(out,"0x%02x",c);
     }
-    fprintf(out,",0x00",c);
+    fprintf(out,",0x00");
   }
   else
   {
