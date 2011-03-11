@@ -18,6 +18,7 @@
 
 package com.mysql.clusterj.jpatest;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,7 +55,14 @@ public abstract class PersistenceTestCase
      * @param props configuration values in the form key, value, key, value...
      */
     protected EntityManagerFactory createEMF(Object... props) {
-        return createNamedEMF(getPersistenceUnitName(), props);
+        String puName = getPersistenceUnitName();
+        EntityManagerFactory result = createNamedEMF(puName, props);
+//        if (result == null) {
+//            System.out.println("Unable to create EMF with properties PUName " + puName + " props " + Arrays.toString(props));
+//        } else {
+//            System.out.println("Created EMF with properties PUName " + puName + " props " + Arrays.toString(props));
+//        }
+        return result;
     }
 
     /**
@@ -64,7 +72,7 @@ public abstract class PersistenceTestCase
     protected String getPersistenceUnitName() {
         String puName = System.getProperty(
                 "com.mysql.clusterj.jpa.PersistenceUnit", "ndb");
-        if (puName.equals("${com.mysql.clusterj.jpa.PersistenceUnit}")) {
+        if (puName.length() == 0 || puName.equals("${com.mysql.clusterj.jpa.PersistenceUnit}")) {
             return "ndb";
         } else {
             return puName;
