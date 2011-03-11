@@ -420,7 +420,7 @@ page_zip_copy_recs(
 	const page_t*		src,		/*!< in: page */
 	dict_index_t*		index,		/*!< in: index of the B-tree */
 	mtr_t*			mtr)		/*!< in: mini-transaction */
-	__attribute__((nonnull(1,2,3,4)));
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
