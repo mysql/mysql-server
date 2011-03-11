@@ -3641,6 +3641,7 @@ c1	c2
 300	1
 SET SQL_LOG_BIN=0;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
+call mtr.add_suppression("Slave SQL: Could not execute Update_rows event on table test.t1; Can.t find record in .t1.* Error_code: 1032");
 SET SQL_LOG_BIN=1;
 include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
 DROP TABLE t1;
@@ -3823,6 +3824,7 @@ c1	c2
 300	1
 SET SQL_LOG_BIN=0;
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
+call mtr.add_suppression("Slave SQL: Could not execute Update_rows event on table test.t1; Can.t find record in .t1.* Error_code: 1032");
 SET SQL_LOG_BIN=1;
 include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
 DROP TABLE t1;
