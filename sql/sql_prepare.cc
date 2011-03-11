@@ -1,4 +1,4 @@
-/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -235,9 +235,9 @@ protected:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store_decimal(const my_decimal *);
-  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
-                     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
+                     const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
   virtual bool store(MYSQL_TIME *time);
   virtual bool store_date(MYSQL_TIME *time);
   virtual bool store_time(MYSQL_TIME *time);
@@ -260,7 +260,7 @@ protected:
   virtual bool send_error(uint sql_errno, const char *err_msg, const char* sqlstate);
 private:
   bool store_string(const char *str, size_t length,
-                    CHARSET_INFO *src_cs, CHARSET_INFO *dst_cs);
+                    const CHARSET_INFO *src_cs, const CHARSET_INFO *dst_cs);
 
   bool store_column(const void *data, size_t length);
   void opt_add_row_to_rset();
@@ -767,8 +767,8 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       label as 'default' lets us to handle malformed packets as well.
     */
     {
-      CHARSET_INFO *fromcs= thd->variables.character_set_client;
-      CHARSET_INFO *tocs= thd->variables.collation_connection;
+      const CHARSET_INFO *fromcs= thd->variables.character_set_client;
+      const CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
       param->value.cs_info.character_set_of_placeholder= fromcs;
@@ -2227,7 +2227,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
   {
     /* This is PREPARE stmt FROM or EXECUTE IMMEDIATE @var. */
     String str;
-    CHARSET_INFO *to_cs= thd->variables.collation_connection;
+    const CHARSET_INFO *to_cs= thd->variables.collation_connection;
     bool needs_conversion;
     user_var_entry *entry;
     String *var_value= &str;
@@ -4162,7 +4162,8 @@ bool Protocol_local::store_column(const void *data, size_t length)
 
 bool
 Protocol_local::store_string(const char *str, size_t length,
-                             CHARSET_INFO *src_cs, CHARSET_INFO *dst_cs)
+                             const CHARSET_INFO *src_cs,
+                             const CHARSET_INFO *dst_cs)
 {
   /* Store with conversion */
   uint error_unused;
@@ -4236,9 +4237,9 @@ bool Protocol_local::store_decimal(const my_decimal *value)
 /** Convert to cs_results and store a string. */
 
 bool Protocol_local::store(const char *str, size_t length,
-                           CHARSET_INFO *src_cs)
+                           const CHARSET_INFO *src_cs)
 {
-  CHARSET_INFO *dst_cs;
+  const CHARSET_INFO *dst_cs;
 
   dst_cs= m_connection->m_thd->variables.character_set_results;
   return store_string(str, length, src_cs, dst_cs);
@@ -4248,7 +4249,8 @@ bool Protocol_local::store(const char *str, size_t length,
 /** Store a string. */
 
 bool Protocol_local::store(const char *str, size_t length,
-                           CHARSET_INFO *src_cs, CHARSET_INFO *dst_cs)
+                           const CHARSET_INFO *src_cs,
+                           const CHARSET_INFO *dst_cs)
 {
   return store_string(str, length, src_cs, dst_cs);
 }
