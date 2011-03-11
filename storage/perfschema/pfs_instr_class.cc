@@ -832,7 +832,7 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
     entry= &socket_class_array[index];
     init_instr_class(entry, name, name_length, flags);
     entry->m_index= index;
-    entry->m_event_name_index= file_class_start + index;
+    entry->m_event_name_index= socket_class_start + index;
     entry->m_singleton= NULL;
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
