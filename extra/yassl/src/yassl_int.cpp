@@ -308,7 +308,7 @@ SSL::SSL(SSL_CTX* ctx)
             SetError(YasslError(err));
             return;
         }
-        else if (serverSide) {
+        else if (serverSide && !(ctx->GetCiphers().setSuites_)) {
             // remove RSA or DSA suites depending on cert key type
             ProtocolVersion pv = secure_.get_connection().version_;
             
