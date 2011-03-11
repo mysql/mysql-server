@@ -1034,6 +1034,14 @@ p
 NULL
 NULL
 drop table t1;
+#
+# Test for bug #59888 "debug assertion when attempt to create spatial index
+#                      on char > 31 bytes".
+#
+create table t1(a char(32) not null) engine=myisam;
+create spatial index i on t1 (a);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+drop table t1;
 CREATE TABLE t0 (a BINARY(32) NOT NULL);
 CREATE SPATIAL INDEX i on t0 (a);
 ERROR HY000: Incorrect arguments to SPATIAL INDEX

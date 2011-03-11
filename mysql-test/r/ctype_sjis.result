@@ -218,4 +218,10 @@ hex(a)	hex(lower(a))	hex(upper(a))
 8352835E	8352835E	8352835E
 8372835E	8372835E	8372835E
 DROP TABLE t1;
+#
+# Bug#11766519 - Bug#59648: MY_STRTOLL10_MB2: ASSERTION `(*ENDPTR - S) % 2 == 0' FAILED.
+#
+SELECT QUOTE('ƒ\');
+QUOTE('ƒ\')
+'ƒ\'
 # End of 5.1 tests
