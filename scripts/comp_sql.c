@@ -90,7 +90,6 @@ int main(int argc, char *argv[])
   {
     int cnt=0;
     int c;
-    int first_char= 1;
     for(cnt=0;;cnt++)
     {
       c= fgetc(in);
