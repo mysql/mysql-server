@@ -13,5 +13,6 @@ include/stop_slave_io.inc
 RESET SLAVE;
 drop table t1;
 call mtr.add_suppression("Slave: Can't get stat of .*");
+call mtr.add_suppression("Slave SQL: Error .Can.t get stat of.* Error_code: 13");
 call mtr.add_suppression("Slave: File.* not found.*");
 include/rpl_end.inc

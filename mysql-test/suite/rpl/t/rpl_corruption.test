@@ -16,6 +16,7 @@ call mtr.add_suppression('Slave I/O: Relay log write failure: could not queue ev
 call mtr.add_suppression('event read from binlog did not pass crc check');
 call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
+call mtr.add_suppression('Slave SQL: Error initializing relay log position: I/O error reading event at position .*, Error_code: 1593');
 
 SET @old_master_verify_checksum = @@master_verify_checksum;
 
