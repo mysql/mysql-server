@@ -22,7 +22,7 @@ source include/have_debug.inc;
 
 --connection slave
 call mtr.add_suppression('Found invalid event in binary log');
-
+call mtr.add_suppression('Slave SQL.*Relay log read failure: Could not parse relay log event entry.* 1594');
 
 #
 # BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event

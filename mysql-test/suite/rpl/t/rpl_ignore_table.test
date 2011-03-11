@@ -125,6 +125,7 @@ show grants for mysqltest4@localhost;
 # where mysqltest1 does not exist on slave,
 # to succeed on slave the mode is temporarily changed
 set global slave_exec_mode='IDEMPOTENT';
+call mtr.add_suppression("Slave SQL.*Could not execute Delete_rows event on table mysql.* Error_code: 1032");
 
 connection master;
 drop table t1, mysqltest2.t2;
