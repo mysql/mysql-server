@@ -1554,6 +1554,17 @@ get_thread_v1(void)
 
 /**
   Implementation of the thread instrumentation interface.
+  @sa PSI_v1::get_thread.
+*/
+static ulong
+get_thread_id_v1(void)
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  return (likely(pfs != NULL) ? pfs->m_thread_id : 0);
+}
+
+/**
+  Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_user.
 */
 static void set_thread_user_v1(const char *user, int user_len)
@@ -3805,7 +3816,8 @@ static void set_socket_address_v1(PSI_socket *socket,
 static void set_socket_info_v1(PSI_socket *socket,
                                my_socket *fd,
                                const struct sockaddr *addr,
-                               socklen_t *addr_len)
+                               socklen_t *addr_len,
+                               ulong thread_id)
 {
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
@@ -3826,6 +3838,9 @@ static void set_socket_info_v1(PSI_socket *socket,
     if (likely(pfs->m_sock_len > 0))
       memcpy(&pfs->m_sock_addr, addr, pfs->m_sock_len);
   }
+
+  /** Set thread id associated with this socket */
+  pfs->m_thread_id= thread_id;
 }
 
 /**
@@ -3858,6 +3873,7 @@ PSI_v1 PFS_v1=
   new_thread_v1,
   set_thread_id_v1,
   get_thread_v1,
+  get_thread_id_v1,
   set_thread_user_v1,
   set_thread_user_host_v1,
   set_thread_db_v1,

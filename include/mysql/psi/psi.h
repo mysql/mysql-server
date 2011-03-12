@@ -928,6 +928,15 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 
 /**
+  Get the thread id of the running thread.
+  For this function to return a result,
+  the thread instrumentation must have been attached to the
+  running thread using @c set_thread()
+  @return the thread id of the running thread
+*/
+typedef ulong (*get_thread_id_v1_t)(void);
+
+/**
   Assign a user name to the instrumented thread.
   @param user the user name
   @param user_len the user name length
@@ -1319,11 +1328,13 @@ typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
     @param fd the socket descriptor
     @param addr the socket ip address
     @param addr_len length of socket ip address
+    @param thread_id associated thread id
 */
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      my_socket *fd,
                                      const struct sockaddr *addr,
-                                     socklen_t *addr_len);
+                                     socklen_t *addr_len,
+                                     ulong thread_id);
 
 /**
   Performance Schema Interface, version 1.
@@ -1379,6 +1390,8 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
+  /** @sa get_thread_id_v1_t. */
+  get_thread_id_v1_t get_thread_id;
   /** @sa set_thread_user_v1_t. */
   set_thread_user_v1_t set_thread_user;
   /** @sa set_thread_user_host_v1_t. */
