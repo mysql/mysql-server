@@ -964,3 +964,36 @@ where t2.a=1 and t2.b=t1.a and t1.a=t3.b and t3.a=1;
 
 drop table t1,t2,t3;
 
+--echo #
+--echo # BUG#729067/730466: unexpected 'Range checked for each record'
+--echo #                    for queries with OR in WHERE clause 
+--echo #
+
+CREATE TABLE t1 (f1 int, f2 int) ;
+INSERT INTO t1 VALUES (4,0),(5,1);
+
+CREATE TABLE t2 (f1 int, f2 int, KEY (f2)) ;
+INSERT INTO t2 VALUES (5,7), (8,9);
+
+EXPLAIN
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+  WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON t2.f1 = t1.f1
+  WHERE t1.f1<>0 OR t1.f2<>0 AND t1.f1 = t2.f2;
+
+DROP TABLE t1,t2;
+
+CREATE TABLE t1(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t1 VALUES (9,4), (10,9);
+
+CREATE TABLE t2(f1 int PRIMARY KEY, f2 int) ;
+INSERT INTO t2 VALUES (9,4), (10,9);
+
+EXPLAIN
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+  WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+SELECT STRAIGHT_JOIN * FROM t1 JOIN t2 ON t2.f2 = t1.f1
+  WHERE t1.f1 IN (SELECT f1 FROM t1) AND t1.f1 = t2.f1 OR t1.f1 = 9;
+
+DROP TABLE t1,t2;
+
