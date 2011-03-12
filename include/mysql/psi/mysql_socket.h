@@ -400,12 +400,22 @@ inline_mysql_socket_socket
   int domain, int type, int protocol)
 {
   MYSQL_SOCKET mysql_socket;
+  ulong thread_id;
 
   mysql_socket.fd= socket(domain, type, protocol);
 
 #ifdef HAVE_PSI_INTERFACE
   mysql_socket.m_psi = PSI_server ? PSI_server->init_socket(key, &mysql_socket.fd)
                                   : NULL;
+
+  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL
+             && mysql_socket.fd != -1))
+    {
+      thread_id= PSI_server->get_thread_id();
+      PSI_server->set_socket_info(mysql_socket.m_psi, &mysql_socket.fd,
+                                  NULL, 0, thread_id);
+    }
+
 #endif
   return mysql_socket;
 }
@@ -789,7 +799,8 @@ inline_mysql_socket_accept
 #endif
   MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len)
 {
-  MYSQL_SOCKET socket_accept = {0, NULL};
+  MYSQL_SOCKET socket_accept = MYSQL_INVALID_SOCKET;
+  ulong thread_id;
 
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
 
@@ -800,8 +811,11 @@ inline_mysql_socket_accept
 
   if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
              && socket_accept.fd != -1))
-    PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
-                                addr, addr_len);
+    {
+      thread_id= PSI_server->get_thread_id();
+      PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
+                                  addr, addr_len, thread_id);
+    }
 #endif
   return socket_accept;
 }
