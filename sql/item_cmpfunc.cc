@@ -5723,7 +5723,8 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
     not_null_tables_cache|= tmp_table_map;
     if (item->maybe_null)
       maybe_null=1;
-    item->item_equal= this;
+    if (!item->item_equal)
+      item->item_equal= this;
   }
   fix_length_and_dec();
   fixed= 1;
