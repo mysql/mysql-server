@@ -3417,6 +3417,7 @@ public:
 
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
+  bool is_null() { return null_value; }
 };
 
 

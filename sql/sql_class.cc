@@ -3102,7 +3102,7 @@ bool select_materialize_with_stats::send_data(List<Item> &items)
 
   while ((cur_item= item_it++))
   {
-    if (cur_item->is_null())
+    if (cur_item->is_null_result())
     {
       ++cur_col_stat->null_count;
       cur_col_stat->max_null_row= count_rows;
