@@ -1039,3 +1039,27 @@ SELECT * FROM t2 WHERE (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FRO
 SELECT * FROM t2 WHERE (SELECT f3a FROM t3 where f3a > 3) NOT IN (SELECT f1a FROM t1);
 
 drop table t1, t2, t3;
+
+--echo #
+--echo # LPBUG#730604 Assertion `bit < (map)->n_bits' failed in maria-5.3 with
+--echo #  partial_match_rowid_merge
+--echo #
+
+CREATE TABLE t1 (f1 int NOT NULL, f2 int, f3 int) ;
+CREATE TABLE t2 (f1 int NOT NULL, f2 int, f3 int) ;
+
+INSERT INTO t1 VALUES (60, 3, null), (61, null, 77);
+INSERT INTO t2 VALUES (1000,6,2);
+
+set @@optimizer_switch='materialization=on,partial_match_rowid_merge=on,partial_match_table_scan=off';
+
+EXPLAIN
+SELECT (f1, f2, f3) NOT IN
+       (SELECT COUNT(DISTINCT f2), f1, f3 FROM t1 GROUP BY f1, f3)
+FROM t2;
+
+SELECT (f1, f2, f3) NOT IN
+       (SELECT COUNT(DISTINCT f2), f1, f3 FROM t1 GROUP BY f1, f3)
+FROM t2;
+
+drop table t1, t2;
