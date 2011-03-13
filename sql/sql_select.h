@@ -798,6 +798,7 @@ public:
   ORDER *order, *group_list, *proc_param; //hold parameters of mysql_select
   COND *conds;                            // ---"---
   Item *conds_history;                    // store WHERE for explain
+  COND *outer_ref_cond;       ///<part of conds containing only outer references
   TABLE_LIST *tables_list;           ///<hold 'tables' parameter of mysql_select
   List<TABLE_LIST> *join_list;       ///< list of joined tables in reverse order
   COND_EQUAL *cond_equal;
@@ -903,6 +904,7 @@ public:
 
     no_const_tables= FALSE;
     first_select= sub_select;
+    outer_ref_cond= 0;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,

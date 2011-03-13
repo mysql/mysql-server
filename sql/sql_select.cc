@@ -6894,7 +6894,7 @@ static void add_not_null_conds(JOIN *join)
             UPDATE t1 SET t1.f2=(SELECT MAX(t2.f4) FROM t2 WHERE t2.f3=t1.f1);
             not_null_item is the t1.f1, but it's referred_tab is 0.
           */
-          if (!referred_tab || referred_tab->join != join)
+          if (!referred_tab)
             continue;
           if (!(notnull= new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
@@ -6911,9 +6911,14 @@ static void add_not_null_conds(JOIN *join)
                                            QT_ORDINARY););
           if (!tab->first_inner)
 	  {
-            COND *new_cond= referred_tab->select_cond;
+            COND *new_cond= referred_tab->join == join ? 
+                              referred_tab->select_cond :
+                              join->outer_ref_cond;
             add_cond_and_fix(&new_cond, notnull);
-            referred_tab->set_select_cond(new_cond, __LINE__);
+            if (referred_tab->join == join)
+              referred_tab->set_select_cond(new_cond, __LINE__);
+            else 
+              join->outer_ref_cond= new_cond;
           }
           else
             add_cond_and_fix(tab->first_inner->on_expr_ref, notnull);
@@ -7129,6 +7134,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         {
 	  DBUG_PRINT("info",("Found impossible WHERE condition"));
 	  DBUG_RETURN(1);	 // Impossible const condition
+        }
+
+        COND *outer_ref_cond= make_cond_for_table(cond, 
+                                                  OUTER_REF_TABLE_BIT,
+                                                  (table_map) 0, FALSE, FALSE);
+        if (outer_ref_cond)
+	{
+          add_cond_and_fix(&outer_ref_cond, join->outer_ref_cond);
+          join->outer_ref_cond= outer_ref_cond;
         }
       }
     }
@@ -13401,7 +13415,10 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   else
   {
     DBUG_ASSERT(join->tables);
-    error= join->first_select(join,join_tab,0);
+    if (join->outer_ref_cond && !join->outer_ref_cond->val_int())
+      error= NESTED_LOOP_NO_MORE_ROWS;
+    else
+      error= join->first_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= join->first_select(join,join_tab,1);
     if (error == NESTED_LOOP_QUERY_LIMIT)
