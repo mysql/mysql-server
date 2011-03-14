@@ -9,3 +9,54 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 mysqld-bin.000001	#	Query	1	#	use `test`; drop table if exists t1
 drop database mysqltest;
+--bug58698 Epoch not in ndb_apply_status 
+reset master;
+use mysql;
+-- MyISAM table in mysql db
+create table invisible(a int primary key) engine=myisam;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+-- Should be nothing in binlog
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-- Ndb table in mysql db
+create table invisible(a int primary key) engine=ndb;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+-- Should be nothing in binlog
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-- ndb_binlog_index table (MyISAM) in mysql db 
+insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55);
+insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55);
+delete from ndb_binlog_index;
+-- Should be nothing in binlog
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+-- Non-ignored db (test2)
+create database test2;
+use test2;
+create table t1 (a int primary key) engine=ndb;
+insert into t1 values (1);
+insert into t1 values (2);
+delete from t1;
+drop table t1;
+drop database test2;
+-- Should have events in Binlog, *including ndb_apply_status*
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Query	1	#	create database test2
+mysqld-bin.000001	#	Query	1	#	use `test2`; create table t1 (a int primary key) engine=ndb
+mysqld-bin.000001	#	Query	1	#	BEGIN
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (test2.t1)
+mysqld-bin.000001	#	Table_map	1	#	table_id: # (mysql.ndb_apply_status)
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Write_rows	1	#	table_id: #
+mysqld-bin.000001	#	Delete_rows	1	#	table_id: # flags: STMT_END_F
+mysqld-bin.000001	#	Query	1	#	COMMIT
+mysqld-bin.000001	#	Query	1	#	use `test2`; drop table t1
+mysqld-bin.000001	#	Query	1	#	drop database test2
