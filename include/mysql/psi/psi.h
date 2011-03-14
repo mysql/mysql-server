@@ -826,7 +826,7 @@ typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
   @return an instrumented socket
 */
 typedef struct PSI_socket* (*init_socket_v1_t)
-  (PSI_socket_key key, const void *identity);
+  (PSI_socket_key key, const my_socket *fd);
 
 /**
   socket instrumentation destruction API.
@@ -926,15 +926,6 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
   @return the instrumentation for the running thread
 */
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
-
-/**
-  Get the thread id of the running thread.
-  For this function to return a result,
-  the thread instrumentation must have been attached to the
-  running thread using @c set_thread()
-  @return the thread id of the running thread
-*/
-typedef ulong (*get_thread_id_v1_t)(void);
 
 /**
   Assign a user name to the instrumented thread.
@@ -1333,8 +1324,15 @@ typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      my_socket *fd,
                                      const struct sockaddr *addr,
-                                     socklen_t *addr_len,
-                                     ulong thread_id);
+                                     socklen_t *addr_len);
+
+/**
+  Set the id of the thread owning the socket.
+  @param socket instrumented socket
+  @param thread instrumented thread
+*/
+typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket,
+                                             struct PSI_thread *thread);
 
 /**
   Performance Schema Interface, version 1.
@@ -1390,8 +1388,6 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
-  /** @sa get_thread_id_v1_t. */
-  get_thread_id_v1_t get_thread_id;
   /** @sa set_thread_user_v1_t. */
   set_thread_user_v1_t set_thread_user;
   /** @sa set_thread_user_host_v1_t. */
@@ -1483,6 +1479,8 @@ struct PSI_v1
   set_socket_address_v1_t set_socket_address;
   /** @sa set_socket_info_v1_t. */
   set_socket_info_v1_t set_socket_info;
+  /** @sa set_socket_thread_owner_v1_t. */
+  set_socket_thread_owner_v1_t set_socket_thread_owner;
 };
 
 /** @} (end of group Group_PSI_v1) */

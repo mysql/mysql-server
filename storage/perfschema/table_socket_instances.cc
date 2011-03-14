@@ -154,8 +154,12 @@ void table_socket_instances::make_row(PFS_socket *pfs)
   m_row.m_event_name=         safe_class->m_name;
   m_row.m_event_name_length=  safe_class->m_name_length;
   m_row.m_identity=           pfs->m_identity;
-  m_row.m_thread_id=          pfs->m_thread_id;
   m_row.m_fd=                 pfs->m_fd;
+
+  PFS_thread *safe_thread= sanitize_thread(pfs->m_thread_owner);
+
+  if (safe_thread != NULL)
+    m_row.m_thread_id= safe_thread->m_thread_id;
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
@@ -187,7 +191,10 @@ int table_socket_instances::read_row_values(TABLE *table,
         set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
       case 2: /* THREAD_ID */
-        set_field_ulong(f, m_row.m_thread_id);
+        if (m_row.m_thread_id != 0) // TBD: use flag to indicate valid thread id?
+          set_field_ulong(f, m_row.m_thread_id);
+        else
+          f->set_null();
         break;
       case 3: /* SOCKET_ID */
         set_field_ulong(f, m_row.m_fd);
