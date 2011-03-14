@@ -244,15 +244,44 @@ Must not be called when recv_no_ibuf_operations==TRUE.
 @return	TRUE if level 2 or level 3 page */
 UNIV_INTERN
 ibool
-ibuf_page(
-/*======*/
-	ulint	space,	/*!< in: space id */
-	ulint	zip_size,/*!< in: compressed page size in bytes, or 0 */
-	ulint	page_no,/*!< in: page number */
-	mtr_t*	mtr);	/*!< in: mtr which will contain an x-latch to the
-			bitmap page if the page is not one of the fixed
-			address ibuf pages, or NULL, in which case a new
-			transaction is created. */
+ibuf_page_low(
+/*==========*/
+	ulint		space,	/*!< in: space id */
+	ulint		zip_size,/*!< in: compressed page size in bytes, or 0 */
+	ulint		page_no,/*!< in: page number */
+#ifdef UNIV_DEBUG
+	ibool		x_latch,/*!< in: FALSE if relaxed check
+				(avoid latching the bitmap page) */
+#endif /* UNIV_DEBUG */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
+	mtr_t*		mtr)	/*!< in: mtr which will contain an
+				x-latch to the bitmap page if the page
+				is not one of the fixed address ibuf
+				pages, or NULL, in which case a new
+				transaction is created. */
+	__attribute__((warn_unused_result));
+#ifdef UNIV_DEBUG
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
+pages.  Must not be called when recv_no_ibuf_operations==TRUE.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes, or 0
+@param page_no	page number
+@param mtr	mini-transaction or NULL
+@return TRUE if level 2 or level 3 page */
+# define ibuf_page(space, zip_size, page_no, mtr)			\
+	ibuf_page_low(space, zip_size, page_no, TRUE, __FILE__, __LINE__, mtr)
+#else /* UVIV_DEBUG */
+/** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of
+pages.  Must not be called when recv_no_ibuf_operations==TRUE.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes, or 0
+@param page_no	page number
+@param mtr	mini-transaction or NULL
+@return TRUE if level 2 or level 3 page */
+# define ibuf_page(space, zip_size, page_no, mtr)			\
+	ibuf_page_low(space, zip_size, page_no, __FILE__, __LINE__, mtr)
+#endif /* UVIV_DEBUG */
 /***********************************************************************//**
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a

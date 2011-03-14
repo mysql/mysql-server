@@ -33,6 +33,7 @@ SELECT count(*) FROM t1 p where c3 in
 
 DROP TABLE t1;
 
+
 --echo #
 --echo # Bug#54747: Deadlock between REORGANIZE PARTITION and
 --echo #            SELECT is not detected
@@ -133,6 +134,7 @@ SELECT * FROM t1;
 --echo # No changes.
 COMMIT;
 DROP TABLE t1;
+
 
 --echo #
 --echo # Bug#51830: Incorrect partition pruning on range partition (regression)
@@ -588,6 +590,7 @@ CREATE TABLE t1 (i1 int NOT NULL primary key, f1 int) ENGINE = InnoDB
 INSERT INTO t1 VALUES (1,1), (2,2);
 
 SELECT * FROM t1 WHERE i1 = ( SELECT i1 FROM t1 WHERE f1=0 LIMIT 1 );
+
 DROP TABLE t1;
 
 --enable_parsing

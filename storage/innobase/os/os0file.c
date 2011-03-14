@@ -302,6 +302,36 @@ UNIV_INTERN ulint	os_n_pending_writes = 0;
 /** Number of pending read operations */
 UNIV_INTERN ulint	os_n_pending_reads = 0;
 
+#ifdef UNIV_DEBUG
+/**********************************************************************//**
+Validates the consistency the aio system some of the time.
+@return	TRUE if ok or the check was skipped */
+UNIV_INTERN
+ibool
+os_aio_validate_skip(void)
+/*======================*/
+{
+/** Try os_aio_validate() every this many times */
+# define OS_AIO_VALIDATE_SKIP	13
+
+	/** The os_aio_validate() call skip counter.
+	Use a signed type because of the race condition below. */
+	static int os_aio_validate_count = OS_AIO_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly os_aio_validate()
+	check in debug builds. */
+	if (--os_aio_validate_count > 0) {
+		return(TRUE);
+	}
+
+	os_aio_validate_count = OS_AIO_VALIDATE_SKIP;
+	return(os_aio_validate());
+}
+#endif /* UNIV_DEBUG */
+
+#ifdef __WIN__
 /***********************************************************************//**
 Gets the operating system version. Currently works only on Windows.
 @return	OS_WIN95, OS_WIN31, OS_WINNT, OS_WIN2000, OS_WINXP, OS_WINVISTA,
@@ -311,7 +341,6 @@ ulint
 os_get_os_version(void)
 /*===================*/
 {
-#ifdef __WIN__
 	OSVERSIONINFO	  os_info;
 
 	os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
@@ -340,12 +369,8 @@ os_get_os_version(void)
 		ut_error;
 		return(0);
 	}
-#else
-	ut_error;
-
-	return(0);
-#endif
 }
+#endif /* __WIN__ */
 
 /***********************************************************************//**
 Retrieves the last error number if an error occurs in a file io function.
@@ -4008,7 +4033,7 @@ os_aio_func(
 	ut_ad(n > 0);
 	ut_ad(n % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(offset % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(os_aio_validate());
+	ut_ad(os_aio_validate_skip());
 #ifdef WIN_ASYNC_IO
 	ut_ad((n & 0xFFFFFFFFUL) == n);
 #endif
@@ -4210,7 +4235,7 @@ os_aio_windows_handle(
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
 	we do not have to acquire the protecting mutex yet */
 
-	ut_ad(os_aio_validate());
+	ut_ad(os_aio_validate_skip());
 	ut_ad(segment < array->n_segments);
 
 	n = array->n_slots / array->n_segments;
@@ -4630,7 +4655,7 @@ restart:
 
 	srv_set_io_thread_op_info(global_segment,
 				  "looking for i/o requests (a)");
-	ut_ad(os_aio_validate());
+	ut_ad(os_aio_validate_skip());
 	ut_ad(segment < array->n_segments);
 
 	n = array->n_slots / array->n_segments;

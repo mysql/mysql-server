@@ -18,9 +18,9 @@
   Performance schema instruments (implementation).
 */
 
+#include <my_global.h>
 #include <string.h>
 
-#include "my_global.h"
 #include "my_sys.h"
 #include "pfs.h"
 #include "pfs_stat.h"

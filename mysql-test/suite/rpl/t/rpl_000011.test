@@ -1,0 +1,20 @@
+source include/master-slave.inc;
+
+create table t1 (n int);
+insert into t1 values(1);
+sync_slave_with_master; 
+stop slave;
+--source include/wait_for_slave_to_stop.inc
+start slave;
+--source include/wait_for_slave_to_start.inc
+connection master;
+insert into t1 values(2);
+#let slave catch up
+sync_slave_with_master;
+select * from t1;
+connection master;
+drop table t1;
+sync_slave_with_master;
+
+# End of 4.1 tests
+--source include/rpl_end.inc

@@ -16,7 +16,6 @@
 /* Synchronization - readers / writer thread locks */
 
 #include "mysys_priv.h"
-#if defined(THREAD)
 #if defined(NEED_MY_RW_LOCK)
 #include <errno.h>
 
@@ -471,4 +470,3 @@ int rw_pr_unlock(rw_pr_lock_t *rwlock)
 }
 
 
-#endif /* defined(THREAD) */

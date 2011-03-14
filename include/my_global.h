@@ -212,13 +212,6 @@
 #include <sys/types.h>
 #endif
 
-/* The client defines this to avoid all thread code */
-#if defined(MYSQL_CLIENT_NO_THREADS) || defined(UNDEF_THREADS_HACK)
-#undef THREAD
-#undef HAVE_LINUXTHREADS
-#undef HAVE_NPTL
-#endif
-
 #ifdef HAVE_THREADS_WITHOUT_SOCKETS
 /* MIT pthreads does not work with unix sockets */
 #undef HAVE_SYS_UN_H
@@ -261,7 +254,7 @@
 #endif
 #endif
 
-#if defined(THREAD) && !defined(__WIN__)
+#if !defined(__WIN__)
 #ifndef _POSIX_PTHREAD_SEMANTICS
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
@@ -282,7 +275,7 @@ C_MODE_END
 #if !defined(SCO) && !defined(_REENTRANT)
 #define _REENTRANT	1	/* Threads requires reentrant code */
 #endif
-#endif /* THREAD */
+#endif /* !defined(__WIN__) */
 
 /* Go around some bugs in different OS and compilers */
 #ifdef _AIX			/* By soren@t.dk */
@@ -415,7 +408,7 @@ C_MODE_END
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
 #define HAVE_ULONG
 #endif
-#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
+#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE)
 /* Fix bug in setrlimit */
 #undef setrlimit
 #define setrlimit cma_setrlimit64
@@ -611,6 +604,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #ifdef _WIN32
 #define FN_LIBCHAR	'\\'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/\\"               /* Valid directory separators */
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
@@ -618,6 +612,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #else
 #define FN_LIBCHAR	'/'
 #define FN_LIBCHAR2	'/'
+#define FN_DIRSEP       "/"     /* Valid directory separators */
 #define FN_ROOTDIR	"/"
 #endif
 
@@ -1339,17 +1334,6 @@ do { doubleget_union _tmp; \
 #define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
 
 #endif /* WORDS_BIGENDIAN */
-
-#ifndef THREAD
-#define thread_safe_increment(V,L) (V)++
-#define thread_safe_decrement(V,L) (V)--
-#define thread_safe_add(V,C,L)     (V)+=(C)
-#define thread_safe_sub(V,C,L)     (V)-=(C)
-#define statistic_increment(V,L)   (V)++
-#define statistic_decrement(V,L)   (V)--
-#define statistic_add(V,C,L)       (V)+=(C)
-#define statistic_sub(V,C,L)       (V)-=(C)
-#endif
 
 #ifdef HAVE_CHARSET_utf8
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8"

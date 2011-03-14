@@ -58,4 +58,7 @@ call mtr.add_suppression("Failed to locate old binlog or relay log files");
 call mtr.add_suppression("MYSQL_BIN_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index");
 --enable_query_log
 
---echo End of the tests
+--echo ==== clean up ====
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1';
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

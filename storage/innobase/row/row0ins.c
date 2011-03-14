@@ -1525,7 +1525,7 @@ row_ins_check_foreign_constraints(
 		if (foreign->foreign_index == index) {
 
 			if (foreign->referenced_table == NULL) {
-				dict_table_get(foreign->referenced_table_name,
+				dict_table_get(foreign->referenced_table_name_lookup,
 					       FALSE);
 			}
 

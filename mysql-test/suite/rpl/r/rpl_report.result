@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
 VARIABLE_NAME	VARIABLE_VALUE
 REPORT_HOST	127.0.0.1
@@ -31,3 +27,4 @@ Value	my_password
 set @@global.report_host='my.new.address.net';
 ERROR HY000: Variable 'report_host' is a read only variable
 end of tests
+include/rpl_end.inc

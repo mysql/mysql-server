@@ -7,13 +7,13 @@ slave_skip_errors	OFF
 #
 # FLUSH PRIVILEGES should not implicitly unlock locked tables.
 #
-drop table if exists t1;
-create table t1 (c1 int);
-lock tables t1 read;
-flush privileges;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INT);
+LOCK TABLES t1 READ;
+FLUSH PRIVILEGES;
 ERROR HY000: Table 'host' was not locked with LOCK TABLES
-unlock tables;
-drop table t1;
+UNLOCK TABLES;
+DROP TABLE t1;
 #
 # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
 #
@@ -28,7 +28,7 @@ CREATE FUNCTION f() RETURNS INT RETURN 1;
 GRANT FILE ON *.* TO 'nopriv_user'@'localhost';
 FLUSH PRIVILEGES;
 connection: con1
-SELECT MAX(key1) FROM t1 WHERE f() < 1 INTO OUTFILE 'mytest';
+SELECT MAX(key1) FROM t1 WHERE f() < 1 INTO OUTFILE '<outfile>';
 ERROR 42000: execute command denied to user 'nopriv_user'@'localhost' for routine 'test.f'
 INSERT INTO t2 SELECT MAX(key1) FROM t1 WHERE f() < 1;
 ERROR 42000: execute command denied to user 'nopriv_user'@'localhost' for routine 'test.f'

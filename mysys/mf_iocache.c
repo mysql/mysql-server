@@ -55,15 +55,10 @@ static void my_aiowait(my_aio_result *result);
 #endif
 #include <errno.h>
 
-#ifdef THREAD
 #define lock_append_buffer(info) \
   mysql_mutex_lock(&(info)->append_buffer_lock)
 #define unlock_append_buffer(info) \
   mysql_mutex_unlock(&(info)->append_buffer_lock)
-#else
-#define lock_append_buffer(info)
-#define unlock_append_buffer(info)
-#endif
 
 #define IO_ROUND_UP(X) (((X)+IO_SIZE-1) & ~(IO_SIZE-1))
 #define IO_ROUND_DN(X) ( (X)            & ~(IO_SIZE-1))
@@ -116,11 +111,7 @@ init_functions(IO_CACHE* info)
     info->write_function = 0;			/* Force a core if used */
     break;
   default:
-    info->read_function =
-#ifdef THREAD
-                          info->share ? _my_b_read_r :
-#endif
-                                        _my_b_read;
+    info->read_function = info->share ? _my_b_read_r : _my_b_read;
     info->write_function = _my_b_write;
   }
 
@@ -193,9 +184,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   }
 
   info->disk_writes= 0;
-#ifdef THREAD
   info->share=0;
-#endif
 
   if (!cachesize && !(cachesize= my_default_record_cache_size))
     DBUG_RETURN(1);				/* No cache requested */
@@ -263,12 +252,10 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   {
     info->append_read_pos = info->write_pos = info->write_buffer;
     info->write_end = info->write_buffer + info->buffer_length;
-#ifdef THREAD
     mysql_mutex_init(key_IO_CACHE_append_buffer_lock,
                      &info->append_buffer_lock, MY_MUTEX_INIT_FAST);
-#endif
   }
-#if defined(SAFE_MUTEX) && defined(THREAD)
+#if defined(SAFE_MUTEX)
   else
   {
     /* Clear mutex so that safe_mutex will notice that it's not initialized */
@@ -601,7 +588,6 @@ int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
 }
 
 
-#ifdef THREAD
 /*
   Prepare IO_CACHE for shared use.
 
@@ -1162,7 +1148,6 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
     write_length-= copy_length;
   }
 }
-#endif /*THREAD*/
 
 
 /*
@@ -1579,7 +1564,6 @@ int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
     if (mysql_file_write(info->file, Buffer, length, info->myflags | MY_NABP))
       return info->error= -1;
 
-#ifdef THREAD
     /*
       In case of a shared I/O cache with a writer we normally do direct
       write cache to read cache copy. Simulate this here by direct
@@ -1593,7 +1577,6 @@ int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
     */
     if (info->share)
       copy_to_read_buffer(info, Buffer, length);
-#endif
 
     Count-=length;
     Buffer+=length;
@@ -1615,13 +1598,11 @@ int my_b_append(register IO_CACHE *info, const uchar *Buffer, size_t Count)
 {
   size_t rest_length,length;
 
-#ifdef THREAD
   /*
     Assert that we cannot come here with a shared cache. If we do one
     day, we might need to add a call to copy_to_read_buffer().
   */
   DBUG_ASSERT(!info->share);
-#endif
 
   lock_append_buffer(info);
   rest_length= (size_t) (info->write_end - info->write_pos);
@@ -1683,13 +1664,11 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
   size_t length;
   int error=0;
 
-#ifdef THREAD
   /*
     Assert that we cannot come here with a shared cache. If we do one
     day, we might need to add a call to copy_to_read_buffer().
   */
   DBUG_ASSERT(!info->share);
-#endif
 
   if (pos < info->pos_in_file)
   {
@@ -1735,16 +1714,10 @@ int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
 
 	/* Flush write cache */
 
-#ifdef THREAD
 #define LOCK_APPEND_BUFFER if (need_append_buffer_lock) \
   lock_append_buffer(info);
 #define UNLOCK_APPEND_BUFFER if (need_append_buffer_lock) \
   unlock_append_buffer(info);
-#else
-#define LOCK_APPEND_BUFFER
-#define UNLOCK_APPEND_BUFFER
-#endif
-
 
 int my_b_flush_io_cache(IO_CACHE *info,
                         int need_append_buffer_lock __attribute__((unused)))
@@ -1755,10 +1728,8 @@ int my_b_flush_io_cache(IO_CACHE *info,
   DBUG_ENTER("my_b_flush_io_cache");
   DBUG_PRINT("enter", ("cache: 0x%lx", (long) info));
 
-#ifdef THREAD
   if (!append_cache)
     need_append_buffer_lock= 0;
-#endif
 
   if (info->type == WRITE_CACHE || append_cache)
   {
@@ -1771,7 +1742,6 @@ int my_b_flush_io_cache(IO_CACHE *info,
 
     if ((length=(size_t) (info->write_pos - info->write_buffer)))
     {
-#ifdef THREAD
       /*
         In case of a shared I/O cache with a writer we do direct write
         cache to read cache copy. Do it before the write here so that
@@ -1780,7 +1750,6 @@ int my_b_flush_io_cache(IO_CACHE *info,
       */
       if (info->share)
         copy_to_read_buffer(info, info->write_buffer, length);
-#endif
 
       pos_in_file=info->pos_in_file;
       /*
@@ -1859,13 +1828,11 @@ int end_io_cache(IO_CACHE *info)
   DBUG_ENTER("end_io_cache");
   DBUG_PRINT("enter",("cache: 0x%lx", (ulong) info));
 
-#ifdef THREAD
   /*
     Every thread must call remove_io_thread(). The last one destroys
     the share elements.
   */
   DBUG_ASSERT(!info->share || !info->share->total_threads);
-#endif
 
   if ((pre_close=info->pre_close))
   {
@@ -1884,9 +1851,7 @@ int end_io_cache(IO_CACHE *info)
   {
     /* Destroy allocated mutex */
     info->type= TYPE_NOT_SET;
-#ifdef THREAD
     mysql_mutex_destroy(&info->append_buffer_lock);
-#endif
   }
   DBUG_RETURN(error);
 } /* end_io_cache */

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 **** Test case for BUG#16487 ****
 **** Master ****
 CREATE TABLE test.t4 (a int);
@@ -142,4 +138,4 @@ HEX(word)
 SELECT * FROM tmptbl504451f4258$1;
 ERROR 42S02: Table 'test.tmptbl504451f4258$1' doesn't exist
 DROP TABLE t5;
-call mtr.force_restart();
+include/rpl_end.inc

@@ -40,6 +40,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "ha_prototypes.h" /* innobase_casedn_str() */
 
 
 /** Following are six InnoDB system tables */
@@ -435,10 +436,12 @@ dict_process_sys_fields_rec(
 	return(err_msg);
 
 }
+
+#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN record and populate a dict_foreign_t
 structure with the information from the record. For detail information
-about SYS_FOREIGN fields, please refer to dict_load_foreign() function
+about SYS_FOREIGN fields, please refer to dict_load_foreign() function.
 @return error message, or NULL on success */
 UNIV_INTERN
 const char*
@@ -466,6 +469,11 @@ dict_process_sys_foreign_rec(
 err_len:
 		return("incorrect column length in SYS_FOREIGN");
 	}
+	
+	/* This recieves a dict_foreign_t* that points to a stack variable.
+	So mem_heap_free(foreign->heap) is not used as elsewhere.
+	Since the heap used here is freed elsewhere, foreign->heap
+	is not assigned. */
 	foreign->id = mem_heap_strdupl(heap, (const char*) field, len);
 
 	rec_get_nth_field_offs_old(rec, 1/*DB_TRX_ID*/, &len);
@@ -476,6 +484,9 @@ err_len:
 	if (UNIV_UNLIKELY(len != DATA_ROLL_PTR_LEN && len != UNIV_SQL_NULL)) {
 		goto err_len;
 	}
+
+	/* The _lookup versions of the referenced and foreign table names
+	 are not assigned since they are not used in this dict_foreign_t */
 
 	field = rec_get_nth_field_old(rec, 3/*FOR_NAME*/, &len);
 	if (UNIV_UNLIKELY(len < 1 || len == UNIV_SQL_NULL)) {
@@ -502,6 +513,9 @@ err_len:
 
 	return(NULL);
 }
+#endif  /* FOREIGN_NOT_USED */
+
+#ifdef FOREIGN_NOT_USED
 /********************************************************************//**
 This function parses a SYS_FOREIGN_COLS record and extract necessary
 information from the record and return to caller.
@@ -565,6 +579,8 @@ err_len:
 
 	return(NULL);
 }
+#endif  /* FOREIGN_NOT_USED */
+
 /********************************************************************//**
 Determine the flags of a table described in SYS_TABLES.
 @return compressed page size in kilobytes; or 0 if the tablespace is
@@ -2057,12 +2073,15 @@ dict_load_foreign(
 	foreign->id = mem_heap_strdup(foreign->heap, id);
 
 	field = rec_get_nth_field_old(rec, 3, &len);
+
 	foreign->foreign_table_name = mem_heap_strdupl(
 		foreign->heap, (char*) field, len);
+	dict_mem_foreign_table_name_lookup_set(foreign, TRUE);
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	foreign->referenced_table_name = mem_heap_strdupl(
 		foreign->heap, (char*) field, len);
+	dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
@@ -2070,7 +2089,7 @@ dict_load_foreign(
 	dict_load_foreign_cols(id, foreign);
 
 	ref_table = dict_table_check_if_in_cache_low(
-			foreign->referenced_table_name);
+			foreign->referenced_table_name_lookup);
 
 	/* We could possibly wind up in a deep recursive calls if
 	we call dict_table_get_low() again here if there
@@ -2103,7 +2122,7 @@ dict_load_foreign(
 		have to load it so that we are able to make type comparisons
 		in the next function call. */
 
-		for_table = dict_table_get_low(foreign->foreign_table_name);
+		for_table = dict_table_get_low(foreign->foreign_table_name_lookup);
 
 		if (for_table && ref_table && check_recursive) {
 			/* This is to record the longest chain of ancesters

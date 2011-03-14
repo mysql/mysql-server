@@ -809,14 +809,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
   }
 
-  thd->push_internal_handler(&err_handler);
-
   if (find_db_tables_and_rm_known_files(thd, dirp, db, path, &tables,
                                         &found_other_files))
-  {
-    thd->pop_internal_handler();
     goto exit;
-  }
 
   /*
     Disable drop of enabled log tables, must be done before name locking.
@@ -830,7 +825,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
                              table->table_name_length, table->table_name, true))
       {
         my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
-        thd->pop_internal_handler();
         goto exit;
       }
     }
@@ -840,10 +834,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
                        MYSQL_OPEN_SKIP_TEMPORARY) ||
       lock_db_routines(thd, db))
-  {
-    thd->pop_internal_handler();
     goto exit;
-  }
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
   if (tables)
@@ -856,6 +847,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     deleted_tables++;
   }
 
+  thd->push_internal_handler(&err_handler);
   if (thd->killed ||
       (tables && mysql_rm_table_no_locks(thd, tables, true, false, true, true)))
   {
@@ -1109,8 +1101,16 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
     else
     {
       strxmov(filePath, path, "/", file->name, NullS);
-      if (mysql_file_delete_with_symlink(key_file_misc, filePath, MYF(MY_WME)))
-	DBUG_RETURN(true);
+      /*
+        We ignore ENOENT error in order to skip files that was deleted
+        by concurrently running statement like REAPIR TABLE ...
+      */
+      if (my_delete_with_symlink(filePath, MYF(0)) &&
+          my_errno != ENOENT)
+      {
+        my_error(EE_DELETE, MYF(0), filePath, my_errno);
+        DBUG_RETURN(true);
+      }
     }
   }
   *tables= tot_list;

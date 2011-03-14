@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 stop slave;
 SET @@debug="d,simulate_find_log_pos_error";
 reset slave;
@@ -31,4 +27,6 @@ purge binary logs to 'master-bin.000001';
 ERROR HY000: Target log not found in binlog index
 SET @@debug="";
 purge binary logs to 'master-bin.000001';
-End of the tests
+==== clean up ====
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1';
+include/rpl_end.inc

@@ -99,9 +99,7 @@ void myisamchk_init(MI_CHECK *param)
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
-#ifdef THREAD
   param->need_print_msg_lock= 0;
-#endif
 }
 
 	/* Check the status flags for the table */
@@ -1748,6 +1746,8 @@ err:
 			     MYF(MY_REDEL_MAKE_BACKUP): MYF(0))) ||
 	  mi_open_datafile(info,share,name,-1))
 	got_error=1;
+
+      param->retry_repair= 0;
     }
   }
   if (got_error)
@@ -2629,9 +2629,6 @@ err:
 int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 			const char * name, int rep_quick)
 {
-#ifndef THREAD
-  return mi_repair_by_sort(param, info, name, rep_quick);
-#else
   int got_error;
   uint i,key, total_key_length, istep;
   ulong rec_length;
@@ -3120,7 +3117,6 @@ err:
     share->pack.header_length=0;
   }
   DBUG_RETURN(got_error);
-#endif /* THREAD */
 }
 
 	/* Read next record and return next key */

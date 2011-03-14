@@ -2322,6 +2322,8 @@ select table_name, table_type, auto_increment, table_comment
 from information_schema.tables where table_schema='test' and table_name='t2';
 table_name	table_type	auto_increment	table_comment
 t2	BASE TABLE	NULL	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
+Warnings:
+Warning	1684	Table 'test'.'t2' was skipped since its definition is being modified by concurrent DDL statement
 # Switching to connection 'default'.
 unlock tables;
 # Switching to connection 'con46044'.

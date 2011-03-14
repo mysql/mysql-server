@@ -17,6 +17,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include <my_global.h>
+
 #include <mysql/plugin_audit.h>
 #include "sql_class.h"
 
@@ -32,8 +34,12 @@ extern void mysql_audit_free_thd(THD *thd);
 extern void mysql_audit_acquire_plugins(THD *thd, uint event_class);
 
 
+#ifndef EMBEDDED_LIBRARY
 extern void mysql_audit_notify(THD *thd, uint event_class,
                                uint event_subtype, ...);
+#else
+#define mysql_audit_notify(...)
+#endif
 extern void mysql_audit_release(THD *thd);
 
 #define MAX_USER_HOST_SIZE 512
@@ -84,6 +90,7 @@ void mysql_audit_general_log(THD *thd, time_t time,
   event_subtype should be set to one of:
     MYSQL_AUDIT_GENERAL_ERROR
     MYSQL_AUDIT_GENERAL_RESULT
+    MYSQL_AUDIT_GENERAL_STATUS
   
   @param[in] thd
   @param[in] event_subtype    Type of general audit event.
@@ -126,5 +133,41 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 #endif
 }
 
+#define MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd) mysql_audit_notify(\
+  (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CONNECT,\
+  (thd)->stmt_da->is_error() ? (thd)->stmt_da->sql_errno() : 0,\
+  (thd)->thread_id, (thd)->security_ctx->user,\
+  (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
+  (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
+  (thd)->security_ctx->external_user,\
+  (thd)->security_ctx->external_user ?\
+    strlen((thd)->security_ctx->external_user) : 0,\
+  (thd)->security_ctx->proxy_user, strlen((thd)->security_ctx->proxy_user),\
+  (thd)->security_ctx->host,\
+  (thd)->security_ctx->host ? strlen((thd)->security_ctx->host) : 0,\
+  (thd)->security_ctx->ip,\
+  (thd)->security_ctx->ip ? strlen((thd)->security_ctx->ip) : 0,\
+  (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
+
+#define MYSQL_AUDIT_NOTIFY_CONNECTION_DISCONNECT(thd, errcode)\
+  mysql_audit_notify(\
+  (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_DISCONNECT,\
+  (errcode), (thd)->thread_id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+#define MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd) mysql_audit_notify(\
+  (thd), MYSQL_AUDIT_CONNECTION_CLASS, MYSQL_AUDIT_CONNECTION_CHANGE_USER,\
+  (thd)->stmt_da->is_error() ? (thd)->stmt_da->sql_errno() : 0,\
+  (thd)->thread_id, (thd)->security_ctx->user,\
+  (thd)->security_ctx->user ? strlen((thd)->security_ctx->user) : 0,\
+  (thd)->security_ctx->priv_user, strlen((thd)->security_ctx->priv_user),\
+  (thd)->security_ctx->external_user,\
+  (thd)->security_ctx->external_user ?\
+    strlen((thd)->security_ctx->external_user) : 0,\
+  (thd)->security_ctx->proxy_user, strlen((thd)->security_ctx->proxy_user),\
+  (thd)->security_ctx->host,\
+  (thd)->security_ctx->host ? strlen((thd)->security_ctx->host) : 0,\
+  (thd)->security_ctx->ip,\
+  (thd)->security_ctx->ip ? strlen((thd)->security_ctx->ip) : 0,\
+  (thd)->db, (thd)->db ? strlen((thd)->db) : 0)
 
 #endif /* SQL_AUDIT_INCLUDED */

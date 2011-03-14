@@ -88,6 +88,34 @@ ibool
 buf_flush_validate_low(
 /*===================*/
 	buf_pool_t*	buf_pool);	/*!< in: Buffer pool instance */
+
+/******************************************************************//**
+Validates the flush list some of the time.
+@return	TRUE if ok or the check was skipped */
+static
+ibool
+buf_flush_validate_skip(
+/*====================*/
+	buf_pool_t*	buf_pool)	/*!< in: Buffer pool instance */
+{
+/** Try buf_flush_validate_low() every this many times */
+# define BUF_FLUSH_VALIDATE_SKIP	23
+
+	/** The buf_flush_validate_low() call skip counter.
+	Use a signed type because of the race condition below. */
+	static int buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+
+	/* There is a race condition below, but it does not matter,
+	because this call is only for heuristic purposes. We want to
+	reduce the call frequency of the costly buf_flush_validate_low()
+	check in debug builds. */
+	if (--buf_flush_validate_count > 0) {
+		return(TRUE);
+	}
+
+	buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
+	return(buf_flush_validate_low(buf_pool));
+}
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /******************************************************************//**
@@ -293,7 +321,7 @@ buf_flush_insert_into_flush_list(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(buf_flush_validate_low(buf_pool));
+	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_flush_list_mutex_exit(buf_pool);
@@ -515,7 +543,7 @@ buf_flush_remove(
 	bpage->oldest_modification = 0;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(buf_flush_validate_low(buf_pool));
+	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 	buf_flush_list_mutex_exit(buf_pool);

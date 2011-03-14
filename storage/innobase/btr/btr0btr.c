@@ -664,7 +664,7 @@ btr_page_get_father_node_ptr_func(
 		      " to fix the\n"
 		      "InnoDB: corruption. If the crash happens at "
 		      "the database startup, see\n"
-		      "InnoDB: " REFMAN "forcing-recovery.html about\n"
+		      "InnoDB: " REFMAN "forcing-innodb-recovery.html about\n"
 		      "InnoDB: forcing recovery. "
 		      "Then dump + drop + reimport.\n", stderr);
 

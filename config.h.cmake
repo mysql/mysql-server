@@ -1,5 +1,6 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc
- 
+/* Copyright (C) 2009, 2011, Oracle and/or its affiliates. All rights
+   reserved
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation; version 2 of the License.
@@ -226,6 +227,7 @@
 #cmakedefine HAVE_PTHREAD_THREADMASK 1
 #cmakedefine HAVE_PTHREAD_YIELD_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
+#cmakedefine PTHREAD_ONCE_INITIALIZER @PTHREAD_ONCE_INITIALIZER@
 #cmakedefine HAVE_PUTENV 1
 #cmakedefine HAVE_RE_COMP 1
 #cmakedefine HAVE_REGCOMP 1
@@ -406,7 +408,6 @@
 
 
 #cmakedefine TARGET_OS_LINUX 1
-#cmakedefine TARGET_OS_SOLARIS 1
 
 #cmakedefine HAVE_WCTYPE_H 1
 #cmakedefine HAVE_WCHAR_H 1
@@ -469,9 +470,6 @@
 #cmakedefine TIME_WITH_SYS_TIME 1
 
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
-
-#define THREAD 1
-#define THREAD_SAFE_CLIENT 1
 
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
 #define MACHINE_TYPE "@CMAKE_SYSTEM_PROCESSOR@"
@@ -603,6 +601,9 @@
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
 
 #cmakedefine SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
+
+#define MYSQL_MAJOR_VERSION @MAJOR_VERSION@
+#define MYSQL_MINOR_VERSION @MINOR_VERSION@
 
 #define PACKAGE "mysql"
 #define PACKAGE_BUGREPORT ""

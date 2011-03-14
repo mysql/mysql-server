@@ -63,7 +63,7 @@ c1	c2	c3
 4294967295	2147483647	9
 UPDATE t1 SET c2=-2147483649 WHERE c1=109 ORDER BY c1;
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 13
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-2147483648
@@ -1158,7 +1158,7 @@ c1	c2	c3
 255	127	9
 UPDATE t1 SET c2=-129 WHERE c1=109 ORDER BY c1;
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 13
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-128
@@ -1929,7 +1929,7 @@ c1	c2	c3
 65535	32767	9
 UPDATE t1 SET c2=-32769 WHERE c1=109 ORDER BY c1;
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 13
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-32768
@@ -2676,7 +2676,7 @@ c1	c2	c3
 16777215	8388607	9
 UPDATE t1 SET c2=-8388609 WHERE c1=109 ORDER BY c1;
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 13
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-8388608
@@ -3423,7 +3423,7 @@ c1	c2	c3
 18446744073709551615	9223372036854775807	9
 UPDATE t1 SET c2=-9223372036854775809 WHERE c1=109 ORDER BY c1;
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 13
 SELECT c1,c2 FROM t1 WHERE c1=109;
 c1	c2
 109	-9223372036854775808

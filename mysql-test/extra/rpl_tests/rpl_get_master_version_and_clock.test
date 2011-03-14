@@ -40,28 +40,16 @@ if (!$debug_sync_action)
 }
 
 # Restart slave
---disable_warnings
-stop slave;
-source include/wait_for_slave_to_stop.inc;
+--source include/stop_slave.inc
 
 eval SET @@global.debug= "+d,$dbug_sync_point";
 
-start slave;
-source include/wait_for_slave_to_start.inc;
+--source include/start_slave.inc
 --echo slave is going to hang in get_master_version_and_clock
 
-connection master;
-# Write file to make mysql-test-run.pl expect the "crash", but don't start
-# it until it's told to
---write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-wait
-EOF
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
 
-# Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
-
-connection slave;
 --echo slave is unblocked
 
 eval SET DEBUG_SYNC=$debug_sync_action;
@@ -76,6 +64,7 @@ connection slave;
 # '1040' ER_CON_COUNT_ERROR 
 # '1053' ER_SERVER_SHUTDOWN
 let $slave_io_errno= 1040, 1053, 2002, 2003, 2006, 2013;
+--let $slave_io_error_is_nonfatal= 1
 source include/wait_for_slave_io_error.inc;
 
 # deactivate the sync point of get_master_version_and_clock()
@@ -84,21 +73,12 @@ source include/wait_for_slave_io_error.inc;
 # unset.
 eval set @@global.debug = "-d,$dbug_sync_point";
 
-# Write file to make mysql-test-run.pl start up the server again
---append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-restart
-EOF
+--let $rpl_server_number= 1
+--source include/rpl_start_server.inc
 
-connection master;
-# Turn on reconnect
---enable_reconnect
-
-# Call script that will poll the server waiting for it to be back online again
---source include/wait_until_connected_again.inc
-
-# Turn off reconnect again
---disable_reconnect
-
-connection slave;
-source include/wait_for_slave_to_start.inc;
-
+# We don't source include/wait_for_slave_io_to_start.inc, because the
+# IO thread has an error and wait_for_slave_io_to_start.inc fails if
+# the IO thread has an error.
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= Yes
+--source include/wait_for_slave_param.inc

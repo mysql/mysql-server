@@ -217,6 +217,10 @@ DROP TABLE t1;
 
 
 --echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
 --echo # WL#1213 Implement 4-byte UTF8, UTF16 and UTF32
 --echo # Testing that only utf8mb4 is superset for utf8
 --echo # No other Unicode character set pairs have superset/subset relations
@@ -284,3 +288,19 @@ SELECT CHARSET(CONCAT(utf32, utf8mb4)) FROM t1;
 SELECT CHARSET(CONCAT(utf32, utf16)) FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#58321 No warning when characters outside BMP0 is converted to UCS2
+--echo #
+CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf32);
+CREATE TABLE t2 (a VARCHAR(10) CHARACTER SET ucs2);
+INSERT INTO t1 VALUES (0x10082), (0x12345);
+INSERT INTO t2 SELECT * FROM t1;
+SELECT HEX(a) FROM t2;
+DROP TABLE t1;
+DROP TABLE t2;
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

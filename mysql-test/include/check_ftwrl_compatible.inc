@@ -34,7 +34,7 @@ if (!$err)
 {
 --echo Success: Was able to run '$statement' under FTWRL.
 unlock tables;
-if (`SELECT "$cleanup_stmt" <> ""`)
+if ($cleanup_stmt)
 {
 --eval $cleanup_stmt;
 }
@@ -91,12 +91,12 @@ connection default;
 --reap
 }
 
-if (`SELECT "$cleanup_stmt" <> ""`)
+if ($cleanup_stmt)
 {
 --eval $cleanup_stmt;
 }
 
-if (`SELECT "$skip_3rd_check" = ""`)
+if (!$skip_3rd_check)
 {
 #
 # Finally, let us check that FTWRL will succeed if this statement
@@ -147,7 +147,7 @@ connection default;
 }
 
 set debug_sync= "RESET";
-if (`SELECT "$cleanup_stmt" <> ""`)
+if ($cleanup_stmt)
 {
 --eval $cleanup_stmt;
 }

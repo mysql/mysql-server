@@ -1,14 +1,6 @@
 #
 # Test of auto_increment with offset
 #
-#####################################
-# By: JBM
-# Date: 2006-02-10
-# Change: NDB does not support auto inc
-# in this usage. Currently there is no
-# plan to implment. Skipping test when
-# NDB is default engine.
-#####################################
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
 
@@ -169,7 +161,7 @@ drop table t1;
 # auto_increment fields if the values of them are 0. There is an inconsistency
 # between slave and master. When MODE_NO_AUTO_VALUE_ON_ZERO are masters treat 
 #
-source include/master-slave-reset.inc;
+source include/rpl_reset.inc;
 
 connection master;
 --disable_warnings
@@ -210,12 +202,10 @@ INSERT INTO t2 VALUES(4);
 FLUSH LOGS;
 sync_slave_with_master;
 
-let $diff_table_1= master:test.t1;
-let $diff_table_2= slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
-let $diff_table_1= master:test.t2;
-let $diff_table_2= slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 connection master;
@@ -228,16 +218,42 @@ let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 | $MYSQL test
 sync_slave_with_master;
 
-let $diff_table_1= master:test.t1;
-let $diff_table_2= slave:test.t1;
+let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
 
-let $diff_table_1= master:test.t2;
-let $diff_table_2= slave:test.t2;
+let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
 # End cleanup
+--connection master
 DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_MODE='';
 sync_slave_with_master;
+
+#
+# BUG#56662
+# The test verifies if the assertion of "next_insert_id == 0"
+# will fail in ha_external_lock() function.
+#
+connection master;
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=innodb;
+
+BEGIN;
+--echo # Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+--echo # zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+--echo # Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+--echo # affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+SELECT * FROM t1;
+sync_slave_with_master;
+SELECT * FROM t1;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+
+--source include/rpl_end.inc

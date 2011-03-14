@@ -1243,6 +1243,50 @@ SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
 SELECT @@skip_name_resolve;
 SHOW VARIABLES LIKE 'skip_name_resolve';
 
+--echo #
+--echo # Bug #43233 : Some server variables are clipped during "update,"
+--echo #              not "check" stage
+--echo #
+
+SET @kbs=@@global.key_buffer_size;
+SET @kcbs=@@global.key_cache_block_size;
+
+--echo throw errors in STRICT mode
+SET SQL_MODE=STRICT_ALL_TABLES;
+
+# sys_var_ulonglong_ptr: sys_max_binlog_cache_size
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.max_binlog_cache_size=-1;
+
+# sys_var_thd_ha_rows: "max_join_size" et al.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.max_join_size=0;
+
+# sys_var_key_buffer_size: "key_buffer_size"
+--error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size=0;
+
+# sys_var_key_cache_long: "key_cache_block_size" et al.
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.key_cache_block_size=0;
+
+--echo throw warnings in default mode
+SET SQL_MODE=DEFAULT;
+
+SET @@global.max_binlog_cache_size=-1;
+SET @@global.max_join_size=0;
+# this is an exception. since this is a new error/warning, let's stay
+# compatible with the upcoming 5.6.
+--error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size=0;
+SET @@global.key_cache_block_size=0;
+
+# cleanup
+SET @@global.max_binlog_cache_size=DEFAULT;
+SET @@global.max_join_size=DEFAULT;
+SET @@global.key_buffer_size=@kbs;
+SET @@global.key_cache_block_size=@kcbs;
+
 --echo End of 5.1 tests
 
 ###########################################################################

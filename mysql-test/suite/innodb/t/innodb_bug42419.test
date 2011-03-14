@@ -7,7 +7,7 @@
 --source include/have_innodb.inc
 
 let $innodb_lock_wait_timeout= query_get_value(SHOW VARIABLES LIKE 'innodb_lock_wait_timeout%', Value, 1);
-if (`SELECT $innodb_lock_wait_timeout < 10`)
+if ($innodb_lock_wait_timeout < 10)
 {
    --echo # innodb_lock_wait_timeout must be >= 10 seconds
    --echo # so that this test can work all time fine on an overloaded testing box

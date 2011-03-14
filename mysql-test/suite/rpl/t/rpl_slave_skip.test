@@ -309,3 +309,4 @@ connection master;
 DROP TABLE t10;
 sync_slave_with_master;
 
+--source include/rpl_end.inc
