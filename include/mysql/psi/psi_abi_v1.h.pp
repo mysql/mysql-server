@@ -225,7 +225,7 @@ typedef struct PSI_cond* (*init_cond_v1_t)
   (PSI_cond_key key, const void *identity);
 typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 typedef struct PSI_socket* (*init_socket_v1_t)
-  (PSI_socket_key key, const void *identity);
+  (PSI_socket_key key, const my_socket *fd);
 typedef void (*destroy_socket_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_table_share* (*get_table_share_v1_t)
   (my_bool temporary, struct TABLE_SHARE *share);
@@ -343,6 +343,8 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      my_socket *fd,
                                      const struct sockaddr *addr,
                                      socklen_t *addr_len);
+typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket,
+                                             struct PSI_thread *thread);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
@@ -415,6 +417,7 @@ struct PSI_v1
   set_socket_descriptor_v1_t set_socket_descriptor;
   set_socket_address_v1_t set_socket_address;
   set_socket_info_v1_t set_socket_info;
+  set_socket_thread_owner_v1_t set_socket_thread_owner;
 };
 typedef struct PSI_v1 PSI;
 typedef struct PSI_mutex_info_v1 PSI_mutex_info;
