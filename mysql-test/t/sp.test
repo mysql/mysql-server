@@ -8713,4 +8713,26 @@ call p1(3, 2);
 drop table t1;
 drop procedure p1;
 
+--echo # 
+--echo # BUG#11766234: 59299: ASSERT (TABLE_REF->TABLE || TABLE_REF->VIEW) 
+--echo #               FAILS IN SET_FIELD_ITERATOR
+--echo # 
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE VIEW v1 AS SELECT a FROM t2;
+CREATE PROCEDURE proc() SELECT * FROM t1 NATURAL JOIN v1;
+ALTER TABLE t2 CHANGE COLUMN a b CHAR;
+
+--echo
+--error ER_VIEW_INVALID
+CALL proc();
+--error ER_VIEW_INVALID
+CALL proc();
+
+--echo
+DROP TABLE t1,t2;
+DROP VIEW v1;
+DROP PROCEDURE proc;
+
 --echo # End of 5.5 test
