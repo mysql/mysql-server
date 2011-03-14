@@ -1,0 +1,28 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Master ****
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT * FROM t1;
+a
+1
+2
+3
+REPLACE INTO t1 VALUES (4);
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+Checking that both slave threads are running.
+Should have two binary logs here
+show binary logs;
+Log_name	File_size
+master-bin.000001	#
+master-bin.000002	#
+DROP TABLE t1;
