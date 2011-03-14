@@ -571,34 +571,19 @@ EXECUTE p49; EXECUTE p50; EXECUTE p51; EXECUTE p52; EXECUTE p53; EXECUTE p54;
 EXECUTE p55; EXECUTE p56; EXECUTE p57; EXECUTE p58; EXECUTE p59; EXECUTE p60;
 EXECUTE p61; EXECUTE p62; EXECUTE p63; EXECUTE p64;
 
+--sync_slave_with_master
+--connection master
+
 
 --echo ==== Results ====
 
 # Show the result in table test.tstmt on master...
 SELECT * FROM tstmt ORDER BY id;
-let $diff_table_1=master:test.tstmt;
 
-# ... then compare test.tstmt on master to the other tables on master...
-let $diff_table_2=master:test.tproc;
-source include/diff_tables.inc;
-let $diff_table_2=master:test.tfunc;
-source include/diff_tables.inc;
-let $diff_table_2=master:test.ttrig;
-source include/diff_tables.inc;
-let $diff_table_2=master:test.tprep;
-source include/diff_tables.inc;
+--sync_slave_with_master
 
-# ... and to all tables on slave.
-sync_slave_with_master;
-let $diff_table_2=slave:test.tstmt;
-source include/diff_tables.inc;
-let $diff_table_2=slave:test.tproc;
-source include/diff_tables.inc;
-let $diff_table_2=slave:test.tfunc;
-source include/diff_tables.inc;
-let $diff_table_2=slave:test.ttrig;
-source include/diff_tables.inc;
-let $diff_table_2=slave:test.tprep;
+# ... then compare test.tstmt on master to the other tables on master and slave.
+let $diff_tables= master:tstmt, master:tproc, master:tfunc, master:ttrig, master:tprep, slave:tstmt, slave:tproc, slave:tfunc, slave:ttrig, slave:tprep;
 source include/diff_tables.inc;
 
 
@@ -633,3 +618,4 @@ SET @@global.collation_database=       @s_collation_database;
 
 connection master;
 sync_slave_with_master;
+--source include/rpl_end.inc

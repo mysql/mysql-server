@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 STOP SLAVE;
 SET @my_sql_mode= @@global.sql_mode;
 SET GLOBAL SQL_MODE='STRICT_ALL_TABLES';
@@ -118,27 +114,21 @@ a	b
 SELECT * FROM t2;
 a
 2
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Column 0 of table 'test.t4' cannot be converted from type 'int' to type 'float'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 0 of table 'test.t4' cannot be converted from type 'int' to type 'float''
 INSERT INTO t9 VALUES (5);
 INSERT INTO t5 VALUES (5,10,25);
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Column 1 of table 'test.t5' cannot be converted from type 'int' to type 'float'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 1 of table 'test.t5' cannot be converted from type 'int' to type 'float''
 INSERT INTO t9 VALUES (6);
 INSERT INTO t6 VALUES (6,12,36);
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Column 2 of table 'test.t6' cannot be converted from type 'int' to type 'float'
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+Last_SQL_Error = 'Column 2 of table 'test.t6' cannot be converted from type 'int' to type 'float''
 INSERT INTO t9 VALUES (6);
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;
@@ -194,3 +184,4 @@ a	b	x	y	z
 DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
 DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;
 SET @@global.sql_mode= @my_sql_mode;
+include/rpl_end.inc

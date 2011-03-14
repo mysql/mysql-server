@@ -145,3 +145,50 @@ select count(*), min(7), max(7) from t2m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 drop table t1m, t1i, t2m, t2i;
+#
+# Bug #57954: BIT_AND function returns incorrect results when 
+#   semijoin=on
+CREATE TABLE c (
+pk INT,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+INSERT INTO c VALUES (11,NULL);
+INSERT INTO c VALUES (16,'c');
+CREATE TABLE bb (
+pk INT,
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+INSERT INTO bb VALUES (10,NULL);
+SELECT straight_join BIT_AND(c.pk)
+FROM
+bb, c
+WHERE c.col_varchar_key='ABC'
+ORDER BY c.pk;
+BIT_AND(c.pk)
+18446744073709551615
+DROP TABLE c,bb;
+#
+# Bug #58050: BIT_OR and BIT_XOR return incorrect results when 
+#  semijoin=on
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, b INT, c INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, 1, 1);
+CREATE TABLE t2 (pk INT PRIMARY KEY, b INT, c INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1, NULL);
+SELECT t1.* FROM t1  JOIN t2 ON t1.c=t2.c WHERE t1.pk=1;
+pk	b	c
+SELECT BIT_OR(t1.b)  FROM t1 JOIN t2 ON t1.c=t2.c WHERE t1.pk=1;
+BIT_OR(t1.b)
+0
+SELECT BIT_AND(t1.b) FROM t1 JOIN t2 ON t1.c=t2.c WHERE t1.pk=1;
+BIT_AND(t1.b)
+18446744073709551615
+SELECT BIT_XOR(t1.b) FROM t1 JOIN t2 ON t1.c=t2.c WHERE t1.pk=1;
+BIT_XOR(t1.b)
+0
+DROP TABLE t1, t2;
+End of 5.5 tests

@@ -2603,6 +2603,18 @@ ORDER BY QUOTE(t1.a);
 1
 1
 DROP TABLE t1;
+#
+# Bug#57913 large negative number to string conversion functions crash
+# Bug#57810 case/when/then : Assertion failed: length || !scale
+#
+SELECT '1' IN ('1', SUBSTRING(-9223372036854775809, 1));
+'1' IN ('1', SUBSTRING(-9223372036854775809, 1))
+1
+SELECT CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3));
+CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3))
+1
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: ''
 End of 5.1 tests
 Start of 5.4 tests
 SELECT format(12345678901234567890.123, 3);

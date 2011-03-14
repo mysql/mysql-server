@@ -5,9 +5,6 @@
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
-# Save the initial number of concurrent sessions
---source include/count_sessions.inc
-
 #
 # Test of some show commands
 #
@@ -53,7 +50,7 @@ optimize table t1;
 optimize table t1;
 drop table t1;
 
-#show variables;
+# show variables;
 
 --echo -- Here we enable metadata just to check that the collation of the
 --echo -- resultset is non-binary for string type. This should be changed
@@ -332,6 +329,7 @@ drop table t1;
 --error ER_DBACCESS_DENIED_ERROR
 drop database mysqltest;
 disconnect con1;
+--source include/wait_until_disconnected.inc
 
 connect (con2,localhost,mysqltest_2,,test);
 connection con2;
@@ -344,6 +342,7 @@ drop table mysqltest.t1;
 --error ER_DBACCESS_DENIED_ERROR
 drop database mysqltest;
 disconnect con2;
+--source include/wait_until_disconnected.inc
 
 connect (con3,localhost,mysqltest_3,,test);
 connection con3;
@@ -353,6 +352,7 @@ show create database mysqltest;
 drop table mysqltest.t1;
 drop database mysqltest;
 disconnect con3;
+--source include/wait_until_disconnected.inc
 
 connection default;
 set names binary;
@@ -900,10 +900,12 @@ CREATE TABLE t1(колонка1 INT);
 
 --let $outfile1=$MYSQLTEST_VARDIR/tmp/show_check.mysqltest1.sql
 
+--source include/count_sessions.inc
 --echo
 --echo ---> Dumping mysqltest1 to outfile1
-
 --exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$MYSQL_SHAREDIR/charsets --databases mysqltest1 > $outfile1
+# Take care that the additional session caused by MYSQL_DUMP has disappeared.
+--source include/wait_until_count_sessions.inc
 
 #   - Clean mysqltest1;
 
@@ -917,9 +919,12 @@ DROP DATABASE mysqltest1;
 --echo
 --echo
 
+--source include/count_sessions.inc
 --echo ---> Restoring mysqltest1...
 --exec $MYSQL test < $outfile1
 --remove_file $outfile1
+# Take care that the additional session caused by MYSQL has disappeared.
+--source include/wait_until_count_sessions.inc
 
 #   - Check definition of the table.
 
@@ -989,14 +994,14 @@ grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
 connect (con4,localhost,mysqltest_4,,mysqltest);
 connection con4;
 show create database mysqltest;
+disconnect con4;
+--source include/wait_until_disconnected.inc
 connection default;
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
 flush privileges;
 drop database mysqltest;
-connection default;
-disconnect con4;
 
 #
 # Ensure that show plugin code is tested
@@ -1192,6 +1197,7 @@ SHOW ENGINE MYISAM STATUS;
 --enable_result_log
 
 disconnect conn1;
+--source include/wait_until_disconnected.inc
 connection default;
 DROP USER test_u@localhost;
 
@@ -1214,8 +1220,9 @@ CONNECTION con1;
 --error ER_QUERY_INTERRUPTED
 SHOW CREATE TABLE non_existent;
 
-CONNECTION default;
 DISCONNECT con1;
+--source include/wait_until_disconnected.inc
+CONNECTION default;
 
 
 --echo End of 5.1 tests
@@ -1239,9 +1246,11 @@ connection con1;
 --echo # This statement used to be blocked.
 SHOW CREATE TABLE t1;
 
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
 --echo # Switching to connection 'default'.
 connection default;
-disconnect con1;
 UNLOCK TABLES;
 DROP TABLE t1;
 
@@ -1317,16 +1326,15 @@ connection con1;
 # Should not block.
 ALTER TABLE t1 CHARACTER SET = utf8;
 
+disconnect con1;
+--source include/wait_until_disconnected.inc
+
 --echo # Connection default
 connection default;
 COMMIT;
 DROP TRIGGER t1_bi;
 DROP TABLE t1;
-disconnect con1;
 
-
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Bug#57306 SHOW PROCESSLIST does not display string literals well.
@@ -1352,6 +1360,7 @@ SELECT RELEASE_LOCK('t');
 --connection con1
 --reap
 --disconnect con1
+--source include/wait_until_disconnected.inc
 --connection default
 SET NAMES latin1;
 

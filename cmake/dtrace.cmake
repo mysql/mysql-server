@@ -153,13 +153,23 @@ ENDFUNCTION()
 # to mysqld.
 MACRO (DTRACE_INSTRUMENT_STATIC_LIBS target libs)
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND ENABLE_DTRACE)
+  # Filter out non-static libraries in the list, if any
+  SET(static_libs)
   FOREACH(lib ${libs})
+    GET_TARGET_PROPERTY(libtype ${lib} TYPE)
+    IF(libtype MATCHES STATIC_LIBRARY)
+      SET(static_libs ${static_lics} ${lib})
+    ENDIF()
+  ENDFOREACH()
+
+  FOREACH(lib ${static_libs})
     SET(dirs ${dirs} ${TARGET_OBJECT_DIRECTORY_${lib}})
   ENDFOREACH()
+
   SET (obj ${CMAKE_CURRENT_BINARY_DIR}/${target}_dtrace_all.o)
   ADD_CUSTOM_COMMAND(
   OUTPUT ${obj}
-  DEPENDS ${libs}
+  DEPENDS ${static_libs}
   COMMAND ${CMAKE_COMMAND}
    -DDTRACE=${DTRACE}	  
    -DOUTFILE=${obj} 

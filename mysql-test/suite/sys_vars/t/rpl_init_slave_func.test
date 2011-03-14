@@ -105,3 +105,4 @@ SET @@global.init_slave= @start_init_slave;
 # End of functionality Testing for init_slave    #
 ##################################################
 
+--source include/rpl_end.inc

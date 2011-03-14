@@ -192,7 +192,6 @@ int table_setup_consumers::update_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* NAME */
-        my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
         return HA_ERR_WRONG_COMMAND;
       case 1: /* ENABLED */
       {

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2212,6 +2212,9 @@ public:
 #endif
   void awake(THD::killed_state state_to_set);
 
+  /** Disconnect the associated communication endpoint. */
+  void disconnect();
+
 #ifndef MYSQL_CLIENT
   enum enum_binlog_query_type {
     /* The query can be logged in row format or in statement format. */
@@ -2506,8 +2509,6 @@ public:
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
-  bool is_context_analysis_only()
-    { return stmt_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);
   void restore_backup_open_tables_state(Open_tables_backup *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);

@@ -193,8 +193,7 @@ FLUSH LOGS;
 -- connection master
 
 -- echo ### assertion: the slave replicated event successfully and tables match
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 DROP TABLE `t1`;
@@ -229,7 +228,7 @@ DROP TABLE `t1`;
 # in both cases: when slave is replaying events and when
 # mysqlbinlog is used to read the binary log
 
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection master
 
 # Create several tables with field_metadata_size ranging
@@ -313,8 +312,7 @@ FLUSH LOGS;
 while($ntables)
 {
   -- echo ### assertion: the slave replicated event successfully and tables match for t$ntables
-  -- let $diff_table_1=master:test.t$ntables
-  -- let $diff_table_2=slave:test.t$ntables
+  -- let $diff_tables= master:t$ntables, slave:t$ntables
   -- source include/diff_tables.inc
 
   -- connection master
@@ -337,4 +335,4 @@ while($ntables)
 ## For debugging purposes you might want not to remove these
 -- remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug50018.binlog
 -- remove_file $generated_sql
--- source include/master-slave-end.inc
+--source include/rpl_end.inc

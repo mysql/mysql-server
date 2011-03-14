@@ -1,0 +1,42 @@
+--source include/have_log_bin.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Bug#58147: ALTER TABLE w/ TRUNCATE PARTITION fails
+--echo #            but the statement is written to binlog
+--echo #
+
+CREATE TABLE t1(id INT)
+PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (100),
+ PARTITION pmax VALUES LESS THAN (MAXVALUE));
+
+INSERT INTO t1 VALUES (1), (10), (100), (1000);
+
+--let $binlog_file=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_start=query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--error ER_WRONG_PARTITION_NAME
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+--error ER_DROP_PARTITION_NON_EXISTENT
+ALTER TABLE t1 DROP PARTITION p1;
+
+--echo # No error returned, output in table format instead:
+ALTER TABLE t1 ANALYZE PARTITION p1;
+ALTER TABLE t1 CHECK PARTITION p1;
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+ALTER TABLE t1 REPAIR PARTITION p1;
+
+ALTER TABLE t1 ANALYZE PARTITION p0;
+ALTER TABLE t1 CHECK PARTITION p0;
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+ALTER TABLE t1 REPAIR PARTITION p0;
+ALTER TABLE t1 TRUNCATE PARTITION p0;
+ALTER TABLE t1 DROP PARTITION p0;
+
+--source include/show_binlog_events.inc
+
+DROP TABLE t1;

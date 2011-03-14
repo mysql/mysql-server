@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
 reset master;
 DROP TABLE IF EXISTS t1;
@@ -129,6 +125,8 @@ select * from t1;
 a
 1
 drop table t1;
+include/stop_slave.inc
+include/rpl_reset.inc
 -- Bug#43748
 -- make a user on the slave that can list but not kill system threads.
 FLUSH PRIVILEGES;
@@ -140,5 +138,5 @@ KILL @id;
 Got one of the listed errors
 -- throw out test-user on slave.
 DROP USER user43748@127.0.0.1;
--- done. back to master.
 End of 5.1 tests
+include/rpl_end.inc

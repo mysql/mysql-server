@@ -5,5 +5,21 @@
 --source include/have_binlog_format_statement.inc
 --source include/have_innodb.inc
 
+# make innodb updates run fast
+--connection slave
+SET @old_innodb_flush_log_at_trx_commit= @@global.innodb_flush_log_at_trx_commit;
+SET @@global.innodb_flush_log_at_trx_commit= 0;
+--connection master
+SET @old_innodb_flush_log_at_trx_commit= @@global.innodb_flush_log_at_trx_commit;
+SET @@global.innodb_flush_log_at_trx_commit= 0;
+
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 --source ./extra/rpl_tests/rpl_start_stop_slave.test
+
+# clean up
+--connection slave
+SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
+--connection master
+SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
+
+--source include/rpl_end.inc

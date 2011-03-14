@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 #########################################################################
 #                            CONFIGURATION
 #########################################################################
@@ -11933,3 +11929,4 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TEMPORARY TABLE IF EXISTS `tt_xx_
 ###################################################################################
 #                                        CLEAN
 ###################################################################################
+include/rpl_end.inc

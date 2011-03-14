@@ -49,6 +49,15 @@ drop table if exists t1,t2,t3,t4;
 drop database if exists mysqltest;
 --enable_warnings
 
+# Bug#58912 InnoDB unnecessarily avoids update-in-place on column prefixes
+CREATE TABLE bug58912 (a BLOB, b TEXT, PRIMARY KEY(a(1))) ENGINE=InnoDB;
+INSERT INTO bug58912 VALUES(REPEAT('a',8000),REPEAT('b',8000));
+UPDATE bug58912 SET a=REPEAT('a',7999);
+# The above statements used to trigger a failure during purge when
+# Bug#55284 was fixed while Bug#58912 was not. Defer the DROP TABLE,
+# so that purge gets a chance to run (and a double free of the
+# off-page column can be detected, if one is to occur.)
+
 #
 # Small basic test with ignore
 #
@@ -2547,6 +2556,9 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+# Clean up after the Bug#55284/Bug#58912 test case.
+DROP TABLE bug58912;
 
 #######################################################################
 #                                                                     #

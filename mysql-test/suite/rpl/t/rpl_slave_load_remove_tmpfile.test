@@ -52,9 +52,14 @@ connection master;
 
 drop table t1;
 
-connection slave;
+--source include/sync_slave_io_with_master.inc
+--source include/stop_slave_io.inc
+RESET SLAVE;
 
 drop table t1;
 
 call mtr.add_suppression("Slave: Can't get stat of .*");
 call mtr.add_suppression("Slave: File.* not found.*");
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
+

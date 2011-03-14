@@ -420,8 +420,7 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
 
 static
 void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
-                       enum_duplicates duplic,
-                       bool is_multi_insert)
+                       enum_duplicates duplic)
 {
   if (duplic == DUP_UPDATE ||
       (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_INSERT))
@@ -470,10 +469,9 @@ void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
       return;
     }
 
-    bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG ||
-                  ! (thd->security_ctx->master_access & SUPER_ACL));
+    bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG);
     if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT &&
-        log_on && mysql_bin_log.is_open() && is_multi_insert)
+        log_on && mysql_bin_log.is_open())
     {
       /*
         Statement-based binary logging does not work in this case, because:
@@ -677,8 +675,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     By default, both logs are enabled (this won't cause problems if the server
     runs without --log-bin).
   */
-  bool log_on= ((thd->variables.option_bits & OPTION_BIN_LOG) ||
-                (!(thd->security_ctx->master_access & SUPER_ACL)));
+  bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG);
 #endif
   thr_lock_type lock_type;
   Item *unused_conds= 0;
@@ -688,8 +685,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     Upgrade lock type if the requested lock is incompatible with
     the current connection mode or table operation.
   */
-  upgrade_lock_type(thd, &table_list->lock_type, duplic,
-                    values_list.elements > 1);
+  upgrade_lock_type(thd, &table_list->lock_type, duplic);
 
   /*
     We can't write-delayed into a table locked with LOCK TABLES:
@@ -1022,7 +1018,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
         if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
         {
-          /* Binlog multi INSERT DELAYED as INSERT without DELAYED. */
+          /* Binlog INSERT DELAYED as INSERT without DELAYED. */
           String log_query;
           if (create_insert_stmt_from_insert_delayed(thd, &log_query))
           {
@@ -1906,22 +1902,6 @@ public:
     thd.lex->current_select= 0; 		// for my_message_sql
     thd.lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
     /*
-      Statement-based replication of INSERT DELAYED has problems with
-      RAND() and user variables, so in mixed mode we go to row-based.
-      For normal commands, the unsafe flag is set at parse time.
-      However, since the flag is a member of the THD object, of which
-      the delayed_insert thread has its own copy, we must set the
-      statement to unsafe here and explicitly set row logging mode.
-
-      @todo set_current_stmt_binlog_format_row_if_mixed should not be
-      called by anything else than thd->decide_logging_format().  When
-      we call set_current_blah here, none of the checks in
-      decide_logging_format is made.  We should probably call
-      thd->decide_logging_format() directly instead.  /Sven
-    */
-    thd.lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
-    thd.set_current_stmt_binlog_format_row_if_mixed();
-    /*
       Prevent changes to global.lock_wait_timeout from affecting
       delayed insert threads as any timeouts in delayed inserts
       are not communicated to the client.
@@ -2650,11 +2630,11 @@ pthread_handler_t handle_delayed_insert(void *arg)
     }
 
     thd->lex->sql_command= SQLCOM_INSERT;        // For innodb::store_lock()
+
     /*
-      Statement-based replication of INSERT DELAYED has problems with RAND()
-      and user vars, so in mixed mode we go to row-based.
+      INSERT DELAYED has to go to row-based format because the time
+      at which rows are inserted cannot be determined in mixed mode.
     */
-    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_DELAYED);
     thd->set_current_stmt_binlog_format_row_if_mixed();
 
     /*
@@ -2922,6 +2902,13 @@ bool Delayed_insert::handle_inserts(void)
     if (log_query)
     {
       /*
+        Guaranteed that the INSERT DELAYED STMT will not be here
+        in SBR when mysql binlog is enabled.
+      */
+      DBUG_ASSERT(!(mysql_bin_log.is_open() &&
+                  !thd.is_current_stmt_binlog_format_row()));
+
+      /*
         This is the first value of an INSERT statement.
         It is the right place to clear a forced insert_id.
         This is usually done after the last value of an INSERT statement,
@@ -2986,39 +2973,6 @@ bool Delayed_insert::handle_inserts(void)
     {
       using_opt_replace= 0;
       table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    }
-
-    if (log_query && mysql_bin_log.is_open())
-    {
-      bool backup_time_zone_used = thd.time_zone_used;
-      Time_zone *backup_time_zone = thd.variables.time_zone;
-      if (row->time_zone != NULL)
-      {
-        thd.time_zone_used = true;
-        thd.variables.time_zone = row->time_zone;
-      }
-
-      /* if the delayed insert was killed, the killed status is
-         ignored while binlogging */
-      int errcode= 0;
-      if (thd.killed == THD::NOT_KILLED)
-        errcode= query_error_code(&thd, TRUE);
-      
-      /*
-        If the query has several rows to insert, only the first row will come
-        here. In row-based binlogging, this means that the first row will be
-        written to binlog as one Table_map event and one Rows event (due to an
-        event flush done in binlog_query()), then all other rows of this query
-        will be binlogged together as one single Table_map event and one
-        single Rows event.
-      */
-      if (thd.binlog_query(THD::ROW_QUERY_TYPE,
-                           row->query.str, row->query.length,
-                           FALSE, FALSE, FALSE, errcode))
-        goto err;
-
-      thd.time_zone_used = backup_time_zone_used;
-      thd.variables.time_zone = backup_time_zone;
     }
 
     if (table->s->blob_fields)

@@ -8,3 +8,4 @@
 
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 -- source extra/rpl_tests/rpl_stop_middle_group.test
+--source include/rpl_end.inc

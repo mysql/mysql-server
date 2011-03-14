@@ -1901,7 +1901,7 @@ c1 bigint,
 c2 set('sweet'),
 key (c2,c1,c0), 
 key(c0)
-) engine=myisam partition by hash (month(c0)) partitions 5;
+) engine=myisam partition by hash (c0) partitions 5;
 insert ignore into t1 set c0 = -6502262, c1 = 3992917, c2 = 35019;
 insert ignore into t1 set c0 = 241221, c1 = -6862346, c2 = 56644;
 select c1 from t1 group by (select c0 from t1 limit 1);

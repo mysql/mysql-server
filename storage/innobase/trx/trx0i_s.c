@@ -442,7 +442,7 @@ i_s_locks_row_validate(
 		/* record lock */
 		ut_ad(!strcmp("RECORD", row->lock_type));
 		ut_ad(row->lock_index != NULL);
-		ut_ad(row->lock_data != NULL);
+		/* row->lock_data == NULL if buf_page_try_get() == NULL */
 		ut_ad(row->lock_page != ULINT_UNDEFINED);
 		ut_ad(row->lock_rec != ULINT_UNDEFINED);
 	}
@@ -508,7 +508,6 @@ fill_trx_row(
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
 	if (stmt != NULL) {
-
 		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
 
 		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
@@ -521,6 +520,8 @@ fill_trx_row(
 		row->trx_query = ha_storage_put_memlim(
 			cache->storage, stmt, stmt_len + 1,
 			MAX_ALLOWED_FOR_STORAGE(cache));
+
+		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 
 		if (row->trx_query == NULL) {
 

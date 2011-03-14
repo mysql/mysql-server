@@ -16,6 +16,7 @@ operation, number_of_bytes,
 substring(object_name, locate("no_index_tab", object_name)) as short_name
 from performance_schema.events_waits_history_long
 where operation not like "tell"
+  and event_name like "wait/io/file/myisam/%"
   order by thread_id, event_id;
 event_name	short_source	operation	number_of_bytes	short_name
 wait/io/file/myisam/kfile	mi_create.c:	create	NULL	no_index_tab.MYI

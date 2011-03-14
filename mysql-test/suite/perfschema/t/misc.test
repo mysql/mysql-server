@@ -38,14 +38,14 @@ LIMIT 1;
 # Bug#45088 Should not be able to create tables of engine PERFORMANCE_SCHEMA
 #
 
---error ER_WRONG_PERFSCHEMA_USAGE
+--error ER_CANT_CREATE_TABLE
 create table test.t1(a int) engine=performance_schema;
 
 #
 # Bug#44897 Performance Schema: can create a ghost table in another database
 #
 
---error ER_WRONG_PERFSCHEMA_USAGE
+--error ER_CANT_CREATE_TABLE
 create table test.t1 like performance_schema.events_waits_current;
 
 #

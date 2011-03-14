@@ -318,4 +318,14 @@ Proxied_host
 Proxied_user	
 With_grant	1
 FLUSH PRIVILEGES;
+#
+# Bug#58139 : default-auth option not recognized in MySQL standardi
+#             command line clients
+#
+# Executing 'mysql'
+1
+1
+# Executing 'mysqladmin'
+mysqld is alive
+# Executing 'mysqldump'
 End of 5.5 tests

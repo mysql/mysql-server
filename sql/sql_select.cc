@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -567,7 +567,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -6577,7 +6578,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
 	  if (thd->variables.optimizer_switch &
               OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
           {
@@ -6604,10 +6604,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	{
 	  /* Use quick key read if it's a constant and it's not used
 	     with key reading */
-	  if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF
-	      && tab->type != JT_FT && (tab->type != JT_REF ||
-               (uint) tab->ref.key == tab->quick->index))
-	  {
+          if (tab->needed_reg.is_clear_all() && tab->type != JT_EQ_REF &&
+              tab->type != JT_FT &&
+              ((tab->type != JT_CONST && tab->type != JT_REF) ||
+               (uint)tab->ref.key == tab->quick->index))
+          {
+            DBUG_ASSERT(tab->quick->is_valid());
 	    sel->quick=tab->quick;		// Use value from get_quick_...
 	    sel->quick_keys.clear_all();
 	    sel->needed_reg.clear_all();
@@ -10146,7 +10148,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
-    if (field->field->eq_def(result))
+    /*
+      Fields that are used as arguments to the DEFAULT() function already have
+      their data pointers set to the default value during name resulotion. See
+      Item_default_value::fix_fields.
+    */
+    if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
     return result;
   }
@@ -10823,6 +10830,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
 	 (ha_base_keytype) key_part_info->type == HA_KEYTYPE_VARTEXT2) ?
 	0 : FIELDFLAG_BINARY;
+      key_part_info->key_part_flag= 0;
       if (!using_unique_constraint)
       {
 	cur_group->buff=(char*) group_buff;
@@ -14023,7 +14031,7 @@ check_reverse_order:
   SYNOPSIS
    create_sort_index()
      thd		Thread handler
-     tab		Table to sort (in join structure)
+     join		Join with table to sort
      order		How table should be sorted
      filesort_limit	Max number of rows that needs to be sorted
      select_limit	Max number of rows in final output
@@ -14033,8 +14041,8 @@ check_reverse_order:
 
 
   IMPLEMENTATION
-   - If there is an index that can be used, 'tab' is modified to use
-     this index.
+   - If there is an index that can be used, the first non-const join_tab in
+     'join' is modified to use this index.
    - If no index, create with filesort() an index file that can be used to
      retrieve rows in order (should be done with 'read_record').
      The sorted data is stored in tab->table and will be freed when calling
@@ -16017,7 +16025,7 @@ init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr)
 {
   for (; func_ptr != end_ptr ;func_ptr++)
   {
-    if ((*func_ptr)->reset())
+    if ((*func_ptr)->reset_and_add())
       return 1;
   }
   /* If rollup, calculate the upper sum levels */

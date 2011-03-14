@@ -394,4 +394,18 @@ FLUSH PRIVILEGES;
 
 FLUSH PRIVILEGES;
 
+--echo #
+--echo # Bug#58139 : default-auth option not recognized in MySQL standardi
+--echo #             command line clients
+--echo #
+
+--echo # Executing 'mysql'
+--exec $MYSQL -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT -e "SELECT 1"
+
+--echo # Executing 'mysqladmin'
+--exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT ping
+
+--echo # Executing 'mysqldump'
+--exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test
+
 --echo End of 5.5 tests

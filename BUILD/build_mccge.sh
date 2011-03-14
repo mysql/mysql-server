@@ -1,5 +1,22 @@
 #!/bin/sh
 
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this library; if not, write to the Free
+# Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
+# MA 02111-1307, USA
+
 die()
 {
   echo "ERROR: $@"; exit 1;
@@ -42,9 +59,7 @@ cat <<EOF
   Options used with this script always override any default behaviour. 
   The default package is MySQL Cluster Carrier Grade (standard) Edition. 
   For developers, the default package is MySQL Cluster Carrier Grade 
-  Extended Edition, and the default build behaviour is to build with
-  autotools. If you want to skip autotools and start from a source code
-  release you can use the --no-autotools flag.
+  Extended Edition.
 
   More information for developers can be found in --help, 
   --sysadmin-help, and --extended-help.
@@ -102,7 +117,8 @@ cat <<EOF
   If your building on a Solaris SPARC machine and you want to compile
   using SunStudio you must set 
   --compiler=forte; if you want to build using the Intel compiler on 
-  Linux, you need to set --compiler=icc.
+  Linux, you need to set --compiler=icc. If you want to use the AMD
+  compiler Open64 set --compiler=open64.
 
   A synonym for forte is SunStudio, so one can also use
   --compiler=SunStudio.
@@ -150,14 +166,32 @@ Usage: $0 [options]
   --without-debug         Build non-debug version
   --use-comment           Set the comment in the build
   --with-fast-mutexes     Use try/retry method of acquiring mutex
+  --without-fast-mutexes  Don't use try/retry method of acquiring mutex
+  --without-perfschema    Don't build with performance schema
+  --generate-feedback path Compile with feedback using the specified directory
+                          to store the feedback files
+  --use-feedback path     Compile using feedback information from the specified
+                          directory
   --with-debug            Build debug version
+  --extra-debug-flag flag Add -Dflag to compiler flags
+                          InnoDB supports the following debug flags,
+                          UNIV_DEBUG, UNIV_SYNC_DEBUG, UNIV_MEM_DEBUG,
+                          UNIV_DEBUG_THREAD_CREATION, UNIV_DEBUG_LOCK_VALIDATE,
+                          UNIV_DEBUG_PRINT, UNIV_DEBUG_FILE_ACCESS,
+                          UNIV_LIGHT_MEM_DEBUG, UNIV_LOG_DEBUG,
+                          UNIV_IBUF_COUNT_DEBUG, UNIV_SEARCH_DEBUG,
+                          UNIV_LOG_LSN_DEBUG, UNIV_ZIP_DEBUG, UNIV_AHI_DEBUG,
+                          UNIV_DEBUG_VALGRIND, UNIV_SQL_DEBUG, UNIV_AIO_DEBUG,
+                          UNIV_BTR_DEBUG, UNIV_LRU_DEBUG, UNIV_BUF_DEBUG,
+                          UNIV_HASH_DEBUG, UNIV_LIST_DEBUG, UNIV_IBUF_DEBUG
   --with-link-time-optimizer
                           Link time optimizations enabled (Requires GCC 4.5
                           if GCC used), available for icc as well. This flag
                           is only considered if also fast is set.
+  --with-mso              Special flag used by Open64 compiler (requres at
+                          least version 4.2.3) that enables optimisations
+                          for multi-core scalability.
   --configure-only        Stop after running configure.
-  --use-autotools         Start by running autoconf, automake,.. tools
-  --no-autotools          Start from configure
   --print-only            Print commands that the script will execute, 
                           but do not actually execute
   --prefix=path           Build with prefix 'path'
@@ -170,7 +204,7 @@ Usage: $0 [options]
                           MySQL use
   --commercial            Use commercial libraries
   --gpl                   Use gpl libraries
-  --compiler=[gcc|icc|forte|SunStudio]        Select compiler
+  --compiler=[gcc|icc|forte|SunStudio|open64] Select compiler
   --cpu=[x86|x86_64|sparc|itanium]            Select CPU type
                           x86 => x86 and 32-bit binary
                           x86_64 => x86 and 64 bit binary
@@ -389,7 +423,8 @@ extended_usage()
     platforms supported by this script.
 
     The --fast option adds -mtune=cpu_arg to the C/C++ flags (provides
-    support for Nocona, K8, and other processors).
+    support for Nocona, K8, and other processors), this option is valid
+    when gcc is the compiler.
 
     Use of the --debug option adds -g to the C/C++ flags.
 
@@ -397,10 +432,35 @@ extended_usage()
     by calling the script as follows:
     CC="/usr/local/bin/gcc" CXX="/usr/local/bin/gcc" BUILD/build_mccge.sh
 
-  FreeBSD/x86/gcc
-  ---------------
-    No flags are used. Instead, configure determines the proper flags to 
-    use.
+  Feedback profiler on gcc
+  ------------------------
+  Using gcc --generate-feedback=path causes the following flags to be added
+  to the compiler flags.
+
+  --fprofile-generate
+  --fprofile-dir=path
+
+  Using gcc with --use-feedback=path causes the following flags to be added
+  to the compiler flags. --fprofile-correction indicates MySQL is a multi-
+  threaded application and thus counters can be inconsistent with each other
+  and the compiler should take this into account.
+
+  --fprofile-use
+  --fprofile-dir=path
+  --fprofile-correction
+
+  Feedback compilation using Open64
+  ---------------------------------
+
+  Using Open64 with --generate-feedback=path causes the following flags to
+  be added to the compiler flags.
+
+  -fb-create path/feedback
+
+  Using Open64 with --use-feedback=path causes the following flags to be
+  added to the compiler flags.
+
+  --fb-opt path/feedback
 
   Linux/x86+Itanium/gcc
   -------------
@@ -409,6 +469,9 @@ extended_usage()
     otherwise, the binary is 32-bit. To build a 64-bit binary, -m64 is
     added to the C/C++ flags. (To build a 32-bit binary on a 64-bit CPU,
     use the --32 option as described previously.)
+
+    When gcc 4.5 is used and the user set --with-link-time-optimizer then
+    also --flto is added to compiler flags and linker flags.
 
   Linux/x86+Itanium/icc
   -------------
@@ -432,6 +495,19 @@ extended_usage()
     On discovery of a Core 2 Duo architecture while using icc, -xT is also 
     added to the C/C++ flags; this provides optimisations specific to Core 
     2 Duo. This is added only when the --fast flag is set.
+
+  Linux/x86/Open64
+  ----------------
+    For normal builds use -O3, when fast flag is set one also adds
+    --march=auto to generate optimized builds for the CPU used. If
+    --with-link-time-optimizer is set also -ipa is set. There is also
+    a special flag --with-mso which can be set to get --mso set which
+    activates optimisation for multi-core scalability.
+
+  FreeBSD/x86/gcc
+  ---------------
+    No flags are used. Instead, configure determines the proper flags to 
+    use.
 
   Solaris/x86/gcc
   ---------------
@@ -653,6 +729,9 @@ parse_compiler()
     forte | SunStudio | sunstudio )
       compiler="forte"
       ;;
+    open64 | Open64 )
+      compiler="open64"
+      ;;
     *)
       echo "Unknown compiler '$compiler'"
       exit 1
@@ -686,12 +765,25 @@ parse_options()
     --with-fast-mutexes)
       with_fast_mutexes="yes"
       ;;
+    --without-fast-mutexes)
+      with_fast_mutexes="no"
+      ;;
+    --without-perfschema)
+      with_perfschema="no"
+      ;;
+    --with-mso)
+      with_mso="yes"
+      ;;
     --use-tcmalloc)
       use_tcmalloc="yes"
       ;;
     --with-debug)
       with_debug_flag="yes"
       fast_flag="no"
+      ;;
+    --extra-debug-flag)
+      shift
+      extra_debug_flags="$extra_debug_flags -D$1"
       ;;
     --debug)
       compile_debug_flag="yes"
@@ -711,6 +803,14 @@ parse_options()
     --compiler=*)
       compiler=`get_key_value "$1"`
       parse_compiler
+      ;;
+    --generate-feedback)
+      shift
+      GENERATE_FEEDBACK_PATH="$1"
+      ;;
+    --use-feedback)
+      shift
+      USE_FEEDBACK_PATH="$1"
       ;;
     --cpu=*)
       cpu_type=`get_key_value "$1"`
@@ -745,12 +845,6 @@ parse_options()
       ;;
     --parallelism=*)
       parallelism=`get_key_value "$1"`
-      ;;
-    --use-autotools)
-      use_autotools="yes"
-      ;;
-    --no-autotools)
-      use_autotools="no"
       ;;
     --configure-only)
       just_configure="yes"
@@ -896,6 +990,9 @@ set_cpu_base()
 # 
 init_configure_commands()
 {
+  path=`dirname $0`
+  cp $path/cmake_configure.sh $path/../configure
+  chmod +x $path/../configure
   cflags="$c_warnings $base_cflags $compiler_flags"
   cxxflags="$cxx_warnings $base_cxxflags $compiler_flags"
   configure="./configure $base_configs $with_flags"
@@ -1084,6 +1181,7 @@ set_with_debug_flags()
       loc_debug_flags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
       compiler_flags="$compiler_flags $loc_debug_flags"
     fi
+    compiler_flags="$compiler_flags $extra_debug_flags"
   fi
 }
 
@@ -1105,7 +1203,7 @@ set_no_omit_frame_pointer_for_developers()
 #
 set_debug_flag()
 {
-  if test "x$compile_debug_flags" = "xyes" ; then
+  if test "x$compile_debug_flag" = "xyes" ; then
     compiler_flags="$compiler_flags -g"
   fi
 }
@@ -1152,7 +1250,9 @@ set_base_configs()
   fi
   base_configs="$base_configs --with-pic"
   base_configs="$base_configs --with-csv-storage-engine"
-  base_configs="$base_configs --with-perfschema"
+  if test "x$with_perfschema" != "xno" ; then
+    base_configs="$base_configs --with-perfschema"
+  fi
 }
 
 #
@@ -1251,6 +1351,19 @@ set_gcc_special_options()
   fi
 }
 
+#
+# If we discover a Core 2 Duo architecture and we have enabled the fast
+# flag, we enable a compile especially optimised for Core 2 Duo. This
+# feature is currently available on Intel's icc compiler only.
+#
+set_icc_special_options()
+{
+  if test "x$fast_flag" = "xyes" && test "x$cpu_arg" = "xcore2" && \
+     test "x$compiler" = "xicc" ; then
+    compiler_flags="$compiler_flags -xT"
+  fi
+}
+
 set_cc_and_cxx_for_gcc()
 {
   if test "x$CC" = "x" ; then
@@ -1271,6 +1384,16 @@ set_cc_and_cxx_for_icc()
   fi
 }
 
+set_cc_and_cxx_for_open64()
+{
+  if test "x$CC" = "x" ; then
+    CC="opencc -static-libgcc -fno-exceptions"
+  fi
+  if test "x$CXX" = "x" ; then
+    CXX="openCC -static-libgcc -fno-exceptions"
+  fi
+}
+
 set_cc_and_cxx_for_forte()
 {
   if test "x$CC" = "x" ; then
@@ -1278,19 +1401,6 @@ set_cc_and_cxx_for_forte()
   fi
   if test "x$CXX" = "x" ; then
     CXX="CC"
-  fi
-}
-
-#
-# If we discover a Core 2 Duo architecture and we have enabled the fast
-# flag, we enable a compile especially optimised for Core 2 Duo. This
-# feature is currently available on Intel's icc compiler only.
-#
-set_icc_special_options()
-{
-  if test "x$fast_flag" = "xyes" && test "x$cpu_arg" = "xcore2" && \
-     test "x$compiler" = "xicc" ; then
-    compiler_flags="$compiler_flags -xT"
   fi
 }
 
@@ -1358,11 +1468,44 @@ get_gcc_version()
 }
 
 #
+# Link time optimizer (interprocedural optimizations) for Open64
+#
+check_for_open64_link_time_optimizer()
+{
+  if test "x$with_link_time_optimizer" = "xyes" ; then
+    compiler_flags="$compiler_flags -ipa"
+    LDFLAGS="$LDFLAGS -ipa"
+  fi
+}
+
+#
+# Link time optimizer (interprocedural optimizations) for icc
+#
+check_for_icc_link_time_optimizer()
+{
+  if test "x$with_link_time_optimizer" = "xyes" ; then
+    compiler_flags="$compiler_flags -ipo"
+    LDFLAGS="$LDFLAGS -ipo"
+  fi
+}
+
+#
+# Link time optimizer (interprocedural optimizations) for forte
+#
+check_for_forte_link_time_optimizer()
+{
+  if test "x$with_link_time_optimizer" = "xyes" ; then
+    compiler_flags="$compiler_flags -ipo"
+    LDFLAGS="$LDFLAGS -ipo"
+  fi
+}
+
+#
 # Link Time Optimizer in GCC (LTO) uses a parameter -flto
 # which was added to GCC 4.5, if --with-link-time-optimizer
 # is set then use this feature
 #
-check_for_link_time_optimizer()
+check_for_gcc_link_time_optimizer()
 {
   get_gcc_version
   if test "$gcc_version" -ge 405 && \
@@ -1371,11 +1514,37 @@ check_for_link_time_optimizer()
     LDFLAGS="$LDFLAGS -flto"
   fi
 }
+
+set_feedback_for_gcc()
+{
+  if test "x$GENERATE_FEEDBACK_PATH" != "x" ; then
+    compiler_flags="$compiler_flags -fprofile-generate"
+    compiler_flags="$compiler_flags -fprofile-dir=$GENERATE_FEEDBACK_PATH"
+  elif test "x$USE_FEEDBACK_PATH" != "x" ; then
+    compiler_flags="$compiler_flags -fprofile-use"
+    compiler_flags="$compiler_flags -fprofile-correction"
+    compiler_flags="$compiler_flags -fprofile-dir=$USE_FEEDBACK_PATH"
+  fi
+}
+
+set_feedback_for_open64()
+{
+  if test "x$GENERATE_FEEDBACK_PATH" != "x" ; then
+    compiler_flags="$compiler_flags --fb-create=$GENERATE_FEEDBACK_PATH/feedback"
+  elif test "x$USE_FEEDBACK_PATH" != "x" ; then
+    compiler_flags="$compiler_flags --fb-opt=$USE_FEEDBACK_PATH/feedback"
+  fi
+}
+
 #
 # Linux Section
 #
 set_linux_configs()
 {
+# Default to use --with-fast-mutexes on Linux
+  if test "x$with_fast_mutexes" = "x" ; then
+    base_configs="$base_configs --with-fast-mutexes"
+  fi
   if test "x$cpu_base_type" != "xx86" && \
      test "x$cpu_base_type" != "xitanium" ; then
     usage "Only x86 and Itanium CPUs supported for Linux"
@@ -1392,19 +1561,14 @@ set_linux_configs()
     if test "x$fast_flag" != "xno" ; then
       if test "x$fast_flag" = "xyes" ; then
         compiler_flags="$compiler_flags -O3"
-        check_for_link_time_optimizer
+        check_for_gcc_link_time_optimizer
       else
-        compiler_flags="$compiler_flags -O2"
+        compiler_flags="$compiler_flags -O3"
       fi
     else
       compiler_flags="$compiler_flags -O0"
     fi
-    check_64_bits
-    if test "x$m64" = "xyes" ; then
-      compiler_flags="$compiler_flags -m64"
-    else
-      compiler_flags="$compiler_flags -m32"
-    fi
+    set_feedback_for_gcc
 # configure will set proper compiler flags for gcc on Linux
   elif test "x$compiler" = "xicc" ; then
     compiler_flags="$compiler_flags -mp -restrict"
@@ -1414,15 +1578,35 @@ set_linux_configs()
     fi
     if test "x$fast_flag" != "xno" ; then
       compiler_flags="$compiler_flags -O3 -unroll2 -ip"
-      if test "x$fast_flag" = "xyes" && \
-         test "x$with_link_time_optimizer" = "xyes" ; then
-        compiler_flags="$compiler_flags -ipo"
-        LDFLAGS="$LDFLAGS -ipo"
+      if test "x$fast_flag" = "xyes" ; then
+        check_for_icc_link_time_optimizer
       fi
     fi
+  elif test "x$compiler" = "xopen64" ; then
+    set_cc_and_cxx_for_open64
+    if test "x$fast_flag" != "xno" ; then
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -O3"
+#       Generate code specific for the machine you run on
+        compiler_flags="$compiler_flags -march=auto"
+        check_for_open64_link_time_optimizer
+        if test "x$with_mso" = "xyes" ; then
+          compiler_flags="$compiler_flags -mso"
+        fi
+      else
+        compiler_flags="$compiler_flags -O3"
+      fi
+    fi
+    set_feedback_for_open64
   else
-    usage "Only gcc and icc compilers supported for Linux"
+    usage "Only gcc,icc and Open64 compilers supported for Linux"
     exit 1
+  fi
+  check_64_bits
+  if test "x$m64" = "xyes" ; then
+    compiler_flags="$compiler_flags -m64"
+  else
+    compiler_flags="$compiler_flags -m32"
   fi
 }
 
@@ -1475,7 +1659,7 @@ set_solaris_configs()
     if test "x$fast_flag" = "xyes" ; then
       LDFLAGS="$LDFLAGS -O3"
       compiler_flags="$compiler_flags -O3"
-      check_for_link_time_optimizer
+      check_for_gcc_link_time_optimizer
     else
       if test "x$fast_flag" = "xgeneric" ; then
         LDFLAGS="$LDFLAGS -O2"
@@ -1498,10 +1682,7 @@ set_solaris_configs()
     if test "x$fast_flag" = "xyes" ; then
       compiler_flags="$compiler_flags -xtarget=native"
       compiler_flags="$compiler_flags -xunroll=3"
-      if test "x$with_link_time_optimizer" = "xyes" ; then
-        compiler_flags="$compiler_flags -xipo"
-        LDFLAGS="$LDFLAGS -xipo"
-      fi
+      check_for_forte_link_time_optimizer
     else
       compiler_flags="$compiler_flags -xtarget=generic"
     fi
@@ -1612,17 +1793,6 @@ set_default_package()
   fi
 }
 
-set_autotool_flags()
-{
-  if test "x$use_autotools" = "x" ; then
-    if test "x$developer_flag" = "xno" ; then
-      use_autotools="no"
-    else
-      use_autotools="yes"
-    fi
-  fi
-}
-
 set_defaults_based_on_environment()
 {
   if test ! -z "$MYSQL_DEVELOPER" ; then
@@ -1674,25 +1844,28 @@ base_cxxflags=
 base_configs=
 debug_flags=
 cxxflags=
+extra_debug_flags=
 m64=
 explicit_size_set=
 datadir=
 commands=
-use_autotools=
 engine_configs=
 ASFLAGS=
 LDFLAGS=
 use_tcmalloc=
 without_comment="yes"
 with_fast_mutexes=
+with_perfschema="yes"
 with_link_time_optimizer=
+with_mso=
 gcc_version="0"
+generate_feedback_path=
+use_feedback_path=
 
 set_defaults_based_on_environment
 
 parse_options "$@"
 
-set_autotool_flags
 set_default_package
 
 set -e
@@ -1793,9 +1966,6 @@ set_ccache_usage
 # Set up commands variable from variables prepared for base 
 # configurations, compiler flags, and warnings flags.
 # 
-if test "x$use_autotools" = "xyes" ; then
-  init_auto_commands
-fi
 init_configure_commands
 
 if test "x$just_configure" != "xyes" ; then
@@ -1806,8 +1976,8 @@ fi
 # The commands variable now contains the entire command to be run for
 # the build; we either execute it, or merely print it out.
 #
-if test "x$just_print" = "xyes" ; then
-  echo "$commands"
-else
+echo "Running command:"
+echo "$commands"
+if test "x$just_print" != "xyes" ; then
   eval "set -x; $commands"
 fi

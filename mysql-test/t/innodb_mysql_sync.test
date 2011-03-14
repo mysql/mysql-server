@@ -104,6 +104,47 @@ SELECT ((@id := id) - id) FROM t2;
 KILL @id;
 SET DEBUG_SYNC= "now SIGNAL killed";
 DROP TABLE t1, t2;
+disconnect con1;
+--source include/wait_until_count_sessions.inc
+SET DEBUG_SYNC= "RESET";
+
+
+--echo #
+--echo # Bug#58933 Assertion `thd- >is_error()' fails on shutdown with ongoing
+--echo #           OPTIMIZE TABLE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+
+--echo # Connection con1
+connect (con1,localhost,root);
+let $ID= `SELECT connection_id()`;
+SET DEBUG_SYNC= 'ha_admin_open_ltable SIGNAL waiting WAIT_FOR killed';
+--echo # Sending:
+--send OPTIMIZE TABLE t1
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR waiting';
+--replace_result $ID ID
+eval KILL QUERY $ID;
+SET DEBUG_SYNC= 'now SIGNAL killed';
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping: OPTIMIZE TABLE t1
+--reap
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
 
 
 # Check that all connections opened by test cases in this file are really

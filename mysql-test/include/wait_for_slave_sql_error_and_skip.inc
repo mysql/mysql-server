@@ -5,37 +5,57 @@
 #
 # ==== Usage ====
 #
-# let $slave_sql_error= <ERRNO>;
-# source include/wait_for_slave_sql_error_and_skip.inc;
+# --let $slave_sql_error= NUMBER
+# [--let $show_sql_error= 1]
+# [--let $slave_skip_counter= 1]
+# [--let $not_switch_connection= 1]
+# [--let $rpl_debug= 1]
+# [--let $slave_timeout= NUMBER]
+# --source include/wait_for_slave_sql_error_and_skip.inc
 #
 # Parameters:
 #
-# $slave_sql_errno
-#   The error number to wait for. This is required. (See
-#   wait_for_slave_sql_error.inc)
+#   $slave_sql_errno
+#     The error number to wait for. This is required. (See
+#     wait_for_slave_sql_error.inc)
 #
-# $show_sql_error
-#   If set, will print the error to the query log.
-#
-# $slave_timeout
-#   See wait_for_slave_param.inc for description.
+#   $show_sql_error
+#     If set, will print the error to the query log.
 # 
-# $master_connection
-#   See wait_for_slave_param.inc for description.
+#   $slave_skip_counter
+#     If set, skip this number of events. If not set, skip one event.
 #
-# $slave_skip_counter
-#   If set, skip this number of events. If not set, skip one event.
+#   $not_switch_connection
+#     By default, this script executes on the connection 'slave'.  If
+#     $not_switch_connection is set, this script executes on the current
+#     connection.  In any case, the original connection is restored.
 #
-# $not_switch_connection If set, don't switch to slave and don't switch back
-# master.
+#   $slave_timeout
+#     See include/wait_for_slave_param.inc
 #
+#   $rpl_debug
+#     See include/rpl_init.inc
 
-echo --source include/wait_for_slave_sql_error_and_skip.inc;
+
+--let $include_filename= wait_for_slave_sql_error_and_skip.inc [errno=$slave_sql_errno]
+--source include/begin_include_file.inc
+
+
+if (!$rpl_debug)
+{
+  --disable_query_log
+}
+
+
 if (!$not_switch_connection)
 {
-  connection slave;
+  --let $rpl_connection_name= slave
+  --source include/rpl_connection.inc
 }
+
+
 source include/wait_for_slave_sql_error.inc;
+
 
 # skip the erroneous statement
 if ($slave_skip_counter) {
@@ -45,7 +65,7 @@ if (!$slave_skip_counter) {
   SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 }
 source include/start_slave.inc;
-if (!$not_switch_connection)
-{
-  connection master;
-}
+
+
+--let $include_filename= wait_for_slave_sql_error_and_skip.inc [errno=$slave_sql_errno]
+--source include/end_include_file.inc

@@ -199,10 +199,7 @@ void udf_init()
 
       On windows we must check both FN_LIBCHAR and '/'.
     */
-    if (my_strchr(files_charset_info, dl_name,
-                  dl_name + strlen(dl_name), FN_LIBCHAR) ||
-        IF_WIN(my_strchr(files_charset_info, dl_name,
-                         dl_name + strlen(dl_name), '/'), 0) ||
+    if (check_valid_path(dl_name, strlen(dl_name)) ||
         check_string_char_length(&name, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
@@ -442,13 +439,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     Ensure that the .dll doesn't have a path
     This is done to ensure that only approved dll from the system
     directories are used (to make this even remotely secure).
-
-    On windows we must check both FN_LIBCHAR and '/'.
   */
-  if (my_strchr(files_charset_info, udf->dl,
-                udf->dl + strlen(udf->dl), FN_LIBCHAR) ||
-      IF_WIN(my_strchr(files_charset_info, udf->dl,
-                       udf->dl + strlen(udf->dl), '/'), 0))
+  if (check_valid_path(udf->dl, strlen(udf->dl)))
   {
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);

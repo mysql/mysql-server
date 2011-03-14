@@ -1363,6 +1363,13 @@ SELECT 1 FROM t1, t1 t2
 ORDER BY QUOTE(t1.a);
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#57913 large negative number to string conversion functions crash
+--echo # Bug#57810 case/when/then : Assertion failed: length || !scale
+--echo #
+SELECT '1' IN ('1', SUBSTRING(-9223372036854775809, 1));
+SELECT CONVERT(('' IN (REVERSE(CAST(('') AS DECIMAL)), '')), CHAR(3));
+
 --echo End of 5.1 tests
 
 --echo Start of 5.4 tests

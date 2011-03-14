@@ -400,4 +400,30 @@ SELECT 0 FROM
 (SELECT 0) t61;
 0
 0
+#
+#  A nested materialized derived table is used before being populated.
+#  (addon for bug#19077)
+#
+CREATE TABLE t1 (i INT, j BIGINT);
+INSERT INTO t1 VALUES (1, 2), (2, 2), (3, 2);
+SELECT * FROM (SELECT MIN(i) FROM t1
+WHERE j = SUBSTRING('12', (SELECT * FROM (SELECT MIN(j) FROM t1) t2))) t3;
+MIN(i)
+1
+DROP TABLE t1;
 # End of 5.0 tests
+#
+# Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
+#           temptable views
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT, KEY (b));
+INSERT INTO t1 VALUES (1),(1);
+INSERT INTO t2 VALUES (1),(1);
+CREATE algorithm=temptable VIEW v1 AS
+SELECT 1 FROM t1 LEFT JOIN t1 t3 ON 1 > (SELECT 1 FROM t1);
+CREATE algorithm=temptable VIEW v2 AS SELECT 1 FROM t2;
+EXPLAIN SELECT 1 FROM t1 JOIN v1 ON 1 > (SELECT 1 FROM v2);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;

@@ -143,3 +143,4 @@ drop table t1, t2;
 drop view v1;
 --echo # Syncing slave with master and switching to connection 'slave'
 --sync_slave_with_master
+--source include/rpl_end.inc

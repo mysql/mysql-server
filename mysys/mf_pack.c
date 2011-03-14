@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,7 +192,8 @@ size_t cleanup_dirname(register char *to, const char *from)
 	  end_parentdir=pos;
 	  while (pos >= start && *pos != FN_LIBCHAR)	/* remove prev dir */
 	    pos--;
-	  if (pos[1] == FN_HOMELIB || memcmp(pos,parent,length) == 0)
+          if (pos[1] == FN_HOMELIB ||
+              (pos > start && memcmp(pos, parent, length) == 0))
 	  {					/* Don't remove ~user/ */
 	    pos=strmov(end_parentdir+1,parent);
 	    *pos=FN_LIBCHAR;

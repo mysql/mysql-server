@@ -6392,3 +6392,5 @@ ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN
 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX
   eng "The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout."
 
+ER_STMT_CACHE_FULL  
+        eng "Multi-row statements required more than 'max_binlog_stmt_cache_size' bytes of storage; increase this mysqld variable and try again"

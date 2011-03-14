@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,10 +296,16 @@ int mysql_update(THD *thd,
   if (lock_tables(thd, table_list, table_count, 0))
     DBUG_RETURN(1);
 
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-      (thd->fill_derived_tables() &&
-       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
     DBUG_RETURN(1);
+
+  if (thd->fill_derived_tables() &&
+      mysql_handle_derived(thd->lex, &mysql_derived_filling))
+  {
+    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
+    DBUG_RETURN(1);
+  }
+  mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
 
   thd_proc_info(thd, "init");
   table= table_list->table;
@@ -1194,7 +1200,11 @@ int mysql_multi_update_prepare(THD *thd)
  
   if (thd->fill_derived_tables() &&
       mysql_handle_derived(lex, &mysql_derived_filling))
+  {
+    mysql_handle_derived(lex, &mysql_derived_cleanup);
     DBUG_RETURN(TRUE);
+  }
+  mysql_handle_derived(lex, &mysql_derived_cleanup);
 
   DBUG_RETURN (FALSE);
 }

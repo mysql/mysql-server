@@ -81,9 +81,34 @@ static void general_class_handler(THD *thd, uint event_subtype, va_list ap)
 }
 
 
+static void connection_class_handler(THD *thd, uint event_subclass, va_list ap)
+{
+  mysql_event_connection event;
+  event.event_class= MYSQL_AUDIT_CONNECTION_CLASS;
+  event.event_subclass= event_subclass;
+  event.status= va_arg(ap, int);
+  event.thread_id= va_arg(ap, unsigned long);
+  event.user= va_arg(ap, const char *);
+  event.user_length= va_arg(ap, unsigned int);
+  event.priv_user= va_arg(ap, const char *);
+  event.priv_user_length= va_arg(ap, unsigned int);
+  event.external_user= va_arg(ap, const char *);
+  event.external_user_length= va_arg(ap, unsigned int);
+  event.proxy_user= va_arg(ap, const char *);
+  event.proxy_user_length= va_arg(ap, unsigned int);
+  event.host= va_arg(ap, const char *);
+  event.host_length= va_arg(ap, unsigned int);
+  event.ip= va_arg(ap, const char *);
+  event.ip_length= va_arg(ap, unsigned int);
+  event.database= va_arg(ap, const char *);
+  event.database_length= va_arg(ap, unsigned int);
+  event_class_dispatch(thd, (const mysql_event *) &event);
+}
+
+
 static audit_handler_t audit_handlers[] =
 {
-  general_class_handler
+  general_class_handler, connection_class_handler
 };
 
 static const uint audit_handlers_count=

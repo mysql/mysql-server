@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2004 MySQL AB, 2009 Sun Microsystems, Inc
+/* Copyright (C) 2000, 2011, Oracle and/or its affiliates. All rights 
+   reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +26,9 @@ extern "C" {
 #ifndef _my_base_h
 #include <my_base.h>
 #endif
-#ifdef THREAD
+
 #include <my_pthread.h>
 #include <thr_lock.h>
-#endif
 
 #include "my_handler.h"
 #include "my_tree.h"
@@ -146,10 +146,8 @@ typedef struct st_heap_share
   uint open_count;
   uchar *del_link;			/* Link to next block with del. rec */
   char * name;			/* Name of "memory-file" */
-#ifdef THREAD
   THR_LOCK lock;
   mysql_mutex_t intern_lock;            /* Locking for use with _locking */
-#endif
   my_bool delete_on_close;
   LIST open_list;
   uint auto_key;
@@ -175,9 +173,7 @@ typedef struct st_heap_info
   TREE_ELEMENT **last_pos;
   uint lastkey_len;
   my_bool implicit_emptied;
-#ifdef THREAD
   THR_LOCK_DATA lock;
-#endif
   LIST open_list;
 } HP_INFO;
 

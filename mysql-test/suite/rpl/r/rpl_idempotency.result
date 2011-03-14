@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression("Slave: Can't find record in 't.' Error_code: 1032");
 call mtr.add_suppression("Slave: Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
 call mtr.add_suppression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
@@ -33,8 +29,7 @@ SELECT * FROM t2 ORDER BY a;
 a
 -3
 -1
-Last_SQL_Error
-0
+include/check_slave_no_error.inc
 INSERT IGNORE INTO t1 VALUES (-2);
 INSERT IGNORE INTO t1 VALUES (-2);
 SELECT * FROM t1 ORDER BY a;
@@ -47,8 +42,7 @@ a
 -3
 -2
 -1
-Last_SQL_Error
-0
+include/check_slave_no_error.inc
 UPDATE t1 SET a = 1 WHERE a = -1;
 UPDATE t2 SET a = 1 WHERE a = -1;
 UPDATE t1 SET a = 1 WHERE a = -1;
@@ -71,7 +65,7 @@ SELECT * FROM t2 ORDER BY a;
 a
 -3
 1
-Last_SQL_Error
-0
+include/check_slave_no_error.inc
 DROP TABLE t1, t2;
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
+include/rpl_end.inc

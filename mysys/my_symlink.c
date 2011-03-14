@@ -118,8 +118,7 @@ int my_is_symlink(const char *filename __attribute__((unused)))
   'to' may be equal to 'filename'
 */
 
-int my_realpath(char *to, const char *filename,
-		myf MyFlags __attribute__((unused)))
+int my_realpath(char *to, const char *filename, myf MyFlags)
 {
 #if defined(HAVE_REALPATH) && !defined(HAVE_BROKEN_REALPATH)
   int result=0;

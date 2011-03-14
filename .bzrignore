@@ -3115,3 +3115,4 @@ libmysqld/mysqlserver_depends.c
 libmysqld/examples/mysql_embedded
 sql/.empty
 mysys/thr_lock
+VERSION.dep
