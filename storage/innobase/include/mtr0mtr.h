@@ -34,7 +34,6 @@ Created 11/26/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "mtr0types.h"
 #include "page0types.h"
-#include "log0log.h"
 
 /* Logging modes for a mini-transaction */
 #define MTR_LOG_ALL		21	/* default mode: log all operations
@@ -189,6 +188,9 @@ functions).  The page number parameter was originally written as 0. @{ */
 #define MLOG_FILE_FLAG_TEMP	1	/*!< identifies TEMPORARY TABLE in
 					MLOG_FILE_CREATE, MLOG_FILE_CREATE2 */
 /* @} */
+
+/* included here because it needs MLOG_LSN defined */
+#include "log0log.h"
 
 /***************************************************************//**
 Starts a mini-transaction and creates a mini-transaction handle
