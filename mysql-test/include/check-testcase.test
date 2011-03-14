@@ -60,6 +60,11 @@ if ($tmp)
   --echo Last_SQL_Error	
   --echo Replicate_Ignore_Server_Ids	
   --echo Master_Server_Id	#
+  if(!$MCP_WL3127)
+  {
+    -- echo Master_Bind	
+  } 
+ 
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
