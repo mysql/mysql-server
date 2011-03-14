@@ -424,7 +424,6 @@ recv_truncate_group(
 	lsn_t		finish_lsn1;
 	lsn_t		finish_lsn2;
 	lsn_t		finish_lsn;
-	ib_uint64_t	len;
 	ulint		i;
 
 	if (archived_lsn == LSN_MAX) {
@@ -465,11 +464,13 @@ recv_truncate_group(
 	if (start_lsn != recovered_lsn) {
 		/* Copy the last incomplete log block to the log buffer and
 		edit its data length: */
+		lsn_t	diff = recovered_lsn - start_lsn;
+
+		ut_a(diff <= 0xFFFFUL);
 
 		ut_memcpy(log_sys->buf, recv_sys->last_block,
 			  OS_FILE_LOG_BLOCK_SIZE);
-		log_block_set_data_len(log_sys->buf,
-				       recovered_lsn - start_lsn);
+		log_block_set_data_len(log_sys->buf, (ulint) diff);
 	}
 
 	if (start_lsn >= finish_lsn) {
@@ -478,6 +479,8 @@ recv_truncate_group(
 	}
 
 	for (;;) {
+		ulint	len;
+
 		end_lsn = start_lsn + RECV_SCAN_SIZE;
 
 		if (end_lsn > finish_lsn) {
@@ -485,7 +488,7 @@ recv_truncate_group(
 			end_lsn = finish_lsn;
 		}
 
-		len = end_lsn - start_lsn;
+		len = (ulint) (end_lsn - start_lsn);
 
 		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 		if (end_lsn >= finish_lsn) {
@@ -519,7 +522,6 @@ recv_copy_group(
 {
 	lsn_t		start_lsn;
 	lsn_t		end_lsn;
-	ib_uint64_t	len;
 
 	if (group->scanned_lsn >= recovered_lsn) {
 
@@ -531,6 +533,8 @@ recv_copy_group(
 	start_lsn = ut_uint64_align_down(group->scanned_lsn,
 					 OS_FILE_LOG_BLOCK_SIZE);
 	for (;;) {
+		ulint	len;
+
 		end_lsn = start_lsn + RECV_SCAN_SIZE;
 
 		if (end_lsn > recovered_lsn) {
@@ -541,7 +545,7 @@ recv_copy_group(
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
 				       up_to_date_group, start_lsn, end_lsn);
 
-		len = end_lsn - start_lsn;
+		len = (ulint) (end_lsn - start_lsn);
 
 		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 
