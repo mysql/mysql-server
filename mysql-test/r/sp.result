@@ -7452,4 +7452,22 @@ c1
 # Cleanup
 drop table t1;
 drop procedure p1;
+# 
+# BUG#11766234: 59299: ASSERT (TABLE_REF->TABLE || TABLE_REF->VIEW) 
+#               FAILS IN SET_FIELD_ITERATOR
+# 
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE VIEW v1 AS SELECT a FROM t2;
+CREATE PROCEDURE proc() SELECT * FROM t1 NATURAL JOIN v1;
+ALTER TABLE t2 CHANGE COLUMN a b CHAR;
+
+CALL proc();
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+CALL proc();
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+
+DROP TABLE t1,t2;
+DROP VIEW v1;
+DROP PROCEDURE proc;
 # End of 5.5 test
