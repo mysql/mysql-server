@@ -10,6 +10,9 @@ UNINSTALL PLUGIN archive;
 INSTALL PLUGIN archive SONAME 'ha_archive.so';
 CREATE TABLE t1(a int) ENGINE=ARCHIVE;
 DROP TABLE t1;
+SELECT 1;
+1
+1
 UNINSTALL PLUGIN archive;
 UNINSTALL PLUGIN archive;
 ERROR 42000: PLUGIN archive does not exist
