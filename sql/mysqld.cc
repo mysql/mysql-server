@@ -4656,10 +4656,15 @@ int mysqld_main(int argc, char **argv)
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 int mysql_service(void *p)
 {
+  if (my_thread_init())
+    return 1;
+  
   if (use_opt_args)
     win_main(opt_argc, opt_argv);
   else
     win_main(Service.my_argc, Service.my_argv);
+
+  my_thread_end();
   return 0;
 }
 
