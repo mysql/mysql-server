@@ -400,22 +400,16 @@ inline_mysql_socket_socket
   int domain, int type, int protocol)
 {
   MYSQL_SOCKET mysql_socket;
-  ulong thread_id;
 
   mysql_socket.fd= socket(domain, type, protocol);
 
 #ifdef HAVE_PSI_INTERFACE
-  mysql_socket.m_psi = PSI_server ? PSI_server->init_socket(key, &mysql_socket.fd)
-                                  : NULL;
+  mysql_socket.m_psi = PSI_server ?
+                       PSI_server->init_socket(key, &mysql_socket.fd) : NULL;
 
   if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL
              && mysql_socket.fd != -1))
-    {
-      thread_id= PSI_server->get_thread_id();
-      PSI_server->set_socket_info(mysql_socket.m_psi, &mysql_socket.fd,
-                                  NULL, 0, thread_id);
-    }
-
+    PSI_server->set_socket_info(mysql_socket.m_psi, &mysql_socket.fd, NULL, 0);
 #endif
   return mysql_socket;
 }
@@ -800,22 +794,18 @@ inline_mysql_socket_accept
   MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len)
 {
   MYSQL_SOCKET socket_accept = MYSQL_INVALID_SOCKET;
-  ulong thread_id;
 
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
 
   /** Initialize the instrument with the new socket descriptor and address */
   #ifdef HAVE_PSI_INTERFACE
   socket_accept.m_psi = PSI_server ?
-          PSI_server->init_socket(key, (const void *)&socket_accept.fd) : NULL;
+          PSI_server->init_socket(key, (const my_socket*)&socket_accept.fd) : NULL;
 
   if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
              && socket_accept.fd != -1))
-    {
-      thread_id= PSI_server->get_thread_id();
-      PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
-                                  addr, addr_len, thread_id);
-    }
+    PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
+                                addr, addr_len);
 #endif
   return socket_accept;
 }

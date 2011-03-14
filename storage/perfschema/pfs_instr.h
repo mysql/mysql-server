@@ -202,8 +202,8 @@ struct PFS_socket : public PFS_instr
 
   /** Socket identity, typically int */
   const void *m_identity;
-  /** Thread identifier */
-  uint m_thread_id;
+  /** Owning thread, if applicable */
+  PFS_thread *m_thread_owner;
   /** Socket file descriptor */
   uint m_fd;
   /** Raw socket address */
