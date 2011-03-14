@@ -2164,7 +2164,7 @@ it can cause IO bursts of flushing. This function implements heuristics
 to avoid this burstiness.
 @return	number of dirty pages to be flushed / second */
 static
-ib_uint64_t
+ulint
 buf_flush_get_desired_flush_rate(void)
 /*==================================*/
 {
@@ -2226,7 +2226,7 @@ buf_flush_get_desired_flush_rate(void)
 
 		rate = n_flush_req - lru_flush_avg;
 
-		return(rate < PCT_IO(100) ? rate : PCT_IO(100));
+		return((ulint) (rate < PCT_IO(100) ? rate : PCT_IO(100)));
 	}
 }
 
