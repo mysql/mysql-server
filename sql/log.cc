@@ -4320,7 +4320,10 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db= event_info->get_db();
-    if ((event_info->flags & LOG_EVENT_NO_DB_CHECK_F) == 0 &&
+    if (
+#ifndef MCP_BUG11799583
+        (event_info->flags & LOG_EVENT_NO_FILTER_F) == 0 &&
+#endif
         ((thd && !(thd->options & OPTION_BIN_LOG)) ||
          (thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
           thd->lex->sql_command != SQLCOM_SAVEPOINT &&
