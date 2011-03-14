@@ -528,9 +528,9 @@ static
 ulint
 srv_calc_low32(
 /*===========*/
-	ulint	file_size)	/*!< in: file size in database pages */
+	ib_uint64_t	file_size)	/*!< in: file size in database pages */
 {
-	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
+	return((ulint) (0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT)));
 }
 
 /*********************************************************************//**
@@ -541,9 +541,9 @@ static
 ulint
 srv_calc_high32(
 /*============*/
-	ulint	file_size)	/*!< in: file size in database pages */
+	ib_uint64_t	file_size)	/*!< in: file size in database pages */
 {
-	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
+	return((ulint) (file_size >> (32 - UNIV_PAGE_SIZE_SHIFT)));
 }
 
 /*********************************************************************//**
@@ -680,7 +680,11 @@ open_or_create_log_file(
 
 	ut_a(fil_validate());
 
-	fil_node_create(name, srv_log_file_size,
+	/* srv_log_file_size is measured in pages; if page size is 16KB,
+	then we have a limit of 64TB on 32 bit systems */
+	ut_a(srv_log_file_size <= ULINT_MAX);
+
+	fil_node_create(name, (ulint) srv_log_file_size,
 			2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
 #ifdef UNIV_LOG_ARCHIVE
 	/* If this is the first log group, create the file space object
