@@ -7425,7 +7425,7 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_MAX_LONG_DATA_SIZE:
     max_long_data_size_used= true;
-    WARN_DEPRECATED(NULL, 5, 6, "--max_long_data_size", "'--max_allowed_packet'");
+    WARN_DEPRECATED(NULL, "--max_long_data_size", "'--max_allowed_packet'");
     break;
   }
   return 0;
