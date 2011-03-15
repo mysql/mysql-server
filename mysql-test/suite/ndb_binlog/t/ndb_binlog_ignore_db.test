@@ -14,3 +14,56 @@ insert into t1 values (1, 1);
 -- source include/show_binlog_events2.inc
 
 drop database mysqltest;
+
+--echo --bug58698 Epoch not in ndb_apply_status 
+reset master;
+use mysql;
+
+--echo -- MyISAM table in mysql db
+create table invisible(a int primary key) engine=myisam;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+
+--echo -- Should be nothing in binlog
+-- source include/show_binlog_events2.inc
+
+--echo -- Ndb table in mysql db
+create table invisible(a int primary key) engine=ndb;
+insert into invisible values (1);
+insert into invisible values (2);
+delete from invisible;
+drop table invisible;
+
+--echo -- Should be nothing in binlog
+-- source include/show_binlog_events2.inc
+
+--echo -- ndb_binlog_index table (MyISAM) in mysql db 
+
+insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55);
+insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55);
+
+delete from ndb_binlog_index;
+
+--echo -- Should be nothing in binlog
+-- source include/show_binlog_events2.inc
+
+--echo -- Non-ignored db (test2)
+create database test2;
+use test2;
+
+create table t1 (a int primary key) engine=ndb;
+
+insert into t1 values (1);
+insert into t1 values (2);
+
+delete from t1;
+
+drop table t1;
+
+drop database test2;
+
+--echo -- Should have events in Binlog, *including ndb_apply_status*
+-- source include/show_binlog_events2.inc
+

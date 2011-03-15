@@ -1,1 +1,2 @@
 --binlog-ignore-db=mysqltest
+--binlog-ignore-db=mysql
