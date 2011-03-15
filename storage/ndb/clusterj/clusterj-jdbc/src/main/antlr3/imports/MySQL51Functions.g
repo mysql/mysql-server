@@ -1,7 +1,6 @@
 parser grammar MySQL51Functions;
 
 options {
-	tokenVocab=MySQL51;
 	output=AST;
 }
 
