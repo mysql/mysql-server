@@ -1229,9 +1229,8 @@ Tsman::load_extent_page_callback(Signal* signal,
   Uint32 senderRef = ptr.p->m_create.m_senderRef;  
   Uint32 senderData = ptr.p->m_create.m_senderData;
   Uint32 extent_pages = ptr.p->m_create.m_extent_pages;
-  Uint32 requestInfo = ptr.p->m_create.m_requestInfo;
   Uint32 data_pages = ptr.p->m_create.m_data_pages;
-  ndbassert(requestInfo == CreateFileImplReq::Commit);
+  ndbassert(ptr.p->m_create.m_requestInfo == CreateFileImplReq::Commit);
 
   Uint32 eh= File_formats::Datafile::extent_header_words(ptr.p->m_extent_size);
   Uint32 per_page = File_formats::Datafile::EXTENT_PAGE_WORDS/eh;
