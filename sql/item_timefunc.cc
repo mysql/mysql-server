@@ -2524,6 +2524,19 @@ String *Item_char_typecast::val_str(String *str)
   String *res;
   uint32 length;
 
+  if (cast_length >= 0 &&
+      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+			cast_cs == &my_charset_bin ?
+                        "cast_as_binary" : func_name(),
+                        current_thd->variables.max_allowed_packet);
+    null_value= 1;
+    return 0;
+  }
+
   if (!charset_conversion)
   {
     if (!(res= args[0]->val_str(str)))
