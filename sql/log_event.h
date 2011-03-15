@@ -494,13 +494,19 @@ struct sql_ex_info
 */
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
-#ifndef MCP_BUG11799583
 /**
    Events with this flag are not filtered based on the current
    database and is always written to the binary log regardless of
    filters.
  */
-#define LOG_EVENT_NO_FILTER_F 0x80
+#define LOG_EVENT_NO_DB_CHECK_F 0x80
+
+#ifndef MCP_BUG11799583
+/* 
+   Define LOG_EVENT_NO_FILTER_F as alias for LOG_EVENT_NO_DB_CHECK
+   to make it possible to write code that is forward compatible with 5.5
+*/
+#define LOG_EVENT_NO_FILTER_F LOG_EVENT_NO_DB_CHECK_F
 #endif
 
 /**
@@ -3939,13 +3945,7 @@ class Incident_log_event : public Log_event {
 public:
 #ifndef MYSQL_CLIENT
   Incident_log_event(THD *thd_arg, Incident incident)
-    : Log_event(thd_arg,
-#ifndef MCP_BUG11799583 
-                LOG_EVENT_NO_FILTER_F,
-#else
-                0,
-#endif
-                FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_DB_CHECK_F, FALSE), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -3955,13 +3955,7 @@ public:
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
-    : Log_event(thd_arg,
-#ifndef MCP_BUG11799583 
-                LOG_EVENT_NO_FILTER_F,
-#else
-                0,
-#endif
-                FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_DB_CHECK_F, FALSE), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
