@@ -273,11 +273,6 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
 
-typedef enum ndb_query_state_bits {
-  NDB_QUERY_NORMAL = 0,
-  NDB_QUERY_MULTI_READ_RANGE = 1
-} NDB_QUERY_STATE_BITS;
-
 /*
   Place holder for ha_ndbcluster thread specific data
 */
@@ -338,7 +333,6 @@ class Thd_ndb
   uint32 options;
   uint32 trans_options;
   List<NDB_SHARE> changed_tables;
-  uint query_state;
   HASH open_tables;
   /*
     This is a memroot used to buffer rows for batched execution.
