@@ -1233,7 +1233,7 @@ buf_pool_init_instance(
 
 		buf_pool->page_hash = hash_create(2 * buf_pool->curr_size);
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
-		
+
 		buf_pool->last_printout_time = ut_time();
 	}
 	/* 2. Initialize flushing fields
@@ -1365,11 +1365,11 @@ buf_pool_drop_hash_index_instance(
 			/* block->is_hashed cannot be modified
 			when we have an x-latch on btr_search_latch;
 			see the comment in buf0buf.h */
-			
+
 			if (!block->is_hashed) {
 				continue;
 			}
-			
+
 			/* To follow the latching order, we
 			have to release btr_search_latch
 			before acquiring block->latch. */
@@ -1378,14 +1378,14 @@ buf_pool_drop_hash_index_instance(
 			we must rescan all blocks, because
 			some may become hashed again. */
 			*released_search_latch = TRUE;
-			
+
 			rw_lock_x_lock(&block->lock);
-			
+
 			/* This should be guaranteed by the
 			callers, which will be holding
 			btr_search_enabled_mutex. */
 			ut_ad(!btr_search_enabled);
-			
+
 			/* Because we did not buffer-fix the
 			block by calling buf_block_get_gen(),
 			it is possible that the block has been
@@ -1395,7 +1395,7 @@ buf_pool_drop_hash_index_instance(
 			block is mapped to.  All we want to do
 			is to drop any hash entries referring
 			to the page. */
-			
+
 			/* It is possible that
 			block->page.state != BUF_FILE_PAGE.
 			Even that does not matter, because
@@ -1403,18 +1403,18 @@ buf_pool_drop_hash_index_instance(
 			check block->is_hashed before doing
 			anything.  block->is_hashed can only
 			be set on uncompressed file pages. */
-			
+
 			btr_search_drop_page_hash_index(block);
-			
+
 			rw_lock_x_unlock(&block->lock);
-			
+
 			rw_lock_x_lock(&btr_search_latch);
-			
+
 			ut_ad(!btr_search_enabled);
 		}
 	}
 }
- 
+
 /********************************************************************//**
 Drops the adaptive hash index.  To prevent a livelock, this function
 is only to be called while holding btr_search_latch and while
@@ -1990,30 +1990,30 @@ buf_pool_resize(void)
 	ulint	min_change_size = 1048576 * srv_buf_pool_instances;
 
 	buf_pool_mutex_enter_all();
-  
+
   	if (srv_buf_pool_old_size == srv_buf_pool_size) {
-  
+
 		buf_pool_mutex_exit_all();
 
   		return;
 
   	} else if (srv_buf_pool_curr_size + min_change_size
 		   > srv_buf_pool_size) {
-  
+
 		change_size = (srv_buf_pool_curr_size - srv_buf_pool_size)
 			    / UNIV_PAGE_SIZE;
 
 		buf_pool_mutex_exit_all();
-  
+
   		/* Disable adaptive hash indexes and empty the index
   		in order to free up memory in the buffer pool chunks. */
 		buf_pool_shrink(change_size);
 
 	} else if (srv_buf_pool_curr_size + min_change_size
 		   < srv_buf_pool_size) {
- 
+
   		/* Enlarge the buffer pool by at least one megabyte */
-  
+
 		change_size = srv_buf_pool_size - srv_buf_pool_curr_size;
 
 		buf_pool_mutex_exit_all();
@@ -2026,10 +2026,10 @@ buf_pool_resize(void)
 
 		return;
 	}
-  
+
   	buf_pool_page_hash_rebuild();
 }
- 
+
 /****************************************************************//**
 Remove the sentinel block for the watch before replacing it with a real block.
 buf_page_watch_clear() or buf_page_watch_occurred() will notice that
@@ -2890,7 +2890,7 @@ wait_until_unfixed:
 			Try again later. */
 			buf_pool_mutex_exit(buf_pool);
 			os_thread_sleep(WAIT_FOR_READ);
-  
+
 			goto loop;
 		}
 
@@ -4806,7 +4806,7 @@ buf_get_modified_ratio_pct(void)
 	buf_get_total_list_len(&lru_len, &free_len, &flush_list_len);
 
 	ratio = (100 * flush_list_len) / (1 + lru_len + free_len);
-  
+
 	/* 1 + is there to avoid division by zero */
 
 	return(ratio);
@@ -5189,7 +5189,7 @@ buf_all_freed(void)
 
 	return(TRUE);
 }
-  
+
 /*********************************************************************//**
 Checks that there currently are no pending i/o-operations for the buffer
 pool.
