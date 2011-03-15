@@ -30,11 +30,10 @@ static int clock_id = CLOCK_REALTIME;
 void
 NdbCondition_initialize(int need_monotonic)
 {
-  init = 1;
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
     defined CLOCK_MONOTONIC
   
-  int res, init = 0;
+  int res;
   pthread_cond_t tmp;
   pthread_condattr_t attr;
 
@@ -71,6 +70,8 @@ nogo:
           res);
   fflush(stderr);
   return;
+#else
+  init = 1;
 #endif
 }
 
