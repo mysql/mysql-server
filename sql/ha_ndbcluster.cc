@@ -1018,7 +1018,6 @@ Thd_ndb::Thd_ndb()
   m_handler= NULL;
   m_error= FALSE;
   m_error_code= 0;
-  query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
                       (my_hash_get_key)thd_ndb_share_get_key, 0, 0);
@@ -6612,7 +6611,6 @@ int ha_ndbcluster::start_statement(THD *thd,
         DBUG_RETURN(error);
 
     thd_ndb->init_open_tables();
-    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     thd_ndb->m_slow_path= FALSE;
     if (!(thd_options(thd) & OPTION_BIN_LOG) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
@@ -12550,7 +12548,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   if (unlikely((error= close_scan())))
     DBUG_RETURN(error);
 
-  thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
   /*
@@ -13016,7 +13013,6 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 
   if (multi_range_curr == multi_range_end)
   {
-    m_thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
