@@ -1182,6 +1182,16 @@ static Sys_var_harows Sys_sql_max_join_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_join_size), DEPRECATED(70000, 0));
 
+static Sys_var_ulong Sys_max_long_data_size(
+       "max_long_data_size",
+       "The maximum BLOB length to send to server from "
+       "mysql_send_long_data API. Deprecated option; "
+       "use max_allowed_packet instead.",
+       READ_ONLY GLOBAL_VAR(max_long_data_size),
+       CMD_LINE(REQUIRED_ARG, OPT_MAX_LONG_DATA_SIZE),
+       VALID_RANGE(1024, UINT_MAX32), DEFAULT(1024*1024),
+       BLOCK_SIZE(1));
+
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 static Sys_var_ulong Sys_max_prepared_stmt_count(
        "max_prepared_stmt_count",
