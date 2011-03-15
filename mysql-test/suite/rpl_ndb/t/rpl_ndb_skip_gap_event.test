@@ -34,6 +34,13 @@ let $end_pos=143;
 let $off_set=0;
 -- source include/show_binlog_using_logname.inc
 
+--disable_result_log
+--connection slave
+# Get slave to try reconnection now.  Ignore errors if already started.
+start slave;
+--connection master
+--enable_result_log
+
 --echo Sync Slave with master
 --sync_slave_with_master
 
