@@ -97,6 +97,8 @@ def	mysql	name	def	mysql	help_topic	name
 def	mysql	PRIMARY	def	mysql	host	Host
 def	mysql	PRIMARY	def	mysql	host	Db
 def	mysql	PRIMARY	def	mysql	ndb_binlog_index	epoch
+def	mysql	PRIMARY	def	mysql	ndb_binlog_index	orig_server_id
+def	mysql	PRIMARY	def	mysql	ndb_binlog_index	orig_epoch
 def	mysql	PRIMARY	def	mysql	plugin	name
 def	mysql	PRIMARY	def	mysql	proc	db
 def	mysql	PRIMARY	def	mysql	proc	name
