@@ -8022,7 +8022,7 @@ template class Vector<NdbTableImpl*>;
 template class Vector<NdbColumnImpl*>;
 
 int
-NdbDictionaryImpl::beginSchemaTrans()
+NdbDictionaryImpl::beginSchemaTrans(bool retry711)
 {
   DBUG_ENTER("beginSchemaTrans");
   if (m_tx.m_state == NdbDictInterface::Tx::Started) {
@@ -8042,7 +8042,7 @@ NdbDictionaryImpl::beginSchemaTrans()
   m_tx.m_error.code = 0;
   if (m_tx.m_transId == 0)
     m_tx.m_transId = 1;
-  int ret = m_receiver.beginSchemaTrans();
+  int ret = m_receiver.beginSchemaTrans(retry711);
   if (ret == -1) {
     m_tx.m_state = NdbDictInterface::Tx::NotStarted;
     DBUG_RETURN(-1);
@@ -8139,7 +8139,7 @@ NdbDictInterface::checkAllNodeVersionsMin(Uint32 minNdbVersion) const
 
 
 int
-NdbDictInterface::beginSchemaTrans()
+NdbDictInterface::beginSchemaTrans(bool retry711)
 {
   assert(m_tx.m_op.size() == 0);
   NdbApiSignal tSignal(m_reference);
@@ -8157,9 +8157,10 @@ NdbDictInterface::beginSchemaTrans()
   int errCodes[] = {
     SchemaTransBeginRef::NotMaster,
     SchemaTransBeginRef::Busy,
-    SchemaTransBeginRef::BusyWithNR,
+    retry711 ? SchemaTransBeginRef::BusyWithNR : 0,
     0
   };
+
   int ret = dictSignal(
       &tSignal,
       0,

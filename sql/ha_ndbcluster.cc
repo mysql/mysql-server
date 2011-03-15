@@ -525,11 +525,6 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-SHOW_VAR ndb_status_variables_fixed[]= {
-  {"cluster_connection_pool",(char*) &opt_ndb_cluster_connection_pool, SHOW_LONG},
-  {NullS, NullS, SHOW_LONG}
-};
-
 SHOW_VAR ndb_status_conflict_variables[]= {
   {"fn_max",     (char*) &g_ndb_status_conflict_fn_max, SHOW_LONG},
   {"fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
@@ -7778,7 +7773,7 @@ static int create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(8000);
+    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
     col.setStripeSize(ndb_blob_striping() ? 4 : 0);
     break;
   // Other types
@@ -10974,7 +10969,100 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
     DBUG_RETURN(rows);
   }
 
-  DBUG_RETURN(10); /* Good guess when you don't know anything */
+  /* Use simple heuristics to estimate fraction
+     of 'stats.record' returned from range.
+  */
+  do
+  {
+    if (stats.records == ~(ha_rows)0 || stats.records == 0)
+    {
+      /* Refresh statistics, only read from datanodes if 'use_exact_count' */
+      THD *thd= current_thd;
+      if (update_stats(thd, THDVAR(thd, use_exact_count)))
+        break;
+    }
+
+    Uint64 rows;
+    Uint64 table_rows= stats.records;
+    size_t eq_bound_len= 0;
+    size_t min_key_length= (min_key) ? min_key->length : 0;
+    size_t max_key_length= (max_key) ? max_key->length : 0; 
+
+    // Might have an closed/open range bound:
+    // Low range open
+    if (!min_key_length)
+    {
+      rows= (!max_key_length) 
+           ? table_rows             // No range was specified
+           : table_rows/10;         // -oo .. <high range> -> 10% selectivity
+    }
+    // High range open
+    else if (!max_key_length)
+    {
+      rows= table_rows/10;          // <low range>..oo -> 10% selectivity
+    }
+    else
+    {
+      size_t bounds_len= min(min_key_length,max_key_length);
+      uint eq_bound_len= 0;
+      uint eq_bound_offs= 0;
+
+      KEY_PART_INFO* key_part= key_info->key_part;
+      KEY_PART_INFO* end= key_part+key_info->key_parts;
+      for (; key_part != end; key_part++) 
+      {
+        uint part_length= key_part->store_length;
+        if (eq_bound_offs+part_length > bounds_len ||
+            memcmp(&min_key->key[eq_bound_offs],
+                   &max_key->key[eq_bound_offs],
+                   part_length))
+        {
+          break;
+        }
+        eq_bound_len+= key_part->length;
+        eq_bound_offs+= part_length;
+      }
+
+      if (!eq_bound_len)
+      {
+        rows= table_rows/20;        // <low range>..<high range> -> 5% 
+      }
+      else
+      {
+        // Has an equality range on a leading part of 'key_length':
+        // - Null indicator, and HA_KEY_BLOB_LENGTH bytes in
+        //   'extra_length' are removed from key_fraction calculations.
+        // - Assume reduced selectivity for non-unique indexes
+        //   by decreasing 'eq_fraction' by 20%
+        // - Assume equal selectivity for all eq_parts in key.
+
+        double eq_fraction = (double)(eq_bound_len) / 
+                                     (key_length - key_info->extra_length);
+        if (idx_type == ORDERED_INDEX) // Non-unique index -> less selectivity
+          eq_fraction/= 1.20;
+        if (eq_fraction >= 1.0)        // Exact match -> 1 row
+          DBUG_RETURN(1);
+
+        rows = (Uint64)((double)table_rows / pow((double)table_rows, eq_fraction));
+        if (rows > (table_rows/50))    // EQ-range: Max 2% of rows
+          rows= (table_rows/50);
+
+        if (min_key_length > eq_bound_offs)
+          rows/= 2;
+        if (max_key_length > eq_bound_offs)
+          rows/= 2;
+      }
+    }
+
+    // Make sure that EQ is preferred even if row-count is low
+    if (eq_bound_len && rows < 2)      // At least 2 rows as not exact
+      rows= 2;
+    else if (rows < 3)
+      rows= 3;
+    DBUG_RETURN(min(rows,table_rows));
+  } while (0);
+
+  DBUG_RETURN(10); /* Poor guess when you don't know anything */
 }
 
 ulonglong ha_ndbcluster::table_flags(void) const
@@ -14983,7 +15071,6 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
 
 SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
-  {"Ndb",          (char*) &ndb_status_variables_fixed,    SHOW_ARRAY},
   {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
   {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
   {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},

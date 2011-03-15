@@ -153,7 +153,7 @@ class ConfigManager : public MgmtThread {
   void abortConfigChange();
 
   /* Functions for starting config change from ConfigManager */
-  void startConfigChange(SignalSender& ss);
+  void startConfigChange(SignalSender& ss, Uint32 ref);
   void startAbortConfigChange(SignalSender&);
 
   /* CONFIG_CHANGE - controlling config change from other node */

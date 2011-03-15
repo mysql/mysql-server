@@ -694,7 +694,7 @@ public:
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 
-  int beginSchemaTrans();
+  int beginSchemaTrans(bool retry711 = true);
   int endSchemaTrans(Uint32 flags);
   Tx & m_tx; // shared with NdbDictionaryImpl
 
@@ -892,7 +892,7 @@ public:
   int createLogfileGroup(const NdbLogfileGroupImpl &, NdbDictObjectImpl*);
   int dropLogfileGroup(const NdbLogfileGroupImpl &);
 
-  int beginSchemaTrans();
+  int beginSchemaTrans(bool retry711 = true);
   int endSchemaTrans(Uint32 flags);
   bool hasSchemaTrans() const
     { return (m_tx.m_state == NdbDictInterface::Tx::Started); }

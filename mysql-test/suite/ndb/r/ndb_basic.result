@@ -62,7 +62,6 @@ Ndb_api_wait_nanos_count_slave	#
 Ndb_api_wait_scan_result_count	#
 Ndb_api_wait_scan_result_count_session	#
 Ndb_api_wait_scan_result_count_slave	#
-Ndb_cluster_connection_pool	#
 Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#

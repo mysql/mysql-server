@@ -22,6 +22,7 @@
 #include <mgmapi_debug.h>
 #include <InputStream.hpp>
 #include <signaldata/EventReport.hpp>
+#include <NdbRestarter.hpp>
 
 /*
   Tests that only need the mgmd(s) started
@@ -1127,7 +1128,7 @@ int runTestGetNodeIdUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
 
 int runSleepAndStop(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int counter= 10*ctx->getNumLoops();
+  int counter= 3*ctx->getNumLoops();
 
   while(!ctx->isTestStopped() && counter--)
     NdbSleep_SecSleep(1);;
@@ -1162,7 +1163,7 @@ check_transporter_connect(NdbMgmd& mgmd, const char * hello)
 
   // Send the 'hello'
   g_info << "Client hello: '" << hello << "'" << endl;
-  if (out.println(hello))
+  if (out.println("%s", hello))
   {
     g_err << "Send hello '" << hello << "' failed" << endl;
     return false;
@@ -2504,18 +2505,22 @@ int runTestStatusAfterStop(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  int nodeId = 0;
   for(int i=0; i < cs->no_of_nodes; i++ )
   {
     ndb_mgm_node_state *ns = cs->node_states + i;
     printf("Node ID: %d  status:%d\n", ns->node_id, ns->node_status);
+    if (nodeId == 0 && ns->node_type == NDB_MGM_NODE_TYPE_NDB)
+      nodeId = ns->node_id;
   }
   free(cs);
   cs = NULL;
 
   printf("Stopping data node\n");
   // We only stop 1 data node, in this case NodeId=2
-  int nodes[1] =  { 2 };
-  int stopped = ndb_mgm_stop2(mgmd.handle(), NDB_ARRAY_SIZE(nodes), nodes, 0);
+  int nodes[1] =  { nodeId };
+  int stopped = ndb_mgm_restart2(mgmd.handle(), NDB_ARRAY_SIZE(nodes), nodes, 
+                                 0, 0, 1);
   if (stopped < 0)
   {
     printf("ndb_mgm_stop failed, '%s' (%d)\n",
@@ -2540,6 +2545,10 @@ int runTestStatusAfterStop(NDBT_Context* ctx, NDBT_Step* step)
     printf("Node ID: %d  status:%d\n", ns->node_id, ns->node_status);
   }
   free(cs);
+
+  NdbRestarter res;
+  res.startAll();
+  res.waitClusterStarted();
 
   return NDBT_OK;
 }
