@@ -1,3 +1,7 @@
+######################################################################
+# Test various issues ndb_restore had at some time
+######################################################################
+
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
 

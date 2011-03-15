@@ -24,6 +24,7 @@
 #include <Dbdict.hpp>
 #include <Dbdih.hpp>
 #include <Dblqh.hpp>
+#include <Dbspj.hpp>
 #include <Dbtc.hpp>
 #include <Dbtup.hpp>
 #include <Ndbcntr.hpp>
@@ -41,6 +42,7 @@
 #include <NdbEnv.h>
 #include <LocalProxy.hpp>
 #include <DblqhProxy.hpp>
+#include <DbspjProxy.hpp>
 #include <DbaccProxy.hpp>
 #include <DbtupProxy.hpp>
 #include <DbtuxProxy.hpp>
@@ -84,7 +86,7 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 
 void
 SimBlockList::load(EmulatorData& data){
-  noOfBlocks = NO_OF_BLOCKS - /* SPJ */ 1;
+  noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
   if (!theList)
   {
@@ -149,7 +151,8 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   theList[19] = NEW_BLOCK(Dbinfo)(ctx);
-  assert(NO_OF_BLOCKS == 20 + /** SPJ */ 1);
+  theList[20]  = NEW_BLOCK(Dbspj)(ctx);
+  assert(NO_OF_BLOCKS == 21);
 
   if (globalData.isNdbMt) {
     add_main_thr_map();

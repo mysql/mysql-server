@@ -4062,11 +4062,22 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
 
+  printf("group1: ");
+  for (size_t i = 0; i<group1.size(); i++)
+    printf("%d ", group1[i]);
+  printf("\n");
+
+  printf("group2: ");
+  for (size_t i = 0; i<group2.size(); i++)
+    printf("%d ", group2[i]);
+  printf("\n");
+
   // Stop half of the cluster
   res.restartNodes(group1.getBase(), (int)group1.size(),
-                   NdbRestarter::NRRF_NOSTART);
+                   NdbRestarter::NRRF_NOSTART | NdbRestarter::NRRF_ABORT);
   res.waitNodesNoStart(group1.getBase(), (int)group1.size());
 
+  ndbout_c("%u", __LINE__);
   // Try to stop first node in second half without force, should return error
   if (res.restartOneDbNode(group2[0],
                            false, /* initial */
@@ -4074,9 +4085,12 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
                            false, /* abort */
                            false  /* force */) != -1)
   {
+    ndbout_c("%u", __LINE__);
     g_err << "Restart suceeded without force" << endl;
     return NDBT_FAILED;
   }
+
+  ndbout_c("%u", __LINE__);
 
   // Now stop with force
   if (res.restartOneDbNode(group2[0],
@@ -4085,17 +4099,24 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
                            false, /* abort */
                            true   /* force */) != 0)
   {
+    ndbout_c("%u", __LINE__);
     g_err << "Could not restart with force" << endl;
     return NDBT_FAILED;
   }
+
+  ndbout_c("%u", __LINE__);
 
   // All nodes should now be in nostart, the above stop force
   // cvaused the remainig nodes to be stopped(and restarted nostart)
   res.waitClusterNoStart();
 
+  ndbout_c("%u", __LINE__);
+
   // Start second half back up again
   res.startNodes(group2.getBase(), (int)group2.size());
   res.waitNodesStarted(group2.getBase(), (int)group2.size());
+
+  ndbout_c("%u", __LINE__);
 
   // Try to stop remaining half without force, should return error
   if (res.restartNodes(group2.getBase(), (int)group2.size(),
@@ -4105,6 +4126,8 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  ndbout_c("%u", __LINE__);
+
   // Now stop with force
   if (res.restartNodes(group2.getBase(), (int)group2.size(),
                        NdbRestarter::NRRF_NOSTART |
@@ -4113,6 +4136,9 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Could not restart with force" << endl;
     return NDBT_FAILED;
   }
+
+  ndbout_c("%u", __LINE__);
+
   if (res.waitNodesNoStart(group2.getBase(), (int)group2.size()))
   {
     g_err << "Failed to waitNodesNoStart" << endl;

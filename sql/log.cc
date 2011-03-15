@@ -4683,6 +4683,10 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional)
   Table_map_log_event
     the_event(this, table, table->s->table_map_id, is_transactional);
 
+#ifndef MCP_BUG11799583
+  the_event.flags |= LOG_EVENT_NO_FILTER_F;
+#endif
+
   if (binlog_table_maps == 0)
     binlog_start_trans_and_stmt();
 

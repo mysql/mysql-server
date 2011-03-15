@@ -497,6 +497,21 @@ struct sql_ex_info
 #define LOG_EVENT_RELAY_LOG_F 0x40
 
 /**
+   Events with this flag are not filtered based on the current
+   database and is always written to the binary log regardless of
+   filters.
+ */
+#define LOG_EVENT_NO_DB_CHECK_F 0x80
+
+#ifndef MCP_BUG11799583
+/* 
+   Define LOG_EVENT_NO_FILTER_F as alias for LOG_EVENT_NO_DB_CHECK
+   to make it possible to write code that is forward compatible with 5.5
+*/
+#define LOG_EVENT_NO_FILTER_F LOG_EVENT_NO_DB_CHECK_F
+#endif
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must

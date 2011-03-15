@@ -36,7 +36,19 @@ let $off_set=0;
 
 drop table if exists t1;
 
+--echo Get IO thread to reconnect to Master
 --connection slave
+start slave;
+
+--connection master
+
+# Sync Slave (IO thread) with Master so that GAP is read
+-- source include/sync_slave_io_with_master.inc
+
+--connection slave
+let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_Errno, Last_Error;	
+-- source include/show_slave_status.inc
+
 drop table if exists t1;
 
 
