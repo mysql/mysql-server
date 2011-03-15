@@ -1,12 +1,21 @@
-##########################################################################
+# ==== Purpose ====
+#
 # This test verifies if the slave fails gracefully when the temporary 
-# file used to load data is removed while it is about to be used it. 
+# file used to load data is removed while it is about to be used. 
 # Similar errors are caught if the temporary directory is removed.
 #
+# ==== Implementation ====
+#
 # Steps:
+#    0 - Set debug variable remove_slave_load_file_before_write. This
+#        causes the slave to remove the file.
 #    1 - Creates a table and populates it through "LOAD DATA INFILE".
 #    2 - Catches error.
-##########################################################################
+#
+# ==== References ====
+#
+# BUG#42861: Assigning invalid directories to --slave-load-tmpdir crashes the slave
+# BUG#11872422: rpl_slave_load_remove_tmpfile fails sporadically in pb2
 
 --source include/have_binlog_format_statement.inc
 --source include/have_innodb.inc
@@ -18,6 +27,11 @@
 ##########################################################################
 #                            Loading data
 ##########################################################################
+
+connection slave;
+--let $old_debug= `SELECT @@GLOBAL.DEBUG`
+SET @@GLOBAL.DEBUG = '+d,remove_slave_load_file_before_write';
+
 connection master;
 
 create table t1(a int not null auto_increment, b int, primary key(a)) engine=innodb;
@@ -32,19 +46,14 @@ commit;
 #                            Catch Error
 ##########################################################################
 connection slave;
-source include/wait_for_slave_sql_to_stop.inc;
 
---let $error= query_get_value(SHOW SLAVE STATUS, Last_Errno, 1)
 # windows and linux different error numbers here:
 # Windows:
 #  - Last_Errno     29 (File not found)
 # Unix like OS: 
 #  - Last_Errno      13 (Can't stat file)
---let $assertion= `SELECT $error=29 OR $error=13`
-if (!$assertion)
-{
-  --echo UNEXPECTED ERROR NUMBER: $error
-}
+--let $slave_sql_errno= 29, 13
+--source include/wait_for_slave_sql_error.inc
 
 ##########################################################################
 #                             Clean up
@@ -64,5 +73,8 @@ call mtr.add_suppression("Slave SQL: Error .Can.t get stat of.* Error_code: 13")
 call mtr.add_suppression("Slave: File.* not found.*");
 call mtr.add_suppression("Slave SQL: Error .File.* not found.* Error_code: 29");
 --let $rpl_only_running_threads= 1
+
+eval SET @@GLOBAL.DEBUG = '$old_debug';
+
 --source include/rpl_end.inc
 
