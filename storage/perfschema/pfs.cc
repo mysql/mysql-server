@@ -2625,6 +2625,9 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
   if (!flag_global_instrumentation)
     return NULL;
 
+  if (pfs_socket->m_idle)
+    return NULL;
+
   PFS_socket_class *klass= pfs_socket->m_class;
   if (!klass->m_enabled)
     return NULL;
@@ -2844,6 +2847,135 @@ static void broadcast_cond_v1(PSI_cond* cond)
   DBUG_ASSERT(pfs_cond != NULL);
 
   pfs_cond->m_cond_stat.m_broadcast_count++;
+}
+
+/**
+  Implementation of the idle instrumentation interface.
+  @sa PSI_v1::start_idle_wait.
+*/
+static PSI_idle_locker*
+start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_line)
+{
+  DBUG_ASSERT(state != NULL);
+
+  if (! flag_global_instrumentation)
+    return NULL;
+
+  if (! global_idle_class.m_enabled)
+    return NULL;
+
+  register uint flags= 0;
+  ulonglong timer_start= 0;
+
+  if (flag_thread_instrumentation)
+  {
+    PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+    if (unlikely(pfs_thread == NULL))
+      return NULL;
+    if (! pfs_thread->m_enabled)
+      return NULL;
+    state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
+    flags= STATE_FLAG_THREAD;
+
+    if (global_idle_class.m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(idle_timer, & state->m_timer);
+      state->m_timer_start= timer_start;
+      flags|= STATE_FLAG_TIMED;
+    }
+
+    if (flag_events_waits_current)
+    {
+      if (unlikely(pfs_thread->m_events_waits_count >= WAIT_STACK_SIZE))
+      {
+        locker_lost++;
+        return NULL;
+      }
+      PFS_events_waits *wait= &pfs_thread->m_events_waits_stack[pfs_thread->m_events_waits_count];
+      state->m_wait= wait;
+      flags|= STATE_FLAG_WAIT;
+
+#ifdef HAVE_NESTED_EVENTS
+      wait->m_nesting_event_id= (wait - 1)->m_event_id;
+#endif
+
+      wait->m_thread= pfs_thread;
+      wait->m_class= & global_idle_class;
+      wait->m_timer_start= timer_start;
+      wait->m_timer_end= 0;
+      wait->m_event_id= pfs_thread->m_event_id++;
+      wait->m_operation= OPERATION_TYPE_IDLE;
+      wait->m_source_file= src_file;
+      wait->m_source_line= src_line;
+      wait->m_wait_class= WAIT_CLASS_IDLE;
+
+      pfs_thread->m_events_waits_count++;
+    }
+  }
+  else
+  {
+    if (global_idle_class.m_timed)
+    {
+      timer_start= get_timer_raw_value_and_function(idle_timer, & state->m_timer);
+      state->m_timer_start= timer_start;
+      flags= STATE_FLAG_TIMED;
+    }
+  }
+
+  state->m_flags= flags;
+  return reinterpret_cast<PSI_idle_locker*> (state);
+}
+
+/**
+  Implementation of the mutex instrumentation interface.
+  @sa PSI_v1::end_mutex_wait.
+*/
+static void end_idle_wait_v1(PSI_idle_locker* locker)
+{
+  PSI_idle_locker_state *state= reinterpret_cast<PSI_idle_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+  ulonglong timer_end= 0;
+  ulonglong wait_time= 0;
+
+  register uint flags= state->m_flags;
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    timer_end= state->m_timer();
+    wait_time= timer_end - state->m_timer_start;
+  }
+
+  if (flags & STATE_FLAG_THREAD)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+    PFS_single_stat *event_name_array;
+    event_name_array= thread->m_instr_class_wait_stats;
+    uint index= global_idle_class.m_event_name_index;
+
+    if (flags & STATE_FLAG_TIMED)
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
+      event_name_array[index].aggregate_value(wait_time);
+    }
+    else
+    {
+      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      event_name_array[index].aggregate_counted();
+    }
+
+    if (flags & STATE_FLAG_WAIT)
+    {
+      PFS_events_waits *wait= reinterpret_cast<PFS_events_waits*> (state->m_wait);
+      DBUG_ASSERT(wait != NULL);
+
+      wait->m_timer_end= timer_end;
+      if (flag_events_waits_history)
+        insert_events_waits_history(thread, wait);
+      if (flag_events_waits_history_long)
+        insert_events_waits_history_long(wait);
+      thread->m_events_waits_count--;
+    }
+  }
 }
 
 /**
@@ -3755,6 +3887,14 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
     byte_stat->m_bytes+= byte_count;
 }
 
+static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
+{
+  DBUG_ASSERT(socket);
+  DBUG_ASSERT((state == PSI_SOCKET_STATE_IDLE) || (state == PSI_SOCKET_STATE_ACTIVE));
+  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
+  pfs->m_idle= (state == PSI_SOCKET_STATE_IDLE);
+}
+
 static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)
 {
   DBUG_ASSERT(socket);
@@ -3894,6 +4034,8 @@ PSI_v1 PFS_v1=
   unlock_rwlock_v1,
   signal_cond_v1,
   broadcast_cond_v1,
+  start_idle_wait_v1,
+  end_idle_wait_v1,
   start_mutex_wait_v1,
   end_mutex_wait_v1,
   start_rwlock_rdwait_v1,
@@ -3913,6 +4055,7 @@ PSI_v1 PFS_v1=
   end_file_wait_v1,
   start_socket_wait_v1,
   end_socket_wait_v1,
+  set_socket_state_v1,
   set_socket_descriptor_v1,
   set_socket_address_v1,
   set_socket_info_v1,

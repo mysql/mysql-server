@@ -11,12 +11,12 @@ count(*)
 select count(*) from performance_schema.setup_consumers;
 count(*)
 5
-select count(*) > 2 from performance_schema.setup_instruments;
-count(*) > 2
+select count(*) > 3 from performance_schema.setup_instruments;
+count(*) > 3
 1
 select count(*) from performance_schema.setup_timers;
 count(*)
-1
+2
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_waits_current;
 select * from performance_schema.events_waits_history;

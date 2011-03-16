@@ -43,7 +43,8 @@ enum events_waits_class
   WAIT_CLASS_COND,
   WAIT_CLASS_TABLE,
   WAIT_CLASS_FILE,
-  WAIT_CLASS_SOCKET
+  WAIT_CLASS_SOCKET,
+  WAIT_CLASS_IDLE
 };
 
 /** A wait event record. */

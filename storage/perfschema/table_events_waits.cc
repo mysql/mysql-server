@@ -187,6 +187,7 @@ void table_events_waits_common::clear_object_columns()
   m_row.m_object_schema_length= 0;
   m_row.m_object_name_length= 0;
   m_row.m_index_name_length= 0;
+  m_row.m_object_instance_addr= 0;
 }
 
 int table_events_waits_common::make_table_object_columns(volatile PFS_events_waits *wait)
@@ -246,6 +247,7 @@ int table_events_waits_common::make_table_object_columns(volatile PFS_events_wai
     m_row.m_index_name_length= 0;
   }
 
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
   return 0;
 }
 
@@ -260,6 +262,7 @@ int table_events_waits_common::make_file_object_columns(volatile PFS_events_wait
   m_row.m_object_type= "FILE";
   m_row.m_object_type_length= 4;
   m_row.m_object_schema_length= 0;
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
 
   if (safe_file->get_version() == wait->m_weak_version)
   {
@@ -291,6 +294,7 @@ int table_events_waits_common::make_socket_object_columns(volatile PFS_events_wa
   m_row.m_object_type= "SOCKET";
   m_row.m_object_type_length= 6;
   m_row.m_object_schema_length= 0;
+  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
 
   if (safe_socket->get_version() == wait->m_weak_version)
   {
@@ -371,6 +375,10 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   */
   switch (wait->m_wait_class)
   {
+  case WAIT_CLASS_IDLE:
+    clear_object_columns();
+    safe_class= sanitize_idle_class(wait->m_class);
+    break;
   case WAIT_CLASS_MUTEX:
     clear_object_columns();
     safe_class= sanitize_mutex_class((PFS_mutex_class*) wait->m_class);
@@ -415,8 +423,6 @@ void table_events_waits_common::make_row(bool thread_own_wait,
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
   normalizer->to_pico(wait->m_timer_start, wait->m_timer_end,
                       & m_row.m_timer_start, & m_row.m_timer_end, & m_row.m_timer_wait);
-
-  m_row.m_object_instance_addr= (intptr) wait->m_object_instance_addr;
 
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
@@ -532,7 +538,10 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("seek") },
   { C_STRING_WITH_LEN("opt") },
   { C_STRING_WITH_LEN("stat") },
-  { C_STRING_WITH_LEN("shutdown") }
+  { C_STRING_WITH_LEN("shutdown") },
+
+  /* Idle operations */
+  { C_STRING_WITH_LEN("idle") }
 };
 
 
@@ -544,7 +553,8 @@ int table_events_waits_common::read_row_values(TABLE *table,
   Field *f;
   const LEX_STRING *operation;
 
-//TBD  compile_time_assert(COUNT_OPERATION_TYPE == array_elements(operation_names_map));
+  compile_time_assert(COUNT_OPERATION_TYPE ==
+                      array_elements(operation_names_map));
 
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;

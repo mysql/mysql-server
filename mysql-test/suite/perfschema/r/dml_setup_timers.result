@@ -1,5 +1,12 @@
+update performance_schema.setup_timers
+set timer_name='CYCLE';
+update performance_schema.setup_timers
+set timer_name='NANOSECOND' where name="statement";
+update performance_schema.setup_timers
+set timer_name='MICROSECOND' where name="idle";
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
+idle	MICROSECOND
 wait	CYCLE
 select * from performance_schema.setup_timers
 where name='Wait';
@@ -19,6 +26,7 @@ update performance_schema.setup_timers
 set timer_name='MILLISECOND';
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
+idle	MILLISECOND
 wait	MILLISECOND
 update performance_schema.setup_timers
 set timer_name='CYCLE';
@@ -31,3 +39,9 @@ LOCK TABLES performance_schema.setup_timers READ;
 UNLOCK TABLES;
 LOCK TABLES performance_schema.setup_timers WRITE;
 UNLOCK TABLES;
+update performance_schema.setup_timers
+set timer_name='CYCLE';
+update performance_schema.setup_timers
+set timer_name='NANOSECOND' where name="statement";
+update performance_schema.setup_timers
+set timer_name='MICROSECOND' where name="idle";

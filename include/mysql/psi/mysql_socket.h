@@ -86,6 +86,22 @@ mysql_socket_invalid()
   MYSQL_SOCKET mysql_socket= {INVALID_SOCKET, NULL};
   return mysql_socket;
 }
+
+/**
+  Set the state (IDLE, ACTIVE) of an instrumented socket.
+  @param socket the instrumented socket
+  @param state the new state
+  @sa PSI_socket_state
+*/
+static inline void
+mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if ((PSI_server != NULL) && (socket.m_psi != NULL))
+    PSI_server->set_socket_state(socket.m_psi, state);
+#endif
+}
+
 /**
   @def mysql_socket_getfd
   MYSQL_SOCKET helper. Get socket descriptor.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -143,6 +143,12 @@ struct PSI_bootstrap
 #endif
 
 /**
+  Interface for an instrumented idle operation.
+  This is an opaque structure.
+*/
+struct PSI_idle_locker;
+
+/**
   Interface for an instrumented mutex operation.
   This is an opaque structure.
 */
@@ -263,6 +269,15 @@ enum PSI_table_lock_operation
   PSI_TABLE_LOCK= 0,
   /** Table lock, in the storage engine layer. */
   PSI_TABLE_EXTERNAL_LOCK= 1
+};
+
+/** State of an instrumented socket. */
+enum PSI_socket_state
+{
+  /** Idle, waiting for the next command. */
+  PSI_SOCKET_STATE_IDLE= 0,
+  /** Active, executing a command. */
+  PSI_SOCKET_STATE_ACTIVE= 1
 };
 
 /** Operation performed on an instrumented socket. */
@@ -512,6 +527,29 @@ struct PSI_socket_info_v1
     @sa PSI_FLAG_GLOBAL
   */
   int m_flags;
+};
+
+/**
+  State data storage for @c start_idle_wait_v1_t.
+  This structure provide temporary storage to an idle locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+  @sa start_idle_wait_v1_t.
+*/
+struct PSI_idle_locker_state_v1
+{
+  /** Internal state. */
+  uint m_flags;
+  /** Current thread. */
+  struct PSI_thread *m_thread;
+  /** Timer start. */
+  ulonglong m_timer_start;
+  /** Timer function. */
+  ulonglong (*m_timer)(void);
+  /** Internal data. */
+  void *m_wait;
 };
 
 /**
@@ -1126,6 +1164,12 @@ typedef void (*signal_cond_v1_t)
 typedef void (*broadcast_cond_v1_t)
   (struct PSI_cond *cond);
 
+typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
+  (struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+
+typedef void (*end_idle_wait_v1_t)
+  (struct PSI_idle_locker *locker);
+
 /**
   Record a mutex instrumentation wait start event.
   @param locker a thread locker for the running thread
@@ -1297,6 +1341,14 @@ typedef void (*end_socket_wait_v1_t)
   (struct PSI_socket_locker *locker, size_t count);
 
 /**
+  Set the socket state for an instrumented socket.
+    @param socket the instrumented socket
+    @param state socket state
+  */
+typedef void (*set_socket_state_v1_t)(struct PSI_socket *socket,
+                                      enum PSI_socket_state state);
+
+/**
   Set the socket descriptor for an instrumented socket.
     @param socket the instrumented socket
     @param fd socket descriptor
@@ -1434,6 +1486,10 @@ struct PSI_v1
   signal_cond_v1_t signal_cond;
   /** @sa broadcast_cond_v1_t. */
   broadcast_cond_v1_t broadcast_cond;
+  /** @sa start_idle_wait_v1_t. */
+  start_idle_wait_v1_t start_idle_wait;
+  /** @sa end_idle_wait_v1_t. */
+  end_idle_wait_v1_t end_idle_wait;
   /** @sa start_mutex_wait_v1_t. */
   start_mutex_wait_v1_t start_mutex_wait;
   /** @sa end_mutex_wait_v1_t. */
@@ -1473,6 +1529,8 @@ struct PSI_v1
   start_socket_wait_v1_t start_socket_wait;
   /** @sa end_socket_wait_v1_t. */
   end_socket_wait_v1_t end_socket_wait;
+  /** @sa set_socket_state_v1_t. */
+  set_socket_state_v1_t set_socket_state;
   /** @sa set_socket_descriptor_v1_t. */
   set_socket_descriptor_v1_t set_socket_descriptor;
   /** @sa set_socket_address_v1_t. */
@@ -1541,6 +1599,12 @@ struct PSI_thread_info_v2
 
 /** Placeholder */
 struct PSI_file_info_v2
+{
+  /** Placeholder */
+  int placeholder;
+};
+
+struct PSI_idle_locker_state_v2
 {
   /** Placeholder */
   int placeholder;
@@ -1626,6 +1690,7 @@ typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_socket_info_v1 PSI_socket_info;
+typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
@@ -1642,6 +1707,7 @@ typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
 typedef struct PSI_socket_info_v2 PSI_socket_info;
+typedef struct PSI_idle_locker_state_v2 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;

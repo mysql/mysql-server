@@ -216,6 +216,8 @@ struct PFS_socket : public PFS_instr
   uint m_ip_length;
   /** Socket ip port */
   uint m_port;
+  /** Idle flag. */
+  bool m_idle;
   /** Socket class. */
   PFS_socket_class *m_class;
   /** Socket usage statistics. */

@@ -14,6 +14,7 @@ struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
 };
+struct PSI_idle_locker;
 struct PSI_mutex_locker;
 struct PSI_rwlock_locker;
 struct PSI_cond_locker;
@@ -66,6 +67,11 @@ enum PSI_table_lock_operation
 {
   PSI_TABLE_LOCK= 0,
   PSI_TABLE_EXTERNAL_LOCK= 1
+};
+enum PSI_socket_state
+{
+  PSI_SOCKET_STATE_IDLE= 0,
+  PSI_SOCKET_STATE_ACTIVE= 1
 };
 enum PSI_socket_operation
 {
@@ -125,6 +131,14 @@ struct PSI_socket_info_v1
   PSI_socket_key *m_key;
   const char *m_name;
   int m_flags;
+};
+struct PSI_idle_locker_state_v1
+{
+  uint m_flags;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  void *m_wait;
 };
 struct PSI_mutex_locker_state_v1
 {
@@ -297,6 +311,10 @@ typedef void (*signal_cond_v1_t)
   (struct PSI_cond *cond);
 typedef void (*broadcast_cond_v1_t)
   (struct PSI_cond *cond);
+typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
+  (struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+typedef void (*end_idle_wait_v1_t)
+  (struct PSI_idle_locker *locker);
 typedef void (*start_mutex_wait_v1_t)
   (struct PSI_mutex_locker *locker, const char *src_file, uint src_line);
 typedef void (*end_mutex_wait_v1_t)
@@ -334,6 +352,8 @@ typedef void (*start_socket_wait_v1_t)
    const char *src_file, uint src_line);
 typedef void (*end_socket_wait_v1_t)
   (struct PSI_socket_locker *locker, size_t count);
+typedef void (*set_socket_state_v1_t)(struct PSI_socket *socket,
+                                      enum PSI_socket_state state);
 typedef void (*set_socket_descriptor_v1_t)(struct PSI_socket *socket,
                                              uint fd);
 typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
@@ -394,6 +414,8 @@ struct PSI_v1
   unlock_rwlock_v1_t unlock_rwlock;
   signal_cond_v1_t signal_cond;
   broadcast_cond_v1_t broadcast_cond;
+  start_idle_wait_v1_t start_idle_wait;
+  end_idle_wait_v1_t end_idle_wait;
   start_mutex_wait_v1_t start_mutex_wait;
   end_mutex_wait_v1_t end_mutex_wait;
   start_rwlock_rdwait_v1_t start_rwlock_rdwait;
@@ -414,6 +436,7 @@ struct PSI_v1
   end_file_wait_v1_t end_file_wait;
   start_socket_wait_v1_t start_socket_wait;
   end_socket_wait_v1_t end_socket_wait;
+  set_socket_state_v1_t set_socket_state;
   set_socket_descriptor_v1_t set_socket_descriptor;
   set_socket_address_v1_t set_socket_address;
   set_socket_info_v1_t set_socket_info;
@@ -426,6 +449,7 @@ typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_socket_info_v1 PSI_socket_info;
+typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
