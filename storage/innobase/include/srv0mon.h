@@ -340,6 +340,12 @@ enum monitor_id_value {
 	MONITOR_MODULE_DDL_STATS,
 	MONITOR_BACKGROUND_DROP_TABLE,
 
+	MONITOR_MODULE_ICP,
+	MONITOR_ICP_ATTEMPTS,
+	MONITOR_ICP_NO_MATCH,
+	MONITOR_ICP_OUT_OF_RANGE,
+	MONITOR_ICP_MATCH,
+
 	/* This is used only for control system to turn
 	on/off and reset all monitor counters */
 	MONITOR_ALL_COUNTER,
