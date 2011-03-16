@@ -3049,83 +3049,6 @@ int do_modify_var(struct st_command *command,
 
 
 /*
-  Wrapper for 'system' function
-
-  NOTE
-  If mysqltest is executed from cygwin shell, the command will be
-  executed in the "windows command interpreter" cmd.exe and we prepend "sh"
-  to make it be executed by cygwins "bash". Thus commands like "rm",
-  "mkdir" as well as shellscripts can executed by "system" in Windows.
-
-*/
-
-int my_system(DYNAMIC_STRING* ds_cmd)
-{
-#if defined __WIN__ && defined USE_CYGWIN
-  /* Dump the command into a sh script file and execute with system */
-  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
-  return system(tmp_sh_cmd);
-#else
-  return system(ds_cmd->str);
-#endif
-}
-
-
-/*
-  SYNOPSIS
-  do_system
-  command	called command
-
-  DESCRIPTION
-  system <command>
-
-  Eval the query to expand any $variables in the command.
-  Execute the command with the "system" command.
-
-*/
-
-void do_system(struct st_command *command)
-{
-  DYNAMIC_STRING ds_cmd;
-  DBUG_ENTER("do_system");
-
-  if (strlen(command->first_argument) == 0)
-    die("Missing arguments to system, nothing to do!");
-
-  init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
-
-  /* Eval the system command, thus replacing all environment variables */
-  do_eval(&ds_cmd, command->first_argument, command->end, !is_windows);
-
-#ifdef __WIN__
-#ifndef USE_CYGWIN
-   /* Replace /dev/null with NUL */
-   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
-     ;
-#endif
-#endif
-
-
-  DBUG_PRINT("info", ("running system command '%s' as '%s'",
-                      command->first_argument, ds_cmd.str));
-  if (my_system(&ds_cmd))
-  {
-    if (command->abort_on_error)
-      die("system command '%s' failed", command->first_argument);
-
-    /* If ! abort_on_error, log message and continue */
-    dynstr_append(&ds_res, "system command '");
-    replace_dynstr_append(&ds_res, command->first_argument);
-    dynstr_append(&ds_res, "' failed\n");
-  }
-
-  command->last_argument= command->end;
-  dynstr_free(&ds_cmd);
-  DBUG_VOID_RETURN;
-}
-
-
-/*
   SYNOPSIS
   set_wild_chars
   set  true to set * etc. as wild char, false to reset
@@ -8615,7 +8538,10 @@ int main(int argc, char **argv)
       case Q_INC: do_modify_var(command, DO_INC); break;
       case Q_DEC: do_modify_var(command, DO_DEC); break;
       case Q_ECHO: do_echo(command); command_executed++; break;
-      case Q_SYSTEM: do_system(command); break;
+      case Q_SYSTEM:
+        die("'system' command  is deprecated, use exec or\n"\
+            "  see the manual for portable commands to use");
+	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
