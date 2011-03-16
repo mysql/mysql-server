@@ -76,6 +76,15 @@ a	b
 2007-07-30 17:35:48	p1
 2009-07-14 17:35:55	pmax
 2009-09-21 17:31:42	pmax
+SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+a	b
+2007-07-30 17:35:48	p1
+EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
 PARTITION p3 VALUES LESS THAN (1247688000),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
@@ -84,6 +93,15 @@ a	b
 2007-07-30 17:35:48	p1
 2009-07-14 17:35:55	pmax
 2009-09-21 17:31:42	pmax
+SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+a	b
+2007-07-30 17:35:48	p1
+EXPLAIN PARTITIONS SELECT * FROM t1 where a between '2007-01-01' and '2007-08-01';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
+EXPLAIN PARTITIONS SELECT * FROM t1 where a = '2007-07-30 17:35:48';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	p1	system	PRIMARY	NULL	NULL	NULL	1	
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
