@@ -349,6 +349,8 @@ public:
   Item_func_unix_timestamp(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "unix_timestamp"; }
+  enum_monotonicity_info get_monotonicity_info() const;
+  longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   /*
     UNIX_TIMESTAMP() depends on the current timezone
