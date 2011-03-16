@@ -2203,5 +2203,15 @@ DROP DATABASE `test-database`;
 --echo # End of 5.1 tests
 --echo #
 
+--echo #
+--echo # Verify that two modes can be given in --compatible;
+--echo # and are reflected in SET SQL_MODE in the mysqldump output.
+--echo # Also verify that a prefix of the mode's name is enough.
+--echo #
+CREATE TABLE t1 (a INT);
+# no_t = no_table_options; no_f = no_field_options
+--exec $MYSQL_DUMP --compatible=no_t,no_f --skip-comments test
+DROP TABLE t1;
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

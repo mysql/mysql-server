@@ -1376,3 +1376,15 @@ NULL	1	NULL
 SET storage_engine=NULL;
 ERROR 42000: Variable 'storage_engine' can't be set to the value of 'NULL'
 #
+# Bug #59686 crash in String::copy() with time data type
+#
+SELECT min(timestampadd(month, 1>'', from_days('%Z')));
+min(timestampadd(month, 1>'', from_days('%Z')))
+NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '%Z'
+create table t1(a time);
+insert into t1 values ('00:00:00'),('00:01:00');
+select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
+1
+drop table t1;

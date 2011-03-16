@@ -1045,9 +1045,9 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
     }
     if (!(extension= strrchr(file->name, '.')))
       extension= strend(file->name);
-    if (find_type(extension, &deletable_extentions,1+2) <= 0)
+    if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0)
     {
-      if (find_type(extension, ha_known_exts(),1+2) <= 0)
+      if (find_type(extension, ha_known_exts(), FIND_TYPE_NO_PREFIX) <= 0)
 	*found_other_files= true;
       continue;
     }
