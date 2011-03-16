@@ -342,7 +342,6 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
   #define mysql_socket_sendmsg(FD, M, FL)
   #define mysql_socket_recvmsg(FD, M, FL)
   #define mysql_socket_sockatmark(FD)
-  #define mysql_socket_isfdtype(FD, FT)
   #define mysql_socket_socketpair(K, D, T, P, FDS)
 
 #else
@@ -369,14 +368,6 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
   #else
 	  #define mysql_socket_sockatmark(FD) \
 	  inline_mysql_socket_sockatmark(FD)
-  #endif
-
-  #ifdef HAVE_PSI_INTERFACE
-	  #define mysql_socket_isfdtype(FD, FT) \
-	  inline_mysql_socket_isfdtype(__FILE__, __LINE__, FD, FT)
-  #else
-	  #define mysql_socket_isfdtype(FD, FT) \
-	  inline_mysql_socket_isfdtype(FD, FT)
   #endif
 
   #ifdef HAVE_PSI_INTERFACE
@@ -1019,38 +1010,6 @@ inline_mysql_socket_sockatmark
 #endif
   
   result= sockatmark(mysql_socket.fd);
-
-#ifdef HAVE_PSI_INTERFACE
-  if (likely(locker != NULL))
-    PSI_server->end_socket_wait(locker, (size_t)0);
-#endif
-  return result;
-}
-
-/** mysql_socket_isfdtype */
-
-static inline int
-inline_mysql_socket_isfdtype
-(
-#ifdef HAVE_PSI_INTERFACE
-  const char *src_file, uint src_line,
-#endif
- MYSQL_SOCKET mysql_socket, int fdtype)
-{
-  int result;
-#ifdef HAVE_PSI_INTERFACE
-  struct PSI_socket_locker *locker= NULL;
-  PSI_socket_locker_state state;
-
-  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL))
-  {
-    locker= PSI_server->get_thread_socket_locker(&state, mysql_socket.m_psi, PSI_SOCKET_STAT);
-    if (likely(locker !=NULL))
-      PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-  }
-#endif
-  
-  result= isfdtype(mysql_socket.fd, fdtype);
 
 #ifdef HAVE_PSI_INTERFACE
   if (likely(locker != NULL))
