@@ -4372,7 +4372,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at queue_event: byte on position %d", debug_cor_pos));
-      DBUG_SET("-d,corrupt_queue_event");
+      DBUG_SET("");
     }
   );
                                               

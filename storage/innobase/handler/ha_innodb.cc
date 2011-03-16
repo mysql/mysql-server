@@ -26,10 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -2837,6 +2835,7 @@ innobase_alter_table_flags(
 		| HA_INPLACE_ADD_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
+		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
@@ -4570,7 +4569,7 @@ ha_innobase::store_key_val_for_row(
 			const byte*	data;
 			ulint		key_len;
 			ulint		true_len;
-			CHARSET_INFO*	cs;
+			const CHARSET_INFO* cs;
 			int		error=0;
 
 			key_len = key_part->length;
@@ -4634,7 +4633,7 @@ ha_innobase::store_key_val_for_row(
 			as BLOB data in innodb. */
 			|| mysql_type == MYSQL_TYPE_GEOMETRY) {
 
-			CHARSET_INFO*	cs;
+			const CHARSET_INFO* cs;
 			ulint		key_len;
 			ulint		true_len;
 			int		error=0;
@@ -4702,7 +4701,7 @@ ha_innobase::store_key_val_for_row(
 			value we store may be also in a column prefix
 			index. */
 
-			CHARSET_INFO*		cs = NULL;
+			const CHARSET_INFO*	cs = NULL;
 			ulint			true_len;
 			ulint			key_len;
 			const uchar*		src_start;
