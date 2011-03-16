@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* Some general useful functions */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -106,7 +105,7 @@ Default_object_creation_ctx::Default_object_creation_ctx(THD *thd)
 { }
 
 Default_object_creation_ctx::Default_object_creation_ctx(
-  CHARSET_INFO *client_cs, CHARSET_INFO *connection_cl)
+  const CHARSET_INFO *client_cs, const CHARSET_INFO *connection_cl)
   : m_client_cs(client_cs),
     m_connection_cl(connection_cl)
 { }
@@ -1309,7 +1308,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
-    CHARSET_INFO *charset=NULL;
+    const CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
 

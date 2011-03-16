@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -766,7 +766,7 @@ bool Item::check_cols(uint c)
 }
 
 
-void Item::set_name(const char *str, uint length, CHARSET_INFO *cs)
+void Item::set_name(const char *str, uint length, const CHARSET_INFO *cs)
 {
   if (!length)
   {
@@ -830,7 +830,7 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 }
 
 
-Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
   return conv->safe ? conv : NULL;
@@ -848,7 +848,7 @@ Item *Item::safe_charset_converter(CHARSET_INFO *tocs)
   the latter returns a non-fixed Item, so val_str() crashes afterwards.
   Override Item_num method, to return a fixed item.
 */
-Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_num::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   /*
     Item_num returns pure ASCII result,
@@ -888,7 +888,7 @@ Item *Item_num::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
-Item *Item_static_float_func::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_static_float_func::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   char buf[64];
@@ -904,7 +904,7 @@ Item *Item_static_float_func::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
-Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_string::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
@@ -932,7 +932,7 @@ Item *Item_string::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
-Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_param::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   if (const_item())
   {
@@ -950,7 +950,8 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
 }
 
 
-Item *Item_static_string_func::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_static_string_func::
+safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
@@ -1046,7 +1047,7 @@ bool Item::get_time(MYSQL_TIME *ltime)
   return 0;
 }
 
-CHARSET_INFO *Item::default_charset()
+const CHARSET_INFO *Item::default_charset()
 {
   return current_thd->variables.collation_connection;
 }
@@ -1677,8 +1678,8 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags)
         set(dt);
         return 0;
       }
-      CHARSET_INFO *bin= get_charset_by_csname(collation->csname, 
-                                               MY_CS_BINSORT,MYF(0));
+      const CHARSET_INFO *bin= get_charset_by_csname(collation->csname,
+                                                     MY_CS_BINSORT,MYF(0));
       set(bin, DERIVATION_NONE);
     }
   }
@@ -2458,7 +2459,7 @@ void Item_uint::print(String *str, enum_query_type query_type)
 
 
 Item_decimal::Item_decimal(const char *str_arg, uint length,
-                           CHARSET_INFO *charset)
+                           const CHARSET_INFO *charset)
 {
   str2my_decimal(E_DEC_FATAL_ERROR, str_arg, length, charset, &decimal_value);
   name= (char*) str_arg;
@@ -2606,7 +2607,9 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 
 void Item_string::print(String *str, enum_query_type query_type)
 {
-  if (query_type == QT_ORDINARY && is_cs_specified())
+  const bool print_introducer=
+    !(query_type & QT_WITHOUT_INTRODUCERS) && is_cs_specified();
+  if (print_introducer)
   {
     str->append('_');
     str->append(collation.collation->csname);
@@ -2614,27 +2617,52 @@ void Item_string::print(String *str, enum_query_type query_type)
 
   str->append('\'');
 
-  if (query_type == QT_ORDINARY ||
-      my_charset_same(str_value.charset(), system_charset_info))
+  if (query_type & QT_TO_SYSTEM_CHARSET)
   {
-    str_value.print(str);
+    if (print_introducer)
+    {
+      /*
+        Because we wrote an introducer, we must print str_value in its
+        charset, and the resulting bytes must not be changed until they
+        reach the end client.
+        But the caller is asking for system_charset_info, and may later
+        convert into character_set_results. That means two conversions: we
+        must ensure that they don't change our printed bytes.
+        So we print str_value in the least common denominator of the three
+        charsets involved: ASCII. Non-ASCII characters are printed as \xFF
+        sequences (which is ASCII too). This way, our bytes will not be
+        changed.
+      */
+      ErrConvString tmp(str_value.ptr(), str_value.length(), &my_charset_bin);
+      str->append(tmp.ptr());
+    }
+    else
+    {
+      if (my_charset_same(str_value.charset(), system_charset_info))
+        str_value.print(str); // already in system_charset_info
+      else // need to convert
+      {
+        THD *thd= current_thd;
+        LEX_STRING utf8_lex_str;
+
+        thd->convert_string(&utf8_lex_str,
+                            system_charset_info,
+                            str_value.c_ptr_safe(),
+                            str_value.length(),
+                            str_value.charset());
+
+        String utf8_str(utf8_lex_str.str,
+                        utf8_lex_str.length,
+                        system_charset_info);
+
+        utf8_str.print(str);
+      }
+    }
   }
   else
   {
-    THD *thd= current_thd;
-    LEX_STRING utf8_lex_str;
-
-    thd->convert_string(&utf8_lex_str,
-                        system_charset_info,
-                        str_value.c_ptr_safe(),
-                        str_value.length(),
-                        str_value.charset());
-
-    String utf8_str(utf8_lex_str.str,
-                    utf8_lex_str.length,
-                    system_charset_info);
-
-    utf8_str.print(str);
+    // Caller wants a result in the charset of str_value.
+    str_value.print(str);
   }
 
   str->append('\'');
@@ -2642,7 +2670,8 @@ void Item_string::print(String *str, enum_query_type query_type)
 
 
 double 
-double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
+double_from_string_with_check (const CHARSET_INFO *cs,
+                               const char *cptr, char *end)
 {
   int error;
   char *org_end;
@@ -2671,7 +2700,8 @@ double Item_string::val_real()
 
 
 longlong 
-longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end)
+longlong_from_string_with_check (const CHARSET_INFO *cs,
+                                 const char *cptr, char *end)
 {
   int err;
   longlong tmp;
@@ -2747,7 +2777,7 @@ my_decimal *Item_null::val_decimal(my_decimal *decimal_value)
 }
 
 
-Item *Item_null::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_null::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   collation.set(tocs);
   return this;
@@ -2946,6 +2976,16 @@ bool Item_param::set_longdata(const char *str, ulong length)
     (here), and first have to concatenate all pieces together,
     write query to the binary log and only then perform conversion.
   */
+  if (str_value.length() + length > max_long_data_size)
+  {
+    my_message(ER_UNKNOWN_ERROR,
+               "Parameter of prepared statement which is set through "
+               "mysql_send_long_data() is longer than "
+               "'max_long_data_size' bytes",
+               MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (str_value.append(str, length, &my_charset_bin))
     DBUG_RETURN(TRUE);
   state= LONG_DATA_VALUE;
@@ -2992,8 +3032,8 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       break;
     case STRING_RESULT:
     {
-      CHARSET_INFO *fromcs= entry->collation.collation;
-      CHARSET_INFO *tocs= thd->variables.collation_connection;
+      const CHARSET_INFO *fromcs= entry->collation.collation;
+      const CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
       value.cs_info.character_set_of_placeholder= fromcs;
@@ -4820,7 +4860,7 @@ error:
   return TRUE;
 }
 
-Item *Item_field::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_field::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   no_const_subst= 1;
   return Item::safe_charset_converter(tocs);
@@ -5125,7 +5165,7 @@ enum_field_types Item::field_type() const
 String *Item::check_well_formed_result(String *str, bool send_error)
 {
   /* Check whether we got a well-formed string */
-  CHARSET_INFO *cs= str->charset();
+  const CHARSET_INFO *cs= str->charset();
   int well_formed_error;
   uint wlen= cs->cset->well_formed_len(cs,
                                        str->ptr(), str->ptr() + str->length(),
@@ -5180,10 +5220,11 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     0    otherwise
 */
 
-bool Item::eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs)
+bool Item::eq_by_collation(Item *item, bool binary_cmp,
+                           const CHARSET_INFO *cs)
 {
-  CHARSET_INFO *save_cs= 0;
-  CHARSET_INFO *save_item_cs= 0;
+  const CHARSET_INFO *save_cs= 0;
+  const CHARSET_INFO *save_item_cs= 0;
   if (collation.collation != cs)
   {
     save_cs= collation.collation;
@@ -5465,7 +5506,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
   if (result_type() == STRING_RESULT)
   {
     String *result;
-    CHARSET_INFO *cs= collation.collation;
+    const CHARSET_INFO *cs= collation.collation;
     char buff[MAX_FIELD_WIDTH];		// Alloc buffer for small columns
     str_value.set_quick(buff, sizeof(buff), cs);
     result=val_str(&str_value);
@@ -5833,7 +5874,7 @@ bool Item_hex_string::eq(const Item *arg, bool binary_cmp) const
 }
 
 
-Item *Item_hex_string::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_hex_string::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   String tmp, *str= val_str(&tmp);

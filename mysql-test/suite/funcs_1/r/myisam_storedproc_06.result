@@ -129,8 +129,6 @@ root@localhost	db_storedproc_1
 drop user 'user_1'@'localhost';
 DROP PROCEDURE sp3;
 DROP FUNCTION fn1;
-Warnings:
-Warning	1403	There is no such grant defined for user 'user_1' on host 'localhost' on routine 'fn1'
 
 Testcase 3.1.6.4:
 -----------------

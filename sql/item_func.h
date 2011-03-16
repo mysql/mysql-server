@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function items used by mysql */
@@ -1469,7 +1469,7 @@ public:
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();
   bool update_hash(void *ptr, uint length, enum Item_result type,
-  		   CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
+  		   const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
   bool check(bool use_result_field);
@@ -1558,8 +1558,8 @@ public:
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
   virtual void print(String *str, enum_query_type query_type);
-  void set_null_value(CHARSET_INFO* cs);
-  void set_value(const char *str, uint length, CHARSET_INFO* cs);
+  void set_null_value(const CHARSET_INFO* cs);
+  void set_value(const char *str, uint length, const CHARSET_INFO* cs);
 };
 
 

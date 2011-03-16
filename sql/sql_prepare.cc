@@ -1,4 +1,4 @@
-/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -235,9 +235,9 @@ protected:
   virtual bool store_long(longlong from);
   virtual bool store_longlong(longlong from, bool unsigned_flag);
   virtual bool store_decimal(const my_decimal *);
-  virtual bool store(const char *from, size_t length, CHARSET_INFO *cs);
+  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
   virtual bool store(const char *from, size_t length,
-                     CHARSET_INFO *fromcs, CHARSET_INFO *tocs);
+                     const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
   virtual bool store(MYSQL_TIME *time);
   virtual bool store_date(MYSQL_TIME *time);
   virtual bool store_time(MYSQL_TIME *time);
@@ -260,7 +260,7 @@ protected:
   virtual bool send_error(uint sql_errno, const char *err_msg, const char* sqlstate);
 private:
   bool store_string(const char *str, size_t length,
-                    CHARSET_INFO *src_cs, CHARSET_INFO *dst_cs);
+                    const CHARSET_INFO *src_cs, const CHARSET_INFO *dst_cs);
 
   bool store_column(const void *data, size_t length);
   void opt_add_row_to_rset();
@@ -767,8 +767,8 @@ static void setup_one_conversion_function(THD *thd, Item_param *param,
       label as 'default' lets us to handle malformed packets as well.
     */
     {
-      CHARSET_INFO *fromcs= thd->variables.character_set_client;
-      CHARSET_INFO *tocs= thd->variables.collation_connection;
+      const CHARSET_INFO *fromcs= thd->variables.character_set_client;
+      const CHARSET_INFO *tocs= thd->variables.collation_connection;
       uint32 dummy_offset;
 
       param->value.cs_info.character_set_of_placeholder= fromcs;
@@ -2227,7 +2227,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
   {
     /* This is PREPARE stmt FROM or EXECUTE IMMEDIATE @var. */
     String str;
-    CHARSET_INFO *to_cs= thd->variables.collation_connection;
+    const CHARSET_INFO *to_cs= thd->variables.collation_connection;
     bool needs_conversion;
     user_var_entry *entry;
     String *var_value= &str;
@@ -2785,6 +2785,7 @@ void mysql_sql_stmt_close(THD *thd)
   }
 }
 
+
 /**
   Handle long data in pieces from client.
 
@@ -2841,16 +2842,25 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   param= stmt->param_array[param_number];
 
+  Diagnostics_area new_stmt_da, *save_stmt_da= thd->stmt_da;
+  Warning_info new_warnning_info(thd->query_id), *save_warinig_info= thd->warning_info;
+
+  thd->stmt_da= &new_stmt_da;
+  thd->warning_info= &new_warnning_info;
+
 #ifndef EMBEDDED_LIBRARY
-  if (param->set_longdata(packet, (ulong) (packet_end - packet)))
+  param->set_longdata(packet, (ulong) (packet_end - packet));
 #else
-  if (param->set_longdata(thd->extra_data, thd->extra_length))
+  param->set_longdata(thd->extra_data, thd->extra_length);
 #endif
+  if (thd->stmt_da->is_error())
   {
     stmt->state= Query_arena::ERROR;
-    stmt->last_errno= ER_OUTOFMEMORY;
-    sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
+    stmt->last_errno= thd->stmt_da->sql_errno();
+    strncpy(stmt->last_error, thd->stmt_da->message(), MYSQL_ERRMSG_SIZE);
   }
+  thd->stmt_da= save_stmt_da;
+  thd->warning_info= save_warinig_info;
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -3390,6 +3400,13 @@ Prepared_statement::execute_loop(String *expanded_query,
   bool error;
   int reprepare_attempt= 0;
 
+  /* Check if we got an error when sending long data */
+  if (state == Query_arena::ERROR)
+  {
+    my_message(last_errno, last_error, MYF(0));
+    return TRUE;
+  }
+
   if (set_parameters(expanded_query, packet, packet_end))
     return TRUE;
 
@@ -3657,12 +3674,6 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   status_var_increment(thd->status_var.com_stmt_execute);
 
-  /* Check if we got an error when sending long data */
-  if (state == Query_arena::ERROR)
-  {
-    my_message(last_errno, last_error, MYF(0));
-    return TRUE;
-  }
   if (flags & (uint) IS_IN_USE)
   {
     my_error(ER_PS_NO_RECURSION, MYF(0));
@@ -4162,7 +4173,8 @@ bool Protocol_local::store_column(const void *data, size_t length)
 
 bool
 Protocol_local::store_string(const char *str, size_t length,
-                             CHARSET_INFO *src_cs, CHARSET_INFO *dst_cs)
+                             const CHARSET_INFO *src_cs,
+                             const CHARSET_INFO *dst_cs)
 {
   /* Store with conversion */
   uint error_unused;
@@ -4236,9 +4248,9 @@ bool Protocol_local::store_decimal(const my_decimal *value)
 /** Convert to cs_results and store a string. */
 
 bool Protocol_local::store(const char *str, size_t length,
-                           CHARSET_INFO *src_cs)
+                           const CHARSET_INFO *src_cs)
 {
-  CHARSET_INFO *dst_cs;
+  const CHARSET_INFO *dst_cs;
 
   dst_cs= m_connection->m_thd->variables.character_set_results;
   return store_string(str, length, src_cs, dst_cs);
@@ -4248,7 +4260,8 @@ bool Protocol_local::store(const char *str, size_t length,
 /** Store a string. */
 
 bool Protocol_local::store(const char *str, size_t length,
-                           CHARSET_INFO *src_cs, CHARSET_INFO *dst_cs)
+                           const CHARSET_INFO *src_cs,
+                           const CHARSET_INFO *dst_cs)
 {
   return store_string(str, length, src_cs, dst_cs);
 }

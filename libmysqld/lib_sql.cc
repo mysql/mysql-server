@@ -776,7 +776,7 @@ void THD::clear_data_list()
 
 
 static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
-			 CHARSET_INFO *fromcs, CHARSET_INFO *tocs)
+			 const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs)
 {
   uint32 dummy32;
   uint dummy_err;
@@ -926,8 +926,8 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
   Item                     *item;
   MYSQL_FIELD              *client_field;
   MEM_ROOT                 *field_alloc;
-  CHARSET_INFO             *thd_cs= thd->variables.character_set_results;
-  CHARSET_INFO             *cs= system_charset_info;
+  const CHARSET_INFO       *thd_cs= thd->variables.character_set_results;
+  const CHARSET_INFO       *cs= system_charset_info;
   MYSQL_DATA               *data;
   DBUG_ENTER("send_result_set_metadata");
 
@@ -1228,7 +1228,8 @@ int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
 
 
 bool Protocol::net_store_data(const uchar *from, size_t length,
-                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+                              const CHARSET_INFO *from_cs,
+                              const CHARSET_INFO *to_cs)
 {
   uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
   uint dummy_error;

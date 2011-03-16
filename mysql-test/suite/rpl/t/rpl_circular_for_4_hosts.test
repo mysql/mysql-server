@@ -30,6 +30,7 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, 
 CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT, b VARCHAR(100), c INT NOT NULL, PRIMARY KEY(a)) ENGINE=InnoDB;
 --source include/rpl_sync.inc
 --connection server_4
+call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
 --echo
 
 #
@@ -85,6 +86,7 @@ INSERT INTO t1(b,c) VALUES('B',2);
 # Wait while C will stop.
 --connection server_3
 # 1062 = ER_DUP_ENTRY
+call mtr.add_suppression("Slave SQL.*Duplicate entry .6. for key .PRIMARY.* Error_code: 1062");
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error.inc
 --connection server_1
