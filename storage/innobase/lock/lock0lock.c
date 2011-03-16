@@ -2071,13 +2071,7 @@ lock_rec_lock_fast(
 
 			status = LOCK_REC_FAIL;
 		} else if (!impl) {
-			/* If the nth bit of the record lock is already
-			set then we do not set a new lock bit, otherwise
-			we do set */
-
-			if (!lock_rec_get_nth_bit(lock, heap_no)) {
-				lock_rec_set_nth_bit(lock, heap_no);
-			}
+			lock_rec_set_nth_bit(lock, heap_no);
 
 			status = LOCK_REC_SUCCESS_CREATED;
 		}
