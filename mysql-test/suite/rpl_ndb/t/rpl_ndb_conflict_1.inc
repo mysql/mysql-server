@@ -1,5 +1,5 @@
 --connection slave
---source include/ndb_conflict_info_init.inc
+--source suite/rpl_ndb/t/ndb_conflict_info_init.inc
 
 --connection master
 
@@ -32,7 +32,7 @@ commit;
 --connection slave
 select * from t1 order by a, d;
 select * from t2 order by a, d;
---source include/ndb_conflict_info.inc
+--source suite/rpl_ndb/t/ndb_conflict_info.inc
 
 --echo *** master - update 2 rows in different tables
 --connection master
@@ -43,7 +43,7 @@ update t2 set b="Master t2 a=3 at c=3", c=c+1 where a=3;
 --connection slave
 select * from t1 order by a, d;
 select * from t2 order by a, d;
---source include/ndb_conflict_info.inc
+--source suite/rpl_ndb/t/ndb_conflict_info.inc
 
 --echo *** master - delete all
 --connection master
@@ -54,8 +54,8 @@ delete from t2;
 --connection slave
 select * from t1 order by a, d;
 select * from t2 order by a, d;
---source include/ndb_conflict_info.inc
---source include/ndb_conflict_info_init.inc
+--source suite/rpl_ndb/t/ndb_conflict_info.inc
+--source suite/rpl_ndb/t/ndb_conflict_info_init.inc
 
 --echo ************************
 --echo * start conflict testing
@@ -76,7 +76,7 @@ commit;
 --echo *** slave - check conflict info, no conflicts yet
 --sync_slave_with_master
 --connection slave
---source include/ndb_conflict_info.inc
+--source suite/rpl_ndb/t/ndb_conflict_info.inc
 
 --echo *** slave - check insert some data
 select * from t1 order by a, d;
@@ -110,7 +110,7 @@ commit;
 --echo *** slave - check conflict info, there should be some
 --sync_slave_with_master
 --connection slave
---source include/ndb_conflict_info.inc
+--source suite/rpl_ndb/t/ndb_conflict_info.inc
 
 --echo *** slave - check update some data that causes conflicts
 select * from t1 order by a, d;
@@ -133,7 +133,7 @@ commit;
 --echo *** slave - check conflict info, change depends on calling test
 --sync_slave_with_master
 --connection slave
---source include/ndb_conflict_info.inc
+--source suite/rpl_ndb/t/ndb_conflict_info.inc
 
 --echo *** slave - check higer timestamp
 select * from t1 order by a, d;
