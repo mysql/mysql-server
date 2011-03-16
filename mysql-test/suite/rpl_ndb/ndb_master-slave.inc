@@ -7,7 +7,6 @@ connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 -- connection slave
 -- source suite/rpl_ndb/have_one_ndb.inc
--- source include/ndb_conflict_info_init.inc
 
 connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 
@@ -15,4 +14,3 @@ connect (slave1,127.0.0.1,root,,test,$SLAVE_MYPORT,);
 
 # Set the default connection to 'master'
 connection master;
-source include/ndb_conflict_info_init.inc;
