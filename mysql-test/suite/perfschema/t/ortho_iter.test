@@ -51,7 +51,7 @@ begin
   declare continue handler for sqlstate '02000'
     set done = 1;
 
-  select (instr_name like "wait/%") into is_wait;
+  select (instr_name like "wait/%") or (instr_name like "idle/%") into is_wait;
   select (instr_name like "stage/%") into is_stage;
   select (instr_name like "statement/%") into is_statement;
 
@@ -154,6 +154,8 @@ call check_instrument("stage/");
 call check_instrument("statement/com/");
 call check_instrument("statement/sql/");
 call check_instrument("statement/");
+call check_instrument("idle/io/socket");
+call check_instrument("idle/");
 
 drop procedure check_instrument;
 

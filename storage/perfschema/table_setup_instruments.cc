@@ -102,9 +102,6 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_COND:
       instr_class= find_cond_class(m_pos.m_index_2);
       break;
-    case pos_setup_instruments::VIEW_THREAD:
-      /* Not used yet  */
-      break;
     case pos_setup_instruments::VIEW_FILE:
       instr_class= find_file_class(m_pos.m_index_2);
       break;
@@ -113,6 +110,9 @@ int table_setup_instruments::rnd_next(void)
       break;
     case pos_setup_instruments::VIEW_SOCKET:
       instr_class= find_socket_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_IDLE:
+      instr_class= find_idle_class(m_pos.m_index_2);
       break;
     }
     if (instr_class)
@@ -143,9 +143,6 @@ int table_setup_instruments::rnd_pos(const void *pos)
   case pos_setup_instruments::VIEW_COND:
     instr_class= find_cond_class(m_pos.m_index_2);
     break;
-  case pos_setup_instruments::VIEW_THREAD:
-    /* Not used yet */
-    break;
   case pos_setup_instruments::VIEW_FILE:
     instr_class= find_file_class(m_pos.m_index_2);
     break;
@@ -154,6 +151,9 @@ int table_setup_instruments::rnd_pos(const void *pos)
     break;
   case pos_setup_instruments::VIEW_SOCKET:
     instr_class= find_table_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_IDLE:
+    instr_class= find_idle_class(m_pos.m_index_2);
     break;
   }
   if (instr_class)

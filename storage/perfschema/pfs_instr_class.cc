@@ -113,6 +113,7 @@ PFS_table_share *table_share_array= NULL;
 
 PFS_instr_class global_table_io_class;
 PFS_instr_class global_table_lock_class;
+PFS_instr_class global_idle_class;
 
 /**
   Hash index for instrumented table shares.
@@ -158,7 +159,7 @@ void init_event_name_sizing(const PFS_global_param *param)
   file_class_start= cond_class_start + param->m_cond_class_sizing;
   socket_class_start= file_class_start + param->m_file_class_sizing;
   table_class_start= socket_class_start + param->m_socket_class_sizing;
-  max_instrument_class= table_class_start + 2; /* global table io, lock */
+  max_instrument_class= table_class_start + 3; /* 3 global classes */
 
   memcpy(global_table_io_class.m_name, "wait/io/table/sql/handler", 25);
   global_table_io_class.m_name_length= 25;
@@ -173,6 +174,13 @@ void init_event_name_sizing(const PFS_global_param *param)
   global_table_lock_class.m_enabled= true;
   global_table_lock_class.m_timed= true;
   global_table_lock_class.m_event_name_index= table_class_start + 1;
+
+  memcpy(global_idle_class.m_name, "idle", 4);
+  global_idle_class.m_name_length= 4;
+  global_idle_class.m_flags= 0;
+  global_idle_class.m_enabled= true;
+  global_idle_class.m_timed= true;
+  global_idle_class.m_event_name_index= table_class_start + 2;
 }
 
 /**
@@ -870,6 +878,20 @@ PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe)
 {
   if (likely((& global_table_io_class == unsafe) ||
              (& global_table_lock_class == unsafe)))
+    return unsafe;
+  return NULL;
+}
+
+PFS_instr_class *find_idle_class(uint index)
+{
+  if (index == 1)
+    return & global_idle_class;
+  return NULL;
+}
+
+PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe)
+{
+  if (likely(& global_idle_class == unsafe))
     return unsafe;
   return NULL;
 }

@@ -271,6 +271,11 @@ extern PFS_instr_class global_table_io_class;
 */
 extern PFS_instr_class global_table_lock_class;
 
+/**
+  Instrument controlling all idle waits.
+*/
+extern PFS_instr_class global_idle_class;
+
 struct PFS_file;
 
 /** Instrumentation metadata for a file. */
@@ -349,6 +354,8 @@ PFS_instr_class *find_table_class(uint index);
 PFS_instr_class *sanitize_table_class(PFS_instr_class *unsafe);
 PFS_socket_class *find_socket_class(PSI_socket_key key);
 PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe);
+PFS_instr_class *find_idle_class(uint index);
+PFS_instr_class *sanitize_idle_class(PFS_instr_class *unsafe);
 
 PFS_table_share *find_or_create_table_share(PFS_thread *thread,
                                             bool temporary,

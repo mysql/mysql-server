@@ -50,6 +50,7 @@ struct time_normalizer
                ulonglong *pico_start, ulonglong *pico_end, ulonglong *pico_wait);
 };
 
+extern enum_timer_name idle_timer;
 extern enum_timer_name wait_timer;
 extern MY_TIMER_INFO pfs_timer_info;
 

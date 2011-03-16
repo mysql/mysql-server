@@ -23,6 +23,7 @@
 
 #include "pfs_instr_class.h"
 #include "pfs_engine_table.h"
+#include "table_helper.h"
 
 /**
   @addtogroup Performance_schema_tables
@@ -43,19 +44,8 @@ struct row_setup_instruments
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
-struct pos_setup_instruments : public PFS_double_index
+struct pos_setup_instruments : public PFS_double_index, PFS_instrument_view_constants
 {
-  static const uint FIRST_VIEW= 1;
-  static const uint VIEW_MUTEX= 1;
-  static const uint VIEW_RWLOCK= 2;
-  static const uint VIEW_COND= 3;
-  /** Reverved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
-  static const uint VIEW_THREAD= 4;
-  static const uint VIEW_FILE= 5;
-  static const uint VIEW_TABLE= 6;
-  static const uint VIEW_SOCKET= 7;
-  static const uint LAST_VIEW= 7;
-
   pos_setup_instruments()
     : PFS_double_index(FIRST_VIEW, 1)
   {}

@@ -22,6 +22,7 @@
 #include "pfs_timer.h"
 #include "my_rdtsc.h"
 
+enum_timer_name idle_timer= TIMER_NAME_MICROSEC;
 enum_timer_name wait_timer= TIMER_NAME_CYCLE;
 MY_TIMER_INFO pfs_timer_info;
 

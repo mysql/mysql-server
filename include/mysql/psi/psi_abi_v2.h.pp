@@ -14,6 +14,7 @@ struct PSI_bootstrap
 {
   void* (*get_interface)(int version);
 };
+struct PSI_idle_locker;
 struct PSI_mutex_locker;
 struct PSI_rwlock_locker;
 struct PSI_cond_locker;
@@ -67,6 +68,11 @@ enum PSI_table_lock_operation
   PSI_TABLE_LOCK= 0,
   PSI_TABLE_EXTERNAL_LOCK= 1
 };
+enum PSI_socket_state
+{
+  PSI_SOCKET_STATE_IDLE= 0,
+  PSI_SOCKET_STATE_ACTIVE= 1
+};
 enum PSI_socket_operation
 {
   PSI_SOCKET_CREATE= 0,
@@ -114,6 +120,10 @@ struct PSI_file_info_v2
 {
   int placeholder;
 };
+struct PSI_idle_locker_state_v2
+{
+  int placeholder;
+};
 struct PSI_mutex_locker_state_v2
 {
   int placeholder;
@@ -145,6 +155,7 @@ typedef struct PSI_cond_info_v2 PSI_cond_info;
 typedef struct PSI_thread_info_v2 PSI_thread_info;
 typedef struct PSI_file_info_v2 PSI_file_info;
 typedef struct PSI_socket_info_v2 PSI_socket_info;
+typedef struct PSI_idle_locker_state_v2 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v2 PSI_mutex_locker_state;
 typedef struct PSI_rwlock_locker_state_v2 PSI_rwlock_locker_state;
 typedef struct PSI_cond_locker_state_v2 PSI_cond_locker_state;

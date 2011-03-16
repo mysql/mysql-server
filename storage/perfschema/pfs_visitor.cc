@@ -294,8 +294,13 @@ PFS_connection_wait_visitor::~PFS_connection_wait_visitor()
 
 void PFS_connection_wait_visitor::visit_global()
 {
-  /* Sum by instances, not by connection */
-  DBUG_ASSERT(false);
+  /*
+    This visitor is used only for idle instruments.
+    For waits, do not sum by connection but by instances,
+    it is more efficient.
+  */
+  DBUG_ASSERT(m_index == global_idle_class.m_event_name_index);
+  m_stat.aggregate(& global_instr_class_waits_array[m_index]);
 }
 
 void PFS_connection_wait_visitor::visit_thread(PFS_thread *pfs)

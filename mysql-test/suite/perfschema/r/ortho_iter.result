@@ -22,7 +22,7 @@ where table_schema= 'performance_schema'
       and table_name like "events_%_by_event_name%";
 declare continue handler for sqlstate '02000'
     set done = 1;
-select (instr_name like "wait/%") into is_wait;
+select (instr_name like "wait/%") or (instr_name like "idle/%") into is_wait;
 select (instr_name like "stage/%") into is_stage;
 select (instr_name like "statement/%") into is_statement;
 select instr_name, is_wait, is_stage, is_statement;
@@ -260,6 +260,24 @@ Warning	12000	Done
 call check_instrument("statement/");
 instr_name	is_wait	is_stage	is_statement
 statement/	0	0	1
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("idle/io/socket");
+instr_name	is_wait	is_stage	is_statement
+idle/io/socket	1	0	0
+status
+Checking table events_waits_summary_by_thread_by_event_name ...
+status
+Checking table events_waits_summary_global_by_event_name ...
+Warnings:
+Warning	12000	Done
+call check_instrument("idle/");
+instr_name	is_wait	is_stage	is_statement
+idle/	1	0	0
 status
 Checking table events_waits_summary_by_thread_by_event_name ...
 status
