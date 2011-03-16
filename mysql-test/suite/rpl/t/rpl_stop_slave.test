@@ -71,10 +71,12 @@ CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
 
+sync_slave_with_master;
+
+--source include/rpl_connection_master.inc
+
 let $debug_save= `SELECT @@GLOBAL.debug`;
 SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
-
-sync_slave_with_master;
 
 --source include/rpl_connection_slave.inc
 source include/restart_slave_sql.inc;
