@@ -907,7 +907,7 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
   }
 
   const NdbQueryOperationDef* const root_operation= 
-    m_pushed_join_member->get_query_def().getQueryOperation(PUSHED_ROOT);
+    m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT);
 
   const NdbQueryOperationTypeWrapper& query_def_type=  
     root_operation->getType();
@@ -1022,7 +1022,7 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
               m_pushed_join_member->get_operation_count(),
               m_pushed_join_member->get_table(0)->alias,
               NdbQueryOperationDef::getTypeName(
-                m_pushed_join_member->get_query_def().getQueryOperation(PUSHED_ROOT)->getType()))
+                m_pushed_join_member->get_query_def().getQueryOperation((uint)PUSHED_ROOT)->getType()))
              );
 
   // There may be referrences to Field values from tables outside the scope of
@@ -1167,7 +1167,7 @@ ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
     }
     const NdbQueryDef& query_def = m_pushed_join_member->get_query_def();
     const NdbQueryOperationTypeWrapper& root_type=
-      query_def.getQueryOperation(PUSHED_ROOT)->getType();
+      query_def.getQueryOperation((uint)PUSHED_ROOT)->getType();
 
     /**
      * Primary key/ unique key lookup is always 'ordered' wrt. itself.
@@ -4706,7 +4706,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       DBUG_RETURN(error);
 
     NdbQuery* const query= m_active_query;
-    if (sorted && query->getQueryOperation(PUSHED_ROOT)
+    if (sorted && query->getQueryOperation((uint)PUSHED_ROOT)
                        ->setOrdering(descending ? NdbQueryOptions::ScanOrdering_descending
                                                 : NdbQueryOptions::ScanOrdering_ascending))
     {
@@ -6856,7 +6856,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
 
   if (m_use_partition_pruning)
   {
-    DBUG_ASSERT(!m_pushed_join_operation != PUSHED_ROOT);
+    DBUG_ASSERT(m_pushed_join_operation != PUSHED_ROOT);
     get_partition_set(table, buf, active_index, start_key, &part_spec);
     DBUG_PRINT("info", ("part_spec.start_part: %u  part_spec.end_part: %u",
                         part_spec.start_part, part_spec.end_part));
@@ -13974,7 +13974,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
           NdbQuery* const query= m_active_query;
           if (sorted &&
-              query->getQueryOperation(PUSHED_ROOT)->setOrdering(NdbQueryOptions::ScanOrdering_ascending))
+              query->getQueryOperation((uint)PUSHED_ROOT)->setOrdering(NdbQueryOptions::ScanOrdering_ascending))
             ERR_RETURN(query->getNdbError());
         }
       } // check_if_pushable()
