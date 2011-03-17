@@ -1,0 +1,23 @@
+# Turn on ssl between the client and server
+# and run a number of tests
+
+--echo #
+--echo # BUG#11760210 - SSL_CIPHER_LIST NOT SET OR RETURNED FOR "SHOW STATUS LIKE 'SSL_CIPHER_LIST'"
+--echo #
+
+-- source include/have_ssl.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+connect (ssl_con,localhost,root,,,,,SSL);
+
+# Check Cipher Name and Cipher List
+SHOW STATUS LIKE 'Ssl_cipher';
+SHOW STATUS LIKE 'Ssl_cipher_list';
+
+connection default;
+disconnect ssl_con;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

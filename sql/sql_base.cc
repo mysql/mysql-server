@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* Basic functions needed by many modules */
 
 #include "sql_base.h"                           // setup_table_map
@@ -1032,7 +1031,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
          table_list= table_list->next_global)
     {
       /* A check that the table was locked for write is done by the caller. */
-      TABLE *table= find_table_for_mdl_upgrade(thd->open_tables, table_list->db,
+      TABLE *table= find_table_for_mdl_upgrade(thd, table_list->db,
                                                table_list->table_name, TRUE);
 
       /* May return NULL if this table has already been closed via an alias. */
@@ -1690,7 +1689,7 @@ bool close_temporary_tables(THD *thd)
         close_temporary(table, 1, 1);
       }
       thd->clear_error();
-      CHARSET_INFO *cs_save= thd->variables.character_set_client;
+      const CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
       thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
@@ -3126,22 +3125,26 @@ TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
    lock from the list of open tables, emit error if no such table
    found.
 
-   @param list       List of TABLE objects to be searched
+   @param thd        Thread context
    @param db         Database name.
    @param table_name Name of table.
    @param no_error   Don't emit error if no suitable TABLE
                      instance were found.
+
+   @note This function checks if the connection holds a global IX
+         metadata lock. If no such lock is found, it is not safe to
+         upgrade the lock and ER_TABLE_NOT_LOCKED_FOR_WRITE will be
+         reported.
 
    @return Pointer to TABLE instance with MDL_SHARED_NO_WRITE,
            MDL_SHARED_NO_READ_WRITE, or MDL_EXCLUSIVE metadata
            lock, NULL otherwise.
 */
 
-TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
-                                  const char *table_name,
-                                  bool no_error)
+TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
+                                  const char *table_name, bool no_error)
 {
-  TABLE *tab= find_locked_table(list, db, table_name);
+  TABLE *tab= find_locked_table(thd->open_tables, db, table_name);
 
   if (!tab)
   {
@@ -3149,19 +3152,29 @@ TABLE *find_table_for_mdl_upgrade(TABLE *list, const char *db,
       my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
     return NULL;
   }
-  else
+
+  /*
+    It is not safe to upgrade the metadata lock without a global IX lock.
+    This can happen with FLUSH TABLES <list> WITH READ LOCK as we in these
+    cases don't take a global IX lock in order to be compatible with
+    global read lock.
+  */
+  if (!thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
+                                      MDL_INTENTION_EXCLUSIVE))
   {
-    while (tab->mdl_ticket != NULL &&
-           !tab->mdl_ticket->is_upgradable_or_exclusive() &&
-           (tab= find_locked_table(tab->next, db, table_name)))
-      continue;
-    if (!tab)
-    {
-      if (!no_error)
-        my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
-      return 0;
-    }
+    if (!no_error)
+      my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
+    return NULL;
   }
+
+  while (tab->mdl_ticket != NULL &&
+         !tab->mdl_ticket->is_upgradable_or_exclusive() &&
+         (tab= find_locked_table(tab->next, db, table_name)))
+    continue;
+
+  if (!tab && !no_error)
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
+
   return tab;
 }
 
@@ -4660,8 +4673,7 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
         Note that find_table_for_mdl_upgrade() will report an error if
         no suitable ticket is found.
       */
-      if (!find_table_for_mdl_upgrade(thd->open_tables, table->db,
-                                      table->table_name, FALSE))
+      if (!find_table_for_mdl_upgrade(thd, table->db, table->table_name, false))
         return TRUE;
     }
   }
@@ -7649,9 +7661,10 @@ static bool setup_natural_join_row_types(THD *thd,
                                          List<TABLE_LIST> *from_clause,
                                          Name_resolution_context *context)
 {
+  DBUG_ENTER("setup_natural_join_row_types");
   thd->where= "from clause";
   if (from_clause->elements == 0)
-    return FALSE; /* We come here in the case of UNIONs. */
+    DBUG_RETURN(false); /* We come here in the case of UNIONs. */
 
   List_iterator_fast<TABLE_LIST> table_ref_it(*from_clause);
   TABLE_LIST *table_ref; /* Current table reference. */
@@ -7659,10 +7672,6 @@ static bool setup_natural_join_row_types(THD *thd,
   TABLE_LIST *left_neighbor;
   /* Table reference to the right of the current. */
   TABLE_LIST *right_neighbor= NULL;
-  bool save_first_natural_join_processing=
-    context->select_lex->first_natural_join_processing;
-
-  context->select_lex->first_natural_join_processing= FALSE;
 
   /* Note that tables in the list are in reversed order */
   for (left_neighbor= table_ref_it++; left_neighbor ; )
@@ -7674,12 +7683,11 @@ static bool setup_natural_join_row_types(THD *thd,
       1) for stored procedures,
       2) for multitable update after lock failure and table reopening.
     */
-    if (save_first_natural_join_processing)
+    if (context->select_lex->first_natural_join_processing)
     {
-      context->select_lex->first_natural_join_processing= FALSE;
       if (store_top_level_join_columns(thd, table_ref,
                                        left_neighbor, right_neighbor))
-        return TRUE;
+        DBUG_RETURN(true);
       if (left_neighbor)
       {
         TABLE_LIST *first_leaf_on_the_right;
@@ -7699,8 +7707,9 @@ static bool setup_natural_join_row_types(THD *thd,
   DBUG_ASSERT(right_neighbor);
   context->first_name_resolution_table=
     right_neighbor->first_leaf_for_name_resolution();
+  context->select_lex->first_natural_join_processing= false;
 
-  return FALSE;
+  DBUG_RETURN (false);
 }
 
 

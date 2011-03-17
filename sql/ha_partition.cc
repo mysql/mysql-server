@@ -3523,7 +3523,7 @@ int ha_partition::delete_row(const uchar *buf)
     Called from item_sum.cc by Item_func_group_concat::clear(),
     Item_sum_count_distinct::clear(), and Item_func_group_concat::clear().
     Called from sql_delete.cc by mysql_delete().
-    Called from sql_select.cc by JOIN::reinit().
+    Called from sql_select.cc by JOIN::reset().
     Called from sql_union.cc by st_select_lex_unit::exec().
 */
 
@@ -4610,6 +4610,7 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
           break;
       }
     }
+    m_last_part= part;
   }
   else
   {

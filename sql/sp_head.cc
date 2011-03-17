@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
@@ -159,7 +159,7 @@ sp_get_item_value(THD *thd, Item *item, String *str)
       {
         char buf_holder[STRING_BUFFER_USUAL_SIZE];
         String buf(buf_holder, sizeof(buf_holder), result->charset());
-        CHARSET_INFO *cs= thd->variables.character_set_client;
+        const CHARSET_INFO *cs= thd->variables.character_set_client;
 
         /* We must reset length of the buffer, because of String specificity. */
         buf.length(0);
@@ -723,7 +723,7 @@ static TYPELIB *
 create_typelib(MEM_ROOT *mem_root, Create_field *field_def, List<String> *src)
 {
   TYPELIB *result= NULL;
-  CHARSET_INFO *cs= field_def->charset;
+  const CHARSET_INFO *cs= field_def->charset;
   DBUG_ENTER("create_typelib");
 
   if (src->elements)

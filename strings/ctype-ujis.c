@@ -11,9 +11,8 @@
    Library General Public License for more details.
    
    You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is for Japanese EUC charset, and created by tommy@valley.ne.jp.
  */
@@ -184,7 +183,7 @@ static uchar sort_order_ujis[]=
 #define isujis_ss3(c) (((c)&0xff) == 0x8f)
 
 
-static uint ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_ujis(const CHARSET_INFO *cs __attribute__((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -194,7 +193,8 @@ static uint ismbchar_ujis(CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-static uint mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
+static uint mbcharlen_ujis(const CHARSET_INFO *cs __attribute__((unused)),
+                           uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 1);
 }
@@ -209,7 +209,7 @@ static uint mbcharlen_ujis(CHARSET_INFO *cs __attribute__((unused)),uint c)
 */
 
 static
-size_t my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_ujis(const CHARSET_INFO *cs __attribute__((unused)),
                                const char *beg, const char *end,
                                size_t pos, int *error)
 {
@@ -259,7 +259,7 @@ size_t my_well_formed_len_ujis(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_numcells_eucjp(CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_eucjp(const CHARSET_INFO *cs __attribute__((unused)),
                        const char *str, const char *str_end)
 {
   size_t clen;
@@ -65879,7 +65879,7 @@ static uint16 unicode_to_jisx0212_eucjp[65536]=
   @retval   MY_CS_ILSEQ    If a wrong byte sequence was found
 */
 static int
-my_mb_wc_euc_jp(CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_euc_jp(const CHARSET_INFO *cs __attribute__((unused)),
                 my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int hi;
@@ -65939,7 +65939,7 @@ my_mb_wc_euc_jp(CHARSET_INFO *cs __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in UJIS
 */
 static int
-my_wc_mb_euc_jp(CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_euc_jp(const CHARSET_INFO *cs __attribute__((unused)),
                 my_wc_t wc, uchar *s, uchar *e)
 {
   int jp;
@@ -67167,7 +67167,7 @@ static MY_UNICASE_INFO my_caseinfo_ujis=
 */
 
 static MY_UNICASE_CHARACTER*
-get_case_info_for_ch(CHARSET_INFO *cs, uint plane, uint page, uint offs)
+get_case_info_for_ch(const CHARSET_INFO *cs, uint plane, uint page, uint offs)
 {
   MY_UNICASE_CHARACTER *p;
   return (p= cs->caseinfo->page[page + plane * 256]) ? &p[offs & 0xFF] : NULL;
@@ -67178,7 +67178,7 @@ get_case_info_for_ch(CHARSET_INFO *cs, uint plane, uint page, uint offs)
   Generic function to handle UPPER and LOWER translation
 */
 static size_t
-my_casefold_ujis(CHARSET_INFO *cs,
+my_casefold_ujis(const CHARSET_INFO *cs,
                  char *src, size_t srclen,
                  char *dst, size_t dstlen __attribute__((unused)),
                  uchar *map,
@@ -67226,7 +67226,7 @@ my_casefold_ujis(CHARSET_INFO *cs,
   LOWER()
 */
 size_t
-my_casedn_ujis(CHARSET_INFO * cs, char *src, size_t srclen,
+my_casedn_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
                char *dst, size_t dstlen)
 {
   DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply); 
@@ -67239,7 +67239,7 @@ my_casedn_ujis(CHARSET_INFO * cs, char *src, size_t srclen,
   UPPER()
 */
 size_t
-my_caseup_ujis(CHARSET_INFO * cs, char *src, size_t srclen,
+my_caseup_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
                char *dst, size_t dstlen)
 {
   DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);

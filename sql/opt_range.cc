@@ -692,7 +692,8 @@ public:
   /* 
     If true, the index descriptions describe real indexes (and it is ok to
     call field->optimize_range(real_keynr[...], ...).
-    Otherwise index description describes fake indexes.
+    Otherwise index description describes fake indexes, like a partitioning
+    expression.
   */
   bool using_real_indexes;
   
@@ -5780,7 +5781,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
-    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+    if (param->using_real_indexes &&
+        param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
               MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -5912,7 +5914,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+    if (param->using_real_indexes &&
+        param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
               MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -10133,11 +10136,11 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
-  Item **arguments= pred->arguments();
   Item *cur_arg;
   DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
   for (uint arg_idx= 0; arg_idx < pred->argument_count (); arg_idx++)
   {
+    Item **arguments= pred->arguments();
     cur_arg= arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)
