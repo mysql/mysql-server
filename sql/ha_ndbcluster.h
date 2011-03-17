@@ -940,7 +940,7 @@ private:
   const class ndb_pushed_join
        *m_pushed_join_member;            // Pushed join def. I am member of
   int m_pushed_join_operation;           // Op. id. in above pushed join
-  static const uint PUSHED_ROOT= 0;      // Op. id. if I'm root
+  static const int PUSHED_ROOT= 0;       // Op. id. if I'm root
 
   bool m_disable_pushed_join;            // Pushed execution allowed?
   NdbQuery* m_active_query;              // Pushed query instance executing
