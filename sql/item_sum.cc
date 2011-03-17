@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -686,9 +686,10 @@ C_MODE_START
 
 /* Declarations for auxilary C-callbacks */
 
-static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
+static int simple_raw_key_cmp(const void* arg,
+                              const void* key1, const void* key2)
 {
-    return memcmp(key1, key2, *(uint *) arg);
+    return memcmp(key1, key2, *(const uint *) arg);
 }
 
 
@@ -2819,7 +2820,7 @@ String *Item_sum_udf_str::val_str(String *str)
 */
 
 extern "C"
-int group_concat_key_cmp_with_distinct(void* arg, const void* key1, 
+int group_concat_key_cmp_with_distinct(const void* arg, const void* key1, 
                                        const void* key2)
 {
   Item_func_group_concat *item_func= (Item_func_group_concat*)arg;
@@ -2854,10 +2855,10 @@ int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
 */
 
 extern "C"
-int group_concat_key_cmp_with_order(void* arg, const void* key1, 
+int group_concat_key_cmp_with_order(const void* arg, const void* key1, 
                                     const void* key2)
 {
-  Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
+  const Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
   ORDER **order_item, **end;
   TABLE *table= grp_item->table;
 
@@ -2949,7 +2950,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   if (result->length() > item->max_length)
   {
     int well_formed_error;
-    CHARSET_INFO *cs= item->collation.collation;
+    const CHARSET_INFO *cs= item->collation.collation;
     const char *ptr= result->ptr();
     uint add_length;
     /*

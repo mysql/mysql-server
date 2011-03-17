@@ -26,6 +26,16 @@ class Format_description_log_event;
 class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
+#ifdef HAVE_PSI_INTERFACE
+  /** The instrumentation key to use for @ LOCK_index. */
+  PSI_mutex_key m_key_LOCK_index;
+  /** The instrumentation key to use for @ update_cond. */
+  PSI_cond_key m_key_update_cond;
+  /** The instrumentation key to use for opening the log file. */
+  PSI_file_key m_key_file_log;
+  /** The instrumentation key to use for opening the log index file. */
+  PSI_file_key m_key_file_log_index;
+#endif
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_prep_xids;
@@ -34,6 +44,12 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
+  /*
+    crash_safe_index_file is temp file used for guaranteeing
+    index file crash safe when master server restarts.
+  */
+  IO_CACHE crash_safe_index_file;
+  char crash_safe_index_file_name[FN_REFLEN];
   /*
     purge_file is a temp file used in purge_logs so that the index file
     can be updated before deleting files from disk, yielding better crash
@@ -149,9 +165,24 @@ public:
     on exit() - but only during the correct shutdown process
   */
 
+#ifdef HAVE_PSI_INTERFACE
+  void set_psi_keys(PSI_mutex_key key_LOCK_index,
+                    PSI_cond_key key_update_cond,
+                    PSI_file_key key_file_log,
+                    PSI_file_key key_file_log_index)
+  {
+    m_key_LOCK_index= key_LOCK_index;
+    m_key_update_cond= key_update_cond;
+    m_key_file_log= key_file_log;
+    m_key_file_log_index= key_file_log_index;
+  }
+#endif
+
   int open(const char *opt_name);
   void close();
   int log_xid(THD *thd, my_xid xid);
+  int recover(IO_CACHE *log, Format_description_log_event *fdle,
+              my_off_t *valid_pos);
   int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
@@ -218,7 +249,7 @@ public:
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
-  int update_log_index(LOG_INFO* linfo, bool need_update_threads);
+  int remove_logs_from_index(LOG_INFO* linfo, bool need_update_threads);
   int rotate_and_purge(uint flags);
   /**
      Flush binlog cache and synchronize to disk.
@@ -240,6 +271,11 @@ public:
                  ulonglong *decrease_log_space);
   int purge_logs_before_date(time_t purge_time);
   int purge_first_log(Relay_log_info* rli, bool included);
+  int set_crash_safe_index_file_name(const char *base_file_name);
+  int open_crash_safe_index_file();
+  int close_crash_safe_index_file();
+  int add_log_to_index(uchar* log_file_name, int name_len, bool need_mutex);
+  int move_crash_safe_index_file_to_index_file(bool need_mutex);
   int set_purge_index_file_name(const char *base_file_name);
   int open_purge_index_file(bool destroy);
   bool is_inited_purge_index_file();

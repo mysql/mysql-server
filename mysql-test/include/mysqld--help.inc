@@ -8,7 +8,7 @@
 # force symbolic-links=0 (valgrind build has a different default)
 #
 
-exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>&1;
+exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>/dev/null;
 
 # The inline perl code below will copy $MYSQL_TMP_DIR/mysqld--help.txt
 # to output, but filter away some variable stuff (e.g. paths).

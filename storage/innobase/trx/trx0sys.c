@@ -238,7 +238,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	mtr_commit(&mtr);
 
 	/* Flush the modified pages to disk and make a checkpoint */
-	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	trx_sys_multiple_tablespace_format = TRUE;
 }
@@ -407,7 +407,7 @@ start_again:
 		mtr_commit(&mtr);
 
 		/* Flush the modified pages to disk and make a checkpoint */
-		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+		log_make_checkpoint_at(LSN_MAX, TRUE);
 
 		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
 
@@ -950,23 +950,58 @@ trx_sysf_create(
 }
 
 /*****************************************************************//**
+Compare two trx_rseg_t instances on last_trx_no. */
+static
+int
+trx_rseg_compare_last_trx_no(
+/*=========================*/
+	const void*	p1,		/*!< in: elem to compare */
+	const void*	p2)		/*!< in: elem to compare */
+{
+	ib_int64_t	cmp;
+
+	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
+	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
+
+	cmp = rseg_q1->trx_no - rseg_q2->trx_no;
+
+	if (cmp < 0) {
+		return(-1);
+	} else if (cmp > 0) {
+		return(1);
+	}
+
+	return(0);
+}
+
+/*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
-system. This is called when the database is started. */
+system. This is called when the database is started.
+@return min binary heap of rsegs to purge */
 UNIV_INTERN
-void
+ib_bh_t*
 trx_sys_init_at_db_start(void)
 /*==========================*/
 {
+	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
 	trx_sysf_t*	sys_header;
 	ib_uint64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
-	mtr_t		mtr;
+
+	/* We create the min binary heap here and pass ownership to
+	purge when we init the purge sub-system. Purge is responsible
+	for freeing the binary heap. */
+
+	ib_bh = ib_bh_create(
+		trx_rseg_compare_last_trx_no,
+		sizeof(rseg_queue_t), TRX_SYS_N_RSEGS);
 
 	mtr_start(&mtr);
 
 	sys_header = trx_sysf_get(&mtr);
 
-	trx_rseg_array_init(sys_header, &mtr);
+	trx_rseg_array_init(sys_header, ib_bh, &mtr);
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
@@ -985,6 +1020,10 @@ trx_sys_init_at_db_start(void)
 	trx_dummy_sess = sess_open();
 
 	trx_lists_init_at_db_start();
+
+	/* This S lock is not strictly required, it is here only to satisfy
+	the debug code (assertions). We are still running in single threaded
+	bootstrap mode. */
 
 	rw_lock_s_lock(&trx_sys->lock);
 
@@ -1022,31 +1061,8 @@ trx_sys_init_at_db_start(void)
 	UT_LIST_INIT(trx_sys->view_list);
 
 	mtr_commit(&mtr);
-}
 
-/*****************************************************************//**
-Compare two trx_rseg_t instances on last_trx_no. */
-static
-int
-trx_rseg_compare_last_trx_no(
-/*=========================*/
-	const void*	p1,		/*!< in: elem to compare */
-	const void*	p2)		/*!< in: elem to compare */
-{
-	ib_int64_t	cmp;
-
-	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
-	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
-
-	cmp = rseg_q1->trx_no - rseg_q2->trx_no;
-
-	if (cmp < 0) {
-		return(-1);
-	} else if (cmp > 0) {
-		return(1);
-	}
-
-	return(0);
+	return(ib_bh);
 }
 
 /*****************************************************************//**
@@ -1060,10 +1076,6 @@ trx_sys_create(void)
 	ut_ad(trx_sys == NULL);
 
 	trx_sys = mem_zalloc(sizeof(*trx_sys));
-
-	trx_sys->ib_bh = ib_bh_create(
-		trx_rseg_compare_last_trx_no,
-	       	sizeof(rseg_queue_t), TRX_SYS_N_RSEGS * 128);
 
 	rw_lock_create(trx_sys_rw_lock_key, &trx_sys->lock, SYNC_TRX_SYS);
 
@@ -1693,8 +1705,6 @@ trx_sys_close(void)
 	rw_lock_x_unlock(&trx_sys->lock);
 
 	rw_lock_free(&trx_sys->lock);
-
-	ib_bh_free(trx_sys->ib_bh);
 
 	mem_free(trx_sys);
 

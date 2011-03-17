@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifdef MYSQL_CLIENT
@@ -583,7 +583,7 @@ char *str_to_hex(char *to, const char *from, uint len)
 */
 
 int
-append_query_string(CHARSET_INFO *csinfo,
+append_query_string(const CHARSET_INFO *csinfo,
                     String const *from, String *to)
 {
   char *beg, *ptr;
@@ -1323,6 +1323,8 @@ err:
       enough to stop the SQL thread now ; as we are skipping the current event,
       going on with reading and successfully executing other events can
       only corrupt the slave's databases. So stop.
+      The file->error is also checked to record the position of
+      the last valid event when master server recovers.
     */
     file->error= -1;
   }
@@ -1395,20 +1397,15 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   if (crc_check &&
       event_checksum_test((uchar *) buf, event_len, alg))
   {
-#ifdef MYSQL_CLIENT
     *error= "Event crc check failed! Most likely there is event corruption.";
+#ifdef MYSQL_CLIENT
     if (force_opt)
     {
       ev= new Unknown_log_event(buf, description_event);
       DBUG_RETURN(ev);
     }
-    else
-      DBUG_RETURN(NULL);
-#else
-    *error= ER(ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE);
-    sql_print_error("%s", ER(ER_BINLOG_READ_EVENT_CHECKSUM_FAILURE));
-    DBUG_RETURN(NULL);
 #endif
+    DBUG_RETURN(NULL);
   }
 
   if (event_type > description_event->number_of_event_types &&
@@ -10412,6 +10409,13 @@ int
 Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
+
+  if (ignored_error_code(ER_SLAVE_INCIDENT))
+  {
+    DBUG_PRINT("info", ("Ignoring Incident"));
+    DBUG_RETURN(0);
+  }
+   
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER(ER_SLAVE_INCIDENT),
               description(),

@@ -212,6 +212,7 @@ SET(TESTS
   dbug
   mdl
   mdl_mytap
+  my_bitmap
   my_decimal
   my_regex
   sql_list

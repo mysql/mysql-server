@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -78,7 +78,7 @@ static bool make_datetime(date_time_format_types format, MYSQL_TIME *ltime,
 			  String *str)
 {
   char *buff;
-  CHARSET_INFO *cs= &my_charset_numeric;
+  const CHARSET_INFO *cs= &my_charset_numeric;
   uint length= MAX_DATE_STRING_REP_LENGTH;
 
   if (str->alloc(length))
@@ -306,7 +306,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   const char *val_end= val + length;
   const char *ptr= format->format.str;
   const char *end= ptr + format->format.length;
-  CHARSET_INFO *cs= &my_charset_bin;
+  const CHARSET_INFO *cs= &my_charset_bin;
   DBUG_ENTER("extract_date_time");
 
   if (!sub_pattern_end)
@@ -874,7 +874,8 @@ bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
                          For example, '1.1' -> '1.100000'
 */
 
-static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
+static bool get_interval_info(const char *str, uint length,
+                              const CHARSET_INFO *cs,
                               uint count, ulonglong *values,
                               bool transform_msec)
 {
@@ -1119,7 +1120,7 @@ longlong Item_func_month::val_int()
 void Item_func_monthname::fix_length_and_dec()
 {
   THD* thd= current_thd;
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
@@ -1133,16 +1134,13 @@ String* Item_func_monthname::val_str(String* str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *month_name;
-  uint month= (uint) val_int();
   uint err;
+  MYSQL_TIME ltime;
 
-  if (null_value || !month)
-  {
-    null_value=1;
-    return (String*) 0;
-  }
-  null_value=0;
-  month_name= locale->month_names->type_names[month-1];
+  if ((null_value= (get_arg0_date(&ltime, TIME_FUZZY_DATE) || !ltime.month)))
+    return (String *) 0;
+
+  month_name= locale->month_names->type_names[ltime.month - 1];
   str->copy(month_name, (uint) strlen(month_name), &my_charset_utf8_bin,
 	    collation.collation, &err);
   return str;
@@ -1272,7 +1270,7 @@ longlong Item_func_weekday::val_int()
 void Item_func_dayname::fix_length_and_dec()
 {
   THD* thd= current_thd;
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
@@ -1416,7 +1414,7 @@ bool get_interval_value(Item *args,interval_type int_type,
   longlong UNINIT_VAR(value);
   const char *UNINIT_VAR(str);
   size_t UNINIT_VAR(length);
-  CHARSET_INFO *cs=str_value->charset();
+  const CHARSET_INFO *cs=str_value->charset();
 
   bzero((char*) interval,sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)
@@ -1879,7 +1877,7 @@ void Item_func_date_format::fix_length_and_dec()
   Item *arg1= args[1]->this_item();
 
   decimals=0;
-  CHARSET_INFO *cs= thd->variables.collation_connection;
+  const CHARSET_INFO *cs= thd->variables.collation_connection;
   uint32 repertoire= arg1->collation.repertoire;
   if (!thd->variables.lc_time_names->is_ascii)
     repertoire|= MY_REPERTOIRE_EXTENDED;

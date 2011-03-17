@@ -412,9 +412,8 @@ mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: End of line junk detected: "1000"
 mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
 mysqltest: At line 1: Cannot perform inc/dec on a non-numeric value
-mysqltest: At line 1: Missing arguments to system, nothing to do!
-mysqltest: At line 1: Missing arguments to system, nothing to do!
-system command 'NonExistsinfComamdn 2> /dev/null' failed
+mysqltest: At line 1: 'system' command  is deprecated, use exec or
+  see the manual for portable commands to use
 test
 test2
 test3

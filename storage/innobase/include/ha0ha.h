@@ -44,9 +44,10 @@ ha_search_and_get_data(
 	ulint		fold);	/*!< in: folded value of the searched data */
 /*********************************************************//**
 Looks for an element when we know the pointer to the data and updates
-the pointer to data if found. */
+the pointer to data if found.
+@return TRUE if found */
 UNIV_INTERN
-void
+ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
 	hash_table_t*	table,	/*!< in/out: hash table */
@@ -154,7 +155,10 @@ is inserted.
 @param f	in: folded value of data
 @param b	in: buffer block containing the data
 @param d	in: data, must not be NULL */
-# define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,b,d)
+# define ha_insert_for_fold(t,f,b,d) 	do {		\
+	ha_insert_for_fold_func(t,f,b,d);		\
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
+} while(0)
 #else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 /**
 Inserts an entry into a hash table. If an entry with the same fold number
@@ -165,7 +169,10 @@ is inserted.
 @param f	in: folded value of data
 @param b	ignored: buffer block containing the data
 @param d	in: data, must not be NULL */
-# define ha_insert_for_fold(t,f,b,d) ha_insert_for_fold_func(t,f,d)
+# define ha_insert_for_fold(t,f,b,d)	do {		\
+	ha_insert_for_fold_func(t,f,d);			\
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);	\
+} while (0)
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 /*********************************************************//**

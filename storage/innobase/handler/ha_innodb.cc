@@ -26,10 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -44,6 +42,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysql/plugin.h>
 #include <mysql/innodb_priv.h>
 #include <mysql/psi/psi.h>
+#include <my_sys.h>
 
 /** @file ha_innodb.cc */
 
@@ -272,7 +271,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_MEM_DEBUG */
 	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
 	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
-	{&purge_sys_mutex_key, "purge_sys_mutex", 0},
+	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
 	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
 	{&rseg_mutex_key, "rseg_mutex", 0},
 #  ifdef UNIV_SYNC_DEBUG
@@ -455,7 +454,7 @@ static SHOW_VAR innodb_status_variables[]= {
   {"os_log_pending_writes",
   (char*) &export_vars.innodb_os_log_pending_writes,	  SHOW_LONG},
   {"os_log_written",
-  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONG},
+  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONGLONG},
   {"page_size",
   (char*) &export_vars.innodb_page_size,		  SHOW_LONG},
   {"pages_created",
@@ -804,7 +803,7 @@ innobase_commit_low(
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can enable monitor counters/groups by specifying
-"loose-innodb_enable_monitor_counter = monitor_name1;monitor_name2..."
+"loose-innodb_monitor_enable = monitor_name1;monitor_name2..."
 in server configuration file or at the command line. */
 static
 void
@@ -1322,6 +1321,20 @@ innobase_wildcasecmp(
 	const char*	b)	/*!< in: wildcard string to compare */
 {
 	return(wild_case_compare(system_charset_info, a, b));
+}
+
+/******************************************************************//**
+Strip dir name from a full path name and return only the file name
+@return file name or "null" if no file name */
+extern "C" UNIV_INTERN
+const char*
+innobase_basename(
+/*==============*/
+	const char*	path_name)	/*!< in: full path name */
+{
+	const char*	name = base_name(path_name);
+
+	return((name) ? name : "null");
 }
 
 /******************************************************************//**
@@ -2423,14 +2436,6 @@ innobase_init(
 
 			goto error;
 		}
-
-		if (innobase_log_file_size > UINT_MAX32) {
-			sql_print_error(
-				"innobase_log_file_size can't be over 4GB"
-				" on 32-bit systems");
-
-			goto error;
-		}
 	}
 
 	os_innodb_umask = (ulint)my_umask;
@@ -2604,7 +2609,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
-	srv_log_file_size = (ulint) innobase_log_file_size;
+	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
 
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
@@ -2751,6 +2756,9 @@ innobase_change_buffering_inited_ok:
 			innobase_enable_monitor_counter);
 	}
 
+	/* Turn on monitor counters that are default on */
+	srv_mon_default_on();
+
 	btr_search_fully_disabled = (!btr_search_enabled);
 	DBUG_RETURN(FALSE);
 error:
@@ -2827,6 +2835,7 @@ innobase_alter_table_flags(
 		| HA_INPLACE_ADD_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
+		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
@@ -4054,9 +4063,14 @@ retry:
 			that user can adopt necessary measures for the
 			mismatch while still being accessible to the table
 			date. */
-			ref_length = table->key_info[0].key_length;
+			if (!table->key_info) {
+				ut_ad(!table->s->keys);
+				ref_length = 0;
+			} else {
+				ref_length = table->key_info[0].key_length;
+			}
 
-			/* Find correspoinding cluster index
+			/* Find corresponding cluster index
 			key length in MySQL's key_info[] array */
 			for (ulint i = 0; i < table->s->keys; i++) {
 				dict_index_t*	index;
@@ -4555,7 +4569,7 @@ ha_innobase::store_key_val_for_row(
 			const byte*	data;
 			ulint		key_len;
 			ulint		true_len;
-			CHARSET_INFO*	cs;
+			const CHARSET_INFO* cs;
 			int		error=0;
 
 			key_len = key_part->length;
@@ -4619,7 +4633,7 @@ ha_innobase::store_key_val_for_row(
 			as BLOB data in innodb. */
 			|| mysql_type == MYSQL_TYPE_GEOMETRY) {
 
-			CHARSET_INFO*	cs;
+			const CHARSET_INFO* cs;
 			ulint		key_len;
 			ulint		true_len;
 			int		error=0;
@@ -4687,7 +4701,7 @@ ha_innobase::store_key_val_for_row(
 			value we store may be also in a column prefix
 			index. */
 
-			CHARSET_INFO*		cs = NULL;
+			const CHARSET_INFO*	cs = NULL;
 			ulint			true_len;
 			ulint			key_len;
 			const uchar*		src_start;
@@ -9752,7 +9766,8 @@ innodb_mutex_show_status(
 			if (mutex->count_using > 0) {
 				buf1len= my_snprintf(buf1, sizeof(buf1),
 					"%s:%s",
-					mutex->cmutex_name, mutex->cfile_name);
+					mutex->cmutex_name,
+					innobase_basename(mutex->cfile_name));
 				buf2len= my_snprintf(buf2, sizeof(buf2),
 					"count=%lu, spin_waits=%lu,"
 					" spin_rounds=%lu, "
@@ -9782,7 +9797,8 @@ innodb_mutex_show_status(
 		}
 #else /* UNIV_DEBUG */
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     mutex->cfile_name, (ulong) mutex->cline);
+				     innobase_basename(mutex->cfile_name),
+				     (ulong) mutex->cline);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     (ulong) mutex->count_os_wait);
 
@@ -9798,7 +9814,8 @@ innodb_mutex_show_status(
 	if (block_mutex) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 					     "combined %s:%lu",
-					     block_mutex->cfile_name,
+					     innobase_basename(
+						block_mutex->cfile_name),
 					     (ulong) block_mutex->cline);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
@@ -9829,7 +9846,8 @@ innodb_mutex_show_status(
 		}
 
 		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
-				     lock->cfile_name, (ulong) lock->cline);
+				     innobase_basename(lock->cfile_name),
+				     (ulong) lock->cline);
 		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
 				      (ulong) lock->count_os_wait);
 
@@ -9844,7 +9862,8 @@ innodb_mutex_show_status(
 	if (block_lock) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 					     "combined %s:%lu",
-					     block_lock->cfile_name,
+					     innobase_basename(
+						block_lock->cfile_name),
 					     (ulong) block_lock->cline);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
@@ -11701,21 +11720,46 @@ innodb_monitor_validate(
 						for update function */
 	struct st_mysql_value*		value)	/*!< in: incoming string */
 {
-	const char*	monitor_name;
+	const char*	name;
+	char*		monitor_name;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
 	int		len = sizeof(buff);
+	int		ret;
 
 	ut_a(save != NULL);
 	ut_a(value != NULL);
 
-	monitor_name = value->val_str(value, buff, &len);
+	name = value->val_str(value, buff, &len);
 
-	return(innodb_monitor_valid_byname(save, monitor_name));
+	/* monitor_name could point to memory from MySQL
+	or buff[]. Always dup the name to memory allocated
+	by InnoDB, so we can access it in another callback
+	function innodb_monitor_update() and free it appropriately */
+	if (name) {
+		monitor_name = my_strdup(name, MYF(0));
+	} else {
+		return(1);
+	}
+
+	ret = innodb_monitor_valid_byname(save, monitor_name);
+
+	if (ret) {
+		/* Validation failed */
+		my_free(monitor_name);
+	} else {
+		/* monitor_name will be freed in separate callback function
+		innodb_monitor_update(). Assert "save" point to
+		the "monitor_name" variable */
+		ut_ad(*static_cast<char**>(save) == monitor_name);
+	}
+
+	return(ret);
 }
 
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_* according to
-the "set_option" and turn on/off or reset specified monitor counter. */
+Update the system variable innodb_enable(disable/reset/reset_all)_monitor
+according to the "set_option" and turn on/off or reset specified monitor
+counter. */
 static
 void
 innodb_monitor_update(
@@ -11725,9 +11769,11 @@ innodb_monitor_update(
 						formal string goes */
 	const void*		save,		/*!< in: immediate result
 						from check function */
-	mon_option_t		set_option)	/*!< in: the set option,
+	mon_option_t		set_option,	/*!< in: the set option,
 						whether to turn on/off or
 						reset the counter */
+	ibool			free_mem)	/*!< in: whether we will
+						need to free the memory */
 {
 	monitor_info_t*	monitor_info;
 	ulint		monitor_id;
@@ -11812,11 +11858,15 @@ exit:
 				  srv_mon_get_name((monitor_id_t)err_monitor));
 	}
 
+	if (free_mem && name) {
+		my_free((void*) name);
+	}
+
 	return;
 }
 
 /****************************************************************//**
-Update the system variable innodb_enable_monitor_counter and enable 
+Update the system variable innodb_monitor_enable and enable
 specified monitor counter.
 This function is registered as a callback with MySQL. */
 static
@@ -11831,11 +11881,11 @@ innodb_enable_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON, TRUE);
 }
 
 /****************************************************************//**
-Update the system variable innodb_disable_monitor_counter and turn
+Update the system variable innodb_monitor_disable and turn
 off specified monitor counter. */
 static
 void
@@ -11849,11 +11899,11 @@ innodb_disable_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF, TRUE);
 }
 
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_reset and reset
+Update the system variable innodb_monitor_reset and reset
 specified monitor counter(s).
 This function is registered as a callback with MySQL. */
 static
@@ -11868,11 +11918,11 @@ innodb_reset_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE, TRUE);
 }
 
 /****************************************************************//**
-Update the system variable innodb_monitor_counter_reset_all and reset
+Update the system variable innodb_monitor_reset_all and reset
 all value related monitor counter.
 This function is registered as a callback with MySQL. */
 static
@@ -11887,13 +11937,14 @@ innodb_reset_all_monitor_update(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE);
+	innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE,
+			      TRUE);
 }
 
 /****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can list the monitor counters/groups to be enable by specifying
-"loose-innodb_enable_monitor_counter=monitor_name1;monitor_name2..."
+"loose-innodb_monitor_enable=monitor_name1;monitor_name2..."
 in server configuration file or at the command line. The string
 separate could be ";", "," or empty space. */
 static
@@ -11922,7 +11973,7 @@ innodb_enable_monitor_at_startup(
 		/* The name is validated if ret == 0 */
 		if (!ret) {
 			innodb_monitor_update(NULL, NULL, &option,
-					      MONITOR_TURN_ON);
+					      MONITOR_TURN_ON, FALSE);
 		} else {
 			sql_print_warning("Invalid monitor counter"
 					  " name: '%s'", option);
@@ -12024,12 +12075,19 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
 
 static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
   PLUGIN_VAR_OPCMDARG,
-  "Number of UNDO logs to purge in one batch from the history list. "
-  "Default is 20",
+  "Number of UNDO log pages to purge in one batch from the history list.",
   NULL, NULL,
   20,			/* Default setting */
   1,			/* Minimum value */
   5000, 0);		/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(rollback_segments, srv_rollback_segments,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of UNDO logs to use.",
+  NULL, NULL,
+  128,			/* Default setting */
+  1,			/* Minimum value */
+  TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -12348,25 +12406,25 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-static MYSQL_SYSVAR_STR(enable_monitor_counter, innobase_enable_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_enable, innobase_enable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn on a monitor counter",
   innodb_monitor_validate,
   innodb_enable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(disable_monitor_counter, innobase_disable_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_disable, innobase_disable_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Turn off a monitor counter",
   innodb_monitor_validate,
   innodb_disable_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(reset_monitor_counter, innobase_reset_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_reset, innobase_reset_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset a monitor counter",
   innodb_monitor_validate,
   innodb_reset_monitor_update, NULL);
 
-static MYSQL_SYSVAR_STR(reset_all_monitor_counter, innobase_reset_all_monitor_counter,
+static MYSQL_SYSVAR_STR(monitor_reset_all, innobase_reset_all_monitor_counter,
   PLUGIN_VAR_RQCMDARG,
   "Reset all values for a monitor counter",
   innodb_monitor_validate,
@@ -12444,16 +12502,17 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(enable_monitor_counter),
-  MYSQL_SYSVAR(disable_monitor_counter),
-  MYSQL_SYSVAR(reset_monitor_counter),
-  MYSQL_SYSVAR(reset_all_monitor_counter),
+  MYSQL_SYSVAR(monitor_enable),
+  MYSQL_SYSVAR(monitor_disable),
+  MYSQL_SYSVAR(monitor_reset),
+  MYSQL_SYSVAR(monitor_reset_all),
   MYSQL_SYSVAR(purge_threads),
   MYSQL_SYSVAR(purge_batch_size),
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
   MYSQL_SYSVAR(page_hash_locks),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(rollback_segments),
   NULL
 };
 
@@ -12462,7 +12521,7 @@ mysql_declare_plugin(innobase)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
   innobase_hton_name,
-  "Innobase Oy",
+  plugin_author,
   "Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */
