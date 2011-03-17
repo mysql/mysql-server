@@ -597,10 +597,9 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 
-  uint is_parent_of_pushed_join() const;
-  const handler* member_of_pushed_join() const
-  { return m_pushed_join_member;
-  }
+  uint number_of_pushed_joins() const;
+  const TABLE* root_of_pushed_join() const;
+  const TABLE* parent_of_pushed_join() const;
 
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map);
@@ -853,8 +852,6 @@ private:
 
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
-  NdbQuery* m_active_query;
-  NdbQueryOperation* m_pushed_operation;
 
   const NdbDictionary::Table *m_table;
   /*
@@ -940,9 +937,14 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  const class ndb_pushed_join *m_pushed_join; // Pushed join def. if I am parent
-  const ha_ndbcluster *m_pushed_join_member;  // Parent handler instance
-  bool m_disable_pushed_join;            // Execution allowed?
+  const class ndb_pushed_join
+       *m_pushed_join_member;            // Pushed join def. I am member of
+  int m_pushed_join_operation;           // Op. id. in above pushed join
+  static const uint PUSHED_ROOT= 0;      // Op. id. if I'm root
+
+  bool m_disable_pushed_join;            // Pushed execution allowed?
+  NdbQuery* m_active_query;              // Pushed query instance executing
+  NdbQueryOperation* m_pushed_operation; // Pushed operation instance
 
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
