@@ -616,6 +616,11 @@ NdbQueryIndexScanOperationDefImpl& getImpl(const NdbQueryIndexScanOperationDef& 
 }
 
 
+Uint32
+NdbQueryOperationDef::getQueryOperationIx() const
+{
+  return ::getImpl(*this).getQueryOperationIx();
+}
 
 Uint32
 NdbQueryOperationDef::getNoOfParentOperations() const

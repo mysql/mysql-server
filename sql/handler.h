@@ -1890,17 +1890,24 @@ public:
  virtual void cond_pop() { return; };
 
   /**
-    Reports #tables included in pushed join starting from 
-    this handler instance.
+    Reports #tables included in pushed join which this
+    handler instance is part of. ==0 -> Not pushed
   */
-  virtual uint is_parent_of_pushed_join() const
+  virtual uint number_of_pushed_joins() const
   { return 0; }
 
   /**
-    Is this handler instance part of a pushed join sequence
-    having the returned handler instance as parent?
+    If this handler instance is part of a pushed join sequence
+    returned TABLE instance being root of the pushed query?
   */
-  virtual const handler* member_of_pushed_join() const
+  virtual const TABLE* root_of_pushed_join() const
+  { return NULL; }
+
+  /**
+    If this handler instance is a child in a pushed join sequence
+    returned TABLE instance being my parent?
+  */
+  virtual const TABLE* parent_of_pushed_join() const
   { return NULL; }
 
   virtual bool test_push_flag(enum ha_push_flag flag) const

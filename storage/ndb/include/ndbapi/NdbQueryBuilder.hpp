@@ -223,6 +223,11 @@ public:
 
   static const char* getTypeName(Type type);
 
+  /**
+   * Get the ordinal position of this operation within the QueryDef.
+   */
+  Uint32 getQueryOperationIx() const;
+
   Uint32 getNoOfParentOperations() const;
   const NdbQueryOperationDef* getParentOperation(Uint32 i) const;
 

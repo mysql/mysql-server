@@ -1670,12 +1670,14 @@ make_pushed_join(THD *thd, JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
 
-    if (tab->table->file->member_of_pushed_join())
+    uint pushed_joins= tab->table->file->number_of_pushed_joins();
+    if (pushed_joins > 0)
     {
-      uint pushed_joins= tab->table->file->is_parent_of_pushed_join();
-      active_pushed_joins += pushed_joins;
-
-      if (pushed_joins == 0)
+      if (tab->table->file->root_of_pushed_join() == tab->table)
+      {
+        active_pushed_joins += pushed_joins;
+      }
+      else  
       {
         // Is child of a pushed join operation:
         // Replace 'read_key' access with its linked counterpart 
@@ -1694,7 +1696,7 @@ make_pushed_join(THD *thd, JOIN *join)
    * or write to a temp. table later being filesorted.
    */
   if (join->const_tables < join->tables &&
-      join->join_tab[join->const_tables].table->file->is_parent_of_pushed_join())
+      join->join_tab[join->const_tables].table->file->number_of_pushed_joins() > 0)
   {
     const handler *ha=join->join_tab[join->const_tables].table->file;
 
@@ -17198,8 +17200,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
       else
       {
-        const handler* pushed_join= table->file->member_of_pushed_join();
-        if (pushed_join)
+        const TABLE* pushed_root= table->file->root_of_pushed_join();
+        if (pushed_root)
         {
           char buf[64];
           int len;
@@ -17207,16 +17209,17 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
           for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
           {
-            if (prev->table->file->is_parent_of_pushed_join() > 0)
+            const TABLE* prev_root= prev->table->file->root_of_pushed_join();
+            if (prev_root == prev->table)
             {
               pushed_id++;
-              if (prev->table->file->member_of_pushed_join() == pushed_join)
+              if (prev_root == pushed_root)
                 break;
             }
           }
-          uint pushed_count= tab->table->file->is_parent_of_pushed_join();
-          if (pushed_count > 0)
+          if (pushed_root == table)
           {
+            uint pushed_count= tab->table->file->number_of_pushed_joins();
 	    len= my_snprintf(buf, sizeof(buf)-1,
                              "; Parent of %d pushed join@%d",
                              pushed_count, pushed_id);
