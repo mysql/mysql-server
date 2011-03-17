@@ -699,6 +699,8 @@ public:
     collation.set(&my_charset_bin);
     maybe_null= 1;
     max_length= MAX_TIME_WIDTH;
+    if (decimals == NOT_FIXED_DEC)
+      decimals= args[0]->decimals;
     if (decimals && decimals != NOT_FIXED_DEC)
       max_length+= min(decimals, MAX_SEC_PART_DIGITS) + 1;
   }

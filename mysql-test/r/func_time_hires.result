@@ -149,3 +149,21 @@ select * from t1;
 a
 2011-01-01 01:01:01.123456
 drop table t1;
+create table t1 (f1 timestamp(6));
+insert into t1 values ('2002-07-15 21:00:00');
+select time(f1) from t1;
+time(f1)
+21:00:00.000000
+select time(f1) from t1 union all select time(f1) from t1;
+time(f1)
+21:00:00.000000
+21:00:00.000000
+alter table t1 modify f1 varchar(100);
+select time(f1) from t1;
+time(f1)
+21:00:00
+select time(f1) from t1 union all select time(f1) from t1;
+time(f1)
+21:00:00.000000
+21:00:00.000000
+drop table t1;

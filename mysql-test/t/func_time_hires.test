@@ -78,3 +78,19 @@ insert t1 values (now(6));
 select * from t1;
 drop table t1;
 
+#
+# lp:736358 Unexpected increased timestamp resolution with UNION
+#
+# timestamp(6) case is fixed:
+create table t1 (f1 timestamp(6));
+insert into t1 values ('2002-07-15 21:00:00');
+select time(f1) from t1;
+select time(f1) from t1 union all select time(f1) from t1;
+#alter table t1 modify f1 timestamp;
+#select time(f1) from t1;
+#select time(f1) from t1 union all select time(f1) from t1;
+# but the effect cannot be eliminated completely:
+alter table t1 modify f1 varchar(100);
+select time(f1) from t1;
+select time(f1) from t1 union all select time(f1) from t1;
+drop table t1;
