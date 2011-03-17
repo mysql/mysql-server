@@ -117,6 +117,8 @@ a
 include/check_slave_is_running.inc
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: 1535");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: 1677");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
 Last_SQL_Error = 'Column 0 of table 'test.t4' cannot be converted from type 'int' to type 'float''
 INSERT INTO t9 VALUES (5);

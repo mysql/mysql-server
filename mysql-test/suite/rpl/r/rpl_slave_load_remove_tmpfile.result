@@ -1,17 +1,21 @@
 include/master-slave.inc
 [connection master]
+SET @@GLOBAL.DEBUG = '+d,remove_slave_load_file_before_write';
 create table t1(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 start transaction;
 insert into t1(b) values (1);
 insert into t1(b) values (2);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 commit;
-include/wait_for_slave_sql_to_stop.inc
+include/wait_for_slave_sql_error.inc [errno=29, 13]
 drop table t1;
 include/sync_slave_io_with_master.inc
 include/stop_slave_io.inc
 RESET SLAVE;
 drop table t1;
 call mtr.add_suppression("Slave: Can't get stat of .*");
+call mtr.add_suppression("Slave SQL: Error .Can.t get stat of.* Error_code: 13");
 call mtr.add_suppression("Slave: File.* not found.*");
+call mtr.add_suppression("Slave SQL: Error .File.* not found.* Error_code: 29");
+SET @@GLOBAL.DEBUG = '';
 include/rpl_end.inc
