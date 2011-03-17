@@ -29,6 +29,8 @@ SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
 SET(CMAKE_MAKE_PROGRAM "@CMAKE_MAKE_PROGRAM@")
 SET(CMAKE_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@")
 
+SET(VERSION "@VERSION@")
+
 SET(MYSQL_DOCS_LOCATION "@MYSQL_DOCS_LOCATION@")
 
 
@@ -99,6 +101,10 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
    ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
    ${PACKAGE_DIR}/sql/sql_yacc.cc COPYONLY)
+
+# Copy spec files
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/support-files/mysql.${VERSION}.spec
+   ${PACKAGE_DIR}/support-files/mysql.${VERSION}.spec COPYONLY)
 
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)

@@ -167,12 +167,15 @@ static
 trx_rseg_t*
 trx_rseg_mem_create(
 /*================*/
-	ulint	id,		/*!< in: rollback segment id */
-	ulint	space,		/*!< in: space where the segment placed */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no,	/*!< in: page number of the segment header */
-	mtr_t*	mtr)		/*!< in: mtr */
+	ulint		id,		/*!< in: rollback segment id */
+	ulint		space,		/*!< in: space where the segment
+					placed */
+	ulint		zip_size,	/*!< in: compressed page size in bytes
+					or 0 for uncompressed pages */
+	ulint		page_no,	/*!< in: page number of the segment
+					header */
+	ib_bh_t*	ib_bh,		/*!< in/out: rseg queue */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		len;
 	trx_rseg_t*	rseg;
@@ -194,50 +197,55 @@ trx_rseg_mem_create(
 
 	rseg_header = trx_rsegf_get_new(space, zip_size, page_no, mtr);
 
-	rseg->max_size = mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE,
-					MLOG_4BYTES, mtr);
+	rseg->max_size = mtr_read_ulint(
+		rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, mtr);
 
 	/* Initialize the undo log lists according to the rseg header */
 
 	sum_of_undo_sizes = trx_undo_lists_init(rseg);
 
-	rseg->curr_size = mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE,
-					 MLOG_4BYTES, mtr)
+	rseg->curr_size = mtr_read_ulint(
+		rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, mtr)
 		+ 1 + sum_of_undo_sizes;
 
 	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
+
 	if (len > 0) {
-		void*		ptr;
 		rseg_queue_t	rseg_queue;
 
 		trx_sys->rseg_history_len += len;
 
 		node_addr = trx_purge_get_log_from_hist(
 			flst_get_last(rseg_header + TRX_RSEG_HISTORY, mtr));
+
 		rseg->last_page_no = node_addr.page;
 		rseg->last_offset = node_addr.boffset;
 
-		undo_log_hdr = trx_undo_page_get(rseg->space, rseg->zip_size,
-						 node_addr.page,
-						 mtr) + node_addr.boffset;
+		undo_log_hdr = trx_undo_page_get(
+			rseg->space, rseg->zip_size, node_addr.page,
+			mtr) + node_addr.boffset;
 
 		rseg->last_trx_no = mach_read_from_8(
 			undo_log_hdr + TRX_UNDO_TRX_NO);
+
 		rseg->last_del_marks = mtr_read_ulint(
 			undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
 
 		rseg_queue.rseg = rseg;
 		rseg_queue.trx_no = rseg->last_trx_no;
 
-		/* There is no need to cover this operation by the purge
-		mutex because we are still bootstrapping. */
+		if (rseg->last_page_no != FIL_NULL) {
+			const void*	ptr;
 
-		ptr = ib_bh_push(trx_sys->ib_bh, &rseg_queue);
-		ut_a(ptr != NULL);
+			/* There is no need to cover this operation by the purge
+			mutex because we are still bootstrapping. */
+
+			ptr = ib_bh_push(ib_bh, &rseg_queue);
+			ut_a(ptr != NULL);
+		}
 	} else {
 		rseg->last_page_no = FIL_NULL;
 	}
-
 
 	return(rseg);
 }
@@ -249,8 +257,9 @@ static
 void
 trx_rseg_create_instance(
 /*=====================*/
-	trx_sysf_t*	sys_header,	/*!< in/out: trx system header */
-	mtr_t*		mtr)		/*!< in/out: mtr */
+	trx_sysf_t*	sys_header,	/*!< in: trx system header */
+	ib_bh_t*	ib_bh,		/*!< in/out: rseg queue */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		i;
 
@@ -273,7 +282,7 @@ trx_rseg_create_instance(
 			zip_size = space ? fil_space_get_zip_size(space) : 0;
 
 			rseg = trx_rseg_mem_create(
-				i, space, zip_size, page_no, mtr);
+				i, space, zip_size, page_no, ib_bh, mtr);
 
 			ut_a(rseg->id == i);
 		}
@@ -318,7 +327,8 @@ trx_rseg_create(void)
 		zip_size = space ? fil_space_get_zip_size(space) : 0;
 
 		rseg = trx_rseg_mem_create(
-			slot_no, space, zip_size, page_no, &mtr);
+			slot_no, space, zip_size, page_no,
+			purge_sys->ib_bh, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -334,9 +344,10 @@ void
 trx_rseg_array_init(
 /*================*/
 	trx_sysf_t*	sys_header,	/* in/out: trx system header */
-	mtr_t*		mtr)		/* in/out: mtr */
+	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_sys->rseg_history_len = 0;
 
-	trx_rseg_create_instance(sys_header, mtr);
+	trx_rseg_create_instance(sys_header, ib_bh, mtr);
 }

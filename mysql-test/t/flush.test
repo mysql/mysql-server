@@ -644,3 +644,27 @@ disconnect con2;
 --source include/wait_until_disconnected.inc
 connection default;
 drop tables t1, t2;
+
+
+--echo #
+--echo # Bug#57649 FLUSH TABLES under FLUSH TABLES <list> WITH READ LOCK leads
+--echo #           to assert failure.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+FLUSH TABLES t1 WITH READ LOCK;
+
+# All these triggered the assertion
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+FLUSH TABLES;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a= 1;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE t1 COMMENT 'test';
+
+UNLOCK TABLES;
+DROP TABLE t1;

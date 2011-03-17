@@ -43,6 +43,7 @@ Created 9/5/1995 Heikki Tuuri
 #ifdef UNIV_SYNC_DEBUG
 # include "srv0start.h" /* srv_is_being_started */
 #endif /* UNIV_SYNC_DEBUG */
+#include "ha_prototypes.h"
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
@@ -544,7 +545,8 @@ spin_loop:
 		"Thread %lu spin wait mutex at %p"
 		" cfile %s cline %lu rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+		innobase_basename(mutex->cfile_name),
+		(ulong) mutex->cline, (ulong) i);
 #endif
 
 	mutex_spin_round_count += i;
@@ -621,7 +623,8 @@ spin_loop:
 	fprintf(stderr,
 		"Thread %lu OS wait mutex at %p cfile %s cline %lu rnds %lu\n",
 		(ulong) os_thread_pf(os_thread_get_curr_id()), (void*) mutex,
-		mutex->cfile_name, (ulong) mutex->cline, (ulong) i);
+		innobase_basename(mutex->cfile_name),
+		(ulong) mutex->cline, (ulong) i);
 #endif
 
 	mutex_os_wait_count++;
@@ -870,7 +873,8 @@ sync_print_warning(
 	if (mutex->magic_n == MUTEX_MAGIC_N) {
 		fprintf(stderr,
 			"Mutex created at %s %lu\n",
-			mutex->cfile_name, (ulong) mutex->cline);
+			innobase_basename(mutex->cfile_name),
+			(ulong) mutex->cline);
 
 		if (mutex_get_lock_word(mutex) != 0) {
 			ulint		line;
@@ -1176,7 +1180,7 @@ sync_thread_add_level(
 	case SYNC_RSEG:
 	case SYNC_TRX_UNDO:
 	case SYNC_PURGE_LATCH:
-	case SYNC_PURGE_SYS:
+	case SYNC_PURGE_QUEUE:
 	case SYNC_DICT_AUTOINC_MUTEX:
 	case SYNC_DICT_OPERATION:
 	case SYNC_DICT_HEADER:
@@ -1258,10 +1262,16 @@ sync_thread_add_level(
 		     || sync_thread_levels_g(array, SYNC_FSP, TRUE));
 		break;
 	case SYNC_TRX_UNDO_PAGE:
+		/* Purge is allowed to read in as many UNDO pages as it likes,
+		there was a bogus rule here earlier that forced the caller to
+		acquire the purge_sys_t::mutex. The purge mutex did not really
+		protect anything because it was only ever acquired by the
+		single purge thread. The purge thread can read the UNDO pages
+		without any covering mutex. */
+
 		ut_a(sync_thread_levels_contain(array, SYNC_TRX_UNDO)
 		     || sync_thread_levels_contain(array, SYNC_RSEG)
-		     || sync_thread_levels_contain(array, SYNC_PURGE_SYS)
-		     || sync_thread_levels_g(array, SYNC_TRX_UNDO_PAGE, TRUE));
+		     || sync_thread_levels_g(array, level - 1, TRUE));
 		break;
 	case SYNC_RSEG_HEADER:
 		ut_a(sync_thread_levels_contain(array, SYNC_RSEG));

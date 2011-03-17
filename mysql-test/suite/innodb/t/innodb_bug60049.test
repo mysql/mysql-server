@@ -13,7 +13,7 @@ let $MYSQLD_DATADIR=`select @@datadir`;
 
 # Shut down the server
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- shutdown_server 10
+-- shutdown_server 30
 -- source include/wait_until_disconnected.inc
 
 # Check the tail of ID_IND (SYS_TABLES.ID)
