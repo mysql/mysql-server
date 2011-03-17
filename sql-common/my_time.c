@@ -654,7 +654,7 @@ fractional:
   l_time->time_type= MYSQL_TIMESTAMP_TIME;
 
   /* Check if the value is valid and fits into MYSQL_TIME range */
-  if (check_time_range(l_time, warning))
+  if (check_time_range(l_time, 6, warning))
     return MYSQL_TIMESTAMP_ERROR;
   
   /* Check if there is garbage at end of the MYSQL_TIME specification */
@@ -679,6 +679,7 @@ fractional:
   SYNOPSIS:
     check_time_range()
     time     pointer to MYSQL_TIME value
+    uint     dec
     warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of range
 
   DESCRIPTION
@@ -691,17 +692,24 @@ fractional:
     1        time value is invalid
 */
 
-int check_time_range(struct st_mysql_time *my_time, int *warning) 
+int check_time_range(struct st_mysql_time *my_time, uint dec, int *warning) 
 {
   longlong hour;
+  static ulong max_sec_part[MAX_SEC_PART_DIGITS+1]= {000000, 900000, 990000,
+                                             999000, 999900, 999990, 999999};
 
   if (my_time->minute >= 60 || my_time->second >= 60)
     return 1;
 
   hour= my_time->hour + (24*my_time->day);
+
+  if (dec == AUTO_SEC_PART_DIGITS)
+    dec= MAX_SEC_PART_DIGITS;
+
   if (hour <= TIME_MAX_HOUR &&
       (hour != TIME_MAX_HOUR || my_time->minute != TIME_MAX_MINUTE ||
-       my_time->second != TIME_MAX_SECOND || !my_time->second_part))
+       my_time->second != TIME_MAX_SECOND ||
+       my_time->second_part <= max_sec_part[dec]))
     return 0;
 
   my_time->day= 0;

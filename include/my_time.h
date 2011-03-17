@@ -92,7 +92,7 @@ double TIME_to_double(const MYSQL_TIME *my_time);
 longlong pack_time(MYSQL_TIME *my_time);
 MYSQL_TIME *unpack_time(longlong packed, MYSQL_TIME *my_time);
 
-int check_time_range(struct st_mysql_time *, int *warning);
+int check_time_range(struct st_mysql_time *my_time, uint dec, int *warning);
 
 long calc_daynr(uint year,uint month,uint day);
 uint calc_days_in_year(uint year);

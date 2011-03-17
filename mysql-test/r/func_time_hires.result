@@ -158,6 +158,14 @@ select time(f1) from t1 union all select time(f1) from t1;
 time(f1)
 21:00:00.000000
 21:00:00.000000
+alter table t1 modify f1 timestamp;
+select time(f1) from t1;
+time(f1)
+21:00:00
+select time(f1) from t1 union all select time(f1) from t1;
+time(f1)
+21:00:00
+21:00:00
 alter table t1 modify f1 varchar(100);
 select time(f1) from t1;
 time(f1)

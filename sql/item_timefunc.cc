@@ -2482,7 +2482,7 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   MYSQL_TIME copy= *ltime;
   Lazy_string_time str(&copy);
 
-  check_time_range(ltime, &was_cut);
+  check_time_range(ltime, decimals, &was_cut);
   if (was_cut)
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  &str, MYSQL_TIMESTAMP_TIME, NullS);
@@ -2561,7 +2561,7 @@ bool Item_func_timediff::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     goto null_date;
 
   *ltime= l_time3;
-  check_time_range(ltime, &was_cut);
+  check_time_range(ltime, decimals, &was_cut);
 
   if (was_cut)
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,

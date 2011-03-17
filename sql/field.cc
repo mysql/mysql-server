@@ -5348,7 +5348,7 @@ int Field_time::store_time(MYSQL_TIME *ltime, timestamp_type time_type)
   Lazy_string_time str(ltime);
   int was_cut= 0;
 
-  int have_smth_to_conv= !check_time_range(&l_time, &was_cut);
+  int have_smth_to_conv= !check_time_range(&l_time, decimals(), &was_cut);
   return store_TIME_with_warning(&l_time, &str, was_cut, have_smth_to_conv);
 }
 

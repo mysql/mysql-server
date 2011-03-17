@@ -365,6 +365,14 @@ static void do_field_decimal(Copy_field *copy)
 }
 
 
+static void do_field_temporal(Copy_field *copy)
+{
+  MYSQL_TIME ltime;
+  copy->from_field->get_date(&ltime, TIME_FUZZY_DATE);
+  copy->to_field->store_time(&ltime, ltime.time_type);
+}
+
+
 /**
   string copy for single byte characters set when to string is shorter than
   from string.
@@ -559,7 +567,7 @@ void Copy_field::set(uchar *to,Field *from)
 /*
   To do: 
 
-  If 'save\ is set to true and the 'from' is a blob field, do_copy is set to
+  If 'save' is set to true and the 'from' is a blob field, do_copy is set to
   do_save_blob rather than do_conv_blob.  The only differences between them
   appears to be:
 
@@ -657,6 +665,8 @@ Copy_field::get_copy_func(Field *to,Field *from)
       return do_field_int;
     if (to->result_type() == DECIMAL_RESULT)
       return do_field_decimal;
+    if (to->cmp_type() == TIME_RESULT)
+      return do_field_temporal;
     // Check if identical fields
     if (from->result_type() == STRING_RESULT)
     {
