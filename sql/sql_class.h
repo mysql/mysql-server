@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef SQL_CLASS_INCLUDED
 #define SQL_CLASS_INCLUDED
 
@@ -119,14 +118,14 @@ class CSET_STRING
 {
 private:
   LEX_STRING string;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
 public:
   CSET_STRING() : cs(&my_charset_bin)
   {
     string.str= NULL;
     string.length= 0;
   }
-  CSET_STRING(char *str_arg, size_t length_arg, CHARSET_INFO *cs_arg) :
+  CSET_STRING(char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
   cs(cs_arg)
   {
     DBUG_ASSERT(cs_arg != NULL);
@@ -136,7 +135,7 @@ public:
 
   inline char *str() const { return string.str; }
   inline uint32 length() const { return string.length; }
-  CHARSET_INFO *charset() const { return cs; }
+  const CHARSET_INFO *charset() const { return cs; }
 
   friend LEX_STRING * thd_query_string (MYSQL_THD thd);
   friend char **thd_query(MYSQL_THD thd);
@@ -495,14 +494,14 @@ typedef struct system_variables
   plugin_ref table_plugin;
 
   /* Only charset part of these variables is sensible */
-  CHARSET_INFO  *character_set_filesystem;
-  CHARSET_INFO  *character_set_client;
-  CHARSET_INFO  *character_set_results;
+  const CHARSET_INFO *character_set_filesystem;
+  const CHARSET_INFO *character_set_client;
+  const CHARSET_INFO *character_set_results;
 
   /* Both charset and collation parts of these variables are important */
-  CHARSET_INFO	*collation_server;
-  CHARSET_INFO	*collation_database;
-  CHARSET_INFO  *collation_connection;
+  const CHARSET_INFO  *collation_server;
+  const CHARSET_INFO  *collation_database;
+  const CHARSET_INFO  *collation_connection;
 
   /* Error messages */
   MY_LOCALE *lc_messages;
@@ -805,13 +804,13 @@ public:
 
   inline char *query() const { return query_string.str(); }
   inline uint32 query_length() const { return query_string.length(); }
-  CHARSET_INFO *query_charset() const { return query_string.charset(); }
+  const CHARSET_INFO *query_charset() const { return query_string.charset(); }
   void set_query_inner(const CSET_STRING &string_arg)
   {
     query_string= string_arg;
   }
   void set_query_inner(char *query_arg, uint32 query_length_arg,
-                       CHARSET_INFO *cs_arg)
+                       const CHARSET_INFO *cs_arg)
   {
     set_query_inner(CSET_STRING(query_arg, query_length_arg, cs_arg));
   }
@@ -2020,7 +2019,7 @@ public:
   */
   table_map  used_tables;
   USER_CONN *user_connect;
-  CHARSET_INFO *db_charset;
+  const CHARSET_INFO *db_charset;
   Warning_info *warning_info;
   Diagnostics_area *stmt_da;
 #if defined(ENABLED_PROFILING)
@@ -2498,11 +2497,12 @@ public:
                               const char* str, uint length,
                               bool allocate_lex_string);
 
-  bool convert_string(LEX_STRING *to, CHARSET_INFO *to_cs,
+  bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
 		      const char *from, uint from_length,
-		      CHARSET_INFO *from_cs);
+		      const CHARSET_INFO *from_cs);
 
-  bool convert_string(String *s, CHARSET_INFO *from_cs, CHARSET_INFO *to_cs);
+  bool convert_string(String *s, const CHARSET_INFO *from_cs,
+                      const CHARSET_INFO *to_cs);
 
   void add_changed_table(TABLE *table);
   void add_changed_table(const char *key, long key_length);
@@ -2565,7 +2565,8 @@ public:
     To raise this flag, use my_error().
   */
   inline bool is_error() const { return stmt_da->is_error(); }
-  inline CHARSET_INFO *charset() { return variables.character_set_client; }
+  inline const CHARSET_INFO *charset()
+  { return variables.character_set_client; }
   void update_charset();
 
   inline Query_arena *activate_stmt_arena_if_needed(Query_arena *backup)
@@ -2892,7 +2893,7 @@ public:
     Protected with LOCK_thd_data mutex.
   */
   void set_query(char *query_arg, uint32 query_length_arg,
-                 CHARSET_INFO *cs_arg)
+                 const CHARSET_INFO *cs_arg)
   {
     set_query(CSET_STRING(query_arg, query_length_arg, cs_arg));
   }
@@ -2904,7 +2905,7 @@ public:
   void reset_query()               /* Mutex protected */
   { set_query(CSET_STRING()); }
   void set_query_and_id(char *query_arg, uint32 query_length_arg,
-                        CHARSET_INFO *cs, query_id_t new_query_id);
+                        const CHARSET_INFO *cs, query_id_t new_query_id);
   void set_query_id(query_id_t new_query_id);
   void set_open_tables(TABLE *open_tables_arg)
   {
@@ -3024,7 +3025,7 @@ public:
   bool opt_enclosed;
   bool dumpfile;
   ulong skip_lines;
-  CHARSET_INFO *cs;
+  const CHARSET_INFO *cs;
   sql_exchange(char *name, bool dumpfile_flag,
                enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
@@ -3167,7 +3168,7 @@ class select_export :public select_to_file {
   */
   bool is_unsafe_field_sep;
   bool fixed_row_size;
-  CHARSET_INFO *write_cs; // output charset
+  const CHARSET_INFO *write_cs; // output charset
 public:
   select_export(sql_exchange *ex) :select_to_file(ex) {}
   ~select_export();
