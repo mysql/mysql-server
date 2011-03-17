@@ -3035,6 +3035,12 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return INT_RESULT; }
   bool cache_value();
+  Item *clone_item()
+  {
+    Item_cache_int *item= new Item_cache_int(cached_field_type);
+    item->store(this, value);
+    return item;
+  }
 };
 
 

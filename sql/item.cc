@@ -6884,8 +6884,15 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   char *name=item->name;			// Alloced by sql_alloc
 
   switch (res_type) {
-  case TIME_RESULT: // will be handled by get_datetime_value()
+  case TIME_RESULT:
+  {
+    bool is_null;
+    Item **ref_copy= ref;
+    get_datetime_value(thd, &ref_copy, &new_item, comp_item, &is_null);
+    if (is_null)
+      new_item= new Item_null(name);
     break;
+  }
   case STRING_RESULT:
   {
     char buff[MAX_FIELD_WIDTH];

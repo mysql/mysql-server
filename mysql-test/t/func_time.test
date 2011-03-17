@@ -926,7 +926,7 @@ select * from t1 where 1 and concat(f2)=MAKEDATE(2011, 125);
 drop table t1;
 
 #
-# lp:736791 Crash in make_truncated_value_warningwith LEAST()/GREATEST/COALESCE
+# lp:736791 Crash in make_truncated_value_warning with LEAST()/GREATEST/COALESCE
 #
 create table t1 (f1 timestamp);
 insert into t1 values ('0000-00-00 00:00:00');
@@ -938,3 +938,9 @@ drop table t1;
 #
 select now() > coalesce(time('21:43:24'), date('2010-05-03'));
 
+#
+# lp:737104 Crash in DTCollation::set in 5.1-micro
+#
+create table t1 (f1 timestamp);
+select * from t1 where f1 > f1 and f1 <=> timestampadd(hour, 9 , '2010-01-01 16:55:35');
+drop table t1;
