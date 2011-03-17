@@ -8473,6 +8473,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   DBUG_RETURN (0);
 }
 
+#ifndef EMBEDDED_LIBRARY
 /**
   Get a null character terminated string from a user-supplied buffer.
 
@@ -8557,6 +8558,7 @@ char *get_length_encoded_string(char **buffer,
   *buffer+= *string_length + 1;
   return str;
 }
+#endif
 
 
 /* the packet format is described in send_client_reply_packet() */
