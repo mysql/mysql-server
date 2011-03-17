@@ -2645,10 +2645,14 @@ void JOIN::restore_tmp()
 }
 
 
-int
-JOIN::reinit()
+/**
+  Reset the state of this join object so that it is ready for a
+  new execution.
+*/
+
+void JOIN::reset()
 {
-  DBUG_ENTER("JOIN::reinit");
+  DBUG_ENTER("JOIN::reset");
 
   unit->offset_limit_cnt= (ha_rows)(select_lex->offset_limit ?
                                     select_lex->offset_limit->val_uint() :
@@ -2699,7 +2703,7 @@ JOIN::reinit()
   if (!(select_options & SELECT_DESCRIBE))
     init_ftfuncs(thd, select_lex, test(order));
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -3394,14 +3398,12 @@ JOIN::exec()
 
 
 /**
-  Clean up join.
+  Clean up and destroy join object.
 
-  @return
-    Return error that hold JOIN.
+  @return false if previous execution was successful, and true otherwise
 */
 
-int
-JOIN::destroy()
+bool JOIN::destroy()
 {
   DBUG_ENTER("JOIN::destroy");
   select_lex->join= 0;
@@ -3427,6 +3429,11 @@ JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
+  if (join_tab)
+  {
+    for (JOIN_TAB *tab= join_tab; tab < join_tab+tables; tab++)
+      tab->table= NULL;
+  }
  /* Cleanup items referencing temporary table columns */
   cleanup_item_list(tmp_all_fields1);
   cleanup_item_list(tmp_all_fields3);
@@ -3443,7 +3450,7 @@ JOIN::destroy()
 
   delete_dynamic(&keyuse);
   delete procedure;
-  DBUG_RETURN(error);
+  DBUG_RETURN(test(error));
 }
 
 
@@ -3539,8 +3546,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
           subselect execution. So we need to restore them.
         */
         Item_subselect *subselect= select_lex->master_unit()->item;
-        if (subselect && subselect->is_uncacheable() && join->reinit())
-          DBUG_RETURN(TRUE);
+        if (subselect && subselect->is_uncacheable())
+          join->reset();
       }
       else
       {
@@ -3592,6 +3599,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     select_lex->where= join->conds_history;
     select_lex->having= join->having_history;
   }
+  if (select_options & SELECT_DESCRIBE)
+    free_join= 0;
 
 err:
   if (free_join)
@@ -11388,7 +11397,12 @@ bool error_if_full_join(JOIN *join)
 
 
 /**
-  cleanup JOIN_TAB.
+  Cleanup table of join operation.
+
+  @note
+    Notice that this is not a complete cleanup. In some situations, the
+    object may be reused after a cleanup operation, hence we cannot set
+    the table pointer to NULL in this function.
 */
 
 void JOIN_TAB::cleanup()
@@ -23335,7 +23349,6 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
-    res|= unit->cleanup();
   }
   else
   {
