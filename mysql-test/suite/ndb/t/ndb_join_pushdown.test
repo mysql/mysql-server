@@ -1114,6 +1114,7 @@ insert into t3_unq values (1001, 0x1f, 0x2f, 1, 0x1f);
 insert into t3_unq values (1002, 0x2f, 0x3f, 2, 0x2f);
 insert into t3_unq values (1003, 0x3f, 0x1f, 3, 0x3f);
 
+## Table scans (ALL) as pushed root
 explain extended
 select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3;
 --sorted_result
@@ -1128,6 +1129,25 @@ explain extended
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3;
 --sorted_result
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3;
+
+## Lookup (eq_ref/const) as pushed root
+explain extended
+select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3
+  and x.a3=0x2f and x.b3=0x3f;
+select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3
+  and x.a3=0x2f and x.b3=0x3f;
+
+explain extended
+select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3
+  and x.a3=0x2f and x.b3=0x3f;
+select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3
+  and x.a3=0x2f and x.b3=0x3f;
+
+explain extended
+select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
+  and x.a3=0x2f and x.b3=0x3f;
+select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
+  and x.a3=0x2f and x.b3=0x3f;
 
 drop table t3, t3_hash, t3_unq;
 
