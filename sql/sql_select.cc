@@ -17227,7 +17227,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           else
           {
 	    len= my_snprintf(buf, sizeof(buf)-1,
-                             "; Child of pushed join@%d",
+                             "; Child of '%s' in pushed join@%d",
+                             tab->table->file->parent_of_pushed_join()->alias,
                              pushed_id);
           }
           extra.append(buf,len);
