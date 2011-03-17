@@ -34,6 +34,7 @@
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <sql_common.h>
+#include <mysql/client_plugin.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */
@@ -59,6 +60,7 @@ static unsigned int test_count= 0;
 static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
 static my_bool have_innodb= FALSE;
+static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 
 static const char *opt_basedir= "./";
 static const char *opt_vardir= "mysql-test/var";
@@ -245,6 +247,11 @@ static MYSQL *mysql_client_init(MYSQL* con)
   if (res && shared_memory_base_name)
     mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
 #endif
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(res, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(res, MYSQL_DEFAULT_AUTH, opt_default_auth);
   return res;
 }
 
@@ -326,6 +333,11 @@ static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
   /* enable local infile, in non-binary builds often disabled by default */
   mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
   mysql_options(mysql, MYSQL_OPT_PROTOCOL, &protocol);
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   if (!(mysql_real_connect(mysql, opt_host, opt_user,
                            opt_password, opt_db ? opt_db:"test", opt_port,
@@ -19552,6 +19564,28 @@ static void test_bug57058()
 }
 
 
+/**
+  Bug#11766854: 60075: MYSQL_LOAD_CLIENT_PLUGIN DOESN'T CLEAR ERROR 
+*/
+
+static void test_bug11766854()
+{
+  struct st_mysql_client_plugin *plugin;
+
+  DBUG_ENTER("test_bug11766854");
+  myheader("test_bug11766854");
+
+  plugin= mysql_load_plugin(mysql, "foo", -1, 0);
+  DIE_UNLESS(plugin == 0);
+
+  plugin= mysql_load_plugin(mysql, "qa_auth_client", -1, 0);
+  DIE_UNLESS(plugin != 0);
+  DIE_IF(mysql_errno(mysql));
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -19609,6 +19643,12 @@ static struct my_option client_test_long_options[] =
   {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
    &opt_getopt_ll_test, &opt_getopt_ll_test, 0,
    GET_LL, REQUIRED_ARG, 0, 0, LONGLONG_MAX, 0, 0, 0},
+  {"plugin_dir", 0, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", 0, "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -19889,6 +19929,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug58036", test_bug58036 },
   { "test_bug57058", test_bug57058 },
   { "test_bug56976", test_bug56976 },
+  { "test_bug11766854", test_bug11766854 },
   { 0, 0 }
 };
 
