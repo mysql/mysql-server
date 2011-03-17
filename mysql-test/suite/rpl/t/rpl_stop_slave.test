@@ -48,7 +48,7 @@ SET GLOBAL debug= '$debug_save';
 source include/restart_slave_sql.inc;
 
 connection slave;
-call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 connection master;
 
 --source include/rpl_connection_master.inc
