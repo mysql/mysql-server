@@ -910,6 +910,12 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
   const NdbQueryOperationTypeWrapper& query_def_type=  
     root_operation->getType();
 
+  if (m_disable_pushed_join)
+  {
+    DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
+    return FALSE;
+  }
+
   if (query_def_type != type)
   {
     DBUG_PRINT("info", 
@@ -917,12 +923,6 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type,
                 "not executable as %s w/ index %d",
                 NdbQueryOperationDef::getTypeName(query_def_type),
                 NdbQueryOperationDef::getTypeName(type), idx));
-    return FALSE;
-  }
-
-  if (m_disable_pushed_join)
-  {
-    DBUG_PRINT("info", ("Push disabled (HA_EXTRA_KEYREAD)"));
     return FALSE;
   }
 
@@ -4521,6 +4521,9 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   Uint32 offset= 0;
   NdbQueryParamValue paramValues[ndb_pushed_join::MAX_KEY_PART + ndb_pushed_join::MAX_REFERRED_FIELDS];
 
+  uint map[ndb_pushed_join::MAX_KEY_PART];
+  ndbcluster_build_key_map(m_table, m_index[idx], &table->key_info[idx], map);
+
   // Bind key values defining root of pushed join
   for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
   {
@@ -4531,11 +4534,11 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
       DBUG_ASSERT(idx != table_share->primary_key); // PK can't be nullable
       DBUG_ASSERT(*(key+offset)==0);                // Null values not allowed in key
                                                     // Value is imm. after NULL indicator
-      paramValues[i]= NdbQueryParamValue(key+offset+1,shrinkVarChar);
+      paramValues[map[i]]= NdbQueryParamValue(key+offset+1,shrinkVarChar);
     }
     else                                            // Non-nullable column
     {
-      paramValues[i]= NdbQueryParamValue(key+offset,shrinkVarChar);
+      paramValues[map[i]]= NdbQueryParamValue(key+offset,shrinkVarChar);
     }
     offset+= key_part->store_length;
   }
