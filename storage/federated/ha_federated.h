@@ -149,7 +149,8 @@ public:
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_NO_PREFIX_CHAR_KEYS | HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
             HA_NO_TRANSACTIONS /* until fixed by WL#2952 */ |
-            HA_PARTIAL_COLUMN_READ | HA_NULL_IN_KEY);
+            HA_PARTIAL_COLUMN_READ | HA_NULL_IN_KEY |
+            HA_CAN_REPAIR);
   }
   /*
     This is a bitmap of flags that says how the storage engine

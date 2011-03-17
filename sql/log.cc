@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -382,7 +382,7 @@ bool Log_to_csv_event_handler::
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len,
-              CHARSET_INFO *client_cs)
+              const CHARSET_INFO *client_cs)
 {
   TABLE_LIST table_list;
   TABLE *table;
@@ -562,7 +562,7 @@ bool Log_to_csv_event_handler::
   bool need_rnd_end= FALSE;
   Silence_log_table_errors error_handler;
   Open_tables_backup open_tables_backup;
-  CHARSET_INFO *client_cs= thd->variables.character_set_client;
+  const CHARSET_INFO *client_cs= thd->variables.character_set_client;
   bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
 
@@ -802,7 +802,7 @@ bool Log_to_file_event_handler::
               uint user_host_len, int thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len,
-              CHARSET_INFO *client_cs)
+              const CHARSET_INFO *client_cs)
 {
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);

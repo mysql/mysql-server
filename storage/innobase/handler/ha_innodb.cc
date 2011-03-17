@@ -26,10 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -44,6 +42,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <mysql/plugin.h>
 #include <mysql/innodb_priv.h>
 #include <mysql/psi/psi.h>
+#include <my_sys.h>
 
 /** @file ha_innodb.cc */
 
@@ -455,7 +454,7 @@ static SHOW_VAR innodb_status_variables[]= {
   {"os_log_pending_writes",
   (char*) &export_vars.innodb_os_log_pending_writes,	  SHOW_LONG},
   {"os_log_written",
-  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONG},
+  (char*) &export_vars.innodb_os_log_written,		  SHOW_LONGLONG},
   {"page_size",
   (char*) &export_vars.innodb_page_size,		  SHOW_LONG},
   {"pages_created",
@@ -1322,6 +1321,20 @@ innobase_wildcasecmp(
 	const char*	b)	/*!< in: wildcard string to compare */
 {
 	return(wild_case_compare(system_charset_info, a, b));
+}
+
+/******************************************************************//**
+Strip dir name from a full path name and return only the file name
+@return file name or "null" if no file name */
+extern "C" UNIV_INTERN
+const char*
+innobase_basename(
+/*==============*/
+	const char*	path_name)	/*!< in: full path name */
+{
+	const char*	name = base_name(path_name);
+
+	return((name) ? name : "null");
 }
 
 /******************************************************************//**
@@ -2423,14 +2436,6 @@ innobase_init(
 
 			goto error;
 		}
-
-		if (innobase_log_file_size > UINT_MAX32) {
-			sql_print_error(
-				"innobase_log_file_size can't be over 4GB"
-				" on 32-bit systems");
-
-			goto error;
-		}
 	}
 
 	os_innodb_umask = (ulint)my_umask;
@@ -2604,7 +2609,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
 	srv_n_log_files = (ulint) innobase_log_files_in_group;
-	srv_log_file_size = (ulint) innobase_log_file_size;
+	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
 
 #ifdef UNIV_LOG_ARCHIVE
 	srv_log_archive_on = (ulint) innobase_log_archive;
@@ -2830,6 +2835,7 @@ innobase_alter_table_flags(
 		| HA_INPLACE_ADD_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
+		| HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
 		| HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
@@ -4563,7 +4569,7 @@ ha_innobase::store_key_val_for_row(
 			const byte*	data;
 			ulint		key_len;
 			ulint		true_len;
-			CHARSET_INFO*	cs;
+			const CHARSET_INFO* cs;
 			int		error=0;
 
 			key_len = key_part->length;
@@ -4627,7 +4633,7 @@ ha_innobase::store_key_val_for_row(
 			as BLOB data in innodb. */
 			|| mysql_type == MYSQL_TYPE_GEOMETRY) {
 
-			CHARSET_INFO*	cs;
+			const CHARSET_INFO* cs;
 			ulint		key_len;
 			ulint		true_len;
 			int		error=0;
@@ -4695,7 +4701,7 @@ ha_innobase::store_key_val_for_row(
 			value we store may be also in a column prefix
 			index. */
 
-			CHARSET_INFO*		cs = NULL;
+			const CHARSET_INFO*	cs = NULL;
 			ulint			true_len;
 			ulint			key_len;
 			const uchar*		src_start;
@@ -9760,7 +9766,8 @@ innodb_mutex_show_status(
 			if (mutex->count_using > 0) {
 				buf1len= my_snprintf(buf1, sizeof(buf1),
 					"%s:%s",
-					mutex->cmutex_name, mutex->cfile_name);
+					mutex->cmutex_name,
+					innobase_basename(mutex->cfile_name));
 				buf2len= my_snprintf(buf2, sizeof(buf2),
 					"count=%lu, spin_waits=%lu,"
 					" spin_rounds=%lu, "
@@ -9790,7 +9797,8 @@ innodb_mutex_show_status(
 		}
 #else /* UNIV_DEBUG */
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     mutex->cfile_name, (ulong) mutex->cline);
+				     innobase_basename(mutex->cfile_name),
+				     (ulong) mutex->cline);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
 				     (ulong) mutex->count_os_wait);
 
@@ -9806,7 +9814,8 @@ innodb_mutex_show_status(
 	if (block_mutex) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 					     "combined %s:%lu",
-					     block_mutex->cfile_name,
+					     innobase_basename(
+						block_mutex->cfile_name),
 					     (ulong) block_mutex->cline);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
@@ -9837,7 +9846,8 @@ innodb_mutex_show_status(
 		}
 
 		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
-				     lock->cfile_name, (ulong) lock->cline);
+				     innobase_basename(lock->cfile_name),
+				     (ulong) lock->cline);
 		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
 				      (ulong) lock->count_os_wait);
 
@@ -9852,7 +9862,8 @@ innodb_mutex_show_status(
 	if (block_lock) {
 		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
 					     "combined %s:%lu",
-					     block_lock->cfile_name,
+					     innobase_basename(
+						block_lock->cfile_name),
 					     (ulong) block_lock->cline);
 		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
 					     "os_waits=%lu",
@@ -12510,7 +12521,7 @@ mysql_declare_plugin(innobase)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
   innobase_hton_name,
-  "Innobase Oy",
+  plugin_author,
   "Supports transactions, row-level locking, and foreign keys",
   PLUGIN_LICENSE_GPL,
   innobase_init, /* Plugin Init */

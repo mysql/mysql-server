@@ -351,9 +351,13 @@ void test_with_instances()
 
 void do_all_tests()
 {
+  PFS_atomic::init();
+
   test_no_instruments();
   test_no_instances();
   test_with_instances();
+
+  PFS_atomic::cleanup();
 }
 
 int main(int, char **)

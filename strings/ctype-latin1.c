@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include "m_string.h"
@@ -356,7 +356,7 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 };
 
 static
-int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
+int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t *wc,
 		    const uchar *str,
 		    const uchar *end __attribute__((unused)))
@@ -369,7 +369,7 @@ int my_mb_wc_latin1(CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static
-int my_wc_mb_latin1(CHARSET_INFO *cs  __attribute__((unused)),
+int my_wc_mb_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t wc,
 		    uchar *str,
 		    uchar *end __attribute__((unused)))
@@ -546,7 +546,8 @@ uchar combo2map[]={
 */
 
 
-static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
+                                  __attribute__((unused)),
 				  const uchar *a, size_t a_length,
 				  const uchar *b, size_t b_length,
                                   my_bool b_is_prefix)
@@ -587,7 +588,8 @@ static int my_strnncoll_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs
+                                    __attribute__((unused)),
 				    const uchar *a, size_t a_length,
 				    const uchar *b, size_t b_length,
                                     my_bool diff_if_only_endspace_difference)
@@ -660,7 +662,7 @@ static int my_strnncollsp_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
 
 
 static size_t
-my_strnxfrm_latin1_de(CHARSET_INFO *cs,
+my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
                       uchar *dst, size_t dstlen, uint nweights,
                       const uchar* src, size_t srclen, uint flags)
 {
@@ -681,7 +683,7 @@ my_strnxfrm_latin1_de(CHARSET_INFO *cs,
 }
 
 
-void my_hash_sort_latin1_de(CHARSET_INFO *cs __attribute__((unused)),
+void my_hash_sort_latin1_de(const CHARSET_INFO *cs __attribute__((unused)),
 			    const uchar *key, size_t len,
 			    ulong *nr1, ulong *nr2)
 {
