@@ -6880,11 +6880,12 @@ void resolve_const_item(THD *thd, Item **ref, Item *comp_item)
   Item *new_item= NULL;
   if (item->basic_const_item())
     return;                                     // Can't be better
-  Item_result res_type=item_cmp_type(comp_item->result_type(),
-				     item->result_type());
+  Item_result res_type=item_cmp_type(comp_item->cmp_type(), item->cmp_type());
   char *name=item->name;			// Alloced by sql_alloc
 
   switch (res_type) {
+  case TIME_RESULT: // will be handled by get_datetime_value()
+    break;
   case STRING_RESULT:
   {
     char buff[MAX_FIELD_WIDTH];

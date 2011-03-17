@@ -922,7 +922,7 @@ select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as 
 #
 create table t1 (f1 integer, f2 date);
 insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05');
-select * from t1 where (f1, f2) in (select f1, makedate(2011 , 125) from t1);
+select * from t1 where 1 and concat(f2)=MAKEDATE(2011, 125);
 drop table t1;
 
 #
