@@ -10,6 +10,9 @@ UNINSTALL PLUGIN blackhole;
 INSTALL PLUGIN blackhole SONAME 'ha_blackhole.so';
 CREATE TABLE t1(a int) ENGINE=BLACKHOLE;
 DROP TABLE t1;
+SELECT 1;
+1
+1
 UNINSTALL PLUGIN blackhole;
 UNINSTALL PLUGIN blackhole;
 ERROR 42000: PLUGIN blackhole does not exist

@@ -8713,6 +8713,7 @@ call p1(3, 2);
 drop table t1;
 drop procedure p1;
 
+
 --echo # 
 --echo # BUG#11766234: 59299: ASSERT (TABLE_REF->TABLE || TABLE_REF->VIEW) 
 --echo #               FAILS IN SET_FIELD_ITERATOR
@@ -8734,5 +8735,47 @@ CALL proc();
 DROP TABLE t1,t2;
 DROP VIEW v1;
 DROP PROCEDURE proc;
+
+
+--echo
+--echo # --
+--echo # -- Bug 11765684 - 58674: SP-cache does not detect changes in
+--echo # -- pre-locking list caused by triggers
+--echo # --- 
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+CREATE TABLE t3(a INT);
+
+CREATE PROCEDURE p1()
+  INSERT INTO t1(a) VALUES (1);
+
+--echo
+CREATE TRIGGER t1_ai AFTER INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t2(a) VALUES (new.a);
+
+--echo
+CALL p1();
+
+--echo
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+  FOR EACH ROW
+    INSERT INTO t3(a) VALUES (new.a);
+
+--echo
+CALL p1();
+
+--echo
+DROP TABLE t1, t2, t3;
+DROP PROCEDURE p1;
+--echo
 
 --echo # End of 5.5 test

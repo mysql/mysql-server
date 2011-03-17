@@ -30,6 +30,7 @@
 #include "sql_db.h"                        // get_default_db_collation
 #include "sql_acl.h"                       // *_ACL, is_acl_user
 #include "sql_handler.h"                        // mysql_ha_rm_tables
+#include "sp_cache.h"                     // sp_invalidate_cache
 
 /*************************************************************************/
 
@@ -516,6 +517,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     keep master/slave in consistent state.
   */
   thd->locked_tables_list.reopen_tables(thd);
+
+  /*
+    Invalidate SP-cache. That's needed because triggers may change list of
+    pre-locking tables.
+  */
+  sp_cache_invalidate();
 
 end:
   if (!result)

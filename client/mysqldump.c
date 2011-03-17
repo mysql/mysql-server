@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4650,7 +4650,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
       for (; pos != end && *pos != ','; pos++) ;
       var_len= (uint) (pos - start);
       strmake(buff, start, min(sizeof(buff) - 1, var_len));
-      find= find_type(buff, lib, var_len);
+      find= find_type(buff, lib, FIND_TYPE_BASIC);
       if (!find)
       {
         *err_pos= (char*) start;

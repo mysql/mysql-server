@@ -534,6 +534,7 @@ BIT(6)         	BIT(5)         	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 BIT(5)         	BIT(12)        	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 BIT(12)        	BIT(5)         	ALL_LOSSY,ALL_NON_LOSSY  	<Correct value>
 DROP TABLE type_conversions;
+call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t1. cannot be converted from type.* Error_code: 1677");
 DROP TABLE t1;
 set global slave_type_conversions = @saved_slave_type_conversions;
 include/rpl_end.inc
