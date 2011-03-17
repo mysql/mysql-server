@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
@@ -490,7 +490,7 @@ private:
 };
 
 extern char *err_conv(char *buff, uint to_length, const char *from,
-                      uint from_length, CHARSET_INFO *from_cs);
+                      uint from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
@@ -503,13 +503,13 @@ public:
                     str->length(), str->charset());
   }
 
-  ErrConvString(const char *str, CHARSET_INFO* cs)
+  ErrConvString(const char *str, const CHARSET_INFO* cs)
   {
     (void) err_conv(err_buffer, sizeof(err_buffer),
                     str, strlen(str), cs);
   }
 
-  ErrConvString(const char *str, uint length, CHARSET_INFO* cs)
+  ErrConvString(const char *str, uint length, const CHARSET_INFO* cs)
   {
     (void) err_conv(err_buffer, sizeof(err_buffer),
                     str, length, cs);
@@ -525,9 +525,10 @@ void push_warning(THD *thd, MYSQL_ERROR::enum_warning_level level,
 void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 			 uint code, const char *format, ...);
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
-uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+uint32 convert_error_message(char *to, uint32 to_length,
+                             const CHARSET_INFO *to_cs,
                              const char *from, uint32 from_length,
-                             CHARSET_INFO *from_cs, uint *errors);
+                             const CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];
 

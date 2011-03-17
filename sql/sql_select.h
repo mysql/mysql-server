@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -1918,9 +1918,9 @@ public:
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
   int optimize();
-  int reinit();
+  void reset();
   void exec();
-  int destroy();
+  bool destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
@@ -2030,7 +2030,7 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
 int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,Item *conds);
 
 /* from sql_delete.cc, used by opt_range.cc */
-extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b);
+extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b);
 
 /** class to copying an field/item to a key struct */
 

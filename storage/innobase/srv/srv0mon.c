@@ -825,6 +825,26 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Number of tables in background drop table list",
 	 0, 0, MONITOR_BACKGROUND_DROP_TABLE},
 
+	/* ===== Counters for ICP (Index Condition Pushdown) Module ===== */
+	{"module_icp", "icp", "Index Condition Pushdown",
+	 MONITOR_MODULE, 0, MONITOR_MODULE_ICP},
+
+	{"icp_attempts", "icp",
+	 "Number of attempts for index push-down condition checks",
+	 0, 0, MONITOR_ICP_ATTEMPTS},
+
+	{"icp_no_match", "icp",
+	 "Index push-down condition does not match",
+	 0, 0, MONITOR_ICP_NO_MATCH},
+
+	{"icp_out_of_range", "icp",
+	 "Index push-down condition out of range",
+	 0, 0, MONITOR_ICP_OUT_OF_RANGE},
+
+	{"icp_match", "icp",
+	 "Index push-down condition matches",
+	 0, 0, MONITOR_ICP_MATCH},
+
 	/* ========== To turn on/off reset all counters ========== */
 	{"all", "All Counters", "Turn on/off and reset all counters",
 	 MONITOR_MODULE, 0, MONITOR_ALL_COUNTER}
@@ -1154,7 +1174,7 @@ srv_mon_process_existing_counter(
 
 	/* innodb_os_log_written */
 	case MONITOR_OVLD_OS_LOG_WRITTEN:
-		value = srv_os_log_written;
+		value = (mon_type_t) srv_os_log_written;
 		break;
 
 	/* innodb_os_log_fsyncs */

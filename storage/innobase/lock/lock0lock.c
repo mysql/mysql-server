@@ -424,9 +424,12 @@ lock_deadlock_recursive(
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_EXCEED_MAX_DEPTH */
-	ulint	depth);		/*!< in: recursion depth: if this exceeds
+	ulint	depth,		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
+	const ib_uint64_t
+		mark_start);	/*!< in: Value of lock_mark_count at the start
+				of the deadlock check. */
 
 /*********************************************************************//**
 Gets the nth bit of a record lock.
@@ -3474,6 +3477,9 @@ lock_deadlock_lock_print(
 	}
 }
 
+/** Used in deadlock tracking. Protected by lock_sys->mutex. */
+static ib_uint64_t	lock_mark_counter = 0;
+
 /********************************************************************//**
 Checks if a lock request results in a deadlock.
 @return TRUE if a deadlock was detected and we chose trx as a victim;
@@ -3486,7 +3492,6 @@ lock_deadlock_occurs(
 	lock_t*	lock,	/*!< in: lock the transaction is requesting */
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	trx_t*		mark_trx;
 	ulint		cost	= 0;
 
 	ut_ad(trx);
@@ -3500,25 +3505,9 @@ retry:
 	does not produce a cycle. First mark all active transactions
 	with 0: */
 
-	/* To obey the latching order. Since we have the lock mutex, this
-	transaction's state can't be changed. */
-	trx_mutex_exit(trx);
+	switch (lock_deadlock_recursive(
+		trx, trx, lock, &cost, 0, lock_mark_counter)) {
 
-	rw_lock_s_lock(&trx_sys->lock);
-
-	for (mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     mark_trx != NULL;
-	     mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx)) {
-
-		ut_ad(mark_trx->in_trx_list);
-		mark_trx->lock.deadlock_mark = 0;
-	}
-
-	rw_lock_s_unlock(&trx_sys->lock);
-
-	trx_mutex_enter(trx);
-
-	switch (lock_deadlock_recursive(trx, trx, lock, &cost, 0)) {
 	case LOCK_VICTIM_IS_OTHER:
 		/* We chose some other trx as a victim: retry if there still
 		is a deadlock */
@@ -3592,9 +3581,12 @@ lock_deadlock_recursive(
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_EXCEED_MAX_DEPTH */
-	ulint	depth)		/*!< in: recursion depth: if this exceeds
+	ulint	depth,		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
+	const ib_uint64_t
+		mark_start)	/*!< in: Value of lock_mark_count at the start
+				of the deadlock check. */
 {
 	lock_victim_t	ret;
 	lock_t*		lock;
@@ -3605,8 +3597,9 @@ lock_deadlock_recursive(
 	ut_a(wait_lock);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx->in_trx_list);
+	ut_ad(mark_start <= lock_mark_counter);
 
-	if (trx->lock.deadlock_mark) {
+	if (trx->lock.deadlock_mark > mark_start) {
 		/* We have already exhaustively searched the subtree starting
 		from this trx */
 
@@ -3645,7 +3638,14 @@ lock_deadlock_recursive(
 
 		if (lock == NULL || lock == wait_lock) {
 			/* We can mark this subtree as searched */
-			trx->lock.deadlock_mark = 1;
+			ut_a(trx->lock.deadlock_mark <= mark_start);
+			trx->lock.deadlock_mark = ++lock_mark_counter;
+
+			/* We are not prepared for an overflow. This 64-bit
+			counter should never wrap around. At 10^9 increments
+			per second, it would take 10^3 years of uptime. */
+
+			ut_a(lock_mark_counter > 0);
 
 			return(LOCK_VICTIM_NONE);
 		}
@@ -3765,7 +3765,7 @@ lock_deadlock_recursive(
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
 					lock_trx->lock.wait_lock,
-					cost, depth + 1);
+					cost, depth + 1, mark_start);
 
 				if (ret != LOCK_VICTIM_NONE) {
 
