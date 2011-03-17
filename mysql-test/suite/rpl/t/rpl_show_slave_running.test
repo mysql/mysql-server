@@ -76,9 +76,17 @@ echo Slave_SQL_Running= $status;
 
 # cleanup
 
-connection slave;
+connection master;
+
+# Bug#11765758 - 58754
+# @@global.debug is read by the slave threads through dbug-interface. 
+# Hence, before a client thread set @@global.debug we have to ensure that:
+# (a) the slave threads are stopped, or (b) the slave threads are in
+# sync and waiting.
+sync_slave_with_master;
 
 eval set global debug= '$debug_saved';
+
 SET DEBUG_SYNC= 'RESET';
 --echo End of tests
 --source include/rpl_end.inc
