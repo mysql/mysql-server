@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -160,7 +160,7 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
 
 bool str_set_decimal(uint mask, const my_decimal *val, uint fixed_prec,
                      uint fixed_dec, char filler, String *str,
-                     CHARSET_INFO *cs);
+                     const CHARSET_INFO *cs);
 
 extern my_decimal decimal_zero;
 
@@ -320,7 +320,7 @@ int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 
 
 inline bool str_set_decimal(const my_decimal *val, String *str,
-                            CHARSET_INFO *cs)
+                            const CHARSET_INFO *cs)
 {
   return str_set_decimal(E_DEC_FATAL_ERROR, val, 0, 0, 0, str, cs);
 }
@@ -361,7 +361,7 @@ int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
 
 
 int str2my_decimal(uint mask, const char *from, uint length,
-                   CHARSET_INFO *charset, my_decimal *decimal_value);
+                   const CHARSET_INFO *charset, my_decimal *decimal_value);
 
 #if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
 inline

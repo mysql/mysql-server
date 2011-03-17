@@ -1,0 +1,29 @@
+#
+# BUG#57373: Multi update+InnoDB reports ER_KEY_NOT_FOUND if a
+#            table is updated twice
+#
+CREATE TABLE t1(
+pk INT,
+a INT,
+b INT,
+PRIMARY KEY (pk)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0,0,0);
+UPDATE t1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+SELECT * FROM t1;
+pk	a	b
+0	0	0
+CREATE VIEW v1 AS SELECT * FROM t1;
+UPDATE v1 AS A, t1 AS B SET A.pk = 1, B.a = 2;
+ERROR HY000: Primary key/partition key update is not allowed since the table is updated both as 'A' and 'B'.
+SELECT * FROM t1;
+pk	a	b
+0	0	0
+UPDATE t1 AS A, t1 AS B SET A.a = 1, B.b = 2;
+# Should be (0,1,2)
+SELECT * FROM t1;
+pk	a	b
+0	1	2
+DROP VIEW v1;
+DROP TABLE t1;

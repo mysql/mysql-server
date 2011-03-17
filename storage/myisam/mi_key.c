@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Functions to handle keys */
 
@@ -76,7 +76,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
     enum ha_base_keytype type=(enum ha_base_keytype) keyseg->type;
     uint length=keyseg->length;
     uint char_length;
-    CHARSET_INFO *cs=keyseg->charset;
+    const CHARSET_INFO *cs= keyseg->charset;
 
     if (keyseg->null_bit)
     {
@@ -239,7 +239,7 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     uint char_length;
     uchar *pos;
 
-    CHARSET_INFO *cs=keyseg->charset;
+    const CHARSET_INFO *cs= keyseg->charset;
     keypart_map>>= 1;
     if (keyseg->null_bit)
     {

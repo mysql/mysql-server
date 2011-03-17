@@ -52,6 +52,10 @@ mtr_memo_slot_release(
 	ut_ad(mtr);
 	ut_ad(slot);
 
+	/* slot release is a local operation for the current mtr.
+	We must not be holding the flush_order mutex while
+	doing this. */
+	ut_ad(!log_flush_order_mutex_own());
 #ifndef UNIV_DEBUG
 	UT_NOT_USED(mtr);
 #endif /* UNIV_DEBUG */
@@ -124,9 +128,7 @@ mtr_memo_slot_note_modification(
 	if (slot->object != NULL && slot->type == MTR_MEMO_PAGE_X_FIX) {
 		buf_block_t*	block = (buf_block_t*) slot->object;
 
-#ifdef UNIV_DEBUG
 		ut_ad(log_flush_order_mutex_own());
-#endif /* UNIV_DEBUG */
 		buf_flush_note_modification(block, mtr);
 	}
 }
@@ -330,7 +332,6 @@ mtr_memo_release(
 
 	offset = dyn_array_get_data_size(memo);
 
-	log_flush_order_mutex_enter();
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
 
@@ -349,7 +350,6 @@ mtr_memo_release(
 			break;
 		}
 	}
-	log_flush_order_mutex_exit();
 }
 #endif /* !UNIV_HOTBACKUP */
 

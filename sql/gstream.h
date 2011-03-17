@@ -1,7 +1,7 @@
 #ifndef GSTREAM_INCLUDED
 #define GSTREAM_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include "my_global.h"                          /* NULL, NullS */
@@ -38,7 +38,7 @@ public:
     comma
   };
 
-  Gis_read_stream(CHARSET_INFO *charset, const char *buffer, int size)
+  Gis_read_stream(const CHARSET_INFO *charset, const char *buffer, int size)
     :m_cur(buffer), m_limit(buffer + size), m_err_msg(NULL), m_charset(charset)
   {}
   Gis_read_stream(): m_cur(NullS), m_limit(NullS), m_err_msg(NullS)
@@ -81,7 +81,7 @@ protected:
   const char *m_cur;
   const char *m_limit;
   char *m_err_msg;
-  CHARSET_INFO *m_charset;
+  const CHARSET_INFO *m_charset;
 };
 
 #endif /* GSTREAM_INCLUDED */

@@ -588,6 +588,8 @@ btr_search_update_hash_ref(
 
 		ha_insert_for_fold(btr_search_sys->hash_index, fold,
 				   block, rec);
+
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_ADDED);
 	}
 }
 
@@ -1174,7 +1176,10 @@ next_rec:
 
 	block->is_hashed = FALSE;
 	block->index = NULL;
-	
+
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_REMOVED);
+	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_REMOVED, n_cached);
+
 cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
@@ -1227,8 +1232,8 @@ btr_search_drop_page_hash_when_freed(
 	having to fear a deadlock. */
 
 	block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH, NULL,
-				BUF_GET_IF_IN_POOL, __FILE__, __LINE__,
-				&mtr);
+				 BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
+				 &mtr);
 	/* Because the buffer pool mutex was released by
 	buf_page_peek_if_search_hashed(), it is possible that the
 	block was removed from the buffer pool by another thread
@@ -1430,6 +1435,8 @@ btr_search_build_page_hash_index(
 		ha_insert_for_fold(table, folds[i], block, recs[i]);
 	}
 
+	MONITOR_INC(MONITOR_ADAPTIVE_HASH_PAGE_ADDED);
+	MONITOR_INC_VALUE(MONITOR_ADAPTIVE_HASH_ROW_ADDED, n_cached);
 exit_func:
 	rw_lock_x_unlock(&btr_search_latch);
 
@@ -1553,7 +1560,11 @@ btr_search_update_hash_on_delete(
 	}
 	rw_lock_x_lock(&btr_search_latch);
 
-	ha_search_and_delete_if_found(table, fold, rec);
+	if (ha_search_and_delete_if_found(table, fold, rec)) {
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVED);
+	} else {
+		MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_REMOVE_NOT_FOUND);
+	}
 
 	rw_lock_x_unlock(&btr_search_latch);
 }
@@ -1598,8 +1609,11 @@ btr_search_update_hash_node_on_insert(
 
 		table = btr_search_sys->hash_index;
 
-		ha_search_and_update_if_found(table, cursor->fold, rec,
-					      block, page_rec_get_next(rec));
+		if (ha_search_and_update_if_found(
+			table, cursor->fold, rec, block,
+			page_rec_get_next(rec))) {
+			MONITOR_INC(MONITOR_ADAPTIVE_HASH_ROW_UPDATED);
+		}
 
 		rw_lock_x_unlock(&btr_search_latch);
 	} else {

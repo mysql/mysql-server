@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Definitions for parameters to do with handler-routines */
 
@@ -153,6 +153,12 @@
     ordered.
 */
 #define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
+/*
+  Engine supports REPAIR TABLE. Used by CHECK TABLE FOR UPGRADE if an
+  incompatible table is detected. If this flag is set, CHECK TABLE FOR UPGRADE
+  will report ER_TABLE_NEEDS_UPGRADE, otherwise ER_TABLE_NEED_REBUILD.
+*/
+#define HA_CAN_REPAIR                    (LL(1) << 37)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -992,7 +998,7 @@ enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
 typedef struct st_ha_create_information
 {
-  CHARSET_INFO *table_charset, *default_table_charset;
+  const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;
   LEX_STRING comment;
@@ -1445,7 +1451,6 @@ public:
   uint ref_length;
   FT_INFO *ft_handler;
   enum {NONE=0, INDEX, RND} inited;
-  bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
   const Item *pushed_cond;
 
@@ -1514,15 +1519,19 @@ public:
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    implicit_emptied(0),
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL), m_lock_type(F_UNLCK)
-    {}
+    {
+      DBUG_PRINT("info",
+                 ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
+                  F_UNLCK, F_RDLCK, F_UNLCK));
+    }
   virtual ~handler(void)
   {
-    DBUG_ASSERT(locked == FALSE);
+    DBUG_ASSERT(m_lock_type == F_UNLCK);
     DBUG_ASSERT(inited == NONE);
   }
   virtual handler *clone(MEM_ROOT *mem_root);
@@ -1863,6 +1872,7 @@ public:
   */
   virtual int rnd_pos_by_record(uchar *record)
     {
+      DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
       position(record);
       return ha_rnd_pos(record, ref);
     }
@@ -2333,7 +2343,10 @@ private:
      upon the table.
   */
   virtual int repair(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
+  {
+    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+    return HA_ADMIN_NOT_IMPLEMENTED;
+  }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
 protected:

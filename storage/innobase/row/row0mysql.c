@@ -2284,6 +2284,8 @@ already_dropped:
 
 	UT_LIST_REMOVE(row_mysql_drop_list, row_mysql_drop_list, drop);
 
+	MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
+
 	ut_print_timestamp(stderr);
 	fputs("  InnoDB: Dropped table ", stderr);
 	ut_print_name(stderr, NULL, TRUE, drop->table_name);
@@ -2358,6 +2360,8 @@ row_add_table_to_background_drop_list(
 	drop->table_name = mem_strdup(name);
 
 	UT_LIST_ADD_LAST(row_mysql_drop_list, row_mysql_drop_list, drop);
+
+	MONITOR_INC(MONITOR_BACKGROUND_DROP_TABLE);
 
 	/*	fputs("InnoDB: Adding table ", stderr);
 	ut_print_name(stderr, trx, TRUE, drop->table_name);
@@ -2580,7 +2584,7 @@ row_import_tablespace_for_mysql(
 {
 	dict_table_t*	table;
 	ibool		success;
-	ib_uint64_t	current_lsn;
+	lsn_t		current_lsn;
 	ulint		err		= DB_SUCCESS;
 
 	ut_ad(trx->mysql_thd == NULL

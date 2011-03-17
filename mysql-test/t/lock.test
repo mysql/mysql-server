@@ -451,18 +451,7 @@ lock tables t1 write, t1 as a read, t1 as b read;
 alter table t1 add column j int;
 unlock tables;
 drop table t1;
---echo #
---echo # Separate case for partitioned tables is important
---echo # because each partition has an own thr_lock object.
---echo #
-create table t1 (i int) partition by list (i)
-  (partition p0 values in (1),
-   partition p1 values in (2,3),
-   partition p2 values in (4,5));
-lock tables t1 write, t1 as a read, t1 as b read;
-alter table t1 add column j int;
-unlock tables;
-drop table t1;
+--echo # Moved case for partitioned tables to partition.test
 
 
 --echo #

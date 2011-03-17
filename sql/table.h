@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
@@ -120,12 +120,12 @@ public:
 class Default_object_creation_ctx : public Object_creation_ctx
 {
 public:
-  CHARSET_INFO *get_client_cs()
+  const CHARSET_INFO *get_client_cs()
   {
     return m_client_cs;
   }
 
-  CHARSET_INFO *get_connection_cl()
+  const CHARSET_INFO *get_connection_cl()
   {
     return m_connection_cl;
   }
@@ -133,8 +133,8 @@ public:
 protected:
   Default_object_creation_ctx(THD *thd);
 
-  Default_object_creation_ctx(CHARSET_INFO *client_cs,
-                              CHARSET_INFO *connection_cl);
+  Default_object_creation_ctx(const CHARSET_INFO *client_cs,
+                              const CHARSET_INFO *connection_cl);
 
 protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
@@ -151,7 +151,7 @@ protected:
     in order to parse the query properly we have to switch client character
     set on parsing.
   */
-  CHARSET_INFO *m_client_cs;
+  const CHARSET_INFO *m_client_cs;
 
   /**
     connection_cl stores the value of collation_connection session
@@ -161,7 +161,7 @@ protected:
     the character set and collation of text literals in internal
     representation of query (item-objects).
   */
-  CHARSET_INFO *m_connection_cl;
+  const CHARSET_INFO *m_connection_cl;
 };
 
 
@@ -487,6 +487,18 @@ typedef struct st_table_field_def
 
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
+/** Struct to be used for partition_name_hash */
+typedef struct st_part_name_def
+{
+  uchar *partition_name;
+  uint length;
+  uint32 part_id;
+  my_bool is_subpart;
+} PART_NAME_DEF;
+
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                     my_bool not_used __attribute__((unused)));
+
 /**
   Partition specific ha_data struct.
 */
@@ -495,6 +507,11 @@ typedef struct st_ha_data_partition
   bool auto_inc_initialized;
   mysql_mutex_t LOCK_auto_inc;                 /**< protecting auto_inc val */
   ulonglong next_auto_inc_val;                 /**< first non reserved value */
+  /**
+    Hash of partition names. Initialized in the first ha_partition::open()
+    for the table_share. After that it is read-only, i.e. no locking required.
+  */
+  HASH partition_name_hash;
 } HA_DATA_PARTITION;
 #endif
 
@@ -589,7 +606,7 @@ struct TABLE_SHARE
 
   uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
-  CHARSET_INFO *table_charset;		/* Default charset of string fields */
+  const CHARSET_INFO *table_charset;	/* Default charset of string fields */
 
   MY_BITMAP all_set;
   /*
@@ -1710,6 +1727,11 @@ struct TABLE_LIST
   enum enum_schema_table_state schema_table_state;
 
   MDL_request mdl_request;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* List to carry partition names from PARTITION (...) clause in statement */
+  List<String> *partition_names;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
