@@ -1320,11 +1320,6 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
-SHOW_VAR ndb_status_variables_fixed[]= {
-  {"cluster_connection_pool",(char*) &opt_ndb_cluster_connection_pool, SHOW_LONG},
-  {NullS, NullS, SHOW_LONG}
-};
-
 SHOW_VAR ndb_status_conflict_variables[]= {
   {"fn_max",     (char*) &g_ndb_status_conflict_fn_max, SHOW_LONG},
   {"fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
@@ -1802,7 +1797,6 @@ Thd_ndb::Thd_ndb()
   m_handler= NULL;
   m_error= FALSE;
   m_error_code= 0;
-  query_state&= NDB_QUERY_NORMAL;
   options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
                       (my_hash_get_key)thd_ndb_share_get_key, 0, 0);
@@ -7859,7 +7853,6 @@ int ha_ndbcluster::start_statement(THD *thd,
         DBUG_RETURN(error);
 
     thd_ndb->init_open_tables();
-    thd_ndb->query_state&= NDB_QUERY_NORMAL;
     thd_ndb->m_slow_path= FALSE;
     if (!(thd_options(thd) & OPTION_BIN_LOG) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT)
@@ -13784,7 +13777,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   KEY* key_info= table->key_info + active_index;
   NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
   ulong reclength= table_share->reclength;
-  Thd_ndb *thd_ndb= m_thd_ndb;
   NdbTransaction *trans= m_thd_ndb->trans;
   int error;
 
@@ -13819,7 +13811,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   if (unlikely((error= close_scan())))
     DBUG_RETURN(error);
 
-  thd_ndb->query_state|= NDB_QUERY_MULTI_READ_RANGE;
   m_disable_multi_read= FALSE;
 
   /*
@@ -14369,7 +14360,6 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
 
   if (multi_range_curr == multi_range_end)
   {
-    m_thd_ndb->query_state&= NDB_QUERY_NORMAL;
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
@@ -16669,7 +16659,6 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
 
 SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
-  {"Ndb",          (char*) &ndb_status_variables_fixed,    SHOW_ARRAY},
   {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
   {"Ndb",          (char*) &ndb_status_injector_variables, SHOW_ARRAY},
   {"Ndb",          (char*) &ndb_status_slave_variables,    SHOW_ARRAY},
