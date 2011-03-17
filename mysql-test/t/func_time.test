@@ -916,3 +916,19 @@ drop table t1;
 #
 select timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime));
 select convert_tz(timediff('0000-00-00 00:00:00', cast('2008-03-26 07:09:06' as datetime)), 'UTC', 'Europe/Moscow');
+
+#
+# lp:736370 Datetime functions in subquery context cause wrong result and bogus warnings in mysql-5.1-micr
+#
+create table t1 (f1 integer, f2 date);
+insert into t1 values (1,'2011-05-05'),(2,'2011-05-05'),(3,'2011-05-05'),(4,'2011-05-05'),(5,'2011-05-05');
+select * from t1 where (f1, f2) in (select f1, makedate(2011 , 125) from t1);
+drop table t1;
+
+#
+# lp:736791 Crash in make_truncated_value_warningwith LEAST()/GREATEST/COALESCE
+#
+create table t1 (f1 timestamp);
+insert into t1 values ('0000-00-00 00:00:00');
+select least(1, f1) from t1;
+drop table t1;

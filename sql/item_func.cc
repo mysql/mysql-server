@@ -2221,6 +2221,7 @@ void Item_func_min_max::fix_length_and_dec()
   decimals=0;
   max_length=0;
   maybe_null=0;
+  thd= current_thd;
   cmp_type=args[0]->result_type();
 
   for (uint i=0 ; i < arg_count ; i++)
@@ -2240,8 +2241,6 @@ void Item_func_min_max::fix_length_and_dec()
   if (cmp_type == STRING_RESULT)
   {
     agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
-    if (compare_as_dates)
-      thd= current_thd;
   }
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
     max_length= my_decimal_precision_to_length_no_truncation(max_int_part +
