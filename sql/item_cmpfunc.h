@@ -675,6 +675,7 @@ public:
   const char *func_name() const { return "coalesce"; }
   table_map not_null_tables() const { return 0; }
   enum_field_types field_type() const { return cached_field_type; }
+  bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
 };
 
 

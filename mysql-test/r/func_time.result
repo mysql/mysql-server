@@ -1494,3 +1494,6 @@ least(1, f1)
 Warnings:
 Warning	1292	Incorrect datetime value: '1' for column 'f1' at row 1
 drop table t1;
+select now() > coalesce(time('21:43:24'), date('2010-05-03'));
+now() > coalesce(time('21:43:24'), date('2010-05-03'))
+1

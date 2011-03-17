@@ -2901,6 +2901,21 @@ double Item_func_coalesce::real_op()
 }
 
 
+bool Item_func_coalesce::get_date(MYSQL_TIME *ltime,uint fuzzydate)
+{
+  DBUG_ASSERT(fixed == 1);
+  null_value= 0;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    bool res= args[i]->get_date(ltime, fuzzydate);
+    if (!args[i]->null_value)
+      return res;
+  }
+  null_value=1;
+  return 0;
+}
+
+
 my_decimal *Item_func_coalesce::decimal_op(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed == 1);

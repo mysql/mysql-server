@@ -932,3 +932,9 @@ create table t1 (f1 timestamp);
 insert into t1 values ('0000-00-00 00:00:00');
 select least(1, f1) from t1;
 drop table t1;
+
+#
+# lp:737092 Assertion `item->null_value' failed in get_datetime_value in 5.1-micro
+#
+select now() > coalesce(time('21:43:24'), date('2010-05-03'));
+
