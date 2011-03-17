@@ -27,6 +27,9 @@ SHOW STATUS LIKE 'Slave_retried_transactions';
 SELECT * FROM t1;
 source include/check_slave_is_running.inc;
 
+connection slave;
+call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1");
+
 --echo **** On Master ****
 connection master;
 DROP TABLE t1;

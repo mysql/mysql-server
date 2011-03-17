@@ -256,30 +256,31 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
 
 bool Item_subselect::exec()
 {
-  int res;
+  DBUG_ENTER("Item_subselect::exec");
 
   /*
     Do not execute subselect in case of a fatal error
     or if the query has been killed.
   */
   if (thd->is_error() || thd->killed)
-    return 1;
+    DBUG_RETURN(true);
 
   DBUG_ASSERT(!thd->lex->context_analysis_only);
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
   */
-  DBUG_EXECUTE_IF("subselect_exec_fail", return 1;);
+  DBUG_EXECUTE_IF("subselect_exec_fail", DBUG_RETURN(true););
 
-  res= engine->exec();
+  bool res= engine->exec();
 
   if (engine_changed)
   {
     engine_changed= 0;
-    return exec();
+    res= exec();
+    DBUG_RETURN(res);
   }
-  return (res);
+  DBUG_RETURN(res);
 }
 
 Item::Type Item_subselect::type() const

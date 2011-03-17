@@ -14,6 +14,7 @@
 #################################################
 
 call mtr.add_suppression("Slave: Unknown table 't6' Error_code: 1051");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: 1677");
 
 --echo **** Diff Table Def Start ****
 
@@ -768,6 +769,10 @@ RESET MASTER;
 --echo *** Start Slave ***
 connection slave;
 START SLAVE;
+
+call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
+call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: 1060");
+call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
 
 --echo *** Master Data Insert ***
 connection master;
