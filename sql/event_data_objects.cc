@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define MYSQL_LEX 1
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -74,9 +74,9 @@ protected:
   }
 
 private:
-  Event_creation_ctx(CHARSET_INFO *client_cs,
-                     CHARSET_INFO *connection_cl,
-                     CHARSET_INFO *db_cl)
+  Event_creation_ctx(const CHARSET_INFO *client_cs,
+                     const CHARSET_INFO *connection_cl,
+                     const CHARSET_INFO *db_cl)
     : Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
   { }
 };
@@ -95,9 +95,9 @@ Event_creation_ctx::load_from_db(THD *thd,
 {
   /* Load character set/collation attributes. */
 
-  CHARSET_INFO *client_cs;
-  CHARSET_INFO *connection_cl;
-  CHARSET_INFO *db_cl;
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
 
   bool invalid_creation_ctx= FALSE;
 

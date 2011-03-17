@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* drop and alter of tables */
 
@@ -2095,7 +2095,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
             by parser) it is safe to cache pointer to the TABLE instances
             in its elements.
           */
-          table->table= find_table_for_mdl_upgrade(thd->open_tables, table->db,
+          table->table= find_table_for_mdl_upgrade(thd, table->db,
                                                    table->table_name, false);
           if (!table->table)
             DBUG_RETURN(true);
@@ -2657,7 +2657,7 @@ static int sort_keys(KEY *a, KEY *b)
 
 bool check_duplicates_in_interval(const char *set_or_name,
                                   const char *name, TYPELIB *typelib,
-                                  CHARSET_INFO *cs, unsigned int *dup_val_count)
+                                  const CHARSET_INFO *cs, uint *dup_val_count)
 {
   TYPELIB tmp= *typelib;
   const char **cur_value= typelib->type_names;
@@ -2709,7 +2709,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
   RETURN VALUES
     void
 */
-void calculate_interval_lengths(CHARSET_INFO *cs, TYPELIB *interval,
+void calculate_interval_lengths(const CHARSET_INFO *cs, TYPELIB *interval,
                                 uint32 *max_length, uint32 *tot_length)
 {
   const char **pos;
@@ -2914,10 +2914,10 @@ int prepare_create_field(Create_field *sql_field,
     cs                        Character set
 */
 
-CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
-                                    HA_CREATE_INFO *create_info)
+const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
+                                          HA_CREATE_INFO *create_info)
 {
-  CHARSET_INFO *cs= sql_field->charset;
+  const CHARSET_INFO *cs= sql_field->charset;
 
   if (!cs)
     cs= create_info->default_table_charset;
@@ -3003,7 +3003,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
   for (field_no=0; (sql_field=it++) ; field_no++)
   {
-    CHARSET_INFO *save_cs;
+    const CHARSET_INFO *save_cs;
 
     /*
       Initialize length from its original value (number of characters),
@@ -3059,7 +3059,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         sql_field->sql_type == MYSQL_TYPE_ENUM)
     {
       uint32 dummy;
-      CHARSET_INFO *cs= sql_field->charset;
+      const CHARSET_INFO *cs= sql_field->charset;
       TYPELIB *interval= sql_field->interval;
 
       /*
@@ -3520,7 +3520,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_info->flags|= HA_USES_BLOCK_SIZE;
 
     List_iterator<Key_part_spec> cols(key->columns), cols2(key->columns);
-    CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
+    const CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
     for (uint column_nr=0 ; (column=cols++) ; column_nr++)
     {
       uint length;

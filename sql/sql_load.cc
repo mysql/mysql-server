@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Copy data from a textfile to table */
@@ -75,9 +75,9 @@ public:
   bool error,line_cuted,found_null,enclosed;
   uchar	*row_start,			/* Found row starts here */
 	*row_end;			/* Found row ends here */
-  CHARSET_INFO *read_charset;
+  const CHARSET_INFO *read_charset;
 
-  READ_INFO(File file,uint tot_length,CHARSET_INFO *cs,
+  READ_INFO(File file,uint tot_length,const CHARSET_INFO *cs,
 	    String &field_term,String &line_start,String &line_term,
 	    String &enclosed,int escape,bool get_it_from_net, bool is_fifo);
   ~READ_INFO();
@@ -1120,7 +1120,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
   Item *item;
   TABLE *table= table_list->table;
   bool no_trans_update_stmt;
-  CHARSET_INFO *cs= read_info.read_charset;
+  const CHARSET_INFO *cs= read_info.read_charset;
   DBUG_ENTER("read_xml_field");
   
   no_trans_update_stmt= !table->file->has_transactions();
@@ -1298,7 +1298,7 @@ READ_INFO::unescape(char chr)
 */
 
 
-READ_INFO::READ_INFO(File file_par, uint tot_length, CHARSET_INFO *cs,
+READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
 		     String &field_term, String &line_start, String &line_term,
 		     String &enclosed_par, int escape, bool get_it_from_net,
 		     bool is_fifo)

@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This is the include file that should be included 'first' in every C file. */
 
@@ -544,7 +544,7 @@ typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
-typedef int	(*qsort_cmp2)(void*, const void *,const void *);
+typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
 C_MODE_END
 #define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
 #ifdef HAVE_SYS_SOCKET_H
@@ -1485,7 +1485,6 @@ static inline double rint(double x)
 
 #undef HAVE_OPENSSL
 #undef HAVE_SMEM				/* No shared memory */
-#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
 
 #endif /* EMBEDDED_LIBRARY */
 

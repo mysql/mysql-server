@@ -302,7 +302,7 @@ enum enum_commands {
   Q_ENABLE_WARNINGS, Q_DISABLE_WARNINGS,
   Q_ENABLE_INFO, Q_DISABLE_INFO,
   Q_ENABLE_METADATA, Q_DISABLE_METADATA,
-  Q_EXEC, Q_DELIMITER,
+  Q_EXEC, Q_EXECW, Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR, Q_ENABLE_ABORT_ON_ERROR,
   Q_DISPLAY_VERTICAL_RESULTS, Q_DISPLAY_HORIZONTAL_RESULTS,
   Q_QUERY_VERTICAL, Q_QUERY_HORIZONTAL, Q_SORTED_RESULT,
@@ -373,6 +373,7 @@ const char *command_names[]=
   "enable_metadata",
   "disable_metadata",
   "exec",
+  "execw",
   "delimiter",
   "disable_abort_on_error",
   "enable_abort_on_error",
@@ -2750,8 +2751,52 @@ void free_tmp_sh_file()
 #endif
 
 
-FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode)
+FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
+               struct st_command *command)
 {
+#if __WIN__
+  /*
+    --execw is for tests executing commands containing non-ASCII characters.
+
+    To correctly start such a program on Windows, we need to use the "wide"
+    version of popen, with prior translation of the command line from
+    the file character set to wide string. We use the current value
+    of --character_set as a file character set, so before using --execw
+    make sure to set --character_set properly.
+
+    If we use the non-wide version of popen, Windows internally
+    converts command line from the current ANSI code page to wide string.
+    In case when character set of the command line does not match the
+    current ANSI code page, non-ASCII characters get garbled in most cases.
+
+    On Linux, the command line passed to popen() is considered
+    as a binary string, no any internal to-wide and from-wide
+    character set conversion happens, so we don't need to do anything.
+    On Linux --execw is just a synonym to --exec.
+
+    For simplicity, assume that  command line is limited to 4KB
+    (like in cmd.exe) and that mode at most 10 characters.
+  */
+  if (command->type == Q_EXECW)
+  {
+    wchar_t wcmd[4096];
+    wchar_t wmode[10];
+    const char *cmd= ds_cmd->str;
+    uint dummy_errors;
+    size_t len;
+    len= my_convert((char *) wcmd, sizeof(wcmd) - sizeof(wcmd[0]),
+                    &my_charset_utf16le_bin,
+                    ds_cmd->str, strlen(ds_cmd->str), charset_info,
+                    &dummy_errors);
+    wcmd[len / sizeof(wchar_t)]= 0;
+    len= my_convert((char *) wmode, sizeof(wmode) - sizeof(wmode[0]),
+                    &my_charset_utf16le_bin,
+                    mode, strlen(mode), charset_info, &dummy_errors);
+    wmode[len / sizeof(wchar_t)]= 0;
+    return _wpopen(wcmd, wmode);
+  }
+#endif /* __WIN__ */
+
 #if defined __WIN__ && defined USE_CYGWIN
   /* Dump the command into a sh script file and execute with popen */
   str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
@@ -2888,7 +2933,7 @@ void do_exec(struct st_command *command)
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
 
-  if (!(res_file= my_popen(&ds_cmd, "r")) && command->abort_on_error)
+  if (!(res_file= my_popen(&ds_cmd, "r", command)) && command->abort_on_error)
   {
     dynstr_free(&ds_cmd);
     die("popen(\"%s\", \"r\") failed", command->first_argument);
@@ -3000,83 +3045,6 @@ int do_modify_var(struct st_command *command,
   v->int_dirty= true;
   command->last_argument= (char*)++p;
   return 0;
-}
-
-
-/*
-  Wrapper for 'system' function
-
-  NOTE
-  If mysqltest is executed from cygwin shell, the command will be
-  executed in the "windows command interpreter" cmd.exe and we prepend "sh"
-  to make it be executed by cygwins "bash". Thus commands like "rm",
-  "mkdir" as well as shellscripts can executed by "system" in Windows.
-
-*/
-
-int my_system(DYNAMIC_STRING* ds_cmd)
-{
-#if defined __WIN__ && defined USE_CYGWIN
-  /* Dump the command into a sh script file and execute with system */
-  str_to_file(tmp_sh_name, ds_cmd->str, ds_cmd->length);
-  return system(tmp_sh_cmd);
-#else
-  return system(ds_cmd->str);
-#endif
-}
-
-
-/*
-  SYNOPSIS
-  do_system
-  command	called command
-
-  DESCRIPTION
-  system <command>
-
-  Eval the query to expand any $variables in the command.
-  Execute the command with the "system" command.
-
-*/
-
-void do_system(struct st_command *command)
-{
-  DYNAMIC_STRING ds_cmd;
-  DBUG_ENTER("do_system");
-
-  if (strlen(command->first_argument) == 0)
-    die("Missing arguments to system, nothing to do!");
-
-  init_dynamic_string(&ds_cmd, 0, command->query_len + 64, 256);
-
-  /* Eval the system command, thus replacing all environment variables */
-  do_eval(&ds_cmd, command->first_argument, command->end, !is_windows);
-
-#ifdef __WIN__
-#ifndef USE_CYGWIN
-   /* Replace /dev/null with NUL */
-   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
-     ;
-#endif
-#endif
-
-
-  DBUG_PRINT("info", ("running system command '%s' as '%s'",
-                      command->first_argument, ds_cmd.str));
-  if (my_system(&ds_cmd))
-  {
-    if (command->abort_on_error)
-      die("system command '%s' failed", command->first_argument);
-
-    /* If ! abort_on_error, log message and continue */
-    dynstr_append(&ds_res, "system command '");
-    replace_dynstr_append(&ds_res, command->first_argument);
-    dynstr_append(&ds_res, "' failed\n");
-  }
-
-  command->last_argument= command->end;
-  dynstr_free(&ds_cmd);
-  DBUG_VOID_RETURN;
 }
 
 
@@ -8570,7 +8538,10 @@ int main(int argc, char **argv)
       case Q_INC: do_modify_var(command, DO_INC); break;
       case Q_DEC: do_modify_var(command, DO_DEC); break;
       case Q_ECHO: do_echo(command); command_executed++; break;
-      case Q_SYSTEM: do_system(command); break;
+      case Q_SYSTEM:
+        die("'system' command  is deprecated, use exec or\n"\
+            "  see the manual for portable commands to use");
+	break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
@@ -8763,6 +8734,7 @@ int main(int argc, char **argv)
         do_shutdown_server(command);
         break;
       case Q_EXEC:
+      case Q_EXECW:
 	do_exec(command);
 	command_executed++;
 	break;

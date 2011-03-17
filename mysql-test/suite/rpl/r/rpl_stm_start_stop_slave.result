@@ -70,5 +70,6 @@ include/start_slave.inc
 # Clean up
 DROP TABLE t1;
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
+call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
 SET @@global.innodb_flush_log_at_trx_commit= @old_innodb_flush_log_at_trx_commit;
 include/rpl_end.inc

@@ -417,6 +417,7 @@ dict_table_open_on_name(
 /*====================*/
 	const char*	table_name,	/*!< in: table name */
 	ibool		dict_locked);	/*!< in: TRUE=data dictionary locked */
+
 /**********************************************************************//**
 Returns a table object and increment its open handle count. Table
 statistics will not be updated if they are not initialized.

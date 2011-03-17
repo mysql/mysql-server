@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
@@ -348,7 +348,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
   return false;
 }
 
-CHARSET_INFO *sys_var::charset(THD *thd)
+const CHARSET_INFO *sys_var::charset(THD *thd)
 {
   return is_os_charset ? thd->variables.character_set_filesystem :
     system_charset_info;
@@ -375,7 +375,7 @@ static my_old_conv old_conv[]=
   {     NULL                    ,       NULL            }
 };
 
-CHARSET_INFO *get_old_charset_by_name(const char *name)
+const CHARSET_INFO *get_old_charset_by_name(const char *name)
 {
   my_old_conv *conv;
 
@@ -774,7 +774,7 @@ int set_var_password::update(THD *thd)
 int set_var_collation_client::check(THD *thd)
 {
   /* Currently, UCS-2 cannot be used as a client character set */
-  if (character_set_client->mbminlen > 1)
+  if (!is_supported_parser_charset(character_set_client))
   {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
              character_set_client->csname);

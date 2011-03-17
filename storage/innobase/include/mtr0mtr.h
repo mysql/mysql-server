@@ -189,6 +189,9 @@ functions).  The page number parameter was originally written as 0. @{ */
 					MLOG_FILE_CREATE, MLOG_FILE_CREATE2 */
 /* @} */
 
+/* included here because it needs MLOG_LSN defined */
+#include "log0log.h"
+
 /***************************************************************//**
 Starts a mini-transaction and creates a mini-transaction handle
 and buffer in the memory buffer given by the caller.
@@ -386,9 +389,9 @@ struct mtr_struct{
 				have been written to the mtr log */
 	ulint		log_mode; /* specifies which operations should be
 				logged; default value MTR_LOG_ALL */
-	ib_uint64_t	start_lsn;/* start lsn of the possible log entry for
+	lsn_t		start_lsn;/* start lsn of the possible log entry for
 				this mtr */
-	ib_uint64_t	end_lsn;/* end lsn of the possible log entry for
+	lsn_t		end_lsn;/* end lsn of the possible log entry for
 				this mtr */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;
