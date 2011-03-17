@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
     {
       if (!strncmp(buff+1,"INSERT_METHOD=",14))
       {			/* Lookup insert method */
-	int tmp=find_type(buff+15,&merge_insert_method,2);
+	int tmp= find_type(buff + 15, &merge_insert_method, FIND_TYPE_BASIC);
 	found_merge_insert_method = (uint) (tmp >= 0 ? tmp : 0);
       }
       continue;		/* Skip comments */
@@ -271,7 +271,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
       {
         /* Compare buffer with global methods list: merge_insert_method. */
         insert_method= find_type(child_name_buff + 15,
-                                 &merge_insert_method, 2);
+                                 &merge_insert_method, FIND_TYPE_BASIC);
       }
       continue;
     }
