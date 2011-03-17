@@ -38,9 +38,6 @@ select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_open";
 
 select count(name) from mutex_instances
- where name like "wait/synch/mutex/mysys/THR_LOCK_isam";
-
-select count(name) from mutex_instances
  where name like "wait/synch/mutex/mysys/THR_LOCK_myisam";
 
 select count(name) from mutex_instances
