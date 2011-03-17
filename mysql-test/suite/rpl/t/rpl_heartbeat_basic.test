@@ -320,7 +320,7 @@ INSERT INTO t1 VALUES (1, 'on slave', NULL);
 INSERT INTO t1 VALUES (1, 'on master', NULL);
 --connection slave
 call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: 1062");
-call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 let $slave_errno= ER_DUP_ENTRY
 --source include/wait_for_slave_sql_error.inc
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
