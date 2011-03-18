@@ -1358,6 +1358,21 @@ Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 DROP TABLE t1;
 End of 5.1 tests
+select time('10:10:10') > 10;
+time('10:10:10') > 10
+1
+select time('10:10:10') > 1010;
+time('10:10:10') > 1010
+1
+select time('10:10:09') > 101010;
+time('10:10:09') > 101010
+0
+select time('10:10:10') > 101010;
+time('10:10:10') > 101010
+0
+select time('10:10:11') > 101010;
+time('10:10:11') > 101010
+1
 select time(' 1 02:03:04') + interval 9 microsecond;
 time(' 1 02:03:04') + interval 9 microsecond
 26:03:04.000009

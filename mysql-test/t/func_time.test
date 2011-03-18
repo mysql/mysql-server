@@ -861,6 +861,12 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+select time('10:10:10') > 10;
+select time('10:10:10') > 1010;
+select time('10:10:09') > 101010;
+select time('10:10:10') > 101010;
+select time('10:10:11') > 101010;
+
 select time(' 1 02:03:04') + interval 9 microsecond;
 select time(' 1 02:03:04') - interval 9 microsecond;
 select time('-1 02:03:04') + interval 9 microsecond;

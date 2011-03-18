@@ -870,9 +870,14 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     {
       MYSQL_TIME buf;
       int was_cut;
+      longlong res;
 
-      if (number_to_datetime(value, &buf, TIME_INVALID_DATES|TIME_FUZZY_DATE,
-                             &was_cut) == -1)
+      if (t_type == MYSQL_TIMESTAMP_TIME)
+        res= number_to_time(value, &buf, &was_cut);
+      else
+        res= number_to_datetime(value, &buf, TIME_INVALID_DATES|TIME_FUZZY_DATE,
+                                &was_cut);
+      if (res == -1)
       {
         const Lazy_string_num str(value);
         make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
