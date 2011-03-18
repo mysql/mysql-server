@@ -284,3 +284,12 @@ DROP TABLE t1;
 
 
 --echo End of 5.1 tests
+
+#
+# lp:737458 Casting dates and times into integers works differently in 5.1-micro
+#
+create table t1 (f1 time, f2 date, f3 datetime);
+insert into t1 values ('11:22:33','2011-12-13','2011-12-13 11:22:33');
+select cast(f1 as unsigned), cast(f2 as unsigned), cast(f3 as unsigned) from t1;
+drop table t1;
+
