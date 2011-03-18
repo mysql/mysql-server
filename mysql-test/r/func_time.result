@@ -1527,3 +1527,9 @@ NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
+create table t1 (f2 time not null, f3 datetime, f4 int not null, f5 timestamp);
+insert ignore t1 values ('04:38:11','0000-00-00 00:00:00',0,'0000-00-00 00:00:00');
+select least(greatest(f3, f2, f4), f5) from t1;
+least(greatest(f3, f2, f4), f5)
+0000-00-00 00:00:00
+drop table t1;

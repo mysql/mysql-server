@@ -960,3 +960,11 @@ select timestampadd(week, 1, f1) from t1;
 select timestampadd(week, 1, date("0000-00-00"));
 drop table t1;
 
+#
+# lp:737450 Second Assertion `item->null_value' failed in 5.1-micro
+#
+create table t1 (f2 time not null, f3 datetime, f4 int not null, f5 timestamp);
+insert ignore t1 values ('04:38:11','0000-00-00 00:00:00',0,'0000-00-00 00:00:00');
+select least(greatest(f3, f2, f4), f5) from t1;
+drop table t1;
+

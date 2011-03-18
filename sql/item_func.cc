@@ -2259,9 +2259,6 @@ void Item_func_min_max::fix_length_and_dec()
 /*
   Compare item arguments in the DATETIME context.
 
-  SYNOPSIS
-    cmp_datetimes()
-
   DESCRIPTION
     Compare item arguments as DATETIME values and return the index of the
     least/greatest argument in the arguments array.
@@ -2273,9 +2270,10 @@ void Item_func_min_max::fix_length_and_dec()
    0    Otherwise
 */
 
-bool Item_func_min_max::cmp_datetimes(MYSQL_TIME *ltime)
+bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   longlong UNINIT_VAR(min_max);
+  DBUG_ASSERT(fixed == 1);
 
   for (uint i=0; i < arg_count ; i++)
   {
@@ -2309,7 +2307,7 @@ String *Item_func_min_max::val_str(String *str)
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (cmp_datetimes(&ltime))
+    if (get_date(&ltime, TIME_FUZZY_DATE))
       return 0;
 
     char buf[MAX_DATE_STRING_REP_LENGTH];
@@ -2383,7 +2381,7 @@ double Item_func_min_max::val_real()
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (cmp_datetimes(&ltime))
+    if (get_date(&ltime, TIME_FUZZY_DATE))
       return 0;
 
     return TIME_to_double(&ltime);
@@ -2412,7 +2410,7 @@ longlong Item_func_min_max::val_int()
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (cmp_datetimes(&ltime))
+    if (get_date(&ltime, TIME_FUZZY_DATE))
       return 0;
 
     return TIME_to_ulonglong(&ltime);
@@ -2442,7 +2440,7 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
   if (compare_as_dates)
   {
     MYSQL_TIME ltime;
-    if (cmp_datetimes(&ltime))
+    if (get_date(&ltime, TIME_FUZZY_DATE))
       return 0;
 
     return date2my_decimal(&ltime, dec);
