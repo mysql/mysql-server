@@ -693,3 +693,22 @@ DROP VIEW v1,v2,v3,v4,v6,v7;
 
 --echo #
 
+--echo #
+--echo # Bug#11807437: VALGRIND WARNING IN MYSQL_DERIVED_OPTIMIZE() LINE 293
+--echo #
+CREATE TABLE t1 (
+  f1 int(11) DEFAULT NULL
+);
+
+SELECT 1
+FROM (
+  SELECT 1, 2 FROM DUAL
+  WHERE EXISTS  (
+    SELECT f1
+    FROM  t1
+    )) AS tt
+;
+
+DROP TABLE t1;
+--echo #
+
