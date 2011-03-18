@@ -6668,7 +6668,8 @@ create_table_def(
 					an .ibd file for it (no .ibd extension
 					in the path, though); otherwise this
 					is NULL */
-	ulint		flags)		/*!< in: table flags */
+	ulint		flags,		/*!< in: table flags */
+	ulint		flags2)		/*!< in: table flags2 */
 {
 	Field*		field;
 	dict_table_t*	table;
@@ -6708,7 +6709,7 @@ create_table_def(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	table = dict_mem_table_create(table_name, 0, n_cols, flags);
+	table = dict_mem_table_create(table_name, 0, n_cols, flags, flags2);
 
 	if (path_of_temp_table) {
 		table->dir_path_of_temp_table =
@@ -7183,7 +7184,8 @@ ha_innobase::create(
 	char		norm_name[FN_REFLEN];
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
-	ulint		flags;
+	ulint		flags = 0;
+	ulint		flags2 = 0;
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
 	const ulint	file_format = srv_file_format;
@@ -7252,8 +7254,6 @@ ha_innobase::create(
 	row_mysql_lock_data_dictionary(trx);
 
 	/* Create the table definition in InnoDB */
-
-	flags = 0;
 
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(thd, form, create_info)) {
@@ -7407,12 +7407,12 @@ ha_innobase::create(
 	}
 
 	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-		flags |= DICT_TF2_TEMPORARY << DICT_TF2_SHIFT;
+		flags2 |= DICT_TF2_TEMPORARY;
 	}
 
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
-		flags);
+		flags, flags2);
 
 	if (error) {
 		goto cleanup;

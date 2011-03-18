@@ -605,7 +605,7 @@ dict_sys_tables_get_flags(
 	field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
 	n_cols = mach_read_from_4(field);
 
-	if (UNIV_UNLIKELY(!(n_cols & 0x80000000UL))) {
+	if (UNIV_UNLIKELY(!(n_cols & DICT_N_COLS_COMPACT))) {
 		/* New file formats require ROW_FORMAT=COMPACT. */
 		return(ULINT_UNDEFINED);
 	}
@@ -632,7 +632,7 @@ dict_sys_tables_get_flags(
 		return(ULINT_UNDEFINED);
 	}
 
-	if (UNIV_UNLIKELY(flags & (~0 << DICT_TF_BITS))) {
+	if (UNIV_UNLIKELY(flags & ~DICT_TF_BIT_MASK)) {
 		/* Some unused bits are set. */
 		return(ULINT_UNDEFINED);
 	}
@@ -746,7 +746,7 @@ loop:
 			ibool	is_temp;
 
 			field = rec_get_nth_field_old(rec, 4, &len);
-			if (0x80000000UL &  mach_read_from_4(field)) {
+			if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
 				/* ROW_FORMAT=COMPACT: read the is_temp
 				flag from SYS_TABLES.MIX_LEN. */
 				field = rec_get_nth_field_old(rec, 7, &len);
@@ -1485,7 +1485,8 @@ dict_load_table_low(
 	ulint		len;
 	ulint		space;
 	ulint		n_cols;
-	ulint		flags;
+	ulint		flags = 0;
+	ulint		flags2 = 0;
 
 	if (UNIV_UNLIKELY(rec_get_deleted_flag(rec, 0))) {
 		return("delete-marked record in SYS_TABLES");
@@ -1567,27 +1568,22 @@ err_len:
 				(ulong) flags);
 			return("incorrect flags in SYS_TABLES");
 		}
-	} else {
-		flags = 0;
 	}
 
 	/* The high-order bit of N_COLS is the "compact format" flag.
 	For tables in that format, MIX_LEN may hold additional flags. */
-	if (n_cols & 0x80000000UL) {
-		ulint	flags2;
-
+	if (n_cols & DICT_N_COLS_COMPACT) {
 		flags |= DICT_TF_COMPACT;
 
-		field = rec_get_nth_field_old(rec, 7, &len);
+		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
 
 		if (UNIV_UNLIKELY(len != 4)) {
-
 			goto err_len;
 		}
 
 		flags2 = mach_read_from_4(field);
 
-		if (flags2 & (~0 << (DICT_TF2_BITS - DICT_TF2_SHIFT))) {
+		if (flags2 & ~DICT_TF2_BIT_MASK) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Warning: table ", stderr);
 			ut_print_filename(stderr, name);
@@ -1596,15 +1592,13 @@ err_len:
 				" has unknown flags %lx.\n",
 				(ulong) flags2);
 
-			flags2 &= ~(~0 << (DICT_TF2_BITS - DICT_TF2_SHIFT));
+			flags2 &= DICT_TF2_BIT_MASK;
 		}
-
-		flags |= flags2 << DICT_TF2_SHIFT;
 	}
 
 	/* See if the tablespace is available. */
-	*table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
-				       flags);
+	*table = dict_mem_table_create(
+		name, space, n_cols & ~DICT_N_COLS_COMPACT, flags, flags2);
 
 	field = rec_get_nth_field_old(rec, 3/*ID*/, &len);
 	ut_ad(len == 8); /* this was checked earlier */
@@ -1707,11 +1701,10 @@ err_exit:
 		/* The system tablespace is always available. */
 	} else if (!fil_space_for_table_exists_in_mem(
 			   table->space, name,
-			   (table->flags >> DICT_TF2_SHIFT)
-			   & DICT_TF2_TEMPORARY,
+			   table->flags2 & DICT_TF2_TEMPORARY,
 			   FALSE, FALSE)) {
 
-		if (table->flags & (DICT_TF2_TEMPORARY << DICT_TF2_SHIFT)) {
+		if (table->flags2 & DICT_TF2_TEMPORARY) {
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 		} else {
@@ -1727,7 +1720,7 @@ err_exit:
 			if (!fil_open_single_table_tablespace(
 				TRUE, table->space,
 				table->flags == DICT_TF_COMPACT ? 0 :
-				table->flags & ~(~0 << DICT_TF_BITS), name)) {
+				table->flags, name)) {
 				/* We failed to find a sensible
 				tablespace file */
 
