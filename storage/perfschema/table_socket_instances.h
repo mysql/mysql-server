@@ -40,6 +40,8 @@ struct row_socket_instances
   const void *m_identity;
   /** Column THREAD_ID */
   uint m_thread_id;
+  /** True if thread_is is set */
+  bool m_thread_id_set;
   /** Column SOCKET_ID */
   uint m_fd;
   /** Socket ip address, IPV4 or IPV6 */
@@ -48,6 +50,8 @@ struct row_socket_instances
   uint m_ip_length;
   /** Column PORT */
   uint m_port;
+
+  row_socket_instances() {m_thread_id= false;}
 };
 
 /** Table PERFORMANCE_SCHEMA.SOCKET_INSTANCES. */
