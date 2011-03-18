@@ -209,7 +209,7 @@ struct PFS_socket : public PFS_instr
   /** Raw socket address */
   struct sockaddr m_sock_addr;
   /** Length of address */
-  socklen_t m_sock_len;
+  socklen_t m_addr_len;
   /** Socket ip address, IPV4 or IPV6 */ // TBD: Remove?
   char m_ip[INET6_ADDRSTRLEN];
   /** Socket ip address length in bytes */

@@ -764,6 +764,8 @@ void do_handle_one_connection(THD *thd_arg)
 
     prepare_new_connection_state(thd);
 
+    mysql_socket_set_thread_owner(net->vio->mysql_socket);
+
     while (!net->error && net->vio != 0 &&
            !(thd->killed == THD::KILL_CONNECTION))
     {

@@ -3895,76 +3895,31 @@ static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
   pfs->m_idle= (state == PSI_SOCKET_STATE_IDLE);
 }
 
-static void set_socket_descriptor_v1(PSI_socket *socket, uint fd)
-{
-  DBUG_ASSERT(socket);
-  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
-  pfs->m_fd= fd;
-}
-
-
-static void set_socket_address_v1(PSI_socket *socket,
-                                  const struct sockaddr *addr,
-                                  socklen_t addr_len)
-{
-#if 0
-  DBUG_ASSERT(socket);
-  PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
-
-  memset(pfs->m_ip, 0, pfs->m_ip_length);
-
-  switch (addr->sa_family)
-  {
-    case AF_INET:
-    {
-      struct sockaddr_in *sa4= (struct sockaddr_in *)(addr);
-      pfs->m_ip_length= INET_ADDRSTRLEN;
-      inet_ntop(AF_INET, &(sa4->sin_addr), pfs->m_ip, pfs->m_ip_length);
-      pfs->m_port= ntohs(sa4->sin_port);
-    }
-    break;
-
-    case AF_INET6:
-    {
-      struct sockaddr_in6 *sa6= (struct sockaddr_in6 *)(addr);
-      pfs->m_ip_length= INET6_ADDRSTRLEN;
-      inet_ntop(AF_INET6, &(sa6->sin6_addr), pfs->m_ip, pfs->m_ip_length);
-      pfs->m_port= ntohs(sa6->sin6_port);
-    }
-    break;
-
-    default:
-      break;
-  }
-
-  /* Adjust IP address string length */
-  pfs->m_ip_length= strlen((const char*)pfs->m_ip);
-#endif
-}
-
+/**
+  Set socket descriptor and addres info.
+*/
 static void set_socket_info_v1(PSI_socket *socket,
-                               my_socket *fd,
+                               const my_socket *fd,
                                const struct sockaddr *addr,
-                               socklen_t *addr_len)
+                               socklen_t addr_len)
 {
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
   /** Set socket descriptor */
-  if (likely(fd != NULL))
+  if (fd != NULL)
     pfs->m_fd= *fd;
 
   /** Set raw socket address and length */
-  if (likely(addr != NULL && addr_len != NULL))
+  if (likely(addr != NULL && addr_len > 0))
   {
-    pfs->m_sock_len= *addr_len;
+    pfs->m_addr_len= addr_len;
   
     /** Restrict address length to size of struct */
-    if (unlikely(pfs->m_sock_len > sizeof(struct sockaddr)))
-      pfs->m_sock_len= sizeof(struct sockaddr);
+    if (unlikely(pfs->m_addr_len > sizeof(struct sockaddr)))
+      pfs->m_addr_len= sizeof(struct sockaddr);
   
-    if (likely(pfs->m_sock_len > 0))
-      memcpy(&pfs->m_sock_addr, addr, pfs->m_sock_len);
+    memcpy(&pfs->m_sock_addr, addr, pfs->m_addr_len);
   }
 }
 
@@ -3972,9 +3927,9 @@ static void set_socket_info_v1(PSI_socket *socket,
   Implementation of the socket instrumentation interface.
   @sa PSI_v1::set_socket_info.
 */
-static void set_socket_thread_owner_v1(PSI_socket *socket, PSI_thread *thread)
+static void set_socket_thread_owner_v1(PSI_socket *socket)
 {
-  if (likely(socket != NULL && thread != NULL))
+  if (likely(socket != NULL))
   {
     PFS_socket *pfs_socket= reinterpret_cast<PFS_socket*>(socket);
     pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
@@ -4056,8 +4011,6 @@ PSI_v1 PFS_v1=
   start_socket_wait_v1,
   end_socket_wait_v1,
   set_socket_state_v1,
-  set_socket_descriptor_v1,
-  set_socket_address_v1,
   set_socket_info_v1,
   set_socket_thread_owner_v1
 };

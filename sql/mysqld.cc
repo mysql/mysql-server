@@ -1819,7 +1819,11 @@ static void network_init(void)
     {
       ip_sock= mysql_socket_socket(key_socket_tcpip, a->ai_family, a->ai_socktype, a->ai_protocol);
       if (mysql_socket_getfd(ip_sock) != INVALID_SOCKET)
+      {
+        mysql_socket_set_address(ip_sock, a->ai_addr, a->ai_addrlen); //TBD: Refine api?
         break;
+      }
+
     }
 
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)

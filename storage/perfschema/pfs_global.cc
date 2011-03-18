@@ -107,7 +107,7 @@ const char *inet_ntop(int af, const void *src, char *host, socklen_t hostlen)
 
 /** Convert raw ip address into readable format */ // TBD: review this
 
-uint pfs_set_socket_address(char *host,
+uint pfs_get_socket_address(char *host,
                             uint host_len,
                             uint *port,
                             const struct sockaddr *src_addr,
