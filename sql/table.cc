@@ -10,9 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
-
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Some general useful functions */
 
@@ -106,7 +105,7 @@ Default_object_creation_ctx::Default_object_creation_ctx(THD *thd)
 { }
 
 Default_object_creation_ctx::Default_object_creation_ctx(
-  CHARSET_INFO *client_cs, CHARSET_INFO *connection_cl)
+  const CHARSET_INFO *client_cs, const CHARSET_INFO *connection_cl)
   : m_client_cs(client_cs),
     m_connection_cl(connection_cl)
 { }
@@ -202,6 +201,19 @@ static uchar *get_field_name(Field **buff, size_t *length,
   *length= (uint) strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
 }
+
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  A function to return the partition name from a partition element
+*/
+uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
+                            my_bool not_used __attribute__((unused)))
+{
+  *length= part->length;
+  return part->partition_name;
+}
+#endif
 
 
 /*
@@ -1296,7 +1308,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   {
     uint pack_flag, interval_nr, unireg_type, recpos, field_length;
     enum_field_types field_type;
-    CHARSET_INFO *charset=NULL;
+    const CHARSET_INFO *charset=NULL;
     Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
     LEX_STRING comment;
 
@@ -1473,8 +1485,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   /* Fix key->name and key_part->field */
   if (key_parts)
   {
-    uint primary_key=(uint) (find_type((char*) primary_key_name,
-				       &share->keynames, 3) - 1);
+    uint primary_key=(uint) (find_type(primary_key_name, &share->keynames,
+                                       FIND_TYPE_NO_PREFIX) - 1);
     longlong ha_option= handler_file->ha_table_flags();
     keyinfo= share->key_info;
     key_part= keyinfo->key_part;
@@ -1974,8 +1986,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     }
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
-    /* we should perform the fix_partition_func in either local or
-       caller's arena depending on work_part_info_used value
+    /*
+      We should perform the fix_partition_func in either local or
+      caller's arena depending on work_part_info_used value.
     */
     if (!work_part_info_used)
       tmp= fix_partition_func(thd, outparam, is_create_table);
@@ -2126,6 +2139,7 @@ int closefrm(register TABLE *table, bool free_share)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
+    /* Allocated through table->mem_root, freed below */
     free_items(table->part_info->item_free_list);
     table->part_info->item_free_list= 0;
     table->part_info= 0;

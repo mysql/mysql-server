@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -238,11 +238,11 @@ dict_stats_persistent_storage_check(
 {
 	/* definition for the table TABLE_STATS_NAME */
 	dict_col_meta_t	table_stats_columns[] = {
-		{"database_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"table_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
 		{"stats_timestamp", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 4},
@@ -264,20 +264,20 @@ dict_stats_persistent_storage_check(
 
 	/* definition for the table INDEX_STATS_NAME */
 	dict_col_meta_t	index_stats_columns[] = {
-		{"database_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"table_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
-		{"index_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 512},
+		{"index_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192 /* NAME_LEN from mysql_com.h */},
 
 		{"stat_timestamp", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 4},
 
-		{"stat_name", DATA_VARCHAR,
-			DATA_NOT_NULL, 64},
+		{"stat_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 64*3},
 
 		{"stat_value", DATA_INT,
 			DATA_NOT_NULL | DATA_UNSIGNED, 8},
@@ -285,8 +285,8 @@ dict_stats_persistent_storage_check(
 		{"sample_size", DATA_INT,
 			DATA_UNSIGNED, 8},
 
-		{"stat_description", DATA_VARCHAR,
-			DATA_NOT_NULL, 1024}
+		{"stat_description", DATA_VARMYSQL,
+			DATA_NOT_NULL, 1024*3}
 	};
 	dict_table_schema_t	index_stats_schema = {
 		INDEX_STATS_NAME,
@@ -2326,10 +2326,10 @@ dict_stats_open(void)
 	dict_stats = mem_zalloc(sizeof(*dict_stats));
 
 	dict_stats->table_stats = dict_table_open_on_name_no_stats(
-		TABLE_STATS_NAME, FALSE);
+		TABLE_STATS_NAME, FALSE, DICT_ERR_IGNORE_NONE);
 
 	dict_stats->index_stats = dict_table_open_on_name_no_stats(
-		INDEX_STATS_NAME, FALSE);
+		INDEX_STATS_NAME, FALSE, DICT_ERR_IGNORE_NONE);
 
 	/* Check if the tables have the correct structure, if yes then
 	after this function we can safely DELETE from them without worrying

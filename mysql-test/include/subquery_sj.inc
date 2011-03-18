@@ -3504,3 +3504,19 @@ deallocate prepare s;
 DROP TABLE ot1, ot2, ot3, it1;
 
 --echo # End of the test for bug#57623.
+
+--echo #
+--echo # Bug#11766642: crash in Item_field::register_field_in_read_map with view
+--echo #
+
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+
+INSERT INTO t1 VALUES (0),(1),(2);
+
+SELECT a FROM t1 WHERE a IN 
+ (SELECT a XOR a FROM v1)
+ORDER BY a;
+
+DROP TABLE t1;
+DROP VIEW v1;

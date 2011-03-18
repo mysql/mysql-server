@@ -1030,18 +1030,18 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         && rli->is_in_group())
     {
       char msg_stopped[]=
-        "... The slave SQL is stopped, leaving the current group "
-        "of events unfinished with a non-transaction table changed. "
-        "If the group consists solely of Row-based events, you can try "
-        "restarting the slave with --slave-exec-mode=IDEMPOTENT, which "
+        "... Slave SQL Thread stopped with incomplete event group "
+        "having non-transactional changes. "
+        "If the group consists solely of row-based events, you can try "
+        "to restart the slave with --slave-exec-mode=IDEMPOTENT, which "
         "ignores duplicate key, key not found, and similar errors (see "
         "documentation for details).";
 
       if (rli->abort_slave)
       {
-        DBUG_PRINT("info", ("Slave SQL thread is being stopped in the middle of"
-                            " a group having updated a non-trans table, giving"
-                            " it some grace period"));
+        DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
+                            "applying a group that has non-transactional "
+                            "changes; waiting for completion of the group ... "));
 
         /*
           Slave sql thread shutdown in face of unfinished group modified 
@@ -1065,9 +1065,9 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         if (ret == 0)
         {
           rli->report(WARNING_LEVEL, 0,
-                      "slave SQL thread is being stopped in the middle "
-                      "of applying of a group having updated a non-transaction "
-                      "table; waiting for the group completion ... ");
+                      "Request to stop slave SQL Thread received while "
+                      "applying a group that has non-transactional "
+                      "changes; waiting for completion of the group ... ");
         }
         else
         {
@@ -2067,6 +2067,9 @@ bool show_master_info(THD* thd, Master_info* mi)
                                            MYSQL_TYPE_LONGLONG));
   field_list.push_back(new Item_empty_string("Master_Bind",
                                              sizeof(mi->bind_addr)));
+  field_list.push_back(new Item_empty_string("Last_IO_Error_Timestamp", 20));
+  field_list.push_back(new Item_empty_string("Last_SQL_Error_Timestamp", 20));
+
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2185,30 +2188,11 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_IO_Errno
     protocol->store(mi->last_error().number);
     // Last_IO_Error
-    if (*mi->last_error().message != '\0')
-    {
-      String msg_buf;
-      msg_buf.append(mi->last_error().timestamp);
-      msg_buf.append(" ");
-      msg_buf.append(mi->last_error().message);
-      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
-    }
-    else
-      protocol->store(mi->last_error().message, &my_charset_bin);
+    protocol->store(mi->last_error().message, &my_charset_bin);
     // Last_SQL_Errno
     protocol->store(mi->rli->last_error().number);
     // Last_SQL_Error
-    if (*mi->rli->last_error().message != '\0')
-    {
-      String msg_buf;
-      msg_buf.append(mi->rli->last_error().timestamp);
-      msg_buf.append(" ");
-      msg_buf.append(mi->rli->last_error().message);
-      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
-    }
-    else
-      protocol->store(mi->rli->last_error().message, &my_charset_bin);
-
+    protocol->store(mi->rli->last_error().message, &my_charset_bin);
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
@@ -2257,6 +2241,10 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->store((ulonglong) mi->retry_count);
     // Master_Bind
     protocol->store(mi->bind_addr, &my_charset_bin);
+    // Last_IO_Error_Timestamp
+    protocol->store(mi->last_error().timestamp, &my_charset_bin);
+    // Last_SQL_Error_Timestamp
+    protocol->store(mi->rli->last_error().timestamp, &my_charset_bin);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -4384,7 +4372,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at queue_event: byte on position %d", debug_cor_pos));
-      DBUG_SET("-d,corrupt_queue_event");
+      DBUG_SET("");
     }
   );
                                               

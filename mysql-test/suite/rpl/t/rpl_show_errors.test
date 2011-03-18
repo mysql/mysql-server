@@ -8,7 +8,12 @@
 # BUG#43535: last_io_error in show slave status is confusing
 #
 
+--let $ts_regexp= [0-9][0-9][0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]
+
 ############# CHECKS SQL ERRORS #############
+
+--let $field= Last_SQL_Error_Timestamp
+
 -- connection master
 CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
 -- sync_slave_with_master
@@ -22,27 +27,20 @@ DROP TABLE t1;
 -- connection slave
 # action: now  wait for the slave to stop because it cannot
 #         remove a table that does not exist
--- source include/wait_for_slave_sql_to_stop.inc
+let $slave_sql_errno=1051; # ER_BAD_TABLE_ERROR
+call mtr.add_suppression("Slave SQL: Error .Unknown table .test.t1.. on query.* Error_code: 1051");
+-- source include/wait_for_slave_sql_error.inc
 
--- echo # assertion: timestamp should be filled
--- let $errmsg0= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
--- let $errts0= `SELECT SUBSTRING("$errmsg0" FROM 1 FOR 15)`
-if (`SELECT (NOT STRCMP("$errts0", "") OR NOT ("$errts0" REGEXP "[0-9][0-9][0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"))`)
-{
-  -- echo Timestamp does not match the expected one: expected '#### ##:##:##', got: '$errts0' 
-  -- die
-}
+--let $errts0= query_get_value("SHOW SLAVE STATUS", $field, 1)
+--let $assert_text= $field is not null and matches the expected format
+--let $assert_cond= `SELECT ("$errts0" REGEXP "$ts_regexp")`
+--source include/assert.inc
 
 # action: stop the slave (this should preserve the error)
 -- source include/stop_slave.inc
--- let $errmsg1= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1)
--- echo # assertion: show that error is preserved after stop slave as well as the timestamp
-if (`SELECT (STRCMP("$errmsg0", "$errmsg1"))`)
-{
-  -- let $errts1= `SELECT SUBSTRING("$errmsg1" FROM 1 FOR 15)`
-  -- echo timestamp { got: "$errts1", expected: "$errts0" }, message { got: "$errmsg1", expected: "$errmsg0" }
-  -- die
-}
+--let $assert_cond= "$errts0" = "[SHOW SLAVE STATUS, $field, 1]"
+--let $assert_text= $field matches the one reported before stopping slave threads
+--source include/assert.inc
 
 -- connection slave
 # action: create the table again on the slave so that it resumes replication
@@ -65,6 +63,7 @@ source include/wait_for_slave_param.inc;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
+--let $field= Last_IO_Error_Timestamp
 
 # mostly copied and extended from rpl_server_id1.test
 -- connection slave
@@ -80,26 +79,17 @@ START SLAVE;
 -- source include/wait_for_slave_param.inc
 -- echo *** must be having the replicate-same-server-id IO thread error ***
 
--- echo # assertion: assert that error has been reported as well as a timestamp
--- let $errmsg0= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
--- let $errts0= `SELECT SUBSTRING("$errmsg0" FROM 1 FOR 15)`
-if (`SELECT (NOT STRCMP("$errts0", "") OR NOT ("$errts0" REGEXP "[0-9][0-9][0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]"))`)
-{
-  -- echo Timestamp does not match the expected one: expected '#### ##:##:##', got: '$errts0' 
-  -- die
-}
+--let $errts0= query_get_value("SHOW SLAVE STATUS", $field, 1)
+--let $assert_text= $field is not null and matches the expected format
+--let $assert_cond= `SELECT ("$errts0" REGEXP "$ts_regexp")`
+--source include/assert.inc
 
 # action: stop the slave
 -- source include/stop_slave.inc
 
--- let $errmsg1= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
--- echo # assertion: show that error is preserved after stop slave as well as the timestamp
-if (`SELECT (STRCMP("$errmsg0", "$errmsg1"))`)
-{
-  -- let $errts1= `SELECT SUBSTRING("$errmsg1" FROM 1 FOR 15)`
-  -- echo timestamp { got: "$errts1", expected: "$errts0" }, message { got: "$errmsg1", expected: "$errmsg0" }
-  -- die
-}
+--let $assert_cond= "$errts0" = "[SHOW SLAVE STATUS, $field, 1]"
+--let $assert_text= $field matches the one reported before stopping slave threads
+--source include/assert.inc
 
 # action: restore correct settings
 -- replace_result $MASTER_MYPORT MASTER_PORT

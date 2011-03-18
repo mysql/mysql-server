@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2160,7 +2160,7 @@ row_merge_drop_temp_indexes(void)
 }
 
 /*********************************************************************//**
-Creates temperary merge files, and if UNIV_PFS_IO defined, register
+Creates temporary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
 @return File descriptor */
 UNIV_INLINE
@@ -2323,7 +2323,7 @@ row_merge_create_temporary_table(
 		use it we need to open the table. */
 
 		temp_table = dict_table_open_on_name_no_stats(
-			new_table->name, TRUE);
+			new_table->name, TRUE, DICT_ERR_IGNORE_NONE);
 
 		ut_a(new_table == temp_table);
 	}
@@ -2400,7 +2400,7 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thd == NULL
 	      || trx->mysql_thread_id == os_thread_get_curr_id());
@@ -2416,7 +2416,7 @@ row_merge_rename_tables(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 

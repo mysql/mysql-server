@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,8 +37,6 @@ static my_bool win32_init_tcp_ip();
 #define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
-/** True if @c my_basic_init() has been called. */
-my_bool my_basic_init_done= 0;
 uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
 ulong   my_thread_stack_size= 65536;
 
@@ -56,23 +54,22 @@ static ulong atoi_octal(const char *str)
 MYSQL_FILE *mysql_stdin= NULL;
 static MYSQL_FILE instrumented_stdin;
 
-/**
-  Perform a limited initialisation of mysys.
-  This initialisation is sufficient to:
-  - allocate memory,
-  - read configuration files,
-  - parse command lines arguments.
-  To complete the mysys initialisation,
-  call my_init().
-  @return 0 on success
-*/
-my_bool my_basic_init(void)
-{
-  char * str;
 
-  if (my_basic_init_done)
+/**
+  Initialize my_sys functions, resources and variables
+
+  @return Initialization result
+    @retval 0 Success
+    @retval 1 Error. Couldn't initialize environment
+*/
+my_bool my_init(void)
+{
+  char *str;
+
+  if (my_init_done)
     return 0;
-  my_basic_init_done= 1;
+
+  my_init_done= 1;
 
   mysys_usage_id++;
   my_umask= 0660;                       /* Default umask for new files */
@@ -105,40 +102,10 @@ my_bool my_basic_init(void)
 #if defined(HAVE_PTHREAD_INIT)
   pthread_init();			/* Must be called before DBUG_ENTER */
 #endif
-  if (my_thread_basic_global_init())
-    return 1;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
   if ((home_dir= getenv("HOME")) != 0)
     home_dir= intern_filename(home_dir_buff, home_dir);
-
-  return 0;
-}
-
-
-/*
-  Init my_sys functions and my_sys variabels
-
-  SYNOPSIS
-    my_init()
-
-  RETURN
-    0  ok
-    1  Couldn't initialize environment
-*/
-
-my_bool my_init(void)
-{
-  if (my_init_done)
-    return 0;
-
-  my_init_done= 1;
-
-  if (my_basic_init())
-    return 1;
-
-  if (my_thread_global_init())
-    return 1;
 
   {
     DBUG_ENTER("my_init");
@@ -256,7 +223,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 #endif /* __WIN__ */
 
   my_init_done=0;
-  my_basic_init_done= 0;
 } /* my_end */
 
 
@@ -508,7 +474,7 @@ PSI_mutex_key key_LOCK_gethostbyname_r;
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
-  key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
+  key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
@@ -532,7 +498,6 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
   { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_isam, "THR_LOCK_isam", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0},

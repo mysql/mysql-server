@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -333,61 +333,65 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
 }
 
 
-/*
+/**
   Fix fields referenced from inner selects.
 
-  SYNOPSIS
-    fix_inner_refs()
-    thd               Thread handle
-    all_fields        List of all fields used in select
-    select            Current select
-    ref_pointer_array Array of references to Items used in current select
-    group_list        GROUP BY list (is NULL by default)
+  @param thd               Thread handle
+  @param all_fields        List of all fields used in select
+  @param select            Current select
+  @param ref_pointer_array Array of references to Items used in current select
+  @param group_list        GROUP BY list (is NULL by default)
 
-  DESCRIPTION
-    The function serves 3 purposes - adds fields referenced from inner
-    selects to the current select list, resolves which class to use
-    to access referenced item (Item_ref of Item_direct_ref) and fixes
-    references (Item_ref objects) to these fields.
+  @details
+    The function serves 3 purposes
 
-    If a field isn't already in the select list and the ref_pointer_array
+    - adds fields referenced from inner query blocks to the current select list
+
+    - Decides which class to use to reference the items (Item_ref or
+      Item_direct_ref)
+
+    - fixes references (Item_ref objects) to these fields.
+
+    If a field isn't already on the select list and the ref_pointer_array
     is provided then it is added to the all_fields list and the pointer to
     it is saved in the ref_pointer_array.
 
     The class to access the outer field is determined by the following rules:
-    1. If the outer field isn't used under an aggregate function
-      then the Item_ref class should be used.
-    2. If the outer field is used under an aggregate function and this
-      function is aggregated in the select where the outer field was
-      resolved or in some more inner select then the Item_direct_ref
-      class should be used.
-      Also it should be used if we are grouping by a subquery containing
-      the outer field.
+
+    -#. If the outer field isn't used under an aggregate function then the
+        Item_ref class should be used.
+
+    -#. If the outer field is used under an aggregate function and this
+        function is, in turn, aggregated in the query block where the outer
+        field was resolved or some query nested therein, then the
+        Item_direct_ref class should be used. Also it should be used if we are
+        grouping by a subquery containing the outer field.
+
     The resolution is done here and not at the fix_fields() stage as
-    it can be done only after sum functions are fixed and pulled up to
-    selects where they are have to be aggregated.
+    it can be done only after aggregate functions are fixed and pulled up to
+    selects where they are to be aggregated.
+
     When the class is chosen it substitutes the original field in the
     Item_outer_ref object.
 
     After this we proceed with fixing references (Item_outer_ref objects) to
     this field from inner subqueries.
 
-  RETURN
-    TRUE  an error occured
-    FALSE ok
-*/
+  @return Status
+  @retval true An error occured.
+  @retval false OK.
+ */
 
 bool
 fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
                  Item **ref_pointer_array, ORDER *group_list)
 {
   Item_outer_ref *ref;
-  bool res= FALSE;
-  bool direct_ref= FALSE;
 
   List_iterator<Item_outer_ref> ref_it(select->inner_refs_list);
   while ((ref= ref_it++))
   {
+    bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
     Item_ref *new_ref;
@@ -459,7 +463,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       return TRUE;
     thd->used_tables|= item->used_tables();
   }
-  return res;
+  return false;
 }
 
 #define MAGIC_IN_WHERE_TOP_LEVEL 10
@@ -2641,10 +2645,14 @@ void JOIN::restore_tmp()
 }
 
 
-int
-JOIN::reinit()
+/**
+  Reset the state of this join object so that it is ready for a
+  new execution.
+*/
+
+void JOIN::reset()
 {
-  DBUG_ENTER("JOIN::reinit");
+  DBUG_ENTER("JOIN::reset");
 
   unit->offset_limit_cnt= (ha_rows)(select_lex->offset_limit ?
                                     select_lex->offset_limit->val_uint() :
@@ -2695,7 +2703,7 @@ JOIN::reinit()
   if (!(select_options & SELECT_DESCRIBE))
     init_ftfuncs(thd, select_lex, test(order));
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -3390,14 +3398,12 @@ JOIN::exec()
 
 
 /**
-  Clean up join.
+  Clean up and destroy join object.
 
-  @return
-    Return error that hold JOIN.
+  @return false if previous execution was successful, and true otherwise
 */
 
-int
-JOIN::destroy()
+bool JOIN::destroy()
 {
   DBUG_ENTER("JOIN::destroy");
   select_lex->join= 0;
@@ -3423,6 +3429,11 @@ JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
+  if (join_tab)
+  {
+    for (JOIN_TAB *tab= join_tab; tab < join_tab+tables; tab++)
+      tab->table= NULL;
+  }
  /* Cleanup items referencing temporary table columns */
   cleanup_item_list(tmp_all_fields1);
   cleanup_item_list(tmp_all_fields3);
@@ -3439,7 +3450,7 @@ JOIN::destroy()
 
   delete_dynamic(&keyuse);
   delete procedure;
-  DBUG_RETURN(error);
+  DBUG_RETURN(test(error));
 }
 
 
@@ -3535,8 +3546,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
           subselect execution. So we need to restore them.
         */
         Item_subselect *subselect= select_lex->master_unit()->item;
-        if (subselect && subselect->is_uncacheable() && join->reinit())
-          DBUG_RETURN(TRUE);
+        if (subselect && subselect->is_uncacheable())
+          join->reset();
       }
       else
       {
@@ -3588,6 +3599,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     select_lex->where= join->conds_history;
     select_lex->having= join->having_history;
   }
+  if (select_options & SELECT_DESCRIBE)
+    free_join= 0;
 
 err:
   if (free_join)
@@ -7788,7 +7801,8 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 
     /* compute the cost of the new plan extended with 's' */
     record_count*= join->positions[idx].records_read;
-    read_time+=    join->positions[idx].read_time;
+    read_time+=    join->positions[idx].read_time
+                   + record_count / (double) TIME_FOR_COMPARE;
     advance_sj_state(join, join_tables, s, idx, &record_count, &read_time,
                      &loose_scan_pos);
 
@@ -7796,13 +7810,19 @@ optimize_straight_join(JOIN *join, table_map join_tables)
     ++idx;
   }
 
-  read_time+= record_count / (double) TIME_FOR_COMPARE;
   if (join->sort_by_table &&
       join->sort_by_table != join->positions[join->const_tables].table->table)
     read_time+= record_count;  // We have to make a temp table
   memcpy((uchar*) join->best_positions, (uchar*) join->positions,
          sizeof(POSITION)*idx);
-  join->best_read= read_time;
+
+  /**
+   * If many plans have identical cost, which one will be used
+   * depends on how compiler optimizes floating-point calculations.
+   * this fix adds repeatability to the optimizer.
+   * (Similar code in best_extension_by_li...)
+   */
+  join->best_read= read_time - 0.001;
 }
 
 
@@ -8033,12 +8053,19 @@ greedy_search(JOIN      *join,
     while (pos && best_table != pos)
       pos= join->best_ref[++best_idx];
     DBUG_ASSERT((pos != NULL)); // should always find 'best_table'
-    /* move 'best_table' at the first free position in the array of joins */
-    swap_variables(JOIN_TAB*, join->best_ref[idx], join->best_ref[best_idx]);
+    /*
+      Maintain '#rows-sorted' order of 'best_ref[]':
+       - Shift 'best_ref[]' to make first position free. 
+       - Insert 'best_table' at the first free position in the array of joins.
+    */
+    memmove(join->best_ref + idx + 1, join->best_ref + idx,
+            sizeof(JOIN_TAB*) * (best_idx - idx));
+    join->best_ref[idx]= best_table;
 
     /* compute the cost of the new plan extended with 'best_table' */
     record_count*= join->positions[idx].records_read;
-    read_time+=    join->positions[idx].read_time;
+    read_time+=    join->positions[idx].read_time
+                   + record_count / (double) TIME_FOR_COMPARE;
 
     remaining_tables&= ~(best_table->table->map);
     --size_remain;
@@ -8083,10 +8110,11 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
     if (join->best_positions[i].records_read)
     {
       record_count *= join->best_positions[i].records_read;
-      read_time += join->best_positions[i].read_time;
+      read_time += join->best_positions[i].read_time
+                   + record_count / (double) TIME_FOR_COMPARE;
     }
   }
-  *read_time_arg= read_time;// + record_count / TIME_FOR_COMPARE;
+  *read_time_arg= read_time;
   *record_count_arg= record_count;
 }
 
@@ -8227,7 +8255,6 @@ best_extension_by_limited_search(JOIN      *join,
      'join' is a partial plan with lower cost than the best plan so far,
      so continue expanding it further with the tables in 'remaining_tables'.
   */
-  JOIN_TAB *s;
   double best_record_count= DBL_MAX;
   double best_read_time=    DBL_MAX;
 
@@ -8240,9 +8267,23 @@ best_extension_by_limited_search(JOIN      *join,
 
   bool has_sj= !join->select_lex->sj_nests.is_empty();
 
+  JOIN_TAB *s;
+  JOIN_TAB *saved_refs[MAX_TABLES];
+  // Save 'best_ref[]' as we has to restore before return.
+  memcpy(saved_refs, join->best_ref + idx, 
+         sizeof(JOIN_TAB*) * (join->tables - idx));
+
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     table_map real_table_bit= s->table->map;
+
+    /*
+      Don't move swap inside conditional code: All items should
+      be uncond. swapped to maintain '#rows-ordered' best_ref[].
+      This is critical for early pruning of bad plans.
+    */
+    swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+
     if ((remaining_tables & real_table_bit) && 
         (allowed_tables & real_table_bit) &&
         !(remaining_tables & s->dependent) && 
@@ -8254,12 +8295,13 @@ best_extension_by_limited_search(JOIN      *join,
       /* Find the best access method from 's' to the current partial plan */
       POSITION loose_scan_pos;
       best_access_path(join, s, remaining_tables, idx, FALSE, record_count, 
-                       join->positions + idx, &loose_scan_pos);
+                       position, &loose_scan_pos);
 
       /* Compute the cost of extending the plan with 's' */
-
       current_record_count= record_count * position->records_read;
-      current_read_time=    read_time + position->read_time;
+      current_read_time=    read_time
+                            + position->read_time
+                            + current_record_count / (double) TIME_FOR_COMPARE;
 
       if (has_sj)
       {
@@ -8277,15 +8319,12 @@ best_extension_by_limited_search(JOIN      *join,
         join->positions[idx].sj_strategy= SJ_OPT_NONE;
 
       /* Expand only partial plans with lower cost than the best QEP so far */
-      if ((current_read_time +
-           current_record_count / (double) TIME_FOR_COMPARE) >= join->best_read)
+      if (current_read_time >= join->best_read)
       {
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
                                        current_record_count,
                                        read_time,
-                                       (current_read_time +
-                                        current_record_count / 
-                                        (double) TIME_FOR_COMPARE),
+                                       current_read_time,
                                        "prune_by_cost"););
         backout_nj_sj_state(remaining_tables, s);
         continue;
@@ -8325,8 +8364,8 @@ best_extension_by_limited_search(JOIN      *join,
       }
 
       if ( (search_depth > 1) && (remaining_tables & ~real_table_bit) & allowed_tables )
-      { /* Recursively expand the current partial plan */
-        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
+      {
+        /* Explore more best extensions of plan */
         if (best_extension_by_limited_search(join,
                                              remaining_tables & ~real_table_bit,
                                              idx + 1,
@@ -8335,14 +8374,12 @@ best_extension_by_limited_search(JOIN      *join,
                                              search_depth - 1,
                                              prune_level))
           DBUG_RETURN(TRUE);
-        swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
       else
       { /*
           'join' is either the best partial QEP with 'search_depth' relations,
           or the best complete QEP so far, whichever is smaller.
         */
-        current_read_time+= current_record_count / (double) TIME_FOR_COMPARE;
         if (join->sort_by_table &&
             join->sort_by_table !=
             join->positions[join->const_tables].table->table)
@@ -8352,7 +8389,7 @@ best_extension_by_limited_search(JOIN      *join,
              Hence it may be wrong.
           */
           current_read_time+= current_record_count;
-        if ((search_depth == 1) || (current_read_time < join->best_read))
+        if (current_read_time < join->best_read)
         {
           memcpy((uchar*) join->best_positions, (uchar*) join->positions,
                  sizeof(POSITION) * (idx + 1));
@@ -8367,6 +8404,9 @@ best_extension_by_limited_search(JOIN      *join,
       backout_nj_sj_state(remaining_tables, s);
     }
   }
+
+  // Restore previous #rows sorted best_ref[]
+  memcpy(join->best_ref + idx, saved_refs, sizeof(JOIN_TAB*) * (join->tables-idx));
   DBUG_RETURN(FALSE);
 }
 
@@ -9505,12 +9545,20 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
     */     
     Item *on_expr= *first_inner_tab->on_expr_ref;
 
-    table_map used_tables= (join->const_table_map |
-                            OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
+    table_map used_tables= 0;
+
     for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
          join_tab <= last_tab ; join_tab++)
     {
+      /*
+        For explanation on how these bitmasks are built, see
+        make_join_select(), Step #2.
+      */
       table_map current_map= join_tab->table->map;
+      if (join_tab == join->join_tab + join->const_tables)
+        current_map|= join->const_table_map | OUTER_REF_TABLE_BIT;
+      if (join_tab == last_tab)
+        current_map|= RAND_TABLE_BIT;
       used_tables|= current_map;
       Item *tmp_cond= make_cond_for_table(on_expr, used_tables, current_map, 0);
       if (!tmp_cond)
@@ -9567,7 +9615,6 @@ static bool make_join_select(JOIN *join, Item *cond)
   DBUG_ENTER("make_join_select");
   {
     add_not_null_conds(join);
-    table_map used_tables;
     /*
       Step #1: Extract constant condition
        - Extract and check the constant part of the WHERE 
@@ -9634,21 +9681,33 @@ static bool make_join_select(JOIN *join, Item *cond)
     /*
       Step #2: Extract WHERE/ON parts
     */
+    table_map used_tables= 0;
     table_map save_used_tables= 0;
-    used_tables= join->const_table_map | OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-    JOIN_TAB *tab;
-    table_map current_map;
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
-      tab= join->join_tab+i;
+      JOIN_TAB *tab= join->join_tab + i;
       /*
         first_inner is the X in queries like:
         SELECT * FROM t1 LEFT OUTER JOIN (t2 JOIN t3) ON X
       */
       JOIN_TAB *first_inner_tab= tab->first_inner; 
-      current_map= tab->table->map;
       bool use_quick_range=0;
       Item *tmp;
+
+      /*
+        Calculate used table information added at this stage.
+        The current table is always added. Const tables are assumed to be
+        available together with the first table in the join order.
+        All outer references are available, so these may be evaluated together
+        with the first table.
+        Random expressions must be added to the last table's condition.
+        It solves problem with queries like SELECT * FROM t1 WHERE rand() > 0.5
+      */
+      table_map current_map= tab->table->map;
+      if (i == join->const_tables)
+        current_map|= join->const_table_map | OUTER_REF_TABLE_BIT;
+      if (i == join->tables - 1)
+        current_map|= RAND_TABLE_BIT;
 
       /* 
         Tables that are within SJ-Materialization nests cannot have their
@@ -9660,17 +9719,10 @@ static bool make_join_select(JOIN *join, Item *cond)
           !(used_tables & tab->emb_sj_nest->sj_inner_tables))
       {
         save_used_tables= used_tables;
-        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT | 
-                     RAND_TABLE_BIT;
+        used_tables= join->const_table_map | OUTER_REF_TABLE_BIT;
       }
 
-      /*
-	Following force including random expression in last table condition.
-	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
-      */
-      if (i == join->tables-1)
-	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
-      used_tables|=current_map;
+      used_tables|= current_map;
 
       if (tab->type == JT_REF && tab->quick &&
 	  (uint) tab->ref.key == tab->quick->index &&
@@ -9993,12 +10045,14 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     {
       /* This is a function, apply condition recursively to arguments */
       Item_func *item_func= (Item_func*)item;
-      Item **child;
-      Item **item_end= (item_func->arguments()) + item_func->argument_count();
-      for (child= item_func->arguments(); child != item_end; child++)
-      {
-        if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
-          return FALSE;
+      if (item_func->argument_count() > 0)
+      {        
+        Item **item_end= (item_func->arguments()) + item_func->argument_count();
+        for (Item **child= item_func->arguments(); child != item_end; child++)
+        {
+          if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
+            return FALSE;
+        }
       }
       return TRUE;
     }
@@ -11345,7 +11399,12 @@ bool error_if_full_join(JOIN *join)
 
 
 /**
-  cleanup JOIN_TAB.
+  Cleanup table of join operation.
+
+  @note
+    Notice that this is not a complete cleanup. In some situations, the
+    object may be reused after a cleanup operation, hence we cannot set
+    the table pointer to NULL in this function.
 */
 
 void JOIN_TAB::cleanup()
@@ -12188,7 +12247,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
 
       if (field_item->result_type() == STRING_RESULT)
       {
-        CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
+        const CHARSET_INFO *cs= ((Field_str*) field_item->field)->charset();
         if (!item)
         {
           Item_func_eq *eq_item;
@@ -14381,7 +14440,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   proceeds up the tree to NJ1, incrementing its counter as well. All join
   nests are now completely covered by the QEP.
 
-  restore_prev_nj_state() does the above in reverse. As seen above, the node
+  backout_nj_sj_state() does the above in reverse. As seen above, the node
   NJ1 contains the nodes t2, t3, and NJ2. Its counter being equal to 3 means
   that the plan covers t2, t3, and NJ2, @e and that the sub-plan (t4 x t5)
   completely covers NJ2. The removal of t5 from the partial plan will first
@@ -14392,7 +14451,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   NJ2.
 
   SYNOPSIS
-    restore_prev_nj_state()
+    backout_nj_sj_state()
       last  join table to remove, it is assumed to be the last in current 
             partial join order.
      
@@ -19131,7 +19190,7 @@ static bool replace_subcondition(JOIN *join, Item **tree,
   
   @param cond       Condition to analyze
   @param tables     Tables for which "current field values" are available
-  @param used_table Table that we're extracting the condition for (may 
+  @param used_table Table(s) that we are extracting the condition for (may 
                     also include PSEUDO_TABLE_BITS, and may be zero)
   @param exclude_expensive_cond  Do not push expensive conditions
 
@@ -19139,15 +19198,32 @@ static bool replace_subcondition(JOIN *join, Item **tree,
   @retval = NULL Already checked, OR error
 
   @details
-    Extract the condition that can be checked after reading the table
-    specified in 'used_table', given that current-field values for tables
-    specified in 'tables' bitmap are available.
-    If 'used_table' is 0, extract conditions for all tables in 'tables'.
+    Extract the condition that can be checked after reading the table(s)
+    specified in @c used_table, given that current-field values for tables
+    specified in @c tables bitmap are available.
+    If @c used_table is 0, extract conditions for all tables in @c tables.
 
-    The function assumes that
-      - Constant parts of the condition has already been checked.
-      - Condition that could be checked for tables in 'tables' has already 
-        been checked.
+    This function can be used to extract conditions relevant for a table
+    in a join order. Together with its caller, it will ensure that all
+    conditions are attached to the first table in the join order where all
+    necessary fields are available, and it will also ensure that a given
+    condition is attached to only one table.
+    To accomplish this, first initialize @c tables to the empty
+    set. Then, loop over all tables in the join order, set @c used_table to
+    the bit representing the current table, accumulate @c used_table into the
+    @c tables set, and call this function. To ensure correct handling of
+    const expressions and outer references, add the const table map and
+    OUTER_REF_TABLE_BIT to @c used_table for the first table. To ensure
+    that random expressions are evaluated for the final table, add
+    RAND_TABLE_BIT to @c used_table for the final table.
+
+    The function assumes that constant, inexpensive parts of the condition
+    have already been checked. Constant, expensive parts will be attached
+    to the first table in the join order, provided that the above call
+    sequence is followed.
+
+    The call order will ensure that conditions covering tables in @c tables
+    minus those in @c used_table, have already been checked.
         
     The function takes into account that some parts of the condition are
     guaranteed to be true by employed 'ref' access methods (the code that
@@ -19175,21 +19251,14 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
   /*
     Ignore this condition if
      1. We are extracting conditions for a specific table, and
-     2. that table is not referenced by the condition, and
-     3. exclude constant conditions not checked at optimization time if
-        the table we are pushing conditions to is the first one.
-        As a result, such conditions are not considered as already checked
-        and will be checked at execution time, attached to the first table.
+     2. that table is not referenced by the condition, but not if
+     3. this is a constant condition not checked at optimization time and
+        this is the first table we are extracting conditions for.
+       (Assuming that used_table == tables for the first table.)
   */
   if (used_table &&                                                 // 1
       !(cond->used_tables() & used_table) &&                        // 2
-      /*
-        psergey: TODO: "used_table & 1" doesn't make sense in nearly any
-        context. Look at setup_table_map(), table bits reflect the order 
-        the tables were encountered by the parser. Check what we should
-        replace this condition with.
-      */
-      !((used_table & 1) && cond->is_expensive()))                  // 3
+      !(cond->is_expensive() && used_table == tables))              // 3
     return NULL;
 
   if (cond->type() == Item::COND_ITEM)
@@ -23282,7 +23351,6 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
-    res|= unit->cleanup();
   }
   else
   {

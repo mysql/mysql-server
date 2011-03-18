@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,6 +41,14 @@ ENDIF()
 # Enable InnoDB's UNIV_DEBUG for debug builds
 SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG")
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
+
+# Add -Wconversion if compiling with GCC
+## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
+## please fix them and enable the following code:
+#IF(CMAKE_C_COMPILER_ID MATCHES "GNU")
+#  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wconversion")
+#  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+#ENDIF()
 
 IF(NOT MSVC)
 # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not

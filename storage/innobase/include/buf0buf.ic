@@ -822,13 +822,13 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
 UNIV_INLINE
-ib_uint64_t
+lsn_t
 buf_page_get_newest_modification(
 /*=============================*/
 	const buf_page_t*	bpage)	/*!< in: block containing the
 					page frame */
 {
-	ib_uint64_t	lsn;
+	lsn_t		lsn;
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
 	mutex_enter(block_mutex);

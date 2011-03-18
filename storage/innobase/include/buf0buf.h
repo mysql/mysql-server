@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,11 +36,14 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0rbt.h"
 #include "os0proc.h"
+#include "log0log.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
 #define BUF_GET			10	/*!< get always */
 #define	BUF_GET_IF_IN_POOL	11	/*!< get if in pool */
+#define BUF_PEEK_IF_IN_POOL	12	/*!< get if in pool, do not make
+					the block young in the LRU list */
 #define BUF_GET_NO_LATCH	14	/*!< get and bufferfix, but
 					set no latch; we have
 					separated this case, because
@@ -271,7 +274,7 @@ Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return	oldest modification in pool, zero if none */
 UNIV_INTERN
-ib_uint64_t
+lsn_t
 buf_pool_get_oldest_modification(void);
 /*==================================*/
 /********************************************************************//**
@@ -401,7 +404,7 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH or
+				BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH or
 				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
@@ -485,7 +488,7 @@ buf_reset_check_index_page_at_flush(
 /*================================*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);/*!< in: page number */
-#ifdef UNIV_DEBUG_FILE_ACCESSES
+#if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 /********************************************************************//**
 Sets file_page_was_freed TRUE if the page is found in the buffer pool.
 This function should be called when we free a file page and want the
@@ -510,7 +513,7 @@ buf_page_reset_file_page_was_freed(
 /*===============================*/
 	ulint	space,	/*!< in: space id */
 	ulint	offset);	/*!< in: page number */
-#endif /* UNIV_DEBUG_FILE_ACCESSES */
+#endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 /********************************************************************//**
 Reads the freed_page_clock of a buffer block.
 @return	freed_page_clock */
@@ -556,7 +559,7 @@ Gets the youngest modification log sequence number for a frame.
 Returns zero if not file page or no modification occurred yet.
 @return	newest modification to page */
 UNIV_INLINE
-ib_uint64_t
+lsn_t
 buf_page_get_newest_modification(
 /*=============================*/
 	const buf_page_t*	bpage);	/*!< in: block containing the
@@ -1445,13 +1448,13 @@ struct buf_page_struct{
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
-	ib_uint64_t	newest_modification;
+	lsn_t		newest_modification;
 					/*!< log sequence number of
 					the youngest modification to
 					this block, zero if not
 					modified. Protected by block
 					mutex */
-	ib_uint64_t	oldest_modification;
+	lsn_t		oldest_modification;
 					/*!< log sequence number of
 					the START of the log entry
 					written of the oldest
@@ -1491,11 +1494,11 @@ struct buf_page_struct{
 					0 if the block was never accessed
 					in the buffer pool */
 	/* @} */
-# ifdef UNIV_DEBUG_FILE_ACCESSES
+# if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when fsp
 					frees a page in buffer pool */
-# endif /* UNIV_DEBUG_FILE_ACCESSES */
+# endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
 

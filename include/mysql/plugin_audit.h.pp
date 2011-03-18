@@ -53,20 +53,18 @@ extern struct my_thread_scheduler_service {
 } *my_thread_scheduler_service;
 int my_thread_scheduler_set(struct scheduler_functions *scheduler);
 int my_thread_scheduler_reset();
-#include <mysql/service_error_reporting.h>
+#include <mysql/service_my_plugin_log.h>
 enum plugin_log_level
 {
   MY_ERROR_LEVEL,
   MY_WARNING_LEVEL,
   MY_INFORMATION_LEVEL
 };
-extern struct error_reporting_service
+extern struct my_plugin_log_service
 {
-  void (*error)(void *, int, const char *, ...);
-  int (*log_message)(void *, enum plugin_log_level, const char *, ...);
-} *error_reporting_service;
-void my_plugin_error(void *plugin, int code, const char *format, ...);
-int my_plugin_log_message(void *plugin, enum plugin_log_level level,
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...);
+} *my_plugin_log_service;
+int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
                           const char *format, ...);
 struct st_mysql_xid {
   long formatID;
@@ -146,7 +144,7 @@ typedef struct st_mysql_ftparser_param
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
+  const struct charset_info_st *cs;
   char *doc;
   int length;
   int flags;

@@ -31,6 +31,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "dict0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "lock0types.h"
+#include "log0log.h"
 #include "usr0types.h"
 #include "que0types.h"
 #include "mem0mem.h"
@@ -319,13 +320,17 @@ trx_set_dict_operation(
 Determines if a transaction is in the given state.
 The caller must hold trx_sys->lock, or it must be the thread
 that is serving a running transaction.
+A running transaction must be in trx_sys->trx_list.
 @return	TRUE if trx->state == state */
 UNIV_INLINE
 ibool
 trx_state_eq(
 /*=========*/
 	const trx_t*	trx,	/*!< in: transaction */
-	trx_state_t	state)	/*!< in: state */
+	trx_state_t	state)	/*!< in: state;
+				if state != TRX_STATE_NOT_STARTED
+				asserts that
+				trx->state != TRX_STATE_NOT_STARTED */
 	__attribute__((nonnull, warn_unused_result));
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -444,9 +449,9 @@ struct trx_lock_struct {
 					hold lock_sys->mutex, except when
 					they are holding trx->mutex and
 					wait_lock==NULL */
-	ulint		deadlock_mark;	/*!< a mark field used in deadlock
-					checking algorithm. This is only
-					covered by the lock_sys->mutex. */
+	ib_uint64_t	deadlock_mark;	/*!< A mark field that is initialized
+					to and checked against lock_mark_counter
+				       	by lock_deadlock_recursive(). */
 	ibool		was_chosen_as_deadlock_victim;
 					/*!< when the transaction decides to
 				       	wait for a lock, it sets this to FALSE;
@@ -656,7 +661,7 @@ struct trx_struct{
 	XID		xid;		/*!< X/Open XA transaction
 					identification to identify a
 					transaction branch */
-	ib_uint64_t	commit_lsn;	/*!< lsn at the time of the commit */
+	lsn_t		commit_lsn;	/*!< lsn at the time of the commit */
 	table_id_t	table_id;	/*!< Table to drop iff dict_operation
 					is TRUE, or 0. */
 	/*------------------------------*/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #define MYSQL_LEX 1
@@ -30,6 +30,7 @@
 #include "sql_db.h"                        // get_default_db_collation
 #include "sql_acl.h"                       // *_ACL, is_acl_user
 #include "sql_handler.h"                        // mysql_ha_rm_tables
+#include "sp_cache.h"                     // sp_invalidate_cache
 
 /*************************************************************************/
 
@@ -89,9 +90,9 @@ private:
     :Stored_program_creation_ctx(thd)
   { }
 
-  Trigger_creation_ctx(CHARSET_INFO *client_cs,
-                       CHARSET_INFO *connection_cl,
-                       CHARSET_INFO *db_cl)
+  Trigger_creation_ctx(const CHARSET_INFO *client_cs,
+                       const CHARSET_INFO *connection_cl,
+                       const CHARSET_INFO *db_cl)
     :Stored_program_creation_ctx(client_cs, connection_cl, db_cl)
   { }
 };
@@ -108,9 +109,9 @@ Trigger_creation_ctx::create(THD *thd,
                              const LEX_STRING *connection_cl_name,
                              const LEX_STRING *db_cl_name)
 {
-  CHARSET_INFO *client_cs;
-  CHARSET_INFO *connection_cl;
-  CHARSET_INFO *db_cl;
+  const CHARSET_INFO *client_cs;
+  const CHARSET_INFO *connection_cl;
+  const CHARSET_INFO *db_cl;
 
   bool invalid_creation_ctx= FALSE;
 
@@ -467,8 +468,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (thd->locked_tables_mode)
   {
     /* Under LOCK TABLES we must only accept write locked tables. */
-    if (!(tables->table= find_table_for_mdl_upgrade(thd->open_tables,
-                                                    tables->db,
+    if (!(tables->table= find_table_for_mdl_upgrade(thd, tables->db,
                                                     tables->table_name,
                                                     FALSE)))
       goto end;
@@ -517,6 +517,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     keep master/slave in consistent state.
   */
   thd->locked_tables_list.reopen_tables(thd);
+
+  /*
+    Invalidate SP-cache. That's needed because triggers may change list of
+    pre-locking tables.
+  */
+  sp_cache_invalidate();
 
 end:
   if (!result)

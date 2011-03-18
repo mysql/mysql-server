@@ -640,10 +640,6 @@ create trigger t1_ai after insert on t1 for each row flush logs;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush status;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush slave;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-create trigger t1_ai after insert on t1 for each row flush master;
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush des_key_file;
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 create trigger t1_ai after insert on t1 for each row flush user_resources;
@@ -691,14 +687,6 @@ insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
 create procedure p1() flush status;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush slave;
-insert into t1 values (0);
-ERROR 0A000: FLUSH is not allowed in stored function or trigger
-drop procedure p1;
-create procedure p1() flush master;
 insert into t1 values (0);
 ERROR 0A000: FLUSH is not allowed in stored function or trigger
 drop procedure p1;
@@ -821,7 +809,6 @@ drop trigger t1_bi;
 create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
 execute stmt1;
 call p1();
-ERROR 42S02: Table 'test.t3' doesn't exist
 deallocate prepare stmt1;
 drop procedure p1;
 drop table t1, t2, t3;

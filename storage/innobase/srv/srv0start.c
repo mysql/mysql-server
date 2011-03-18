@@ -90,9 +90,9 @@ Created 2/16/1996 Heikki Tuuri
 # include "zlib.h" /* for ZLIB_VERSION */
 
 /** Log sequence number immediately after startup */
-UNIV_INTERN ib_uint64_t	srv_start_lsn;
+UNIV_INTERN lsn_t	srv_start_lsn;
 /** Log sequence number at shutdown */
-UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
+UNIV_INTERN lsn_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
@@ -528,9 +528,9 @@ static
 ulint
 srv_calc_low32(
 /*===========*/
-	ulint	file_size)	/*!< in: file size in database pages */
+	ib_uint64_t	file_size)	/*!< in: file size in database pages */
 {
-	return(0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT));
+	return((ulint) (0xFFFFFFFFUL & (file_size << UNIV_PAGE_SIZE_SHIFT)));
 }
 
 /*********************************************************************//**
@@ -541,9 +541,9 @@ static
 ulint
 srv_calc_high32(
 /*============*/
-	ulint	file_size)	/*!< in: file size in database pages */
+	ib_uint64_t	file_size)	/*!< in: file size in database pages */
 {
-	return(file_size >> (32 - UNIV_PAGE_SIZE_SHIFT));
+	return((ulint) (file_size >> (32 - UNIV_PAGE_SIZE_SHIFT)));
 }
 
 /*********************************************************************//**
@@ -680,7 +680,11 @@ open_or_create_log_file(
 
 	ut_a(fil_validate());
 
-	fil_node_create(name, srv_log_file_size,
+	/* srv_log_file_size is measured in pages; if page size is 16KB,
+	then we have a limit of 64TB on 32 bit systems */
+	ut_a(srv_log_file_size <= ULINT_MAX);
+
+	fil_node_create(name, (ulint) srv_log_file_size,
 			2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
 #ifdef UNIV_LOG_ARCHIVE
 	/* If this is the first log group, create the file space object
@@ -721,9 +725,9 @@ open_or_create_data_files(
 	ulint*		max_arch_log_no,/*!< out: max of archived log
 					numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,/*!< out: min of flushed lsn
+	lsn_t*		min_flushed_lsn,/*!< out: min of flushed lsn
 					values in data files */
-	ib_uint64_t*	max_flushed_lsn,/*!< out: max of flushed lsn
+	lsn_t*		max_flushed_lsn,/*!< out: max of flushed lsn
 					values in data files */
 	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
 					new files added */
@@ -1000,8 +1004,8 @@ innobase_start_or_create_for_mysql(void)
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
 	ibool		log_opened	= FALSE;
-	ib_uint64_t	min_flushed_lsn;
-	ib_uint64_t	max_flushed_lsn;
+	lsn_t		min_flushed_lsn;
+	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		min_arch_log_no;
 	ulint		max_arch_log_no;
@@ -1015,6 +1019,8 @@ innobase_start_or_create_for_mysql(void)
 	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
+	ib_bh_t*	ib_bh;
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1082,6 +1088,12 @@ innobase_start_or_create_for_mysql(void)
 		" InnoDB: Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG\n");
 # endif
 #endif
+
+#ifdef UNIV_BLOB_DEBUG
+	fprintf(stderr,
+		"InnoDB: !!!!!!!! UNIV_BLOB_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Server restart may fail with UNIV_BLOB_DEBUG\n");
+#endif /* UNIV_BLOB_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_print_timestamp(stderr);
@@ -1327,13 +1339,16 @@ innobase_start_or_create_for_mysql(void)
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
-	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
-	still applies to windows. */
-	if (!srv_use_native_aio) {
-		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
-	} else {
+	io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
+
+	/* On Windows when using native aio the number of aio requests
+	that a thread can handle at a given time is limited to 32
+	i.e.: SRV_N_PENDING_IOS_PER_THREAD */
+# ifdef __WIN__
+	if (srv_use_native_aio) {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
 	}
+# endif /* __WIN__ */
 
 	os_aio_init(io_limit,
 		    srv_n_read_io_threads,
@@ -1411,11 +1426,18 @@ innobase_start_or_create_for_mysql(void)
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	if (srv_n_log_files * srv_log_file_size >= 262144) {
+	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
+		/* fil_io() takes ulint as an argument and we are passing
+		(next_offset / UNIV_PAGE_SIZE) to it in log_group_write_buf().
+		So (next_offset / UNIV_PAGE_SIZE) must be less than ULINT_MAX.
+		So next_offset must be < ULINT_MAX * UNIV_PAGE_SIZE. This
+		means that we are limited to ULINT_MAX * UNIV_PAGE_SIZE which
+		is 64 TB on 32 bit systems. */
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: Error: combined size of log files"
-			" must be < 4 GB\n");
+			" must be < %lu GB\n",
+			ULINT_MAX / 1073741824 * UNIV_PAGE_SIZE);
 
 		return(DB_ERROR);
 	}
@@ -1565,7 +1587,7 @@ innobase_start_or_create_for_mysql(void)
 			return(DB_ERROR);
 		}
 
-		if (max_flushed_lsn < (ib_uint64_t) 1000) {
+		if (max_flushed_lsn < (lsn_t) 1000) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Cannot initialize created"
@@ -1619,12 +1641,12 @@ innobase_start_or_create_for_mysql(void)
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		dict_create();
 
@@ -1648,12 +1670,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1711,12 +1733,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_sys_init_at_db_start();
+		ib_bh = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads);
+		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
@@ -1981,7 +2003,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Check that os_fast_mutexes work as expected */
-	os_fast_mutex_init(&srv_os_test_mutex);
+	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
 
 	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
 		ut_print_timestamp(stderr);
@@ -2006,7 +2028,7 @@ innobase_start_or_create_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			" InnoDB: %s started; "
-			"log sequence number %llu\n",
+			"log sequence number " LSN_PF "\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 
@@ -2294,7 +2316,7 @@ innobase_shutdown_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
 			"  InnoDB: Shutdown completed;"
-			" log sequence number %llu\n",
+			" log sequence number " LSN_PF "\n",
 			srv_shutdown_lsn);
 	}
 

@@ -1726,11 +1726,11 @@ static
 ulint
 fil_write_lsn_and_arch_no_to_file(
 /*==============================*/
-	ulint		sum_of_sizes,	/*!< in: combined size of previous files
-					in space, in database pages */
-	ib_uint64_t	lsn,		/*!< in: lsn to write */
-	ulint		arch_log_no __attribute__((unused)))
-					/*!< in: archived log number to write */
+	ulint	sum_of_sizes,	/*!< in: combined size of previous files
+				in space, in database pages */
+	lsn_t	lsn,		/*!< in: lsn to write */
+	ulint	arch_log_no __attribute__((unused)))
+				/*!< in: archived log number to write */
 {
 	byte*	buf1;
 	byte*	buf;
@@ -1757,9 +1757,8 @@ UNIV_INTERN
 ulint
 fil_write_flushed_lsn_to_data_files(
 /*================================*/
-	ib_uint64_t	lsn,		/*!< in: lsn to write */
-	ulint		arch_log_no)	/*!< in: latest archived log
-					file number */
+	lsn_t	lsn,		/*!< in: lsn to write */
+	ulint	arch_log_no)	/*!< in: latest archived log file number */
 {
 	fil_space_t*	space;
 	fil_node_t*	node;
@@ -1821,12 +1820,12 @@ fil_read_flushed_lsn_and_arch_log_no(
 	ulint*		min_arch_log_no,	/*!< in/out: */
 	ulint*		max_arch_log_no,	/*!< in/out: */
 #endif /* UNIV_LOG_ARCHIVE */
-	ib_uint64_t*	min_flushed_lsn,	/*!< in/out: */
-	ib_uint64_t*	max_flushed_lsn)	/*!< in/out: */
+	lsn_t*		min_flushed_lsn,	/*!< in/out: */
+	lsn_t*		max_flushed_lsn)	/*!< in/out: */
 {
-	byte*		buf;
-	byte*		buf2;
-	ib_uint64_t	flushed_lsn;
+	byte*	buf;
+	byte*	buf2;
+	lsn_t	flushed_lsn;
 
 	buf2 = ut_malloc(2 * UNIV_PAGE_SIZE);
 	/* Align the memory for a possible read from a raw device */
@@ -2878,7 +2877,7 @@ fil_reset_too_high_lsns(
 /*====================*/
 	const char*	name,		/*!< in: table name in the
 					databasename/tablename format */
-	ib_uint64_t	current_lsn)	/*!< in: reset lsn's if the lsn stamped
+	lsn_t		current_lsn)	/*!< in: reset lsn's if the lsn stamped
 					to FIL_PAGE_FILE_FLUSH_LSN in the
 					first page is too high */
 {
@@ -2886,7 +2885,7 @@ fil_reset_too_high_lsns(
 	char*		filepath;
 	byte*		page;
 	byte*		buf2;
-	ib_uint64_t	flush_lsn;
+	lsn_t		flush_lsn;
 	ulint		space_id;
 	ib_int64_t	file_size;
 	ib_int64_t	offset;
@@ -2951,8 +2950,8 @@ fil_reset_too_high_lsns(
 	fprintf(stderr,
 		"  InnoDB: Flush lsn in the tablespace file %lu"
 		" to be imported\n"
-		"InnoDB: is %llu, which exceeds current"
-		" system lsn %llu.\n"
+		"InnoDB: is " LSN_PF ", which exceeds current"
+		" system lsn " LSN_PF ".\n"
 		"InnoDB: We reset the lsn's in the file ",
 		(ulong) space_id,
 		flush_lsn, current_lsn);
