@@ -83,6 +83,8 @@ combination of types */
 #define DICT_TF_FORMAT_MASK		\
 ((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
 #define DICT_TF_FORMAT_51		0	/*!< InnoDB/MySQL up to 5.1 */
+#define DICT_N_COLS_COMPACT	0x80000000UL	/*!< Set if ROW_FORMAT!=REDUNDANT */
+
 #define DICT_TF_FORMAT_ZIP		1	/*!< InnoDB plugin for 5.1:
 						compressed tables,
 						new BLOB treatment */
@@ -97,23 +99,22 @@ combination of types */
 #if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
 # error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
 #endif
+/** Valid table flag bits */
+#define DICT_TF_BIT_MASK		(~(~0 << DICT_TF_BITS))	
 /* @} */
 
-/** @brief Additional table flags.
+/** @brief Table Flags set number 2.
 
 These flags will be stored in SYS_TABLES.MIX_LEN.  All unused flags
 will be written as 0.  The column may contain garbage for tables
 created with old versions of InnoDB that only implemented
 ROW_FORMAT=REDUNDANT. */
 /* @{ */
-#define DICT_TF2_SHIFT			DICT_TF_BITS
-						/*!< Shift value for
-						table->flags. */
-#define DICT_TF2_TEMPORARY		1	/*!< TRUE for tables from
-						CREATE TEMPORARY TABLE. */
-#define DICT_TF2_BITS			(DICT_TF2_SHIFT + 1)
-						/*!< Total number of bits
-						in table->flags. */
+/** Total number of bits in table->flags2. */
+#define DICT_TF2_BITS		1
+#define DICT_TF2_BIT_MASK	~(~0 << DICT_TF2_BITS)
+
+#define DICT_TF2_TEMPORARY	(1<<0)	/*!< 1 if CREATE TEMPORARY TABLE */
 /* @} */
 
 /** Tables could be chained together with Foreign key constraint. When
@@ -145,7 +146,8 @@ dict_mem_table_create(
 					is ignored if the table is made
 					a member of a cluster */
 	ulint		n_cols,		/*!< in: number of columns */
-	ulint		flags);		/*!< in: table flags */
+	ulint		flags,		/*!< in: table flags */
+	ulint		flags2);	/*!< in: table flags2 */
 /****************************************************************//**
 Free a table memory object. */
 UNIV_INTERN
@@ -486,7 +488,8 @@ struct dict_table_struct{
 	unsigned	space:32;
 				/*!< space where the clustered index of the
 				table is placed */
-	unsigned	flags:DICT_TF2_BITS;/*!< DICT_TF_COMPACT, ... */
+	unsigned	flags:DICT_TF_BITS;	/*!< DICT_TF_... */
+	unsigned	flags2:DICT_TF2_BITS;	/*!< DICT_TF2_... */
 	unsigned	ibd_file_missing:1;
 				/*!< TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then

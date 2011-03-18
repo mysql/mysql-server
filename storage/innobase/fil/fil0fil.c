@@ -1153,13 +1153,11 @@ fil_space_create(
 	fil_space_t*	space;
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	format, the tablespace flags should equal table->flags. */
 	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
 
 try_again:
 	/*printf(
@@ -2697,13 +2695,11 @@ fil_create_new_single_table_tablespace(
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	format, the tablespace flags should equal table->flags. */
 	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -3072,13 +3068,11 @@ fil_open_single_table_tablespace(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT
-	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal
-	(table->flags & ~(~0 << DICT_TF_BITS)). */
+	format, the tablespace flags should equal table->flags. */
 	ut_a(flags != DICT_TF_COMPACT);
-	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
+	ut_a(!(flags & ~DICT_TF_BIT_MASK));
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_file_data_key, filepath, OS_FILE_OPEN,
@@ -3131,8 +3125,7 @@ fil_open_single_table_tablespace(
 
 	ut_free(buf2);
 
-	if (UNIV_UNLIKELY(space_id != id
-			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
+	if (UNIV_UNLIKELY(space_id != id || space_flags != flags)) {
 		ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: tablespace id and flags in file ",
