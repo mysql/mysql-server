@@ -2309,7 +2309,7 @@ bool Item_time_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
 bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, TIME_FUZZY_DATE))
+  if (get_arg0_date(ltime, fuzzy_date & ~TIME_TIME_ONLY))
     return 1;
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
@@ -2318,11 +2318,11 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
 bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
-  if (get_arg0_date(ltime, TIME_FUZZY_DATE))
+  if (get_arg0_date(ltime, fuzzy_date & ~TIME_TIME_ONLY))
     return 1;
 
   /*
-    ltime is valid MYSQL_TYPE_TIME ( according to fuzzy_date).
+    ltime is valid MYSQL_TYPE_TIME (according to fuzzy_date).
     But not every valid TIME value is a valid DATETIME value!
   */
   if (ltime->time_type == MYSQL_TIMESTAMP_TIME && ltime->hour >= 24)

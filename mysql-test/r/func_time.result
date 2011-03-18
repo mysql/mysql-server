@@ -1501,3 +1501,14 @@ create table t1 (f1 timestamp);
 select * from t1 where f1 > f1 and f1 <=> timestampadd(hour, 9 , '2010-01-01 16:55:35');
 f1
 drop table t1;
+create table t1 (f1 date);
+insert into t1 values ('0000-00-00');
+select timestampadd(week, 1, f1) from t1;
+timestampadd(week, 1, f1)
+NULL
+select timestampadd(week, 1, date("0000-00-00"));
+timestampadd(week, 1, date("0000-00-00"))
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+drop table t1;
