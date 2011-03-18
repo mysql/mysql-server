@@ -2917,7 +2917,7 @@ bool Item_func_coalesce::get_date(MYSQL_TIME *ltime,uint fuzzydate)
       return res;
   }
   null_value=1;
-  return 0;
+  return 1;
 }
 
 

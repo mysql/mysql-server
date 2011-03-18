@@ -968,3 +968,8 @@ insert ignore t1 values ('04:38:11','0000-00-00 00:00:00',0,'0000-00-00 00:00:00
 select least(greatest(f3, f2, f4), f5) from t1;
 drop table t1;
 
+#
+# lp:737474 Wrong result with DAY(COALESCE(NULL)) in 5.1-micro
+#
+select day(coalesce(null));
+

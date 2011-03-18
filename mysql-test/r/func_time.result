@@ -1533,3 +1533,6 @@ select least(greatest(f3, f2, f4), f5) from t1;
 least(greatest(f3, f2, f4), f5)
 0000-00-00 00:00:00
 drop table t1;
+select day(coalesce(null));
+day(coalesce(null))
+NULL
