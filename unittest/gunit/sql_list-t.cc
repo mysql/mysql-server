@@ -218,7 +218,7 @@ TEST(SqlIlistTest, Iterate)
 
 static int cmp_test(void *a, void *b, void *c)
 {
-  EXPECT_EQ((unsigned int)c, 0xFEE1BEEF);
+  EXPECT_EQ(c, (void *)0xFEE1BEEF);
   return (*(int*)a < *(int*)b) ? -1 : (*(int*)a > *(int*)b) ? 1 : 0;
 }
 
