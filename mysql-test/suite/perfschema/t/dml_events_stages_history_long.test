@@ -1,0 +1,62 @@
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_result_log
+select * from performance_schema.events_stages_history_long
+  where event_name like 'stage/%' limit 1;
+
+select * from performance_schema.events_stages_history_long
+  where event_name='FOO';
+
+select * from performance_schema.events_stages_history_long
+  where event_name like 'stage/%' order by timer_wait limit 1;
+
+select * from performance_schema.events_stages_history_long
+  where event_name like 'stage/%' order by timer_wait desc limit 1;
+--enable_result_log
+
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.events_stages_history_long
+  set thread_id='1', event_id=1,
+  event_name='FOO', timer_start=1, timer_end=2, timer_wait=3;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_stages_history_long
+  set timer_start=12;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.events_stages_history_long
+  set timer_start=12 where thread_id=0;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_stages_history_long
+  where thread_id=1;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.events_stages_history_long;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_stages_history_long READ;
+UNLOCK TABLES;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.events_stages_history_long WRITE;
+UNLOCK TABLES;
+

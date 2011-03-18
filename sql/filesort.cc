@@ -205,9 +205,9 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       goto err;
 
   if (select && select->quick)
-    status_var_increment(thd->status_var.filesort_range_count);
+    thd->inc_status_sort_range();
   else
-    status_var_increment(thd->status_var.filesort_scan_count);
+    thd->inc_status_sort_scan();
 
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows= table->file->estimate_rows_upper_bound();
@@ -378,8 +378,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     }
   }
   else
-    statistic_add(thd->status_var.filesort_rows,
-                  (ulong) num_rows, &LOCK_status);
+    thd->inc_status_sort_rows(num_rows);
   *examined_rows= param.examined_rows;
 #ifdef SKIP_DBUG_IN_FILESORT
   DBUG_POP();			/* Ok to DBUG */
@@ -1425,7 +1424,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  status_var_increment(current_thd->status_var.filesort_merge_passes);
+  current_thd->inc_status_sort_merge_passes();
   if (param->not_killable)
   {
     killed= &not_killable;
