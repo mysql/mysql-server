@@ -5189,15 +5189,16 @@ int Field_temporal::store_TIME_with_warning(MYSQL_TIME *ltime,
     was_cut=  MYSQL_TIME_WARN_TRUNCATED;
     ret= 1;
   }
-  else if (temporal_type() == MYSQL_TIMESTAMP_DATE &&
+  else if (!(was_cut & MYSQL_TIME_WARN_TRUNCATED) &&
+           temporal_type() == MYSQL_TIMESTAMP_DATE &&
            (ltime->hour || ltime->minute || ltime->second || ltime->second_part))
   {
-    DBUG_ASSERT((was_cut & MYSQL_TIME_WARN_TRUNCATED) == 0);
     trunc_level= MYSQL_ERROR::WARN_LEVEL_NOTE;
     was_cut|=  MYSQL_TIME_WARN_TRUNCATED;
     ret= 3;
   }
-  else if (temporal_type() == MYSQL_TIMESTAMP_TIME &&
+  else if (!(was_cut & MYSQL_TIME_WARN_TRUNCATED) &&
+           temporal_type() == MYSQL_TIMESTAMP_TIME &&
            (ltime->year || ltime->month))
   {
     ltime->year= ltime->month= ltime->day= 0;

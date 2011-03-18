@@ -283,3 +283,8 @@ the_date	the_time	the_date	the_time
 DROP TABLE t1;
 DROP VIEW v1;
 End of 5.1 tests
+create table t1 (f1 date, key (f1));
+insert t1 values ('2010-10-10 15:foobar');
+Warnings:
+Warning	1265	Data truncated for column 'f1' at row 1
+drop table t1;
