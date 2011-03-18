@@ -1610,14 +1610,12 @@ row_unlock_for_mysql(
 			/* We did not update the record: unlock it */
 
 			rec = btr_pcur_get_rec(pcur);
-			index = btr_pcur_get_btr_cur(pcur)->index;
 
 			lock_rec_unlock(trx, btr_pcur_get_block(pcur),
 					rec, prebuilt->select_lock_type);
 
 			if (prebuilt->new_rec_locks >= 2) {
 				rec = btr_pcur_get_rec(clust_pcur);
-				index = btr_pcur_get_btr_cur(clust_pcur)->index;
 
 				lock_rec_unlock(trx,
 						btr_pcur_get_block(clust_pcur),
