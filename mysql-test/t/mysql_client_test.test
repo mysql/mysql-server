@@ -1,5 +1,7 @@
 # This test should work in embedded server after we fix mysqltest
 -- source include/not_embedded.inc
+# need to have the dynamic loading turned on for the client plugin tests
+--source include/have_plugin_auth.inc
 
 SET @old_general_log= @@global.general_log;
 SET @old_slow_query_log= @@global.slow_query_log;
