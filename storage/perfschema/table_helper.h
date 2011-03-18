@@ -316,49 +316,22 @@ struct PFS_socket_io_stat_row
 {
   PFS_byte_stat_row m_recv;
   PFS_byte_stat_row m_send;
-  PFS_byte_stat_row m_recvfrom;
-  PFS_byte_stat_row m_sendto;
-  PFS_byte_stat_row m_recvmsg;
-  PFS_byte_stat_row m_sendmsg;
   PFS_byte_stat_row m_misc;
-  PFS_byte_stat_row m_all_read;
-  PFS_byte_stat_row m_all_write;
   PFS_byte_stat_row m_all;
 
   inline void set(time_normalizer *normalizer, const PFS_socket_io_stat *stat)
   {
-    PFS_byte_stat all_read;
-    PFS_byte_stat all_write;
     PFS_byte_stat all;
 
-    /* Combine receive operations */
     m_recv.set(normalizer, &stat->m_recv);
-    m_recvfrom.set(normalizer, &stat->m_recvfrom);
-    m_recvmsg.set(normalizer, &stat->m_recvmsg);
-
-    all_read.aggregate(&stat->m_recv);
-    all_read.aggregate(&stat->m_recvfrom);
-    all_read.aggregate(&stat->m_recvmsg);
-
-    /* Combine send operations */
     m_send.set(normalizer, &stat->m_send);
-    m_sendto.set(normalizer, &stat->m_sendto);
-    m_sendmsg.set(normalizer, &stat->m_sendmsg);
-
-    all_write.aggregate(&stat->m_send);
-    all_write.aggregate(&stat->m_sendto);
-    all_write.aggregate(&stat->m_sendmsg);
-
-    /* Combine row values for miscellaneous socket operations */
     m_misc.set(normalizer, &stat->m_misc);
     
-    /* Combine timer stats for all operations */
-    all.aggregate(&all_read);
-    all.aggregate(&all_write);
+    /* Combine stats for all operations */
+    all.aggregate(&stat->m_recv);
+    all.aggregate(&stat->m_send);
     all.aggregate(&stat->m_misc);
 
-    m_all_read.set(normalizer, &all_read);
-    m_all_write.set(normalizer, &all_write);
     m_all.set(normalizer, &all);
   }
 };
