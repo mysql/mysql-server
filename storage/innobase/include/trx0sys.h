@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
+#include "ut0bh.h"
 #include "read0types.h"
 #include "page0types.h"
 #include "ut0bh.h"
@@ -124,9 +125,10 @@ trx_sys_hdr_page(
 	ulint	page_no);/*!< in: page number */
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
-system. This is called when the database is started. */
+system. This is called when the database is started. 
+@return min binary heap of rsegs to purge */
 UNIV_INTERN
-void
+ib_bh_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
@@ -685,9 +687,6 @@ struct trx_sys_struct{
 	UT_LIST_BASE_NODE_T(trx_t) mysql_trx_list;
 					/*!< List of transactions created
 					for MySQL */
-	ulint		latest_rseg;	/*!< Latest rollback segment in the
-					round-robin assignment of rollback
-					segments to transactions */
 	trx_rseg_t*	rseg_array[TRX_SYS_N_RSEGS];
 					/*!< Pointer array to rollback
 					segments; NULL if slot not in use;
@@ -699,9 +698,6 @@ struct trx_sys_struct{
 					list (update undo logs for committed
 					transactions), protected by
 					rseg->mutex */
-	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
-					rseg_queue_t::trx_no. It is protected
-					by the purge mutex */
 	mutex_t		read_view_mutex;/*!< Protects the view_list */
 	UT_LIST_BASE_NODE_T(read_view_t) view_list;
 					/*!< List of read views sorted

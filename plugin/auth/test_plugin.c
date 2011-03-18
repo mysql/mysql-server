@@ -79,8 +79,9 @@ static int auth_test_plugin(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   /* fail if the password is wrong */
   if (strcmp((const char *) pkt, info->auth_string))
   {
-    my_plugin_error(plugin_info_ptr, 42000, 
-                    "Wrong password supplied for %s", info->auth_string);
+    my_plugin_log_message(plugin_info_ptr, MY_ERROR_LEVEL, 
+                          "Wrong password supplied for %s", 
+                          info->auth_string);
     return CR_ERROR;
   }
 

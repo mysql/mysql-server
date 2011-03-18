@@ -1,4 +1,4 @@
-/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**********************************************************************
 This file contains the implementation of error and warnings related
@@ -45,7 +45,6 @@ This file contains the implementation of error and warnings related
 #include "unireg.h"
 #include "sql_error.h"
 #include "sp_rcontext.h"
-#include "mysql/service_error_reporting.h"
 
 /*
   Design notes about MYSQL_ERROR::m_message_text.
@@ -623,25 +622,6 @@ void push_warning_printf(THD *thd, MYSQL_ERROR::enum_warning_level level,
 }
 
 
-/* 
-  Keep in sync with the definition in ../include/mysql/service_error_reporting.h 
-*/
-extern "C" 
-void my_plugin_error(void *plugin_ptr, int code, const char *format, ...)
-{
-  char message[ERRMSGSIZE];
-  struct st_plugin_int *plugin = (st_plugin_int *) plugin_ptr;
-  va_list args;
-
-  va_start(args, format);
-  my_vsnprintf(message, sizeof(message) - 1, format, args);
-  va_end(args);
-
-  my_error(ER_PLUGIN_ERROR, MYF(0), 
-           (int) plugin->name.length, plugin->name.str, code, message);
-}
-
-
 /*
   Send all notes, errors or warnings to the client in a result set
 
@@ -732,7 +712,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 */
 
 char *err_conv(char *buff, uint to_length, const char *from,
-               uint from_length, CHARSET_INFO *from_cs)
+               uint from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -799,9 +779,10 @@ char *err_conv(char *buff, uint to_length, const char *from,
    length of converted string
 */
 
-uint32 convert_error_message(char *to, uint32 to_length, CHARSET_INFO *to_cs,
+uint32 convert_error_message(char *to, uint32 to_length,
+                             const CHARSET_INFO *to_cs,
                              const char *from, uint32 from_length,
-                             CHARSET_INFO *from_cs, uint *errors)
+                             const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
   my_wc_t     wc;

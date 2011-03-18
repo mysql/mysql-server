@@ -817,3 +817,33 @@ DROP TABLE t1, t2;
 
 --echo # End BUG#56367
 
+--echo #
+--echo # Bug#59833 - materialization=on/off leads to different result set
+--echo #             when using IN
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL,
+  f1 int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (10,0);
+INSERT INTO t2 VALUES (10,0),(11,0);
+
+let $query=
+SELECT * FROM t1 JOIN t2 USING (f1)
+WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # End Bug#59833

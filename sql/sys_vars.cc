@@ -359,6 +359,9 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static Sys_var_test_flag Sys_core_file(
+       "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
+
 static Sys_var_enum Sys_binlog_format(
        "binlog_format", "What form of binary logging the master will "
        "use: either ROW for row-based binary logging, STATEMENT "
@@ -1269,6 +1272,16 @@ static Sys_var_ulong Sys_max_length_for_sort_data(
        SESSION_VAR(max_length_for_sort_data), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(4, 8192*1024L), DEFAULT(1024), BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_max_long_data_size(
+       "max_long_data_size",
+       "The maximum BLOB length to send to server from "
+       "mysql_send_long_data API. Deprecated option; "
+       "use max_allowed_packet instead.",
+       READ_ONLY GLOBAL_VAR(max_long_data_size),
+       CMD_LINE(REQUIRED_ARG, OPT_MAX_LONG_DATA_SIZE),
+       VALID_RANGE(1024, UINT_MAX32), DEFAULT(1024*1024),
+       BLOCK_SIZE(1));
+
 static PolyLock_mutex PLock_prepared_stmt_count(&LOCK_prepared_stmt_count);
 static Sys_var_ulong Sys_max_prepared_stmt_count(
        "max_prepared_stmt_count",
@@ -1520,7 +1533,7 @@ static Sys_var_proxy_user Sys_proxy_user(
        "proxy_user", "The proxy user account name used when logging in",
        IN_SYSTEM_CHARSET);
 
-static Sys_var_external_user Sys_exterenal_user(
+static Sys_var_external_user Sys_external_user(
        "external_user", "The external user account used when logging in",
        IN_SYSTEM_CHARSET);
 
@@ -3178,7 +3191,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res=var->value->val_str(&str)))
       return true;
-    else if (!(locale= my_locale_by_name(res->c_ptr())))
+    else if (!(locale= my_locale_by_name(res->c_ptr_safe())))
     {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());

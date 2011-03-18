@@ -13,8 +13,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -68,11 +68,11 @@ char_to_byte_length_safe(uint32 char_length_arg, uint32 mbmaxlen_arg)
 
 class DTCollation {
 public:
-  CHARSET_INFO     *collation;
+  const CHARSET_INFO *collation;
   enum Derivation derivation;
   uint repertoire;
   
-  void set_repertoire_from_charset(CHARSET_INFO *cs)
+  void set_repertoire_from_charset(const CHARSET_INFO *cs)
   {
     repertoire= cs->state & MY_CS_PUREASCII ?
                 MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
@@ -83,7 +83,7 @@ public:
     derivation= DERIVATION_NONE;
     repertoire= MY_REPERTOIRE_UNICODE30;
   }
-  DTCollation(CHARSET_INFO *collation_arg, Derivation derivation_arg)
+  DTCollation(const CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
@@ -95,13 +95,13 @@ public:
     derivation= dt.derivation;
     repertoire= dt.repertoire;
   }
-  void set(CHARSET_INFO *collation_arg, Derivation derivation_arg)
+  void set(const CHARSET_INFO *collation_arg, Derivation derivation_arg)
   {
     collation= collation_arg;
     derivation= derivation_arg;
     set_repertoire_from_charset(collation_arg);
   }
-  void set(CHARSET_INFO *collation_arg,
+  void set(const CHARSET_INFO *collation_arg,
            Derivation derivation_arg,
            uint repertoire_arg)
   {
@@ -115,7 +115,7 @@ public:
     derivation= DERIVATION_NUMERIC;
     repertoire= MY_REPERTOIRE_NUMERIC;
   }
-  void set(CHARSET_INFO *collation_arg)
+  void set(const CHARSET_INFO *collation_arg)
   {
     collation= collation_arg;
     set_repertoire_from_charset(collation_arg);
@@ -585,7 +585,7 @@ public:
     name=0;
 #endif
   }		/*lint -e1509 */
-  void set_name(const char *str, uint length, CHARSET_INFO *cs);
+  void set_name(const char *str, uint length, const CHARSET_INFO *cs);
   void rename(char *new_name);
   void init_make_field(Send_field *tmp_field,enum enum_field_types type);
   virtual void cleanup();
@@ -976,14 +976,14 @@ public:
   virtual Item *real_item() { return this; }
   virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
-  static CHARSET_INFO *default_charset();
-  virtual CHARSET_INFO *compare_collation() { return NULL; }
+  static const CHARSET_INFO *default_charset();
+  virtual const CHARSET_INFO *compare_collation() { return NULL; }
 
   /*
     For backward compatibility, to make numeric
     data types return "binary" charset in client-side metadata.
   */
-  virtual CHARSET_INFO *charset_for_protocol(void) const
+  virtual const CHARSET_INFO *charset_for_protocol(void) const
   {
     return result_type() == STRING_RESULT ? collation.collation :
                                             &my_charset_bin;
@@ -1165,7 +1165,7 @@ public:
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   virtual Item *update_value_transformer(uchar *select_arg) { return this; }
-  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
+  virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
   void delete_self()
   {
     cleanup();
@@ -1227,7 +1227,7 @@ public:
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
-  bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
+  bool eq_by_collation(Item *item, bool binary_cmp, const CHARSET_INFO *cs); 
 
   /*
     Test whether an expression is expensive to compute. Used during
@@ -1253,7 +1253,8 @@ public:
   }
   uint32 max_char_length() const
   { return max_length / collation.collation->mbmaxlen; }
-  void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
+  void fix_length_and_charset(uint32 max_char_length_arg,
+                              const CHARSET_INFO *cs)
   {
     max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);
     collation.collation= cs;
@@ -1631,7 +1632,7 @@ class Item_num: public Item_basic_constant
 public:
   Item_num() { collation.set_numeric(); } /* Remove gcc warning */
   virtual Item_num *neg()= 0;
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) { return FALSE;}
 };
 
@@ -1814,7 +1815,7 @@ public:
   Item *replace_equal_field(uchar *arg);
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *filed_for_view_update() { return this; }
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
   virtual void print(String *str, enum_query_type query_type);
@@ -1828,7 +1829,7 @@ public:
     DBUG_ASSERT(field_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
   }
-  CHARSET_INFO *charset_for_protocol(void) const
+  const CHARSET_INFO *charset_for_protocol(void) const
   { return field->charset_for_protocol(); }
 
 #ifndef DBUG_OFF
@@ -1892,7 +1893,7 @@ public:
     str->append(STRING_WITH_LEN("NULL"));
   }
 
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
@@ -1950,15 +1951,15 @@ public:
     */
     struct CONVERSION_INFO
     {
-      CHARSET_INFO *character_set_client;
-      CHARSET_INFO *character_set_of_placeholder;
+      const CHARSET_INFO *character_set_client;
+      const CHARSET_INFO *character_set_of_placeholder;
       /*
         This points at character set of connection if conversion
         to it is required (i. e. if placeholder typecode is not BLOB).
         Otherwise it's equal to character_set_client (to simplify
         check in convert_str_value()).
       */
-      CHARSET_INFO *final_character_set_of_str_value;
+      const CHARSET_INFO *final_character_set_of_str_value;
     } cs_info;
     MYSQL_TIME     time;
   } value;
@@ -2039,7 +2040,7 @@ public:
     constant, assert otherwise. This method is called only if
     basic_const_item returned TRUE.
   */
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   Item *clone_item();
   /*
     Implement by-value equality evaluation if parameter value
@@ -2131,7 +2132,7 @@ class Item_decimal :public Item_num
 protected:
   my_decimal decimal_value;
 public:
-  Item_decimal(const char *str_arg, uint length, CHARSET_INFO *charset);
+  Item_decimal(const char *str_arg, uint length, const CHARSET_INFO *charset);
   Item_decimal(const char *str, const my_decimal *val_arg,
                uint decimal_par, uint length);
   Item_decimal(my_decimal *value_par);
@@ -2228,7 +2229,7 @@ public:
     str->append(func_name);
   }
 
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
 };
 
 
@@ -2236,7 +2237,7 @@ class Item_string :public Item_basic_constant
 {
 public:
   Item_string(const char *str,uint length,
-              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
@@ -2256,7 +2257,7 @@ public:
     fixed= 1;
   }
   /* Just create an item and do not fill string representation */
-  Item_string(CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+  Item_string(const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
     : m_cs_specified(FALSE)
   {
     collation.set(cs, dv);
@@ -2266,7 +2267,7 @@ public:
     fixed= 1;
   }
   Item_string(const char *name_par, const char *str, uint length,
-              CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
+              const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
@@ -2312,7 +2313,7 @@ public:
     return new Item_string(name, str_value.ptr(), 
     			   str_value.length(), collation.collation);
   }
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
   inline void append(char *str, uint length)
   {
     str_value.append(str, length);
@@ -2366,20 +2367,22 @@ private:
 
 
 longlong 
-longlong_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end);
+longlong_from_string_with_check (const CHARSET_INFO *cs,
+                                 const char *cptr, char *end);
 double 
-double_from_string_with_check (CHARSET_INFO *cs, const char *cptr, char *end);
+double_from_string_with_check (const CHARSET_INFO *cs,
+                               const char *cptr, char *end);
 
 class Item_static_string_func :public Item_string
 {
   const char *func_name;
 public:
   Item_static_string_func(const char *name_par, const char *str, uint length,
-                          CHARSET_INFO *cs,
+                          const CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(NullS, str, length, cs, dv), func_name(name_par)
   {}
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
+  Item *safe_charset_converter(const CHARSET_INFO *tocs);
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
@@ -2395,7 +2398,7 @@ class Item_partition_func_safe_string: public Item_string
 {
 public:
   Item_partition_func_safe_string(const char *name, uint length,
-                                  CHARSET_INFO *cs= NULL):
+                                  const CHARSET_INFO *cs= NULL):
     Item_string(name, length, cs)
   {}
 };
@@ -2433,7 +2436,8 @@ public:
 class Item_empty_string :public Item_partition_func_safe_string
 {
 public:
-  Item_empty_string(const char *header,uint length, CHARSET_INFO *cs= NULL) :
+  Item_empty_string(const char *header, uint length,
+                    const CHARSET_INFO *cs= NULL) :
     Item_partition_func_safe_string("",0, cs ? cs : &my_charset_utf8_general_ci)
     { name=(char*) header; max_length= length * collation.collation->mbmaxlen; }
   void make_field(Send_field *field);
@@ -2475,7 +2479,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
   virtual void print(String *str, enum_query_type query_type);
   bool eq(const Item *item, bool binary_cmp) const;
-  virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
+  virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 private:
   void hex_string_init(const char *str, uint str_length);
@@ -3312,11 +3316,10 @@ class Item_cache: public Item_basic_constant
 protected:
   Item *example;
   table_map used_table_map;
-  /*
-    Field that this object will get value from. This is set/used by 
+  /**
+    Field that this object will get value from. This is used by 
     index-based subquery engines to detect and remove the equality injected 
     by IN->EXISTS transformation.
-    For all other uses of Item_cache, cached_field doesn't matter.
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
@@ -3384,6 +3387,14 @@ public:
   {
     return (value_cached || cache_value()) && !null_value;
   }
+
+  /** 
+    If this item caches a field value, return pointer to underlying field.
+
+    @return Pointer to field, or NULL if this is not a cache for a field value.
+  */
+  Field* field() { return cached_field; }
+
   virtual void store(Item *item);
   virtual bool cache_value()= 0;
   bool basic_const_item() const
@@ -3473,7 +3484,7 @@ public:
   String* val_str(String *);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type() const { return STRING_RESULT; }
-  CHARSET_INFO *charset() const { return value->charset(); };
+  const CHARSET_INFO *charset() const { return value->charset(); };
   int save_in_field(Field *field, bool no_conversions);
   bool cache_value();
 };
@@ -3552,7 +3563,7 @@ class Item_cache_datetime: public Item_cache
 {
 protected:
   String str_value;
-  ulonglong int_value;
+  longlong int_value;
   bool str_value_cached;
 public:
   Item_cache_datetime(enum_field_types field_type_arg):

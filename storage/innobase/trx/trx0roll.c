@@ -50,8 +50,8 @@ Created 3/26/1996 Heikki Tuuri
 rollback */
 #define TRX_ROLL_TRUNC_THRESHOLD	1
 
-/** In crash recovery, the current trx to be rolled back */
-static trx_t*		trx_roll_crash_recv_trx	= NULL;
+/** In crash recovery, the current trx to be rolled back; NULL otherwise */
+static const trx_t*	trx_roll_crash_recv_trx	= NULL;
 
 /** In crash recovery we set this to the undo n:o of the current trx to be
 rolled back. Then we can print how many % the rollback has progressed. */
@@ -107,8 +107,10 @@ trx_general_rollback_for_mysql_low(
 
 	if (savept == NULL) {
 		trx_rollback_finish(trx);
+		MONITOR_INC(MONITOR_TRX_ROLLBACK);
 	} else {
 		trx->lock.que_state = TRX_QUE_RUNNING;
+		MONITOR_INC(MONITOR_TRX_ROLLBACK_SAVEPOINT);
 	}
 
 	ut_a(trx->error_state == DB_SUCCESS);
@@ -116,7 +118,6 @@ trx_general_rollback_for_mysql_low(
 
 	mem_heap_free(heap);
 
-	MONITOR_INC(MONITOR_TRX_ABORT);
 	MONITOR_DEC(MONITOR_TRX_ACTIVE);
 }
 
@@ -244,6 +245,7 @@ trx_rollback_last_sql_stat_for_mysql(
 	}
 
 	ut_error;
+	return(DB_CORRUPTION);
 }
 
 /*******************************************************************//**
@@ -743,7 +745,7 @@ trx_rollback_or_clean_recovered(
 			ut_ad(trx->in_trx_list);
 
 			/* If this function does a cleanup or rollback
-			then it will release the trx sys mutex, therefore
+			then it will release the trx_sys->lock, therefore
 			we need to reacquire it before retrying the loop. */
 
 			if (trx_rollback_resurrected(trx, all)) {

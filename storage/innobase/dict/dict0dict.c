@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -394,6 +394,8 @@ dict_table_close(
 
 	--table->n_ref_count;
 
+	MONITOR_DEC(MONITOR_TABLE_REFERENCE);
+
 	ut_ad(dict_lru_validate());
 
 #ifdef UNIV_DEBUG
@@ -689,6 +691,8 @@ dict_table_open_on_id(
 		}
 
 		++table->n_ref_count;
+
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
 
 	if (!dict_locked) {
@@ -812,7 +816,10 @@ dict_table_t*
 dict_table_open_on_name_low(
 /*========================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	dict_err_ignore_t
+			ignore_err)	/*!< in: error to be ignored when
+					loading a table definition */
 {
 	dict_table_t*	table;
 
@@ -820,17 +827,29 @@ dict_table_open_on_name_low(
 		mutex_enter(&(dict_sys->mutex));
 	}
 
+	ut_ad(table_name);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	table = dict_table_get_low(table_name);
+	table = dict_table_check_if_in_cache_low(table_name);
+
+	if (table == NULL) {
+		table = dict_load_table(table_name, TRUE, ignore_err);
+	}
+
+	ut_ad(!table || table->cached);
 
 	if (table != NULL) {
+
+		ut_ad(ignore_err != DICT_ERR_IGNORE_NONE
+		      || table->corrupted == FALSE);
 
 		if (table->can_be_evicted) {
 			dict_move_to_mru(table);
 		}
 
 		++table->n_ref_count;
+
+		MONITOR_INC(MONITOR_TABLE_REFERENCE);
 	}
 
 	ut_ad(dict_lru_validate());
@@ -857,7 +876,8 @@ dict_table_open_on_name(
 {
 	dict_table_t*	table;
 
-	table = dict_table_open_on_name_low(table_name, dict_locked);
+	table = dict_table_open_on_name_low(table_name, dict_locked,
+					    DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL) {
 		/* If table->ibd_file_missing == TRUE, this will
@@ -881,9 +901,13 @@ dict_table_t*
 dict_table_open_on_name_no_stats(
 /*=============================*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
+	ibool		dict_locked,	/*!< in: TRUE=data dictionary locked */
+	dict_err_ignore_t
+			ignore_err)	/*!< in: error to be ignored during
+					table open */
 {
-	return(dict_table_open_on_name_low(table_name, dict_locked));
+	return(dict_table_open_on_name_low(table_name, dict_locked,
+					   ignore_err));
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -1281,7 +1305,7 @@ dict_table_rename_in_cache(
 	dict_foreign_t*	foreign;
 	dict_index_t*	index;
 	ulint		fold;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -1293,7 +1317,7 @@ dict_table_rename_in_cache(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -1343,11 +1367,11 @@ dict_table_rename_in_cache(
 		    ut_fold_string(old_name), table);
 
 	if (strlen(new_name) > strlen(table->name)) {
-		/* We allocate MAX_TABLE_NAME_LEN+1 bytes here to avoid
+		/* We allocate MAX_FULL_NAME_LEN + 1 bytes here to avoid
 		memory fragmentation, we assume a repeated calls of
 		ut_realloc() with the same size do not cause fragmentation */
-		ut_a(strlen(new_name) <= MAX_TABLE_NAME_LEN);
-		table->name = ut_realloc(table->name, MAX_TABLE_NAME_LEN + 1);
+		ut_a(strlen(new_name) <= MAX_FULL_NAME_LEN);
+		table->name = ut_realloc(table->name, MAX_FULL_NAME_LEN + 1);
 	}
 	memcpy(table->name, new_name, strlen(new_name) + 1);
 

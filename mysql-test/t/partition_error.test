@@ -11,6 +11,17 @@ drop table if exists t1, t2;
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
 --echo #
+--echo # Bug#60039: crash when exchanging a partition on
+--echo #            nonpartitioned table with a view
+--echo #
+CREATE TABLE t1 (a int);
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+--error ER_CHECK_NO_SUCH_TABLE
+ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE v1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
 --echo # Bug#57924: crash when creating partitioned table with
 --echo #            multiple columns in the partition key
 --echo #

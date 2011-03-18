@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   TODO:
@@ -692,7 +692,8 @@ public:
   /* 
     If true, the index descriptions describe real indexes (and it is ok to
     call field->optimize_range(real_keynr[...], ...).
-    Otherwise index description describes fake indexes.
+    Otherwise index description describes fake indexes, like a partitioning
+    expression.
   */
   bool using_real_indexes;
   
@@ -2660,7 +2661,7 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
     This function assumes that all partitions are marked as unused when it
     is invoked. The function analyzes the condition, finds partitions that
     need to be used to retrieve the records that match the condition, and 
-    marks them as used by setting appropriate bit in part_info->used_partitions
+    marks them as used by setting appropriate bit in part_info->read_partitions
     In the worst case all partitions are marked as used.
 
   NOTE
@@ -2721,7 +2722,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   thd->no_errors=1;				// Don't warn about NULL
   thd->mem_root=&alloc;
 
-  bitmap_clear_all(&part_info->used_partitions);
+  bitmap_clear_all(&part_info->read_partitions);
 
   prune_param.key= prune_param.range_param.key_parts;
   SEL_TREE *tree;
@@ -2804,6 +2805,11 @@ end:
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
+  /* Must be a subset of the locked partitions */
+  bitmap_intersect(&(prune_param.part_info->read_partitions),
+                   &(prune_param.part_info->lock_partitions));
+  if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
+    retval= TRUE;
   DBUG_RETURN(retval);
 }
 
@@ -2879,7 +2885,7 @@ static void mark_full_partition_used_no_parts(partition_info* part_info,
 {
   DBUG_ENTER("mark_full_partition_used_no_parts");
   DBUG_PRINT("enter", ("Mark partition %u as used", part_id));
-  bitmap_set_bit(&part_info->used_partitions, part_id);
+  bitmap_set_bit(&part_info->read_partitions, part_id);
   DBUG_VOID_RETURN;
 }
 
@@ -2895,7 +2901,7 @@ static void mark_full_partition_used_with_parts(partition_info *part_info,
   for (; start != end; start++)
   {
     DBUG_PRINT("info", ("1:Mark subpartition %u as used", start));
-    bitmap_set_bit(&part_info->used_partitions, start);
+    bitmap_set_bit(&part_info->read_partitions, start);
   }
   DBUG_VOID_RETURN;
 }
@@ -2923,7 +2929,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
   MY_BITMAP all_merges;
   uint bitmap_bytes;
   my_bitmap_map *bitmap_buf;
-  uint n_bits= ppar->part_info->used_partitions.n_bits;
+  uint n_bits= ppar->part_info->read_partitions.n_bits;
   bitmap_bytes= bitmap_buffer_size(n_bits);
   if (!(bitmap_buf= (my_bitmap_map*) alloc_root(ppar->range_param.mem_root,
                                                 bitmap_bytes)))
@@ -2949,14 +2955,14 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
     }
 
     if (res != -1)
-      bitmap_intersect(&all_merges, &ppar->part_info->used_partitions);
+      bitmap_intersect(&all_merges, &ppar->part_info->read_partitions);
 
     if (bitmap_is_clear_all(&all_merges))
       return 0;
 
-    bitmap_clear_all(&ppar->part_info->used_partitions);
+    bitmap_clear_all(&ppar->part_info->read_partitions);
   }
-  memcpy(ppar->part_info->used_partitions.bitmap, all_merges.bitmap,
+  memcpy(ppar->part_info->read_partitions.bitmap, all_merges.bitmap,
          bitmap_bytes);
   return 1;
 }
@@ -3315,7 +3321,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
       {
         for (uint i= 0; i < ppar->part_info->num_subparts; i++)
           if (bitmap_is_set(&ppar->subparts_bitmap, i))
-            bitmap_set_bit(&ppar->part_info->used_partitions,
+            bitmap_set_bit(&ppar->part_info->read_partitions,
                            part_id * ppar->part_info->num_subparts + i);
       }
       goto pop_and_go_right;
@@ -3377,7 +3383,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         while ((part_id= ppar->part_iter.get_next(&ppar->part_iter)) !=
                 NOT_A_PARTITION_ID)
         {
-          bitmap_set_bit(&part_info->used_partitions,
+          bitmap_set_bit(&part_info->read_partitions,
                          part_id * part_info->num_subparts + subpart_id);
         }
         res= 1; /* Some partitions were marked as used */
@@ -3456,7 +3462,8 @@ pop_and_go_right:
 
 static void mark_all_partitions_as_used(partition_info *part_info)
 {
-  bitmap_set_all(&part_info->used_partitions);
+  bitmap_copy(&(part_info->read_partitions),
+              &(part_info->lock_partitions));
 }
 
 
@@ -5774,7 +5781,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC)))
   {
-    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+    if (param->using_real_indexes &&
+        param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
               MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -5906,7 +5914,8 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() != STRING_RESULT &&
       field->cmp_type() != value->result_type())
   {
-    if (param->thd->lex->describe & DESCRIBE_EXTENDED)
+    if (param->using_real_indexes &&
+        param->thd->lex->describe & DESCRIBE_EXTENDED)
       push_warning_printf(
               param->thd,
               MYSQL_ERROR::WARN_LEVEL_WARN, 
@@ -10127,11 +10136,11 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
-  Item **arguments= pred->arguments();
   Item *cur_arg;
   DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
   for (uint arg_idx= 0; arg_idx < pred->argument_count (); arg_idx++)
   {
+    Item **arguments= pred->arguments();
     cur_arg= arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)

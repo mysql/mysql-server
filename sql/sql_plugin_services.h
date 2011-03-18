@@ -46,8 +46,7 @@ static struct my_thread_scheduler_service my_thread_scheduler_handler= {
   my_thread_scheduler_reset,
 };
 
-static struct error_reporting_service error_reporting_handler= {
-  my_plugin_error,
+static struct my_plugin_log_service my_plugin_log_handler= {
   my_plugin_log_message
 };
 
@@ -60,7 +59,6 @@ static struct st_service_ref list_of_services[]=
   { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
   { "my_thread_scheduler_service",
     VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
-  { "error_reporting_service", 
-    VERSION_error_reporting,    &error_reporting_handler },
+  { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
 };
 

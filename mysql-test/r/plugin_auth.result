@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 SELECT PLUGIN_STATUS, PLUGIN_TYPE, PLUGIN_DESCRIPTION
 FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='test_plugin_server';
 PLUGIN_STATUS	ACTIVE
@@ -74,7 +75,7 @@ REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 IDENTIFIED BY 'unused_password';
 # make sure password doesn't take precendence
-ERROR HY000: Plugin test_plugin_server reported error (code: 42000) : Wrong password supplied for plug_dest
+ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
 #make sure plugin auth still available
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()

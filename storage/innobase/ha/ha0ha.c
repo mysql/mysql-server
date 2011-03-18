@@ -302,9 +302,10 @@ ha_delete_hash_node(
 
 /*********************************************************//**
 Looks for an element when we know the pointer to the data, and updates
-the pointer to data, if found. */
+the pointer to data, if found.
+@return TRUE if found */
 UNIV_INTERN
-void
+ibool
 ha_search_and_update_if_found_func(
 /*===============================*/
 	hash_table_t*	table,	/*!< in/out: hash table */
@@ -339,7 +340,11 @@ ha_search_and_update_if_found_func(
 		node->block = new_block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 		node->data = new_data;
+
+		return(TRUE);
 	}
+
+	return(FALSE);
 }
 
 #ifndef UNIV_HOTBACKUP

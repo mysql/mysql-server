@@ -2662,8 +2662,18 @@ row_sel_field_store_in_mysql_format_func(
 		ut_ad(templ->mysql_col_len >= len);
 		ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
+		/* If field_no equals to templ->icp_rec_field_no,
+		we are examining a row pointed by "icp_rec_field_no".
+		There is possibility that icp_rec_field_no refers to
+		a field in a secondary index while templ->rec_field_no
+		points to field in a primary index. The length
+		should still be equal, unless the field pointed
+		by icp_rec_field_no has a prefix */
 		ut_ad(templ->mbmaxlen > templ->mbminlen
-		      || templ->mysql_col_len == len);
+		      || templ->mysql_col_len == len
+		      || (field_no == templ->icp_rec_field_no
+			  && field->prefix_len > 0));
+
 		/* The following assertion would fail for old tables
 		containing UTF-8 ENUM columns due to Bug #9526. */
 		ut_ad(!templ->mbmaxlen
@@ -3276,16 +3286,15 @@ row_sel_pop_cached_row_for_mysql(
 }
 
 /********************************************************************//**
-Pushes a row for MySQL to the fetch cache.
-@return TRUE on success, FALSE if the record contains incomplete BLOBs */
-UNIV_INLINE __attribute__((warn_unused_result))
-ibool
+Pushes a row for MySQL to the fetch cache. */
+UNIV_INLINE
+void
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	byte*		mysql_rec,	/*!< in/out: MySQL record */
 	row_prebuilt_t*	prebuilt)	/*!< in/out: prebuilt struct */
 {
-	ut_ad(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+	ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
 	ut_a(!prebuilt->templ_contains_blob);
 
 	if (UNIV_UNLIKELY(prebuilt->fetch_cache[0] == NULL)) {
@@ -3317,12 +3326,7 @@ row_sel_push_cache_row_for_mysql(
 	memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
 	       mysql_rec, prebuilt->mysql_row_len);
 
-	if (++prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
-		return(FALSE);
-	}
-
-	row_sel_pop_cached_row_for_mysql(mysql_rec, prebuilt);
-	return(TRUE);
+	++prebuilt->n_fetch_cached;
 }
 
 /*********************************************************************//**
@@ -3426,6 +3430,8 @@ row_search_idx_cond_check(
 		return(ICP_MATCH);
 	}
 
+	MONITOR_INC(MONITOR_ICP_ATTEMPTS);
+
 	/* Convert to MySQL format those fields that are needed for
 	evaluating the index condition. */
 
@@ -3462,12 +3468,16 @@ row_search_idx_cond_check(
 				    mysql_rec, prebuilt, rec, FALSE,
 				    prebuilt->index, offsets)) {
 				ut_ad(dict_index_is_clust(prebuilt->index));
-				result = ICP_NO_MATCH;
+				return(ICP_NO_MATCH);
 			}
 		}
-		/* fall through */
+		MONITOR_INC(MONITOR_ICP_MATCH);
+		return(result);
 	case ICP_NO_MATCH:
+		MONITOR_INC(MONITOR_ICP_NO_MATCH);
+		return(result);
 	case ICP_OUT_OF_RANGE:
+		MONITOR_INC(MONITOR_ICP_OUT_OF_RANGE);
 		return(result);
 	}
 
@@ -4366,7 +4376,8 @@ no_gap_lock:
 
 			err = lock_trx_handle_wait(trx);
 
-			if (err == DB_SUCCESS) {
+			switch (err) {
+			case DB_SUCCESS:
 				/* The lock was granted while we were
 				searching for the last committed version.
 				Do a normal locking read. */
@@ -4374,12 +4385,14 @@ no_gap_lock:
 				offsets = rec_get_offsets(
 					rec, index, offsets, ULINT_UNDEFINED,
 					&heap);
-				break;
-			} else if (err == DB_DEADLOCK) {
+				goto locks_ok;
+			case DB_DEADLOCK:
 				goto lock_wait_or_error;
- 			} else {
-				ut_a(err == DB_LOCK_WAIT);
+			case DB_LOCK_WAIT:
 				err = DB_SUCCESS;
+				break;
+			default:
+				ut_error;
 			}
 
 			if (old_vers == NULL) {
@@ -4469,6 +4482,7 @@ no_gap_lock:
 		}
 	}
 
+locks_ok:
 	/* NOTE that at this point rec can be an old version of a clustered
 	index record built for a consistent read. We cannot assume after this
 	point that rec is on a buffer pool page. Functions like
@@ -4646,12 +4660,18 @@ requires_clust_rec:
 		not cache rows because there the cursor is a scrollable
 		cursor. */
 
+		ut_a(prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE);
+
+		/* We only convert from InnoDB row format to MySQL row
+		format when ICP is disabled. */
+
 		if (!prebuilt->idx_cond
 		    && !row_sel_store_mysql_rec(
 			    buf, prebuilt, result_rec,
 			    result_rec != rec,
 			    result_rec != rec ? clust_index : index,
 			    offsets)) {
+
 			/* Only fresh inserts may contain incomplete
 			externally stored columns. Pretend that such
 			records do not exist. Such records may only be
@@ -4660,7 +4680,11 @@ requires_clust_rec:
 			transaction. Rollback happens at a lower
 			level, not here. */
 			goto next_rec;
-		} else if (row_sel_push_cache_row_for_mysql(buf, prebuilt)) {
+		}
+
+		row_sel_push_cache_row_for_mysql(buf, prebuilt);
+
+		if (prebuilt->n_fetch_cached < MYSQL_FETCH_CACHE_SIZE) {
 			goto next_rec;
 		}
 	} else {

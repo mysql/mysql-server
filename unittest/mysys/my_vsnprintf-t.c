@@ -110,8 +110,11 @@ int main(void)
   test1("Positional arguments octal: <7777>",
         "Positional arguments octal: <%1$o>", 07777);
 
+  /* Can't use int arguments, as they may be different size from pointers */
+
   test1("Padding and %p <0x12> <0x034> <0x0000ab> <    0xcd>",
-        "Padding and %%p <%04p> <%05p> <%08p> <%8p>", 0x12, 0x34, 0xab, 0xcd);
+        "Padding and %%p <%04p> <%05p> <%08p> <%8p>",
+        (void*) 0x12, (void*) 0x34, (void*) 0xab, (void*) 0xcd);
 
   test1("F with a width (ignored) and precision: <12.34568>",
         "F with a width (ignored) and precision: <%10.5f>", 12.3456789);

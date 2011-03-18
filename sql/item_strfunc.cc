@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -71,7 +71,7 @@ String my_empty_string("",default_charset_info);
   Normally conversion does not happen, and val_str_ascii() is immediately
   returned instead.
 */
-String *Item_str_ascii_func::val_str(String *str)
+String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2)
 {
   DBUG_ASSERT(fixed == 1);
 
@@ -83,19 +83,19 @@ String *Item_str_ascii_func::val_str(String *str)
     return res;
   }
   
-  DBUG_ASSERT(str != &ascii_buf);
+  DBUG_ASSERT(str != str2);
   
   uint errors;
-  String *res= val_str_ascii(&ascii_buf);
+  String *res= val_str_ascii(str);
   if (!res)
     return 0;
   
-  if ((null_value= str->copy(res->ptr(), res->length(),
-                             &my_charset_latin1, collation.collation,
-                             &errors)))
+  if ((null_value= str2->copy(res->ptr(), res->length(),
+                              &my_charset_latin1, collation.collation,
+                              &errors)))
     return 0;
   
-  return str;
+  return str2;
 }
 
 
@@ -796,6 +796,7 @@ String *Item_func_des_encrypt::val_str(String *str)
   tmp_arg[res_length-1]=tail;                   // save extra length
   tmp_value.realloc(res_length+1);
   tmp_value.length(res_length+1);
+  tmp_value.set_charset(&my_charset_bin);
   tmp_value[0]=(char) (128 | key_number);
   // Real encryption
   bzero((char*) &ivec,sizeof(ivec));
@@ -883,6 +884,7 @@ String *Item_func_des_decrypt::val_str(String *str)
   if ((tail=(uint) (uchar) tmp_value[length-2]) > 8)
     goto wrong_key;				     // Wrong key
   tmp_value.length(length-1-tail);
+  tmp_value.set_charset(&my_charset_bin);
   return &tmp_value;
 
 error:
@@ -2073,7 +2075,7 @@ void Item_func_decode::crypto_transform(String *res)
 }
 
 
-Item *Item_func_sysconst::safe_charset_converter(CHARSET_INFO *tocs)
+Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_string *conv;
   uint conv_errors;
@@ -2126,7 +2128,7 @@ bool Item_func_user::init(const char *user, const char *host)
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user)
   {
-    CHARSET_INFO *cs= str_value.charset();
+    const CHARSET_INFO *cs= str_value.charset();
     size_t res_length= (strlen(user)+strlen(host)+2) * cs->mbmaxlen;
 
     if (str_value.alloc((uint) res_length))
@@ -2222,7 +2224,7 @@ String *Item_func_soundex::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
   my_wc_t wc;
   uint nchars;
   int rc;
@@ -3158,7 +3160,7 @@ String *Item_func_charset::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
 
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
   null_value= 0;
   str->copy(cs->csname, (uint) strlen(cs->csname),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
@@ -3169,7 +3171,7 @@ String *Item_func_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   uint dummy_errors;
-  CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
+  const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
   null_value= 0;
   str->copy(cs->name, (uint) strlen(cs->name),
@@ -3180,7 +3182,7 @@ String *Item_func_collation::val_str(String *str)
 
 void Item_func_weight_string::fix_length_and_dec()
 {
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags= my_strxfrm_flag_normalize(flags, cs->levels_for_order);
   /* 
@@ -3198,7 +3200,7 @@ void Item_func_weight_string::fix_length_and_dec()
 String *Item_func_weight_string::val_str(String *str)
 {
   String *res;
-  CHARSET_INFO *cs= args[0]->collation.collation;
+  const CHARSET_INFO *cs= args[0]->collation.collation;
   uint tmp_length, frm_length;
   DBUG_ASSERT(fixed == 1);
 
@@ -3327,7 +3329,7 @@ String *Item_func_like_range::val_str(String *str)
   longlong nbytes= args[1]->val_int();
   String *res= args[0]->val_str(str);
   size_t min_len, max_len;
-  CHARSET_INFO *cs= collation.collation;
+  const CHARSET_INFO *cs= collation.collation;
 
   if (!res || args[0]->null_value || args[1]->null_value ||
       nbytes < 0 || nbytes > MAX_BLOB_WIDTH ||
@@ -3597,13 +3599,67 @@ String *Item_func_quote::val_str(String *str)
   }
 
   arg_length= arg->length();
-  new_length= arg_length+2; /* for beginning and ending ' signs */
 
-  for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
-    new_length+= get_esc_bit(escmask, (uchar) *from);
+  if (collation.collation->mbmaxlen == 1)
+  {
+    new_length= arg_length + 2; /* for beginning and ending ' signs */
+    for (from= (char*) arg->ptr(), end= from + arg_length; from < end; from++)
+      new_length+= get_esc_bit(escmask, (uchar) *from);
+  }
+  else
+  {
+    new_length= (arg_length * 2) +  /* For string characters */
+                (2 * collation.collation->mbmaxlen); /* For quotes */
+  }
 
   if (tmp_value.alloc(new_length))
     goto null;
+
+  if (collation.collation->mbmaxlen > 1)
+  {
+    const CHARSET_INFO *cs= collation.collation;
+    int mblen;
+    uchar *to_end;
+    to= (char*) tmp_value.ptr();
+    to_end= (uchar*) to + new_length;
+
+    /* Put leading quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+
+    for (start= (char*) arg->ptr(), end= start + arg_length; start < end; )
+    {
+      my_wc_t wc;
+      bool escape;
+      if ((mblen= cs->cset->mb_wc(cs, &wc, (uchar*) start, (uchar*) end)) <= 0)
+        goto null;
+      start+= mblen;
+      switch (wc) {
+        case 0:      escape= 1; wc= '0'; break;
+        case '\032': escape= 1; wc= 'Z'; break;
+        case '\'':   escape= 1; break;
+        case '\\':   escape= 1; break;
+        default:     escape= 0; break;
+      }
+      if (escape)
+      {
+        if ((mblen= cs->cset->wc_mb(cs, '\\', (uchar*) to, to_end)) <= 0)
+          goto null;
+        to+= mblen;
+      }
+      if ((mblen= cs->cset->wc_mb(cs, wc, (uchar*) to, to_end)) <= 0)
+        goto null;
+      to+= mblen;
+    }
+
+    /* Put trailing quote */
+    if ((mblen= cs->cset->wc_mb(cs, '\'', (uchar *) to, to_end)) <= 0)
+      goto null;
+    to+= mblen;
+    new_length= to - tmp_value.ptr();
+    goto ret;
+  }
 
   /*
     We replace characters from the end to the beginning
@@ -3636,6 +3692,8 @@ String *Item_func_quote::val_str(String *str)
     }
   }
   *to= '\'';
+
+ret:
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;

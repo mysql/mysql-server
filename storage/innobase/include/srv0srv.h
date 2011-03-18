@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -43,6 +43,7 @@ Created 10/10/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
+#include "log0log.h"
 #include "sync0sync.h"
 #include "os0sync.h"
 #include "que0types.h"
@@ -139,7 +140,7 @@ extern ibool	srv_created_new_raw;
 
 extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
-extern ulint	srv_log_file_size;
+extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern char	srv_adaptive_flushing;
@@ -172,7 +173,7 @@ extern ulong    srv_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
-#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) p / 100.0)))
+#define PCT_IO(p) ((ulong) (srv_io_capacity * ((double) (p) / 100.0)))
 
 /* The "innodb_stats_method" setting, decides how InnoDB is going
 to treat NULL value when collecting statistics. It is not defined
@@ -285,7 +286,7 @@ extern ulint srv_log_write_requests;
 extern ulint srv_log_writes;
 
 /* amount of data written to the log files in bytes */
-extern ulint srv_os_log_written;
+extern lsn_t srv_os_log_written;
 
 /* amount of writes being done to the log files */
 extern ulint srv_os_log_pending_writes;
@@ -297,8 +298,11 @@ extern ulint srv_log_waits;
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
 extern ulong srv_n_purge_threads;
 
-/* the number of records to purge in one batch */
+/* the number of pages to purge in one batch */
 extern ulong srv_purge_batch_size;
+
+/* the number of rollback segments to use */
+extern ulong srv_rollback_segments;
 
 /* variable that counts amount of data read in total (in bytes) */
 extern ulint srv_data_read;
@@ -774,7 +778,7 @@ struct export_var_struct{
 	ulint innodb_log_waits;			/*!< srv_log_waits */
 	ulint innodb_log_write_requests;	/*!< srv_log_write_requests */
 	ulint innodb_log_writes;		/*!< srv_log_writes */
-	ulint innodb_os_log_written;		/*!< srv_os_log_written */
+	lsn_t innodb_os_log_written;		/*!< srv_os_log_written */
 	ulint innodb_os_log_fsyncs;		/*!< fil_n_log_flushes */
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
 	ulint innodb_os_log_pending_fsyncs;	/*!< fil_n_pending_log_flushes */

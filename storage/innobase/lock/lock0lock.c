@@ -424,9 +424,12 @@ lock_deadlock_recursive(
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_EXCEED_MAX_DEPTH */
-	ulint	depth);		/*!< in: recursion depth: if this exceeds
+	ulint	depth,		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
+	const ib_uint64_t
+		mark_start);	/*!< in: Value of lock_mark_count at the start
+				of the deadlock check. */
 
 /*********************************************************************//**
 Gets the nth bit of a record lock.
@@ -2261,14 +2264,13 @@ lock_grant(
 {
 	ut_ad(lock_mutex_own());
 
-	trx_mutex_enter(lock->trx);
-
 	lock_reset_lock_and_trx_wait(lock);
+	trx_mutex_enter(lock->trx);
 
 	if (lock_get_mode(lock) == LOCK_AUTO_INC) {
 		dict_table_t*	table = lock->un_member.tab_lock.table;
 
-		if (table->autoinc_trx == lock->trx) {
+		if (UNIV_UNLIKELY(table->autoinc_trx == lock->trx)) {
 			fprintf(stderr,
 				"InnoDB: Error: trx already had"
 				" an AUTO-INC lock!\n");
@@ -2319,8 +2321,6 @@ lock_rec_cancel(
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	trx_mutex_enter(lock->trx);
-
 	/* Reset the bit (there can be only one set bit) in the lock bitmap */
 	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
 
@@ -2329,6 +2329,8 @@ lock_rec_cancel(
 	lock_reset_lock_and_trx_wait(lock);
 
 	/* The following function releases the trx from lock wait */
+
+	trx_mutex_enter(lock->trx);
 
 	thr = que_thr_end_lock_wait(lock->trx);
 
@@ -3475,6 +3477,9 @@ lock_deadlock_lock_print(
 	}
 }
 
+/** Used in deadlock tracking. Protected by lock_sys->mutex. */
+static ib_uint64_t	lock_mark_counter = 0;
+
 /********************************************************************//**
 Checks if a lock request results in a deadlock.
 @return TRUE if a deadlock was detected and we chose trx as a victim;
@@ -3487,8 +3492,6 @@ lock_deadlock_occurs(
 	lock_t*	lock,	/*!< in: lock the transaction is requesting */
 	trx_t*	trx)	/*!< in/out: transaction */
 {
-	trx_t*		mark_trx;
-	ulint		ret;
 	ulint		cost	= 0;
 
 	ut_ad(trx);
@@ -3502,33 +3505,24 @@ retry:
 	does not produce a cycle. First mark all active transactions
 	with 0: */
 
-	/* To obey the latching order. Since we have the lock mutex, this
-	transaction's state can't be changed. */
-	trx_mutex_exit(trx);
+	switch (lock_deadlock_recursive(
+		trx, trx, lock, &cost, 0, lock_mark_counter)) {
 
-	rw_lock_s_lock(&trx_sys->lock);
-
-	for (mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
-	     mark_trx != NULL;
-	     mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx)) {
-
-		ut_ad(mark_trx->in_trx_list);
-		mark_trx->lock.deadlock_mark = 0;
-	}
-
-	rw_lock_s_unlock(&trx_sys->lock);
-
-	trx_mutex_enter(trx);
-
-	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
-
-	switch (ret) {
 	case LOCK_VICTIM_IS_OTHER:
 		/* We chose some other trx as a victim: retry if there still
 		is a deadlock */
 		goto retry;
 
 	case LOCK_VICTIM_EXCEED_MAX_DEPTH:
+		/* Release the mutex to obey the latching order.
+		This is safe, because lock_deadlock_occurs() is invoked
+		when a lock wait is enqueued for the currently running
+		transaction. Because trx is a running transaction
+		(it is not currently suspended because of a lock wait),
+		its state can only be changed by this thread, which is
+		currently associated with the transaction. */
+		trx_mutex_exit(trx);
+
 		/* If the lock search exceeds the max step
 		or the max depth, the current trx will be
 		the victim. Print its information. */
@@ -3540,32 +3534,31 @@ retry:
 			" FOLLOWING TRANSACTION \n\n"
 			"*** TRANSACTION:\n");
 
-		/* To obey the latching order */
-		trx_mutex_exit(trx);
-
 		lock_deadlock_trx_print(trx, 3000);
-
-		trx_mutex_enter(trx);
 
 		lock_deadlock_fputs(
 			"*** WAITING FOR THIS LOCK TO BE GRANTED:\n");
 
 		lock_deadlock_lock_print(lock);
 
+		trx_mutex_enter(trx);
 		break;
 
 	case LOCK_VICTIM_IS_START:
 		lock_deadlock_fputs("*** WE ROLL BACK TRANSACTION (2)\n");
 		break;
 
-	default:
-		/* No deadlock detected*/
+	case LOCK_VICTIM_NONE:
+		/* No deadlock detected */
+		ut_ad(trx_mutex_own(trx));
+		ut_ad(lock_mutex_own());
 		return(FALSE);
 	}
 
 	lock_deadlock_found = TRUE;
 
 	ut_ad(trx_mutex_own(trx));
+	ut_ad(lock_mutex_own());
 
 	return(TRUE);
 }
@@ -3588,9 +3581,12 @@ lock_deadlock_recursive(
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_VICTIM_EXCEED_MAX_DEPTH */
-	ulint	depth)		/*!< in: recursion depth: if this exceeds
+	ulint	depth,		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_VICTIM_EXCEED_MAX_DEPTH */
+	const ib_uint64_t
+		mark_start)	/*!< in: Value of lock_mark_count at the start
+				of the deadlock check. */
 {
 	lock_victim_t	ret;
 	lock_t*		lock;
@@ -3601,8 +3597,9 @@ lock_deadlock_recursive(
 	ut_a(wait_lock);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx->in_trx_list);
+	ut_ad(mark_start <= lock_mark_counter);
 
-	if (trx->lock.deadlock_mark) {
+	if (trx->lock.deadlock_mark > mark_start) {
 		/* We have already exhaustively searched the subtree starting
 		from this trx */
 
@@ -3641,7 +3638,14 @@ lock_deadlock_recursive(
 
 		if (lock == NULL || lock == wait_lock) {
 			/* We can mark this subtree as searched */
-			trx->lock.deadlock_mark = 1;
+			ut_a(trx->lock.deadlock_mark <= mark_start);
+			trx->lock.deadlock_mark = ++lock_mark_counter;
+
+			/* We are not prepared for an overflow. This 64-bit
+			counter should never wrap around. At 10^9 increments
+			per second, it would take 10^3 years of uptime. */
+
+			ut_a(lock_mark_counter > 0);
 
 			return(LOCK_VICTIM_NONE);
 		}
@@ -3658,7 +3662,6 @@ lock_deadlock_recursive(
 
 			if (lock_trx == start) {
 
-				/* To obey the latching order */
 				trx_mutex_exit(start);
 
 				/* We came back to the recursion starting
@@ -3762,7 +3765,7 @@ lock_deadlock_recursive(
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
 					lock_trx->lock.wait_lock,
-					cost, depth + 1);
+					cost, depth + 1, mark_start);
 
 				if (ret != LOCK_VICTIM_NONE) {
 
@@ -3843,6 +3846,80 @@ lock_table_create(
 }
 
 /*************************************************************//**
+Pops autoinc lock requests from the transaction's autoinc_locks. We
+handle the case where there are gaps in the array and they need to
+be popped off the stack. */
+UNIV_INLINE
+void
+lock_table_pop_autoinc_locks(
+/*=========================*/
+	trx_t*	trx)	/*!< in/out: transaction that owns the AUTOINC locks */
+{
+	ut_ad(lock_mutex_own());
+	ut_ad(!ib_vector_is_empty(trx->autoinc_locks));
+
+	/* Skip any gaps, gaps are NULL lock entries in the
+	trx->autoinc_locks vector. */
+
+	do {
+		ib_vector_pop(trx->autoinc_locks);
+
+		if (ib_vector_is_empty(trx->autoinc_locks)) {
+			return;
+		}
+
+	} while (ib_vector_get_last(trx->autoinc_locks) == NULL);
+}
+
+/*************************************************************//**
+Removes an autoinc lock request from the transaction's autoinc_locks. */
+UNIV_INLINE
+void
+lock_table_remove_autoinc_lock(
+/*===========================*/
+	lock_t*	lock,	/*!< in: table lock */
+	trx_t*	trx)	/*!< in/out: transaction that owns the lock */
+{
+	lock_t*	autoinc_lock;
+	lint	i = ib_vector_size(trx->autoinc_locks) - 1;
+
+	ut_ad(lock_mutex_own());
+	ut_ad(lock_get_mode(lock) == LOCK_AUTO_INC);
+	ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+	ut_ad(!ib_vector_is_empty(trx->autoinc_locks));
+
+	/* With stored functions and procedures the user may drop
+	a table within the same "statement". This special case has
+	to be handled by deleting only those AUTOINC locks that were
+	held by the table being dropped. */
+
+	autoinc_lock = ib_vector_get(trx->autoinc_locks, i);
+
+	/* This is the default fast case. */
+
+	if (autoinc_lock == lock) {
+		lock_table_pop_autoinc_locks(trx);
+	} else {
+		/* The last element should never be NULL */
+		ut_a(autoinc_lock != NULL);
+
+		/* Handle freeing the locks from within the stack. */
+
+		while (--i >= 0) {
+			autoinc_lock = ib_vector_get(trx->autoinc_locks, i);
+
+			if (UNIV_LIKELY(autoinc_lock == lock)) {
+				ib_vector_set(trx->autoinc_locks, i, NULL);
+				return;
+			}
+		}
+
+		/* Must find the autoinc lock. */
+		ut_error;
+	}
+}
+
+/*************************************************************//**
 Removes a table lock request from the queue and the trx list of locks;
 this is a low-level function which does NOT check if waiting requests
 can now be granted. */
@@ -3881,10 +3958,8 @@ lock_table_remove_low(
 
 		if (!lock_get_wait(lock)
 		    && !ib_vector_is_empty(trx->autoinc_locks)) {
-			lock_t*	autoinc_lock;
 
-			autoinc_lock = ib_vector_pop(trx->autoinc_locks);
-			ut_a(autoinc_lock == lock);
+			lock_table_remove_autoinc_lock(lock, trx);
 		}
 
 		ut_a(table->n_waiting_or_granted_auto_inc_locks > 0);
@@ -3978,6 +4053,8 @@ lock_table_enqueue_waiting(
 	trx->lock.was_chosen_as_deadlock_victim = FALSE;
 
 	ut_a(que_thr_stop(thr));
+
+	MONITOR_INC(MONITOR_TABLELOCK_WAIT);
 
 	return(DB_LOCK_WAIT);
 }
@@ -4771,9 +4848,8 @@ loop:
 
 	if (trx == NULL) {
 
-		rw_lock_s_unlock(&trx_sys->lock);
-
 		lock_mutex_exit();
+		rw_lock_s_unlock(&trx_sys->lock);
 
 		ut_ad(lock_validate());
 
@@ -4858,9 +4934,8 @@ loop:
 				goto print_rec;
 			}
 
-			rw_lock_s_unlock(&trx_sys->lock);
-
 			lock_mutex_exit();
+			rw_lock_s_unlock(&trx_sys->lock);
 
 			mtr_start(&mtr);
 
@@ -4897,8 +4972,6 @@ print_rec:
 
 		nth_trx++;
 		nth_lock = 0;
-
-		goto loop;
 	}
 
 	goto loop;
@@ -5257,9 +5330,9 @@ lock_validate(void)
 		}
 	}
 
-	rw_lock_s_unlock(&trx_sys->lock);
-
 	lock_mutex_exit();
+
+	rw_lock_s_unlock(&trx_sys->lock);
 
 	return(TRUE);
 }
@@ -5307,8 +5380,9 @@ lock_rec_insert_check_and_lock(
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
 	lock_mutex_enter();
-
-	trx_mutex_enter(trx);
+	/* Because this code is invoked for a running transaction by
+	the thread that is serving the transaction, it is not necessary
+	to hold trx->mutex here. */
 
 	/* When inserting a record into an index, the table must be at
 	least IX-locked or we must be building an index, in which case
@@ -5321,8 +5395,6 @@ lock_rec_insert_check_and_lock(
 
 	if (UNIV_LIKELY(lock == NULL)) {
 		/* We optimize CPU time usage in the simplest case */
-
-		trx_mutex_exit(trx);
 
 		lock_mutex_exit();
 
@@ -5355,15 +5427,15 @@ lock_rec_insert_check_and_lock(
 		    block, next_rec_heap_no, trx)) {
 
 		/* Note that we may get DB_SUCCESS also here! */
+		trx_mutex_enter(trx);
 		err = lock_rec_enqueue_waiting(LOCK_X | LOCK_GAP
 					       | LOCK_INSERT_INTENTION,
 					       block, next_rec_heap_no,
 					       index, thr);
+		trx_mutex_exit(trx);
 	} else {
 		err = DB_SUCCESS;
 	}
-
-	trx_mutex_exit(trx);
 
 	lock_mutex_exit();
 
@@ -5510,6 +5582,8 @@ lock_clust_rec_modify_check_and_lock(
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
 
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
+
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
@@ -5517,8 +5591,6 @@ lock_clust_rec_modify_check_and_lock(
 	if (UNIV_UNLIKELY(err == DB_SUCCESS_LOCKED_REC)) {
 		err = DB_SUCCESS;
 	}
-
-	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	return(err);
 }
@@ -5567,6 +5639,8 @@ lock_sec_rec_modify_check_and_lock(
 
 	err = lock_rec_lock(TRUE, LOCK_X | LOCK_REC_NOT_GAP,
 			    block, heap_no, index, thr);
+
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	lock_mutex_exit();
 
@@ -5667,6 +5741,8 @@ lock_sec_rec_read_check_and_lock(
 	err = lock_rec_lock(FALSE, mode | gap_mode,
 			    block, heap_no, index, thr);
 
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
+
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
@@ -5735,6 +5811,8 @@ lock_clust_rec_read_check_and_lock(
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
 	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
+
+	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 
 	lock_mutex_exit();
 
@@ -6222,9 +6300,8 @@ lock_trx_handle_wait(
 		err = DB_SUCCESS;
 	}
 
-	trx_mutex_exit(trx);
-
 	lock_mutex_exit();
+	trx_mutex_exit(trx);
 
 	return(err);
 }

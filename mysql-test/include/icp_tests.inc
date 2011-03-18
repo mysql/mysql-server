@@ -798,3 +798,43 @@ SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 2;
 SELECT pk FROM t1 WHERE c1 <> 1 HAVING pk = 3 ORDER BY pk LIMIT 5;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#59483 "Crash on INSERT/REPLACE in
+--echo #            rec_convert_dtuple_to_rec_comp with ICP on"
+--echo #
+
+CREATE TABLE t1 (
+ pk INTEGER AUTO_INCREMENT PRIMARY KEY,
+ i1 INTEGER,
+ c1 CHAR(6),
+ i2 INTEGER NOT NULL,
+ KEY (i2)
+);
+
+INSERT INTO t1 VALUES
+ (NULL, 4, 'that', 8),
+ (NULL, 1, 'she', 6),
+ (NULL, 6, 'tell', 2);
+
+SELECT * FROM t1 WHERE i2 IN (3, 6) LIMIT 2 FOR UPDATE;
+INSERT INTO t1 (i2) VALUES (1);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #11766678 - 59843:
+--echo # USING UNINITIALISED VALUE IN USES_INDEX_FIELDS_ONLY
+--echo #
+
+CREATE TABLE t1 (
+  col999 FLOAT NOT NULL,
+  COL1000 VARBINARY(179) NOT NULL,
+  col1003 DATE DEFAULT NULL,
+  KEY idx4267 (col1000, col1003)
+);
+
+INSERT INTO t1 VALUES (),();
+SELECT col999 FROM t1 WHERE col1000 = "3" AND col1003 <=> sysdate();
+
+DROP TABLE t1;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
@@ -144,6 +144,16 @@ resolved */
 #  define UNIV_PFS_IO
 # endif
 # define UNIV_PFS_THREAD
+
+/* There are mutexes/rwlocks that we want to exclude from
+instrumentation even if their corresponding performance schema
+define is set. And this PFS_NOT_INSTRUMENTED is used
+as the key value to identify those objects that would
+be excluded from instrumentation. */
+# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
+
+# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
+
 #endif /* HAVE_PSI_INTERFACE */
 
 /*			DEBUG VERSION CONTROL
@@ -179,14 +189,15 @@ command. Not tested on Windows. */
 						debugging without UNIV_DEBUG */
 #define UNIV_BUF_DEBUG				/* Enable buffer pool
 						debugging without UNIV_DEBUG */
+#define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
+						debugging without UNIV_DEBUG */
 #define UNIV_DEBUG				/* Enable ut_ad() assertions
 						and disable UNIV_INLINE */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */
-#define UNIV_DEBUG_FILE_ACCESSES		/* Debug .ibd file access
-						(field file_page_was_freed
-						in buf_page_t) */
+#define UNIV_DEBUG_FILE_ACCESSES		/* Enable freed block access
+						debugging without UNIV_DEBUG */
 #define UNIV_LRU_DEBUG				/* debug the buffer pool LRU */
 #define UNIV_HASH_DEBUG				/* debug HASH_ macros */
 #define UNIV_LIST_DEBUG				/* debug UT_LIST_ macros */
@@ -195,6 +206,8 @@ this will break redo log file compatibility, but it may be useful when
 debugging redo log application problems. */
 #define UNIV_MEM_DEBUG				/* detect memory leaks etc */
 #define UNIV_IBUF_DEBUG				/* debug the insert buffer */
+#define UNIV_BLOB_DEBUG				/* track BLOB ownership;
+assumes that no BLOBs survive server restart */
 #define UNIV_IBUF_COUNT_DEBUG			/* debug the insert buffer;
 this limits the database to IBUF_COUNT_N_SPACES and IBUF_COUNT_N_PAGES,
 and the insert buffer must be empty when the database is started */
@@ -313,6 +326,14 @@ longer names internally */
 the MySQL's NAME_LEN, see check_and_convert_db_name(). */
 #define MAX_DATABASE_NAME_LEN	MAX_TABLE_NAME_LEN
 
+/* MAX_FULL_NAME_LEN defines the full name path including the
+database name and table name. In addition, 14 bytes is added for:
+	2 for surrounding quotes around table name
+	1 for the separating dot (.)
+	9 for the #mysql50# prefix */
+#define MAX_FULL_NAME_LEN				\
+	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -381,6 +402,7 @@ typedef unsigned long long int	ullint;
 
 /* Maximum value for ib_uint64_t */
 #define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
+#define IB_UINT64_MAX		IB_ULONGLONG_MAX
 
 /** The generic InnoDB system object identifier data type */
 typedef ib_uint64_t	ib_id_t;

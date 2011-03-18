@@ -22,7 +22,7 @@ extern "C" {
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
 #include <mysql/service_thread_scheduler.h>
-#include <mysql/service_error_reporting.h>
+#include <mysql/service_my_plugin_log.h>
 
 #ifdef __cplusplus
 }
