@@ -3787,26 +3787,19 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
 
   switch (state->m_operation)
   {
+  /** Group read operations */
   case PSI_SOCKET_RECV:
+  case PSI_SOCKET_RECVFROM:
+  case PSI_SOCKET_RECVMSG:
     byte_stat= &socket->m_socket_stat.m_io_stat.m_recv;
     break;
+  /** Group write operations */
   case PSI_SOCKET_SEND:
+  case PSI_SOCKET_SENDTO:
+  case PSI_SOCKET_SENDMSG:
     byte_stat= &socket->m_socket_stat.m_io_stat.m_send;
     break;
-  case PSI_SOCKET_RECVFROM:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_recvfrom;
-    break;
-  case PSI_SOCKET_SENDTO:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_sendto;
-    break;
-  case PSI_SOCKET_RECVMSG:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_recvmsg;
-    break;
-  case PSI_SOCKET_SENDMSG:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_sendmsg;
-    break;
-
-  /** These operations are grouped as 'miscellaneous' */
+  /** Group remainging operations as miscellaneous */
   case PSI_SOCKET_CONNECT:
   case PSI_SOCKET_CREATE:
   case PSI_SOCKET_BIND:
