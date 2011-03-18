@@ -313,7 +313,7 @@ append_arg_to_args () {
 args=
 
 SET_USER=2
-parse_arguments `$print_defaults $defaults --loose-verbose mysqld server`
+parse_arguments `$print_defaults $defaults --loose-verbose mysqld mariadb server client-server`
 if test $SET_USER -eq 2
 then
   SET_USER=0

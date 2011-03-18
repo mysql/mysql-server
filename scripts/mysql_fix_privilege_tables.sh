@@ -103,7 +103,7 @@ do
   fi
 done
 
-parse_arguments `$print_defaults $defaults mysql_install_db mysql_fix_privilege_tables`
+parse_arguments `$print_defaults $defaults mysql_install_db client client-server client-mariadb mysql_fix_privilege_tables`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 if test -z "$password"

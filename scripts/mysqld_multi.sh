@@ -200,7 +200,7 @@ sub defaults_for_group
 
 sub init_log
 {
-  foreach my $opt (defaults_for_group('mysqld'))
+  foreach my $opt (defaults_for_group('mysqld mariadb'))
   {
     if ($opt =~ m/^--datadir=(.*)/ && -d "$1" && -w "$1")
     {

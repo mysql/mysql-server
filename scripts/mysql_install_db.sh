@@ -103,7 +103,7 @@ parse_arguments()
       --basedir=*) basedir=`parse_arg "$arg"` ;;
       --builddir=*) builddir=`parse_arg "$arg"` ;;
       --srcdir=*)  srcdir=`parse_arg "$arg"` ;;
-      --ldata=*|--datadir=*) ldata=`parse_arg "$arg"` ;;
+      --ldata=*|--datadir=*|--data=*) ldata=`parse_arg "$arg"` ;;
       --user=*)
         # Note that the user will be passed to mysqld so that it runs
         # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -242,7 +242,7 @@ fi
 
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
 # in the my.cfg file, then re-run to merge with command line arguments.
-parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
+parse_arguments `$print_defaults $defaults mysqld mariadb mysql_install_db client-server`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files
@@ -384,7 +384,7 @@ fi
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
   --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
-  --loose-skip-ndbcluster $args --max_allowed_packet=8M \
+  --loose-skip-ndbcluster --loose-skip-pbxt $args --max_allowed_packet=8M \
   --default-storage-engine=myisam \
   --net_buffer_length=16K"
 

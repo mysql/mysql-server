@@ -65,7 +65,8 @@ static FILE *result_file;
 #ifndef DBUG_OFF
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
-static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
+static const char *load_default_groups[]=
+{ "mysqlbinlog", "client", "client-server", "client-mariadb", 0 };
 
 static void error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
