@@ -1,1 +1,4 @@
---log=$MYSQLTEST_VARDIR/log/master.log --log-output=FILE,TABLE
+--log=$MYSQLTEST_VARDIR/log/master.log 
+--log-output=FILE,TABLE
+$PLUGIN_AUTH_OPT
+$PLUGIN_AUTH_LOAD
