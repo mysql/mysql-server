@@ -4240,10 +4240,11 @@ lock_rec_unlock(
 	const rec_t*		rec,	/*!< in: record */
 	enum lock_mode		lock_mode)/*!< in: LOCK_S or LOCK_X */
 {
-	lock_t*	first_lock;
-	lock_t*	lock;
-	ulint	heap_no;
-	size_t	stmt_len;
+	lock_t*		first_lock;
+	lock_t*		lock;
+	ulint		heap_no;
+	const char*	stmt;
+	size_t		stmt_len;
 
 	ut_ad(trx);
 	ut_ad(rec);
@@ -4271,15 +4272,15 @@ lock_rec_unlock(
 	lock_mutex_exit();
 	trx_mutex_exit(trx);
 
-	/* Ignore stmt_len, because it should not hurt to see more
-	context (the tail of a multi-statement) in the error message. */
+	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Error: unlock row could not"
-		" find a %lu mode lock on the record\n"
-		"InnoDB: current statement: %s\n",
-		(ulong) lock_mode,
-		innobase_get_stmt(trx->mysql_thd, &stmt_len));
+		" InnoDB: Error: unlock row could not"
+		" find a %lu mode lock on the record\n",
+		(ulong) lock_mode);
+	ut_print_timestamp(stderr);
+	fprintf(stderr, " InnoDB: current statement: %.*s\n",
+		(int) stmt_len, stmt);
 
 	return;
 
