@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #ifdef BDB
+#include <sys/types.h>
 #include <db.h>
 #define DIRSUF bdb
 #else
