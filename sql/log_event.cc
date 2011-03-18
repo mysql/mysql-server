@@ -6823,7 +6823,6 @@ err:
     end_io_cache(&file);
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
-  thd_proc_info(thd, 0);
   return error != 0;
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -6994,7 +6993,6 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
-  thd_proc_info(thd, 0);
   DBUG_RETURN(error);
 }
 #endif
