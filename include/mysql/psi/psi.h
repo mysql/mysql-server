@@ -1349,42 +1349,23 @@ typedef void (*set_socket_state_v1_t)(struct PSI_socket *socket,
                                       enum PSI_socket_state state);
 
 /**
-  Set the socket descriptor for an instrumented socket.
-    @param socket the instrumented socket
-    @param fd socket descriptor
-  */
-typedef void (*set_socket_descriptor_v1_t)(struct PSI_socket *socket,
-                                             uint fd);
-
-/**
-  Set the socket address for an instrumented socket.
-    @param socket the instrumented socket
-    @param addr socket address information
-  */
-typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
-                                        const struct sockaddr * addr,
-                                        socklen_t addr_len);
-
-/**
   Set the socket info for an instrumented socket.
-    @param socket the instrumented socket
-    @param fd the socket descriptor
-    @param addr the socket ip address
-    @param addr_len length of socket ip address
-    @param thread_id associated thread id
+  @param socket the instrumented socket
+  @param fd the socket descriptor
+  @param addr the socket ip address
+  @param addr_len length of socket ip address
+  @param thread_id associated thread id
 */
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
-                                     my_socket *fd,
+                                     const my_socket *fd,
                                      const struct sockaddr *addr,
-                                     socklen_t *addr_len);
+                                     socklen_t addr_len);
 
 /**
-  Set the id of the thread owning the socket.
+  Bind a socket to the thread that owns it.
   @param socket instrumented socket
-  @param thread instrumented thread
 */
-typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket,
-                                             struct PSI_thread *thread);
+typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
 /**
   Performance Schema Interface, version 1.
@@ -1531,10 +1512,6 @@ struct PSI_v1
   end_socket_wait_v1_t end_socket_wait;
   /** @sa set_socket_state_v1_t. */
   set_socket_state_v1_t set_socket_state;
-  /** @sa set_socket_descriptor_v1_t. */
-  set_socket_descriptor_v1_t set_socket_descriptor;
-  /** @sa set_socket_address_v1_t. */
-  set_socket_address_v1_t set_socket_address;
   /** @sa set_socket_info_v1_t. */
   set_socket_info_v1_t set_socket_info;
   /** @sa set_socket_thread_owner_v1_t. */

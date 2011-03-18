@@ -103,6 +103,40 @@ mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
 }
 
 /**
+  @def mysql_socket_set_address
+  Set socket descriptor and address.
+  @param socket nstrumented socket
+  @param fd socket descriptor
+  @param addr unformatted socket address
+  @param adr_len length of socket addres
+*/ 
+static inline void
+mysql_socket_set_address(MYSQL_SOCKET socket,
+                         const struct sockaddr *addr,
+                         socklen_t addr_len)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server != NULL && socket.m_psi != NULL))
+    PSI_server->set_socket_info(socket.m_psi, NULL, addr, addr_len);
+#endif
+}
+
+/**
+  @def mysql_socket_set_address
+  Set socket descriptor and address.
+  @param socket instrumented socket
+  @param thread instrumented owning thread
+*/ 
+static inline void
+mysql_socket_set_thread_owner(MYSQL_SOCKET socket)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server != NULL && socket.m_psi != NULL))
+    PSI_server->set_socket_thread_owner(socket.m_psi);
+#endif
+}
+
+/**
   @def mysql_socket_getfd
   MYSQL_SOCKET helper. Get socket descriptor.
   @param mysql_socket Instrumented socket
@@ -341,17 +375,6 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
     inline_mysql_socket_shutdown(FD, H)
 #endif
 
-/** Not supported by P_S */
-#if 0
-  #ifdef HAVE_PSI_INTERFACE
-    #define mysql_socket_accept4(K, FD, A, LP, FL) \
-      inline_mysql_socket_accept4(K, __FILE__, __LINE__, FD, A, LP, FL)
-  #else
-    #define mysql_socket_accept4(FD, A, LP, FL) \
-      inline_mysql_socket_accept4(FD, A, LP, FL)
-  #endif
-#endif
-
 /** Not supported by Winsock */
 #ifdef __WIN__
 
@@ -412,10 +435,11 @@ inline_mysql_socket_socket
 
 #ifdef HAVE_PSI_INTERFACE
   mysql_socket.m_psi = PSI_server ?
-                       PSI_server->init_socket(key, &mysql_socket.fd) : NULL;
+                       PSI_server->init_socket(key,
+                       (const my_socket*)&mysql_socket.fd) : NULL;
 
   if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL
-             && mysql_socket.fd != -1))
+             && mysql_socket.fd != INVALID_SOCKET))
     PSI_server->set_socket_info(mysql_socket.m_psi, &mysql_socket.fd, NULL, 0);
 #endif
   return mysql_socket;
@@ -447,8 +471,9 @@ inline_mysql_socket_bind
   result= bind(mysql_socket.fd, addr, len);
 
 #ifdef HAVE_PSI_INTERFACE
-  if (likely(PSI_server != NULL && result == 0))
-    PSI_server->set_socket_address(mysql_socket.m_psi, addr, len);
+  if (likely(PSI_server != NULL && mysql_socket.m_psi != NULL
+             && result == 0))
+    PSI_server->set_socket_info(mysql_socket.m_psi, NULL, addr, len);
 
   if (likely(locker != NULL))
     PSI_server->end_socket_wait(locker, (size_t)0);
@@ -801,6 +826,7 @@ inline_mysql_socket_accept
   MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len)
 {
   MYSQL_SOCKET socket_accept = MYSQL_INVALID_SOCKET;
+  socklen_t addr_length= (addr_len != NULL) ? *addr_len : 0;
 
   socket_accept.fd= accept(socket_listen.fd, addr, addr_len);
 
@@ -810,9 +836,9 @@ inline_mysql_socket_accept
           PSI_server->init_socket(key, (const my_socket*)&socket_accept.fd) : NULL;
 
   if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
-             && socket_accept.fd != -1))
+             && socket_accept.fd != INVALID_SOCKET))
     PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd,
-                                addr, addr_len);
+                                addr, addr_length);
 #endif
   return socket_accept;
 }
@@ -880,53 +906,6 @@ inline_mysql_socket_shutdown
 #endif
   return result;
 }
-
-/** Not supported by P_S */
-
-#if 0
-
-/** mysql_socket_accept4 */
-
-  static inline MYSQL_SOCKET
-  inline_mysql_socket_accept4
-  (
-  #ifdef HAVE_PSI_INTERFACE
-    PSI_socket_key key, const char *src_file, uint src_line,
-  #endif
-   MYSQL_SOCKET socket_listen,  const struct sockaddr *addr, socklen_t *addr_len, int flags)
-  {
-    MYSQL_SOCKET socket_accept = {0, NULL};
-  #ifdef HAVE_PSI_INTERFACE
-    struct PSI_socket_locker *locker= NULL;
-    PSI_socket_locker_state state;
-
-    socket_accept.m_psi = PSI_server ? PSI_server->init_socket(key, NULL)// &socket_accept.fd) // TBD: check this
-                                     : NULL;
-    if (likely(PSI_server != NULL && socket_accept.m_psi != NULL))
-    {
-      locker= PSI_server->get_thread_socket_locker(socket_accept.m_psi,
-                                                   PSI_SOCKET_CONNECT);
-      if (likely(locker !=NULL))
-        PSI_server->start_socket_wait(locker, (size_t)0, src_file, src_line);
-    }
-  #endif
-    
-    socket_accept.fd= accept4(socket_listen.fd, addr, addr_len, flags);
-  
-  #ifdef HAVE_PSI_INTERFACE
-    /** Set socket address info */
-    if (likely(PSI_server != NULL && socket_accept.m_psi != NULL
-        && socket_accept.fd != -1))
-      PSI_server->set_socket_info(socket_accept.m_psi, &socket_accept.fd, addr,
-                                  addr_len);
-    if (likely(locker != NULL))
-      PSI_server->end_socket_wait(locker, (size_t)0);
-  #endif
-    return socket_accept;
-  }
-
-#endif // unsupported
-
 
 /** Not supported by Winsock */
 
@@ -1058,10 +1037,11 @@ inline_mysql_socket_socketpair
   mysql_socket[1].fd = fds[1];
 
 #ifdef HAVE_PSI_INTERFACE
-  if (likely(mysql_socket[0].m_psi != NULL && mysql_socket[1].m_psi != NULL))
+  if (likely(PSI_server != NULL && mysql_socket[0].m_psi != NULL
+             && mysql_socket[1].m_psi != NULL))
   {
-    PSI_server->set_socket_descriptor(mysql_socket[0].m_psi, fds[0]);
-    PSI_server->set_socket_descriptor(mysql_socket[1].m_psi, fds[1]);
+    PSI_server->set_socket_info(mysql_socket[0].m_psi, &fds[0], NULL, 0);
+    PSI_server->set_socket_info(mysql_socket[1].m_psi, &fds[1], NULL, 0);
   }
 #endif
   return result;
