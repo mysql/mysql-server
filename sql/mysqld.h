@@ -77,6 +77,7 @@ bool is_secure_file_path(char *path);
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
 int init_common_variables();
+void my_init_signals();
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *files_charset_info ;
