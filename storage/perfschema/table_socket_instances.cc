@@ -59,12 +59,17 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("PORT") },
     { C_STRING_WITH_LEN("int(11)") },
     { NULL, 0}
+  },
+  {
+    { C_STRING_WITH_LEN("STATE") },
+    { C_STRING_WITH_LEN("enum('IDLE','ACTIVE')") },
+    { NULL, 0}
   }
 };
 
 TABLE_FIELD_DEF
 table_socket_instances::m_field_def=
-{ 6, field_types };
+{ 7, field_types };
 
 PFS_engine_table_share
 table_socket_instances::m_share=
@@ -155,7 +160,8 @@ void table_socket_instances::make_row(PFS_socket *pfs)
   m_row.m_event_name_length=  safe_class->m_name_length;
   m_row.m_identity=           pfs->m_identity;
   m_row.m_fd=                 pfs->m_fd;
-
+  m_row.m_state=              (pfs->m_idle ? PSI_SOCKET_STATE_IDLE
+                                           : PSI_SOCKET_STATE_ACTIVE);
   PFS_thread *safe_thread= sanitize_thread(pfs->m_thread_owner);
 
   if (safe_thread != NULL)
@@ -207,6 +213,9 @@ int table_socket_instances::read_row_values(TABLE *table,
         break;
       case 5: /* PORT */
         set_field_ulong(f, m_row.m_port);
+        break;
+      case 6: /* STATE */
+        set_field_enum(f, m_row.m_state);
         break;
       default:
         DBUG_ASSERT(false);
