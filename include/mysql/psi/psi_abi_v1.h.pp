@@ -354,17 +354,11 @@ typedef void (*end_socket_wait_v1_t)
   (struct PSI_socket_locker *locker, size_t count);
 typedef void (*set_socket_state_v1_t)(struct PSI_socket *socket,
                                       enum PSI_socket_state state);
-typedef void (*set_socket_descriptor_v1_t)(struct PSI_socket *socket,
-                                             uint fd);
-typedef void (*set_socket_address_v1_t)(struct PSI_socket *socket,
-                                        const struct sockaddr * addr,
-                                        socklen_t addr_len);
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
-                                     my_socket *fd,
+                                     const my_socket *fd,
                                      const struct sockaddr *addr,
-                                     socklen_t *addr_len);
-typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket,
-                                             struct PSI_thread *thread);
+                                     socklen_t addr_len);
+typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 struct PSI_v1
 {
   register_mutex_v1_t register_mutex;
@@ -437,8 +431,6 @@ struct PSI_v1
   start_socket_wait_v1_t start_socket_wait;
   end_socket_wait_v1_t end_socket_wait;
   set_socket_state_v1_t set_socket_state;
-  set_socket_descriptor_v1_t set_socket_descriptor;
-  set_socket_address_v1_t set_socket_address;
   set_socket_info_v1_t set_socket_info;
   set_socket_thread_owner_v1_t set_socket_thread_owner;
 };
