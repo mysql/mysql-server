@@ -275,9 +275,9 @@ enum PSI_table_lock_operation
 enum PSI_socket_state
 {
   /** Idle, waiting for the next command. */
-  PSI_SOCKET_STATE_IDLE= 0,
+  PSI_SOCKET_STATE_IDLE= 1,
   /** Active, executing a command. */
-  PSI_SOCKET_STATE_ACTIVE= 1
+  PSI_SOCKET_STATE_ACTIVE= 2
 };
 
 /** Operation performed on an instrumented socket. */

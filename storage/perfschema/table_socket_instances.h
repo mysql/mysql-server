@@ -50,6 +50,8 @@ struct row_socket_instances
   uint m_ip_length;
   /** Column PORT */
   uint m_port;
+  /** Socket state: ACTIVE or IDLE */
+  PSI_socket_state m_state;
 
   row_socket_instances() {m_thread_id= false;}
 };
