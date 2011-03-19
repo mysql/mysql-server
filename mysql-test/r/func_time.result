@@ -1536,3 +1536,6 @@ drop table t1;
 select day(coalesce(null));
 day(coalesce(null))
 NULL
+select timestamp(greatest('2002-08-20', '0000-00-00 00:00:00'));
+timestamp(greatest('2002-08-20', '0000-00-00 00:00:00'))
+2002-08-20 00:00:00

@@ -2274,6 +2274,8 @@ bool Item_func_min_max::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   longlong UNINIT_VAR(min_max);
   DBUG_ASSERT(fixed == 1);
+  if (!compare_as_dates)
+    return Item_func::get_date(ltime, fuzzy_date);
 
   for (uint i=0; i < arg_count ; i++)
   {
