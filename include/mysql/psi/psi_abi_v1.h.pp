@@ -70,8 +70,8 @@ enum PSI_table_lock_operation
 };
 enum PSI_socket_state
 {
-  PSI_SOCKET_STATE_IDLE= 0,
-  PSI_SOCKET_STATE_ACTIVE= 1
+  PSI_SOCKET_STATE_IDLE= 1,
+  PSI_SOCKET_STATE_ACTIVE= 2
 };
 enum PSI_socket_operation
 {
