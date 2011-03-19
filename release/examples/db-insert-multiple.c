@@ -18,14 +18,19 @@
 #include <arpa/inet.h>
 #include "db.h"
 
+static int force_multiple = 1;
+
 struct table {
     int ndbs;
     DB **dbs;
+#if defined(TOKUDB)
     DBT *mult_keys;
     DBT *mult_vals;
     uint32_t *mult_flags;
+#endif
 };
 
+#if defined(TOKUDB)
 static void table_init_dbt(DBT *dbt, size_t length) {
     dbt->flags = DB_DBT_USERMEM;
     dbt->data = malloc(length);
@@ -36,10 +41,12 @@ static void table_init_dbt(DBT *dbt, size_t length) {
 static void table_destroy_dbt(DBT *dbt) {
     free(dbt->data);
 }
+#endif
 
 static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length, size_t val_length) {
     t->ndbs = ndbs;
     t->dbs = dbs;
+#if defined(TOKUDB)
     t->mult_keys = calloc(ndbs, sizeof (DBT));
     int i;
     for (i = 0; i < ndbs; i++) 
@@ -50,9 +57,11 @@ static void table_init(struct table *t, int ndbs, DB **dbs, size_t key_length, s
     t->mult_flags = calloc(ndbs, sizeof (uint32_t));
     for (i = 0; i < ndbs; i++) 
         t->mult_flags[i] = DB_YESOVERWRITE;
+#endif
 }
 
 static void table_destroy(struct table *t) {
+#if defined(TOKUDB)
     int i;
     for (i = 0; i < t->ndbs; i++)
         table_destroy_dbt(&t->mult_keys[i]);
@@ -61,6 +70,7 @@ static void table_destroy(struct table *t) {
         table_destroy_dbt(&t->mult_vals[i]);
     free(t->mult_vals);
     free(t->mult_flags);
+#endif
 }
 
 #if defined(BDB)
@@ -129,6 +139,45 @@ static int my_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, DBT *
     }
     return 0;
 }
+
+#else
+
+static int my_secondary_key(DB *db, const DBT *src_key, const DBT *src_val, DBT *dest_key) {
+    assert(dest_key->flags == 0 && dest_key->data == NULL);
+    dest_key->flags = DB_DBT_APPMALLOC;
+    dest_key->data = malloc(4 * 8); assert(dest_key->data);
+    switch ((intptr_t)db->app_private % 4) {
+    case 0:
+        // dest_key = src_key
+        dest_key->size = src_key->size;
+        memcpy(dest_key->data, src_key->data, src_key->size);
+        break;
+    case 1:
+        // dest_key = b,a
+        dest_key->size = 2 * 8;
+        memcpy(dest_key->data + 0, src_val->data + 0, 8);
+        memcpy(dest_key->data + 8, src_key->data + 0, 8);
+        break;
+    case 2:
+        // dest_key = c,d,a
+        dest_key->size = 3 * 8;
+        memcpy(dest_key->data + 0, src_val->data + 8, 8);
+        memcpy(dest_key->data + 8, src_val->data + 16, 8);
+        memcpy(dest_key->data + 16, src_key->data + 0, 8);
+        break;
+    case 3:
+        // dest_key = d,a,b,c
+        dest_key->size = 4 * 8;
+        memcpy(dest_key->data + 0, src_val->data + 16, 8);
+        memcpy(dest_key->data + 8, src_key->data + 0, 8);
+        memcpy(dest_key->data + 16, src_val->data + 0, 8);
+        memcpy(dest_key->data + 24, src_val->data + 8, 8);
+        break;
+    default:
+        assert(0);
+    }
+    return 0;
+}
 #endif
 
 static void insert_row(DB_ENV *db_env, struct table *t, DB_TXN *txn, long a, long b, long c, long d) {
@@ -151,13 +200,13 @@ static void insert_row(DB_ENV *db_env, struct table *t, DB_TXN *txn, long a, lon
     DBT key = { .data = key_buffer, .size = sizeof key_buffer };
     DBT value = { .data = val_buffer, .size = sizeof val_buffer };
 #if defined(TOKUDB)
-    if (0 && t->ndbs == 1) {
+    if (!force_multiple && t->ndbs == 1) {
         r = t->dbs[0]->put(t->dbs[0], txn, &key, &value, t->mult_flags[0]); assert(r == 0);
     } else {
         r = db_env->put_multiple(db_env, t->dbs[0], txn, &key, &value, t->ndbs, &t->dbs[0], t->mult_keys, t->mult_vals, t->mult_flags); assert(r == 0);
     }
 #else
-#error
+    r = t->dbs[0]->put(t->dbs[0], txn, &key, &value, 0); assert(r == 0);
 #endif
 }
 
@@ -262,6 +311,10 @@ int main(int argc, char *argv[]) {
             cachesize = atol(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--force_multiple") == 0 && i+1 < argc) {
+            force_multiple = atoi(argv[++i]);
+            continue;
+        }
 
         assert(0);
     }
@@ -309,7 +362,10 @@ int main(int argc, char *argv[]) {
         new_descriptor.dbt.size = sizeof i;
         r = db->change_descriptor(db, create_txn, &new_descriptor.dbt, 0); assert(r == 0);
 #else
-#error
+        db->app_private = (void *) (intptr_t) i;
+        if (i > 0) {
+            r = dbs[0]->associate(dbs[0], create_txn, db, my_secondary_key, 0); assert(r == 0);
+        }
 #endif
         if (do_txn) {
             r = create_txn->commit(create_txn, 0); assert(r == 0);
