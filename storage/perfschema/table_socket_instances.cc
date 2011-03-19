@@ -184,9 +184,6 @@ int table_socket_instances::read_row_values(TABLE *table,
   if (unlikely(!m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
-
   for (; (f= *fields) ; fields++)
   {
     if (read_all || bitmap_is_set(table->read_set, f->field_index))
