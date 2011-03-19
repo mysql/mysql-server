@@ -5870,10 +5870,10 @@ bool Field_newdate::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   ltime->year=  (tmp >> 9);
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   ltime->hour= ltime->minute= ltime->second= ltime->second_part= ltime->neg= 0;
-  if ((fuzzydate & TIME_NO_ZERO_DATE) && !tmp)
-    return 1;
-  if (!(fuzzydate & TIME_FUZZY_DATE) && (!ltime->month || !ltime->day))
-    return 1;
+  if (!tmp)
+    return fuzzydate & TIME_NO_ZERO_DATE;
+  if (!ltime->month || !ltime->day)
+    return !(fuzzydate & TIME_FUZZY_DATE);
   return 0;
 }
 
@@ -6003,7 +6003,11 @@ bool Field_datetime::get_date(MYSQL_TIME *ltime, uint fuzzydate)
   ltime->day=		(int) (part1%100);
   ltime->month= 	(int) (part1/100%100);
   ltime->year= 		(int) (part1/10000);
-  return (!(fuzzydate & TIME_FUZZY_DATE) && (!ltime->month || !ltime->day)) ? 1 : 0;
+  if (!tmp)
+    return fuzzydate & TIME_NO_ZERO_DATE;
+  if (!ltime->month || !ltime->day)
+    return !(fuzzydate & TIME_FUZZY_DATE);
+  return 0;
 }
 
 int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr)
@@ -6110,7 +6114,11 @@ bool Field_datetime_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
   ulonglong packed= read_bigendian(ptr, Field_datetime_hires::pack_length());
   unpack_time(sec_part_unshift(packed, dec), ltime);
-  return (!(fuzzydate & TIME_FUZZY_DATE) && (!ltime->month || !ltime->day)) ? 1 : 0;
+  if (!packed)
+    return fuzzydate & TIME_NO_ZERO_DATE;
+  if (!ltime->month || !ltime->day)
+    return !(fuzzydate & TIME_FUZZY_DATE);
+  return 0;
 }
 
 uint32 Field_datetime_hires::pack_length() const

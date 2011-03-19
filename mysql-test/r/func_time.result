@@ -1539,3 +1539,9 @@ NULL
 select timestamp(greatest('2002-08-20', '0000-00-00 00:00:00'));
 timestamp(greatest('2002-08-20', '0000-00-00 00:00:00'))
 2002-08-20 00:00:00
+create table t1 (f1 datetime);
+insert into t1 values ('0000-00-00 00:00:00');
+select cast(f1 AS time) from t1;
+cast(f1 AS time)
+00:00:00
+drop table t1;
