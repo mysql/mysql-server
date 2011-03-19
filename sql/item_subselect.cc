@@ -1022,7 +1022,7 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
 				     st_select_lex *select_lex):
   Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
   is_constant(FALSE), optimizer(0), pushed_cond_guards(NULL),
-  exec_method(NOT_TRANSFORMED), upper_item(0)
+  exec_method(NOT_TRANSFORMED), is_flattenable_semijoin(FALSE), upper_item(0)
 {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
   left_expr= left_exp;
@@ -4080,7 +4080,7 @@ void subselect_hash_sj_engine::cleanup()
 
 int subselect_hash_sj_engine::optimize()
 {
-  int res= 0;
+  int res;
   SELECT_LEX *save_select= thd->lex->current_select;
   thd->lex->current_select= materialize_join->select_lex;
   res= materialize_join->optimize();

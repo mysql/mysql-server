@@ -1735,12 +1735,6 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 1
 1
-# MariaDB note:
-#  This will show 2 for table which has 5 rows. 
-#  This is because the access method employed is actually range access
-#  which scans 2 records (yes, EXPLAIN displays it incorrectly).
-#  our correct printing is an artifact of changing in select_describe()
-#  from printing table->starts.records() to tab->records.
 EXPLAIN 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
@@ -1755,7 +1749,6 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 1
 1
-# See above "MariaDB note"
 EXPLAIN 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
@@ -1771,7 +1764,6 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 1
 1
-# See above "MariaDB note"
 EXPLAIN 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;

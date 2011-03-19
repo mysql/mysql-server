@@ -242,9 +242,6 @@ static uint make_join_orderinfo(JOIN *join);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 
-JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables);
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
-
 /**
   This handles SELECT with and without UNION.
 */
@@ -8569,6 +8566,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->sorted= sorted;
     sorted= 0;                                  // only first must be sorted
     
+
+    /*
+      We should not set tab->next_select for the last table in the
+      SMJ-nest, as setup_sj_materialization() has already set it to
+      end_sj_materialize.
+    */
     if (!(tab->bush_root_tab && 
           tab->bush_root_tab->bush_children->end == tab + 1))
     {
@@ -12910,7 +12913,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
 	 i < field_count;
 	 i++, reg_field++, key_part_info++)
     {
-      key_part_info->null_bit=0;
       key_part_info->field=    *reg_field;
       (*reg_field)->flags |= PART_KEY_FLAG;
       if (key_part_info == keyinfo->key_part)

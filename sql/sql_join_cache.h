@@ -650,8 +650,6 @@ public:
     buff= 0;
   }   
   
-  // JOIN_TAB *get_next_table(JOIN_TAB *tab);
-  
   friend class JOIN_CACHE_HASHED;
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;

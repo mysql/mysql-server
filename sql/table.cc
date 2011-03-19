@@ -5335,6 +5335,13 @@ bool st_table::is_children_attached(void)
 }
 
 
+/*
+  Return TRUE if the table is filled at execution phase 
+  
+  (and so, the optimizer must not do anything that depends on the contents of
+   the table, like range analysis or constant table detection)
+*/
+
 bool st_table::is_filled_at_execution()
 { 
   return test(pos_in_table_list->jtbm_subselect);

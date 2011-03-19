@@ -406,11 +406,6 @@ public:
   */
   bool is_flattenable_semijoin;
   
-  /*
-    Cost to populate the temporary table (set on if-needed basis).
-  */
-  //double startup_cost;
-
   bool *get_cond_guard(int i)
   {
     return pushed_cond_guards ? pushed_cond_guards + i : NULL;

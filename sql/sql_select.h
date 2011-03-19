@@ -616,7 +616,6 @@ inline bool sj_is_materialize_strategy(uint strategy)
   return strategy >= SJ_OPT_MATERIALIZE;
 }
 
-
 class JOIN_TAB_RANGE: public Sql_alloc
 {
 public:
@@ -1049,6 +1048,9 @@ private:
   void cleanup_item_list(List<Item> &items) const;
 };
 
+
+JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables);
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
 
 typedef struct st_select_check {
   uint const_ref,reg_ref;

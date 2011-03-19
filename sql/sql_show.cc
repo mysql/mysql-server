@@ -6584,9 +6584,6 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 }
 
 
-JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables);
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
-
 /*
   Fill temporary schema tables before SELECT
 
