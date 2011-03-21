@@ -424,7 +424,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   key_copy(key_buf, event_table->record[0], key_info, key_len);
   if (!(ret= event_table->file->index_read_map(event_table->record[0], key_buf,
                                                (key_part_map)1,
-                                               HA_READ_PREFIX)))
+                                               HA_READ_KEY_EXACT)))
   {
     DBUG_PRINT("info",("Found rows. Let's retrieve them. ret=%d", ret));
     do
