@@ -21,11 +21,6 @@ set @@global.log_output = 'table,file';
 
 connection slave;
 --source include/stop_slave.inc
---disable_warnings
-set @@global.slave_net_timeout = @@global.net_read_timeout * 2;
---enable_warnings
-let $idle_time=`select @@global.slave_net_timeout * 2`;
-
 #
 # if heartbeat is disabled then reconnecting to the idle master
 # should happen with `slave_net_timeout' period.
@@ -41,6 +36,9 @@ let $idle_time=`select @@global.slave_net_timeout * 2`;
 --replace_result $MASTER_MYPORT MASTER_PORT 
 eval change master to master_host = '127.0.0.1',master_port = $MASTER_MYPORT,
 master_user = 'root', master_heartbeat_period = 0;
+
+set @@global.slave_net_timeout = @@global.net_read_timeout * 2;
+let $idle_time=`select @@global.slave_net_timeout * 2`;
 
 let $slave_net_timeout = `select @@global.slave_net_timeout`;
 
@@ -64,11 +62,9 @@ connection master;
 select event_time from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time desc limit 1 into @ts_last;
 select event_time from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time asc limit 1 into @ts_prev;
 
---disable_query_log
-eval select time_to_sec(@ts_last) - $slave_net_timeout >= time_to_sec(@ts_prev) into @result;
---enable_query_log
-
-select @result as 'Must be 1';
+--let $assert_cond= time_to_sec(@ts_last) - time_to_sec(@ts_prev) >= $slave_net_timeout
+--let $assert_text= time between last reconnection and the reconnection before that should be >= slave_net_timeout
+--source include/assert.inc
 
 # cleanup 
 
@@ -79,4 +75,5 @@ set @@global.log_output = @save_log_output;
 connection slave;
 set @@global.slave_net_timeout = @save_slave_net_timeout;
 
+--let $rpl_only_running_threads= 1
 --source include/rpl_end.inc
