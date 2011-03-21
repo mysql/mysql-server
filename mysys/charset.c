@@ -950,8 +950,11 @@ CHARSET_INFO *fs_character_set()
       As we're now interested in cp932 only,
       let's just detect it using strcmp().
     */
-    fs_cset_cache= !strcmp(buf, "cp932") ?
-                   &my_charset_cp932_japanese_ci : &my_charset_bin;
+    fs_cset_cache= 
+                #ifdef HAVE_CHARSET_cp932
+                        !strcmp(buf, "cp932") ? &my_charset_cp932_japanese_ci : 
+                #endif
+                        &my_charset_bin;
   }
   return fs_cset_cache;
 }
