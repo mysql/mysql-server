@@ -37,6 +37,7 @@ void test_no_instruments()
   param.m_thread_class_sizing= 0;
   param.m_table_share_sizing= 0;
   param.m_file_class_sizing= 0;
+  param.m_socket_class_sizing= 0;
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
   param.m_cond_sizing= 0;
@@ -44,6 +45,7 @@ void test_no_instruments()
   param.m_table_sizing= 0;
   param.m_file_sizing= 0;
   param.m_file_handle_sizing= 0;
+  param.m_socket_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
@@ -65,11 +67,13 @@ void test_no_instances()
   PFS_thread_class dummy_thread_class;
   PFS_file_class dummy_file_class;
   PFS_table_share dummy_table_share;
+  PFS_socket_class dummy_socket_class;
   PFS_mutex *mutex;
   PFS_rwlock *rwlock;
   PFS_cond *cond;
   PFS_thread *thread;
   PFS_file *file;
+  PFS_socket *socket;
   PFS_table *table;
   PFS_global_param param;
 
@@ -80,6 +84,7 @@ void test_no_instances()
   param.m_thread_class_sizing= 1;
   param.m_table_share_sizing= 1;
   param.m_file_class_sizing= 1;
+  param.m_socket_class_sizing= 0;
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
   param.m_cond_sizing= 0;
@@ -87,6 +92,7 @@ void test_no_instances()
   param.m_table_sizing= 0;
   param.m_file_sizing= 0;
   param.m_file_handle_sizing= 0;
+  param.m_socket_sizing= 0;
   param.m_events_waits_history_sizing= 0;
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
@@ -158,6 +164,13 @@ void test_no_instances()
   ok(table == NULL, "no table");
   ok(table_lost == 2, "lost 2");
 
+  socket= create_socket(& dummy_socket_class, NULL);
+  ok(socket == NULL, "no socket");
+  ok(socket_lost == 1, "lost 1");
+  socket= create_socket(& dummy_socket_class, NULL);
+  ok(socket == NULL, "no socket");
+  ok(socket_lost == 2, "lost 2");
+
   /* No result to test, just make sure it does not crash */
   reset_events_waits_by_instance();
   reset_per_thread_wait_stat();
@@ -174,6 +187,7 @@ void test_with_instances()
   PFS_cond_class dummy_cond_class;
   PFS_thread_class dummy_thread_class;
   PFS_file_class dummy_file_class;
+  PFS_socket_class dummy_socket_class;
   PFS_table_share dummy_table_share;
   PFS_mutex *mutex_1;
   PFS_mutex *mutex_2;
@@ -185,6 +199,8 @@ void test_with_instances()
   PFS_thread *thread_2;
   PFS_file *file_1;
   PFS_file *file_2;
+  PFS_socket *socket_1;
+  PFS_socket *socket_2;
   PFS_table *table_1;
   PFS_table *table_2;
   PFS_global_param param;
@@ -196,6 +212,7 @@ void test_with_instances()
   param.m_thread_class_sizing= 1;
   param.m_table_share_sizing= 1;
   param.m_file_class_sizing= 1;
+  param.m_socket_class_sizing= 1;
   param.m_mutex_sizing= 2;
   param.m_rwlock_sizing= 2;
   param.m_cond_sizing= 2;
@@ -203,6 +220,7 @@ void test_with_instances()
   param.m_table_sizing= 2;
   param.m_file_sizing= 2;
   param.m_file_handle_sizing= 100;
+  param.m_socket_sizing= 2;
   param.m_events_waits_history_sizing= 10;
   param.m_events_waits_history_long_sizing= 10000;
   param.m_setup_actor_sizing= 0;
@@ -216,6 +234,7 @@ void test_with_instances()
   dummy_rwlock_class.m_event_name_index= 1;
   dummy_cond_class.m_event_name_index= 2;
   dummy_file_class.m_event_name_index= 3;
+  dummy_socket_class.m_event_name_index= 4;
 
   mutex_1= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_1 != NULL, "mutex");
@@ -308,6 +327,20 @@ void test_with_instances()
   file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_D", 7);
   ok(file_2 == NULL, "no file");
   ok(file_lost == 2, "lost");
+
+  socket_1= create_socket(& dummy_socket_class, NULL);
+  ok(socket_1 != NULL, "socket");
+  ok(socket_lost == 0, "not lost");
+  socket_2= create_socket(& dummy_socket_class, NULL);
+  ok(socket_2 != NULL, "socket");
+  ok(socket_lost == 0, "not lost");
+  socket_2= create_socket(& dummy_socket_class, NULL);
+  ok(socket_2 == NULL, "no socket");
+  ok(socket_lost == 1, "lost 1");
+  destroy_socket(socket_1);
+  socket_2= create_socket(& dummy_socket_class, NULL);
+  ok(socket_2 != NULL, "socket");
+  ok(socket_lost == 1, "no new loss");
 
   table_1= create_table(& dummy_table_share, & fake_thread, NULL);
   ok(table_1 != NULL, "table");
