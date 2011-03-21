@@ -6991,9 +6991,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 
   join_tab= parent->join_tab_reexec;
   table= &parent->table_reexec[0]; parent->table_reexec[0]= temp_table;
-  top_jtrange_tables= 1;
+  tables= top_jtrange_tables= 1;
 
-  tables= 1;
   const_tables= 0;
   const_table_map= 0;
   eliminated_tables= 0;
@@ -8417,11 +8416,8 @@ no_join_cache:
 void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
                                        uint no_jbuf_after)
 {
-  //JOIN_TAB *first_sjm_table= NULL;
-  //JOIN_TAB *last_sjm_table= NULL;
   JOIN_TAB *tab;
 
-  //for (uint i= join->const_tables; i < join->tables; i++)
   for (tab= first_linear_tab(join, TRUE); 
        tab; 
        tab= next_linear_tab(join, tab, TRUE))
@@ -8429,23 +8425,10 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
     tab->used_join_cache_level= join->max_allowed_join_cache_level;  
   }
 
-  //for (uint i= join->const_tables; i < join->tables; i++)
   for (tab= first_linear_tab(join, TRUE); 
        tab; 
        tab= next_linear_tab(join, tab, TRUE))
   {
-#if 0
-    if (sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
-    {
-      first_sjm_table= tab;
-      last_sjm_table= tab + join->best_positions[i].n_sj_tables;
-      for (JOIN_TAB *sjm_tab= first_sjm_table;
-             sjm_tab != last_sjm_table; sjm_tab++)
-        sjm_tab->first_sjm_sibling= first_sjm_table;
-    } 
-    if (!(tab >= first_sjm_table && tab < last_sjm_table))
-      tab->first_sjm_sibling= NULL;
-#endif 
     JOIN_TAB *prev_tab;
 restart:
     tab->icp_other_tables_ok= TRUE;
@@ -8470,10 +8453,6 @@ restart:
         psergey-merge: todo: raise the question that this is really stupid that
         we can first allocate a join buffer, then decide not to use it and free
         it.
-      */
-      /*
-      if (join->return_tab)
-        i= join->return_tab-join->join_tab-1;   // always >= 0
       */
       if (join->return_tab)
       {
@@ -19617,12 +19596,19 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             examined_rows= tab->limit;
           else
           {
-            //tab->table->file->info(HA_STATUS_VARIABLE);
             if (!tab->table->pos_in_table_list ||
                 tab->table->is_filled_at_execution()) // temporary, is_filled_at_execution
+            {
               examined_rows= tab->records;
+            }
             else
+            {
+              /*
+                handler->info(HA_STATUS_VARIABLE) has been called in
+                make_join_statistics()
+              */
               examined_rows= tab->table->file->stats.records;
+            }
           }
         }
         else

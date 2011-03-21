@@ -687,18 +687,22 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   arena= thd->activate_stmt_arena_if_needed(&backup);
  
   for (in_subq= join->sj_subselects.front(); 
-       in_subq != in_subq_end && 
-       join->tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
+       in_subq != in_subq_end;
        in_subq++)
   {
     bool remove_item= TRUE;
     if ((*in_subq)->is_flattenable_semijoin) 
     {
+      if (join->tables + 
+          (*in_subq)->unit->first_select()->join->tables >= MAX_TABLES)
+        break;
       if (convert_subq_to_sj(join, *in_subq))
         DBUG_RETURN(TRUE);
     }
     else
     {
+      if (join->tables + 1 >= MAX_TABLES)
+        break;
       if (convert_subq_to_jtbm(join, *in_subq, &remove_item))
         DBUG_RETURN(TRUE);
     }
@@ -1211,6 +1215,17 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 }
 
 
+const int SUBQERY_TEMPTABLE_NAME_MAX_LEN= 20;
+
+static void create_subquery_temptable_name(char *to, uint number)
+{
+  DBUG_ASSERT(number < 10000);       
+  to= strmov(to, "<subquery");
+  to= int10_to_str((int) number, to, 10);
+  to[0]= '>';
+  to[1]= 0;
+}
+
 /*
   Convert subquery predicate into non-mergeable semi-join nest.
 
@@ -1241,15 +1256,15 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   if (subq_pred->engine->engine_type() != subselect_engine::HASH_SJ_ENGINE)
   {
     *remove_item= FALSE;
-    make_in_exists_conversion(parent_join->thd, parent_join, subq_pred);
-    DBUG_RETURN(FALSE);
+    bool res;
+    res= make_in_exists_conversion(parent_join->thd, parent_join, subq_pred);
+    DBUG_RETURN(res);
   }
   *remove_item= TRUE;
 
   TABLE_LIST *jtbm;
   char *tbl_alias;
-  const char alias_mask[]="<subquery%d>";
-  if (!(tbl_alias= (char*)parent_join->thd->calloc(sizeof(alias_mask)+5)) || 
+  if (!(tbl_alias= (char*)parent_join->thd->calloc(SUBQERY_TEMPTABLE_NAME_MAX_LEN)) ||
       !(jtbm= alloc_join_nest(parent_join->thd))) //todo: this is not a join nest!
   {
     DBUG_RETURN(TRUE);
@@ -1268,7 +1283,8 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     Inject the jtbm table into TABLE_LIST::next_leaf list, so that 
     make_join_statistics() and co. can find it.
   */
-  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf) ;
+  for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf)
+  {}
   tl->next_leaf= jtbm;
 
   /*
@@ -1276,7 +1292,8 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
-  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local) ;
+  for (tl= parent_lex->leaf_tables; tl->next_local; tl= tl->next_local)
+  {}
   tl->next_local= jtbm;
 
   /* A theory: no need to re-connect the next_global chain */
@@ -1289,15 +1306,16 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   jtbm->table->map= table_map(1) << (parent_join->tables);
 
   parent_join->tables++;
+  DBUG_ASSERT(parent_join->tables < MAX_TABLES);
 
   Item *conds= hash_sj_engine->semi_join_conds;
   conds->fix_after_pullout(parent_lex, &conds);
 
   DBUG_EXECUTE("where", print_where(conds,"SJ-EXPR", QT_ORDINARY););
   
-  my_snprintf(tbl_alias, sizeof(alias_mask)+5, alias_mask, 
-    hash_sj_engine->materialize_join->select_lex->select_number);
-  jtbm->alias= tbl_alias; 
+  create_subquery_temptable_name(tbl_alias, hash_sj_engine->materialize_join->
+                                              select_lex->select_number);
+  jtbm->alias= tbl_alias;
 
   /* Inject sj_on_expr into the parent's WHERE or ON */
   if (emb_tbl_nest)
@@ -4017,13 +4035,13 @@ enum_nested_loop_state join_tab_execution_startup(JOIN_TAB *tab)
   {
     /* It's a merged SJM nest */
     enum_nested_loop_state rc;
-    JOIN *join= tab->join;
     SJ_MATERIALIZATION_INFO *sjm= tab->bush_children->start->emb_sj_nest->sj_mat_info;
-    JOIN_TAB *join_tab= tab->bush_children->start;
-    JOIN_TAB *save_return_tab= join->return_tab;
 
     if (!sjm->materialized)
     {
+      JOIN *join= tab->join;
+      JOIN_TAB *join_tab= tab->bush_children->start;
+      JOIN_TAB *save_return_tab= join->return_tab;
       /*
         Now run the join for the inner tables. The first call is to run the
         join, the second one is to signal EOF (this is essential for some

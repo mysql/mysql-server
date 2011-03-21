@@ -7784,7 +7784,7 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
       Item *item= table_list->jtbm_subselect;
       if (item->fix_fields(thd, &item))
       {
-        my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES);
+        my_error(ER_TOO_MANY_TABLES,MYF(0),MAX_TABLES); /* psergey-todo: WHY ER_TOO_MANY_TABLES ???*/
         DBUG_RETURN(1);
       }
       DBUG_ASSERT(item == table_list->jtbm_subselect);
