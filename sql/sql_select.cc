@@ -10045,12 +10045,14 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     {
       /* This is a function, apply condition recursively to arguments */
       Item_func *item_func= (Item_func*)item;
-      Item **child;
-      Item **item_end= (item_func->arguments()) + item_func->argument_count();
-      for (child= item_func->arguments(); child != item_end; child++)
-      {
-        if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
-          return FALSE;
+      if (item_func->argument_count() > 0)
+      {        
+        Item **item_end= (item_func->arguments()) + item_func->argument_count();
+        for (Item **child= item_func->arguments(); child != item_end; child++)
+        {
+          if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
+            return FALSE;
+        }
       }
       return TRUE;
     }

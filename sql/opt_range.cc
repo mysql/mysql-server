@@ -10136,11 +10136,11 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
-  Item **arguments= pred->arguments();
   Item *cur_arg;
   DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
   for (uint arg_idx= 0; arg_idx < pred->argument_count (); arg_idx++)
   {
+    Item **arguments= pred->arguments();
     cur_arg= arguments[arg_idx]->real_item();
     DBUG_PRINT("info", ("cur_arg: %s", cur_arg->full_name()));
     if (cur_arg->type() == Item::FIELD_ITEM)
