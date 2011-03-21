@@ -111,7 +111,9 @@ set @@global.debug="-d";
 #
 # The mixed multi-table update
 #
-stop slave;
+
+# above tests for Bug#11765758 - 58754 made sure slave is down
+
 truncate table tm;
 source include/start_slave.inc;
 

@@ -38,9 +38,6 @@ include/assert.inc [There is one row in table tm]
 include/assert.inc [There is no row in table ti]
 include/stop_slave.inc
 set @@global.debug="-d";
-stop slave;
-Warnings:
-Note	1255	Slave already has been stopped
 truncate table tm;
 include/start_slave.inc
 set @@global.debug="+d,stop_slave_middle_group";
