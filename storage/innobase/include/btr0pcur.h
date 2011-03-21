@@ -264,22 +264,6 @@ ulint
 btr_pcur_get_rel_pos(
 /*=================*/
 	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
-/*********************************************************//**
-Sets the mtr field for a pcur. */
-UNIV_INLINE
-void
-btr_pcur_set_mtr(
-/*=============*/
-	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
-	mtr_t*		mtr);	/*!< in, own: mtr */
-/*********************************************************//**
-Gets the mtr field for a pcur.
-@return	mtr */
-UNIV_INLINE
-mtr_t*
-btr_pcur_get_mtr(
-/*=============*/
-	btr_pcur_t*	cursor);	/*!< in: persistent cursor */
 /**************************************************************//**
 Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
 that is, the cursor becomes detached. If there have been modifications
@@ -517,9 +501,6 @@ struct btr_pcur_struct{
 	/* NOTE that the following fields may possess dynamically allocated
 	memory which should be freed if not needed anymore! */
 
-	mtr_t*		mtr;		/*!< NULL, or this field may contain
-					a mini-transaction which holds the
-					latch on the cursor page */
 	byte*		old_rec_buf;	/*!< NULL, or a dynamically allocated
 					buffer for old_rec */
 	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf

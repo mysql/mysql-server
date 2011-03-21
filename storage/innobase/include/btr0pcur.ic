@@ -42,34 +42,6 @@ btr_pcur_get_rel_pos(
 	return(cursor->rel_pos);
 }
 
-/*********************************************************//**
-Sets the mtr field for a pcur. */
-UNIV_INLINE
-void
-btr_pcur_set_mtr(
-/*=============*/
-	btr_pcur_t*	cursor,	/*!< in: persistent cursor */
-	mtr_t*		mtr)	/*!< in, own: mtr */
-{
-	ut_ad(cursor);
-
-	cursor->mtr = mtr;
-}
-
-/*********************************************************//**
-Gets the mtr field for a pcur.
-@return	mtr */
-UNIV_INLINE
-mtr_t*
-btr_pcur_get_mtr(
-/*=============*/
-	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
-{
-	ut_ad(cursor);
-
-	return(cursor->mtr);
-}
-
 #ifdef UNIV_DEBUG
 /*********************************************************//**
 Returns the btr cursor component of a persistent cursor.
