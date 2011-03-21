@@ -1221,6 +1221,21 @@ SELECT event_name, originator FROM INFORMATION_SCHEMA.EVENTS;
 DROP EVENT ev1;
 SET GLOBAL server_id = @old_server_id;
 
+#
+# Bug#11751148: show events shows events in other schema
+#
+
+CREATE DATABASE event_test1;
+USE event_test1;
+CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+CREATE DATABASE event_test2;
+USE event_test2;
+# Following show events should not show ev1
+SHOW EVENTS;
+DROP DATABASE event_test1;
+DROP DATABASE event_test2;
+
+
 ###########################################################################
 #
 # End of tests
