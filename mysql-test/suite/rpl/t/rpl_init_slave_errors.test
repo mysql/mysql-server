@@ -60,6 +60,9 @@ start slave;
 
 call mtr.add_suppression("Failed during slave.* thread initialization");
 
+# Bug#11765758 - 58754
+# make sure the IO thread is down to allow safe updating to @@global.debug
+--source include/stop_slave_io.inc
 SET GLOBAL debug= "";
 
 ######################################################################
