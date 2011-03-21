@@ -53,7 +53,7 @@ struct row_socket_instances
   /** Socket state: ACTIVE or IDLE */
   PSI_socket_state m_state;
 
-  row_socket_instances() {m_thread_id= false;}
+  row_socket_instances() {m_thread_id_set= false;}
 };
 
 /** Table PERFORMANCE_SCHEMA.SOCKET_INSTANCES. */

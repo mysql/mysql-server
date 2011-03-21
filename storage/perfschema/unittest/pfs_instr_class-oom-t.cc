@@ -38,11 +38,14 @@ void test_oom()
   ok(rc == 1, "oom (file)");
   rc= init_table_share(1000);
   ok(rc == 1, "oom (cond)");
+  rc= init_socket_class(1000);
+  ok(rc == 1, "oom (socket)");
 
   cleanup_sync_class();
   cleanup_thread_class();
   cleanup_file_class();
   cleanup_table_share();
+  cleanup_socket_class();
 }
 
 void do_all_tests()
