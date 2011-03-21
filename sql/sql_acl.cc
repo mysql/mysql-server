@@ -2402,8 +2402,10 @@ static int replace_user_table(THD *thd, TABLE *table, const LEX_USER &combo,
       {
         table->field[next_field]->store(combo.plugin.str, combo.plugin.length,
                                         system_charset_info);
+        table->field[next_field]->set_notnull();
         table->field[next_field + 1]->store(combo.auth.str, combo.auth.length,
                                             system_charset_info);
+        table->field[next_field + 1]->set_notnull();
       }
       else
       {
