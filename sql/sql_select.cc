@@ -2838,7 +2838,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 
   stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*(table_count));
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*((table_count)*2));
+  table_vector=(TABLE**) join->thd->alloc(sizeof(TABLE*)*(table_count*2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(1);				// Eom /* purecov: inspected */
 
@@ -3217,6 +3217,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     {
       s->found_records= s->records= s->table->file->stats.records;
       s->read_time= s->table->file->scan_time();
+      /*
+        table->quick_condition_rows has already been set to
+        table->file->stats.records
+      */
     }
 
 
@@ -6537,11 +6541,15 @@ get_best_combination(JOIN *join)
 
   fix_semijoin_strategies_for_picked_join_order(join);
   
-  JOIN_TAB_RANGE *root_range= new JOIN_TAB_RANGE;
+  JOIN_TAB_RANGE *root_range;
+  if (!(root_range= new JOIN_TAB_RANGE))
+    DBUG_RETURN(TRUE);
   root_range->start= join->join_tab;
   /* root_range->end will be set later */
   join->join_tab_ranges.empty();
-  join->join_tab_ranges.push_back(root_range);
+
+  if (join->join_tab_ranges.push_back(root_range))
+    DBUG_RETURN(TRUE);
 
   JOIN_TAB *sjm_nest_end= NULL;
   JOIN_TAB *sjm_saved_tab; /* protected by sjm_nest_end */
@@ -6568,12 +6576,8 @@ get_best_combination(JOIN *join)
       j->join= join;
       j->table= NULL; //temporary way to tell SJM tables from others.
       j->ref.key = -1;
-      j->ref.key_parts=0;
-      j->loosescan_match_tab= NULL;  //non-nulls will be set later
-      j->use_join_cache= FALSE;
       j->on_expr_ref= (Item**) &null_ptr;
-      j->cache= NULL;
-      j->keys= key_map(1); // The unique index is always in 'possible keys' in EXPLAIN
+      j->keys= key_map(1); /* The unique index is always in 'possible keys' in EXPLAIN */
 
 
       /*
@@ -6582,8 +6586,11 @@ get_best_combination(JOIN *join)
       */
       SJ_MATERIALIZATION_INFO *sjm= cur_pos->table->emb_sj_nest->sj_mat_info;
       j->records= j->records_read= (ha_rows)(sjm->is_sj_scan? sjm->rows : 1);
-      JOIN_TAB *jt= (JOIN_TAB*)join->thd->alloc(sizeof(JOIN_TAB) * sjm->tables);
-      JOIN_TAB_RANGE *jt_range= new JOIN_TAB_RANGE;
+      JOIN_TAB *jt;
+      JOIN_TAB_RANGE *jt_range;
+      if (!(jt= (JOIN_TAB*)join->thd->alloc(sizeof(JOIN_TAB)*sjm->tables)) ||
+          !(jt_range= new JOIN_TAB_RANGE))
+        DBUG_RETURN(TRUE);
       jt_range->start= jt;
       jt_range->end= jt + sjm->tables;
       join->join_tab_ranges.push_back(jt_range);
