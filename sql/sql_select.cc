@@ -1039,6 +1039,7 @@ JOIN::optimize()
   {
     List_iterator<JOIN_TAB_RANGE> it(join_tab_ranges);
     JOIN_TAB_RANGE *jt_range;
+    /* For upper level JOIN_TABs, we need to skip the const tables: */
     uint first_tab_offs= const_tables;
     while ((jt_range= it++))
     {
@@ -1053,6 +1054,11 @@ JOIN::optimize()
           (*tab->on_expr_ref)->update_used_tables();
         }
       }
+      /*
+        Next jt_range will refer to SJM nest (and not the top-level range). 
+        Inside SJM nests, we dont have const tables, so should start from the
+        first table:
+      */
       first_tab_offs= 0;
     }
   }
@@ -2865,13 +2871,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     table->reginfo.join_tab=s;
     table->reginfo.not_exists_optimize=0;
     bzero((char*) table->const_key_parts, sizeof(key_part_map)*table->s->keys);
-    all_table_map|= s->table->map;
+    all_table_map|= table->map;
     s->join=join;
-    s->info=0;					// For describe
-    s->bush_root_tab= NULL;
 
     s->dependent= tables->dep_tables;
-    s->key_dependent= 0;
     if (tables->schema_table)
       table->file->stats.records= 2;
     table->quick_condition_rows= table->file->stats.records;
@@ -6395,7 +6398,7 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
     first+= join->const_tables;
   if (first < join->join_tab + join->top_jtrange_tables)
     return first;
-  return NULL;
+  return NULL; /* All tables were const tables */
 }
 
 
@@ -6471,8 +6474,11 @@ JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab)
   /* Move to next tab in the array we're traversing*/
   if (!start)
     tab++;
-
-  if (tab == join->join_tab_ranges.head()->end)
+  
+  //psergey-remove: check:
+  DBUG_ASSERT(join->join_tab_ranges.head()->end == 
+              join->join_tab +join->top_jtrange_tables);
+  if (tab == join->join_tab +join->top_jtrange_tables)
     return NULL; /* End */
 
   if (tab->bush_children)
@@ -6580,17 +6586,13 @@ get_best_combination(JOIN *join)
       JOIN_TAB_RANGE *jt_range= new JOIN_TAB_RANGE;
       jt_range->start= jt;
       jt_range->end= jt + sjm->tables;
-      //sjm->jt_range= jt_range;
       join->join_tab_ranges.push_back(jt_range);
       j->bush_children= jt_range;
-      j->bush_root_tab= NULL; //note: a lot of code depends on bush nodes not containing one another
-      j->quick= NULL;
       sjm_nest_end= jt + sjm->tables;
       sjm_saved_tab= j;
       root_range->end= j+1;
 
       j= jt;
-      //goto loop_end_not_table;
     }
     
     *j= *join->best_positions[tablenr].table;
@@ -8546,12 +8548,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
  
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
 
-  //for (i=join->const_tables ; i < join->tables ; i++)
   for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
        tab; 
        tab= next_linear_tab(join, tab, TRUE), i++)
   {
-    //JOIN_TAB *tab=join->join_tab+i;
     if (tab->bush_children)
     {
       if (setup_sj_materialization(tab))

@@ -182,7 +182,8 @@ TEST_join(JOIN *join)
       in order not to garble the tabular output below.
     */
     String ref_key_parts[MAX_TABLES];
-    for (i= 0; i < (jt_range->end - jt_range->start); i++)
+    int tables_in_range= jt_range->end - jt_range->start;
+    for (i= 0; i < tables_in_range; i++)
     {
       JOIN_TAB *tab= jt_range->start + i;
       for (ref= 0; ref < tab->ref.key_parts; ref++)
@@ -192,7 +193,7 @@ TEST_join(JOIN *join)
       }
     }
 
-    for (i= 0; i < (jt_range->end - jt_range->start); i++)
+    for (i= 0; i < tables_in_range; i++)
     {
       JOIN_TAB *tab= jt_range->start + i;
       TABLE *form=tab->table;

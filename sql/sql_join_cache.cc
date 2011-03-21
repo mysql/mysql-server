@@ -3235,6 +3235,13 @@ int JOIN_TAB_SCAN::next()
 }
 
 
+/*
+  Walk back in join order from join_tab until we encounter a join tab with
+  tab->cache!=NULL, and save/restore tab->table->status along the way.
+
+  @param save TRUE   save 
+              FALSE  restore
+*/
 void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save)
 {
   JOIN_TAB *first= join_tab->bush_root_tab?
@@ -3251,6 +3258,7 @@ void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save)
       {
         if (save)
           child->table->status= child->status;
+        else
         {
           tab->status= tab->table->status;
           tab->table->status= 0;
