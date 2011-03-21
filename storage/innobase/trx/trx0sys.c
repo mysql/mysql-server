@@ -238,7 +238,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	mtr_commit(&mtr);
 
 	/* Flush the modified pages to disk and make a checkpoint */
-	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	trx_sys_multiple_tablespace_format = TRUE;
 }
@@ -407,7 +407,7 @@ start_again:
 		mtr_commit(&mtr);
 
 		/* Flush the modified pages to disk and make a checkpoint */
-		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+		log_make_checkpoint_at(LSN_MAX, TRUE);
 
 		fprintf(stderr, "InnoDB: Doublewrite buffer created\n");
 

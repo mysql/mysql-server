@@ -2337,7 +2337,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 }
 
 
-static void init_signals(void)
+void my_init_signals(void)
 {
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
@@ -2558,11 +2558,11 @@ bugs.\n");
 
 #ifndef EMBEDDED_LIBRARY
 
-static void init_signals(void)
+void my_init_signals(void)
 {
   sigset_t set;
   struct sigaction sa;
-  DBUG_ENTER("init_signals");
+  DBUG_ENTER("my_init_signals");
 
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
@@ -4658,7 +4658,7 @@ int mysqld_main(int argc, char **argv)
   if (init_common_variables())
     unireg_abort(1);				// Will do exit
 
-  init_signals();
+  my_init_signals();
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
