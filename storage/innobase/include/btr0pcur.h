@@ -150,7 +150,7 @@ UNIV_INLINE
 ulint
 btr_pcur_get_up_match(
 /*==================*/
-	btr_pcur_t*	cursor); /*!< in: memory buffer for persistent cursor */
+	const btr_pcur_t*	cursor); /*!< in: persistent cursor */
 /**************************************************************//**
 Gets the low_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if
@@ -159,7 +159,7 @@ UNIV_INLINE
 ulint
 btr_pcur_get_low_match(
 /*===================*/
-	btr_pcur_t*	cursor); /*!< in: memory buffer for persistent cursor */
+	const btr_pcur_t*	cursor); /*!< in: persistent cursor */
 /**************************************************************//**
 If mode is PAGE_CUR_G or PAGE_CUR_GE, opens a persistent cursor on the first
 user record satisfying the search condition, in the case PAGE_CUR_L or
@@ -371,10 +371,6 @@ page_cur_t*
 btr_pcur_get_page_cur(
 /*==================*/
 	const btr_pcur_t*	cursor);	/*!< in: persistent cursor */
-#else /* UNIV_DEBUG */
-# define btr_pcur_get_btr_cur(cursor) (&(cursor)->btr_cur)
-# define btr_pcur_get_page_cur(cursor) (&(cursor)->btr_cur.page_cur)
-#endif /* UNIV_DEBUG */
 /*********************************************************//**
 Returns the page of a persistent cursor.
 @return	pointer to the page */
@@ -382,7 +378,7 @@ UNIV_INLINE
 page_t*
 btr_pcur_get_page(
 /*==============*/
-	btr_pcur_t*	cursor);/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the buffer block of a persistent cursor.
 @return	pointer to the block */
@@ -390,7 +386,7 @@ UNIV_INLINE
 buf_block_t*
 btr_pcur_get_block(
 /*===============*/
-	btr_pcur_t*	cursor);/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
 /*********************************************************//**
 Returns the record of a persistent cursor.
 @return	pointer to the record */
@@ -398,7 +394,14 @@ UNIV_INLINE
 rec_t*
 btr_pcur_get_rec(
 /*=============*/
-	btr_pcur_t*	cursor);/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor);/*!< in: persistent cursor */
+#else /* UNIV_DEBUG */
+# define btr_pcur_get_btr_cur(cursor) (&(cursor)->btr_cur)
+# define btr_pcur_get_page_cur(cursor) (&(cursor)->btr_cur.page_cur)
+# define btr_pcur_get_page(cursor) ((cursor)->btr_cur.page_cur.block->frame)
+# define btr_pcur_get_block(cursor) ((cursor)->btr_cur.page_cur.block)
+# define btr_pcur_get_rec(cursor) ((cursor)->btr_cur.page_cur.rec)
+#endif /* UNIV_DEBUG */
 /*********************************************************//**
 Checks if the persistent cursor is on a user record. */
 UNIV_INLINE

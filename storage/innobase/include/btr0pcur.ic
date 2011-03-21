@@ -67,7 +67,7 @@ btr_pcur_get_page_cur(
 {
 	return(btr_cur_get_page_cur(btr_pcur_get_btr_cur(cursor)));
 }
-#endif /* UNIV_DEBUG */
+
 /*********************************************************//**
 Returns the page of a persistent cursor.
 @return	pointer to the page */
@@ -75,7 +75,7 @@ UNIV_INLINE
 page_t*
 btr_pcur_get_page(
 /*==============*/
-	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -89,7 +89,7 @@ UNIV_INLINE
 buf_block_t*
 btr_pcur_get_block(
 /*===============*/
-	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 
@@ -103,13 +103,14 @@ UNIV_INLINE
 rec_t*
 btr_pcur_get_rec(
 /*=============*/
-	btr_pcur_t*	cursor)	/*!< in: persistent cursor */
+	const btr_pcur_t*	cursor)	/*!< in: persistent cursor */
 {
 	ut_ad(cursor->pos_state == BTR_PCUR_IS_POSITIONED);
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	return(btr_cur_get_rec(btr_pcur_get_btr_cur(cursor)));
 }
+#endif /* UNIV_DEBUG */
 
 /**************************************************************//**
 Gets the up_match value for a pcur after a search.
@@ -119,9 +120,9 @@ UNIV_INLINE
 ulint
 btr_pcur_get_up_match(
 /*==================*/
-	btr_pcur_t*	cursor) /*!< in: memory buffer for persistent cursor */
+	const btr_pcur_t*	cursor) /*!< in: persistent cursor */
 {
-	btr_cur_t*	btr_cursor;
+	const btr_cur_t*	btr_cursor;
 
 	ut_ad((cursor->pos_state == BTR_PCUR_WAS_POSITIONED)
 	      || (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
@@ -141,9 +142,9 @@ UNIV_INLINE
 ulint
 btr_pcur_get_low_match(
 /*===================*/
-	btr_pcur_t*	cursor) /*!< in: memory buffer for persistent cursor */
+	const btr_pcur_t*	cursor) /*!< in: persistent cursor */
 {
-	btr_cur_t*	btr_cursor;
+	const btr_cur_t*	btr_cursor;
 
 	ut_ad((cursor->pos_state == BTR_PCUR_WAS_POSITIONED)
 	      || (cursor->pos_state == BTR_PCUR_IS_POSITIONED));
