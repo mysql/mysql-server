@@ -22,10 +22,6 @@
 #ifndef  HASH_FILO_H
 #define  HASH_FILO_H
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class interface */
-#endif
-
 #include "hash.h"        /* my_hash_get_key, my_hash_free_key, HASH */
 #include "m_string.h"    /* bzero */
 #include "mysqld.h"      /* key_hash_filo_lock */

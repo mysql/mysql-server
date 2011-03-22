@@ -19,10 +19,6 @@
 #ifndef _opt_range_h
 #define _opt_range_h
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "thr_malloc.h"                         /* sql_memdup */
 #include "records.h"                            /* READ_RECORD */
 #include "queues.h"                             /* QUEUE */

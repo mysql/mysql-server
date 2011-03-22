@@ -18,10 +18,6 @@
 
 /* Definitions for parameters to do with handler-routines */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "sql_const.h"
 #include "mysqld.h"                             /* server_id */
 #include "sql_plugin.h"        /* plugin_ref, st_plugin_int, plugin */
