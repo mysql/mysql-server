@@ -204,7 +204,7 @@ void JOIN_CACHE::calc_record_fields()
         tab= tab->bush_children->start;
     }
   }
-  DBUG_ASSERT(!start_tab->bush_children);
+  DBUG_ASSERT(!tab->bush_children);
 
   start_tab= tab;
   fields= 0;

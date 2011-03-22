@@ -8507,7 +8507,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->partial_join_cardinality= 1; 
   }
 
-  //for (i=join->const_tables ; i < join->tables ; i++)
   for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
        tab; 
        tab= next_linear_tab(join, tab, TRUE))
@@ -9025,15 +9024,17 @@ void JOIN::cleanup(bool full)
 
     if (full)
     {
-      for (tab= top_jtrange_tables?join_tab:NULL; tab; tab= next_linear_tab(this, tab, TRUE))
+      for (tab= first_linear_tab(this, TRUE); tab; 
+           tab= next_linear_tab(this, tab, TRUE))
+      {
 	tab->cleanup();
-      //psergey4: how is the above supposed to work when
-      //top_jtrange_tables==FALSE? It will crash right away!
+      }
       table= 0;
     }
     else
     {
-      for (tab= top_jtrange_tables?join_tab:NULL; tab; tab= next_linear_tab(this, tab, TRUE))
+      for (tab= first_linear_tab(this, TRUE); tab; 
+           tab= next_linear_tab(this, tab, TRUE))
       {
 	if (tab->table)
           tab->table->file->ha_index_or_rnd_end();
