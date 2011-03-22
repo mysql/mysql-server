@@ -1059,7 +1059,9 @@ int Item::save_in_field_no_warnings(Field *field, bool no_conversions)
   ulonglong sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   res= save_in_field(field, no_conversions);
+
   thd->count_cuted_fields= tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   thd->variables.sql_mode= sql_mode;
@@ -2885,6 +2887,16 @@ bool Item_param::set_longdata(const char *str, ulong length)
     (here), and first have to concatenate all pieces together,
     write query to the binary log and only then perform conversion.
   */
+  if (str_value.length() + length > max_long_data_size)
+  {
+    my_message(ER_UNKNOWN_ERROR,
+               "Parameter of prepared statement which is set through "
+               "mysql_send_long_data() is longer than "
+               "'max_long_data_size' bytes",
+               MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (str_value.append(str, length, &my_charset_bin))
     DBUG_RETURN(TRUE);
   state= LONG_DATA_VALUE;
@@ -7489,16 +7501,43 @@ longlong Item_cache_int::val_int()
 bool  Item_cache_datetime::cache_value_int()
 {
   if (!example)
-    return FALSE;
+    return false;
 
-  value_cached= TRUE;
+  value_cached= true;
   // Mark cached string value obsolete
-  str_value_cached= FALSE;
-  /* Assume here that the underlying item will do correct conversion.*/
-  int_value= example->val_int_result();
+  str_value_cached= false;
+
+  MYSQL_TIME ltime;
+  const bool eval_error= 
+    (field_type() == MYSQL_TYPE_TIME) ?
+    example->get_time(&ltime) :
+    example->get_date(&ltime, TIME_FUZZY_DATE);
+
+  if (eval_error)
+    int_value= 0;
+  else
+  {
+    switch(field_type())
+    {
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      int_value= TIME_to_ulonglong_datetime(&ltime);
+      break;
+    case MYSQL_TYPE_TIME:
+      int_value= TIME_to_ulonglong_time(&ltime);
+      break;
+    default:
+      int_value= TIME_to_ulonglong_date(&ltime);
+      break;
+    }
+    if (ltime.neg)
+      int_value= -int_value;
+  }
+
   null_value= example->null_value;
   unsigned_flag= example->unsigned_flag;
-  return TRUE;
+
+  return true;
 }
 
 

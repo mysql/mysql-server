@@ -25,6 +25,8 @@ sys_vars.rpl_semi_sync_master_enabled_basic # Bug #59148 2011-01-10 joro 'INSTAL
 sys_vars.rpl_semi_sync_master_timeout_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
 sys_vars.rpl_semi_sync_master_trace_level_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
 sys_vars.rpl_semi_sync_master_wait_no_slave_basic # Bug #59148 2011-01-10 joro 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+rpl.rpl_semi_sync_event # Bug #59148 2011-02-02 svoj 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
+rpl.rpl_semi_sync # Bug #59148 2011-02-02 svoj 'INSTALL PLUGIN rpl_semi_sync_master' fails in release build with debug binaries
 
 # BUG #59055 : All ndb tests should be removed from the repository
 # Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests

@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ class Materialized_cursor: public Server_side_cursor
 public:
   Materialized_cursor(select_result *result, TABLE *table);
 
-  int fill_item_list(THD *thd, List<Item> &send_result_set_metadata);
+  int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
   virtual bool is_open() const { return table != 0; }
   virtual int open(JOIN *join __attribute__((unused)));
   virtual void fetch(ulong num_rows);
@@ -133,7 +133,13 @@ int mysql_open_cursor(THD *thd, select_result *result,
   if (rc)
   {
     if (result_materialize->materialized_cursor)
+    {
+      /* Rollback metadata in the client-server protocol. */
+      result_materialize->abort_result_set();
+
       delete result_materialize->materialized_cursor;
+    }
+
     goto end;
   }
 
@@ -141,6 +147,12 @@ int mysql_open_cursor(THD *thd, select_result *result,
   {
     Materialized_cursor *materialized_cursor=
       result_materialize->materialized_cursor;
+
+    /*
+      NOTE: close_thread_tables() has been called in
+      mysql_execute_command(), so all tables except from the cursor
+      temporary table have been closed.
+    */
 
     if ((rc= materialized_cursor->open(0)))
     {
@@ -202,14 +214,16 @@ Materialized_cursor::Materialized_cursor(select_result *result_arg,
 
 
 /**
-  Preserve the original metadata that would be sent to the client.
+  Preserve the original metadata to be sent to the client.
+  Initiate sending of the original metadata to the client
+  (call Protocol::send_result_set_metadata()).
 
   @param thd Thread identifier.
   @param send_result_set_metadata List of fields that would be sent.
 */
 
-int Materialized_cursor::fill_item_list(THD *thd,
-                                        List<Item> &send_result_set_metadata)
+int Materialized_cursor::send_result_set_metadata(
+  THD *thd, List<Item> &send_result_set_metadata)
 {
   Query_arena backup_arena;
   int rc;
@@ -241,6 +255,14 @@ int Materialized_cursor::fill_item_list(THD *thd,
     ident->db_name=    thd->strdup(send_field.db_name);
     ident->table_name= thd->strdup(send_field.table_name);
   }
+
+  /*
+    Original metadata result set should be sent here. After
+    mysql_execute_command() is finished, item_list can not be used for
+    sending metadata, because it references closed table.
+  */
+  rc= result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
+
 end:
   thd->restore_active_arena(this, &backup_arena);
   /* Check for thd->is_error() in case of OOM */
@@ -253,31 +275,29 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
   THD *thd= fake_unit.thd;
   int rc;
   Query_arena backup_arena;
+
   thd->set_n_backup_active_arena(this, &backup_arena);
-  /* Create a list of fields and start sequential scan */
+
+  /* Create a list of fields and start sequential scan. */
+
   rc= result->prepare(item_list, &fake_unit);
-  if (!rc && !(rc= table->file->ha_rnd_init(TRUE)))
-    is_rnd_inited= 1;
+  rc= !rc && table->file->ha_rnd_init(TRUE);
+  is_rnd_inited= !rc;
 
   thd->restore_active_arena(this, &backup_arena);
-  if (rc == 0)
-  {
-    /*
-      Now send the result set metadata to the client. We need to
-      do it here, as in Select_materialize::send_result_set_metadata the items
-      for column types are not yet created (send_result_set_metadata requires
-      a list of items). The new types may differ from the original
-      ones sent at prepare if some of them were altered by MySQL
-      HEAP tables mechanism -- used when create_tmp_field_from_item
-      may alter the original column type.
 
-      We can't simply supply SEND_EOF flag to send_result_set_metadata, because
-      send_result_set_metadata doesn't flush the network buffer.
-    */
-    rc= result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
+  /* Commit or rollback metadata in the client-server protocol. */
+
+  if (!rc)
+  {
     thd->server_status|= SERVER_STATUS_CURSOR_EXISTS;
     result->send_eof();
   }
+  else
+  {
+    result->abort_result_set();
+  }
+
   return rc;
 }
 
@@ -370,13 +390,14 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
   materialized_cursor= new (&table->mem_root)
                        Materialized_cursor(result, table);
 
-  if (! materialized_cursor)
+  if (!materialized_cursor)
   {
     free_tmp_table(table->in_use, table);
     table= 0;
     return TRUE;
   }
-  if (materialized_cursor->fill_item_list(unit->thd, list))
+
+  if (materialized_cursor->send_result_set_metadata(unit->thd, list))
   {
     delete materialized_cursor;
     table= 0;

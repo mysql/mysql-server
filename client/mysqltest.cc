@@ -8017,7 +8017,7 @@ void get_command_type(struct st_command* command)
 
   save= command->query[command->first_word_len];
   command->query[command->first_word_len]= 0;
-  type= find_type(command->query, &command_typelib, 1+2);
+  type= find_type(command->query, &command_typelib, FIND_TYPE_NO_PREFIX);
   command->query[command->first_word_len]= save;
   if (type > 0)
   {

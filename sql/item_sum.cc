@@ -1903,7 +1903,10 @@ double Item_sum_hybrid::val_real()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0.0;
-  return value->val_real();
+  double retval= value->val_real();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0.0);
+  return retval;
 }
 
 longlong Item_sum_hybrid::val_int()
@@ -1911,7 +1914,10 @@ longlong Item_sum_hybrid::val_int()
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_int();
+  longlong retval= value->val_int();
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == 0);
+  return retval;
 }
 
 
@@ -1920,7 +1926,10 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_decimal(val);
+  my_decimal *retval= value->val_decimal(val);
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == NULL);
+  return retval;
 }
 
 
@@ -1930,7 +1939,10 @@ Item_sum_hybrid::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (null_value)
     return 0;
-  return value->val_str(str);
+  String *retval= value->val_str(str);
+  if ((null_value= value->null_value))
+    DBUG_ASSERT(retval == NULL);
+  return retval;
 }
 
 
