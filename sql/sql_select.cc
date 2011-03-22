@@ -6389,21 +6389,31 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
 JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots)
 {
   if (include_bush_roots && tab->bush_children)
+  {
+    /* This JOIN_TAB is a SJM nest; Start from first table in nest */
     return tab->bush_children->start;
+  }
 
   DBUG_ASSERT(!tab->last_leaf_in_bush || tab->bush_root_tab);
-  if (tab->last_leaf_in_bush)
+
+  if (tab->bush_root_tab)       /* Are we inside an SJM nest */
+  {
+    /* Inside SJM nest */
+    if (!tab->last_leaf_in_bush)
+      return tab+1;              /* Return next in nest */
+    /* Continue from the sjm on the top level */
     tab= tab->bush_root_tab;
+  }
 
-  if (tab->bush_root_tab)
-    return ++tab;
-
+  /* If no more JOIN_TAB's on the top level */
   if (++tab == join->join_tab + join->top_jtrange_tables)
     return NULL;
 
   if (!include_bush_roots && tab->bush_children)
+  {
+    /* This JOIN_TAB is a SJM nest; Start from first table in nest */
     tab= tab->bush_children->start;
-
+  }
   return tab;
 }
 
