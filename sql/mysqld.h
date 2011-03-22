@@ -126,6 +126,7 @@ extern char *default_storage_engine;
 extern bool opt_endinfo, using_udf_functions;
 extern my_bool locked_in_memory;
 extern bool opt_using_transactions;
+extern ulong max_long_data_size;
 extern ulong current_pid;
 extern ulong expire_logs_days;
 extern my_bool relay_log_recovery;
@@ -397,7 +398,8 @@ enum options_mysqld
   OPT_UPDATE_LOG,
   OPT_WANT_CORE,
   OPT_ENGINE_CONDITION_PUSHDOWN,
-  OPT_LOG_ERROR
+  OPT_LOG_ERROR,
+  OPT_MAX_LONG_DATA_SIZE
 };
 
 

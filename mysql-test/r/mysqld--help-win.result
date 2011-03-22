@@ -308,6 +308,10 @@ The following options may be given as the first argument:
  max_join_size records return an error
  --max-length-for-sort-data=# 
  Max number of bytes in sorted records
+ --max-long-data-size=# 
+ The maximum BLOB length to send to server from
+ mysql_send_long_data API. Deprecated option; use
+ max_allowed_packet instead.
  --max-prepared-stmt-count=# 
  Maximum number of prepared statements in the server
  --max-relay-log-size=# 
@@ -833,6 +837,7 @@ max-error-count 64
 max-heap-table-size 16777216
 max-join-size 18446744073709551615
 max-length-for-sort-data 1024
+max-long-data-size 1048576
 max-prepared-stmt-count 16382
 max-relay-log-size 0
 max-seeks-for-key 18446744073709551615
