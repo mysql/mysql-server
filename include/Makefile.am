@@ -33,7 +33,7 @@ noinst_HEADERS =	config-win.h config-netware.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
 			my_aes.h my_tree.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
-			mysql_version.h.in my_handler.h my_time.h \
+			mysql_version.h.in my_compare.h my_time.h \
 			my_user.h my_libwrap.h
 
 # Remove built files and the symlinked directories
