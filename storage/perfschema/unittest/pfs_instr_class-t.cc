@@ -670,7 +670,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(146);
+  plan(181);
   MY_INIT("pfs_instr_info-t");
   do_all_tests();
   return 0;

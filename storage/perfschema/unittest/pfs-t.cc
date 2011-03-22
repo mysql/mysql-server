@@ -1584,7 +1584,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(179);
+  plan(213);
   MY_INIT("pfs-t");
   do_all_tests();
   return 0;

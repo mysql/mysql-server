@@ -59,7 +59,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(6);
+  plan(7);
   MY_INIT("pfs_instr_info-oom-t");
   do_all_tests();
   return 0;
