@@ -2169,7 +2169,13 @@ enum_nested_loop_state JOIN_CACHE::join_matching_records(bool skip_last)
 
   /* Prepare to retrieve all records of the joined table */
   if ((error= join_tab_scan->open()))
-    goto finish; /* psergey-note: if this returns error, we will assert in net_send_statement() */
+  { 
+    /* 
+      TODO: if we get here, we will assert in net_send_statement(). Add test
+      coverage and fix.
+    */
+    goto finish;
+  }
   
   while (!(error= join_tab_scan->next()))   
   {

@@ -7245,76 +7245,69 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
     This function can be called only after the execution plan
     has been chosen.
 */
+
 static void
 make_outerjoin_info(JOIN *join)
 {
   DBUG_ENTER("make_outerjoin_info");
-  bool top= TRUE;
-  List_iterator<JOIN_TAB_RANGE> it(join->join_tab_ranges);
-  JOIN_TAB_RANGE *jt_range;
-
-  while ((jt_range= it++))
+  for (JOIN_TAB *tab= first_linear_tab(join, TRUE); tab; 
+       tab= next_linear_tab(join, tab, FALSE))
   {
-    for (JOIN_TAB *tab=jt_range->start + (top ? join->const_tables : 0);
-         tab != jt_range->end; tab++)
-    {
-      TABLE *table=tab->table;
-      /* 
-        psergey: The following is probably incorrect, fix it when we get 
-        semi+outer joins processing to work: 
-      */
-      if (!table)
-        continue;
-      TABLE_LIST *tbl= table->pos_in_table_list;
-      TABLE_LIST *embedding= tbl->embedding;
+    TABLE *table=tab->table;
+    /* 
+      psergey: The following is probably incorrect, fix it when we get 
+      semi+outer joins processing to work: 
+    */
+    if (!table)
+      continue;
+    TABLE_LIST *tbl= table->pos_in_table_list;
+    TABLE_LIST *embedding= tbl->embedding;
 
-      if (tbl->outer_join)
+    if (tbl->outer_join)
+    {
+      /* 
+        Table tab is the only one inner table for outer join.
+        (Like table t4 for the table reference t3 LEFT JOIN t4 ON t3.a=t4.a
+        is in the query above.)
+      */
+      tab->last_inner= tab->first_inner= tab;
+      tab->on_expr_ref= &tbl->on_expr;
+      tab->cond_equal= tbl->cond_equal;
+      if (embedding)
+        tab->first_upper= embedding->nested_join->first_nested;
+    }    
+    for ( ; embedding ; embedding= embedding->embedding)
+    {
+      /* Ignore sj-nests: */
+      if (!embedding->on_expr)
+        continue;
+      NESTED_JOIN *nested_join= embedding->nested_join;
+      if (!nested_join->counter)
       {
         /* 
-          Table tab is the only one inner table for outer join.
-          (Like table t4 for the table reference t3 LEFT JOIN t4 ON t3.a=t4.a
-          is in the query above.)
-        */
-        tab->last_inner= tab->first_inner= tab;
-        tab->on_expr_ref= &tbl->on_expr;
+          Table tab is the first inner table for nested_join.
+          Save reference to it in the nested join structure.
+        */ 
+        nested_join->first_nested= tab;
+        tab->on_expr_ref= &embedding->on_expr;
         tab->cond_equal= tbl->cond_equal;
-        if (embedding)
-          tab->first_upper= embedding->nested_join->first_nested;
-      }    
-      for ( ; embedding ; embedding= embedding->embedding)
-      {
-        /* Ignore sj-nests: */
-        if (!embedding->on_expr)
-          continue;
-        NESTED_JOIN *nested_join= embedding->nested_join;
-        if (!nested_join->counter)
-        {
-          /* 
-            Table tab is the first inner table for nested_join.
-            Save reference to it in the nested join structure.
-          */ 
-          nested_join->first_nested= tab;
-          tab->on_expr_ref= &embedding->on_expr;
-          tab->cond_equal= tbl->cond_equal;
-          if (embedding->embedding)
-            tab->first_upper= embedding->embedding->nested_join->first_nested;
-        }
-        if (!tab->first_inner)  
-          tab->first_inner= nested_join->first_nested;
-        if (tab->table->reginfo.not_exists_optimize)
-          tab->first_inner->table->reginfo.not_exists_optimize= 1;         
-        if (++nested_join->counter < nested_join->n_tables)
-          break;
-        /* Table tab is the last inner table for nested join. */
-        nested_join->first_nested->last_inner= tab;
-        if (tab->first_inner->table->reginfo.not_exists_optimize)
-        {
-          for (JOIN_TAB *join_tab= tab->first_inner; join_tab <= tab; join_tab++)
-            join_tab->table->reginfo.not_exists_optimize= 1;
-        } 
+        if (embedding->embedding)
+          tab->first_upper= embedding->embedding->nested_join->first_nested;
       }
+      if (!tab->first_inner)  
+        tab->first_inner= nested_join->first_nested;
+      if (tab->table->reginfo.not_exists_optimize)
+        tab->first_inner->table->reginfo.not_exists_optimize= 1;         
+      if (++nested_join->counter < nested_join->n_tables)
+        break;
+      /* Table tab is the last inner table for nested join. */
+      nested_join->first_nested->last_inner= tab;
+      if (tab->first_inner->table->reginfo.not_exists_optimize)
+      {
+        for (JOIN_TAB *join_tab= tab->first_inner; join_tab <= tab; join_tab++)
+          join_tab->table->reginfo.not_exists_optimize= 1;
+      } 
     }
-    top= FALSE;
   }
   DBUG_VOID_RETURN;
 }
