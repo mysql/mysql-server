@@ -30,6 +30,16 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 
+let $old_max_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_cache_size", Value, 1);
+let $old_binlog_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_cache_size", Value, 1);
+
+SET GLOBAL max_binlog_cache_size = 4096;
+# Becuase of bug#55377, we have to set binlog_cache_size until the bug is
+# fixed.
+SET GLOBAL binlog_cache_size = 4096;
+disconnect master;
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
 CREATE TABLE t1(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
 CREATE TABLE t2(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=MyIsam;
 CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb;
@@ -57,24 +67,22 @@ if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
   eval INSERT INTO t2 (a, data) VALUES (2,
        CONCAT($data, $data, $data, $data, $data, $data));
+  # Below code fakes the result of 'ROW' mode.
   --echo Got one of the listed errors
+  --echo --source include/wait_for_slave_sql_error_and_skip.inc
+  --echo include/start_slave.inc
 }
 if (`SELECT @@binlog_format = 'ROW'`)
 {
   --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
   eval INSERT INTO t2 (a, data) VALUES (2,
        CONCAT($data, $data, $data, $data, $data, $data));
-
-  connection slave;
-  --source include/wait_for_slave_sql_to_stop.inc
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-  START SLAVE SQL_THREAD;
-  --source include/wait_for_slave_sql_to_start.inc
+  # Incident event
+  --let $slave_sql_errno=1590
+  --source include/wait_for_slave_sql_error_and_skip.inc
 }
 --enable_warnings
 --enable_query_log
-
-connection master;
 
 --disable_query_log
 eval INSERT INTO t1 (a, data) VALUES (3, $data);
@@ -93,11 +101,9 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
 
-connection slave;
---source include/wait_for_slave_sql_to_stop.inc
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
---source include/wait_for_slave_sql_to_start.inc
+# Incident event
+--let $slave_sql_errno=1590
+--source include/wait_for_slave_sql_error_and_skip.inc
 
 #--echo ########################################################################################
 #--echo #                             2 - BEGIN - IMPLICIT COMMIT by DDL
@@ -368,8 +374,70 @@ BEGIN;
 --enable_query_log
 COMMIT;
 
+# Incident event
+--let $slave_sql_errno=1590
+--source include/wait_for_slave_sql_error_and_skip.inc
+
+sync_slave_with_master;
+
+--echo ########################################################################
+--echo #      8 - Bug#55375(Regression Bug) Transaction bigger than
+--echo #          max_binlog_cache_size crashes slave
+--echo ########################################################################
+
+SET GLOBAL max_binlog_cache_size = 4096;
+SET GLOBAL binlog_cache_size = 4096;
+
+source include/stop_slave.inc;
+source include/start_slave.inc;
+CALL mtr.add_suppression("Multi-statement transaction required more than 'max_binlog_cache_size' bytes of storage.*");
+CALL mtr.add_suppression("Writing one row to the row-based binary log failed.*");
+
+connection master;
+TRUNCATE t1;
+
+sync_slave_with_master;
+--let binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+connection master;
+--replace_result $old_max_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size
+--replace_result $old_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_cache_size= $old_binlog_cache_size
+disconnect master;
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+
+--let $n=128
+BEGIN;
+--disable_query_log
+--echo Repeat statement 'INSERT INTO t1 VALUES(\$n, repeat("a", 32))' $n times
+while ($n)
+{
+  --eval INSERT INTO t1 VALUES ($n, repeat("a", 32))
+  --dec $n
+}
+--enable_query_log
+COMMIT;
+
 connection slave;
---source include/wait_for_slave_sql_to_stop.inc
+--let $slave_sql_errno= 1197
+source include/wait_for_slave_sql_error.inc;
+
+SELECT count(*) FROM t1;
+source include/show_binlog_events.inc;
+
+--replace_result $old_max_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_cache_size= $old_max_binlog_cache_size
+--replace_result $old_binlog_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_cache_size= $old_binlog_cache_size
+
+source include/stop_slave.inc;
+source include/start_slave.inc;
+
+connection master;
+sync_slave_with_master;
+SELECT count(*) FROM t1;
 
 --echo ########################################################################################
 --echo #                                        CLEAN
@@ -384,12 +452,5 @@ DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
 DROP PROCEDURE p1;
-connection slave;
-DROP TABLE t1;
-DROP TABLE t2;
-DROP TABLE t3;
-DROP TABLE IF EXISTS t4;
-DROP TABLE IF EXISTS t5;
-DROP TABLE IF EXISTS t6;
-DROP PROCEDURE p1;
 --enable_warnings
+source include/master-slave-end.inc;

@@ -24,7 +24,7 @@ connection master;
 # MTR is not case-sensitive.
 let $lower_stmt_head= load data;
 let $UPPER_STMT_HEAD= LOAD DATA;
-if (`SELECT '$lock_option' <> ''`)
+if ($lock_option)
 {
   #if $lock_option is null, an extra blank is added into the statement,
   #this will change the result of rpl_loaddata test case. so $lock_option

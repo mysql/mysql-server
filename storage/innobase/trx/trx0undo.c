@@ -1012,13 +1012,10 @@ trx_undo_truncate_end(
 	ulint		last_page_no;
 	trx_undo_rec_t* rec;
 	trx_undo_rec_t* trunc_here;
-	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(mutex_own(&(trx->rseg->mutex)));
-
-	rseg = trx->rseg;
 
 	for (;;) {
 		mtr_start(&mtr);
@@ -1755,21 +1752,11 @@ trx_undo_set_state_at_finish(
 
 	if (undo->size == 1
 	    && mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE)
-	       < TRX_UNDO_PAGE_REUSE_LIMIT) {
+	       < TRX_UNDO_PAGE_REUSE_LIMIT
+	    && UT_LIST_GET_LEN(rseg->update_undo_list) < 500
+	    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
 
-		/* This is a heuristic to avoid the problem of all UNDO
-		slots ending up in one of the UNDO lists. Previously if
-		the server crashed with all the slots in one of the lists,
-		transactions that required the slots of a different type
-		would fail for lack of slots. */
-
-		if (UT_LIST_GET_LEN(rseg->update_undo_list) < 500
-		    && UT_LIST_GET_LEN(rseg->insert_undo_list) < 500) {
-
-			state = TRX_UNDO_CACHED;
-		} else {
-			state = TRX_UNDO_TO_FREE;
-		}
+		state = TRX_UNDO_CACHED;
 
 	} else if (undo->type == TRX_UNDO_INSERT) {
 
@@ -1798,7 +1785,6 @@ trx_undo_set_state_at_prepare(
 	mtr_t*		mtr)	/* in: mtr */
 {
 	trx_usegf_t*	seg_hdr;
-	trx_upagef_t*	page_hdr;
 	trx_ulogf_t*	undo_header;
 	page_t*		undo_page;
 	ulint		offset;
@@ -1815,7 +1801,6 @@ trx_undo_set_state_at_prepare(
 	undo_page = trx_undo_page_get(undo->space, undo->hdr_page_no, mtr);
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
 
 	/*------------------------------*/
 	undo->state = TRX_UNDO_PREPARED;
