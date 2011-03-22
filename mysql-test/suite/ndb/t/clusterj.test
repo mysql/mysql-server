@@ -43,6 +43,7 @@ DROP TABLE dn2id;
 DROP TABLE doubletypes;
 DROP TABLE floattypes;
 DROP TABLE longintstringfk;
+DROP TABLE longintstringix;
 DROP TABLE longintstringpk;
 DROP TABLE longlongstringfk;
 DROP TABLE longlongstringpk;

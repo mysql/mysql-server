@@ -69,11 +69,19 @@ create table longintstringix (
         failOnError();        
     }
 
-    public void testGreaterThanAndEqual() {
+    public void testPartialBoundsAndEqual() {
         greaterThanAnd1ExtraQuery("longix", 0, "intix", extraEqualPredicateProvider, 0, "idx_long_int_string", 9);
         greaterEqualAnd1ExtraQuery("longix", 0, "intix", extraEqualPredicateProvider, 0, "idx_long_int_string", 0, 1, 2, 9);
         lessThanAnd1ExtraQuery("longix", 1000000000000000L, "intix", extraEqualPredicateProvider, 0, "idx_long_int_string", 0, 1, 2);
         lessEqualAnd1ExtraQuery("longix", 1000000000000000L, "intix", extraEqualPredicateProvider, 0, "idx_long_int_string", 0, 1, 2, 9);
+        failOnError();        
+    }
+
+    public void testGapBoundsAndEqual() {
+        greaterThanAnd1ExtraQuery("longix", 0, "stringix", extraEqualPredicateProvider, "0", "idx_long_int_string", 9);
+        greaterEqualAnd1ExtraQuery("longix", 0, "stringix", extraEqualPredicateProvider, "0", "idx_long_int_string", 0, 3, 6, 9);
+        lessThanAnd1ExtraQuery("longix", 1000000000000000L, "stringix", extraEqualPredicateProvider, "0", "idx_long_int_string", 0, 3, 6);
+        lessEqualAnd1ExtraQuery("longix", 1000000000000000L, "stringix", extraEqualPredicateProvider, "0", "idx_long_int_string", 0, 3, 6, 9);
         failOnError();        
     }
 
