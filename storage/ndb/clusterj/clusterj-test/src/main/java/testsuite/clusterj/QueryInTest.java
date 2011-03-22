@@ -107,7 +107,7 @@ public class QueryInTest extends AbstractQueryTest {
     public void testInAndIn() {
         inAndInQuery("int_not_null_none", new Object[] {4, 6, 9}, "id", new Object[] {4, 9}, "PRIMARY", 4, 9);
         inAndInQuery("int_not_null_hash", new Object[] {4, 9}, "int_not_null_both", new Object[] {6, 9}, "idx_int_not_null_both", 9);
-        inAndInQuery("int_not_null_both", new Object[] {4, 9}, "int_not_null_btree", Arrays.asList(new Object[] {6, 9}), "idx_int_not_null_both", 9);
+//        inAndInQuery("int_not_null_both", new Object[] {4, 9}, "int_not_null_btree", Arrays.asList(new Object[] {6, 9}), "idx_int_not_null_both", 9);
         inAndInQuery("int_not_null_hash", new Object[] {4, 9}, "int_not_null_btree", new Object[] {6, 9}, "idx_int_not_null_btree", 9);
         failOnError();        
     }
