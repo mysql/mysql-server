@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.query;
 
+import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.metadata.AbstractDomainFieldHandlerImpl;
 
 import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
@@ -28,11 +29,21 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This class is responsible for deciding whether an index can be used
  * for a specific query. An instance of this class is created to evaluate
  * a query and to decide whether the index can be used in executing the
  * query. An inner class represents each candidateColumn in the index.
+ * 
+ * An instance of this class is created for each index for each query, and an instance of
+ * the candidate column for each column of the index. During execution of the query,
+ * the query terms are used to mark the candidate columns and associate candidate columns
+ * with each query term. Each query term might be associated with multiple candidate columns,
+ * one for each index containing the column referenced by the query term.
+ * 
  */
 public class CandidateIndexImpl {
 
@@ -47,6 +58,7 @@ public class CandidateIndexImpl {
     private Index storeIndex;
     private String indexName = "none";
     private boolean unique;
+    private boolean multiRange = false;
     private CandidateColumnImpl[] candidateColumns = null;
     private ScanType scanType = PredicateImpl.ScanType.TABLE_SCAN;
     private int fieldScore = 1;
@@ -137,6 +149,12 @@ public class CandidateIndexImpl {
         }
     }
 
+    public void markInBound(int fieldNumber, InPredicateImpl predicate) {
+        if (candidateColumns != null) {
+            candidateColumns[fieldNumber].markInBound(predicate);
+        }
+    }
+
     String getIndexName() {
         return indexName;
     }
@@ -144,7 +162,20 @@ public class CandidateIndexImpl {
     CandidateColumnImpl lastLowerBoundColumn = null;
     CandidateColumnImpl lastUpperBoundColumn = null;
 
-    int getScore() {
+    /** Evaluate the suitability of this index for the query. An instance represents each
+     * index, with primary key and non-hash-key indexes having two instances, one for the
+     * unique index and one for the btree index for the same column(s).
+     * Unique indexes where all of the columns are compared equal return a score of 100.
+     * Btree indexes get one point for each query term that can be used (maximum of two
+     * points for each comparison). Greater than and less than get one point each.
+     * Equals and In get two points each. Once a gap is found in query terms for either
+     * upper or lower bound, processing for that bound stops.
+     * The last query term (candidate column) for each of the lower and upper bound is noted.
+     * The method is synchronized because the method modifies the state of the instance,
+     * which might be shared by multiple threads.
+     * @return the score of this index.
+     */
+    synchronized int getScore() {
         if (candidateColumns == null) {
             return 0;
         }
@@ -180,10 +211,19 @@ public class CandidateIndexImpl {
                         result += fieldScore;
                         lastUpperBoundColumn = candidateColumn;
                     }
+                } else if ((candidateColumn.inBound)) {
+                    scanType = PredicateImpl.ScanType.INDEX_SCAN;
+                    multiRange = true;
+                    if (!lowerBoundDone) {
+                        result += fieldScore;
+                        lastLowerBoundColumn = candidateColumn;
+                    }
+                    if (!upperBoundDone) {
+                        result += fieldScore;
+                        lastUpperBoundColumn = candidateColumn;
+                    }
                 } else if (!(lowerBoundDone && upperBoundDone)) {
                     // lower bound and upper bound are independent
-                    // boolean hasLowerBound = candidateColumn.lowerBoundStrict != null && candidateColumn.lowerBoundStrict;
-                    // boolean hasUpperBound = candidateColumn.upperBoundStrict != null && candidateColumn.upperBoundStrict;
                     boolean hasLowerBound = candidateColumn.hasLowerBound();
                     boolean hasUpperBound = candidateColumn.hasUpperBound();
                     // keep going until both upper and lower are done
@@ -205,17 +245,17 @@ public class CandidateIndexImpl {
                         } else {
                             upperBoundDone = true;
                         }
-                    } else {
-                        // no more bounds; return what we have
-                        if (lastLowerBoundColumn != null) {
-                            lastLowerBoundColumn.markLastColumn();
-                        }
-                        if (lastUpperBoundColumn != null) {
-                            lastUpperBoundColumn.markLastColumn();
-                        }
-                        return result;
+                    } 
+                    if (lowerBoundDone && upperBoundDone) {
+                        continue;
                     }
                 }
+            }
+            if (lastLowerBoundColumn != null) {
+                lastLowerBoundColumn.markLastLowerBoundColumn();
+            }
+            if (lastUpperBoundColumn != null) {
+                lastUpperBoundColumn.markLastUpperBoundColumn();
             }
         }
         return result;
@@ -225,11 +265,71 @@ public class CandidateIndexImpl {
         return scanType;
     }
 
-    void operationSetBounds(QueryExecutionContextImpl context,
-            IndexScanOperation op) {
-        for (CandidateColumnImpl candidateColumn:candidateColumns) {
-            // execute the bounds operation
-            candidateColumn.operationSetBounds(context, op);
+    /* No bound is complete yet */
+    private final int BOUND_STATUS_NO_BOUND_DONE = 0;
+    /* The lower bound is complete */
+    private final int BOUND_STATUS_LOWER_BOUND_DONE = 1;
+    /* The upper bound is complete */
+    private final int BOUND_STATUS_UPPER_BOUND_DONE = 2;
+    /* Both bounds are complete */
+    private final int BOUND_STATUS_BOTH_BOUNDS_DONE = 3;
+
+    /** Set bounds for the operation defined for this index. This index was chosen as
+     * the best index to use for the query.
+     * Each query term (candidate column) is used to set a bound. The bound depends on
+     * the type of query term, whether the term is the last term, and whether the
+     * bound type (upper or lower) has already been completely specified.
+     * Equal and In query terms can be used for an equal bound, a lower bound, or an upper
+     * bound. Strict bounds that are not the last bound are converted to non-strict bounds.
+     * In query terms are decomposed into multiple range bounds, one range for each
+     * value in the query term.
+     * @param context the query execution context, containing the parameter values
+     * @param op the index scan operation
+     */
+    void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op) {
+        if (multiRange) {
+            // find how many query terms are inPredicates
+            List<Integer> parameterSizes = new ArrayList<Integer>();
+            for (CandidateColumnImpl candidateColumn:candidateColumns) {
+                if (candidateColumn.hasInBound()) {
+                    parameterSizes.add(candidateColumn.getParameterSize(context));
+                }
+            }
+            if (parameterSizes.size() > 1) {
+                throw new ClusterJUserException(local.message("ERR_Too_Many_In_For_Index", indexName));
+            }
+            // if only one column in the index, optimize
+            if (candidateColumns.length == 1) {
+                candidateColumns[0].operationSetAllBounds(context, op);
+            } else {
+                // set multiple bounds; one for each item in the parameter (context)
+                for (int parameterIndex = 0; parameterIndex < parameterSizes.get(0); ++parameterIndex) {
+                    int boundStatus = BOUND_STATUS_NO_BOUND_DONE;
+                    for (CandidateColumnImpl candidateColumn:candidateColumns) {
+                        if (logger.isDetailEnabled()) logger.detail(
+                                "parameterIndex: " + parameterIndex 
+                                + " boundStatus: " + boundStatus
+                                + " candidateColumn: " + candidateColumn.domainFieldHandler.getName());
+                        // execute the bounds operation if anything left to do
+                        if (boundStatus != BOUND_STATUS_BOTH_BOUNDS_DONE) {
+                            boundStatus = candidateColumn.operationSetBounds(context, op, parameterIndex, boundStatus);
+                        }
+                    }
+                    // after all columns are done, mark the end of bounds
+                    op.endBound(parameterIndex);
+                }
+            }
+        } else {
+            // not multi-range
+            int boundStatus = BOUND_STATUS_NO_BOUND_DONE;
+            for (CandidateColumnImpl candidateColumn:candidateColumns) {
+                if (logger.isDetailEnabled()) logger.detail("boundStatus: " + boundStatus
+                        + " candidateColumn: " + candidateColumn.domainFieldHandler.getName());
+                // execute the bounds operation for each query term
+                if (boundStatus != BOUND_STATUS_BOTH_BOUNDS_DONE) {
+                    boundStatus = candidateColumn.operationSetBounds(context, op, -1, boundStatus);
+                }
+            }
         }
     }
 
@@ -241,31 +341,61 @@ public class CandidateIndexImpl {
         }
     }
 
+    /** 
+     * This class represents one column in an index, and its corresponding query term(s).
+     * The column might be associated with a lower bound term, an upper bound term,
+     * an equal term, or an in term. 
+     */
     class CandidateColumnImpl {
 
         protected AbstractDomainFieldHandlerImpl domainFieldHandler;
         protected PredicateImpl lowerBoundPredicate;
         protected PredicateImpl upperBoundPredicate;
         protected PredicateImpl equalPredicate;
+        protected InPredicateImpl inPredicate;
         protected Boolean lowerBoundStrict = null;
         protected Boolean upperBoundStrict = null;
         protected boolean equalBound = false;
-        protected boolean lastColumn = false;
+        protected boolean inBound = false;
+        protected boolean lastLowerBoundColumn = false;
+        protected boolean lastUpperBoundColumn = false;
 
         protected boolean hasLowerBound() {
-            return lowerBoundPredicate != null;
+            return lowerBoundPredicate != null || equalPredicate != null || inPredicate != null;
+        }
+
+        /** Set all bounds in the operation, ending each bound with an end_of_bound.
+         * 
+         * @param context the query context
+         * @param op the operation
+         */
+        public void operationSetAllBounds(QueryExecutionContextImpl context, IndexScanOperation op) {
+            inPredicate.operationSetAllBounds(context, op);
+        }
+
+        public int getParameterSize(QueryExecutionContextImpl context) {
+            // TODO Auto-generated method stub
+            return inPredicate.getParameterSize(context);
         }
 
         protected boolean hasUpperBound() {
-            return upperBoundPredicate != null;
+            return upperBoundPredicate != null || equalPredicate != null || inPredicate != null;
+        }
+
+        protected boolean hasInBound() {
+            return inBound;
         }
 
         private CandidateColumnImpl(AbstractDomainFieldHandlerImpl domainFieldHandler) {
             this.domainFieldHandler = domainFieldHandler;
         }
 
-        private void markLastColumn() {
-            lastColumn = true;
+        private void markLastLowerBoundColumn() {
+            lastLowerBoundColumn = true;
+        }
+
+        private void markLastUpperBoundColumn() {
+            lastUpperBoundColumn = true;
         }
 
         private void markLowerBound(PredicateImpl predicate, boolean strict) {
@@ -283,39 +413,83 @@ public class CandidateIndexImpl {
             this.equalPredicate = predicate;
         }
 
-        /** Set bounds into each predicate that has been defined.
-         *
-         * @param op
-         */
-        private void operationSetBounds(QueryExecutionContextImpl context,
-                IndexScanOperation op) {
-            if (lowerBoundPredicate != null) {
-                lowerBoundPredicate.operationSetLowerBound(context, op);
-            }
-            if (upperBoundPredicate != null) {
-                upperBoundPredicate.operationSetUpperBound(context, op);
-            }
-            if (equalPredicate != null) {
-                equalPredicate.operationSetBounds(context, op);
-            }
+        public void markInBound(InPredicateImpl predicate) {
+            inBound = true;
+            this.inPredicate = predicate;
         }
 
-        private void operationSetKeys(QueryExecutionContextImpl context,
-                Operation op) {
+        /** Set bounds into each predicate that has been defined.
+         *
+         * @param op the operation
+         * @param index for inPredicates, the index into the parameter
+         * @param boundStatus 
+         */
+        private int operationSetBounds(
+                QueryExecutionContextImpl context, IndexScanOperation op, int index, int boundStatus) {
+
+            if (logger.isDetailEnabled()) logger.detail("column: " + domainFieldHandler.getName() 
+                    + " boundStatus: " + boundStatus
+                    + " lastLowerBoundColumn: " + lastLowerBoundColumn
+                    + " lastUpperBoundColumn: " + lastUpperBoundColumn);
+            switch(boundStatus) {
+                case BOUND_STATUS_BOTH_BOUNDS_DONE:
+                    // cannot set either lower or upper bound
+                    return BOUND_STATUS_BOTH_BOUNDS_DONE;
+                case BOUND_STATUS_NO_BOUND_DONE:
+                    // can set either/both lower or upper bound
+                    if (equalPredicate != null) {
+                        equalPredicate.operationSetBounds(context, op, true);
+                    }
+                    if (inPredicate != null) {
+                        inPredicate.operationSetBound(context, op, index, true);
+                    }
+                    if (lowerBoundPredicate != null) {
+                        lowerBoundPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
+                    }
+                    if (upperBoundPredicate != null) {
+                        upperBoundPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
+                    }
+                    break;
+                case BOUND_STATUS_LOWER_BOUND_DONE:
+                    // cannot set lower, only upper bound
+                    if (equalPredicate != null) {
+                        equalPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
+                    }
+                    if (inPredicate != null) {
+                        inPredicate.operationSetUpperBound(context, op, index);
+                    }
+                    if (upperBoundPredicate != null) {
+                        upperBoundPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
+                    }
+                    break;
+                case BOUND_STATUS_UPPER_BOUND_DONE:
+                    // cannot set upper, only lower bound
+                    if (equalPredicate != null) {
+                        equalPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
+                    }
+                    if (inPredicate != null) {
+                        inPredicate.operationSetLowerBound(context, op, index);
+                    }
+                    if (lowerBoundPredicate != null) {
+                        lowerBoundPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
+                    }
+                    break;
+            }
+            if (!hasLowerBound()) {
+                // if this has no lower bound, set lower bound done
+                boundStatus |= BOUND_STATUS_LOWER_BOUND_DONE;
+            }
+            if (!hasUpperBound()) {
+                // if this has no upper bound, set upper bound done
+                boundStatus |= BOUND_STATUS_UPPER_BOUND_DONE;
+            }
+            return boundStatus;
+        }
+
+        private void operationSetKeys(QueryExecutionContextImpl context, Operation op) {
             equalPredicate.operationEqual(context, op);
         }
 
-        private void setBound(QueryExecutionContextImpl context,
-                PredicateImpl predicate, IndexScanOperation op) {
-            if (predicate != null) {
-                predicate.operationSetBounds(context, op);
-            }
-            // set satisfied if bound is completely satisfied
-        }
-
-        private void setSatisfied() {
-            throw new UnsupportedOperationException("Not yet implemented");
-        }
     }
 
     /** Determine whether this index supports exactly the number of conditions.
@@ -334,6 +508,10 @@ public class CandidateIndexImpl {
 
     public Index getStoreIndex() {
         return storeIndex;
+    }
+
+    public boolean isMultiRange() {
+        return multiRange;
     }
 
 }

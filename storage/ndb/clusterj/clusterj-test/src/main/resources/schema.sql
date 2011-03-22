@@ -710,6 +710,17 @@ create table datetimetypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists longintstringix;
+create table longintstringix (
+ id int(11) not null,
+ longix bigint(20) not null,
+ stringix varchar(10) not null,
+ intix int(11) not null,
+ stringvalue varchar(10) default null,
+ PRIMARY KEY (id),
+ KEY idx_long_int_string (longix, intix, stringix)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 create database if not exists test2;
 use test2;
 drop table if exists t_basic2;

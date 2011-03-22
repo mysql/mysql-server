@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 package com.mysql.clusterj.core.spi;
 
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
+import com.mysql.clusterj.core.query.InPredicateImpl;
 import com.mysql.clusterj.core.query.PredicateImpl;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.IndexScanOperation.BoundType;
@@ -35,6 +36,8 @@ public interface DomainFieldHandler {
     void filterCompareValue(Object value, BinaryCondition condition, ScanFilter filter);
 
     void markEqualBounds(CandidateIndexImpl[] candidateIndices, PredicateImpl predicate);
+
+    void markInBounds(CandidateIndexImpl[] candidateIndices, InPredicateImpl predicate);
 
     void markLowerBounds(CandidateIndexImpl[] candidateIndices, PredicateImpl predicate, boolean strict);
 

@@ -54,6 +54,8 @@ public interface ClusterTransaction {
 
     public IndexScanOperation getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(Index storeIndex, Table storeTable);
 
+    public IndexScanOperation getIndexScanOperationMultiRange(Index storeIndex, Table storeTable);
+
     public ScanOperation getTableScanOperation(Table storeTable);
 
     public ScanOperation getTableScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable);

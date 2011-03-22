@@ -84,6 +84,8 @@ public interface SessionSPI extends Session {
 
     IndexScanOperation getIndexScanDeleteOperation(Index storeIndex, Table storeTable);
 
+    IndexScanOperation getIndexScanOperationMultiRange(Index storeIndex, Table storeTable);
+
     ScanOperation getTableScanOperation(Table storeTable);
 
     ScanOperation getTableScanDeleteOperation(Table storeTable);

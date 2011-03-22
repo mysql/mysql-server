@@ -89,6 +89,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/QueryFloatTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryHashIndexScanTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryInTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryMultiColumnIndexInTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNotNullTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNotTest.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryNullTest.java \
@@ -149,6 +150,7 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/HashOnlyLongIntStringPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/IdBase.java \
   $(clusterj_test_src)/testsuite/clusterj/model/IndexesRUs.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/LongIntStringIndex.java \
   $(clusterj_test_src)/testsuite/clusterj/model/LongIntStringPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/LongLongStringPK.java \
   $(clusterj_test_src)/testsuite/clusterj/model/LongvarbinaryPK.java \

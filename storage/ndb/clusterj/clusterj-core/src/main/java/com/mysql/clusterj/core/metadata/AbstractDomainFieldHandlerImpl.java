@@ -24,6 +24,7 @@ import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
+import com.mysql.clusterj.core.query.InPredicateImpl;
 import com.mysql.clusterj.core.query.PredicateImpl;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.store.Blob;
@@ -222,6 +223,12 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     public void markEqualBounds(CandidateIndexImpl[] candidateIndexImpls, PredicateImpl predicate) {
         for (int[] indexBounds : indices) {
             candidateIndexImpls[indexBounds[0]].markEqualBound(indexBounds[1], predicate);
+        }
+    }
+
+    public void markInBounds(CandidateIndexImpl[] candidateIndexImpls, InPredicateImpl predicate) {
+        for (int[] indexBounds : indices) {
+            candidateIndexImpls[indexBounds[0]].markInBound(indexBounds[1], predicate);
         }
     }
 

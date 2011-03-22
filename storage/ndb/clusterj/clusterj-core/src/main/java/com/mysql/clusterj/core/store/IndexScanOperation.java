@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,5 +46,7 @@ public interface IndexScanOperation extends ScanOperation {
     public void setBoundLong(Column storeColumn, BoundType type, long longValue);
 
     public void setBoundString(Column storeColumn, BoundType type, String string);
+
+    public void endBound(int rangeNumber);
 
 }
