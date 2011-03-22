@@ -34,8 +34,8 @@ INSERT INTO bug_53756 VALUES(1, 11), (2, 22), (3, 33), (4, 44);
 --echo
 --echo # Select a less restrictive isolation level.
 # Don't use user variables. They won't survive server crash.
---let $global_isolation= `SELECT @@global.tx_isolation`;
---let $session_isolation= `SELECT @@session.tx_isolation`;
+--let $global_isolation= `SELECT @@global.tx_isolation`
+--let $session_isolation= `SELECT @@session.tx_isolation`
 SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 COMMIT;
