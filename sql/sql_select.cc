@@ -6378,12 +6378,28 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
   A helper function to loop over all join's join_tab in sequential fashion
 
   DESCRIPTION
-    Depending on include_bush_roots parameter, JOIN_TABS that represent
-    SJM-scan/lookups are produced or omitted.
+    Depending on include_bush_roots parameter, JOIN_TABs that represent
+    SJM-scan/lookups are either returned or omitted.
 
     SJM-Bush children are returned right after (or in place of) their container
     join tab (TODO: does anybody depend on this? A: make_join_readinfo() seems
-    to.)
+    to)
+
+    For example, if we have this structure:
+      
+       ot1--ot2--sjm1----------------ot3-...
+                  |
+                  +--it1--it2--it3
+
+    calls to next_linear_tab( include_bush_roots=TRUE) will return:
+      
+      ot1 ot2 sjm1 it1 it2 it3 ot3 ...
+   
+   while calls to next_linear_tab( include_bush_roots=FALSE) will return:
+
+      ot1 ot2 it1 it2 it3 ot3 ...
+
+   (note that sjm1 won't be returned).
 */
 
 JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots)
@@ -6419,49 +6435,52 @@ JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots)
 
 
 /*
+  Start to iterate over all join tables in bush-children-first order, excluding 
+  the const tables (see next_depth_first_tab() comment for details)
+*/
+
+JOIN_TAB *first_depth_first_tab(JOIN* join)
+{
+  JOIN_TAB* tab;
+  /* This means we're starting the enumeration */
+  if (join->const_tables == join->top_jtrange_tables)
+    return NULL;
+
+  tab= join->join_tab + join->const_tables;
+
+  return (tab->bush_children) ? tab->bush_children->start : tab;
+}
+
+
+/*
   A helper function to iterate over all join tables in bush-children-first order
 
   DESCRIPTION
    
   For example, for this join plan
 
-     ot1 ot2  sjm            ot3 
-              | +--------+ 
-              |          |
-              it1  it2  it3 
+    ot1--ot2--sjm1------------ot3-...
+               |
+               |
+              it1--it2--it3 
   
-  
-  the function will return
+  call to first_depth_first_tab() will return ot1, and subsequent calls to
+  next_depth_first_tab() will return:
 
-    ot1-ot2-it1-it2-it3-sjm-ot3 ...
-
+     ot2 it1 it2 it3 sjm ot3 ...
 */
 
 JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab)
 {
-  bool start= FALSE;
-  if (tab == NULL)
-  {
-    /* This means we're starting the enumeration */
-    if (join->const_tables == join->top_jtrange_tables)
-      return NULL;
-
-    tab= join->join_tab + join->const_tables;
-    start= TRUE;
-  }
-   
+  /* If we're inside SJM nest and have reached its end, get out */
   if (tab->last_leaf_in_bush)
     return tab->bush_root_tab;
   
-  /* Move to next tab in the array we're traversing*/
-  if (!start)
-    tab++;
+  /* Move to next tab in the array we're traversing */
+  tab++;
   
-  //psergey-remove: check:
-  DBUG_ASSERT(join->join_tab_ranges.head()->end == 
-              join->join_tab +join->top_jtrange_tables);
   if (tab == join->join_tab +join->top_jtrange_tables)
-    return NULL; /* End */
+    return NULL; /* Outside SJM nest and reached EOF */
 
   if (tab->bush_children)
     return tab->bush_children->start;
@@ -7384,7 +7403,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     JOIN_TAB *tab;
     table_map current_map;
     uint i= join->const_tables;
-    for (tab= next_depth_first_tab(join, NULL); tab; 
+    for (tab= first_depth_first_tab(join); tab;
          tab= next_depth_first_tab(join, tab), i++)
     {
       bool is_hj;

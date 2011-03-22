@@ -33,8 +33,7 @@
 
 #define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
 
-void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save);
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
+static void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save);
 
 /*****************************************************************************
  *  Join cache module
@@ -168,27 +167,46 @@ void JOIN_CACHE::calc_record_fields()
     if (join_tab->bush_root_tab)
     {
       /* 
-        If the tab we're attached to is inside an SJM-nest, start from the
-        first tab in that SJM nest
+        --ot1--SJM1--------------ot2--...
+                |
+                |
+                +-it1--...--itN
+                        ^____________ this->join_tab is somewhere here, 
+                                      inside an sjm nest.
+
+        The join buffer should store the values of it1.*, it2.*, ..
+        It should not store values of ot1.*.
       */
       tab= join_tab->bush_root_tab->bush_children->start;
     }
     else
     {
       /*
-        The tab we're attached to is not inside an SJM-nest. Start from the
-        first non-const table.
+        -ot1--ot2--SJM1--SJM2--------------ot3--...--otN
+                    |     |                      ^   
+                    |     +-it21--...--it2N      |
+                    |                            \-- we're somewhere here,
+                    +-it11--...--it1N                at the top level
+        
+        The join buffer should store the values of 
+
+          ot1.*, ot2.*, it1{i}, it2{j}.*, ot3.*, ...
+        
+        that is, we should start from the first non-const top-level table. 
+
+        We will need to store columns of SJ-inner tables (it_X_Y.*), but we're
+        not interested in storing the columns of materialization tables
+        themselves. Beause of that, if the first non-const top-level table is a
+        materialized table, we move to its bush_children:
       */
       tab= join->join_tab + join->const_tables;
+      if (tab->bush_children)
+        tab= tab->bush_children->start;
     }
   }
-  start_tab= tab;
-  if (start_tab->bush_children)
-    start_tab= start_tab->bush_children->start;
   DBUG_ASSERT(!start_tab->bush_children);
 
-  tab= start_tab;
-
+  start_tab= tab;
   fields= 0;
   blobs= 0;
   flag_fields= 0;
@@ -254,7 +272,8 @@ void JOIN_CACHE::collect_info_on_key_args()
   cache= this;
   do
   {
-    for (tab= cache->start_tab; tab != cache->join_tab; tab= next_linear_tab(join, tab, FALSE))
+    for (tab= cache->start_tab; tab != cache->join_tab;
+         tab= next_linear_tab(join, tab, FALSE))
     { 
       uint key_args;
       bitmap_clear_all(&tab->table->tmp_set);
@@ -3248,7 +3267,8 @@ int JOIN_TAB_SCAN::next()
   @param save TRUE   save 
               FALSE  restore
 */
-void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save)
+
+static void save_or_restore_used_tabs(JOIN_TAB *join_tab, bool save)
 {
   JOIN_TAB *first= join_tab->bush_root_tab?
                      join_tab->bush_root_tab->bush_children->start :

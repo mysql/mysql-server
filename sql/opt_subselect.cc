@@ -1223,6 +1223,7 @@ static void create_subquery_temptable_name(char *to, uint number)
   to[1]= 0;
 }
 
+
 /*
   Convert subquery predicate into non-mergeable semi-join nest.
 
