@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #endif
 #endif /* !defined(MSDOS) && !defined(__WIN__) */
+#include "my_net.h"
 
 void my_inet_ntoa(struct in_addr in, char *buf)
 {
