@@ -33,9 +33,11 @@ NdbCondition_initialize(int need_monotonic)
 #if defined HAVE_CLOCK_GETTIME && defined HAVE_PTHREAD_CONDATTR_SETCLOCK && \
     defined CLOCK_MONOTONIC
   
-  int res;
+  int res, condattr_init = 0;
   pthread_cond_t tmp;
   pthread_condattr_t attr;
+
+  init = 1;
 
   if (!need_monotonic)
     return;
@@ -43,7 +45,7 @@ NdbCondition_initialize(int need_monotonic)
   if ((res = pthread_condattr_init(&attr)) != 0)
     goto nogo;
 
-  init = 1;
+  condattr_init = 1;
   
   if ((res = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC)) != 0)
     goto nogo;
@@ -59,7 +61,7 @@ NdbCondition_initialize(int need_monotonic)
   return;
   
 nogo:
-  if (init)
+  if (condattr_init)
   {
     pthread_condattr_destroy(&attr);
   }

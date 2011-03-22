@@ -211,3 +211,38 @@ connection server1;
 drop table t1;
 connection server2;
 drop table t1;
+
+#
+--echo Bug 11894966 - second mysqld does not have table after non
+--echo                distributed table alter to ndb
+#
+# - only queries with "autodiscover" see the new table
+#   on second mysqld since schema distribution does not
+#   create the table on second mysqld(at least when !ndb_binlog_running)
+#
+connection server1;
+
+# Create table t1 in myisam
+create table t1(a int) engine myisam;
+insert into t1 values(37);
+
+# Alter t1 into ndb
+alter table t1 engine ndb;
+
+# Switch to other mysqld
+connection server2;
+
+# Check that .frm and .ndb file has been created
+# on second mysqld
+let $datadir2 = `select @@datadir`;
+#echo datadir2: $datadir2;
+--file_exists $datadir2/test/t1.frm
+--file_exists $datadir2/test/t1.ndb
+
+# Check that truncate works on second mysqld
+# (didn't work before fix)
+truncate t1;
+
+# Cleanup
+drop table t1;
+connection server1;
