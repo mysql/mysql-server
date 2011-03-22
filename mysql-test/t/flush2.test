@@ -3,6 +3,7 @@
 #
 
 --source include/not_embedded.inc
+--source include/not_relay_log_info_table.inc
 
 flush logs;
 set global expire_logs_days = 3;
