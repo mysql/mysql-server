@@ -178,7 +178,7 @@ void max_my_decimal(my_decimal *to, int precision, int frac)
 {
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION)&&
               (frac <= DECIMAL_MAX_SCALE));
-  max_decimal(precision, frac, (decimal_t*) to);
+  max_decimal(precision, frac, to);
 }
 
 inline void max_internal_decimal(my_decimal *to)
@@ -277,14 +277,19 @@ inline
 int binary2my_decimal(uint mask, const uchar *bin, my_decimal *d, int prec,
 		      int scale)
 {
-  return check_result(mask, bin2decimal(bin, (decimal_t*) d, prec, scale));
+  return check_result(mask, bin2decimal(bin, d, prec, scale));
 }
 
 
 inline
 int my_decimal_set_zero(my_decimal *d)
 {
-  decimal_make_zero(((decimal_t*) d));
+  /*
+    We need the up-cast here, since my_decimal has sign() member functions,
+    which conflicts with decimal_t::size
+    (and decimal_make_zero is a macro, rather than a funcion).
+  */
+  decimal_make_zero(static_cast<decimal_t*>(d));
   return 0;
 }
 
@@ -292,7 +297,7 @@ int my_decimal_set_zero(my_decimal *d)
 inline
 bool my_decimal_is_zero(const my_decimal *decimal_value)
 {
-  return decimal_is_zero((decimal_t*) decimal_value);
+  return decimal_is_zero(decimal_value);
 }
 
 
@@ -300,7 +305,7 @@ inline
 int my_decimal_round(uint mask, const my_decimal *from, int scale,
                      bool truncate, my_decimal *to)
 {
-  return check_result(mask, decimal_round((decimal_t*) from, to, scale,
+  return check_result(mask, decimal_round(from, to, scale,
 					  (truncate ? TRUNCATE : HALF_UP)));
 }
 
@@ -308,14 +313,14 @@ int my_decimal_round(uint mask, const my_decimal *from, int scale,
 inline
 int my_decimal_floor(uint mask, const my_decimal *from, my_decimal *to)
 {
-  return check_result(mask, decimal_round((decimal_t*) from, to, 0, FLOOR));
+  return check_result(mask, decimal_round(from, to, 0, FLOOR));
 }
 
 
 inline
 int my_decimal_ceiling(uint mask, const my_decimal *from, my_decimal *to)
 {
-  return check_result(mask, decimal_round((decimal_t*) from, to, 0, CEILING));
+  return check_result(mask, decimal_round(from, to, 0, CEILING));
 }
 
 
@@ -337,7 +342,7 @@ int my_decimal2int(uint mask, const my_decimal *d, my_bool unsigned_flag,
 {
   my_decimal rounded;
   /* decimal_round can return only E_DEC_TRUNCATED */
-  decimal_round((decimal_t*)d, &rounded, 0, HALF_UP);
+  decimal_round(d, &rounded, 0, HALF_UP);
   return check_result(mask, (unsigned_flag ?
 			     decimal2ulonglong(&rounded, (ulonglong *)l) :
 			     decimal2longlong(&rounded, l)));
@@ -348,15 +353,14 @@ inline
 int my_decimal2double(uint, const my_decimal *d, double *result)
 {
   /* No need to call check_result as this will always succeed */
-  return decimal2double((decimal_t*) d, result);
+  return decimal2double(d, result);
 }
 
 
 inline
 int str2my_decimal(uint mask, const char *str, my_decimal *d, char **end)
 {
-  return check_result_and_overflow(mask, string2decimal(str,(decimal_t*)d,end),
-                                   d);
+  return check_result_and_overflow(mask, string2decimal(str, d, end), d);
 }
 
 
@@ -379,7 +383,7 @@ my_decimal *date2my_decimal(MYSQL_TIME *ltime, my_decimal *dec);
 inline
 int double2my_decimal(uint mask, double val, my_decimal *d)
 {
-  return check_result_and_overflow(mask, double2decimal(val, (decimal_t*)d), d);
+  return check_result_and_overflow(mask, double2decimal(val, d), d);
 }
 
 
@@ -409,7 +413,7 @@ int my_decimal_add(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
   return check_result_and_overflow(mask,
-                                   decimal_add((decimal_t*)a,(decimal_t*)b,res),
+                                   decimal_add(a, b, res),
                                    res);
 }
 
@@ -419,7 +423,7 @@ int my_decimal_sub(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
   return check_result_and_overflow(mask,
-                                   decimal_sub((decimal_t*)a,(decimal_t*)b,res),
+                                   decimal_sub(a, b, res),
                                    res);
 }
 
@@ -429,7 +433,7 @@ int my_decimal_mul(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
   return check_result_and_overflow(mask,
-                                   decimal_mul((decimal_t*)a,(decimal_t*)b,res),
+                                   decimal_mul(a, b, res),
                                    res);
 }
 
@@ -439,8 +443,7 @@ int my_decimal_div(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b, int div_scale_inc)
 {
   return check_result_and_overflow(mask,
-                                   decimal_div((decimal_t*)a,(decimal_t*)b,res,
-                                               div_scale_inc),
+                                   decimal_div(a, b, res, div_scale_inc),
                                    res);
 }
 
@@ -450,7 +453,7 @@ int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 		   const my_decimal *b)
 {
   return check_result_and_overflow(mask,
-                                   decimal_mod((decimal_t*)a,(decimal_t*)b,res),
+                                   decimal_mod(a, b, res),
                                    res);
 }
 
@@ -462,14 +465,14 @@ int my_decimal_mod(uint mask, my_decimal *res, const my_decimal *a,
 inline
 int my_decimal_cmp(const my_decimal *a, const my_decimal *b)
 {
-  return decimal_cmp((decimal_t*) a, (decimal_t*) b);
+  return decimal_cmp(a, b);
 }
 
 
 inline
 int my_decimal_intg(const my_decimal *a)
 {
-  return decimal_intg((decimal_t*) a);
+  return decimal_intg(a);
 }
 
 
