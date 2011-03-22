@@ -65,8 +65,6 @@ for the field. */
 struct thr_local_struct{
 	os_thread_id_t	id;	/*!< id of the thread which owns this struct */
 	os_thread_t	handle;	/*!< operating system handle to the thread */
-	ulint		slot_no;/*!< the index of the slot in the thread table
-				for this thread */
 	ibool		in_ibuf;/*!< TRUE if the thread is doing an ibuf
 				operation */
 	hash_node_t	hash;	/*!< hash chain node */
@@ -87,8 +85,6 @@ thr_local_validate(
 	const thr_local_t*	local)	/*!< in: data to validate */
 {
 	ut_ad(local->magic_n == THR_LOCAL_MAGIC_N);
-	ut_ad(local->slot_no == ULINT_UNDEFINED
-	      || local->slot_no < OS_THREAD_MAX_N);
 	ut_ad(local->in_ibuf == FALSE || local->in_ibuf == TRUE);
 	return(TRUE);
 }
@@ -132,49 +128,6 @@ try_again:
 }
 
 /*******************************************************************//**
-Gets the slot number in the thread table of a thread.
-@return	slot number */
-UNIV_INTERN
-ulint
-thr_local_get_slot_no(
-/*==================*/
-	os_thread_id_t	id)	/*!< in: thread id of the thread */
-{
-	ulint		slot_no;
-	thr_local_t*	local;
-
-	mutex_enter(&thr_local_mutex);
-
-	local = thr_local_get(id);
-
-	slot_no = local->slot_no;
-
-	mutex_exit(&thr_local_mutex);
-
-	return(slot_no);
-}
-
-/*******************************************************************//**
-Sets the slot number in the thread table of a thread. */
-UNIV_INTERN
-void
-thr_local_set_slot_no(
-/*==================*/
-	os_thread_id_t	id,	/*!< in: thread id of the thread */
-	ulint		slot_no)/*!< in: slot number */
-{
-	thr_local_t*	local;
-
-	mutex_enter(&thr_local_mutex);
-
-	local = thr_local_get(id);
-
-	local->slot_no = slot_no;
-
-	mutex_exit(&thr_local_mutex);
-}
-
-/*******************************************************************//**
 Returns pointer to the 'in_ibuf' field within the current thread local
 storage.
 @return	pointer to the in_ibuf field */
@@ -212,7 +165,6 @@ thr_local_create(void)
 	local->id = os_thread_get_curr_id();
 	local->handle = os_thread_get_curr();
 	local->magic_n = THR_LOCAL_MAGIC_N;
-	local->slot_no = ULINT_UNDEFINED;
 	local->in_ibuf = FALSE;
 
 	mutex_enter(&thr_local_mutex);
