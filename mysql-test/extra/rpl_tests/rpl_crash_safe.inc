@@ -10,9 +10,11 @@
 if (`SELECT HEX(@commands) = HEX('configure')`)
 {
   --sync_slave_with_master
+  --source include/stop_slave.inc
   SHOW CREATE TABLE mysql.slave_relay_log_info;
   ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
   SHOW CREATE TABLE mysql.slave_relay_log_info;
+  --source include/start_slave.inc
 
   connection master;
   --source extra/rpl_tests/rpl_mixing_engines.inc
