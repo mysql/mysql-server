@@ -20,10 +20,6 @@
   "public" interface to sys_var - server configuration variables.
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                       /* gcc class implementation */
-#endif
-
 #include <my_getopt.h>
 
 class sys_var;

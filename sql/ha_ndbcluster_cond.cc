@@ -17,10 +17,6 @@
   This file defines the NDB Cluster handler engine_condition_pushdown
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "my_global.h"                          // WITH_*

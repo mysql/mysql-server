@@ -20,10 +20,6 @@
 #include "m_string.h" /* for TRASH */
 
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 void *sql_alloc(size_t);
 
 #include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,

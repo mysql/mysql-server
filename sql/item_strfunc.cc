@@ -25,10 +25,6 @@
     (This shouldn't be needed)
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
