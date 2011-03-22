@@ -33,11 +33,11 @@
 
 
 Item_subselect::Item_subselect():
-  Item_result_field(), value_assigned(0), thd(0), substitution(0),
-  expr_cache(0), engine(0), old_engine(0), used_tables_cache(0),
-  have_to_be_excluded(0), const_item_cache(1), inside_first_fix_fields(0),
-  done_first_fix_fields(FALSE), eliminated(FALSE), engine_changed(0),
-  changed(0), is_correlated(FALSE)
+  Item_result_field(), value_assigned(0), thd(0), old_engine(0), 
+  used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
+  inside_first_fix_fields(0), done_first_fix_fields(FALSE), 
+  substitution(0), expr_cache(0), engine(0), eliminated(FALSE),
+  engine_changed(0), changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
   reset();

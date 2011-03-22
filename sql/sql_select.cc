@@ -1035,31 +1035,15 @@ JOIN::optimize()
     Perform the optimization on fields evaluation mentioned above
     for all on expressions.
   */
-
+  for (JOIN_TAB *tab= first_linear_tab(this, TRUE); tab;
+       tab= next_linear_tab(this, tab, TRUE))
   {
-    List_iterator<JOIN_TAB_RANGE> it(join_tab_ranges);
-    JOIN_TAB_RANGE *jt_range;
-    /* For upper level JOIN_TABs, we need to skip the const tables: */
-    uint first_tab_offs= const_tables;
-    while ((jt_range= it++))
+    if (*tab->on_expr_ref)
     {
-      for (JOIN_TAB *tab= jt_range->start + first_tab_offs;
-           tab < jt_range->end; tab++)
-      {
-        if (*tab->on_expr_ref)
-        {
-          *tab->on_expr_ref= substitute_for_best_equal_field(*tab->on_expr_ref,
-                                                             tab->cond_equal,
-                                                             map2table);
-          (*tab->on_expr_ref)->update_used_tables();
-        }
-      }
-      /*
-        Next jt_range will refer to SJM nest (and not the top-level range). 
-        Inside SJM nests, we dont have const tables, so should start from the
-        first table:
-      */
-      first_tab_offs= 0;
+      *tab->on_expr_ref= substitute_for_best_equal_field(*tab->on_expr_ref,
+                                                         tab->cond_equal,
+                                                         map2table);
+      (*tab->on_expr_ref)->update_used_tables();
     }
   }
 
@@ -1067,47 +1051,34 @@ JOIN::optimize()
     Perform the optimization on fields evaliation mentioned above
     for all used ref items.
   */
-  //for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables; tab++)
-  //{
+  for (JOIN_TAB *tab= first_linear_tab(this, TRUE); tab;
+       tab= next_linear_tab(this, tab, TRUE))
   {
-    List_iterator<JOIN_TAB_RANGE> it(join_tab_ranges);
-    JOIN_TAB_RANGE *jt_range;
-    uint first_tab_offs= const_tables;
-    while ((jt_range= it++))
-    {
-      for (JOIN_TAB *tab= jt_range->start + first_tab_offs;
-           tab < jt_range->end; tab++)
-      {
     uint key_copy_index=0;
-        for (uint i=0; i < tab->ref.key_parts; i++)
-        {
-          
-          Item **ref_item_ptr= tab->ref.items+i;
-          Item *ref_item= *ref_item_ptr;
+    for (uint i=0; i < tab->ref.key_parts; i++)
+    {
+      Item **ref_item_ptr= tab->ref.items+i;
+      Item *ref_item= *ref_item_ptr;
       if (!ref_item->used_tables() && !(select_options & SELECT_DESCRIBE))
         continue;
-          COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
-                                                 cond_equal;
-          ref_item= substitute_for_best_equal_field(ref_item, equals, map2table);
-          ref_item->update_used_tables();
-          if (*ref_item_ptr != ref_item)
-          {
-            *ref_item_ptr= ref_item;
-            Item *item= ref_item->real_item();
+      COND_EQUAL *equals= tab->first_inner ? tab->first_inner->cond_equal : 
+                                             cond_equal;
+      ref_item= substitute_for_best_equal_field(ref_item, equals, map2table);
+      ref_item->update_used_tables();
+      if (*ref_item_ptr != ref_item)
+      {
+        *ref_item_ptr= ref_item;
+        Item *item= ref_item->real_item();
         store_key *key_copy= tab->ref.key_copy[key_copy_index];
-            if (key_copy->type() == store_key::FIELD_STORE_KEY)
-            {
-              store_key_field *field_copy= ((store_key_field *)key_copy);
-              field_copy->change_source_field((Item_field *) item);
-            }
-          }
-      key_copy_index++;
+        if (key_copy->type() == store_key::FIELD_STORE_KEY)
+        {
+          store_key_field *field_copy= ((store_key_field *)key_copy);
+          field_copy->change_source_field((Item_field *) item);
         }
       }
-      first_tab_offs= 0;
+      key_copy_index++;
     }
   }
-  //}
 
   if (conds && const_table_map != found_const_table_map &&
       (select_options & SELECT_DESCRIBE))
@@ -1638,9 +1609,6 @@ bool JOIN::setup_subquery_caches()
     for (JOIN_TAB *tab= first_linear_tab(this, TRUE); 
          tab; 
          tab= next_linear_tab(this, tab, TRUE))
-    //for (JOIN_TAB *tab= join_tab + const_tables;
-    //     tab < join_tab + tables ;
-    //     tab++)
     {
       if (tab->select_cond)
         tab->select_cond=

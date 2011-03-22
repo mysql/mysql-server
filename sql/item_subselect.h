@@ -36,27 +36,6 @@ class Item_subselect :public Item_result_field
 protected:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* 
-    Used inside Item_subselect::fix_fields() according to this scenario:
-      > Item_subselect::fix_fields
-        > engine->prepare
-          > child_join->prepare
-            (Here we realize we need to do the rewrite and set
-             substitution= some new Item, eg. Item_in_optimizer )
-          < child_join->prepare
-        < engine->prepare
-        *ref= substitution;
-        substitution= NULL;
-      < Item_subselect::fix_fields
-  */
-public:
-  Item *substitution;
-  /* unit of subquery */
-  st_select_lex_unit *unit;
-  Item *expr_cache;
-  /* engine that perform execution of subselect (single select or union) */
-  subselect_engine *engine;
-protected:
   /* old engine if engine was changed */
   subselect_engine *old_engine;
   /* cache of used external tables */
@@ -73,6 +52,25 @@ protected:
   bool inside_first_fix_fields;
   bool done_first_fix_fields;
 public:
+  /* 
+    Used inside Item_subselect::fix_fields() according to this scenario:
+      > Item_subselect::fix_fields
+        > engine->prepare
+          > child_join->prepare
+            (Here we realize we need to do the rewrite and set
+             substitution= some new Item, eg. Item_in_optimizer )
+          < child_join->prepare
+        < engine->prepare
+        *ref= substitution;
+        substitution= NULL;
+      < Item_subselect::fix_fields
+  */
+  Item *substitution;
+  /* unit of subquery */
+  st_select_lex_unit *unit;
+  Item *expr_cache;
+  /* engine that perform execution of subselect (single select or union) */
+  subselect_engine *engine;
   /* A reference from inside subquery predicate to somewhere outside of it */
   class Ref_to_outside : public Sql_alloc
   {
@@ -774,61 +772,26 @@ public:
     of subselect_single_select_engine::[prepare | cols].
   */
   subselect_single_select_engine *materialize_engine;
-protected:
-  /* The engine used to compute the IN predicate. */
-  subselect_engine *lookup_engine;
   /*
     QEP to execute the subquery and materialize its result into a
     temporary table. Created during the first call to exec().
   */
-public:
   JOIN *materialize_join;
-protected:
-  /* Keyparts of the only non-NULL composite index in a rowid merge. */
-  MY_BITMAP non_null_key_parts;
-  /* Keyparts of the single column indexes with NULL, one keypart per index. */
-  MY_BITMAP partial_match_key_parts;
-  uint count_partial_match_columns;
-  uint count_null_only_columns;
   /*
     A conjunction of all the equality condtions between all pairs of expressions
     that are arguments of an IN predicate. We need these to post-filter some
     IN results because index lookups sometimes match values that are actually
     not equal to the search key in SQL terms.
- */
-public:
+  */
   Item_cond_and *semi_join_conds;
-protected:
-  /* Possible execution strategies that can be used to compute hash semi-join.*/
-  enum exec_strategy {
-    UNDEFINED,
-    COMPLETE_MATCH, /* Use regular index lookups. */
-    PARTIAL_MATCH,  /* Use some partial matching strategy. */
-    PARTIAL_MATCH_MERGE, /* Use partial matching through index merging. */
-    PARTIAL_MATCH_SCAN,  /* Use partial matching through table scan. */
-    IMPOSSIBLE      /* Subquery materialization is not applicable. */
-  };
-  /* The chosen execution strategy. Computed after materialization. */
-  exec_strategy strategy;
-protected:
-  exec_strategy get_strategy_using_schema();
-  exec_strategy get_strategy_using_data();
-  ulonglong rowid_merge_buff_size(bool has_non_null_key,
-                                  bool has_covering_null_row,
-                                  MY_BITMAP *partial_match_key_parts);
-  void choose_partial_match_strategy(bool has_non_null_key,
-                                     bool has_covering_null_row,
-                                     MY_BITMAP *partial_match_key_parts);
-  bool make_semi_join_conds();
-  subselect_uniquesubquery_engine* make_unique_engine();
 
-public:
   subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
                            subselect_single_select_engine *old_engine)
-    :subselect_engine(thd, in_predicate, NULL), tmp_table(NULL),
-    is_materialized(FALSE), materialize_engine(old_engine), lookup_engine(NULL),
-    materialize_join(NULL), count_partial_match_columns(0),
-    count_null_only_columns(0), semi_join_conds(NULL), strategy(UNDEFINED)
+    : subselect_engine(thd, in_predicate, NULL), 
+      tmp_table(NULL), is_materialized(FALSE), materialize_engine(old_engine),
+      materialize_join(NULL),  semi_join_conds(NULL), lookup_engine(NULL),
+      count_partial_match_columns(0), count_null_only_columns(0),
+      strategy(UNDEFINED)
   {}
   ~subselect_hash_sj_engine();
 
@@ -856,6 +819,38 @@ public:
   //=>base class
   bool change_result(Item_subselect *si, select_result_interceptor *result);
   bool no_tables();//=>base class
+
+protected:
+  /* The engine used to compute the IN predicate. */
+  subselect_engine *lookup_engine;
+  /* Keyparts of the only non-NULL composite index in a rowid merge. */
+  MY_BITMAP non_null_key_parts;
+  /* Keyparts of the single column indexes with NULL, one keypart per index. */
+  MY_BITMAP partial_match_key_parts;
+  uint count_partial_match_columns;
+  uint count_null_only_columns;
+  /* Possible execution strategies that can be used to compute hash semi-join.*/
+  enum exec_strategy {
+    UNDEFINED,
+    COMPLETE_MATCH, /* Use regular index lookups. */
+    PARTIAL_MATCH,  /* Use some partial matching strategy. */
+    PARTIAL_MATCH_MERGE, /* Use partial matching through index merging. */
+    PARTIAL_MATCH_SCAN,  /* Use partial matching through table scan. */
+    IMPOSSIBLE      /* Subquery materialization is not applicable. */
+  };
+  /* The chosen execution strategy. Computed after materialization. */
+  exec_strategy strategy;
+  exec_strategy get_strategy_using_schema();
+  exec_strategy get_strategy_using_data();
+  ulonglong rowid_merge_buff_size(bool has_non_null_key,
+                                  bool has_covering_null_row,
+                                  MY_BITMAP *partial_match_key_parts);
+  void choose_partial_match_strategy(bool has_non_null_key,
+                                     bool has_covering_null_row,
+                                     MY_BITMAP *partial_match_key_parts);
+  bool make_semi_join_conds();
+  subselect_uniquesubquery_engine* make_unique_engine();
+
 };
 
 

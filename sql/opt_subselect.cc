@@ -826,15 +826,12 @@ void get_delayed_table_estimates(TABLE *table,
     ((subselect_hash_sj_engine*)item->engine);
   JOIN *join= hash_sj_engine->materialize_join;
 
-  double rows= 1;
-  double read_time= 0.0;
+  double rows;
+  double read_time;
 
   /* Calculate #rows and cost of join execution */
-  for (uint i= join->const_tables; i < join->tables; i++)
-  {
-    rows      *= join->best_positions[i].records_read;
-    read_time += join->best_positions[i].read_time;
-  }
+  get_partial_join_cost(join, join->tables, &read_time, &rows);
+
   *out_rows= (ha_rows)rows;
   *startup_cost= read_time;
   /* Calculate cost of scanning the temptable */

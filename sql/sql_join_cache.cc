@@ -185,6 +185,7 @@ void JOIN_CACHE::calc_record_fields()
   start_tab= tab;
   if (start_tab->bush_children)
     start_tab= start_tab->bush_children->start;
+  DBUG_ASSERT(!start_tab->bush_children);
 
   tab= start_tab;
 
@@ -508,7 +509,6 @@ void JOIN_CACHE::create_key_arg_fields()
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
   for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
-  //for (tab= join_tab-tables; tab; tab= get_next_table(tab))
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
                                                  &data_field_count, &copy,
@@ -721,8 +721,11 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   if (!min_buff_size)
   {
     size_t len= 0;
-    for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
+    for (JOIN_TAB *tab= start_tab; tab != join_tab; 
+         tab= next_linear_tab(join, tab, FALSE))
+    {
       len+= tab->get_max_used_fieldlength();
+    }
     len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
     size_t min_sz= len*min_records;
     size_t add_sz= 0;
@@ -774,8 +777,11 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
     size_t max_sz;
     size_t min_sz= get_min_join_buffer_size(); 
     size_t len= 0;
-    for (JOIN_TAB *tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
+    for (JOIN_TAB *tab= start_tab; tab != join_tab;
+         tab= next_linear_tab(join, tab, FALSE))
+    {
       len+= tab->get_used_fieldlength();
+    }
     len+= get_record_max_affix_length();
     avg_record_length= len;
     len+= get_max_key_addon_space_per_record() + avg_aux_buffer_incr;
