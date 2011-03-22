@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,9 +41,21 @@ public class EqualPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContextImpl context,
-            IndexScanOperation op) {
+    public void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+        // can always set boundEQ
         property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundEQ, op);
+    }
+
+    @Override
+    public void operationSetLowerBound(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+        // only set lower bound
+        property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLE, op);
+    }
+
+    @Override
+    public void operationSetUpperBound(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+        // only set upper bound
+        property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGE, op);
     }
 
     @Override
@@ -65,8 +76,7 @@ public class EqualPredicateImpl extends ComparativePredicateImpl {
      * @param filter the filter
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context,
-            ScanOperation op, ScanFilter filter) {
+    public void filterCmpValue(QueryExecutionContextImpl context, ScanOperation op, ScanFilter filter) {
         property.filterCmpValue(param.getParameterValue(context),
                 ScanFilter.BinaryCondition.COND_EQ, filter);
     }

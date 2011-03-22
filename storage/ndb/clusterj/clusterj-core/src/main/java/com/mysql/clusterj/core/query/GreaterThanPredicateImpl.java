@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +16,6 @@
 */
 
 package com.mysql.clusterj.core.query;
-
 
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -42,10 +40,14 @@ public class GreaterThanPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContextImpl context,
-            IndexScanOperation op) {
-        property.operationSetBounds(param.getParameterValue(context),
-                IndexScanOperation.BoundType.BoundLT, op);
+    public void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+        if (lastColumn) {
+            // last column may be strict
+            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLT, op);
+        } else {
+            // not-last column must not be strict
+            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLE, op);
+        }
     }
 
     /** Set the condition into the filter.

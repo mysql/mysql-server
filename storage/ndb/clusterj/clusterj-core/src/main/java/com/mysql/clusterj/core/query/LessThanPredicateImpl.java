@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,10 +40,14 @@ public class LessThanPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContextImpl context,
-            IndexScanOperation op) {
-        property.operationSetBounds(param.getParameterValue(context),
-                IndexScanOperation.BoundType.BoundGT, op);
+    public void operationSetBounds(QueryExecutionContextImpl context, IndexScanOperation op, boolean lastColumn) {
+        if (lastColumn) {
+            // last column may be strict
+            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGT, op);
+        } else {
+            // not-last column must not be strict
+            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGE, op);
+        }
     }
 
     /** Set the condition into the filter.
@@ -53,10 +56,8 @@ public class LessThanPredicateImpl extends ComparativePredicateImpl {
      * @param filter the filter
      */
     @Override
-    public void filterCmpValue(QueryExecutionContextImpl context,
-            ScanOperation op, ScanFilter filter) {
-        property.filterCmpValue(param.getParameterValue(context),
-                ScanFilter.BinaryCondition.COND_LT, filter);
+    public void filterCmpValue(QueryExecutionContextImpl context, ScanOperation op, ScanFilter filter) {
+        property.filterCmpValue(param.getParameterValue(context), ScanFilter.BinaryCondition.COND_LT, filter);
     }
 
 }

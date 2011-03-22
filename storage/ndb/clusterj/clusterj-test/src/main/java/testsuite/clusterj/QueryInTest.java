@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -93,6 +93,22 @@ public class QueryInTest extends AbstractQueryTest {
         equalOrInQuery("int_not_null_btree", 4, "int_null_none", Arrays.asList(new Integer[] {6, 9}), "none", 4, 6, 9);
         equalOrInQuery("int_null_btree", 4, "int_null_none", new HashSet<Integer>(Arrays.asList(new Integer[] {4, 6, 9})), "none", 4, 6, 9);
         equalOrInQuery("int_null_btree", 4, "int_null_none", new HashSet<Integer>(Arrays.asList(new Integer[] {6, 6, 6, 9})), "none", 4, 6, 9);
+        failOnError();        
+    }
+
+    public void testIn() {
+        inQuery("int_not_null_none", new Object[] {4, 6, 9}, "none", 4, 6, 9);
+        inQuery("int_not_null_hash", Arrays.asList(new Object[] {4, 6, 9}), "none", 4, 6, 9);
+        inQuery("int_not_null_both", new Object[] {4, 6, 9}, "idx_int_not_null_both", 4, 6, 9);
+        inQuery("int_not_null_btree", new Object[] {4, 6, 9}, "idx_int_not_null_btree", 4, 6, 9);
+        failOnError();        
+    }
+
+    public void testInAndIn() {
+        inAndInQuery("int_not_null_none", new Object[] {4, 6, 9}, "id", new Object[] {4, 9}, "PRIMARY", 4, 9);
+        inAndInQuery("int_not_null_hash", new Object[] {4, 9}, "int_not_null_both", new Object[] {6, 9}, "idx_int_not_null_both", 9);
+        inAndInQuery("int_not_null_both", new Object[] {4, 9}, "int_not_null_btree", Arrays.asList(new Object[] {6, 9}), "idx_int_not_null_both", 9);
+        inAndInQuery("int_not_null_hash", new Object[] {4, 9}, "int_not_null_btree", new Object[] {6, 9}, "idx_int_not_null_btree", 9);
         failOnError();        
     }
 

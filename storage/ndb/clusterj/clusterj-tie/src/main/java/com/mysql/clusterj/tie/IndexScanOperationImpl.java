@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -128,6 +128,12 @@ class IndexScanOperationImpl extends ScanOperationImpl implements IndexScanOpera
                 throw new ClusterJFatalInternalException(
                         local.message("ERR_Implementation_Should_Not_Occur"));
         }
+    }
+
+    public void endBound(int rangeNumber) {
+        if (logger.isDetailEnabled()) logger.detail("IndexScanOperationImpl.endBound(" + rangeNumber + ")");
+        int returnCode = ndbIndexScanOperation.end_of_bound(rangeNumber);
+        handleError(returnCode, ndbIndexScanOperation);
     }
 
 }

@@ -211,9 +211,15 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
             case INDEX_SCAN: {
                 storeIndex = index.getStoreIndex();
                 if (logger.isDetailEnabled()) logger.detail("Using index scan with index " + index.getIndexName());
-
+                IndexScanOperation op;
                 // perform an index scan operation
-                IndexScanOperation op = session.getIndexScanOperation(storeIndex, domainTypeHandler.getStoreTable());
+                if (index.isMultiRange()) {
+                    op = session.getIndexScanOperationMultiRange(storeIndex, domainTypeHandler.getStoreTable());
+                    
+                } else {
+                    op = session.getIndexScanOperation(storeIndex, domainTypeHandler.getStoreTable());
+                    
+                }
                 // set the expected columns into the operation
                 domainTypeHandler.operationGetValues(op);
                 // set the bounds into the operation

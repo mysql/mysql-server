@@ -42,16 +42,19 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
      */
     abstract void createInstances(int number);
 
+    /** Most query tests use the same number of instances (10).
+     * 
+     */
+    @Override
+    protected int getNumberOfInstances() {
+        return 10;
+    }
+
     /**
      * Return the type of instances used for the queries.
      * @return the type of instances for the test
      */
     abstract Class<?> getInstanceType();
-
-    /** Clean up instances after test. Can be overridden by subclasses.
-     * 
-     */
-    protected boolean cleanupAfterTest = getCleanupAfterTest();
 
     /** The QueryHolder for this test */
     protected QueryHolder holder;
@@ -61,7 +64,8 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         createSessionFactory();
         session = sessionFactory.getSession();
         tx = session.currentTransaction();
-        createInstances(10);
+        int numberOfInstances = getNumberOfInstances();
+        createInstances(numberOfInstances);
         try {
             tx.begin();
             session.deletePersistentAll(instanceType);
@@ -72,7 +76,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         tx.begin();
         session.makePersistentAll(instances);
         tx.commit();
-        if (cleanupAfterTest)
+        if (getCleanupAfterTest())
             addTearDownClasses(instanceType);
     }
 
@@ -89,10 +93,12 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public PredicateOperand paramEqualPredicate;
         public PredicateOperand paramLowerPredicate;
         public PredicateOperand paramUpperPredicate;
+        public PredicateOperand paramInPredicate;
         public Predicate equal;
         public Predicate equalOrEqual;
         public Predicate greaterThan;
         public Predicate greaterEqual;
+        public Predicate in;
         public Predicate lessThan;
         public Predicate lessEqual;
         public Predicate between;
@@ -113,6 +119,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public PredicateOperand extraParamEqualPredicate;
         public PredicateOperand extraParamLowerPredicate;
         public PredicateOperand extraParamUpperPredicate;
+        public PredicateOperand extraParamInPredicate;
         public PredicateOperand extraProperty;
         public Predicate extraEqual;
         public Predicate extraGreaterThan;
@@ -129,6 +136,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         public String expectedIndex;
         private Predicate equalOrIn;
         private Predicate extraIn;
+        private Predicate inAndIn;
+        private Predicate inAndBetween;
+        private Predicate betweenAndIn;
         public QueryHolder(Class<?> type, String propertyName, String expectedIndex) {
             this.propertyName = propertyName;
             // QueryBuilder is the sessionFactory for queries
@@ -140,6 +150,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             paramEqualPredicate = dobj.param("equal");
             paramLowerPredicate = dobj.param("lower");
             paramUpperPredicate = dobj.param("upper");
+            paramInPredicate = dobj.param("in");
             // property
             propertyPredicate = dobj.get(propertyName);
             // comparison operations
@@ -153,6 +164,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             greaterEqualAndLessThan = lessThan.and(greaterEqual);
             greaterThanAndLessEqual = lessEqual.and(greaterThan);
             greaterEqualAndLessEqual = lessEqual.and(greaterEqual);
+            in = propertyPredicate.in(paramInPredicate);
             notEqual = equal.not();
             notGreaterThan = greaterThan.not();
             notGreaterEqual = greaterEqual.not();
@@ -171,6 +183,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             this.extraParamEqualPredicate = dobj.param("extraEqual");
             this.extraParamLowerPredicate = dobj.param("extraLower");
             this.extraParamUpperPredicate = dobj.param("extraUpper");
+            this.extraParamInPredicate = dobj.param("extraIn");
             // property
             this.extraProperty = dobj.get(extraPropertyName);
             // comparison operations
@@ -185,8 +198,11 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             this.extraGreaterThanAndLessEqual = extraLessEqual.and(extraGreaterThan);
             this.extraGreaterEqualAndLessEqual = extraLessEqual.and(extraGreaterEqual);
             this.equalOrEqual = equal.or(extraEqual);
-            this.extraIn = extraProperty.in(extraParamEqualPredicate);
+            this.extraIn = extraProperty.in(extraParamInPredicate);
             this.equalOrIn = equal.or(extraIn);
+            this.inAndIn = in.and(extraIn);
+            this.inAndBetween = in.and(extraBetween);
+            this.betweenAndIn = between.and(extraIn);
         }
         public void createQuery(Session session) {
             query = session.createQuery(dobj);
@@ -199,6 +215,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         }
         public void setParameterUpper(Object parameter) {
             query.setParameter("upper", parameter);
+        }
+        public void setParameterIn(Object parameter) {
+            query.setParameter("in", parameter);
         }
         public void setExpectedResultIds(int... expecteds) {
             for (int expected:expecteds) {
@@ -215,6 +234,10 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             query.setParameter("extraUpper", parameter);
         }
 
+        public void setExtraParameterIn(Object parameter) {
+            query.setParameter("extraIn", parameter);
+        }
+
         @SuppressWarnings("unchecked")
         public void checkResults(String theQuery) {
             Set<Integer> actualSet = new HashSet<Integer>();
@@ -223,7 +246,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
                 printResultInstance(result);
                 actualSet.add(result.getId());
             }
-            errorIfNotEqual("Wrong index used in  " + theQuery + " query: ",
+            errorIfNotEqual("Wrong index used for " + theQuery + " query: ",
                     expectedIndex, query.explain().get("IndexUsed"));
             errorIfNotEqual("Wrong ids returned from " + theQuery + " query: ",
                     expectedSet, actualSet);
@@ -231,7 +254,7 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
         public void checkDeletePersistentAll(String where, int expectedNumberOfDeletedInstances) {
             int result = query.deletePersistentAll();
-            errorIfNotEqual("Wrong index used in  " + where + " delete  query: ",
+            errorIfNotEqual("Wrong index used for " + where + " delete  query: ",
                     expectedIndex, query.explain().get("IndexUsed"));
             errorIfNotEqual("Wrong number of instances deleted for " + where, 
                     expectedNumberOfDeletedInstances, result);
@@ -251,6 +274,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             public Predicate getPredicate(QueryHolder holder) {
                 return holder.extraEqual;
                 }
+            public String toString() {
+                return " equal";
+            }
             };
     
     PredicateProvider extraNotEqualPredicateProvider = 
@@ -258,6 +284,9 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             public Predicate getPredicate(QueryHolder holder) {
                 return holder.extraEqual.not();
                 }
+            public String toString() {
+                return " not equal";
+            }
             };
     
     PredicateProvider extraBetweenPredicateProvider = 
@@ -265,8 +294,21 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             public Predicate getPredicate(QueryHolder holder) {
                 return holder.extraBetween;
                 }
+            public String toString() {
+                return " between";
+            }
             };
             
+    PredicateProvider extraInPredicateProvider = 
+        new PredicateProvider() {
+            public Predicate getPredicate(QueryHolder holder) {
+                return holder.extraIn;
+                }
+            public String toString() {
+                return " in";
+            }
+            };
+                    
     /** Print the result instance. Override this in a subclass if needed.
      * 
      * @param instance the instance to print if needed
@@ -334,10 +376,82 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         holder.createQuery(session);
         // set the parameter value
         holder.setParameterEqual(parameterValue1);
-        holder.setExtraParameterEqual(parameterValue2);
+        holder.setExtraParameterIn(parameterValue2);
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " equal or in");
+        tx.commit();
+    }
+
+    public void inQuery(String propertyName, Object parameterValue1,
+            String expectedIndex, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex);
+        // specify the where clause
+        holder.dobj.where(holder.in);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterIn(parameterValue1);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " in");
+        tx.commit();
+    }
+
+    public void inAndInQuery(String propertyName, Object parameterValue1,
+            String extraPropertyName, Object parameterValue2, 
+            String expectedIndex, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        // specify the where clause
+        holder.dobj.where(holder.inAndIn);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterIn(parameterValue1);
+        holder.setExtraParameterIn(parameterValue2);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " in and " + extraPropertyName + " in");
+        tx.commit();
+    }
+
+    public void inAndBetweenQuery(String propertyName, Object parameterValue1,
+            String extraPropertyName, Object parameterValue2, Object parameterValue3,
+            String expectedIndex, int...expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        // specify the where clause
+        holder.dobj.where(holder.inAndBetween);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterIn(parameterValue1);
+        holder.setExtraParameterLower(parameterValue2);
+        holder.setExtraParameterUpper(parameterValue3);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " in and " + extraPropertyName + " between");
+        tx.commit();
+    }
+
+    public void betweenAndInQuery(String propertyName, Object parameterValue1, Object parameterValue2,
+            String extraPropertyName, Object parameterValue3, 
+            String expectedIndex, int... expected) {
+        tx.begin();
+        QueryHolder holder = new QueryHolder(instanceType, propertyName, expectedIndex, extraPropertyName);
+        // specify the where clause
+        holder.dobj.where(holder.betweenAndIn);
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterLower(parameterValue1);
+        holder.setParameterUpper(parameterValue2);
+        holder.setExtraParameterIn(parameterValue3);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " between and " + extraPropertyName + " in");
         tx.commit();
     }
 
@@ -543,6 +657,102 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
         // get the results
         holder.setExpectedResultIds(expected);
         holder.checkResults(propertyName + " equal and " + extraPredicate);
+        tx.commit();
+    }
+
+    public void greaterThanAnd1ExtraQuery(String propertyName, Object parameterValue,
+            String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
+            String expectedIndex, int... expected) {
+        tx.begin();
+        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+                extraPropertyName);
+        // specify the where clause
+        Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
+        holder.dobj.where(holder.greaterThan.and(extraPredicate));
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        holder.setParameterLower(parameterValue);
+        holder.setParameterUpper(parameterValue);
+        holder.setExtraParameterEqual(extraParameterValue);
+        holder.setExtraParameterLower(extraParameterValue);
+        holder.setExtraParameterUpper(extraParameterValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " greater than and " + extraPropertyName + extraPredicateProvider.toString());
+        tx.commit();
+    }
+
+    public void greaterEqualAnd1ExtraQuery(String propertyName, Object parameterValue,
+            String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
+            String expectedIndex, int... expected) {
+        tx.begin();
+        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+                extraPropertyName);
+        // specify the where clause
+        Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
+        holder.dobj.where(holder.greaterEqual.and(extraPredicate));
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        holder.setParameterLower(parameterValue);
+        holder.setParameterUpper(parameterValue);
+        holder.setExtraParameterEqual(extraParameterValue);
+        holder.setExtraParameterLower(extraParameterValue);
+        holder.setExtraParameterUpper(extraParameterValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " greater equal and " + extraPropertyName + extraPredicateProvider.toString());
+        tx.commit();
+    }
+
+    public void lessThanAnd1ExtraQuery(String propertyName, Object parameterValue,
+            String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
+            String expectedIndex, int... expected) {
+        tx.begin();
+        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+                extraPropertyName);
+        // specify the where clause
+        Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
+        holder.dobj.where(holder.lessThan.and(extraPredicate));
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        holder.setParameterLower(parameterValue);
+        holder.setParameterUpper(parameterValue);
+        holder.setExtraParameterEqual(extraParameterValue);
+        holder.setExtraParameterLower(extraParameterValue);
+        holder.setExtraParameterUpper(extraParameterValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " less than and " + extraPropertyName + extraPredicateProvider.toString());
+        tx.commit();
+    }
+
+    public void lessEqualAnd1ExtraQuery(String propertyName, Object parameterValue,
+            String extraPropertyName, PredicateProvider extraPredicateProvider, Object extraParameterValue, 
+            String expectedIndex, int... expected) {
+        tx.begin();
+        holder = new QueryHolder(instanceType, propertyName, expectedIndex,
+                extraPropertyName);
+        // specify the where clause
+        Predicate extraPredicate = extraPredicateProvider.getPredicate(holder);
+        holder.dobj.where(holder.lessEqual.and(extraPredicate));
+        // create the query
+        holder.createQuery(session);
+        // set the parameter value
+        holder.setParameterEqual(parameterValue);
+        holder.setParameterLower(parameterValue);
+        holder.setParameterUpper(parameterValue);
+        holder.setExtraParameterEqual(extraParameterValue);
+        holder.setExtraParameterLower(extraParameterValue);
+        holder.setExtraParameterUpper(extraParameterValue);
+        // get the results
+        holder.setExpectedResultIds(expected);
+        holder.checkResults(propertyName + " less equal and " + extraPropertyName + extraPredicateProvider.toString());
         tx.commit();
     }
 

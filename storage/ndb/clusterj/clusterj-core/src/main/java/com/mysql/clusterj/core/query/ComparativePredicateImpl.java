@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,16 +53,16 @@ public abstract class ComparativePredicateImpl extends PredicateImpl {
 
     @Override
     public void operationSetLowerBound(QueryExecutionContextImpl context,
-            IndexScanOperation op) {
+            IndexScanOperation op, boolean lastColumn) {
         // delegate to setBounds for most operations
-        operationSetBounds(context, op);
+        operationSetBounds(context, op, lastColumn);
     }
 
     @Override
     public void operationSetUpperBound(QueryExecutionContextImpl context,
-            IndexScanOperation op) {
+            IndexScanOperation op, boolean lastColumn) {
         // delegate to setBounds for most operations
-        operationSetBounds(context, op);
+        operationSetBounds(context, op, lastColumn);
     }
 
 }

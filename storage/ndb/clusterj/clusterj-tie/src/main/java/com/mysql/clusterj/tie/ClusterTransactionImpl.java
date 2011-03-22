@@ -233,6 +233,22 @@ class ClusterTransactionImpl implements ClusterTransaction {
         return new IndexScanOperationImpl(storeTable, ndbOperation, this);
     }
 
+    public IndexScanOperation getIndexScanOperationMultiRange(Index storeIndex, Table storeTable) {
+        enlist();
+        IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
+        handleError(ndbIndex, ndbDictionary);
+        NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
+        handleError(ndbOperation, ndbTransaction);
+        int lockMode = indexScanLockMode;
+        int scanFlags = ScanFlag.SF_MultiRange;
+        int parallel = 0;
+        int batch = 0;
+        int returnCode = ndbOperation.readTuples(lockMode, scanFlags, parallel, batch);
+        handleError(returnCode, ndbTransaction);
+        if (logger.isTraceEnabled()) logger.trace("Table: " + storeTable.getName() + " index: " + storeIndex.getName());
+        return new IndexScanOperationImpl(storeTable, ndbOperation, this);
+    }
+
     public IndexScanOperation getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(Index storeIndex, Table storeTable) {
         enlist();
         IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());

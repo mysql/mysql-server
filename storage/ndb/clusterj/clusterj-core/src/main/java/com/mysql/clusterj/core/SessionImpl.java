@@ -1130,10 +1130,26 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the index scan operation
      */
     public IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable) {
-        // TODO make this possible outside a transaction
         assertActive();
         try {
             IndexScanOperation result = clusterTransaction.getIndexScanOperation(storeIndex, storeTable);
+            return result;
+        } catch (ClusterJException ex) {
+            throw new ClusterJException(
+                    local.message("ERR_Index_Scan", storeTable.getName(), storeIndex.getName()), ex);
+        }
+    }
+
+    /** Create an index scan operation for an index and table to be used for a multi-range scan.
+     * 
+     * @param storeIndex the index
+     * @param storeTable the table
+     * @return the index scan operation
+     */
+    public IndexScanOperation getIndexScanOperationMultiRange(Index storeIndex, Table storeTable) {
+        assertActive();
+        try {
+            IndexScanOperation result = clusterTransaction.getIndexScanOperationMultiRange(storeIndex, storeTable);
             return result;
         } catch (ClusterJException ex) {
             throw new ClusterJException(
@@ -1148,7 +1164,6 @@ public class SessionImpl implements SessionSPI, CacheManager, StoreManager {
      * @return the index scan operation
      */
     public IndexScanOperation getIndexScanDeleteOperation(Index storeIndex, Table storeTable) {
-        // TODO make this possible outside a transaction
         assertActive();
         try {
             IndexScanOperation result = clusterTransaction.getIndexScanOperationLockModeExclusiveScanFlagKeyInfo(storeIndex, storeTable);
