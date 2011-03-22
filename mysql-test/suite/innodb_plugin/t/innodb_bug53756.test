@@ -1,0 +1,184 @@
+# This is the test case for bug #53756. Alter table operation could
+# leave a deleted record for the temp table (later renamed to the altered
+# table) in the SYS_TABLES secondary index, we should ignore this row and
+# find the first non-deleted row for the specified table_id when load table
+# metadata in the function dict_load_table_on_id() during crash recovery.
+
+#
+# innobackup needs to connect to the server. Not supported in embedded.
+--source include/not_embedded.inc
+#
+# This test case needs to crash the server. Needs a debug server.
+--source include/have_debug.inc
+#
+# Don't test this under valgrind, memory leaks will occur.
+--source include/not_valgrind.inc
+#
+# This test case needs InnoDB.
+-- source include/have_innodb_plugin.inc
+
+#
+# Precautionary clean up.
+#
+--disable_warnings
+DROP TABLE IF EXISTS bug_53756 ;
+--enable_warnings
+
+#
+# Create test data.
+#
+CREATE TABLE bug_53756 (pk INT, c1 INT) ENGINE=InnoDB;
+ALTER TABLE bug_53756 ADD PRIMARY KEY (pk);
+INSERT INTO bug_53756 VALUES(1, 11), (2, 22), (3, 33), (4, 44);
+
+--echo
+--echo # Select a less restrictive isolation level.
+# Don't use user variables. They won't survive server crash.
+--let $global_isolation= `SELECT @@global.tx_isolation`
+--let $session_isolation= `SELECT @@session.tx_isolation`
+SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+COMMIT;
+
+--echo
+--echo # Start a transaction in the default connection for isolation.
+START TRANSACTION;
+SELECT @@tx_isolation;
+SELECT * FROM bug_53756;
+
+--echo
+--echo # connection con1 deletes row 1
+--connect (con1,localhost,root,,)
+START TRANSACTION;
+SELECT @@tx_isolation;
+DELETE FROM bug_53756 WHERE pk=1;
+
+--echo
+--echo # connection con2 deletes row 2
+--connect (con2,localhost,root,,)
+START TRANSACTION;
+SELECT @@tx_isolation;
+DELETE FROM bug_53756 WHERE pk=2;
+
+--echo
+--echo # connection con3 updates row 3
+--connect (con3,localhost,root,,)
+START TRANSACTION;
+SELECT @@tx_isolation;
+UPDATE bug_53756 SET c1=77 WHERE pk=3;
+
+--echo
+--echo # connection con4 updates row 4
+--connect (con4,localhost,root,,)
+START TRANSACTION;
+SELECT @@tx_isolation;
+UPDATE bug_53756 SET c1=88 WHERE pk=4;
+
+--echo
+--echo # connection con5 inserts row 5
+--connect (con5,localhost,root,,)
+START TRANSACTION;
+SELECT @@tx_isolation;
+INSERT INTO bug_53756 VALUES(5, 55);
+
+--echo
+--echo # connection con6 inserts row 6
+--connect (con6,localhost,root,,)
+START TRANSACTION;
+SELECT @@tx_isolation;
+INSERT INTO bug_53756 VALUES(6, 66);
+
+--echo
+--echo # connection con1 commits.
+--connection con1
+COMMIT;
+
+--echo
+--echo # connection con3 commits.
+--connection con3
+COMMIT;
+
+--echo
+--echo # connection con4 rolls back.
+--connection con4
+ROLLBACK;
+
+--echo
+--echo # connection con6 rolls back.
+--connection con6
+ROLLBACK;
+
+--echo
+--echo # The connections 2 and 5 stay open.
+
+--echo
+--echo # connection default selects resulting data.
+--echo # Delete of row 1 was committed.
+--echo # Update of row 3 was committed.
+--echo # Due to isolation level read committed, these should be included.
+--echo # All other changes should not be included.
+--connection default
+SELECT * FROM bug_53756;
+
+--echo
+--echo # connection default
+--connection default
+--echo #
+--echo # Crash server.
+#
+# Write file to make mysql-test-run.pl expect the "crash", but don't start
+# it until it's told to
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+#
+START TRANSACTION;
+INSERT INTO bug_53756 VALUES (666,666);
+#
+# Request a crash on next execution of commit.
+SET SESSION debug="+d,crash_commit_before";
+#
+# Execute the statement that causes the crash.
+--error 2013
+COMMIT;
+--echo
+--echo #
+--echo # disconnect con1, con2, con3, con4, con5, con6.
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+--disconnect con5
+--disconnect con6
+--echo #
+--echo # Restart server.
+#
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+#
+# Turn on reconnect
+--enable_reconnect
+#
+# Call script that will poll the server waiting for it to be back online again
+--source include/wait_until_connected_again.inc
+#
+# Turn off reconnect again
+--disable_reconnect
+--echo
+
+--echo #
+--echo # Select recovered data.
+--echo # Delete of row 1 was committed.
+--echo # Update of row 3 was committed.
+--echo # These should be included.
+--echo # All other changes should not be included.
+--echo # Delete of row 2 and insert of row 5 should be rolled back
+SELECT * FROM bug_53756;
+
+--echo
+--echo # Clean up.
+DROP TABLE bug_53756;
+
+--disable_query_log
+eval SET GLOBAL tx_isolation= '$global_isolation';
+eval SET SESSION tx_isolation= '$session_isolation';
+--enable_query_log
+
