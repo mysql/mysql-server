@@ -274,7 +274,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(8);
+  plan(9);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
   return 0;
