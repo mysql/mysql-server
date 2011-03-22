@@ -145,8 +145,8 @@ static ha_rows _mi_record_pos(MI_INFO *info, const byte *key, uint key_len,
     key_len=USE_WHOLE_KEY;
 
   /*
-    my_handler.c:mi_compare_text() has a flag 'skip_end_space'.
-    This is set in my_handler.c:ha_key_cmp() in dependence on the
+    my_compare.c:mi_compare_text() has a flag 'skip_end_space'.
+    This is set in my_compare.c:ha_key_cmp() in dependence on the
     compare flags 'nextflag' and the column type.
 
     TEXT columns are of type HA_KEYTYPE_VARTEXT. In this case the

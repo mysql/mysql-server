@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ extern "C" {
 #ifndef _keycache_h
 #include "keycache.h"
 #endif
-#include "my_handler.h"
+#include "my_compare.h"
 
 /*
   There is a hard limit for the maximum number of keys as there are only
