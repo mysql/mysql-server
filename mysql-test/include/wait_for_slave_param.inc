@@ -51,7 +51,7 @@ if (!$_slave_timeout_counter)
 }
 
 let $_slave_param_comparison= $slave_param_comparison;
-if (`SELECT '$_slave_param_comparison' = ''`)
+if (!$_slave_param_comparison)
 {
   let $_slave_param_comparison= =;
 }
@@ -71,7 +71,7 @@ while (`SELECT NOT('$_show_slave_status_value' $_slave_param_comparison '$slave_
 if (!$_slave_timeout_counter)
 {
   --echo **** ERROR: timeout after $slave_timeout seconds while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****
-  if (`SELECT '$slave_error_message' != ''`)
+  if ($slave_error_message)
   {
     --echo Message: $slave_error_message
   }

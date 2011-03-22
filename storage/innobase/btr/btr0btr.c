@@ -2060,7 +2060,6 @@ btr_compress(
 	ulint		n_recs;
 	ulint		max_ins_size;
 	ulint		max_ins_size_reorg;
-	ulint		level;
 	ulint		comp;
 
 	page = btr_cur_get_page(cursor);
@@ -2072,7 +2071,6 @@ btr_compress(
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
 				MTR_MEMO_PAGE_X_FIX));
-	level = btr_page_get_level(page, mtr);
 	space = dict_index_get_space(index);
 
 	left_page_no = btr_page_get_prev(page, mtr);
