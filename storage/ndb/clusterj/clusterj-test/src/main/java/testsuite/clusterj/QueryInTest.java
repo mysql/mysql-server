@@ -109,7 +109,7 @@ public class QueryInTest extends AbstractQueryTest {
         inAndInQuery("int_not_null_hash", new Object[] {4, 9}, "int_not_null_both", new Object[] {6, 9}, "idx_int_not_null_both", 9);
         inAndInQuery("int_not_null_hash", new Object[] {4, 9}, "int_not_null_btree", new Object[] {6, 9}, "idx_int_not_null_btree", 9);
         inAndInQuery("int_not_null_both", new Object[] {4, 9}, "int_not_null_hash", new Object[] {6, 9}, "idx_int_not_null_both", 9);
-        inAndInQuery("int_not_null_both", new Object[] {4, 9}, "int_not_null_hash", new Object[] {6, 9}, "idx_int_not_null_both", 9);
+        inAndInQuery("int_not_null_btree", new Object[] {4, 9}, "int_not_null_hash", new Object[] {6, 9}, "idx_int_not_null_btree", 9);
         failOnError();        
     }
 
