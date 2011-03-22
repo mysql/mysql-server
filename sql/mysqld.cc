@@ -323,6 +323,7 @@ static PSI_rwlock_key key_rwlock_openssl;
 
 /* the default log output is log tables */
 static bool lower_case_table_names_used= 0;
+static bool max_long_data_size_used= false;
 static bool volatile select_thread_in_use, signal_thread_in_use;
 /* See Bug#56666 and Bug#56760 */;
 volatile bool ready_to_exit;
@@ -481,6 +482,11 @@ ulong specialflag=0;
 ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
+/*
+  Maximum length of parameter value which can be set through
+  mysql_send_long_data() call.
+*/
+ulong max_long_data_size;
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -2323,7 +2329,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 }
 
 
-static void init_signals(void)
+void my_init_signals(void)
 {
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
@@ -2544,11 +2550,11 @@ bugs.\n");
 
 #ifndef EMBEDDED_LIBRARY
 
-static void init_signals(void)
+void my_init_signals(void)
 {
   sigset_t set;
   struct sigaction sa;
-  DBUG_ENTER("init_signals");
+  DBUG_ENTER("my_init_signals");
 
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
@@ -4644,7 +4650,7 @@ int mysqld_main(int argc, char **argv)
   if (init_common_variables())
     unireg_abort(1);				// Will do exit
 
-  init_signals();
+  my_init_signals();
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
@@ -4925,10 +4931,15 @@ int mysqld_main(int argc, char **argv)
 #if defined(__WIN__) && !defined(EMBEDDED_LIBRARY)
 int mysql_service(void *p)
 {
+  if (my_thread_init())
+    return 1;
+  
   if (use_opt_args)
     win_main(opt_argc, opt_argv);
   else
     win_main(Service.my_argc, Service.my_argv);
+
+  my_thread_end();
   return 0;
 }
 
@@ -7412,6 +7423,10 @@ mysqld_get_one_option(int optid,
     if (argument == NULL) /* no argument */
       log_error_file_ptr= const_cast<char*>("");
     break;
+  case OPT_MAX_LONG_DATA_SIZE:
+    max_long_data_size_used= true;
+    WARN_DEPRECATED(NULL, "--max_long_data_size", "'--max_allowed_packet'");
+    break;
   }
   return 0;
 }
@@ -7637,6 +7652,13 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN);
 
   opt_readonly= read_only;
+
+  /*
+    If max_long_data_size is not specified explicitly use
+    value of max_allowed_packet.
+  */
+  if (!max_long_data_size_used)
+    max_long_data_size= global_system_variables.max_allowed_packet;
 
   return 0;
 }

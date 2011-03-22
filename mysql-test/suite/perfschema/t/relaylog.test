@@ -31,6 +31,18 @@ drop table test.t1;
 
 --source include/show_binlog_events.inc
 
+# Notes
+#
+# The point of this test is to make sure code is properly instrumented,
+# where instruments have the proper key (binlog or relaylog),
+# it is not to dive into statistics for each instruments.
+# Different test execution sequence in different platforms do make the
+# results vary, making the test results very sensitive to changes.
+# To ensure robustness:
+# - log file rotation is limited to file .000001 and .000002
+# - statistics are normalized to "NONE" or "MANY"
+#
+
 connection master;
 -- echo "============ Performance schema on master ============"
 
@@ -99,7 +111,11 @@ select
   if (sum_number_of_bytes_read > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_READ,
   if (sum_number_of_bytes_write > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_WRITE
   from performance_schema.file_summary_by_instance
-  where file_name like "%slave-%" order by file_name;
+  where file_name like "%slave-%"
+  and (file_name not like "%slave-relay-bin.0%"
+       or file_name like "%slave-relay-bin.000001"
+       or file_name like "%slave-relay-bin.000002")
+  order by file_name;
 
 -- echo "Expect a slave binlog + binlog_index"
 
@@ -138,7 +154,11 @@ select
   if (sum_number_of_bytes_read > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_READ,
   if (sum_number_of_bytes_write > 0, "MANY", "NONE") as SUM_NUMBER_OF_BYTES_WRITE
   from performance_schema.file_summary_by_instance
-  where event_name like "%relaylog%" order by file_name;
+  where event_name like "%relaylog%"
+  and (file_name not like "%slave-relay-bin.0%"
+       or file_name like "%slave-relay-bin.000001"
+       or file_name like "%slave-relay-bin.000002")
+  order by file_name;
 
 select
   EVENT_NAME,

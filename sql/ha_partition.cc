@@ -3523,7 +3523,7 @@ int ha_partition::delete_row(const uchar *buf)
     Called from item_sum.cc by Item_func_group_concat::clear(),
     Item_sum_count_distinct::clear(), and Item_func_group_concat::clear().
     Called from sql_delete.cc by mysql_delete().
-    Called from sql_select.cc by JOIN::reinit().
+    Called from sql_select.cc by JOIN::reset().
     Called from sql_union.cc by st_select_lex_unit::exec().
 */
 
@@ -4610,7 +4610,8 @@ int ha_partition::index_read_idx_map(uchar *buf, uint index,
           break;
       }
     }
-    m_last_part= part;
+    if (part <= m_part_spec.end_part)
+      m_last_part= part;
   }
   else
   {
@@ -6605,7 +6606,14 @@ void ha_partition::print_error(int error, myf errflag)
   {
     /* In case m_file has not been initialized, like in bug#42438 */
     if (m_file)
+    {
+      if (m_last_part >= m_tot_parts)
+      {
+        DBUG_ASSERT(0);
+        m_last_part= 0;
+      }
       m_file[m_last_part]->print_error(error, errflag);
+    }
     else
       handler::print_error(error, errflag);
   }

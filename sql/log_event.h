@@ -510,6 +510,16 @@ struct sql_ex_info
 #define LOG_EVENT_IGNORABLE_F 0x80
 
 /**
+   @def LOG_EVENT_NO_FILTER_F
+
+   Events with this flag are not filtered (e.g. on the current
+   database) and are always written to the binary log regardless of
+   filters.
+*/
+#define LOG_EVENT_NO_FILTER_F 0x100
+
+
+/**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
   OPTIONS_WRITTEN_TO_BIN_LOG are the bits of thd->options which must
@@ -1130,6 +1140,7 @@ public:
   bool is_artificial_event() const { return flags & LOG_EVENT_ARTIFICIAL_F; }
   bool is_relay_log_event() const { return flags & LOG_EVENT_RELAY_LOG_F; }
   bool is_ignorable_event() const { return flags & LOG_EVENT_IGNORABLE_F; }
+  bool is_no_filter_event() const { return flags & LOG_EVENT_NO_FILTER_F; }
   inline bool use_trans_cache() const
   { 
     return (cache_type == Log_event::EVENT_TRANSACTIONAL_CACHE);
@@ -3999,7 +4010,7 @@ class Incident_log_event : public Log_event {
 public:
 #ifdef MYSQL_SERVER
   Incident_log_event(THD *thd_arg, Incident incident)
-    : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));
@@ -4010,7 +4021,7 @@ public:
   }
 
   Incident_log_event(THD *thd_arg, Incident incident, LEX_STRING const msg)
-    : Log_event(thd_arg, 0, FALSE), m_incident(incident)
+    : Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, FALSE), m_incident(incident)
   {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("m_incident: %d", m_incident));

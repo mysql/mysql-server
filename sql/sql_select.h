@@ -1918,9 +1918,9 @@ public:
 	      Item *having, ORDER *proc_param, SELECT_LEX *select,
 	      SELECT_LEX_UNIT *unit);
   int optimize();
-  int reinit();
+  void reset();
   void exec();
-  int destroy();
+  bool destroy();
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
