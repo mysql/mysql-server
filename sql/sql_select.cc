@@ -15397,6 +15397,7 @@ void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   table->s->all_set= table->def_read_set;
   bitmap_set_all(&table->s->all_set);
   table->default_column_bitmaps();
+  table->s->column_bitmap_size= bitmap_buffer_size(field_count);
 }
 
 
