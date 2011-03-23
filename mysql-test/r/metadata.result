@@ -210,3 +210,9 @@ f1
 DROP VIEW v1;
 DROP TABLE t1;
 End of 5.0 tests
+select cast('01:01:01' as time), cast('01:01:01' as time(2));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					cast('01:01:01' as time)	11	9	8	Y	128	0	63
+def					cast('01:01:01' as time(2))	11	12	11	Y	128	2	63
+cast('01:01:01' as time)	cast('01:01:01' as time(2))
+01:01:01	01:01:01.00

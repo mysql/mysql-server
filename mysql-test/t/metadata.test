@@ -143,3 +143,11 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+--enable_metadata
+
+#
+# lp:740173 5.1-micro reports incorrect Length metadata for TIME expressions
+#
+select cast('01:01:01' as time), cast('01:01:01' as time(2));
+

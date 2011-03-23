@@ -698,7 +698,7 @@ public:
   {
     collation.set(&my_charset_bin);
     maybe_null= 1;
-    max_length= MAX_TIME_WIDTH;
+    max_length= MIN_TIME_WIDTH;
     if (decimals == NOT_FIXED_DEC)
       decimals= args[0]->decimals;
     if (decimals && decimals != NOT_FIXED_DEC)
