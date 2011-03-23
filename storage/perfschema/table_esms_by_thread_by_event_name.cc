@@ -212,26 +212,27 @@ int table_esms_by_thread_by_event_name::rnd_next(void)
   PFS_thread *thread;
   PFS_statement_class *statement_class;
 
-  m_pos.set_at(&m_next_pos);
-
-  do
+  for (m_pos.set_at(&m_next_pos);
+       m_pos.has_more_thread();
+       m_pos.next_thread())
   {
-    statement_class= find_statement_class(m_pos.m_index_1);
-    if (statement_class)
+    thread= &thread_array[m_pos.m_index_1];
+
+    /*
+      Important note: the thread scan is the outer loop (index 1),
+      to minimize the number of calls to atomic operations.
+    */
+    if (thread->m_lock.is_populated())
     {
-      for ( ; m_pos.has_more_thread(); m_pos.next_thread())
+      statement_class= find_statement_class(m_pos.m_index_2);
+      if (statement_class)
       {
-        thread= &thread_array[m_pos.m_index_2];
-        if (thread->m_lock.is_populated())
-        {
-          make_row(thread, statement_class);
-          m_next_pos.set_after(&m_pos);
-          return 0;
-        }
+        make_row(thread, statement_class);
+        m_next_pos.set_after(&m_pos);
+        return 0;
       }
-      m_pos.next_statement();
     }
-  } while (statement_class != NULL);
+  }
 
   return HA_ERR_END_OF_FILE;
 }
@@ -243,13 +244,13 @@ table_esms_by_thread_by_event_name::rnd_pos(const void *pos)
   PFS_statement_class *statement_class;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_2 < thread_max);
+  DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
-  thread= &thread_array[m_pos.m_index_2];
+  thread= &thread_array[m_pos.m_index_1];
   if (! thread->m_lock.is_populated())
     return HA_ERR_RECORD_DELETED;
 
-  statement_class= find_statement_class(m_pos.m_index_1);
+  statement_class= find_statement_class(m_pos.m_index_2);
   if (statement_class)
   {
     make_row(thread, statement_class);
