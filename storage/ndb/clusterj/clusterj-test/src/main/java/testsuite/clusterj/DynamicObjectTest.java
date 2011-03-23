@@ -17,15 +17,11 @@
 
 package testsuite.clusterj;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.ColumnType;
 import com.mysql.clusterj.DynamicObject;
 import com.mysql.clusterj.ColumnMetadata;
 import com.mysql.clusterj.Query;
-import com.mysql.clusterj.ColumnMetadata.Type;
 import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.query.QueryBuilder;
 import com.mysql.clusterj.query.QueryDomainType;
@@ -42,7 +38,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
 
     private Object[] expectedTBasicNames = new Object[] {"id", "name", "age", "magic"};
 
-    private Object[] expectedTBasicTypes = new Object[] {Type.Int, Type.Varchar, Type.Int, Type.Int};
+    private Object[] expectedTBasicTypes = new Object[] {ColumnType.Int, ColumnType.Varchar, ColumnType.Int, ColumnType.Int};
 
     private Object[] expectedTBasicJavaTypes = new Object[] {Integer.class, String.class, Integer.class, Integer.class};
 
@@ -181,11 +177,6 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
     }
 
     private static class DynamicObjectPrivate extends DynamicObject {
-        public DynamicObjectPrivate() {}
-        @Override
-        public String table() {
-            return "DynamicObjectProtectedConstructor";
-        }        
     }
 
     public class DynamicObjectNonStatic extends DynamicObject {
@@ -220,7 +211,7 @@ public class DynamicObjectTest extends AbstractClusterJModelTest {
         ColumnMetadata[] metadata = tbasic.columnMetadata();
         for (int i = 0; i < metadata.length; ++i) {
             errorIfNotEqual("t_basic column " + i + " name", expectedTBasicNames[i], metadata[i].name());
-            errorIfNotEqual("t_basic column " + i + " type", expectedTBasicTypes[i], metadata[i].type());
+            errorIfNotEqual("t_basic column " + i + " type", expectedTBasicTypes[i], metadata[i].columnType());
             errorIfNotEqual("t_basic column " + i + " javaType", expectedTBasicJavaTypes[i], metadata[i].javaType());
             errorIfNotEqual("t_basic column " + i + " maximumLength", expectedTBasicMaximumLengths[i], metadata[i].maximumLength());
             errorIfNotEqual("t_basic column " + i + " charsetName", expectedTBasicCharsetNames [i], metadata[i].charsetName());

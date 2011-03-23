@@ -21,6 +21,7 @@ import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.ColumnMetadata;
+import com.mysql.clusterj.ColumnType;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
@@ -90,7 +91,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
     protected boolean partitionKey;
 
     /** The Store Type for the column. */
-    protected Type storeColumnType = null;
+    protected ColumnType storeColumnType = null;
 
     /** Column names in the case of a field mapped to multiple columns, e.g. foreign keys */
     protected String[] columnNames;
@@ -2753,7 +2754,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         return scale;
     }
 
-    public Type type() {
+    public ColumnType columnType() {
         return this.storeColumnType;
     }
 
