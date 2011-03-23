@@ -158,7 +158,7 @@ ibuf_index_page_calc_free_bits(
 	ulint	n;
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	if (zip_size) {
 		n = max_ins_size
@@ -193,7 +193,7 @@ ibuf_index_page_calc_free_from_bits(
 	ut_ad(bits < 4);
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(!zip_size || zip_size > IBUF_PAGE_SIZE_PER_FREE_SPACE);
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	if (zip_size) {
 		if (bits == 3) {

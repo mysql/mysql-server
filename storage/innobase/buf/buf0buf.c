@@ -5619,7 +5619,7 @@ buf_page_init_for_backup_restore(
 
 	/* We assume that block->page.data has been allocated
 	with zip_size == UNIV_PAGE_SIZE. */
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_ad(ut_is_2pow(zip_size));
 	page_zip_set_size(&block->page.zip, zip_size);
 	if (zip_size) {

@@ -612,15 +612,15 @@ dict_sys_tables_get_flags(
 
 	switch (flags & (DICT_TF_FORMAT_MASK | DICT_TF_COMPACT)) {
 	default:
-	case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT:
-	case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
+	case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
+	case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
 		/* flags should be DICT_TABLE_ORDINARY,
 		or DICT_TF_FORMAT_MASK should be nonzero. */
 		return(ULINT_UNDEFINED);
 
-	case DICT_TF_FORMAT_ZIP << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
-#if DICT_TF_FORMAT_MAX > DICT_TF_FORMAT_ZIP
-# error "missing case labels for DICT_TF_FORMAT_ZIP .. DICT_TF_FORMAT_MAX"
+	case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
+#if UNIV_FORMAT_MAX > UNIV_FORMAT_B
+# error "missing case labels for UNIV_FORMAT_B .. UNIV_FORMAT_MAX"
 #endif
 		/* We support this format. */
 		break;

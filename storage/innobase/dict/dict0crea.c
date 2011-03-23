@@ -99,7 +99,7 @@ dict_create_sys_tables_tuple(
 	ptr = mem_heap_alloc(heap, 4);
 	if (table->flags & ~DICT_TF_COMPACT) {
 		ut_a(table->flags & DICT_TF_COMPACT);
-		ut_a(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
+		ut_a(dict_table_get_format(table) >= UNIV_FORMAT_B);
 		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
 		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
 		ut_a(!(table->flags & ~DICT_TF_BIT_MASK));
@@ -289,9 +289,9 @@ dict_build_table_def_step(
 			is_path = FALSE;
 		}
 
-		ut_ad(dict_table_get_format(table) <= DICT_TF_FORMAT_MAX);
+		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
 		ut_ad(!dict_table_zip_size(table)
-		      || dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
+		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
 		flags = table->flags;
 		ut_a(!(flags & ~DICT_TF_BIT_MASK));
@@ -1128,7 +1128,7 @@ dict_create_index_step(
 			node->table, node->index, FIL_NULL,
 			trx_is_strict(trx)
 			|| dict_table_get_format(node->table)
-			>= DICT_TF_FORMAT_ZIP);
+			>= UNIV_FORMAT_B);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));
