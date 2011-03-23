@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 package com.mysql.clusterj.core.store;
 
-import com.mysql.clusterj.ColumnMetadata.Type;
+import com.mysql.clusterj.ColumnType;
 
 /** Column metadata for ndb columns.
  *
@@ -33,7 +33,7 @@ public interface Column {
      * 
      * @return the store type
      */
-    public Type getType();
+    public ColumnType getType();
 
     /** Is this column a primary key column?
      * @return true if this column is a primary key column

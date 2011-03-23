@@ -1,5 +1,5 @@
 /*
-   Copyright 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ public interface ColumnMetadata {
     /** Return the type of the column.
      * @return the type of the column
      */
-    Type type();
+    ColumnType columnType();
 
     /** Return the java type of the column.
      * @return the java type of the column
@@ -75,40 +75,5 @@ public interface ColumnMetadata {
      * @return the charset name
      */
     String charsetName();
-
-    public enum Type {
-
-        Bigint,          ///< 64 bit. 8 byte signed integer, can be used in array
-        Bigunsigned,     ///< 64 Bit. 8 byte signed integer, can be used in array
-        Binary,          ///< Len
-        Bit,             ///< Bit, length specifies no of bits
-        Blob,            ///< Binary large object (see NdbBlob)
-        Char,            ///< Len. A fixed array of 1-byte chars
-        Date,            ///< Precision down to 1 day(sizeof(Date) == 4 bytes )
-        Datetime,        ///< Precision down to 1 sec (sizeof(Datetime) == 8 bytes )
-        Double,          ///< 64-bit float. 8 byte float, can be used in array
-        Decimal,         ///< MySQL >= 5.0 signed decimal,  Precision, Scale
-        Decimalunsigned,
-        Float,           ///< 32-bit float. 4 bytes float, can be used in array
-        Int,             ///< 32 bit. 4 byte signed integer, can be used in array
-        Longvarchar,     ///< Length bytes: 2, little-endian
-        Longvarbinary,   ///< Length bytes: 2, little-endian
-        Mediumint,       ///< 24 bit. 3 byte signed integer, can be used in array
-        Mediumunsigned,  ///< 24 bit. 3 byte unsigned integer, can be used in array
-        Olddecimal,
-        Olddecimalunsigned,
-        Smallint,        ///< 16 bit. 2 byte signed integer, can be used in array
-        Smallunsigned,   ///< 16 bit. 2 byte unsigned integer, can be used in array
-        Text,            ///< Text blob
-        Time,            ///< Time without date
-        Timestamp,       ///< Unix time
-        Tinyint,         ///< 8 bit. 1 byte signed integer, can be used in array
-        Tinyunsigned,    ///< 8 bit. 1 byte unsigned integer, can be used in array
-        Undefined,
-        Unsigned,        ///< 32 bit. 4 byte unsigned integer, can be used in array
-        Varbinary,       ///< Length bytes: 1, Max: 255
-        Varchar,         ///< Length bytes: 1, Max: 255
-        Year             ///< Year 1901-2155 (1 byte)
-    }
 
 }

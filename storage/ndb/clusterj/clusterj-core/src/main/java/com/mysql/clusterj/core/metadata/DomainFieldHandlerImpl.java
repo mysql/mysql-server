@@ -20,6 +20,7 @@ package com.mysql.clusterj.core.metadata;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.ColumnType;
 
 import com.mysql.clusterj.annotation.Column;
 import com.mysql.clusterj.annotation.Lob;
@@ -218,7 +219,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
             } else if (type.equals(Long.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerObjectLong;
             } else if (type.equals(Short.class)) {
-                if (Type.Year.equals(storeColumnType)) {
+                if (ColumnType.Year.equals(storeColumnType)) {
                     objectOperationHandlerDelegate = objectOperationHandlerObjectShortYear;
                 } else {
                     objectOperationHandlerDelegate = objectOperationHandlerObjectShort;
@@ -230,7 +231,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl {
             } else if (type.equals(long.class)) {
                 objectOperationHandlerDelegate = objectOperationHandlerLong;
             } else if (type.equals(short.class)) {
-                if (Type.Year.equals(storeColumnType)) {
+                if (ColumnType.Year.equals(storeColumnType)) {
                     objectOperationHandlerDelegate = objectOperationHandlerShortYear;
                 } else {
                     objectOperationHandlerDelegate = objectOperationHandlerShort;
