@@ -159,9 +159,13 @@ parse_arguments() {
     case "$arg" in
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION="$val" ;;
-      --datadir=*) DATADIR="$val" ;;
+      --datadir=*|--data=*) DATADIR="$val" ;;
       --pid-file=*) pid_file="$val" ;;
       --user=*) user="$val"; SET_USER=1 ;;
+      --log-basename=*|--hostname=*|--loose-log-basename=*)
+        pid_file="$val.pid";
+	err_log="$val.err";
+	;;
 
       # these might have been set in a [mysqld_safe] section of my.cnf
       # they are added to mysqld command line to override settings from my.cnf
@@ -411,7 +415,11 @@ safe_mysql_unix_port=${mysql_unix_port:-${MYSQL_UNIX_PORT:-@MYSQL_UNIX_ADDR@}}
 mysql_unix_port_dir=`dirname $safe_mysql_unix_port`
 if [ ! -d $mysql_unix_port_dir ]
 then
-  mkdir $mysql_unix_port_dir
+  if ! `mkdir -p $mysql_unix_port_dir`
+  then
+    echo "Fatal error Can't create database directory '$mysql_unix_port'"
+    exit 1
+  fi
   chown $user $mysql_unix_port_dir
   chmod 755 $mysql_unix_port_dir
 fi
@@ -434,14 +442,14 @@ fi
 
 if test -z "$pid_file"
 then
-  pid_file="$DATADIR/`@HOSTNAME@`.pid"
-else
-  case "$pid_file" in
-    /* ) ;;
-    * )  pid_file="$DATADIR/$pid_file" ;;
-  esac
+  pid_file="`@HOSTNAME@`.pid"
 fi
+# MariaDB wants pid file without datadir
 append_arg_to_args "--pid-file=$pid_file"
+case "$pid_file" in
+  /* ) ;;
+  * )  pid_file="$DATADIR/$pid_file" ;;
+esac
 
 if test -n "$mysql_unix_port"
 then

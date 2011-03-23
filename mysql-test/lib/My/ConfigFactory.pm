@@ -200,6 +200,7 @@ my @mysqld_rules=
   (
  { 'basedir' => sub { return shift->{ARGS}->{basedir}; } },
  { 'tmpdir' => \&fix_tmpdir },
+ { 'log-basename' => sub { return "mysqld" } },
  { 'character-sets-dir' => \&fix_charset_dir },
  { 'language' => \&fix_language },
  { 'datadir' => \&fix_datadir },
@@ -208,6 +209,7 @@ my @mysqld_rules=
  { 'port' => \&fix_port },
  { '#extra-port' => \&fix_port },
  { 'socket' => \&fix_socket },
+ { 'log-error' => \&fix_log_error },
  { '#log-error' => \&fix_log_error },
  { 'general-log' => sub { return 1; } },
  { 'general-log-file' => \&fix_log },
@@ -216,6 +218,7 @@ my @mysqld_rules=
  { '#user' => sub { return shift->{ARGS}->{user} || ""; } },
  { '#password' => sub { return shift->{ARGS}->{password} || ""; } },
  { 'server-id' => \&fix_server_id, },
+ { 'sync-sys'  => sub { return 1; } },
  # By default, prevent the started mysqld to access files outside of vardir
  { 'secure-file-priv' => sub { return shift->{ARGS}->{vardir}; } },
  { 'ssl-ca' => \&fix_ssl_ca },
