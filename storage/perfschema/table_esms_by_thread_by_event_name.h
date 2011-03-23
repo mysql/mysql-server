@@ -49,32 +49,32 @@ struct row_esms_by_thread_by_event_name
 /**
   Position of a cursor on
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
-  Index 1 on statement class (1 based).
-  Index 2 on thread (0 based).
+  Index 1 on thread (0 based).
+  Index 2 on statement class (1 based).
 */
 struct pos_esms_by_thread_by_event_name
 : public PFS_double_index, public PFS_instrument_view_constants
 {
   pos_esms_by_thread_by_event_name()
-    : PFS_double_index(1, 0)
+    : PFS_double_index(0, 1)
   {}
 
   inline void reset(void)
   {
-    m_index_1= 1;
-    m_index_2= 0;
+    m_index_1= 0;
+    m_index_2= 1;
   }
 
   inline bool has_more_thread(void)
-  { return (m_index_2 < thread_max); }
-
-  inline void next_statement(void)
-  {
-    m_index_1++;
-    m_index_2= 0;
-  }
+  { return (m_index_1 < thread_max); }
 
   inline void next_thread(void)
+  {
+    m_index_1++;
+    m_index_2= 1;
+  }
+
+  inline void next_statement(void)
   {
     m_index_2++;
   }
