@@ -285,11 +285,15 @@ public:
   virtual bool clustered_pk_range() { return false; }
   
   /*
-    Request that this quick select produces sorted output. Not all quick
-    selects can do it, the caller is responsible for calling this function
-    only for those quick selects that can.
+    Request that this quick select produces sorted output if 'sort==true'.
+    Not all quick selects can provide sorted output, the caller is responsible 
+    for calling this function only for those quick selects that can.
+    Caller is allowed to later cancel its sorted request by setting 
+    'sort==false'. However, the implementation is allowed to provide sorted 
+    output even in this case if benificial, or required by implementation 
+    internals.
   */
-  virtual void need_sorted_output() = 0;
+  virtual void need_sorted_output(bool sort) = 0;
   enum {
     QS_TYPE_RANGE = 0,
     QS_TYPE_INDEX_MERGE = 1,
@@ -399,7 +403,7 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
 
 /*
   Quick select that does a range scan on a single key. The records are
-  returned in key order.
+  returned in key order if ::need_sorted_output(true) has been called.
 */
 class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
@@ -465,7 +469,7 @@ public:
                      MEM_ROOT *parent_alloc, bool *create_error);
   ~QUICK_RANGE_SELECT();
   
-  void need_sorted_output();
+  void need_sorted_output(bool sort);
   int init();
   int reset(void);
   int get_next();
@@ -569,7 +573,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
+  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -647,7 +651,7 @@ public:
   ~QUICK_ROR_INTERSECT_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
+  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -718,7 +722,7 @@ public:
   ~QUICK_ROR_UNION_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
+  void need_sorted_output(bool sort) { DBUG_ASSERT(!sort); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -860,7 +864,7 @@ public:
   void adjust_prefix_ranges();
   bool alloc_buffers();
   int init();
-  void need_sorted_output() { /* always do it */ }
+  void need_sorted_output(bool sort) { /* always do it */ }
   int reset();
   int get_next();
   bool reverse_sorted() { return false; }

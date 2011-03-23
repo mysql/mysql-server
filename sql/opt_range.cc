@@ -1179,7 +1179,9 @@ QUICK_SELECT_I::QUICK_SELECT_I()
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
                                        bool no_alloc, MEM_ROOT *parent_alloc,
                                        bool *create_error)
-  :free_file(0),cur_range(NULL),last_range(0),dont_free(0)
+  :free_file(0), cur_range(NULL), last_range(0),
+   mrr_flags(0), mrr_buf_size(0), mrr_buf_desc(NULL),
+   dont_free(0)
 {
   my_bitmap_map *bitmap;
   DBUG_ENTER("QUICK_RANGE_SELECT::QUICK_RANGE_SELECT");
@@ -1192,7 +1194,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 
   /* 'thd' is not accessible in QUICK_RANGE_SELECT::reset(). */
   mrr_buf_size= thd->variables.read_rnd_buff_size;
-  mrr_buf_desc= NULL;
 
   if (!no_alloc && !parent_alloc)
   {
@@ -1220,17 +1221,12 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output()
+void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
 {
-  if (!(mrr_flags & HA_MRR_SORTED))
-  {
-    /*
-      Native implementation can't produce sorted output. We'll have to
-      switch to default
-    */
-    mrr_flags |= HA_MRR_USE_DEFAULT_IMPL; 
-  }
-  mrr_flags |= HA_MRR_SORTED;
+  if (sort)
+    mrr_flags |= HA_MRR_SORTED;
+  else
+    mrr_flags &= ~HA_MRR_SORTED;
 }
 
 
@@ -8714,7 +8710,8 @@ int QUICK_RANGE_SELECT::reset()
   {
     if (in_ror_merged_scan)
       head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
-    if ((error= file->ha_index_init(index,1)))
+    const bool sorted= (mrr_flags & HA_MRR_SORTED);
+    if ((error= file->ha_index_init(index, sorted)))
         DBUG_RETURN(error);
   }
 
@@ -8989,10 +8986,11 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     last_range->make_min_endpoint(&start_key, prefix_length, keypart_map);
     last_range->make_max_endpoint(&end_key, prefix_length, keypart_map);
 
+    const bool sorted= (mrr_flags & HA_MRR_SORTED);
     result= file->read_range_first(last_range->min_keypart_map ? &start_key : 0,
 				   last_range->max_keypart_map ? &end_key : 0,
                                    test(last_range->flag & EQ_RANGE),
-				   TRUE);
+				   sorted);
     if (last_range->flag == (UNIQUE_RANGE | EQ_RANGE))
       last_range= 0;			// Stop searching
 
@@ -9104,6 +9102,7 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
   */
   mrr_buf_desc= NULL;
   mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
+  mrr_flags |= HA_MRR_SORTED; // 'sorted' as internals use index_last/_prev
   mrr_buf_size= 0;
 
 
@@ -10584,12 +10583,20 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
     if (quick_prefix_records == HA_POS_ERROR)
       quick->quick_prefix_select= NULL; /* Can't construct a quick select. */
     else
+    {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
       quick->quick_prefix_select= get_quick_select(param, param_idx,
                                                    index_tree,
-                                                   HA_MRR_USE_DEFAULT_IMPL, 0,
+                                                   HA_MRR_USE_DEFAULT_IMPL |
+                                                   HA_MRR_SORTED,
+                                                   0,
                                                    &quick->alloc);
-
+      if (!quick->quick_prefix_select)
+      {
+        delete quick;
+        DBUG_RETURN(NULL);
+      }
+    }
     /*
       Extract the SEL_ARG subtree that contains only ranges for the MIN/MAX
       attribute, and create an array of QUICK_RANGES to be used by the
@@ -10985,7 +10992,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
   head->set_keyread(TRUE); /* We need only the key attributes */
-  if ((result= file->ha_index_init(index,1)))
+  /*
+    Request ordered index access as usage of ::index_last(), 
+    ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
+  */
+  if ((result= file->ha_index_init(index, true)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
