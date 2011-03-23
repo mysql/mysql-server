@@ -2756,12 +2756,11 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
       value.time.day > 31 ||
       (time_type != MYSQL_TIMESTAMP_TIME && value.time.hour > 23) ||
       value.time.minute > 59 || value.time.second > 59 ||
-      value.time.second_part >= MAX_SEC_PART_VALUE)
+      value.time.second_part > MAX_SEC_PART_VALUE)
   {
-    char buff[MAX_DATE_STRING_REP_LENGTH];
-    uint length= my_TIME_to_str(&value.time, buff, decimals);
+    Lazy_string_time str(tm);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                 buff, length, time_type, 0);
+                                 &str, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
 
