@@ -8,6 +8,9 @@
 --echo # Binary must be compiled with debug for crash to occur
 --source include/have_debug.inc
 
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
 let $MYSQLD_DATADIR= `select @@datadir`;
 SET GLOBAL delay_key_write=ALL;
 CREATE TABLE t1(a INT, 
