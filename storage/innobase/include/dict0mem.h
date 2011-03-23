@@ -64,17 +64,17 @@ combination of types */
 
 /** Table flags.  All unused bits must be 0. */
 /* @{ */
-#define DICT_TF_COMPACT			1	/* Compact page format.
-						This must be set for
-						new file formats
-						(later than
-						DICT_TF_FORMAT_51). */
+/** Compact page format.
+This flag is set for all row formats later than Redundant.  It identifies
+the Compact row format.  It is also used for the later formats, Compressed
+and Dynamic, because they add features to the Compact structure. */
+#define DICT_TF_COMPACT			1
 
 /** Compressed page size (0=uncompressed, up to 15 compressed sizes) */
 /* @{ */
 #define DICT_TF_ZSSIZE_SHIFT		1
 #define DICT_TF_ZSSIZE_MASK		(15 << DICT_TF_ZSSIZE_SHIFT)
-#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 1)
+#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - UNIV_ZIP_SIZE_SHIFT_MIN + 1)
 /* @} */
 
 /** File format */
@@ -82,22 +82,12 @@ combination of types */
 #define DICT_TF_FORMAT_SHIFT		5	/* file format */
 #define DICT_TF_FORMAT_MASK		\
 ((~(~0 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT))) << DICT_TF_FORMAT_SHIFT)
-#define DICT_TF_FORMAT_51		0	/*!< InnoDB/MySQL up to 5.1 */
 #define DICT_N_COLS_COMPACT	0x80000000UL	/*!< Set if ROW_FORMAT!=REDUNDANT */
-
-#define DICT_TF_FORMAT_ZIP		1	/*!< InnoDB plugin for 5.1:
-						compressed tables,
-						new BLOB treatment */
-/** Maximum supported file format */
-#define DICT_TF_FORMAT_MAX		DICT_TF_FORMAT_ZIP
-
-/** Minimum supported file format */
-#define DICT_TF_FORMAT_MIN		DICT_TF_FORMAT_51
 
 /* @} */
 #define DICT_TF_BITS			6	/*!< number of flag bits */
-#if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
-# error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
+#if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= UNIV_FORMAT_MAX
+# error "DICT_TF_BITS is insufficient for UNIV_FORMAT_MAX"
 #endif
 /** Valid table flag bits */
 #define DICT_TF_BIT_MASK		(~(~0 << DICT_TF_BITS))	

@@ -2528,7 +2528,7 @@ mem_free_and_error:
 		format_id = innobase_file_format_name_lookup(
 			innobase_file_format_name);
 
-		if (format_id > DICT_TF_FORMAT_MAX) {
+		if (format_id > UNIV_FORMAT_MAX) {
 
 			sql_print_error("InnoDB: wrong innodb_file_format.");
 
@@ -2554,12 +2554,12 @@ mem_free_and_error:
 	if (!innobase_file_format_check) {
 
 		/* Set the value to disable checking. */
-		srv_max_file_format_at_startup = DICT_TF_FORMAT_MAX + 1;
+		srv_max_file_format_at_startup = UNIV_FORMAT_MAX + 1;
 
 	} else {
 
 		/* Set the value to the lowest supported format. */
-		srv_max_file_format_at_startup = DICT_TF_FORMAT_MIN;
+		srv_max_file_format_at_startup = UNIV_FORMAT_MIN;
 	}
 
 	/* Did the user specify a format name that we support?
@@ -2573,7 +2573,7 @@ mem_free_and_error:
 				"should be any value up to %s or its "
 				"equivalent numeric id",
 				trx_sys_file_format_id_to_name(
-					DICT_TF_FORMAT_MAX));
+					UNIV_FORMAT_MAX));
 
 		goto mem_free_and_error;
 	}
@@ -3298,16 +3298,16 @@ ha_innobase::get_row_type() const
 		ut_ad(flags & DICT_TF_COMPACT);
 
 		switch (flags & DICT_TF_FORMAT_MASK) {
-		case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT:
+		case UNIV_FORMAT_A << DICT_TF_FORMAT_SHIFT:
 			return(ROW_TYPE_COMPACT);
-		case DICT_TF_FORMAT_ZIP << DICT_TF_FORMAT_SHIFT:
+		case UNIV_FORMAT_B << DICT_TF_FORMAT_SHIFT:
 			if (flags & DICT_TF_ZSSIZE_MASK) {
 				return(ROW_TYPE_COMPRESSED);
 			} else {
 				return(ROW_TYPE_DYNAMIC);
 			}
-#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
-# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
+# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
 #endif
 		}
 	}
@@ -7028,7 +7028,7 @@ get_row_format_name(
 
 /** If file-format is Antelope, issue warning and set ret false */
 #define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
-	if (srv_file_format < DICT_TF_FORMAT_ZIP) {		\
+	if (srv_file_format < UNIV_FORMAT_B) {		\
 		push_warning_printf(				\
 			thd, MYSQL_ERROR::WARN_LEVEL_WARN,	\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
@@ -7086,7 +7086,7 @@ create_options_are_valid(
 					" innodb_file_per_table.");
 				ret = FALSE;
 			}
-			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
+			if (srv_file_format < UNIV_FORMAT_B) {
 				push_warning(
 					thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7275,7 +7275,7 @@ ha_innobase::create(
 			if (key_block_size == ksize) {
 				flags = ssize << DICT_TF_ZSSIZE_SHIFT
 					| DICT_TF_COMPACT
-					| DICT_TF_FORMAT_ZIP
+					| UNIV_FORMAT_B
 					  << DICT_TF_FORMAT_SHIFT;
 				break;
 			}
@@ -7290,7 +7290,7 @@ ha_innobase::create(
 			flags = 0;
 		}
 
-		if (file_format < DICT_TF_FORMAT_ZIP) {
+		if (file_format < UNIV_FORMAT_B) {
 			push_warning(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7339,7 +7339,7 @@ ha_innobase::create(
 			flags = (DICT_TF_ZSSIZE_MAX - 1)
 				<< DICT_TF_ZSSIZE_SHIFT
 				| DICT_TF_COMPACT
-				| DICT_TF_FORMAT_ZIP
+				| UNIV_FORMAT_B
 				<< DICT_TF_FORMAT_SHIFT;
 #if DICT_TF_ZSSIZE_MAX < 1
 # error "DICT_TF_ZSSIZE_MAX < 1"
@@ -7359,7 +7359,7 @@ ha_innobase::create(
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
-		} else if (file_format < DICT_TF_FORMAT_ZIP) {
+		} else if (file_format < UNIV_FORMAT_B) {
 			push_warning_printf(
 				thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -7368,7 +7368,7 @@ ha_innobase::create(
 				get_row_format_name(row_format));
 		} else {
 			flags |= DICT_TF_COMPACT
-			         | (DICT_TF_FORMAT_ZIP
+			         | (UNIV_FORMAT_B
 			            << DICT_TF_FORMAT_SHIFT);
 			break;
 		}
@@ -11076,13 +11076,13 @@ innobase_file_format_name_lookup(
 	/* Check for valid parse. */
 	if (*endp == '\0' && *format_name != '\0') {
 
-		if (format_id <= DICT_TF_FORMAT_MAX) {
+		if (format_id <= UNIV_FORMAT_MAX) {
 
 			return(format_id);
 		}
 	} else {
 
-		for (format_id = 0; format_id <= DICT_TF_FORMAT_MAX;
+		for (format_id = 0; format_id <= UNIV_FORMAT_MAX;
 		     format_id++) {
 			const char*	name;
 
@@ -11095,7 +11095,7 @@ innobase_file_format_name_lookup(
 		}
 	}
 
-	return(DICT_TF_FORMAT_MAX + 1);
+	return(UNIV_FORMAT_MAX + 1);
 }
 
 /************************************************************//**
@@ -11112,7 +11112,7 @@ innobase_file_format_validate_and_set(
 
 	format_id = innobase_file_format_name_lookup(format_max);
 
-	if (format_id < DICT_TF_FORMAT_MAX + 1) {
+	if (format_id < UNIV_FORMAT_MAX + 1) {
 		srv_max_file_format_at_startup = format_id;
 
 		return((int) format_id);
@@ -11151,7 +11151,7 @@ innodb_file_format_name_validate(
 		format_id = innobase_file_format_name_lookup(
 			file_format_input);
 
-		if (format_id <= DICT_TF_FORMAT_MAX) {
+		if (format_id <= UNIV_FORMAT_MAX) {
 
 			/* Save a pointer to the name in the
 			'file_format_name_map' constant array. */
@@ -11193,7 +11193,7 @@ innodb_file_format_name_update(
 
 		format_id = innobase_file_format_name_lookup(format_name);
 
-		if (format_id <= DICT_TF_FORMAT_MAX) {
+		if (format_id <= UNIV_FORMAT_MAX) {
 			srv_file_format = format_id;
 		}
 	}
@@ -11248,8 +11248,8 @@ innodb_file_format_max_validate(
 			  "InnoDB: invalid innodb_file_format_max "
 			  "value; can be any format up to %s "
 			  "or equivalent id of %d",
-			  trx_sys_file_format_id_to_name(DICT_TF_FORMAT_MAX),
-			  DICT_TF_FORMAT_MAX);
+			  trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX),
+			  UNIV_FORMAT_MAX);
 		}
 	}
 
@@ -11288,7 +11288,7 @@ innodb_file_format_max_update(
 
 	format_id = innobase_file_format_name_lookup(format_name_in);
 
-	if (format_id > DICT_TF_FORMAT_MAX) {
+	if (format_id > UNIV_FORMAT_MAX) {
 		/* DEFAULT is "on", which is invalid at runtime. */
 		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,

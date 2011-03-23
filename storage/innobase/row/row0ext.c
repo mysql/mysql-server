@@ -93,7 +93,7 @@ row_ext_create(
 					     + (n_ext - 1) * sizeof ret->len);
 
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	ret->n_ext = n_ext;
 	ret->ext = ext;

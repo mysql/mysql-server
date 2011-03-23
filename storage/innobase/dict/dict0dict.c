@@ -1988,14 +1988,14 @@ too_big:
 	}
 
 	switch (dict_table_get_format(table)) {
-	case DICT_TF_FORMAT_51:
+	case UNIV_FORMAT_A:
 		/* ROW_FORMAT=REDUNDANT and ROW_FORMAT=COMPACT store
 		prefixes of externally stored columns locally within
 		the record.  There are no special considerations for
 		the undo log record size. */
 		goto undo_size_ok;
 
-	case DICT_TF_FORMAT_ZIP:
+	case UNIV_FORMAT_B:
 		/* In ROW_FORMAT=DYNAMIC and ROW_FORMAT=COMPRESSED,
 		column prefix indexes require that prefixes of
 		externally stored columns are written to the undo log.
@@ -2005,8 +2005,8 @@ too_big:
 		checked for below. */
 		break;
 
-#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
-# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#if UNIV_FORMAT_B != UNIV_FORMAT_MAX
+# error "UNIV_FORMAT_B != UNIV_FORMAT_MAX"
 #endif
 	}
 

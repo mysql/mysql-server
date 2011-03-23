@@ -2788,7 +2788,7 @@ error_exit2:
 		page_zip_des_t	page_zip;
 		ulint		zip_size;
 
-		zip_size = ((PAGE_ZIP_MIN_SIZE >> 1)
+		zip_size = ((UNIV_ZIP_SIZE_MIN >> 1)
 			    << ((flags & DICT_TF_ZSSIZE_MASK)
 				>> DICT_TF_ZSSIZE_SHIFT));
 
@@ -2955,7 +2955,7 @@ fil_reset_too_high_lsns(
 	fputs(".\n", stderr);
 
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_PAGE_SIZE);
+	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
 
 	/* Loop through all the pages in the tablespace and reset the lsn and
 	the page checksum if necessary */
