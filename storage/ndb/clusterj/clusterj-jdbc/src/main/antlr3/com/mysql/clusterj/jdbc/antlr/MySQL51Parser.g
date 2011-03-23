@@ -160,7 +160,7 @@ select
 boolean seenUnion = false;
 }
 	:	select_paren
-		(UNION (mod=ALL | mod=DISTINCT)? union_selects+=select {seenUnion=true;})*
+		(UNION (mod=ALL | mod=DISTINCT)? union_selects+=select_paren {seenUnion=true;})*
 		 	-> {seenUnion}? ^(UNION $mod? select_paren $union_selects+)
 			-> select_paren
 	;
@@ -277,9 +277,10 @@ select_options
 	|	STRAIGHT_JOIN
 	|	SQL_SMALL_RESULT
 	|	SQL_BIG_RESULT
-	|	SQL_BUFFER_RESULT
-	|	SQL_CACHE
-	|	SQL_NO_CACHE
+// the following cause parser warnings
+//	|	SQL_BUFFER_RESULT
+//	|	SQL_CACHE
+//	|	SQL_NO_CACHE
 	|	SQL_CALC_FOUND_ROWS
 	;
 	
@@ -315,9 +316,10 @@ $table_references.table_count = $table_references::count;
 table_ref
 	:	(t1=table_factor -> $t1 )
 		(
-			(LEFT|RIGHT)=>(ltype=LEFT|ltype=RIGHT) outer=OUTER? JOIN t3=table_ref lrjoinCond=join_condition_both 
+			(LEFT|RIGHT)=>(ltype=LEFT|ltype=RIGHT) outer=OUTER? JOIN t3=table_ref lrjoinCond=join_condition_either 
 				-> ^($ltype {$tree} $t3 $lrjoinCond $outer?)
-		|	(type=INNER|type=CROSS)? JOIN t2=table_factor cond1=join_condition_both? 
+// join condition is not optional here
+		|	(type=INNER|type=CROSS)? JOIN t2=table_factor cond1=join_condition_either 
 				-> ^(JOIN {$tree} $t2 $cond1? $type?)
 		|	(	type=STRAIGHT_JOIN t2=table_factor 
 				(	(join_condition_on)=> cond2=join_condition_on	-> ^($type {$tree} $t2 $cond2)
@@ -342,7 +344,7 @@ join_condition_on
 	:	ON where_condition		-> ^(ON where_condition)
 	;
 
-join_condition_both
+join_condition_either
 	:	join_condition_on
 	|	USING LPAREN fields+=ident (COMMA fields+=ident)* RPAREN		-> ^(USING $fields+)
 	;
@@ -805,7 +807,8 @@ equalityOperator
 bitwiseOrExpr
   : lhs=bitwiseAndExpr 
     ( (op+=BITWISE_OR^ rhs+=bitwiseAndExpr)+
-    | ((NOT^)? IN^ (parenExprList | subselect))
+// force compiler to always recognize NOT IN regardless of whatever follows
+    | (((NOT^)? IN^)=>(NOT^)? IN^ (parenExprList | subselect))
     | LIKE^ unaryExpr (ESCAPE STRING)?  // STRING must be empty or one character long (or be "\\" if not in sql_mode NO_BACKSLASH_ESCAPES)
     | isOperator^
     )?
@@ -825,7 +828,8 @@ shiftExpr
    TODO: It cannot be on the left of a MINUS, because that expression makes no sense.
 */
 additiveExpr
-	:	lhs=multiplicativeExpr ((op+=PLUS^|op+=MINUS^) rhs+=multiplicativeExpr)*
+// force any PLUS or MINUS to be binary not unary for this rule
+    :   lhs=multiplicativeExpr ((PLUS|MINUS)=>(op+=PLUS^|op+=MINUS^) rhs+=multiplicativeExpr)*
 	;
 
 multOperator
@@ -1063,7 +1067,8 @@ delete
 boolean multiTableDelete = false;
 }
 	:	DELETE
-		(options{k=1;}: opts+=LOW_PRIORITY | opts+=QUICK | opts+=IGNORE)*		// the yacc parser accepts any combination and any number of these modifiers, so we do, too.
+// opts+=QUICK causes parser warnings
+		(options{k=1;}: opts+=LOW_PRIORITY | opts+=IGNORE)*		// the yacc parser accepts any combination and any number of these modifiers, so we do, too.
 		(	FROM 
 			t+=simple_table_ref_no_alias (DOT MULT {multiTableDelete = true;} )? (COMMA t+=simple_table_ref_no_alias (DOT MULT)? {multiTableDelete = true;} )*
 			(USING tr=table_references {multiTableDelete = true;})?
