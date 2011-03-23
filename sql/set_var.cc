@@ -895,6 +895,8 @@ static sys_var_thd_set sys_log_slow_verbosity(&vars,
 
 /* Global read-only variable containing hostname */
 static sys_var_const_str        sys_hostname(&vars, "hostname", glob_hostname);
+static sys_var_const_str_ptr    sys_log_basename(&vars, "log_basename",
+                                                 &opt_log_basename);
 
 #ifndef EMBEDDED_LIBRARY
 static sys_var_const_str_ptr    sys_repl_report_host(&vars, "report_host", &report_host);

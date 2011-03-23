@@ -116,7 +116,7 @@ sub parse_arguments
              "basedir=s",
              "builddir=s",      # FIXME not documented
              "srcdir=s",
-             "ldata|datadir=s",
+             "ldata|datadir|data=s",
 
              # Note that the user will be passed to mysqld so that it runs
              # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -274,7 +274,7 @@ else
 
 my @default_options;
 my $cmd = quote_options($print_defaults,$opt->{'defaults-file'},
-                        "mysqld","mysql_install_db");
+                        "mysqld","mariadb","mysql_install_db","server","client-server");
 open(PIPE, "$cmd |") or error($opt,"can't run $cmd: $!");
 while ( <PIPE> )
 {

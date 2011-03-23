@@ -1625,6 +1625,7 @@ void remove_db_from_cache(const char *db);
 void flush_tables();
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 char *make_default_log_name(char *buff,const char* log_ext);
+char *make_once_alloced_filename(const char *basename, const char *ext);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 uint fast_alter_partition_table(THD *thd, TABLE *table,
@@ -1966,7 +1967,7 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 #ifdef MYSQL_SERVER
 extern char glob_hostname[FN_REFLEN], mysql_home[FN_REFLEN];
 extern char pidfile_name[FN_REFLEN], system_time_zone[30], *opt_init_file;
-extern char log_error_file[FN_REFLEN], *opt_tc_log_file;
+extern char log_error_file[FN_REFLEN], *opt_tc_log_file, *opt_log_basename;
 extern ulonglong log_10_int[20];
 extern ulonglong keybuff_size;
 extern ulonglong thd_startup_options;

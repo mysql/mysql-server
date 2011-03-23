@@ -1064,12 +1064,16 @@ void mysql_read_default_options(struct st_mysql_options *options,
 {
   int argc;
   char *argv_buff[1],**argv;
-  const char *groups[3];
+  const char *groups[5];
   DBUG_ENTER("mysql_read_default_options");
   DBUG_PRINT("enter",("file: %s  group: %s",filename,group ? group :"NULL"));
 
   argc=1; argv=argv_buff; argv_buff[0]= (char*) "client";
-  groups[0]= (char*) "client"; groups[1]= (char*) group; groups[2]=0;
+  groups[0]= (char*) "client";
+  groups[1]= (char*) "client-server";
+  groups[2]= (char*) "client-mariadb";
+  groups[3]= (char*) group;
+  groups[4]=0;
 
   my_load_defaults(filename, groups, &argc, &argv, NULL);
   if (argc != 1)				/* If some default option */

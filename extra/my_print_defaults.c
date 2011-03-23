@@ -104,7 +104,7 @@ static void usage(my_bool version)
   my_print_help(my_long_options);
   my_print_default_files(config_file);
   my_print_variables(my_long_options);
-  printf("\nExample usage:\n%s --defaults-file=example.cnf client mysql\n", my_progname);
+  printf("\nExample usage:\n%s --defaults-file=example.cnf client client-server mysql\n", my_progname);
 }
 
 #include <help_end.h>

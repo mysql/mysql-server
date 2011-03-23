@@ -50,6 +50,8 @@ Usage: $0 [OPTIONS]
                        use hostnames will use IP addresses.
   --ldata=path         The path to the MariaDB data directory. Same as
                        --datadir.
+  --no-defaults        Don't read any configuration files (my.cnf).
+  --defaults-file=path Read only this configuration file.
   --rpm                For internal use.  This option is used by RPM files
                        during the MariaDB installation process.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
@@ -79,6 +81,13 @@ s_echo()
   fi
 }
 
+link_to_help()
+{
+  echo
+  echo "The latest information about mysql_install_db is available at"
+  echo "http://kb.askmonty.org/v/installing-system-tables-mysql_install_db."
+}
+
 parse_arg()
 {
   echo "$1" | sed -e 's/^[^=]*=//'
@@ -103,7 +112,7 @@ parse_arguments()
       --basedir=*) basedir=`parse_arg "$arg"` ;;
       --builddir=*) builddir=`parse_arg "$arg"` ;;
       --srcdir=*)  srcdir=`parse_arg "$arg"` ;;
-      --ldata=*|--datadir=*) ldata=`parse_arg "$arg"` ;;
+      --ldata=*|--datadir=*|--data=*) ldata=`parse_arg "$arg"` ;;
       --user=*)
         # Note that the user will be passed to mysqld so that it runs
         # as 'user' (crucial e.g. if log-bin=/some_other_path/
@@ -194,7 +203,7 @@ cannot_find_file()
   echo "If you are using a binary release, you must either be at the top"
   echo "level of the extracted archive, or pass the --basedir option"
   echo "pointing to that location."
-  echo
+  link_to_help
 }
 
 # Ok, let's go.  We first need to parse arguments which are required by
@@ -213,6 +222,7 @@ parse_arguments PICK-ARGS-FROM-ARGV "$@"
 if test -n "$srcdir" && test -n "$basedir"
 then
   echo "ERROR: Specify either --basedir or --srcdir, not both."
+  link_to_help
   exit 1
 fi
 if test -n "$srcdir"
@@ -242,7 +252,7 @@ fi
 
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
 # in the my.cfg file, then re-run to merge with command line arguments.
-parse_arguments `$print_defaults $defaults mysqld mysql_install_db`
+parse_arguments `$print_defaults $defaults mysqld mariadb mysql_install_db client-server`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files
@@ -335,6 +345,7 @@ then
       echo "hostname."
       echo "If you want to solve this at a later stage, restart this script"
       echo "with the --force option"
+      link_to_help
       exit 1
     fi
     echo "WARNING: The host '$hostname' could not be looked up with resolveip."
@@ -356,7 +367,12 @@ for dir in $ldata $ldata/mysql $ldata/test
 do
   if test ! -d $dir
   then
-    mkdir -p $dir
+    if ! `mkdir -p $dir`
+    then
+      echo "Fatal error Can't create database directory '$dir'"
+      link_to_help
+      exit 1
+    fi
     chmod 700 $dir
   fi
   if test -w / -a ! -z "$user"
@@ -384,12 +400,12 @@ fi
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
 mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
   --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
-  --loose-skip-ndbcluster $args --max_allowed_packet=8M \
+  --loose-skip-ndbcluster --loose-skip-pbxt $args --max_allowed_packet=8M \
   --default-storage-engine=myisam \
   --net_buffer_length=16K"
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
-s_echo "Installing MariaDB/MySQL system tables..."
+s_echo "Installing MariaDB/MySQL system tables in '$ldata' ..."
 if { echo "use mysql;"; cat $create_system_tables $fill_system_tables; } | eval "$filter_cmd_line" | $mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
@@ -410,9 +426,7 @@ else
   echo
   echo "Try 'mysqld --help' if you have problems with paths.  Using"
   echo "--general-log gives you a log in $ldata that may be helpful."
-  echo
-  echo "The latest information about mysql_install_db is available at"
-  echo "http://kb.askmonty.org/v/installing-system-tables-mysql_install_db."
+  link_to_help
   echo "MariaDB is hosted on launchpad; You can find the latest source and"
   echo "email lists at http://launchpad.net/maria"
   echo
@@ -454,13 +468,13 @@ then
   echo "databases and anonymous user created by default.  This is"
   echo "strongly recommended for production servers."
   echo
-  echo "See the MySQL manual for more instructions."
+  echo "See the MariaDB knowledge or the MySQL manual for more instructions."
 
   if test "$in_rpm" -eq 0
   then
     echo
     echo "You can start the MariaDB daemon with:"
-    echo "cd $basedir ; $bindir/mysqld_safe &"
+    echo "cd $basedir ; $bindir/mysqld_safe --datadir=$ldata"
     echo
     echo "You can test the MariaDB daemon with mysql-test-run.pl"
     echo "cd $basedir/mysql-test ; perl mysql-test-run.pl"

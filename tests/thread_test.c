@@ -123,7 +123,8 @@ static struct my_option my_long_options[] =
 };
 
 
-static const char *load_default_groups[]= { "client",0 };
+static const char *load_default_groups[]=
+{ "client", "client-server", "client-mariadb", 0 };
 
 static void usage()
 {
