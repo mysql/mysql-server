@@ -2766,7 +2766,7 @@ static Sys_var_charptr Sys_slow_log_path(
        ON_CHECK(check_log_path), ON_UPDATE(fix_slow_log_file));
 
 /// @todo deprecate these four legacy have_PLUGIN variables and use I_S instead
-export SHOW_COMP_OPTION have_csv, have_innodb;
+export SHOW_COMP_OPTION have_csv, have_innodb= SHOW_OPTION_DISABLED;
 export SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 static Sys_var_have Sys_have_csv(
        "have_csv", "have_csv",
