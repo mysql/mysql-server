@@ -1233,11 +1233,23 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
   Uint32 server_id= 0;
   Uint64 epoch= Uint64(metaData.getStopGCP());
   Uint32 version= metaData.getNdbVersion();
-  if (version >= NDBD_MICRO_GCP_63)
+
+  /**
+   * Bug#XXX, stopGCP is not really stop GCP, but stopGCP - 1
+   */
+  epoch += 1;
+
+  if (version >= NDBD_MICRO_GCP_63 ||
+      (version >= NDBD_MICRO_GCP_62 && getMinor(version) == 2))
+  {
     epoch<<= 32; // Only gci_hi is saved...
-  else if (version >= NDBD_MICRO_GCP_62 &&
-           getMinor(version) == 2)
-    epoch<<= 32; // Only gci_hi is saved...
+
+    /**
+     * Backup contains all epochs with those top bits,
+     * so we indicate that with max setting
+     */
+    epoch += (Uint64(1) << 32) - 1;
+  }
 
   Uint64 zero= 0;
   char empty_string[1];
