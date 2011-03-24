@@ -363,6 +363,7 @@ class Thd_ndb
 
   uint m_scan_count;
   uint m_pruned_scan_count;
+
   /** This is the number of sorted scans (via ordered indexes).*/
   uint m_sorted_scan_count;
 
@@ -498,7 +499,7 @@ class ha_ndbcluster: public handler
   int final_drop_index(TABLE *table_arg);
   void set_part_info(partition_info *part_info, bool early);
   ulong index_flags(uint idx, uint part, bool all_parts) const;
-  const key_map *keys_to_use_for_scanning() { return &btree_keys; }
+  virtual const key_map *keys_to_use_for_scanning() { return &btree_keys; }
   bool primary_key_is_clustered();
   uint max_supported_record_length() const;
   uint max_supported_keys() const;
@@ -798,6 +799,7 @@ private:
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
   void print_results();
+
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
@@ -852,7 +854,6 @@ private:
 
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
-
   const NdbDictionary::Table *m_table;
   /*
     Normal NdbRecord for accessing rows, with all fields including hidden

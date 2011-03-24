@@ -222,7 +222,6 @@ typedef struct st_join_table {
   TABLE_REF	ref;
   JOIN_CACHE	cache;
   JOIN		*join;
-
   /** Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
 

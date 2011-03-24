@@ -10253,6 +10253,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
       quick->quick_prefix_select= get_quick_select(param, param_idx,
                                                    index_tree,
                                                    &quick->alloc);
+
 #ifndef MCP_BUG11764737
       if (!quick->quick_prefix_select)
       {
