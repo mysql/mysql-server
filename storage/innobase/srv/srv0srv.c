@@ -66,7 +66,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "mem0pool.h"
 #include "sync0sync.h"
-#include "thr0loc.h"
 #include "que0que.h"
 #include "log0recv.h"
 #include "pars0pars.h"
@@ -1129,7 +1128,6 @@ srv_general_init(void)
 	os_sync_init();
 	sync_init();
 	mem_init(srv_mem_pool_size);
-	thr_local_init();
 }
 
 /*======================= InnoDB Server FIFO queue =======================*/
@@ -3071,8 +3069,6 @@ suspend_thread:
 	main thread goes back to loop. */
 
 	goto loop;
-
-	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
 
 /*********************************************************************//**
