@@ -1056,7 +1056,6 @@ ERROR HY000: Only constant XPATH queries are supported
 SHOW WARNINGS;
 Level	Code	Message
 Error	1105	Only constant XPATH queries are supported
-Note	1003	select updatexml('1',`test`.`t1`.`a`,'1') AS `UPDATEXML('1', a, '1')` from `test`.`t1` order by (select group_concat(1 separator ',') from `test`.`t1`)
 DROP TABLE t1;
 End of 5.1 tests
 DROP TABLE IF EXISTS t1, t2;
