@@ -76,3 +76,16 @@ hex(weight_string(s1))
 NULL
 41
 drop table t1;
+#
+# BUG#11898467 - SERVER CRASHES ON SELECT HEX(WEIGHT_STRING(STR AS [CHAR|BINARY](N))) IF N IS BIG 
+#
+SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)));
+HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)))
+NULL
+Warnings:
+Warning	1301	Result of weight_string() was larger than max_allowed_packet (1048576) - truncated
+SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)));
+HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)))
+NULL
+Warnings:
+Warning	1301	Result of weight_string() was larger than max_allowed_packet (1048576) - truncated
