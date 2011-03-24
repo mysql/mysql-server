@@ -9017,7 +9017,7 @@ void JOIN::cleanup(bool full)
 
     if (full)
     {
-      for (tab= first_linear_tab(this, TRUE); tab; 
+      for (tab= first_linear_tab(this, FALSE); tab; 
            tab= next_linear_tab(this, tab, TRUE))
       {
 	tab->cleanup();
@@ -9026,7 +9026,7 @@ void JOIN::cleanup(bool full)
     }
     else
     {
-      for (tab= first_linear_tab(this, TRUE); tab; 
+      for (tab= first_linear_tab(this, FALSE); tab; 
            tab= next_linear_tab(this, tab, TRUE))
       {
 	if (tab->table)
