@@ -10309,13 +10309,17 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
        condition might then also be applied by the storage engine
        when doing the update part and result in either not finding
        the record to update or updating the wrong record.
+    4. The JOIN_TAB is not part of a subquery that has guarded conditions
+       that can be turned on or off during execution of a 'Full scan on NULL 
+       key'.
   */
   if (tab->select_cond &&
       tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
       tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
-      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI)
+      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
+      !tab->has_guarded_conds())
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););

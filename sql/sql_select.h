@@ -116,7 +116,12 @@ typedef struct st_table_ref : public Sql_alloc
     This array is used by subquery code. The subquery code may inject
     triggered conditions, i.e. conditions that can be 'switched off'. A ref 
     access created from such condition is not valid when at least one of the 
-    underlying conditions is switched off (see subquery code for more details)
+    underlying conditions is switched off (see subquery code for more details).
+    If a table in a subquery has this it means that the table access 
+    will switch from ref access to table scan when the outer query 
+    produces a NULL value to be checked for in the subquery. This will
+    be used by NOT IN subqueries and IN subqueries for which 
+    is_top_level_item() returns false.
   */
   bool          **cond_guards;
   /**
@@ -175,6 +180,26 @@ typedef struct st_table_ref : public Sql_alloc
     return FALSE;
   }
 
+
+  /**
+    Check if there are triggered/guarded conditions that might be
+    'switched off' by the subquery code when executing 'Full scan on
+    NULL key' subqueries.
+
+    @return true if there are guarded conditions, false otherwise
+  */
+
+  bool has_guarded_conds() const
+  {
+    DBUG_ASSERT(key_parts == 0 || cond_guards != NULL);
+
+    for (uint i = 0; i < key_parts; i++)
+    {
+      if (cond_guards[i])
+        return true;
+    }
+    return false;
+  }
 } TABLE_REF;
 
 
@@ -427,6 +452,20 @@ typedef struct st_join_table : public Sql_alloc
     return tmp_select_cond;
   }
   uint get_sj_strategy() const;
+
+
+  /**
+    Check if there are triggered/guarded conditions that might be
+    'switched off' by the subquery code when executing 'Full scan on
+    NULL key' subqueries.
+
+    @return true if there are guarded conditions, false otherwise
+  */
+
+  bool has_guarded_conds() const
+  {
+    return ref.has_guarded_conds();
+  }
 } JOIN_TAB;
 
 
