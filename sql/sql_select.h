@@ -24,10 +24,6 @@
   classes to use when handling where clause
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "procedure.h"
 #include <myisam.h>
 #include "sql_array.h"                        /* Array */

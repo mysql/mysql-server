@@ -378,10 +378,6 @@
 #include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation                          // gcc: Class implementation
-#endif
-
 #include "ha_federated.h"
 #include "probes_mysql.h"
 

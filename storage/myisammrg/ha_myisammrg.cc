@@ -85,10 +85,6 @@
   They stay with the open table until its final close.
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #define MYSQL_SERVER 1
 #include "sql_priv.h"
 #include "unireg.h"

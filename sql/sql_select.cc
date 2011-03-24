@@ -24,10 +24,6 @@
   @{
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_select.h"
@@ -1467,7 +1463,7 @@ bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
            output is not supported.
         */
         if (tab->select && tab->select->quick)
-          tab->select->quick->need_sorted_output();
+          tab->select->quick->need_sorted_output(true);
 
         /* Calculate key length */
         keylen= 0;
@@ -2743,6 +2739,23 @@ JOIN::save_join_tab()
 
 
 /**
+  There may be a pending 'sorted' request on the specified 
+  'join_tab' which we now has decided we can ignore.
+*/
+static void
+disable_sorted_access(JOIN_TAB* join_tab)
+{
+  DBUG_ENTER("disable_sorted_access");
+  join_tab->sorted= 0;
+  if (join_tab->select && join_tab->select->quick)
+  {
+    join_tab->select->quick->need_sorted_output(false);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Exec select.
 
   @todo
@@ -2922,7 +2935,7 @@ JOIN::exec()
         curr_join->const_tables != curr_join->tables && 
         curr_join->best_positions[curr_join->const_tables].sj_strategy 
           != SJ_OPT_LOOSE_SCAN)
-      curr_join->join_tab[curr_join->const_tables].sorted= 0;
+      disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {
       error= tmp_error;
@@ -3088,7 +3101,7 @@ JOIN::exec()
       curr_join->group_list= 0;
       if (!curr_join->sort_and_group &&
           curr_join->const_tables != curr_join->tables)
-        curr_join->join_tab[curr_join->const_tables].sorted= 0;
+        disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
       if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
@@ -11177,9 +11190,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   uint i, jcl;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
-  bool sorted= 1;
   uint first_sjm_table= MAX_TABLES;
   uint last_sjm_table= MAX_TABLES;
+
+  /* First table sorted if ORDER or GROUP BY was specified */
+  bool sorted= (join->order || join->group_list);
+
   DBUG_ENTER("make_join_readinfo");
 
   if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
@@ -11196,12 +11212,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->next_select=sub_select;		/* normal select */
     tab->use_join_cache= JOIN_CACHE::ALG_NONE;
     tab->cache_idx_cond= 0;
-    /* 
-      TODO: don't always instruct first table's ref/range access method to 
-      produce sorted output.
-    */
     tab->sorted= sorted;
-    sorted= 0;                                  // only first must be sorted
+    sorted= false;                              // only first must be sorted
     table->status=STATUS_NO_RECORD;
     pick_table_access_method (tab);
 
@@ -18181,6 +18193,7 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
   int error;
   if (!table->file->inited)
   {
+    DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
     table->file->ha_index_init(table_ref->key, tab->sorted);
   }
 
@@ -18490,7 +18503,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, 1);
+    table->file->ha_index_init(tab->index, tab->sorted);
   if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -18514,7 +18527,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 1);
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
@@ -20292,7 +20305,7 @@ check_reverse_order:
       }
     }
     else if (select && select->quick)
-      select->quick->need_sorted_output();
+      select->quick->need_sorted_output(true);
 
   } // QEP has been modified
 
@@ -23199,9 +23212,22 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
         if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
             !(((QUICK_RANGE_SELECT*)(tab->select->quick))->mrr_flags &
-             HA_MRR_USE_DEFAULT_IMPL))
+             (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))) 
         {
-	  extra.append(STRING_WITH_LEN("; Using MRR"));
+          /*
+            During normal execution of a query, multi_range_read_init() is
+            called to initialize MRR. If HA_MRR_SORTED is set at this point,
+            multi_range_read_init() for any native MRR implementation will
+            revert to default MRR because they cannot produce sorted output
+            currently.
+            Calling multi_range_read_init() can potentially be costly, so it
+            is not done when executing an EXPLAIN. We therefore make the
+            assumption that HA_MRR_SORTED means no MRR. If some MRR native
+            implementation will support sorted output in the future, a
+            function "bool mrr_supports_sorted()" should be added in the
+            handler.
+          */
+          extra.append(STRING_WITH_LEN("; Using MRR"));
         }
         if (need_tmp_table)
         {
