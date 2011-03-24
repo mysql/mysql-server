@@ -13932,7 +13932,7 @@ CALL sp1();
 xx
 0000-00-00 00:00:00
 Warnings:
-Warning	1264	Out of range value for column 'xx' at row 1
+Warning	1265	Data truncated for column 'xx' at row 1
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN

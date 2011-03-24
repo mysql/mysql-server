@@ -544,8 +544,6 @@ Item_result Item::cmp_type() const
   case MYSQL_TYPE_INT24:
   case MYSQL_TYPE_YEAR:
   case MYSQL_TYPE_BIT:
-  case MYSQL_TYPE_ENUM:
-  case MYSQL_TYPE_SET:
                            return INT_RESULT;
   case MYSQL_TYPE_FLOAT:
   case MYSQL_TYPE_DOUBLE:
@@ -558,6 +556,8 @@ Item_result Item::cmp_type() const
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
   case MYSQL_TYPE_GEOMETRY:
                            return STRING_RESULT;
   case MYSQL_TYPE_TIMESTAMP:
