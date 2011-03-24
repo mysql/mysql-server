@@ -74,7 +74,6 @@ extern "C" {
 #include "fil0fil.h"
 #include "trx0xa.h"
 #include "row0merge.h"
-#include "thr0loc.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
 #include "ha_prototypes.h"
@@ -288,7 +287,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
 #  endif /* UNIV_SYNC_DEBUG */
 	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
-	{&thr_local_mutex_key, "thr_local_mutex", 0},
 	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
 	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
 	{&lock_sys_mutex_key, "lock_mutex", 0},
@@ -3268,7 +3266,6 @@ innobase_close_connection(
 
 	innobase_rollback_trx(trx);
 
-	thr_local_free(trx->mysql_thread_id);
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
