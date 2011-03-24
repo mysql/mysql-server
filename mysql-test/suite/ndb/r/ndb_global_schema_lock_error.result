@@ -1,0 +1,11 @@
+call mtr.add_suppression("Could not acquire global schema lock");
+Restarting all nodes "no start"
+Waiting for not started
+CREATE DATABASE test2;
+ERROR HY000: Got error 4009 'Failed to acquire global schema lock' from ndbcluster
+ALTER DATABASE test2 CHARACTER SET latin2;
+ERROR HY000: Got error 4009 'Failed to acquire global schema lock' from ndbcluster
+DROP DATABASE test2;
+ERROR HY000: Got error 4009 'Failed to acquire global schema lock' from ndbcluster
+Starting all nodes
+Waiting for started
