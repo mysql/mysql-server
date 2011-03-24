@@ -18,10 +18,6 @@
 
 /* Classes in mysql */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #ifdef MYSQL_SERVER
 #include "unireg.h"                    // REQUIRED: for other includes
