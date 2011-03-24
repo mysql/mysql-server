@@ -35,6 +35,8 @@
 #include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
                                      THR_LOCK_INFO */
 
+#include <mysql/psi/mysql_stage.h>
+#include <mysql/psi/mysql_statement.h>
 
 class Reprepare_observer;
 class Relay_log_info;
@@ -1989,11 +1991,12 @@ public:
 
   ha_rows    cuted_fields;
 
-  /*
-    number of rows we actually sent to the client, including "synthetic"
+private:
+  /**
+    Number of rows we actually sent to the client, including "synthetic"
     rows in ROLLUP etc.
   */
-  ha_rows    sent_row_count;
+  ha_rows m_sent_row_count;
 
   /**
     Number of rows read and/or evaluated for a statement. Used for
@@ -2005,7 +2008,35 @@ public:
     statement including ORDER BY could possibly evaluate the row in
     filesort() before reading it for e.g. update.
   */
-  ha_rows    examined_row_count;
+  ha_rows m_examined_row_count;
+
+public:
+  ha_rows get_sent_row_count() const
+  { return m_sent_row_count; }
+
+  ha_rows get_examined_row_count() const
+  { return m_examined_row_count; }
+
+  void set_sent_row_count(ha_rows count);
+  void set_examined_row_count(ha_rows count);
+
+  void inc_sent_row_count(ha_rows count);
+  void inc_examined_row_count(ha_rows count);
+
+  void inc_status_created_tmp_disk_tables();
+  void inc_status_created_tmp_files();
+  void inc_status_created_tmp_tables();
+  void inc_status_select_full_join();
+  void inc_status_select_full_range_join();
+  void inc_status_select_range();
+  void inc_status_select_range_check();
+  void inc_status_select_scan();
+  void inc_status_sort_merge_passes();
+  void inc_status_sort_range();
+  void inc_status_sort_rows(ha_rows count);
+  void inc_status_sort_scan();
+  void set_status_no_index_used();
+  void set_status_no_good_index_used();
 
   /*
     The set of those tables whose fields are referenced in all subqueries
@@ -2021,6 +2052,9 @@ public:
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
 #endif
+
+  /** Current statement instrumentation. */
+  PSI_statement_locker *m_statement_psi;
 
   /*
     Id of current query. Statement can be reused to execute several queries
@@ -2392,7 +2426,11 @@ public:
   { 
     return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time));
   }
-  void set_time_after_lock()  { utime_after_lock= my_micro_time(); }
+  void set_time_after_lock()
+  {
+    utime_after_lock= my_micro_time();
+    MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, (utime_after_lock - start_utime));
+  }
   ulonglong current_utime()  { return my_micro_time(); }
   /**
    Update server status after execution of a top level statement.
@@ -3837,5 +3875,11 @@ const char *set_thd_proc_info(void *thd_arg, const char *info,
 
 #define thd_proc_info(thd, msg) \
   set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
+#define THD_STAGE_INFO(thd, stage) \
+  { \
+    set_thd_proc_info(thd, stage.m_name, __func__, __FILE__, __LINE__); \
+    MYSQL_SET_STAGE(stage.m_key, __FILE__, __LINE__); \
+  }
 
 #endif /* SQL_CLASS_INCLUDED */

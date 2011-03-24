@@ -966,7 +966,7 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
   Query_cache_block *query_block= query_cache_tls->first_query_block;
   if (query_block)
   {
-    thd_proc_info(thd, "storing result in query cache");
+    THD_STAGE_INFO(thd, stage_storing_result_in_query_cache);
     DUMP(this);
     BLOCK_LOCK_WR(query_block);
     // The following call will remove the lock on query_block
@@ -1017,7 +1017,7 @@ void Query_cache::end_of_result(THD *thd)
       suitable size if needed and setting block type. Since this is the last
       block, the writer should be dropped.
     */
-    thd_proc_info(thd, "storing result in query cache");
+    THD_STAGE_INFO(thd, stage_storing_result_in_query_cache);
     DUMP(this);
     BLOCK_LOCK_WR(query_block);
     Query_cache_query *header= query_block->query();
@@ -1534,7 +1534,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     DBUG_PRINT("qcache", ("No active database"));
   }
 
-  thd_proc_info(thd, "checking query cache for query");
+  THD_STAGE_INFO(thd, stage_checking_query_cache_for_query);
 
   // fill all gaps between fields with 0 to get repeatable key
   bzero(&flags, QUERY_CACHE_FLAGS_SIZE);
@@ -1625,7 +1625,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
       
   // Check access;
-  thd_proc_info(thd, "checking privileges on cached query");
+  THD_STAGE_INFO(thd, stage_checking_privileges_on_cached_query);
   block_table= query_block->table(0);
   block_table_end= block_table+query_block->n_tables;
   for (; block_table != block_table_end; block_table++)
@@ -1722,7 +1722,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     Send cached result to client
   */
 #ifndef EMBEDDED_LIBRARY
-  thd_proc_info(thd, "sending cached result to client");
+  THD_STAGE_INFO(thd, stage_sending_cached_result_to_client);
   do
   {
     DBUG_PRINT("qcache", ("Results  (len: %lu  used: %lu  headers: %lu)",
@@ -1815,7 +1815,7 @@ void Query_cache::invalidate(CHANGED_TABLE_LIST *tables_used)
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next)
   {
-    thd_proc_info(thd, "invalidating query cache entries (table list)");
+    THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table_list);
     invalidate_table(thd, (uchar*) tables_used->key, tables_used->key_length);
     DBUG_PRINT("qcache", ("db: %s  table: %s", tables_used->key,
                           tables_used->key+
@@ -1844,7 +1844,7 @@ void Query_cache::invalidate_locked_for_write(TABLE_LIST *tables_used)
   THD *thd= current_thd;
   for (; tables_used; tables_used= tables_used->next_local)
   {
-    thd_proc_info(thd, "invalidating query cache entries (table)");
+    THD_STAGE_INFO(thd, stage_invalidating_query_cache_entries_table);
     if (tables_used->lock_type >= TL_WRITE_ALLOW_WRITE &&
         tables_used->table)
     {

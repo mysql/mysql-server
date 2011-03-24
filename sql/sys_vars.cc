@@ -214,6 +214,62 @@ static Sys_var_ulong Sys_pfs_setup_objects_size(
        DEFAULT(PFS_MAX_SETUP_OBJECT),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_max_stage_classes(
+       "performance_schema_max_stage_classes",
+       "Maximum number of stage instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_stage_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT(PFS_MAX_STAGE_CLASS),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_stages_history_long_size(
+       "performance_schema_events_stages_history_long_size",
+       "Number of rows in EVENTS_STAGES_HISTORY_LONG.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_long_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_STAGES_HISTORY_LONG_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_stages_history_size(
+       "performance_schema_events_stages_history_size",
+       "Number of rows per thread in EVENTS_STAGES_HISTORY.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_stages_history_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_STAGES_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+/**
+  Variable performance_schema_max_statement_classes.
+  The default number of statement classes is the sum of:
+  - COM_END for all regular "statement/com/...",
+  - 1 for "statement/com/Error", for invalid enum_server_command
+  - SQLCOM_END for all regular "statement/sql/...",
+  - 1 for "statement/sql/error", for invalid enum_sql_command.
+*/
+static Sys_var_ulong Sys_pfs_max_statement_classes(
+       "performance_schema_max_statement_classes",
+       "Maximum number of statement instruments.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_statement_class_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256),
+       DEFAULT((ulong) SQLCOM_END + (ulong) COM_END + 2),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_statements_history_long_size(
+       "performance_schema_events_statements_history_long_size",
+       "Number of rows in EVENTS_STATEMENTS_HISTORY_LONG.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_long_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024*1024),
+       DEFAULT(PFS_STATEMENTS_HISTORY_LONG_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_ulong Sys_pfs_events_statements_history_size(
+       "performance_schema_events_statements_history_size",
+       "Number of rows per thread in EVENTS_STATEMENTS_HISTORY.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_events_statements_history_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_STATEMENTS_HISTORY_SIZE),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(
