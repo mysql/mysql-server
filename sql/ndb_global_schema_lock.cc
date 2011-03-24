@@ -433,21 +433,3 @@ int Ndb_global_schema_lock_guard::lock(bool no_lock_queue,
   return ndbcluster_global_schema_lock(m_thd, no_lock_queue,
                                        report_cluster_disconnected);  
 }
-
-
-bool
-Ndb_global_schema_lock_guard::lock_raise_error(void)
-{
-  if (lock() != 0)
-  {
-    Thd_ndb *thd_ndb= thd_get_thd_ndb(m_thd);
- 
-    my_error(ER_GET_ERRMSG, MYF(0),
-             thd_ndb->global_schema_lock_error,
-             "Failed to acquire global schema lock",
-             "ndbcluster");
-
-    return false; // Failed
-  }
-  return true; // OK
-}

@@ -556,9 +556,8 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   }
   
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (!global_schema_lock_guard.lock_raise_error())
-    DBUG_RETURN(-1); // Same as failed lock_schema_name, see below
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  (void)global_schema_lock.lock();
  #endif
 
   if (lock_schema_name(thd, db))
@@ -694,9 +693,8 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   DBUG_ENTER("mysql_alter_db");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (!global_schema_lock_guard.lock_raise_error())
-    DBUG_RETURN(TRUE); // Same as failed lock_schema_name, se below
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  (void)global_schema_lock.lock();
 #endif
 
   if (lock_schema_name(thd, db))
@@ -781,9 +779,8 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   DBUG_ENTER("mysql_rm_db");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (!global_schema_lock_guard.lock_raise_error())
-    DBUG_RETURN(true); // Same as failed lock_schema_name, see below
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  (void)global_schema_lock.lock();
  #endif
 
   if (lock_schema_name(thd, db))
