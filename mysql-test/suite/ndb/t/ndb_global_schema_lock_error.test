@@ -1,0 +1,35 @@
+-- source include/have_ndb.inc
+
+# Test will produce this error in server log file -> ignore
+call mtr.add_suppression("Could not acquire global schema lock");
+
+#
+# Run all the commands which should take the global schema lock
+# against a mysqld "connected" to stopped NDB nodes
+#
+
+# Restart NDB nodes into "no start"
+--source ndb_restart_nostart.inc
+
+--error ER_GET_ERRMSG
+CREATE DATABASE test2;
+--error ER_GET_ERRMSG
+ALTER DATABASE test2 CHARACTER SET latin2;
+--error ER_GET_ERRMSG
+DROP DATABASE test2;
+
+# Start NDB nodes back up again
+--source ndb_restart_start.inc
+
+
+
+# NOTE! this is a workaround so that check-testcase after test
+# see the mysql.ndb_schema table(if not connected, 'find_files'
+# will hide the table)
+#
+# Wait until mysqld has connected properly to cluster
+--disable_result_log
+--disable_query_log
+source include/ndb_not_readonly.inc;
+--enable_query_log
+--enable_result_log
