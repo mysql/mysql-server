@@ -1,5 +1,5 @@
 #
-# Test of different EXPLAIN's
+# Test of different EXPLAINs
 
 --disable_warnings
 drop table if exists t1;
@@ -275,3 +275,24 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Bug#11829785 EXPLAIN EXTENDED CRASH WITH RIGHT OUTER JOIN, SUBQUERIES
+--echo #
+
+CREATE TABLE t1(a INT);
+
+INSERT INTO t1 VALUES (0), (0);
+
+PREPARE s FROM 
+'EXPLAIN EXTENDED
+SELECT SUBSTRING(1, (SELECT 1 FROM t1 a1 RIGHT OUTER JOIN t1 ON 0)) AS d
+FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
+
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE s;
+
+DEALLOCATE PREPARE s;
+DROP TABLE t1;
+
+--echo #
