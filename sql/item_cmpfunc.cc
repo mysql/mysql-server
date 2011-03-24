@@ -1741,6 +1741,7 @@ bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
   }
   not_null_tables_cache= args[0]->not_null_tables();
   with_sum_func= args[0]->with_sum_func;
+  with_field= args[0]->with_field;
   if ((const_item_cache= args[0]->const_item()))
     cache->store(args[0]);
   return 0;
@@ -1766,6 +1767,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   if (args[1]->maybe_null)
     maybe_null=1;
   with_sum_func= with_sum_func || args[1]->with_sum_func;
+  with_field= with_field || args[1]->with_field;
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
   const_item_cache&= args[1]->const_item();
@@ -2228,6 +2230,7 @@ void Item_func_interval::fix_length_and_dec()
   used_tables_cache|= row->used_tables();
   not_null_tables_cache= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
+  with_field= with_field || row->with_field;
   const_item_cache&= row->const_item();
 }
 
@@ -4380,6 +4383,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       const_item_cache= FALSE;
     }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
+    with_field=             with_field || item->with_field;
     with_subselect|=        item->with_subselect;
     if (item->maybe_null)
       maybe_null=1;
@@ -5035,6 +5039,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
        args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
+  with_field= args[0]->with_field || args[1]->with_field;
   max_length= 1;
   decimals= 0;
 

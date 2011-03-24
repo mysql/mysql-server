@@ -685,3 +685,224 @@ WHERE f3 = (
 
 SET SESSION optimizer_switch = @old_optimizer_switch;
 drop table t1,t2;
+
+--echo #
+--echo # LP BUG#715738: Wrong result with implicit grouping and empty result set
+--echo #
+
+CREATE TABLE t1 (f1 int, f2 int);
+CREATE TABLE t2 (f3 int, f4 int not null, PRIMARY KEY (f3));
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+SET @@optimizer_switch = 'materialization=on,semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+
+
+SET @@optimizer_switch = 'materialization=off,semijoin=off';
+
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) > 7) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 HAVING max(f4) is null) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
+
+
+INSERT INTO t1 VALUES (1, 2);
+INSERT INTO t1 VALUES (3, 4);
+INSERT INTO t2 VALUES (5, 6);
+INSERT INTO t2 VALUES (7, 8);
+
+SET @@optimizer_switch = 'materialization=on,semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+
+SET @@optimizer_switch = 'materialization=off,semijoin=off';
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
+
+set @@optimizer_switch=@save_optimizer_switch;
+
+drop table t1,t2;

@@ -2248,6 +2248,7 @@ void Item_func_make_set::fix_length_and_dec()
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
+  with_field= with_field || item->with_field;
 }
 
 

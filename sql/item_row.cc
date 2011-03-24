@@ -86,6 +86,7 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     }
     maybe_null|= item->maybe_null;
     with_sum_func= with_sum_func || item->with_sum_func;
+    with_field= with_field || item->with_field;
   }
   fixed= 1;
   return FALSE;

@@ -517,12 +517,49 @@ JOIN::prepare(Item ***rref_pointer_array,
                                     tables_list, &select_lex->leaf_tables,
                                     FALSE, SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(-1);
+  /*
+    TRUE if the SELECT list mixes elements with and without grouping,
+    and there is no GROUP BY clause. Mixing non-aggregated fields with
+    aggregate functions in the SELECT list is a MySQL exptenstion that
+    is allowed only if the ONLY_FULL_GROUP_BY sql mode is not set.
+  */
+  bool mixed_implicit_grouping= false;
+  if ((~thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
+      select_lex->with_sum_func && !group_list)
+  {
+    List_iterator_fast <Item> select_it(fields_list);
+    Item *select_el; /* Element of the SELECT clause, can be an expression. */
+    bool found_field_elem= false;
+    bool found_sum_func_elem= false;
+
+    while ((select_el= select_it++))
+    {
+      if (select_el->with_sum_func)
+        found_sum_func_elem= true;
+      if (select_el->with_field)
+        found_field_elem= true;
+      if (found_sum_func_elem && found_field_elem)
+      {
+        mixed_implicit_grouping= true;
+        break;
+      }
+    }
+  }
  
-  TABLE_LIST *table_ptr;
-  for (table_ptr= select_lex->leaf_tables;
+  for (TABLE_LIST *table_ptr= select_lex->leaf_tables;
        table_ptr;
        table_ptr= table_ptr->next_leaf)
-    tables++;
+  {
+    tables++; /* Count the number of tables in the join. */
+    /*
+      If the query uses implicit grouping where the select list contains both
+      aggregate functions and non-aggregate fields, any non-aggregated field
+      may produce a NULL value. Set all fields of each table as nullable before
+      semantic analysis to take into account this change of nullability.
+    */
+    if (mixed_implicit_grouping)
+      table_ptr->table->maybe_null= 1;
+  }
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||

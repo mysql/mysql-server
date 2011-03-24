@@ -64,6 +64,7 @@ public:
     allowed_arg_cols(1), arg_count(0)
   {
     with_sum_func= 0;
+    with_field= 0;
   }
   Item_func(Item *a):
     allowed_arg_cols(1), arg_count(1)
@@ -71,6 +72,7 @@ public:
     args= tmp_arg;
     args[0]= a;
     with_sum_func= a->with_sum_func;
+    with_field= a->with_field;
   }
   Item_func(Item *a,Item *b):
     allowed_arg_cols(1), arg_count(2)
@@ -78,6 +80,7 @@ public:
     args= tmp_arg;
     args[0]= a; args[1]= b;
     with_sum_func= a->with_sum_func || b->with_sum_func;
+    with_field= a->with_field || b->with_field;
   }
   Item_func(Item *a,Item *b,Item *c):
     allowed_arg_cols(1)
@@ -88,6 +91,7 @@ public:
       arg_count= 3;
       args[0]= a; args[1]= b; args[2]= c;
       with_sum_func= a->with_sum_func || b->with_sum_func || c->with_sum_func;
+      with_field= a->with_field || b->with_field || c->with_field;
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d):
@@ -100,6 +104,8 @@ public:
       args[0]= a; args[1]= b; args[2]= c; args[3]= d;
       with_sum_func= a->with_sum_func || b->with_sum_func ||
 	c->with_sum_func || d->with_sum_func;
+      with_field= a->with_field || b->with_field ||
+        c->with_field || d->with_field;
     }
   }
   Item_func(Item *a,Item *b,Item *c,Item *d,Item* e):
@@ -111,6 +117,8 @@ public:
       args[0]= a; args[1]= b; args[2]= c; args[3]= d; args[4]= e;
       with_sum_func= a->with_sum_func || b->with_sum_func ||
 	c->with_sum_func || d->with_sum_func || e->with_sum_func ;
+      with_field= a->with_field || b->with_field ||
+        c->with_field || d->with_field || e->with_field;
     }
   }
   Item_func(List<Item> &list);

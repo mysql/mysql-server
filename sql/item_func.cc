@@ -79,6 +79,7 @@ void Item_func::set_arguments(List<Item> &list)
     {
       *(save_args++)= item;
       with_sum_func|=item->with_sum_func;
+      with_field|= item->with_field;
     }
   }
   list.empty();					// Fields are used
@@ -129,6 +130,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
     Sets as a side effect the following class variables:
       maybe_null	Set if any argument may return NULL
       with_sum_func	Set if any of the arguments contains a sum function
+      with_field        Set if any of the arguments contains or is a field
       used_tables_cache Set to union of the tables used by arguments
 
       str_value.charset If this is a string function, set this to the
@@ -198,6 +200,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 	maybe_null=1;
 
       with_sum_func= with_sum_func || item->with_sum_func;
+      with_field= with_field || item->with_field;
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
@@ -2939,6 +2942,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       if (item->maybe_null)
 	func->maybe_null=1;
       func->with_sum_func= func->with_sum_func || item->with_sum_func;
+      func->with_field= func->with_field || item->with_field;
       used_tables_cache|=item->used_tables();
       const_item_cache&=item->const_item();
       f_args.arg_type[i]=item->result_type();

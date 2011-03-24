@@ -415,6 +415,7 @@ void Item_sum::mark_as_sum_func()
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
   with_sum_func= 1;
+  with_field= 0;
 }
 
 
