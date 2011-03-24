@@ -23,6 +23,8 @@
 #include <my_rdtsc.h>
 #include "pfs_column_types.h"
 
+#define MICROSEC_TO_PICOSEC 1000000
+
 /**
   A time normalizer.
   A time normalizer consist of a transformation that
@@ -51,6 +53,8 @@ struct time_normalizer
 };
 
 extern enum_timer_name wait_timer;
+extern enum_timer_name stage_timer;
+extern enum_timer_name statement_timer;
 extern MY_TIMER_INFO pfs_timer_info;
 
 void init_timers();
@@ -61,6 +65,7 @@ extern "C"
 }
 
 ulonglong get_timer_pico_value(enum_timer_name timer_name);
+ulonglong get_timer_raw_value(enum_timer_name timer_name);
 ulonglong get_timer_raw_value_and_function(enum_timer_name timer_name, timer_fct_t *fct);
 
 

@@ -3894,7 +3894,7 @@ longlong Item_func_get_lock::val_int()
     Structure is now initialized.  Try to get the lock.
     Set up control struct to allow others to abort locks.
   */
-  thd_proc_info(thd, "User lock");
+  THD_STAGE_INFO(thd, stage_user_lock);
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
@@ -3938,7 +3938,6 @@ longlong Item_func_get_lock::val_int()
   mysql_mutex_unlock(&LOCK_user_locks);
 
   mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   mysql_mutex_unlock(&thd->mysys_var->mutex);
@@ -4124,7 +4123,7 @@ longlong Item_func_sleep::val_int()
   mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
   mysql_mutex_lock(&LOCK_user_locks);
 
-  thd_proc_info(thd, "User sleep");
+  THD_STAGE_INFO(thd, stage_user_sleep);
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
@@ -4136,7 +4135,6 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
-  thd_proc_info(thd, 0);
   mysql_mutex_unlock(&LOCK_user_locks);
   mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
