@@ -1077,12 +1077,12 @@ boolean multiTableDelete = false;
 				order_by?
 				(LIMIT NUMBER)?
 			)?
-								-> {multiTableDelete}? ^(DELETE ^(OPTIONS $opts+)? ^(TABLE $t)+ ^(USING $tr) ^(WHERE where_condition)?)
-								 				 	-> ^(DELETE<com.mysql.clusterj.jdbc.antlr.node.DeleteNode> ^(OPTIONS $opts+)? ^(TABLE $t) ^(WHERE where_condition)? order_by? ^(LIMIT NUMBER)?)
+				-> {multiTableDelete}? ^(DELETE<com.mysql.clusterj.jdbc.antlr.node.DeleteNode> ^(OPTIONS $opts+)? ^(TABLE $t)+ ^(USING $tr) ^(WHERE<com.mysql.clusterj.jdbc.antlr.node.WhereNode> where_condition)?)
+				-> ^(DELETE<com.mysql.clusterj.jdbc.antlr.node.DeleteNode> ^(OPTIONS $opts+)? ^(TABLE $t) ^(WHERE<com.mysql.clusterj.jdbc.antlr.node.WhereNode> where_condition)? order_by? ^(LIMIT NUMBER)?)
 								 
 		|	t+=simple_table_ref_no_alias (DOT MULT)? (COMMA t+=simple_table_ref_no_alias (DOT MULT)?)*
 			FROM tr=table_references
-			(WHERE where_condition)?			-> ^(DELETE ^(OPTIONS $opts+)? ^(TABLE $t)+ ^(FROM $tr) ^(WHERE where_condition)?)
+			(WHERE where_condition)?			-> ^(DELETE ^(OPTIONS $opts+)? ^(TABLE $t)+ ^(FROM $tr) ^(WHERE<com.mysql.clusterj.jdbc.antlr.node.WhereNode> where_condition)?)
 		)
 	;
 
