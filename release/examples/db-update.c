@@ -141,7 +141,11 @@ static void insert_and_update_all(DB_ENV *db_env, DB *db, long nrows, long max_r
 }
 
 int main(int argc, char *argv[]) {
-    char *db_env_dir = "update.env";
+#if defined(TOKUDB)
+    char *db_env_dir = "update.env.tokudb";
+#else
+    char *db_env_dir = "update.env.bdb";
+#endif
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
     char *db_filename = "update.db";
     long rows = 100000000;
