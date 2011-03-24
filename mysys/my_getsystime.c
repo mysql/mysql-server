@@ -108,7 +108,10 @@ void my_diff_and_hrtime(my_timediff_t *interval, my_hrtime_t *timestamp)
 {
   interval->val= my_getsystime() / 10;
 #if defined(__WIN__) || defined(HAVE_GETHRTIME)
-  timestamp->val= my_hrtime();
+  {
+    my_hrtime_t t= my_hrtime();
+    timestamp->val= t.val;
+  }
 #else
   timestamp->val= interval->val;
 #endif

@@ -86,7 +86,7 @@ static bool sec_to_time(double seconds, MYSQL_TIME *ltime)
   ltime->hour= (uint) (seconds/3600);
   ltime->minute= sec/60;
   ltime->second= sec % 60;
-  ltime->second_part= (ulong)((seconds - trunc(seconds))*1e6);
+  ltime->second_part= (ulong)((seconds - floor(seconds))*1e6);
 
   return 0;
 

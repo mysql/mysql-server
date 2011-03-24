@@ -1786,7 +1786,7 @@ public:
   Item_datetime() :Item_int(0) { unsigned_flag=0; }
   int save_in_field(Field *field, bool no_conversions);
   longlong val_int();
-  double val_real() { return val_int(); }
+  double val_real() { return (double)val_int(); }
   void set(longlong packed);
 };
 

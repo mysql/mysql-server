@@ -2063,10 +2063,11 @@ void Log_event::print_base64(IO_CACHE* file,
 void Log_event::print_timestamp(IO_CACHE* file, time_t* ts)
 {
   struct tm *res;
+  time_t my_when= when;
   DBUG_ENTER("Log_event::print_timestamp");
   if (!ts)
   {
-    ts = &when;
+    ts = &my_when;
   }
   res=localtime(ts);
 

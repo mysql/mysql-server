@@ -1245,7 +1245,7 @@ int number_to_time(double nr, MYSQL_TIME *ltime, int *was_cut)
   ltime->hour  = tmp/100/100;
   ltime->minute= tmp/100%100;
   ltime->second= tmp%100;
-  ltime->second_part= (nr-tmp)*1e6;
+  ltime->second_part= (ulong)((nr-tmp)*1e6);
 
   if (ltime->minute < 60 && ltime->second < 60)
     return 0;
@@ -1363,7 +1363,7 @@ MYSQL_TIME *unpack_time(longlong packed, MYSQL_TIME *my_time)
   get_one(my_time->hour,             24ULL);
   get_one(my_time->day,              32ULL);
   get_one(my_time->month,            13ULL);
-  my_time->year= packed;
+  my_time->year= (uint)packed;
   my_time->time_type= MYSQL_TIMESTAMP_DATETIME;
   return my_time;
 }

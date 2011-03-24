@@ -902,7 +902,7 @@ void my_diff_and_hrtime(my_timediff_t *interval, my_hrtime_t *timestamp);
 extern ulonglong my_getsystime(void);
 
 #define my_micro_time()                 (my_getsystime()/10)
-#define hrtime_to_time(X)               ((time_t)((X).val/1000000))
+#define hrtime_to_time(X)               ((my_time_t)((X).val/1000000))
 #define hrtime_from_time(X)             ((ulonglong)((X)*1000000ULL))
 #define hrtime_to_double(X)             ((X).val/1e6)
 #define hrtime_sec_part(X)              ((X).val%1000000)

@@ -293,10 +293,9 @@ inline ulonglong double2ulonglong(double d)
 #define FILE_SHARE_DELETE 0     /* Not implemented on Win 98/ME */
 #endif
 
-#ifdef NOT_USED
-#define HAVE_SNPRINTF		/* Gave link error */
-#define _snprintf snprintf
-#endif
+
+#define HAVE_SNPRINTF
+#define snprintf _snprintf
 
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */

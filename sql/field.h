@@ -22,10 +22,10 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#ifdef WORDS_BIGENDIAN
-#define BIGENDIAN                       1
+#ifdef WORDS_ARCH_BIGENDIAN
+#define ARCH_BIGENDIAN                       1
 #else
-#define BIGENDIAN                       0
+#define ARCH_BIGENDIAN                       0
 #endif
 
 #define NOT_FIXED_DEC			31
@@ -548,12 +548,12 @@ protected:
                            bool low_byte_first_from, bool low_byte_first_to)
   {
     int32 val;
-    if (BIGENDIAN && low_byte_first_from)
+    if (ARCH_BIGENDIAN && low_byte_first_from)
       val = sint4korr(from);
     else
       longget(val, from);
 
-    if (BIGENDIAN && low_byte_first_to)
+    if (ARCH_BIGENDIAN && low_byte_first_to)
       int4store(to, val);
     else
       longstore(to, val);
@@ -566,12 +566,12 @@ protected:
                            bool low_byte_first_from, bool low_byte_first_to)
   {
     int64 val;
-    if (BIGENDIAN && low_byte_first_from)
+    if (ARCH_BIGENDIAN && low_byte_first_from)
       val = sint8korr(from);
     else
       longlongget(val, from);
 
-    if (BIGENDIAN && low_byte_first_to)
+    if (ARCH_BIGENDIAN && low_byte_first_to)
       int8store(to, val);
     else
       longlongstore(to, val);
@@ -883,12 +883,12 @@ public:
                       uint max_length, bool low_byte_first)
   {
     int16 val;
-    if (BIGENDIAN && table->s->db_low_byte_first)
+    if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
       val = sint2korr(from);
     else
       shortget(val, from);
 
-    if (BIGENDIAN && low_byte_first)
+    if (ARCH_BIGENDIAN && low_byte_first)
       int2store(to, val);
     else
       shortstore(to, val);
@@ -899,12 +899,12 @@ public:
                               uint param_data, bool low_byte_first)
   {
     int16 val;
-    if (BIGENDIAN && low_byte_first)
+    if (ARCH_BIGENDIAN && low_byte_first)
       val = sint2korr(from);
     else
       shortget(val, from);
 
-    if (BIGENDIAN && table->s->db_low_byte_first)
+    if (ARCH_BIGENDIAN && table->s->db_low_byte_first)
       int2store(to, val);
     else
       shortstore(to, val);
@@ -1200,7 +1200,7 @@ public:
   virtual long get_timestamp(ulong *sec_part) const;
   virtual void store_TIME(my_time_t timestamp, ulong sec_part)
   {
-    if (BIGENDIAN && table && table->s->db_low_byte_first)
+    if (ARCH_BIGENDIAN && table && table->s->db_low_byte_first)
       int4store(ptr,timestamp);
     else
       longstore(ptr,(uint32) timestamp);
