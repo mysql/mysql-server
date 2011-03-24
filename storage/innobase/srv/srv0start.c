@@ -85,7 +85,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 # include "zlib.h" /* for ZLIB_VERSION */
 
@@ -2210,7 +2209,6 @@ innobase_shutdown_for_mysql(void)
 	ibuf_close();
 	log_shutdown();
 	lock_sys_close();
-	thr_local_close();
 	trx_sys_file_format_close();
 	trx_sys_close();
 
