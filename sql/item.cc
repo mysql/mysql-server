@@ -2758,7 +2758,7 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
       value.time.minute > 59 || value.time.second > 59 ||
       value.time.second_part > MAX_SEC_PART_VALUE)
   {
-    Lazy_string_time str(tm);
+    Lazy_string_time str(&value.time);
     make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  &str, time_type, 0);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
