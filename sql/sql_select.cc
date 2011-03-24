@@ -1473,7 +1473,7 @@ JOIN::optimize()
         DBUG_RETURN(1);
       }
     }
-  
+    
     if (!(select_options & SELECT_BIG_RESULT) &&
         ((group_list &&
           (!simple_group ||
@@ -6881,6 +6881,7 @@ void rr_unlock_row(st_join_table *tab)
 }
 
 
+
 /**
   Pick the appropriate access method functions
 
@@ -6937,13 +6938,14 @@ make_join_readinfo(JOIN *join, ulonglong options)
   uint i;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
   bool ordered_set= 0;
+  DBUG_ENTER("make_join_readinfo");
+
 #ifdef MCP_BUG11764737
   bool sorted= 1;
 #else
   /* First table sorted if ORDER or GROUP BY was specified */
   bool sorted= (join->order || join->group_list);
 #endif
-  DBUG_ENTER("make_join_readinfo");
 
   for (i=join->const_tables ; i < join->tables ; i++)
   {
@@ -7084,7 +7086,6 @@ make_join_readinfo(JOIN *join, ulonglong options)
       abort();					/* purecov: deadcode */
     }
   }
-
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
   DBUG_VOID_RETURN;
 }
@@ -9510,7 +9511,7 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
     conds= build_equal_items(join->thd, conds, NULL, join_list,
                              &join->cond_equal);
-    DBUG_EXECUTE("where",print_where(conds,"after equal_items",QT_ORDINARY););
+    DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
 
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
@@ -11459,12 +11460,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   {
     DBUG_ASSERT(join->tables);
     error= sub_select(join,join_tab,0);
-    DBUG_PRINT("info", ("do_select, got %d from sub_select", error));
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
-    {
-      DBUG_PRINT("info", (" -> start sub_select with 'end' flag"));
       error= sub_select(join,join_tab,1);
-    }
     if (error == NESTED_LOOP_QUERY_LIMIT)
       error= NESTED_LOOP_OK;                    /* select_limit used */
   }
@@ -11521,30 +11518,29 @@ enum_nested_loop_state
 sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
   enum_nested_loop_state rc;
-  DBUG_ENTER("sub_select_cache");
 
   if (end_of_records)
   {
     rc= flush_cached_records(join,join_tab,FALSE);
     if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
       rc= sub_select(join,join_tab,end_of_records);
-    DBUG_RETURN(rc);
+    return rc;
   }
   if (join->thd->killed)		// If aborted by user
   {
     join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);                   /* purecov: inspected */
+    return NESTED_LOOP_KILLED;                   /* purecov: inspected */
   }
   if (join_tab->use_quick != 2 || test_if_quick_select(join_tab) <= 0)
   {
     if (!store_record_in_cache(&join_tab->cache))
-      DBUG_RETURN(NESTED_LOOP_OK);                     // There is more room in cache
-    DBUG_RETURN(flush_cached_records(join,join_tab,FALSE));
+      return NESTED_LOOP_OK;                     // There is more room in cache
+    return flush_cached_records(join,join_tab,FALSE);
   }
   rc= flush_cached_records(join, join_tab, TRUE);
   if (rc == NESTED_LOOP_OK || rc == NESTED_LOOP_NO_MORE_ROWS)
     rc= sub_select(join, join_tab, end_of_records);
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -11670,14 +11666,9 @@ sub_select_cache(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 enum_nested_loop_state
 sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 {
-  DBUG_ENTER("sub_select");
   join_tab->table->null_row=0;
   if (end_of_records)
-  {
-    DBUG_PRINT("info", ("end_of_records"));
-    enum_nested_loop_state rc= (*join_tab->next_select)(join,join_tab+1,end_of_records);
-    DBUG_RETURN(rc);
-  }
+    return (*join_tab->next_select)(join,join_tab+1,end_of_records);
 
   int error;
   enum_nested_loop_state rc;
@@ -11685,7 +11676,6 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   if (join->resume_nested_loop)
   {
-    DBUG_PRINT("info", ("resume_nested_loop"));
     /* If not the last table, plunge down the nested loop */
     if (join_tab < join->join_tab + join->tables - 1)
       rc= (*join_tab->next_select)(join, join_tab + 1, 0);
@@ -11713,21 +11703,13 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     join->thd->row_count= 0;
 
     error= (*join_tab->read_first_record)(join_tab);
-    DBUG_PRINT("info", ("read_first_record returned: %d", error));
-
     rc= evaluate_join_record(join, join_tab, error);
-    DBUG_PRINT("info", ("first evaluate_join_record returned: %d", rc));
   }
 
   while (rc == NESTED_LOOP_OK)
   {
-    DBUG_PRINT("info", ("next 'read_record'"));
     error= info->read_record(info);
-    DBUG_PRINT("info", ("'read_record' returned:%d", error));
-
-    DBUG_PRINT("info", ("next 'evaluate_join_record'"));
     rc= evaluate_join_record(join, join_tab, error);
-    DBUG_PRINT("info", ("next evaluate_join_record returned: %d", rc));
   }
 
   if (rc == NESTED_LOOP_NO_MORE_ROWS &&
@@ -11736,10 +11718,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   if (rc == NESTED_LOOP_NO_MORE_ROWS)
     rc= NESTED_LOOP_OK;
-
-  DBUG_PRINT("info", ("sub_select returns:%d", rc));
-//return rc;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 
@@ -11780,10 +11759,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       return NESTED_LOOP_ERROR;
   }
 
-  enum enum_nested_loop_state rc= NESTED_LOOP_OK;
   if (!select_cond || select_cond_result)
   {
-    DBUG_PRINT("info", ("  Condition passed"));
     /*
       There is no select condition or the attached pushed down
       condition is true => a match is found.
@@ -11856,7 +11833,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
               not to the last table of the current nest level.
             */
             join->return_tab= tab;
-            return rc;
+            return NESTED_LOOP_OK;
           }
         }
       }
@@ -11871,16 +11848,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     }
 
     /*
-     Setting NESTED_LOOP_NO_MORE_ROWS (if not_exists_optimize) 
-     also implies a 'not found' condition. However we could not
-     set this inside the  loop above as it would prematurely
-     have terminated the 'first_unmatched' / 'first_unmatched->found'
-     calculations above.
-    */
-    if (rc == NESTED_LOOP_NO_MORE_ROWS)
-      found= false;
-
-    /*
       It was not just a return to lower loop level when one
       of the newly activated predicates is evaluated as false
       (See above join->return_tab= tab).
@@ -11892,7 +11859,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
     if (found)
     {
-      DBUG_PRINT("info", ("  found match"));
+      enum enum_nested_loop_state rc;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
       if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
@@ -11912,7 +11879,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   }
   else
   {
-    DBUG_PRINT("info", ("  not a match"));
     /*
       The condition pushed down to the table join_tab rejects all rows
       with the beginning coinciding with the current partial join.
@@ -11921,7 +11887,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     join->thd->row_count++;
     join_tab->read_record.unlock_row(join_tab);
   }
-  return rc;
+  return NESTED_LOOP_OK;
 }
 
 
@@ -12209,26 +12175,23 @@ join_read_system(JOIN_TAB *tab)
 {
   TABLE *table= tab->table;
   int error;
-  DBUG_ENTER("join_read_system");
-
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     if ((error=table->file->read_first_row(table->record[0],
 					   table->s->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
-	DBUG_RETURN(report_error(table, error));
+	return report_error(table, error);
       mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
-      DBUG_RETURN(-1);
+      return -1;
     }
     store_record(table,record[1]);
   }
   else if (!table->status)			// Only happens with left join
     restore_record(table,record[1]);			// restore old record
   table->null_row=0;
-  int rc = table->status ? -1 : 0;
-  DBUG_RETURN(rc);
+  return table->status ? -1 : 0;
 }
 
 
@@ -12250,7 +12213,6 @@ join_read_const(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
-  DBUG_ENTER("join_read_const");
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     table->status= 0;
@@ -12269,8 +12231,8 @@ join_read_const(JOIN_TAB *tab)
       mark_as_null_row(tab->table);
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-	DBUG_RETURN(report_error(table, error));
-      DBUG_RETURN(-1);
+	return report_error(table, error);
+      return -1;
     }
     store_record(table,record[1]);
   }
@@ -12280,8 +12242,7 @@ join_read_const(JOIN_TAB *tab)
     restore_record(table,record[1]);			// restore old record
   }
   table->null_row=0;
-  int rc = table->status ? -1 : 0;
-  DBUG_RETURN(rc);
+  return table->status ? -1 : 0;
 }
 
 
@@ -12290,7 +12251,6 @@ join_read_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
-  DBUG_ENTER("join_read_key");
 
   if (!table->file->inited)
   {
@@ -12307,7 +12267,7 @@ join_read_key(JOIN_TAB *tab)
     if (tab->ref.key_err)
     {
       table->status=STATUS_NOT_FOUND;
-      DBUG_RETURN(-1);
+      return -1;
     }
     /*
       Moving away from the current record. Unlock the row
@@ -12323,7 +12283,7 @@ join_read_key(JOIN_TAB *tab)
                                       make_prev_keypart_map(tab->ref.key_parts),
                                       HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      DBUG_RETURN(report_error(table, error));
+      return report_error(table, error);
 
     if (! error)
     {
@@ -12337,8 +12297,7 @@ join_read_key(JOIN_TAB *tab)
     tab->ref.use_count++;
   }
   table->null_row=0;
-  int rc = table->status ? -1 : 0;
-  DBUG_RETURN(rc);
+  return table->status ? -1 : 0;
 }
 
 
@@ -12571,10 +12530,9 @@ join_read_prev_same(READ_RECORD *info)
 static int
 join_init_quick_read_record(JOIN_TAB *tab)
 {
-  DBUG_ENTER("join_init_quick_read_record");
   if (test_if_quick_select(tab) == -1)
-    DBUG_RETURN(-1);					/* No possible records */
-  DBUG_RETURN(join_init_read_record(tab));
+    return -1;					/* No possible records */
+  return join_init_read_record(tab);
 }
 
 
@@ -12600,12 +12558,11 @@ test_if_quick_select(JOIN_TAB *tab)
 static int
 join_init_read_record(JOIN_TAB *tab)
 {
-  DBUG_ENTER("join_init_read_record");
   if (tab->select && tab->select->quick && tab->select->quick->reset())
-    DBUG_RETURN(1);
+    return 1;
   init_read_record(&tab->read_record, tab->join->thd, tab->table,
 		   tab->select,1,1, FALSE);
-  DBUG_RETURN((*tab->read_record.read_record)(&tab->read_record));
+  return (*tab->read_record.read_record)(&tab->read_record);
 }
 
 
@@ -14250,7 +14207,6 @@ check_reverse_order:
 	  DBUG_RETURN(0);		// Reverse sort not supported
 	}
 	select->quick=tmp;
-	DBUG_ASSERT(select->quick->sorted);
       }
     }
     else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
@@ -14268,7 +14224,6 @@ check_reverse_order:
   }
   else if (select && select->quick)
     select->quick->sorted= 1;
-
   DBUG_RETURN(1);
 }
 
@@ -17281,7 +17236,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  else if (tab->select->cond)
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
-            if (pushed_cond && thd->variables.engine_condition_pushdown)
+
+            if (thd->variables.engine_condition_pushdown && pushed_cond)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));

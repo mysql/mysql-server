@@ -34,7 +34,6 @@
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
-#include "ha_ndbcluster_push.h"
 #include <ndbapi/NdbApi.hpp>
 #include <util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
@@ -43,6 +42,7 @@
 #include <ndbapi/NdbQueryOperation.hpp>
 
 #include "ha_ndbcluster_binlog.h"
+#include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_cond.h"
 #include "ha_ndbcluster_tables.h"
 #include "ha_ndbcluster_connection.h"
@@ -277,6 +277,7 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
                                        Item *cond);
+
 #if MYSQL_VERSION_ID >= 50501
 /**
    Used to fill in INFORMATION_SCHEMA* tables.
@@ -1704,7 +1705,6 @@ check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
 void
 ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
 {
-  DBUG_ENTER("ha_ndbcluster::release_completed_operations");
   /**
    * mysqld reads/write blobs fully,
    *   which means that it does not keep blobs
@@ -1715,7 +1715,6 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
    */
   trans->releaseCompletedOperations();
   trans->releaseCompletedQueries();
-  DBUG_VOID_RETURN;
 }
 
 int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
@@ -3681,6 +3680,7 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
   DBUG_RETURN(true);
 }
 
+
 /**
   Read one record from NDB using primary key.
 */
@@ -4465,7 +4465,6 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
   options.optionsPresent= 0;
   NdbOperation::GetValueSpec gets[2];
 
-  DBUG_ENTER("pk_unique_index_read_key");
   DBUG_ASSERT(m_thd_ndb->trans);
 
   if (idx != MAX_KEY)
@@ -4497,9 +4496,9 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, buf, table->read_set) != 0)
-    DBUG_RETURN(NULL);
+    return NULL;
 
-  DBUG_RETURN(op);
+  return op;
 }
 
 extern void sql_print_information(const char *format, ...);
@@ -4662,6 +4661,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
   DBUG_ENTER("ha_ndbcluster::ordered_index_scan");
   DBUG_PRINT("enter", ("index: %u, sorted: %d, descending: %d read_set=0x%x",
              active_index, sorted, descending, table->read_set->bitmap[0]));
+  DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
 
   // Check that sorted seems to be initialised
   DBUG_ASSERT(sorted == 0 || sorted == 1);
@@ -6796,7 +6796,6 @@ int ha_ndbcluster::index_last(uchar *buf)
   DBUG_RETURN(error);
 }
 
-
 int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 {
   DBUG_ENTER("ha_ndbcluster::index_read_last");
@@ -6854,12 +6853,9 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
   const KEY* key_info= table->key_info+active_index;
   int error; 
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
-  DBUG_PRINT("enter", ("type: %d, sorted: %d, descending: %d", type, sorted, desc));
+  DBUG_PRINT("info", ("desc: %d, sorted: %d", desc, sorted));
 
   if (unlikely((error= close_scan())))
-    DBUG_RETURN(error);
-
-  if (m_active_cursor && (error= close_scan()))
     DBUG_RETURN(error);
 
   if (m_use_partition_pruning)
@@ -6954,7 +6950,6 @@ int ha_ndbcluster::read_range_first(const key_range *start_key,
                                       sorted, buf));
 }
 
-
 int ha_ndbcluster::read_range_next()
 {
   DBUG_ENTER("ha_ndbcluster::read_range_next");
@@ -6973,7 +6968,6 @@ int ha_ndbcluster::rnd_init(bool scan)
   index_init(table_share->primary_key, 0);
   DBUG_RETURN(0);
 }
-
 
 int ha_ndbcluster::close_scan()
 {
@@ -7027,7 +7021,6 @@ int ha_ndbcluster::close_scan()
   m_multi_cursor= NULL;
   DBUG_RETURN(0);
 }
-
 
 int ha_ndbcluster::rnd_end()
 {
@@ -7523,9 +7516,9 @@ int ha_ndbcluster::reset()
   assert(m_is_bulk_delete == false);
   m_is_bulk_delete = false;
 
-  /* 
+  /*
     Setting pushed_code=NULL here is a temporary fix for bug #58553. This
-    should not be needed any longer if http://lists.mysql.com/commits/125336 
+    should not be needed any longer if http://lists.mysql.com/commits/125336
     is merged into this branch.
   */
   pushed_cond= NULL;
@@ -13884,8 +13877,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   */
 
   DBUG_ASSERT(cur_index_type != UNDEFINED_INDEX);
-  DBUG_ASSERT(m_multi_cursor == NULL);
-  DBUG_ASSERT(m_active_query == NULL);
+  DBUG_ASSERT(m_multi_cursor==NULL);
+  DBUG_ASSERT(m_active_query==NULL);
 
   const NdbOperation* lastOp= trans ? trans->getLastDefinedOperation() : 0;
   const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
@@ -14087,6 +14080,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           ERR_RETURN(trans->getNdbError());
         }
       }
+
       r->range_flag&= ~(uint)UNIQUE_RANGE;
       num_scan_ranges++;
     }
