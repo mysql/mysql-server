@@ -1864,7 +1864,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   DBUG_ENTER("mysql_rm_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
 #endif
 
   /* Disable drop of enabled log tables, must be done before name locking */
@@ -1882,15 +1882,15 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (!drop_temporary)
   {
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+    (void)global_schema_lock.lock();
+#endif
+
     if (!thd->locked_tables_mode)
     {
       if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
                            MYSQL_OPEN_SKIP_TEMPORARY))
         DBUG_RETURN(true);
-
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-      global_schema_lock_guard.lock();
-#endif
 
       for (table= tables; table; table= table->next_local)
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
@@ -1932,9 +1932,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
             DBUG_RETURN(true);
           table->mdl_request.ticket= table->table->mdl_ticket;
        }
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-      global_schema_lock_guard.lock();
-#endif
     }
   }
 
@@ -4361,7 +4358,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   DBUG_ENTER("mysql_create_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      !create_info->frm_only)
+  {
+    (void)global_schema_lock.lock();
+  }
 #endif
 
   /*
@@ -4372,12 +4374,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     result= TRUE;
     goto end;
   }
-
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !create_info->frm_only)
-    global_schema_lock_guard.lock();
-#endif
 
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
@@ -4558,10 +4554,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DBUG_ENTER("mysql_create_like_table");
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK 
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  Ndb_global_schema_lock_guard global_schema_lock(thd);
  
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
-    global_schema_lock_guard.lock();
+    (void)global_schema_lock.lock();
 #endif
 
   /*
