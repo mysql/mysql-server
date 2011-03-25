@@ -1048,9 +1048,12 @@ private:
   void cleanup_item_list(List<Item> &items) const;
 };
 
+enum enum_with_bush_roots { WITH_BUSH_ROOTS, WITHOUT_BUSH_ROOTS};
+enum enum_with_const_tables { WITH_CONST_TABLES, WITHOUT_CONST_TABLES};
 
-JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables);
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots);
+JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls);
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, 
+                          enum enum_with_bush_roots include_bush_roots);
 
 typedef struct st_select_check {
   uint const_ref,reg_ref;

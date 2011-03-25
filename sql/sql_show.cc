@@ -6606,9 +6606,9 @@ bool get_schema_tables_result(JOIN *join,
   DBUG_ENTER("get_schema_tables_result");
 
   thd->no_warnings_for_error= 1;
-  for (JOIN_TAB *tab= first_linear_tab(join, FALSE); 
+  for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, FALSE))
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     if (!tab->table || !tab->table->pos_in_table_list)
       break;

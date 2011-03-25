@@ -1035,8 +1035,8 @@ JOIN::optimize()
     Perform the optimization on fields evaluation mentioned above
     for all on expressions.
   */
-  for (JOIN_TAB *tab= first_linear_tab(this, TRUE); tab;
-       tab= next_linear_tab(this, tab, TRUE))
+  for (JOIN_TAB *tab= first_linear_tab(this, WITHOUT_CONST_TABLES); tab;
+       tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
     if (*tab->on_expr_ref)
     {
@@ -1051,8 +1051,8 @@ JOIN::optimize()
     Perform the optimization on fields evaliation mentioned above
     for all used ref items.
   */
-  for (JOIN_TAB *tab= first_linear_tab(this, TRUE); tab;
-       tab= next_linear_tab(this, tab, TRUE))
+  for (JOIN_TAB *tab= first_linear_tab(this, WITHOUT_CONST_TABLES); tab;
+       tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
     uint key_copy_index=0;
     for (uint i=0; i < tab->ref.key_parts; i++)
@@ -1606,9 +1606,8 @@ bool JOIN::setup_subquery_caches()
     if (conds)
       conds= conds->transform(&Item::expr_cache_insert_transformer,
                               (uchar*) thd);
-    for (JOIN_TAB *tab= first_linear_tab(this, TRUE); 
-         tab; 
-         tab= next_linear_tab(this, tab, TRUE))
+    for (JOIN_TAB *tab= first_linear_tab(this, WITHOUT_CONST_TABLES); 
+         tab; tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
     {
       if (tab->select_cond)
         tab->select_cond=
@@ -6363,10 +6362,10 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 }
 
 
-JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
+JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls)
 {
   JOIN_TAB *first= join->join_tab;
-  if (after_const_tables)
+  if (const_tbls == WITHOUT_CONST_TABLES)
     first+= join->const_tables;
   if (first < join->join_tab + join->top_jtrange_tables)
     return first;
@@ -6402,9 +6401,10 @@ JOIN_TAB *first_linear_tab(JOIN *join, bool after_const_tables)
    (note that sjm1 won't be returned).
 */
 
-JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots)
+JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, 
+                          enum enum_with_bush_roots include_bush_roots)
 {
-  if (include_bush_roots && tab->bush_children)
+  if (include_bush_roots == WITH_BUSH_ROOTS && tab->bush_children)
   {
     /* This JOIN_TAB is a SJM nest; Start from first table in nest */
     return tab->bush_children->start;
@@ -6425,7 +6425,7 @@ JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab, bool include_bush_roots)
   if (++tab == join->join_tab + join->top_jtrange_tables)
     return NULL;
 
-  if (!include_bush_roots && tab->bush_children)
+  if (include_bush_roots == WITHOUT_BUSH_ROOTS && tab->bush_children)
   {
     /* This JOIN_TAB is a SJM nest; Start from first table in nest */
     tab= tab->bush_children->start;
@@ -7118,9 +7118,9 @@ static void add_not_null_conds(JOIN *join)
 {
   DBUG_ENTER("add_not_null_conds");
   
-  for (JOIN_TAB *tab= first_linear_tab(join, TRUE); 
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE))
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     if (tab->type == JT_REF || tab->type == JT_EQ_REF || 
         tab->type == JT_REF_OR_NULL)
@@ -7250,8 +7250,8 @@ static void
 make_outerjoin_info(JOIN *join)
 {
   DBUG_ENTER("make_outerjoin_info");
-  for (JOIN_TAB *tab= first_linear_tab(join, TRUE); tab; 
-       tab= next_linear_tab(join, tab, FALSE))
+  for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     TABLE *table=tab->table;
     /* 
@@ -7354,9 +7354,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           add_cond_and_fix(&const_cond, join->join_tab[i].select_cond);
 
         DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
-        for (JOIN_TAB *tab= first_linear_tab(join, TRUE); 
+        for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
              tab; 
-             tab= next_linear_tab(join, tab, FALSE))
+             tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
         {
           if (*tab->on_expr_ref)
           {
@@ -7691,9 +7691,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       */ 
 
       /* First push down constant conditions from on expressions */
-      for (JOIN_TAB *join_tab= first_linear_tab(join, TRUE); 
+      for (JOIN_TAB *join_tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
            join_tab; 
-           join_tab= next_linear_tab(join, join_tab, FALSE))
+           join_tab= next_linear_tab(join, join_tab, WITHOUT_BUSH_ROOTS))
       {
         if (*join_tab->on_expr_ref)
         {
@@ -7730,9 +7730,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
         table_map used_tables2= (join->const_table_map |
                                  OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
-        for (JOIN_TAB *tab= first_linear_tab(join, TRUE); 
+        for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
              tab; 
-             tab= next_linear_tab(join, tab, TRUE))
+             tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
         {
           if (!tab->table)
           {
@@ -8408,16 +8408,16 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
 {
   JOIN_TAB *tab;
 
-  for (tab= first_linear_tab(join, TRUE); 
+  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE))
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     tab->used_join_cache_level= join->max_allowed_join_cache_level;  
   }
 
-  for (tab= first_linear_tab(join, TRUE); 
+  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE))
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     JOIN_TAB *prev_tab;
 restart:
@@ -8493,16 +8493,16 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
-  for (tab= first_linear_tab(join, TRUE); 
+  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE))
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     tab->partial_join_cardinality= 1; 
   }
 
-  for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
+  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES), i= join->const_tables; 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE))
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     /*
       The approximation below for partial join cardinality is not good because
@@ -8523,9 +8523,9 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
  
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
 
-  for (tab= first_linear_tab(join, TRUE), i= join->const_tables; 
+  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES), i= join->const_tables; 
        tab; 
-       tab= next_linear_tab(join, tab, TRUE), i++)
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS), i++)
   {
     if (tab->bush_children)
     {
@@ -9017,8 +9017,8 @@ void JOIN::cleanup(bool full)
 
     if (full)
     {
-      for (tab= first_linear_tab(this, FALSE); tab; 
-           tab= next_linear_tab(this, tab, TRUE))
+      for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
+           tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
       {
 	tab->cleanup();
       }
@@ -9026,8 +9026,8 @@ void JOIN::cleanup(bool full)
     }
     else
     {
-      for (tab= first_linear_tab(this, FALSE); tab; 
-           tab= next_linear_tab(this, tab, TRUE))
+      for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
+           tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
       {
 	if (tab->table)
           tab->table->file->ha_index_or_rnd_end();

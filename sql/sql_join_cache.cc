@@ -218,7 +218,7 @@ void JOIN_CACHE::calc_record_fields()
     The following loop will get inside SJM nests, because data may be unpacked
     to sjm-inner tables.
   */
-  for ( ; tab != join_tab ; tab= next_linear_tab(join, tab, FALSE))
+  for (; tab != join_tab ; tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {	    
     tab->calc_used_field_length(FALSE);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
@@ -273,7 +273,7 @@ void JOIN_CACHE::collect_info_on_key_args()
   do
   {
     for (tab= cache->start_tab; tab != cache->join_tab;
-         tab= next_linear_tab(join, tab, FALSE))
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     { 
       uint key_args;
       bitmap_clear_all(&tab->table->tmp_set);
@@ -389,7 +389,8 @@ void JOIN_CACHE::create_flag_fields()
 	                                  &copy);
 
   /* Create fields for all null bitmaps and null row flags that are needed */
-  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
+  for (tab= start_tab; tab != join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     TABLE *table= tab->table;
 
@@ -477,7 +478,7 @@ void JOIN_CACHE::create_key_arg_fields()
   {
     cache= cache->prev_cache;
     for (tab= cache->start_tab; tab != cache->join_tab; 
-         tab= next_linear_tab(join, tab, FALSE))
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     { 
       CACHE_FIELD *copy_end;
       MY_BITMAP *key_read_set= &tab->table->tmp_set;
@@ -527,7 +528,8 @@ void JOIN_CACHE::create_key_arg_fields()
   
   /* Now create local fields that are used to build ref for this key access */
   copy= field_descr+flag_fields;
-  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
+  for (tab= start_tab; tab != join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
                                                  &data_field_count, &copy,
@@ -583,7 +585,8 @@ void JOIN_CACHE::create_remaining_fields()
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
   CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
-  for (tab= start_tab; tab != join_tab; tab= next_linear_tab(join, tab, FALSE))
+  for (tab= start_tab; tab != join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     MY_BITMAP *rem_field_set;
     TABLE *table= tab->table;
@@ -741,7 +744,7 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   {
     size_t len= 0;
     for (JOIN_TAB *tab= start_tab; tab != join_tab; 
-         tab= next_linear_tab(join, tab, FALSE))
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     {
       len+= tab->get_max_used_fieldlength();
     }
@@ -797,7 +800,7 @@ ulong JOIN_CACHE::get_max_join_buffer_size(bool optimize_buff_size)
     size_t min_sz= get_min_join_buffer_size(); 
     size_t len= 0;
     for (JOIN_TAB *tab= start_tab; tab != join_tab;
-         tab= next_linear_tab(join, tab, FALSE))
+         tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     {
       len+= tab->get_used_fieldlength();
     }
@@ -875,7 +878,8 @@ int JOIN_CACHE::alloc_buffer()
   min_buff_size= get_min_join_buffer_size();
   buff_size= get_max_join_buffer_size(optimize_buff_size);
 
-  for (tab= start_tab; tab!= join_tab; tab= next_linear_tab(join, tab, FALSE))
+  for (tab= start_tab; tab!= join_tab; 
+       tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
   {
     cache= tab->cache;
     if (cache)
