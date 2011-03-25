@@ -79,6 +79,8 @@ typedef struct keyuse_t {
 
 class store_key;
 
+const int NO_REF_PART= uint(-1);
+
 typedef struct st_table_ref
 {
   bool		key_err;
@@ -113,8 +115,9 @@ typedef struct st_table_ref
   /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
   uchar          *null_ref_key;
   /* 
-    ref_or_null optimization: number of key part can be NULL (there's only one)
-    uint(-1) if no part can be NULL.
+    ref_or_null optimization: number of key part that alternates between
+    the lookup value or NULL (there's only one such part). 
+    If we're not using ref_or_null, the value is NO_REF_PART
   */
   uint           null_ref_part;
 

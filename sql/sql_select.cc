@@ -6564,12 +6564,12 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
   j->ref.has_record= FALSE;
   j->ref.null_rejecting= 0;
   j->ref.disable_cache= FALSE;
-  j->ref.null_ref_part= (uint)-1;
+  j->ref.null_ref_part= NO_REF_PART;
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
   uchar *key_buff=j->ref.key_buff, *null_ref_key= 0;
-  uint null_ref_part= (uint)-1;
+  uint null_ref_part= NO_REF_PART;
   bool keyuse_uses_no_tables= TRUE;
   if (ftkey)
   {
