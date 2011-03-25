@@ -163,10 +163,14 @@ const uint ha_partition::NO_CURRENT_PART_ID= 0xFFFFFFFF;
 */
 
 ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
-  :handler(hton, share), m_part_info(NULL), m_create_handler(FALSE),
-   m_is_sub_partitioned(0)
+  :handler(hton, share)
 {
   DBUG_ENTER("ha_partition::ha_partition(table)");
+  m_part_info= NULL;
+  m_create_handler= FALSE;
+  m_is_sub_partitioned= 0;
+  m_is_clone_of= NULL;
+  m_clone_mem_root= NULL;
   init_handler_variables();
   DBUG_VOID_RETURN;
 }
@@ -184,15 +188,46 @@ ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share)
 */
 
 ha_partition::ha_partition(handlerton *hton, partition_info *part_info)
-  :handler(hton, NULL), m_part_info(part_info), m_create_handler(TRUE),
-   m_is_sub_partitioned(m_part_info->is_sub_partitioned())
+  :handler(hton, NULL)
 {
   DBUG_ENTER("ha_partition::ha_partition(part_info)");
+  DBUG_ASSERT(part_info);
+  m_part_info= part_info;
+  m_create_handler= TRUE;
+  m_is_sub_partitioned= m_part_info->is_sub_partitioned();
   init_handler_variables();
-  DBUG_ASSERT(m_part_info);
   DBUG_VOID_RETURN;
 }
 
+/**
+  ha_partition constructor method used by ha_partition::clone()
+
+    @param hton               Handlerton (partition_hton)
+    @param share              Table share object
+    @param part_info_arg      partition_info to use
+    @param clone_arg          ha_partition to clone
+    @param clme_mem_root_arg  MEM_ROOT to use
+
+  @return New partition handler
+*/
+
+ha_partition::ha_partition(handlerton *hton, TABLE_SHARE *share,
+                           partition_info *part_info_arg,
+                           ha_partition *clone_arg,
+                           MEM_ROOT *clone_mem_root_arg)
+  :handler(hton, share)
+{
+  DBUG_ENTER("ha_partition::ha_partition(clone)");
+  m_part_info= part_info_arg;
+  m_create_handler= TRUE;
+  m_is_sub_partitioned= m_part_info->is_sub_partitioned();
+  m_is_clone_of= clone_arg;
+  m_clone_mem_root= clone_mem_root_arg;
+  init_handler_variables();
+  m_tot_parts= clone_arg->m_tot_parts;
+  DBUG_ASSERT(m_tot_parts);
+  DBUG_VOID_RETURN;
+}
 
 /*
   Initialize handler object
@@ -244,7 +279,6 @@ void ha_partition::init_handler_variables()
   m_rec0= 0;
   m_curr_key_info[0]= NULL;
   m_curr_key_info[1]= NULL;
-  is_clone= FALSE,
   m_part_func_monotonicity_info= NON_MONOTONIC;
   auto_increment_lock= FALSE;
   auto_increment_safe_stmt_log_lock= FALSE;
@@ -359,7 +393,8 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     */
     DBUG_RETURN(0);
   }
-  else if (get_from_handler_file(table_share->normalized_path.str, mem_root))
+  else if (get_from_handler_file(table_share->normalized_path.str,
+                                 mem_root, false))
   {
     my_message(ER_UNKNOWN_ERROR, "Failed to read from the .par file", MYF(0));
     DBUG_RETURN(1);
@@ -1848,7 +1883,7 @@ uint ha_partition::del_ren_cre_table(const char *from,
     DBUG_RETURN(TRUE);
   }
 
-  if (get_from_handler_file(from, ha_thd()->mem_root))
+  if (get_from_handler_file(from, ha_thd()->mem_root, false))
     DBUG_RETURN(TRUE);
   DBUG_ASSERT(m_file_buffer);
   DBUG_PRINT("enter", ("from: (%s) to: (%s)", from, to));
@@ -2368,7 +2403,8 @@ error_end:
     partitions.
 */
 
-bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
+bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root,
+                                         bool clone)
 {
   char buff[FN_REFLEN], *address_tot_name_len;
   File file;
@@ -2403,15 +2439,18 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   m_tot_parts= uint4korr((file_buffer) + 8);
   DBUG_PRINT("info", ("No of parts = %u", m_tot_parts));
   tot_partition_words= (m_tot_parts + 3) / 4;
-  engine_array= (handlerton **) my_alloca(m_tot_parts * sizeof(handlerton*));
-  for (i= 0; i < m_tot_parts; i++)
+  if (!clone)
   {
-    engine_array[i]= ha_resolve_by_legacy_type(ha_thd(),
-                                               (enum legacy_db_type)
-                                               *(uchar *) ((file_buffer) +
-                                                           12 + i));
-    if (!engine_array[i])
-      goto err3;
+    engine_array= (handlerton **) my_alloca(m_tot_parts * sizeof(handlerton*));
+    for (i= 0; i < m_tot_parts; i++)
+    {
+      engine_array[i]= ha_resolve_by_legacy_type(ha_thd(),
+                                                 (enum legacy_db_type)
+                                                 *(uchar *) ((file_buffer) +
+                                                             12 + i));
+      if (!engine_array[i])
+        goto err3;
+    }
   }
   address_tot_name_len= file_buffer + 12 + 4 * tot_partition_words;
   tot_name_words= (uint4korr(address_tot_name_len) + 3) / 4;
@@ -2422,16 +2461,19 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   m_file_buffer= file_buffer;          // Will be freed in clear_handler_file()
   m_name_buffer_ptr= name_buffer_ptr;
   
-  if (!(m_engine_array= (plugin_ref*)
-                my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
-    goto err3;
+  if (!clone)
+  {
+    if (!(m_engine_array= (plugin_ref*)
+                  my_malloc(m_tot_parts * sizeof(plugin_ref), MYF(MY_WME))))
+      goto err3;
 
-  for (i= 0; i < m_tot_parts; i++)
-    m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
+    for (i= 0; i < m_tot_parts; i++)
+      m_engine_array[i]= ha_lock_engine(NULL, engine_array[i]);
 
-  my_afree((gptr) engine_array);
+    my_afree((gptr) engine_array);
+  }
     
-  if (!m_file && create_handlers(mem_root))
+  if (!clone && !m_file && create_handlers(mem_root))
   {
     clear_handler_file();
     DBUG_RETURN(TRUE);
@@ -2439,7 +2481,8 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root)
   DBUG_RETURN(FALSE);
 
 err3:
-  my_afree((gptr) engine_array);
+  if (!clone)
+    my_afree((gptr) engine_array);
 err2:
   my_free(file_buffer, MYF(0));
 err1:
@@ -2491,13 +2534,13 @@ void ha_data_partition_destroy(void *ha_data)
 
 int ha_partition::open(const char *name, int mode, uint test_if_locked)
 {
-  char *name_buffer_ptr= m_name_buffer_ptr;
+  char *name_buffer_ptr;
   int error;
   uint alloc_len;
   handler **file;
   char name_buff[FN_REFLEN];
   bool is_not_tmp_table= (table_share->tmp_table == NO_TMP_TABLE);
-  ulonglong check_table_flags= 0;
+  ulonglong check_table_flags;
   DBUG_ENTER("ha_partition::open");
 
   DBUG_ASSERT(table->s == table_share);
@@ -2505,8 +2548,9 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   m_mode= mode;
   m_open_test_lock= test_if_locked;
   m_part_field_array= m_part_info->full_part_field_array;
-  if (get_from_handler_file(name, &table->mem_root))
+  if (get_from_handler_file(name, &table->mem_root, test(m_is_clone_of)))
     DBUG_RETURN(1);
+  name_buffer_ptr= m_name_buffer_ptr;
   m_start_key.length= 0;
   m_rec0= table->record[0];
   m_rec_length= table_share->reclength;
@@ -2542,8 +2586,9 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   bitmap_clear_all(&m_bulk_insert_started);
   /* Initialize the bitmap we use to determine what partitions are used */
-  if (!is_clone)
+  if (!m_is_clone_of)
   {
+    DBUG_ASSERT(!m_clone_mem_root);
     if (bitmap_init(&(m_part_info->used_partitions), NULL, m_tot_parts, TRUE))
     {
       bitmap_free(&m_bulk_insert_started);
@@ -2552,32 +2597,70 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     bitmap_set_all(&(m_part_info->used_partitions));
   }
 
+  if (m_is_clone_of)
+  {
+    uint i;
+    DBUG_ASSERT(m_clone_mem_root);
+    /* Allocate an array of handler pointers for the partitions handlers. */
+    alloc_len= (m_tot_parts + 1) * sizeof(handler*);
+    if (!(m_file= (handler **) alloc_root(m_clone_mem_root, alloc_len)))
+      goto err_alloc;
+    memset(m_file, 0, alloc_len);
+    /*
+      Populate them by cloning the original partitions. This also opens them.
+      Note that file->ref is allocated too.
+    */
+    file= m_is_clone_of->m_file;
+    for (i= 0; i < m_tot_parts; i++)
+    {
+      create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
+                            FALSE);
+      if (!(m_file[i]= file[i]->clone((const char*) name_buff,
+                                      m_clone_mem_root)))
+      {
+        error= HA_ERR_INITIALIZATION;
+        file= &m_file[i];
+        goto err_handler;
+      }
+      name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
+    }
+  }
+  else
+  {
+   file= m_file;
+   do
+   {
+      create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
+                            FALSE);
+      if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
+                                  test_if_locked)))
+        goto err_handler;
+      m_no_locks+= (*file)->lock_count();
+      name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
+    } while (*(++file));
+  }
+  
   file= m_file;
+  ref_length= (*file)->ref_length;
+  check_table_flags= (((*file)->ha_table_flags() &
+                       ~(PARTITION_DISABLED_TABLE_FLAGS)) |
+                      (PARTITION_ENABLED_TABLE_FLAGS));
+  file++;
   do
   {
-    create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
-                          FALSE);
-    if ((error= (*file)->ha_open(table, (const char*) name_buff, mode,
-                                 test_if_locked)))
-      goto err_handler;
-    m_no_locks+= (*file)->lock_count();
-    name_buffer_ptr+= strlen(name_buffer_ptr) + 1;
+    DBUG_ASSERT(ref_length >= (*file)->ref_length);
     set_if_bigger(ref_length, ((*file)->ref_length));
     /*
       Verify that all partitions have the same set of table flags.
       Mask all flags that partitioning enables/disables.
     */
-    if (!check_table_flags)
-    {
-      check_table_flags= (((*file)->ha_table_flags() &
-                           ~(PARTITION_DISABLED_TABLE_FLAGS)) |
-                          (PARTITION_ENABLED_TABLE_FLAGS));
-    }
-    else if (check_table_flags != (((*file)->ha_table_flags() &
-                                    ~(PARTITION_DISABLED_TABLE_FLAGS)) |
-                                   (PARTITION_ENABLED_TABLE_FLAGS)))
+    if (check_table_flags != (((*file)->ha_table_flags() &
+                               ~(PARTITION_DISABLED_TABLE_FLAGS)) |
+                              (PARTITION_ENABLED_TABLE_FLAGS)))
     {
       error= HA_ERR_INITIALIZATION;
+      /* set file to last handler, so all of them is closed */
+      file = &m_file[m_tot_parts - 1];
       goto err_handler;
     }
   } while (*(++file));
@@ -2589,6 +2672,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   */
   ref_length+= PARTITION_BYTES_IN_POS;
   m_ref_length= ref_length;
+
   /*
     Release buffer read from .par file. It will not be reused again after
     being opened once.
@@ -2646,25 +2730,55 @@ err_handler:
   DEBUG_SYNC(ha_thd(), "partition_open_error");
   while (file-- != m_file)
     (*file)->close();
+err_alloc:
   bitmap_free(&m_bulk_insert_started);
-  if (!is_clone)
+  if (!m_is_clone_of)
     bitmap_free(&(m_part_info->used_partitions));
 
   DBUG_RETURN(error);
 }
 
-handler *ha_partition::clone(MEM_ROOT *mem_root)
+
+/**
+  Clone the open and locked partitioning handler.
+
+    @param  mem_root  MEM_ROOT to use.
+
+  @return Pointer to the successfully created clone or NULL
+
+  @details
+  This function creates a new ha_partition handler as a clone/copy. The
+  original (this) must already be opened and locked. The clone will use
+  the originals m_part_info.
+  It also allocates memory to ref + ref_dup.
+  In ha_partition::open() it will clone its original handlers partitions
+  which will allocate then om the correct MEM_ROOT and also open them.
+*/
+
+handler *ha_partition::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root,
-                                        table->s->db_type());
-  ((ha_partition*)new_handler)->m_part_info= m_part_info;
-  ((ha_partition*)new_handler)->is_clone= TRUE;
-  if (new_handler && !new_handler->ha_open(table,
-                                           table->s->normalized_path.str,
-                                           table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
-    return new_handler;
-  return NULL;
+  ha_partition *new_handler;
+  
+  DBUG_ENTER("ha_partition::clone");
+  new_handler= new (mem_root) ha_partition(ht, table_share, m_part_info,
+                                           this, mem_root);
+  if (!new_handler)
+    DBUG_RETURN(NULL);
+
+  /*
+    Allocate new_handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(m_ref_length)*2);
+  if (!new_handler->ref)
+    DBUG_RETURN(NULL);
+
+  if (new_handler->ha_open(table, name,
+                           table->db_stat, HA_OPEN_IGNORE_IF_LOCKED))
+    DBUG_RETURN(NULL);
+
+  DBUG_RETURN((handler*) new_handler);
 }
 
 
@@ -2695,7 +2809,7 @@ int ha_partition::close(void)
   DBUG_ASSERT(table->s == table_share);
   delete_queue(&m_queue);
   bitmap_free(&m_bulk_insert_started);
-  if (!is_clone)
+  if (!m_is_clone_of)
     bitmap_free(&(m_part_info->used_partitions));
   file= m_file;
 
