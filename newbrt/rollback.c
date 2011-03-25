@@ -157,11 +157,19 @@ toku_find_pair_by_xid (OMTVALUE v, void *xidv) {
     return 0;
 }
 
+
+// For each xid on the closing txn's live list, find the corresponding entry in the reverse live list.
+// There must be one.
+// If the second xid in the pair is not the xid of the closing transaction, then the second xid must be newer
+// than the closing txn, and there is nothing to be done (except to assert the invariant).
+// If the second xid in the pair is the xid of the closing transaction, then we need to find the next oldest
+// txn.  If the live_xid is in the live list of the next oldest txn, then set the next oldest txn as the 
+// second xid in the pair, otherwise delete the entry from the reverse live list.
 static int
 live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
     TOKUTXN txn = txnv;
-    TXNID xid   = txn->txnid64;
-    TXNID *live_xid = live_xidv;
+    TXNID xid   = txn->txnid64;       // xid of txn that is closing
+    TXNID *live_xid = live_xidv;      // xid on closing txn's live list
     OMTVALUE pairv;
     XID_PAIR pair;
     uint32_t idx;
@@ -201,9 +209,12 @@ live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), voi
             invariant(r==0);
         }
     }
+    // else invariant() here
     return r;
 }
 
+
+// When txn ends, update reverse live list.  To do that, examine each txn in this (closing) txn's live list.
 static int
 live_list_reverse_note_txn_end(TOKUTXN txn) {
     int r;
