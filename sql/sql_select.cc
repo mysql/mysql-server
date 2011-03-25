@@ -8492,14 +8492,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   if (!join->select_lex->sj_nests.is_empty() &&
       setup_semijoin_dups_elimination(join, options, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
-
-  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
-       tab; 
-       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
-  {
+  
+  /* For const tables, set partial_join_cardinality to 1. */
+  for (tab= join->join_tab; tab != join->join_tab + join->const_tables; tab++)
     tab->partial_join_cardinality= 1; 
-  }
 
+  JOIN_TAB *prev_tab= NULL;
   for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES), i= join->const_tables; 
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
@@ -8510,11 +8508,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         - it does not differentiate between inner joins, outer joins and semi-joins.
       Later it should be improved.
     */
-    JOIN_TAB *prev_tab= tab - 1;
-    if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab) || 
-        (tab == join->join_tab + join->const_tables))
+
+    if (tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab)
       prev_tab= NULL;
     DBUG_ASSERT(tab->bush_children || tab->table == join->best_positions[i].table->table);
+
     tab->partial_join_cardinality= join->best_positions[i].records_read *
                                    (prev_tab? prev_tab->partial_join_cardinality : 1);
     if (!tab->bush_children)
@@ -8522,10 +8520,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   }
  
   check_join_cache_usage_for_tables(join, options, no_jbuf_after);
-
-  for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES), i= join->const_tables; 
+  
+  JOIN_TAB *first_tab;
+  for (tab= first_tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS), i++)
+       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     if (tab->bush_children)
     {
@@ -8632,7 +8631,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       {
         if (!tab->bush_children)
           tab->read_first_record= join_init_read_record;
-	if (i == join->const_tables)
+	if (tab == first_tab)
 	{
 	  if (tab->select && tab->select->quick)
 	  {
@@ -8709,16 +8708,16 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   }
   uint n_top_tables= join->join_tab_ranges.head()->end -  
                      join->join_tab_ranges.head()->start;
-  join->join_tab[n_top_tables - 1].next_select=0; /* Set by do_select */
+
+  join->join_tab[n_top_tables - 1].next_select=0;  /* Set by do_select */
   
   /*
     If a join buffer is used to join a table the ordering by an index
     for the first non-constant table cannot be employed anymore.
   */
-  //for (i=join->const_tables ; i < join->tables ; i++)
-  for (i=join->const_tables ; i < n_top_tables ; i++)
+  for (tab= join->join_tab + join->const_tables ; 
+       tab != join->join_tab + n_top_tables ; tab++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
     if (tab->use_join_cache)
     {
        JOIN_TAB *sort_by_tab= join->group && join->simple_group &&
@@ -10350,8 +10349,9 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
 
   /* 
     Pick the "head" item: the constant one or the first in the join order
-    that's not inside some SJM nest. psergey2: out-of-date comment. It is ok
-    inside SJM, too.
+    (if the first in the join order happends to be inside an SJM nest, that's
+    ok, because this is where the value will be unpacked after
+    materialization).
   */
   if (item_const)
     head= item_const;
