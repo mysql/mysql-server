@@ -7823,6 +7823,12 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 
 static uint make_join_orderinfo(JOIN *join)
 {
+  /*
+    This function needs to be fixed to take into account that we now have SJM
+    nests.
+  */
+  DBUG_ASSERT(0);
+
   JOIN_TAB *tab;
   if (join->need_tmp)
     return join->tables;
@@ -8194,6 +8200,7 @@ static
 uint check_join_cache_usage(JOIN_TAB *tab,
                             ulonglong options,
                             uint no_jbuf_after,
+                            uint table_index,
                             JOIN_TAB *prev_tab)
 {
   COST_VECT cost;
@@ -8209,7 +8216,6 @@ uint check_join_cache_usage(JOIN_TAB *tab,
          !(join->allowed_join_cache_types & JOIN_CACHE_HASHED_BIT);
   bool no_bka_cache= 
          !(join->allowed_join_cache_types & JOIN_CACHE_BKA_BIT);
-  uint i= tab - join->join_tab;
 
   join->return_tab= 0;
 
@@ -8217,8 +8223,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     Don't use join cache if @@join_cache_level==0 or this table is the first
     one join suborder (either at top level or inside a bush)
   */
-  if (cache_level == 0 || tab == join->join_tab + join->const_tables || 
-      (tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
+  if (cache_level == 0 || !prev_tab)
     return 0;
 
   if (force_unlinked_cache && (cache_level%2 == 0))
@@ -8249,11 +8254,16 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   }
     
   /*
-    Don't use join buffering if we're dictated not to by no_jbuf_after (this
-    ...)
+    Don't use join buffering if we're dictated not to by no_jbuf_after
+    (This is not meaningfully used currently)
   */
-  if ((!tab->bush_root_tab? !(i <= no_jbuf_after) : FALSE) || 
-       tab->loosescan_match_tab || tab->bush_children)
+  if (table_index > no_jbuf_after)
+    goto no_join_cache;
+  
+  /*
+    TODO: BNL join buffer should be perfectly ok with tab->bush_children.
+  */
+  if (tab->loosescan_match_tab || tab->bush_children)
     goto no_join_cache;
 
   for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
@@ -8383,6 +8393,9 @@ no_join_cache:
       join                join whose tables are to be checked             
       options             options of the join
       no_jbuf_after       don't use join buffering after table with this number
+                          (The tables are assumed to be numbered in
+                          first_linear_tab(join, WITHOUT_CONST_TABLES),
+                          next_linear_tab(join, WITH_CONST_TABLES) order).
 
   DESCRIPTION
     For each table after the first non-constant table the function checks
@@ -8407,6 +8420,7 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
                                        uint no_jbuf_after)
 {
   JOIN_TAB *tab;
+  JOIN_TAB *prev_tab;
 
   for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
@@ -8414,18 +8428,25 @@ void check_join_cache_usage_for_tables(JOIN *join, ulonglong options,
   {
     tab->used_join_cache_level= join->max_allowed_join_cache_level;  
   }
-
+  
+  uint idx= join->const_tables;
   for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
-    JOIN_TAB *prev_tab;
 restart:
     tab->icp_other_tables_ok= TRUE;
     tab->idx_cond_fact_out= TRUE;
-
+    
+    /* 
+      Check if we have a preceding join_tab, as something that will feed us
+      records that we could buffer. We don't have it, if 
+       - this is the first non-const table in the join order,
+       - this is the first table inside an SJM nest.
+    */
     prev_tab= tab - 1;
-    if ((tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
+    if (tab == join->join_tab + join->const_tables ||
+        (tab->bush_root_tab && tab->bush_root_tab->bush_children->start == tab))
       prev_tab= NULL;
 
     switch (tab->type) {
@@ -8437,6 +8458,7 @@ restart:
     case JT_ALL:
       tab->used_join_cache_level= check_join_cache_usage(tab, options,
                                                          no_jbuf_after,
+                                                         idx,
                                                          prev_tab);
       tab->use_join_cache= test(tab->used_join_cache_level);
       /*
@@ -8452,7 +8474,9 @@ restart:
       break; 
     default:
       tab->used_join_cache_level= 0;
-    }     
+    }
+    if (!tab->bush_children)
+      idx++;
   }
 }
 
