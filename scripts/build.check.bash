@@ -141,27 +141,16 @@ function build() {
     # checkout the build dir
     buildbase=$svnbase/tokudb.build
     if [ ! -d $buildbase ] ; then
-        cd $svnbase
-        svn checkout -q $svnserver/tokudb.build
-        cd $buildbase
-    else
-        cd $buildbase
-        svn update -q
-	svn update -q $date # Could be a sparse directory
+	mkdir $buildbase
     fi
 
     # make the build directory, possibly on multiple machines simultaneously, there can be only one
     builddir=$buildbase/$date
     pushd $buildbase
     while [ ! -d $date ] ; do
-        mkdir -p $date
-        svn add $date
-        svn commit $date -m ""
-	if [ $? -eq 0 ] ; then break ; fi
-	rm -rf $date
-	svn remove $date
-	svn update -q
-	svn update -q $date # Could be a sparse directory
+	svn mkdir $svnserver/tokudb.build/$date -m ""
+	svn co -q $svnserver/tokudb.build/$date
+	if [ $? -ne 0 ] ; then rm -rf $date; fi
     done
     popd
 
@@ -304,6 +293,8 @@ function build() {
     if [ $deleteafter -eq 1 ] ; then
         rm -rfv $productbuilddir > /dev/null #windows rm sometimes hangs on giant dirs without -v
     fi
+
+    return 0
 }
 
 # set defaults
@@ -373,5 +364,6 @@ if [ $revision -eq 0 ] ; then revision=`get_latest_svn_revision`; fi
 export GCCVERSION=`$CC --version|head -1|cut -f3 -d" "`
 
 build $bdb
+exitcode=$?
 
 exit $exitcode
