@@ -25,3 +25,11 @@
 --loose-performance_schema_max_users=0
 --loose-performance_schema_max_user_hosts=0
 
+--loose-performance_schema_max_stage_classes=0
+--loose-performance_schema_events_stages_history_long_size=0
+--loose-performance_schema_events_stages_history_size=0
+
+--loose-performance_schema_max_statement_classes=0
+--loose-performance_schema_events_statements_history_long_size=0
+--loose-performance_schema_events_statements_history_size=0
+

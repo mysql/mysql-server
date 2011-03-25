@@ -99,6 +99,80 @@ void PFS_index_row::set_field(uint index, Field *f)
   }
 }
 
+void PFS_statement_stat_row::set_field(uint index, Field *f)
+{
+  switch (index)
+  {
+    case 0: /* COUNT_STAR */
+    case 1: /* SUM_TIMER_WAIT */
+    case 2: /* MIN_TIMER_WAIT */
+    case 3: /* AVG_TIMER_WAIT */
+    case 4: /* MAX_TIMER_WAIT */
+      m_timer1_row.set_field(index, f);
+      break;
+    case 5: /* SUM_LOCK_TIME */
+      PFS_engine_table::set_field_ulonglong(f, m_lock_time);
+      break;
+    case 6: /* SUM_ERRORS */
+      PFS_engine_table::set_field_ulonglong(f, m_error_count);
+      break;
+    case 7: /* SUM_WARNINGS */
+      PFS_engine_table::set_field_ulonglong(f, m_warning_count);
+      break;
+    case 8: /* SUM_ROWS_AFFECTED */
+      PFS_engine_table::set_field_ulonglong(f, m_rows_affected);
+      break;
+    case 9: /* SUM_ROWS_SENT */
+      PFS_engine_table::set_field_ulonglong(f, m_rows_sent);
+      break;
+    case 10: /* SUM_ROWS_EXAMINED */
+      PFS_engine_table::set_field_ulonglong(f, m_rows_examined);
+      break;
+    case 11: /* SUM_CREATED_TMP_DISK_TABLES */
+      PFS_engine_table::set_field_ulonglong(f, m_created_tmp_disk_tables);
+      break;
+    case 12: /* SUM_CREATED_TMP_TABLES */
+      PFS_engine_table::set_field_ulonglong(f, m_created_tmp_tables);
+      break;
+    case 13: /* SUM_SELECT_FULL_JOIN */
+      PFS_engine_table::set_field_ulonglong(f, m_select_full_join);
+      break;
+    case 14: /* SUM_SELECT_FULL_RANGE_JOIN */
+      PFS_engine_table::set_field_ulonglong(f, m_select_full_range_join);
+      break;
+    case 15: /* SUM_SELECT_RANGE */
+      PFS_engine_table::set_field_ulonglong(f, m_select_range);
+      break;
+    case 16: /* SUM_SELECT_RANGE_CHECK */
+      PFS_engine_table::set_field_ulonglong(f, m_select_range_check);
+      break;
+    case 17: /* SUM_SELECT_SCAN */
+      PFS_engine_table::set_field_ulonglong(f, m_select_scan);
+      break;
+    case 18: /* SUM_SORT_MERGE_PASSES */
+      PFS_engine_table::set_field_ulonglong(f, m_sort_merge_passes);
+      break;
+    case 19: /* SUM_SORT_RANGE */
+      PFS_engine_table::set_field_ulonglong(f, m_sort_range);
+      break;
+    case 20: /* SUM_SORT_ROWS */
+      PFS_engine_table::set_field_ulonglong(f, m_sort_rows);
+      break;
+    case 21: /* SUM_SORT_SCAN */
+      PFS_engine_table::set_field_ulonglong(f, m_sort_scan);
+      break;
+    case 22: /* SUM_NO_INDEX_USED */
+      PFS_engine_table::set_field_ulonglong(f, m_no_index_used);
+      break;
+    case 23: /* SUM_NO_GOOD_INDEX_USED */
+      PFS_engine_table::set_field_ulonglong(f, m_no_good_index_used);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
+
 void set_field_object_type(Field *f, enum_object_type object_type)
 {
   switch (object_type)
