@@ -651,6 +651,16 @@ struct TABLE_SHARE
   */
   int cached_row_logging_check;
 
+  /*
+    Storage media to use for this table (unless another storage
+    media has been specified on an individual column - in versions
+    where that is supported)
+  */
+  enum ha_storage_media default_storage_media;
+
+  /* Name of the tablespace used for this table */
+  char *tablespace;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
