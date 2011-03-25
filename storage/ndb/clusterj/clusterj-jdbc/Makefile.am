@@ -73,12 +73,6 @@ clusterj_jdbc_java = \
 
 clusterj_jdbc_DATA = $(clusterj_jdbc_version_JAR)
 
-EXTRA_DIST = \
-  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/*.java \
-  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/*.java \
-  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/*.java \
-  logging.properties pom.xml CMakeLists.txt
-
 $(MANIFEST): 
 	echo "Manifest-Version: 1.0"  > $(MANIFEST) 
 	echo "Export-Package: com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation"  >> $(MANIFEST)
@@ -88,7 +82,8 @@ $(MANIFEST):
 
 clusterj_jdbc_antlr = \
   $(top_srcdir)/storage/ndb/clusterj/clusterj-jdbc/src/main/antlr3/com/mysql/clusterj/jdbc/antlr/MySQL51Parser.g \
-  $(top_srcdir)/storage/ndb/clusterj/clusterj-jdbc/src/main/antlr3/com/mysql/clusterj/jdbc/antlr/MySQL51Lexer.g
+  $(top_srcdir)/storage/ndb/clusterj/clusterj-jdbc/src/main/antlr3/com/mysql/clusterj/jdbc/antlr/MySQL51Lexer.g \
+  $(top_srcdir)/storage/ndb/clusterj/clusterj-jdbc/src/main/antlr3/imports/MySQL51Functions.g
 
 clusterj_jdbc_antlr_src = \
   $(top_srcdir)/storage/ndb/clusterj/clusterj-jdbc/target/generated-sources/antlr3/com/mysql/clusterj/jdbc/antlr/MySQL51Parser.java \
@@ -133,6 +128,13 @@ clean-local:
   $(clusterj_jdbc_antlr_src)
 
 MOSTLYCLEANFILES = $(MANIFEST)
+
+EXTRA_DIST = \
+  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/*.java \
+  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/*.java \
+  $(clusterj_jdbc_src)/com/mysql/clusterj/jdbc/antlr/node/*.java \
+  logging.properties pom.xml CMakeLists.txt \
+  $(clusterj_jdbc_antlr)
 
 mostlyclean-local: clean-local
 	rm -rf $(top_srcdir)/storage/ndb/clusterj/clusterj-jdbc/target
