@@ -5575,7 +5575,11 @@ int ha_ndbcluster::index_first(uchar *buf)
   // Start the ordered index scan and fetch the first row
 
   // Only HA_READ_ORDER indexes get called by index_first
+#ifdef MCP_BUG11764737
   const int error= ordered_index_scan(0, 0, TRUE, FALSE, buf, NULL);
+#else
+  const int error= ordered_index_scan(0, 0, m_sorted, FALSE, buf, NULL);
+#endif
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
@@ -5585,7 +5589,11 @@ int ha_ndbcluster::index_last(uchar *buf)
 {
   DBUG_ENTER("ha_ndbcluster::index_last");
   ha_statistic_increment(&SSV::ha_read_last_count);
+#ifdef MCP_BUG11764737
   const int error= ordered_index_scan(0, 0, TRUE, TRUE, buf, NULL);
+#else
+  const int error= ordered_index_scan(0, 0, m_sorted, TRUE, buf, NULL);
+#endif
   table->status=error ? STATUS_NOT_FOUND: 0;
   DBUG_RETURN(error);
 }
@@ -6242,14 +6250,6 @@ int ha_ndbcluster::reset()
 
   assert(m_is_bulk_delete == false);
   m_is_bulk_delete = false;
-
-  /* 
-    Setting pushed_code=NULL here is a temporary fix for bug #58553. This
-    should not be needed any longer if http://lists.mysql.com/commits/125336 
-    is merged into this branch.
-  */
-  pushed_cond= NULL;
-
   DBUG_RETURN(0);
 }
 
