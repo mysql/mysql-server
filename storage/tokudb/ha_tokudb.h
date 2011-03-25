@@ -529,6 +529,7 @@ public:
     void restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys);
     int final_drop_index(TABLE *table_arg);
 
+#if defined(HA_GENERAL_ONLINE)
     void print_alter_info(
         TABLE *altered_table,
         HA_CREATE_INFO *create_info,
@@ -557,7 +558,7 @@ public:
     {
       return 0;
     }
-
+#endif
 
     // delete all rows from the table
     // effect: all dictionaries, including the main and indexes, should be empty
