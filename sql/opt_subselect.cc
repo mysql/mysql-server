@@ -830,7 +830,7 @@ void get_delayed_table_estimates(TABLE *table,
   double read_time;
 
   /* Calculate #rows and cost of join execution */
-  get_partial_join_cost(join, join->tables, &read_time, &rows);
+  get_partial_join_cost(join, join->tables - join->const_tables, &read_time, &rows);
 
   *out_rows= (ha_rows)rows;
   *startup_cost= read_time;
