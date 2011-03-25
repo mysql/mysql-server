@@ -750,6 +750,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   const char **interval_array;
   enum legacy_db_type legacy_db_type;
   my_bitmap_map *bitmaps;
+  uchar *extra_segment_buff= 0;
+  const uint format_section_header_size= 8;
+  uchar *format_section_fields= 0;
   DBUG_ENTER("open_binary_frm");
 
   new_field_pack_flag= head[27];
@@ -942,27 +945,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    uchar *buff, *next_chunk, *buff_end;
+    uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
-    if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
+    if (!(extra_segment_buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
-    if (mysql_file_pread(file, buff, n_length, record_offset + share->reclength,
+    next_chunk= extra_segment_buff;
+    if (mysql_file_pread(file, extra_segment_buff,
+                         n_length, record_offset + share->reclength,
                          MYF(MY_NABP)))
     {
-      my_free(buff);
       goto err;
     }
-    share->connect_string.length= uint2korr(buff);
+    share->connect_string.length= uint2korr(next_chunk);
     if (!(share->connect_string.str= strmake_root(&share->mem_root,
                                                   (char*) next_chunk + 2,
                                                   share->connect_string.
                                                   length)))
     {
-      my_free(buff);
       goto err;
     }
     next_chunk+= share->connect_string.length + 2;
-    buff_end= buff + n_length;
+    buff_end= extra_segment_buff + n_length;
     if (next_chunk + 2 < buff_end)
     {
       uint str_db_type_length= uint2korr(next_chunk);
@@ -979,7 +982,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          my_free(buff);
           goto err;
         }
         /*
@@ -1009,7 +1011,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          my_free(buff);
           goto err;
         }
         plugin_unlock(NULL, share->db_plugin);
@@ -1025,7 +1026,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8;
         name.str[name.length]=0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff);
         goto err;
         /* purecov: end */
       }
@@ -1042,7 +1042,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_str_len + 1)))
         {
-          my_free(buff);
           goto err;
         }
       }
@@ -1050,7 +1049,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (partition_info_str_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff);
         goto err;
       }
 #endif
@@ -1088,7 +1086,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff);
           goto err;
         }
         parser_name.str= (char*) next_chunk;
@@ -1099,7 +1096,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff);
           goto err;
         }
       }
@@ -1111,19 +1107,68 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
           DBUG_PRINT("error",
                      ("long table comment is not defined in .frm"));
-          my_free(buff);
           goto err;
       }
       share->comment.length = uint2korr(next_chunk);
       if (! (share->comment.str= strmake_root(&share->mem_root,
              (char*)next_chunk + 2, share->comment.length)))
       {
-          my_free(buff);
           goto err;
       }
       next_chunk+= 2 + share->comment.length;
     }
-    my_free(buff);
+
+    if (next_chunk + format_section_header_size < buff_end)
+    {
+      /*
+        New extra data segment called "format section" with additional
+        table and column properties introduced by MySQL Cluster
+        based on 5.1.20
+
+        Table properties:
+        TABLESPACE <ts> and STORAGE [DISK|MEMORY]
+
+        Column properties:
+        COLUMN_FORMAT [DYNAMIC|FIXED] and STORAGE [DISK|MEMORY]
+      */
+      DBUG_PRINT("info", ("Found format section"));
+
+      /* header */
+      const uint format_section_length= uint2korr(next_chunk);
+      const uint format_section_flags= uint4korr(next_chunk+2);
+      /* 2 bytes unused */
+
+      if (next_chunk + format_section_length > buff_end)
+      {
+        DBUG_PRINT("error", ("format section length too long: %u",
+                             format_section_length));
+        goto err;
+      }
+      DBUG_PRINT("info", ("format_section_length: %u, format_section_flags: %u",
+                          format_section_length, format_section_flags));
+
+      share->default_storage_media=
+        (enum ha_storage_media) (format_section_flags & 0x7);
+
+      /* tablespace */
+      const char *tablespace=
+        (const char*)next_chunk + format_section_header_size;
+      const uint tablespace_length= strlen(tablespace);
+      if (tablespace_length &&
+          !(share->tablespace= strmake_root(&share->mem_root,
+                                            tablespace, tablespace_length+1)))
+      {
+        goto err;
+      }
+      DBUG_PRINT("info", ("tablespace: '%s'",
+                          share->tablespace ? share->tablespace : "<null>"));
+
+      /* pointer to format section for fields */
+      format_section_fields=
+        next_chunk + format_section_header_size + tablespace_length + 1;
+
+      next_chunk+= format_section_length;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -1438,6 +1483,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         error= 8; 
         goto err;
       }
+
+    if (format_section_fields)
+    {
+      const uchar field_flags= format_section_fields[i];
+      const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
+      const uchar field_column_format=
+        ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
+      DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
+                           field_flags, field_storage, field_column_format));
+      (void)field_storage; /* Reserved by and used in MySQL Cluster */
+      (void)field_column_format; /* Reserved by and used in MySQL Cluster */
+    }
   }
   *field_ptr=0;					// End marker
 
@@ -1705,6 +1762,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (use_hash)
     (void) my_hash_check(&share->name_hash);
 #endif
+  my_free(extra_segment_buff);
   DBUG_RETURN (0);
 
  err:
@@ -1712,6 +1770,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->open_errno= my_errno;
   share->errarg= errarg;
   my_free(disk_buff);
+  my_free(extra_segment_buff);
   delete crypted;
   delete handler_file;
   my_hash_free(&share->name_hash);
@@ -2687,6 +2746,8 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->default_table_charset= share->table_charset;
   create_info->table_charset= 0;
   create_info->comment= share->comment;
+  create_info->storage_media= share->default_storage_media;
+  create_info->tablespace= share->tablespace;
 
   DBUG_VOID_RETURN;
 }
