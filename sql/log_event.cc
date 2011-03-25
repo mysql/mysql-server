@@ -8888,7 +8888,19 @@ static bool record_compare(TABLE *table)
     }
   }
 
-  if (table->s->blob_fields + table->s->varchar_fields == 0)
+  /**
+    Compare full record only if:
+    - there are no blob fields (otherwise we would also need 
+      to compare blobs contents as well);
+    - there are no varchar fields (otherwise we would also need
+      to compare varchar contents as well);
+    - there are no null fields, otherwise NULLed fields 
+      contents (i.e., the don't care bytes) may show arbitrary 
+      values, depending on how each engine handles internally.
+    */
+  if ((table->s->blob_fields + 
+       table->s->varchar_fields + 
+       table->s->null_fields) == 0)
   {
     result= cmp_record(table,record[1]);
     goto record_compare_exit;
@@ -8903,13 +8915,22 @@ static bool record_compare(TABLE *table)
     goto record_compare_exit;
   }
 
-  /* Compare updated fields */
+  /* Compare fields */
   for (Field **ptr=table->field ; *ptr ; ptr++)
   {
-    if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+
+    /**
+      We only compare field contents that are not null.
+      NULL fields (i.e., their null bits) were compared 
+      earlier.
+    */
+    if (!(*(ptr))->is_null())
     {
-      result= TRUE;
-      goto record_compare_exit;
+      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      {
+        result= TRUE;
+        goto record_compare_exit;
+      }
     }
   }
 
