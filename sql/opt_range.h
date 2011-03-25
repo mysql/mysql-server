@@ -762,7 +762,11 @@ public:
   int get_type() { return QS_TYPE_RANGE_DESC; }
 private:
   bool range_reads_after_key(QUICK_RANGE *range);
+#ifdef MCP_BUG11764737
   int reset(void) { rev_it.rewind(); return QUICK_RANGE_SELECT::reset(); }
+#else
+  int reset(void);
+#endif
   List<QUICK_RANGE> rev_ranges;
   List_iterator<QUICK_RANGE> rev_it;
   uint used_key_parts;
