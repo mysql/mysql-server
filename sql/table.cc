@@ -1489,7 +1489,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       const uchar field_flags= format_section_fields[i];
       const uchar field_storage= (field_flags & STORAGE_TYPE_MASK);
       const uchar field_column_format=
-        ((field_flags >> COLUMN_FORMAT_SHIFT)& STORAGE_TYPE_MASK);
+        ((field_flags >> COLUMN_FORMAT_SHIFT)& COLUMN_FORMAT_MASK);
       DBUG_PRINT("debug", ("field flags: %u, storage: %u, column_format: %u",
                            field_flags, field_storage, field_column_format));
       (void)field_storage; /* Reserved by and used in MySQL Cluster */
