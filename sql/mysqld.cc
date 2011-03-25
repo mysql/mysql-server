@@ -1,6 +1,6 @@
 /* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
    2010 Oracle and/or its affiliates
-   2009-2010 Monty Program Ab
+   2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -668,7 +668,7 @@ time_t server_start_time, flush_status_time;
 
 char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
 char *default_tz_name;
-char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
+char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN], *opt_log_basename;
 char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
@@ -1449,8 +1449,6 @@ void clean_up(bool print_message)
 #ifdef HAVE_REPLICATION
   my_free(slave_load_tmpdir,MYF(MY_ALLOW_ZERO_PTR));
 #endif
-  x_free(opt_bin_logname);
-  x_free(opt_relay_logname);
   x_free(opt_secure_file_priv);
   bitmap_free(&temp_pool);
   free_max_user_conn();
@@ -3489,15 +3487,21 @@ static int init_common_variables(const char *conf_file_name, int argc,
   */
   mysql_bin_log.init_pthread_objects();
 
-  if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
   {
-    strmake(glob_hostname, STRING_WITH_LEN("localhost"));
-    sql_print_warning("gethostname failed, using '%s' as hostname",
-                      glob_hostname);
-    strmake(pidfile_name, STRING_WITH_LEN("mysql"));
+    /*
+      Get hostname of computer (used by 'show variables') and as default
+      basename for the pid file if --log-basename is not given.
+    */
+    const char *basename= glob_hostname;
+    if (gethostname(glob_hostname,sizeof(glob_hostname)) < 0)
+    {
+      strmake(glob_hostname, STRING_WITH_LEN("localhost"));
+      sql_print_warning("gethostname failed, using '%s' as hostname",
+                        glob_hostname);
+      basename= "mysql";
+    }
+    strmake(pidfile_name, basename, sizeof(pidfile_name)-5);
   }
-  else
-  strmake(pidfile_name, glob_hostname, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
   /*
@@ -4104,7 +4108,7 @@ version 5.0 and above. It is replaced by the binary log.");
       if (opt_update_logname)
       {
         /* as opt_bin_log==0, no need to free opt_bin_logname */
-        if (!(opt_bin_logname= my_strdup(opt_update_logname, MYF(MY_WME))))
+        if (!(opt_bin_logname= my_once_strdup(opt_update_logname, MYF(MY_WME))))
         {
           sql_print_error("Out of memory");
           return EXIT_OUT_OF_MEMORY;
@@ -4204,8 +4208,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     }
     if (ln == buf)
     {
-      my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
-      opt_bin_logname=my_strdup(buf, MYF(0));
+      opt_bin_logname= my_once_strdup(buf, MYF(MY_WME));
     }
     if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
@@ -6041,7 +6044,7 @@ enum options_mysqld
   OPT_PROFILING,
   OPT_KEEP_FILES_ON_CREATE,
   OPT_GENERAL_LOG,
-  OPT_SLOW_LOG,
+  OPT_SLOW_LOG, OPT_LOG_BASENAME,
   OPT_THREAD_HANDLING,
   OPT_INNODB_ROLLBACK_ON_TIMEOUT,
   OPT_SECURE_FILE_PRIV,
@@ -6308,8 +6311,8 @@ struct my_option my_long_options[] =
    &opt_debugging, &opt_debugging,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"general_log", OPT_GENERAL_LOG,
-   "Enable/disable general log.", &opt_log,
-   &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   "Enable/disable general log.  Filename can be specified with --general-log-file or --log-basename.  Is 'hostname.err' by default.",
+   &opt_log, &opt_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_LARGE_PAGES
   {"large-pages", OPT_ENABLE_LARGE_PAGES, "Enable support for large pages. "
    "Disable with --skip-large-pages.", &opt_large_pages, &opt_large_pages,
@@ -6349,16 +6352,32 @@ each time the SQL thread starts.",
    "--general_log/--general_log_file instead).", &opt_logname,
    &opt_logname, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"general_log_file", OPT_GENERAL_LOG_FILE,
-   "Log connections and queries to given file.", &opt_logname,
-   &opt_logname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Log connections and queries to given file. Defaults to "
+   "'datadir'/'log-basename'.log or 'datadir'/'hostname'.log if not "
+   "specified.",
+   &opt_logname, &opt_logname, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-basename", OPT_LOG_BASENAME,
+   "Basename for all log files and the .pid file. This sets all log file "
+   "names at once (in 'datadir') and is normally the only option you need "
+   "for specifying log files. This is especially recommend to be set if you "
+   "are using replication as it ensures that your log file names are not "
+   "depending on your host name. Sets names for --log-bin, --log-bin-index, "
+   "--relay-log, --relay-log-index, --general-log-file, "
+   "--log-slow-query-log-file, --log-error-file and --pid-file",
+   &opt_log_basename, &opt_log_basename, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"log-bin", OPT_BIN_LOG,
-   "Log update queries in binary format. Optional (but strongly recommended "
-   "to avoid replication problems if server's hostname changes) argument "
-   "should be the chosen location for the binary log files.",
-   &opt_bin_logname, &opt_bin_logname, 0, GET_STR_ALLOC,
+   "Log update queries in binary format. Optional argument should be name for "
+   "binary log. If not given "
+   "datadir/'log-basename'-bin or 'datadir'/mysql-bin will be used (the later if "
+   "--log-basename is not specified). We strongly recommend you to use either "
+   "--log-basename or specify a filename to ensure that replication doesn't "
+   "stop if the real hostname of the computer changes'.",
+   &opt_bin_logname, &opt_bin_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-bin-index", OPT_BIN_LOG_INDEX,
-   "File that holds the names for last binary log files.",
+   "File that holds the names for last binary log files. If not specified, "
+   "defaults to 'datadir/log-basename'-bin.index or 'datadir/mysql-bin.index'",
    &opt_binlog_index_name, &opt_binlog_index_name, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef TO_BE_REMOVED_IN_5_1_OR_6_0
@@ -6387,7 +6406,10 @@ each time the SQL thread starts.",
    "break, so you can safely set this to 1."
    ,&trust_function_creators, &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-error", OPT_ERROR_LOG_FILE, "Error log file.",
+  {"log-error", OPT_ERROR_LOG_FILE,
+   "Log errors to file (instead of stdout).  If file name is not specified "
+   "then 'datadir'/'log-basename'.err or the pid-file path with extension "
+   ".err is used.",
    &log_error_file_ptr, &log_error_file_ptr, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"log-isam", OPT_ISAM_LOG, "Log all MyISAM changes to file.",
@@ -6425,15 +6447,20 @@ each time the SQL thread starts.",
   &opt_log_slow_slave_statements,
   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-slow-queries", OPT_SLOW_QUERY_LOG,
-    "Log slow queries to a table or log file. Defaults logging to table "
-    "mysql.slow_log or hostname-slow.log if --log-output=file is used. "
-    "Must be enabled to activate other slow log options. "
-    "(deprecated option, use --slow_query_log/--slow_query_log_file instead)",
+   "Enable logging of slow queries (longer than --log-slow-time) to log file "
+   "or table. Optional argument is file name for slow log. If not given, "
+   "'log-basename'-slow.log will be used. Use --log-output=TABLE if you want "
+   "to have the log in the table 'mysql.slow_log'",
    &opt_slow_logname, &opt_slow_logname, 0, GET_STR, OPT_ARG,
    0, 0, 0, 0, 0, 0},
   {"slow_query_log_file", OPT_SLOW_QUERY_LOG_FILE,
-    "Log slow queries to given log file. Defaults logging to hostname-slow.log. "
-    "Must be enabled to activate other slow log options.",
+   "Specify name for slow query log. Defaults to 'log-basename'-slow.log if "
+   "not given",
+   &opt_slow_logname, &opt_slow_logname, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"log-slow-file", OPT_SLOW_QUERY_LOG_FILE,
+   "Specify name for slow query log. Defaults to 'log-basename'-slow.log if "
+   "not given",
    &opt_slow_logname, &opt_slow_logname, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", OPT_LOG_TC,
@@ -6452,7 +6479,8 @@ each time the SQL thread starts.",
    "log and this option just turns on --log-bin instead.",
    &opt_update_logname, &opt_update_logname, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-warnings", 'W', "Log some not critical warnings to the log file.",
+  {"log-warnings", 'W', "Log some not critical warnings to the general log "
+   "file.",
    &global_system_variables.log_warnings,
    &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG, 1, 0, 0,
    0, 0, 0},
@@ -6475,7 +6503,8 @@ each time the SQL thread starts.",
    0, 0, 0, 0},
   {"master-info-file", OPT_MASTER_INFO_FILE,
    "The location and name of the file that remembers the master and where "
-   "the I/O replication thread is in the master's binlogs.",
+   "the I/O replication thread is in the master's binlogs. Defaults to "
+   "master.info. Is not affected by --log-basename.",
    &master_info_file, &master_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"master-password", OPT_MASTER_PASSWORD,
@@ -6677,7 +6706,9 @@ each time the SQL thread starts.",
    "per each user+host vs. per account).",
    &opt_old_style_user_limits, &opt_old_style_user_limits,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"pid-file", OPT_PID_FILE, "Pid file used by safe_mysqld.",
+  {"pid-file", OPT_PID_FILE,
+   "Pid file used by safe_mysqld.  If not set, defaults to "
+   "'datadir'/'log-basename'.pid or 'datadir'/'hostname'.pid'.",
    &pidfile_name_ptr, &pidfile_name_ptr, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
@@ -6699,17 +6730,19 @@ each time the SQL thread starts.",
    0, GET_ULONG, REQUIRED_ARG, 15, 0, 100, 0, 0, 0},
 #endif
   {"relay-log", OPT_RELAY_LOG,
-   "The location and name to use for relay logs.",
+   "The location and name to use for relay logs.  If not specified "
+   "'datadir'/'log-basename' will be used.",
    &opt_relay_logname, &opt_relay_logname, 0,
-   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log-index", OPT_RELAY_LOG_INDEX,
-   "The location and name to use for the file that keeps a list of the last \
-relay logs.",
+   "The location and name to use for the file that keeps a list of the last "
+   "relay logs.  If not specified 'datadir'/'log-basename' will be used.",
    &opt_relaylog_index_name, &opt_relaylog_index_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"relay-log-info-file", OPT_RELAY_LOG_INFO_FILE,
-   "The location and name of the file that remembers where the SQL replication \
-thread is in the relay logs.",
+   "The location and name of the file that remembers where the SQL "
+   "replication thread is in the relay logs. Defaults to relay-log.info. "
+   "Is not affected by '--log-basename'.",
    &relay_log_info_file, &relay_log_info_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-do-db", OPT_REPLICATE_DO_DB,
@@ -6889,7 +6922,8 @@ thread is in the relay logs.",
    &slave_exec_mode_str, &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
-   "Enable/disable slow query log.", &opt_slow_log,
+   "Enable/disable slow query log. See also '--log-slow-queries'",
+   &opt_slow_log,
    &opt_slow_log, 0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", OPT_SOCKET, "Socket file to use for connection.",
    &mysqld_unix_port, &mysqld_unix_port, 0, GET_STR,
@@ -7158,19 +7192,16 @@ thread is in the relay logs.",
    "Choose how verbose the messages to your slow log will be. Multiple flags "
    "allowed in a comma-separated string. [query_plan, innodb]",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"log-slow-file", OPT_SLOW_QUERY_LOG_FILE,
-    "Log slow queries to given log file. Defaults logging to hostname-slow.log",
-   &opt_slow_logname, &opt_slow_logname, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"long_query_time", OPT_LONG_QUERY_TIME,
-   "Log all queries that have taken more than long_query_time seconds to "
-   "execute. The argument will be treated as a decimal value with "
-   "microsecond precision.",
+  {"log-slow-time", OPT_LONG_QUERY_TIME,
+   "Log all queries that have taken more than log-slow-time seconds to "
+   "execute to file. The argument will be treated as a decimal value with "
+   "microsecond precission. Same as --log-query-time.",
    &long_query_time, &long_query_time, 0, GET_DOUBLE,
    REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
-  {"log-slow-time", OPT_LONG_QUERY_TIME,
-   "Log all queries that have taken more than long_query_time seconds to execute to file. "
-   "The argument will be treated as a decimal value with microsecond precission.",
+  {"long_query_time", OPT_LONG_QUERY_TIME,
+   "Log all queries that have taken more than long-query-time seconds to "
+   "execute to file. The argument will be treated as a decimal value with "
+   "microsecond precission. Same as --log-slow-time.",
    &long_query_time, &long_query_time, 0, GET_DOUBLE,
    REQUIRED_ARG, 10, 0, LONG_TIMEOUT, 0, 0, 0},
   {"lower_case_table_names", OPT_LOWER_CASE_TABLE_NAMES,
@@ -8295,6 +8326,7 @@ static int mysql_init_variables(void)
   opt_skip_name_resolve= 0;
   opt_ignore_builtin_innodb= 0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
+  opt_log_basename= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_secure_file_priv= 0;
@@ -8704,6 +8736,42 @@ mysqld_get_one_option(int optid,
   case (int) OPT_BIN_LOG:
     opt_bin_log= test(argument != disabled_my_option);
     break;
+  case (int) OPT_LOG_BASENAME:
+  {
+    if (opt_log_basename[0] == 0 || strchr(opt_log_basename, FN_EXTCHAR) ||
+        strchr(opt_log_basename,FN_LIBCHAR))
+    {
+      sql_print_error("Wrong argument for --log-basename. It can't be empty or contain '.' or '" FN_DIRSEP "'");
+      return 1;
+    }
+    log_error_file_ptr= argument;
+
+    /*
+      The following file named needs explicite extensions (should be fixed in
+      future by having the creating code do this).
+    */
+    opt_logname=            make_once_alloced_filename(argument, ".log");
+    opt_slow_logname=       make_once_alloced_filename(argument, "-slow.log");
+    opt_bin_logname=        make_once_alloced_filename(argument, "-bin");
+    opt_binlog_index_name=  make_once_alloced_filename(argument, "-bin.index");
+    opt_relay_logname=      make_once_alloced_filename(argument, "-relay-bin");
+    opt_relaylog_index_name=make_once_alloced_filename(argument,
+                                                       "-relay-bin.index");
+
+    pidfile_name_ptr= pidfile_name;
+    strmake(pidfile_name, argument, sizeof(pidfile_name)-5);
+    strmov(fn_ext(pidfile_name),".pid");
+
+    /* The following is depricated so don't set it by default */
+    if (opt_update_logname)
+      opt_update_logname= argument;
+
+    /* check for errors */
+    if (!opt_bin_logname || !opt_relaylog_index_name || ! opt_logname ||
+        ! opt_slow_logname)
+      return 1;                                 // out of memory error
+    break;
+  }
   case (int) OPT_ERROR_LOG_FILE:
     opt_error_log= 1;
     break;
@@ -8820,7 +8888,6 @@ mysqld_get_one_option(int optid,
   }
 #endif /* HAVE_REPLICATION */
   case (int) OPT_SLOW_QUERY_LOG:
-    WARN_DEPRECATED(NULL, "7.0", "--log_slow_queries", "'--slow_query_log'/'--log-slow-file'");
     opt_slow_log= 1;
     break;
   case  OPT_LOG_OUTPUT:

@@ -2,7 +2,7 @@ include/rpl_init.inc [topology=1->2->1]
 show variables like 'relay_log%';
 Variable_name	Value
 relay_log	master-relay-bin
-relay_log_index	
+relay_log_index	master-relay-bin.index
 relay_log_info_file	relay-log.info
 relay_log_purge	ON
 relay_log_space_limit	0

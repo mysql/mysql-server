@@ -112,6 +112,27 @@ char *make_default_log_name(char *buff,const char* log_ext)
                    MYF(MY_UNPACK_FILENAME|MY_REPLACE_EXT));
 }
 
+
+/*
+  Create a filename from a base with a given suffix.
+  The name is allocated trough my_once_alloc(), so one should only
+  use this for startup options that can all be freed at once.
+*/
+
+char *make_once_alloced_filename(const char *basename, const char *ext)
+{
+  char buff[FN_REFLEN+10], *end, *res;
+  size_t length;
+  strmake(buff, basename, sizeof(buff)-10);
+  end= strmov(fn_ext(buff), ext);
+  length= (size_t) (end - buff) + 1;
+
+  if ((res= (char*) my_once_alloc(length, MYF(MY_WME))))
+    memcpy(res, buff, length);
+  return res;
+}
+
+
 /*
   Helper class to hold a mutex for the duration of the
   block.

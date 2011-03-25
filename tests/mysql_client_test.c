@@ -18446,7 +18446,8 @@ static void test_bug47485()
   Read and parse arguments and MySQL options from my.cnf
 */
 
-static const char *client_test_load_default_groups[]= { "client", 0 };
+static const char *client_test_load_default_groups[]=
+{ "client", "client-server", "client-mariadb", 0 };
 static char **defaults_argv;
 
 static struct my_option client_test_long_options[] =

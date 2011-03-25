@@ -53,7 +53,8 @@ static void print_res_header(MYSQL_RES *result);
 static void print_res_top(MYSQL_RES *result);
 static void print_res_row(MYSQL_RES *result,MYSQL_ROW cur);
 
-static const char *load_default_groups[]= { "mysqlshow","client",0 };
+static const char *load_default_groups[]=
+{ "mysqlshow","client", "client-server", "client-mariadb", 0 };
 static char * opt_mysql_unix_port=0;
 
 int main(int argc, char **argv)

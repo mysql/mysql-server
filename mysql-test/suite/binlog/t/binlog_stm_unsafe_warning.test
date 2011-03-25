@@ -101,6 +101,7 @@ if(!`select LENGTH('$log_error_')`)
   # does not know the location of its .err log, use default location
   let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 }
+
 # Assign env variable LOG_ERROR
 let LOG_ERROR=$log_error_;
 
@@ -109,8 +110,9 @@ let LOG_ERROR=$log_error_;
 
 perl;
   use strict;
+  use Cwd;
   my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
-  open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
+  open(FILE, "$log_error") or die("Unable to open '$log_error' from directory " . cwd() . "\n");
   my $count = () = grep(/Bug#46265/g,<FILE>);
   print "Occurrences: $count\n";
   close(FILE);

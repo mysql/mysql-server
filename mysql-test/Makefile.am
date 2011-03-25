@@ -88,7 +88,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/federated \
 	suite/pbxt/t suite/pbxt/r suite/pbxt \
 	suite/vcol suite/vcol/t suite/vcol/r suite/vcol/inc \
-	suite/oqgraph suite/oqgraph/t suite/oqgraph/r suite/oqgraph/include \
+	suite/oqgraph suite/oqgraph/t suite/oqgraph/r  \
 	suite/percona suite/sphinx \
 	suite/funcs_1 suite/funcs_1/bitdata \
 	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
