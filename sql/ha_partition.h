@@ -133,6 +133,13 @@ private:
   bool m_is_sub_partitioned;             // Is subpartitioned
   bool m_ordered_scan_ongoing;
 
+  /* 
+    If set, this object was created with ha_partition::clone and doesn't
+    "own" the m_part_info structure.
+  */
+  ha_partition *m_is_clone_of;
+  MEM_ROOT *m_clone_mem_root;
+  
   /*
     We keep track if all underlying handlers are MyISAM since MyISAM has a
     great number of extra flags not needed by other handlers.
@@ -169,11 +176,6 @@ private:
   PARTITION_SHARE *share;               /* Shared lock info */
 #endif
 
-  /* 
-    TRUE <=> this object was created with ha_partition::clone and doesn't
-    "own" the m_part_info structure.
-  */
-  bool is_clone;
   bool auto_increment_lock;             /**< lock reading/updating auto_inc */
   /**
     Flag to keep the auto_increment lock through out the statement.
@@ -186,7 +188,7 @@ private:
   /** used for prediction of start_bulk_insert rows */
   enum_monotonicity_info m_part_func_monotonicity_info;
 public:
-  handler *clone(MEM_ROOT *mem_root);
+  handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
   {
      m_part_info= part_info;
@@ -205,6 +207,10 @@ public:
   */
     ha_partition(handlerton *hton, TABLE_SHARE * table);
     ha_partition(handlerton *hton, partition_info * part_info);
+    ha_partition(handlerton *hton, TABLE_SHARE *share,
+                 partition_info *part_info_arg,
+                 ha_partition *clone_arg,
+                 MEM_ROOT *clone_mem_root_arg);
    ~ha_partition();
   /*
     A partition handler has no characteristics in itself. It only inherits
@@ -275,7 +281,7 @@ private:
     And one method to read it in.
   */
   bool create_handler_file(const char *name);
-  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root);
+  bool get_from_handler_file(const char *name, MEM_ROOT *mem_root, bool clone);
   bool new_handlers_from_part_info(MEM_ROOT *mem_root);
   bool create_handlers(MEM_ROOT *mem_root);
   void clear_handler_file();

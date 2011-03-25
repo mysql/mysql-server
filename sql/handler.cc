@@ -2037,9 +2037,9 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 /****************************************************************************
 ** General handler functions
 ****************************************************************************/
-handler *handler::clone(MEM_ROOT *mem_root)
+handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  handler *new_handler= get_new_handler(table->s, mem_root, ht);
   /*
     Allocate handler->ref here because otherwise ha_open will allocate it
     on this->table->mem_root and we will not be able to reclaim that memory 
@@ -2048,7 +2048,7 @@ handler *handler::clone(MEM_ROOT *mem_root)
   if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
     return NULL;
   if (new_handler && !new_handler->ha_open(table,
-                                           table->s->normalized_path.str,
+                                           name,
                                            table->db_stat,
                                            HA_OPEN_IGNORE_IF_LOCKED))
     return new_handler;

@@ -62,7 +62,7 @@ class ha_myisammrg: public handler
   int open(const char *name, int mode, uint test_if_locked);
   int attach_children(void);
   int detach_children(void);
-  virtual handler *clone(MEM_ROOT *mem_root);
+  virtual handler *clone(const char *name, MEM_ROOT *mem_root);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
