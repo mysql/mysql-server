@@ -1030,13 +1030,32 @@ static bool session_readonly(sys_var *self, THD *thd, set_var *var)
            self->name.str, "GLOBAL");
   return true;
 }
+
+static bool
+check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val < (longlong) global_system_variables.net_buffer_length)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
+
+
 static Sys_var_ulong Sys_max_allowed_packet(
        "max_allowed_packet",
        "Max packet length to send to or receive from the server",
        SESSION_VAR(max_allowed_packet), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(session_readonly));
+       ON_CHECK(check_max_allowed_packet));
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
@@ -1267,12 +1286,29 @@ static Sys_var_mybool Sys_named_pipe(
        DEFAULT(FALSE));
 #endif
 
+
+static bool 
+check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
+{
+  longlong val;
+  if (session_readonly(self, thd, var))
+    return true;
+
+  val= var->save_result.ulonglong_value;
+  if (val > (longlong) global_system_variables.max_allowed_packet)
+  {
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
+                        "max_allowed_packet", "net_buffer_length");
+  }
+  return false;
+}
 static Sys_var_ulong Sys_net_buffer_length(
        "net_buffer_length",
        "Buffer length for TCP/IP and socket communication",
        SESSION_VAR(net_buffer_length), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1024, 1024*1024), DEFAULT(16384), BLOCK_SIZE(1024),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(session_readonly));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_net_buffer_length));
 
 static bool fix_net_read_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
