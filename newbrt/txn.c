@@ -64,6 +64,8 @@ fill_xids (OMTVALUE xev, u_int32_t idx, void *varray) {
     return 0;
 }
 
+
+// Create list of root transactions that were live when this txn began.
 static int
 setup_live_root_txn_list(TOKUTXN txn) {
     int r;
@@ -84,6 +86,9 @@ setup_live_root_txn_list(TOKUTXN txn) {
     return r;
 }
 
+// Add this txn to the global list of txns that have their own snapshots.
+// (Note, if a txn is a child that creates its own snapshot, then that child xid
+// is the xid stored in the global list.) 
 static int
 snapshot_txnids_note_txn(TOKUTXN txn) {
     int r;
@@ -95,11 +100,14 @@ snapshot_txnids_note_txn(TOKUTXN txn) {
     return r;
 }
 
+
+// If live txn is not in reverse live list, then add it.
+// If live txn is in reverse live list, update it by setting second xid in pair to new txn that is being started.
 static int
 live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
     TOKUTXN txn = txnv;
-    TXNID xid   = txn->txnid64;
-    TXNID *live_xid = live_xidv;
+    TXNID xid   = txn->txnid64;     // xid of new txn that is being started
+    TXNID *live_xid = live_xidv;    // xid on the new txn's live list
     OMTVALUE pairv;
     XID_PAIR pair;
     uint32_t idx;
@@ -125,6 +133,14 @@ live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), v
     return r;
 }
 
+
+// Maintain the reverse live list.  The reverse live list is a list of xid pairs.  The first xid in the pair
+// is a txn that was live when some txn began, and the second xid in the pair is the newest still-live xid to 
+// have that first xid in its live list.  (The first xid may be closed, it only needed to be live when the 
+// second txn began.)
+// When a new txn begins, we need to scan the live list of this new txn.  For each live txn, we either 
+// add it to the reverse live list (if it is not already there), or update to the reverse live list so
+// that this new txn is the second xid in the pair associated with the txn in the live list.
 static int
 live_list_reverse_note_txn_start(TOKUTXN txn) {
     int r;
@@ -229,7 +245,7 @@ int toku_txn_begin_with_xid (
             // in this case, either this is a root level transaction that needs its live list setup, or it
             // is a child transaction that specifically asked for its own snapshot
             if (parent_tokutxn==NULL || snapshot_type == TXN_SNAPSHOT_CHILD) {
-                r = setup_live_root_txn_list(result);
+                r = setup_live_root_txn_list(result);  
                 invariant(r==0);
                 result->snapshot_txnid64 = result->txnid64;
                 r = snapshot_txnids_note_txn(result);
