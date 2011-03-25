@@ -8500,7 +8500,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
   JOIN_TAB *prev_tab= NULL;
   for (tab= first_linear_tab(join, WITHOUT_CONST_TABLES), i= join->const_tables; 
        tab; 
-       tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
+       prev_tab=tab, tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
   {
     /*
       The approximation below for partial join cardinality is not good because
