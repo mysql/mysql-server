@@ -20,10 +20,6 @@
 
 #else
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "unireg.h"
 #include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
@@ -6823,7 +6819,6 @@ err:
     end_io_cache(&file);
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
-  thd_proc_info(thd, 0);
   return error != 0;
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
@@ -6994,7 +6989,6 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 err:
   if (fd >= 0)
     mysql_file_close(fd, MYF(0));
-  thd_proc_info(thd, 0);
   DBUG_RETURN(error);
 }
 #endif

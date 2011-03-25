@@ -541,7 +541,7 @@ bool st_select_lex_unit::exec()
                                     0);
         if (!saved_error)
         {
-          examined_rows+= thd->examined_row_count;
+	  examined_rows+= thd->get_examined_row_count();
           if (union_result->flush())
           {
             thd->lex->current_select= lex_select_save;
@@ -656,7 +656,7 @@ bool st_select_lex_unit::exec()
       if (!saved_error)
       {
 	thd->limit_found_rows = (ulonglong)table->file->stats.records + add_rows;
-        thd->examined_row_count+= examined_rows;
+        thd->inc_examined_row_count(examined_rows);
       }
       /*
         Mark for slow query log if any of the union parts didn't use

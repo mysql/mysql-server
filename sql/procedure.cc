@@ -16,10 +16,6 @@
 
 /* Procedures (functions with changes output of select) */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"			// Includes procedure

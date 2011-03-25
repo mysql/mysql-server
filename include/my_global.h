@@ -46,11 +46,6 @@
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
 
-/* to make command line shorter we'll define USE_PRAGMA_INTERFACE here */
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#define USE_PRAGMA_INTERFACE
-#endif
-
 #if defined(__OpenBSD__) && (OpenBSD >= 200411)
 #define HAVE_ERRNO_AS_DEFINE
 #endif
