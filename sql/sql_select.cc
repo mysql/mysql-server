@@ -11557,9 +11557,6 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
   for (i= first_tab; i <= last_tab; i++)
     reopt_remaining_tables |= join->positions[i].table->table->map;
 
-//  table_map save_cur_sj_inner_tables= join->cur_sj_inner_tables;
-//  join->cur_sj_inner_tables= 0;
-
   for (i= first_tab; i <= last_tab; i++)
   {
     JOIN_TAB *rs= join->positions[i].table;
@@ -11585,7 +11582,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     if (!rs->emb_sj_nest)
       *outer_rec_count *= pos.records_read;
   }
-//  join->cur_sj_inner_tables= save_cur_sj_inner_tables;
+
   *reopt_cost= cost;
 }
 
