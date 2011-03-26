@@ -4319,7 +4319,7 @@ double get_sweep_read_cost(const PARAM *param, ha_rows records)
       return 1;
     */
     JOIN *join= param->thd->lex->select_lex.join;
-    if (!join || join->tables == 1)
+    if (!join || join->table_count == 1)
     {
       /* No join, assume reading is done in one 'sweep' */
       result= busy_blocks*(DISK_SEEK_BASE_COST +
@@ -11270,7 +11270,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
   /* Perform few 'cheap' tests whether this access method is applicable. */
   if (!join)
     DBUG_RETURN(NULL);        /* This is not a select statement. */
-  if ((join->tables != 1) ||  /* The query must reference one table. */
+  if ((join->table_count != 1) ||  /* The query must reference one table. */
       ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
        (!join->select_distinct)) ||
       (join->select_lex->olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */

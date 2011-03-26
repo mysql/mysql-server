@@ -520,7 +520,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   for (table_ptr= select_lex->leaf_tables;
        table_ptr;
        table_ptr= table_ptr->next_leaf)
-    tables++;
+    table_count++;
 
   if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
       select_lex->setup_ref_array(thd, og_num) ||
@@ -840,7 +840,7 @@ JOIN::optimize()
                             "Impossible HAVING" : "Impossible WHERE"));
       zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
-      tables= 0;
+      table_count= 0;
       error= 0;
       goto setup_subq_exit;
     }
@@ -890,7 +890,7 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
-        tables= 0;
+        table_count= 0;
 	error=0;
         goto setup_subq_exit;
       }
@@ -904,14 +904,14 @@ JOIN::optimize()
       {
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
-        tables= 0;
+        table_count= 0;
         error=0;
         goto setup_subq_exit;
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
-      const_tables= tables;
+      const_tables= table_count;
       /*
         Extract all table-independent conditions and replace the WHERE
         clause with them. All other conditions were computed by opt_sum_query
@@ -967,7 +967,7 @@ JOIN::optimize()
   else
   {
     /* Remove distinct if only const tables */
-    select_distinct= select_distinct && (const_tables != tables);
+    select_distinct= select_distinct && (const_tables != table_count);
   }
 
   thd_proc_info(thd, "preparing");
@@ -1125,7 +1125,7 @@ JOIN::optimize()
 
      The FROM clause must contain a single non-constant table.
   */
-  if (tables - const_tables == 1 && (group_list || select_distinct) &&
+  if (table_count - const_tables == 1 && (group_list || select_distinct) &&
       !tmp_table_param.sum_func_count &&
       (!join_tab[const_tables].select ||
        !join_tab[const_tables].select->quick ||
@@ -1176,7 +1176,7 @@ JOIN::optimize()
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
-  else if (select_distinct && tables - const_tables == 1 &&
+  else if (select_distinct && table_count - const_tables == 1 &&
            rollup.state == ROLLUP::STATE_NONE)
   {
     /*
@@ -1305,7 +1305,7 @@ JOIN::optimize()
     When the WITH ROLLUP modifier is present, we cannot skip temporary table
     creation for the DISTINCT clause just because there are only const tables.
   */
-  need_tmp= ((const_tables != tables &&
+  need_tmp= ((const_tables != table_count &&
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
@@ -1319,7 +1319,7 @@ JOIN::optimize()
     Yet the current implementation of FORCE INDEX hints does not
     allow us to do it in a clean manner.
   */
-  no_jbuf_after= 1 ? tables : make_join_orderinfo(this);
+  no_jbuf_after= 1 ? table_count : make_join_orderinfo(this);
 
   select_opts_for_readinfo=
     (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
@@ -1351,7 +1351,7 @@ JOIN::optimize()
   */
   if (need_tmp || select_distinct || group_list || order)
   {
-    for (uint i= 0; i < tables; i++)
+    for (uint i= 0; i < table_count; i++)
     {
       if (!(table[i]->map & const_table_map))
         table[i]->prepare_for_position();
@@ -1360,7 +1360,7 @@ JOIN::optimize()
 
   DBUG_EXECUTE("info",TEST_join(this););
 
-  if (const_tables != tables)
+  if (const_tables != table_count)
   {
     /*
       Because filesort always does a full table scan or a quick range scan
@@ -1535,7 +1535,7 @@ JOIN::optimize()
     if (exec_tmp_table1->distinct)
     {
       table_map used_tables= thd->used_tables;
-      JOIN_TAB *last_join_tab= join_tab+tables-1;
+      JOIN_TAB *last_join_tab= join_tab + top_jtrange_tables - 1;
       do
       {
 	if (used_tables & last_join_tab->table->map)
@@ -1761,12 +1761,17 @@ JOIN::reinit()
     set_items_ref_array(items0);
 
   if (join_tab_save)
-    memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * tables);
+    memcpy(join_tab, join_tab_save, sizeof(JOIN_TAB) * table_count);
 
   /* need to reset ref access state (see join_read_key) */
   if (join_tab)
-    for (uint i= 0; i < tables; i++)
-      join_tab[i].ref.key_err= TRUE;
+  {
+    for (JOIN_TAB *tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
+         tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
+    {
+      tab->ref.key_err= TRUE;
+    }
+  }
 
   if (tmp_join)
     restore_tmp();
@@ -1823,7 +1828,7 @@ JOIN::save_join_tab()
   if (!join_tab_save && select_lex->master_unit()->uncacheable)
   {
     if (!(join_tab_save= (JOIN_TAB*)thd->memdup((uchar*) join_tab,
-						sizeof(JOIN_TAB) * tables)))
+						sizeof(JOIN_TAB) * table_count)))
       return 1;
   }
   return 0;
@@ -1863,7 +1868,7 @@ JOIN::exec()
   }
   (void) result->prepare2(); // Currently, this cannot fail.
 
-  if (!tables_list && (tables || !select_lex->with_sum_func))
+  if (!tables_list && (table_count || !select_lex->with_sum_func))
   {                                           // Only test of functions
     if (select_options & SELECT_DESCRIBE)
       select_describe(this, FALSE, FALSE, FALSE,
@@ -1916,7 +1921,7 @@ JOIN::exec()
     FOUND_ROWS() may be called. Never reset the examined row count here.
     It must be accumulated from all join iterations of all join parts.
   */
-  if (tables)
+  if (table_count)
     thd->limit_found_rows= 0;
 
   if (zero_result_cause)
@@ -1953,7 +1958,7 @@ JOIN::exec()
     }
     if (order && 
         (order != group_list || !(select_options & SELECT_BIG_RESULT)) &&
-	(const_tables == tables ||
+	(const_tables == table_count ||
  	 ((simple_order || skip_sort_order) &&
 	  test_if_skip_sort_order(&join_tab[const_tables], order,
 				  select_limit, 0, 
@@ -1964,7 +1969,7 @@ JOIN::exec()
     select_describe(this, need_tmp,
 		    order != 0 && !skip_sort_order,
 		    select_distinct,
-                    !tables ? "No tables used" : NullS);
+                    !table_count ? "No tables used" : NullS);
     DBUG_VOID_RETURN;
   }
 
@@ -1998,7 +2003,7 @@ JOIN::exec()
     thd_proc_info(thd, copy_to_tmp_table);
     DBUG_PRINT("info", ("%s", thd->proc_info));
     if (!curr_join->sort_and_group &&
-        curr_join->const_tables != curr_join->tables)
+        curr_join->const_tables != curr_join->table_count)
     {
       JOIN_TAB *first_tab= curr_join->join_tab + curr_join->const_tables;
       first_tab->sorted= test(first_tab->loosescan_match_tab);
@@ -2169,7 +2174,7 @@ JOIN::exec()
         DBUG_VOID_RETURN;
       curr_join->group_list= 0;
       if (!curr_join->sort_and_group &&
-          curr_join->const_tables != curr_join->tables)
+          curr_join->const_tables != curr_join->table_count)
       {
         JOIN_TAB *first_tab= curr_join->join_tab + curr_join->const_tables;
         first_tab->sorted= test(first_tab->loosescan_match_tab);
@@ -2182,7 +2187,7 @@ JOIN::exec()
 	DBUG_VOID_RETURN;
       }
       end_read_record(&curr_join->join_tab->read_record);
-      curr_join->const_tables= curr_join->tables; // Mark free for cleanup()
+      curr_join->const_tables= curr_join->table_count; // Mark free for cleanup()
       curr_join->join_tab[0].table= 0;           // Table is freed
       
       // No sum funcs anymore
@@ -2385,7 +2390,7 @@ JOIN::exec()
                             curr_join->group_list ? TRUE : FALSE))
 	DBUG_VOID_RETURN;
       sortorder= curr_join->sortorder;
-      if (curr_join->const_tables != curr_join->tables &&
+      if (curr_join->const_tables != curr_join->table_count &&
           !curr_join->join_tab[curr_join->const_tables].table->sort.io_cache)
       {
         /*
@@ -2407,7 +2412,7 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  if (is_top_level_join() && thd->cursor && tables != const_tables)
+  if (is_top_level_join() && thd->cursor && table_count != const_tables)
   {
     /*
       We are here if this is JOIN::exec for the last select of the main unit
@@ -2474,9 +2479,11 @@ JOIN::destroy()
   {
     if (join_tab != tmp_join->join_tab)
     {
-      JOIN_TAB *tab, *end;
-      for (tab= join_tab, end= tab+tables ; tab != end ; tab++)
+      for (JOIN_TAB *tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
+           tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
+      {
 	tab->cleanup();
+      }
     }
     tmp_join->tmp_join= 0;
     /*
@@ -2801,7 +2808,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   DBUG_ENTER("make_join_statistics");
 
   LINT_INIT(table); /* inited in all loops */
-  table_count=join->tables;
+  table_count=join->table_count;
 
   stat=(JOIN_TAB*) join->thd->calloc(sizeof(JOIN_TAB)*(table_count));
   stat_ref=(JOIN_TAB**) join->thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
@@ -2943,7 +2950,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     {
       if (s->dependent & s->table->map)
       {
-        join->tables=0;			// Don't use join->table
+        join->table_count=0;			// Don't use join->table
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         goto error;
       }
@@ -2952,7 +2959,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   }
 
   if (conds || outer_join)
-    if (update_ref_and_keys(join->thd, keyuse_array, stat, join->tables,
+    if (update_ref_and_keys(join->thd, keyuse_array, stat, join->table_count,
                             conds, join->cond_equal,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
@@ -3269,14 +3276,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   join->const_tables=const_count;
   join->found_const_table_map=found_const_table_map;
 
-  if (join->const_tables != join->tables)
+  if (join->const_tables != join->table_count)
     optimize_keyuse(join, keyuse_array);
    
   if (optimize_semijoin_nests(join, all_table_map))
     DBUG_RETURN(TRUE); /* purecov: inspected */
 
   /* Find an optimal join order of the non-constant tables. */
-  if (join->const_tables != join->tables)
+  if (join->const_tables != join->table_count)
   {
     if (choose_plan(join, all_table_map & ~join->const_table_map))
       goto error;
@@ -5299,7 +5306,7 @@ choose_plan(JOIN *join, table_map join_tables)
     jtab_sort_func= straight_join ? join_tab_cmp_straight : join_tab_cmp;
   }
   my_qsort2(join->best_ref + join->const_tables,
-            join->tables - join->const_tables, sizeof(JOIN_TAB*),
+            join->table_count - join->const_tables, sizeof(JOIN_TAB*),
             jtab_sort_func, (void*)join->emb_sjm_nest);
   join->cur_sj_inner_tables= 0;
 
@@ -5475,7 +5482,7 @@ join_tab_cmp_embedded_first(const void *emb,  const void* ptr1, const void* ptr2
 static uint
 determine_search_depth(JOIN *join)
 {
-  uint table_count=  join->tables - join->const_tables;
+  uint table_count=  join->table_count - join->const_tables;
   uint search_depth;
   /* TODO: this value should be determined dynamically, based on statistics: */
   uint max_tables_for_exhaustive_opt= 7;
@@ -6415,6 +6422,28 @@ JOIN_TAB *next_breadth_first_tab(JOIN *join, JOIN_TAB *tab)
 }
 
 
+JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables with_const)
+{
+  JOIN_TAB *tab= join->join_tab;
+  if (with_const == WITH_CONST_TABLES)
+  {
+    if (join->const_tables == join->table_count)
+      return NULL;
+    tab += join->const_tables;
+  }
+  return tab;
+}
+
+
+JOIN_TAB *next_top_level_tab(JOIN *join, JOIN_TAB *tab)
+{
+  tab= next_breadth_first_tab(join, tab);
+  if (tab->bush_root_tab)
+    tab= NULL;
+  return tab;
+}
+
+
 JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls)
 {
   JOIN_TAB *first= join->join_tab;
@@ -6580,7 +6609,7 @@ get_best_combination(JOIN *join)
   THD *thd=join->thd;
   DBUG_ENTER("get_best_combination");
 
-  table_count=join->tables;
+  table_count=join->table_count;
   if (!(join->join_tab=join_tab=
 	(JOIN_TAB*) thd->alloc(sizeof(JOIN_TAB)*table_count)))
     DBUG_RETURN(TRUE);
@@ -6628,7 +6657,6 @@ get_best_combination(JOIN *join)
       j->ref.key = -1;
       j->on_expr_ref= (Item**) &null_ptr;
       j->keys= key_map(1); /* The unique index is always in 'possible keys' in EXPLAIN */
-
 
       /*
         2. Proceed with processing SJM nest's join tabs, putting them into the
@@ -7041,7 +7069,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 
   join_tab= parent->join_tab_reexec;
   table= &parent->table_reexec[0]; parent->table_reexec[0]= temp_table;
-  tables= top_jtrange_tables= 1;
+  table_count= top_jtrange_tables= 1;
 
   const_tables= 0;
   const_table_map= 0;
@@ -7383,9 +7411,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
     */
     if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
     {                        /* there may be a select without a cond. */    
-      if (join->tables > 1)
+      if (join->table_count > 1)
         cond->update_used_tables();		// Tablenr may have changed
-      if (join->const_tables == join->tables &&
+      if (join->const_tables == join->table_count &&
 	  thd->lex->current_select->master_unit() ==
 	  &thd->lex->unit)		// not upper level SELECT
         join->const_table_map|=RAND_TABLE_BIT;
@@ -7486,7 +7514,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	Following force including random expression in last table condition.
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
       */
-      if (i == join->tables-1)
+      if (tab == join->join_tab + join->top_jtrange_tables - 1)
 	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
       used_tables|=current_map;
 
@@ -7506,7 +7534,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           We will use join cache here : prevent sorting of the first
           table only and sort at the end.
         */
-        if (i != join->const_tables && join->tables > join->const_tables + 1)
+        if (i != join->const_tables && join->table_count > join->const_tables + 1)
           join->full_join= 1;
       }
 
@@ -7884,9 +7912,9 @@ static uint make_join_orderinfo(JOIN *join)
 
   JOIN_TAB *tab;
   if (join->need_tmp)
-    return join->tables;
+    return join->table_count;
   tab= join->get_sort_by_join_tab();
-  return tab ? tab-join->join_tab : join->tables;
+  return tab ? tab-join->join_tab : join->table_count;
 }
 
 /*
@@ -8840,9 +8868,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
 bool error_if_full_join(JOIN *join)
 {
-  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
-       tab < end;
-       tab++)
+  for (JOIN_TAB *tab=first_top_level_tab(join, WITH_CONST_TABLES); tab;
+       tab= next_top_level_tab(join, tab))
   {
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
@@ -9085,7 +9112,7 @@ void JOIN::cleanup(bool full)
       Only a sorted table may be cached.  This sorted table is always the
       first non const table in join->table
     */
-    if (tables > const_tables) // Test for not-const tables
+    if (table_count > const_tables) // Test for not-const tables
     {
       free_io_cache(table[const_tables]);
       filesort_free_buffers(table[const_tables],full);
@@ -9318,7 +9345,7 @@ static ORDER *
 remove_const(JOIN *join,ORDER *first_order, COND *cond,
              bool change_list, bool *simple_order)
 {
-  if (join->tables == join->const_tables)
+  if (join->table_count == join->const_tables)
     return change_list ? 0 : first_order;		// No need to sort
 
   ORDER *order,**prev_ptr;
@@ -9356,7 +9383,7 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
           table for all queries containing more than one table, ROLLUP, and an
           outer join.
          */
-        (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
+        (join->table_count > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
         join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
@@ -9455,7 +9482,7 @@ static void clear_tables(JOIN *join)
     must clear only the non-const tables, as const tables
     are not re-calculated.
   */
-  for (uint i= 0 ; i < join->tables ; i++)
+  for (uint i= 0 ; i < join->table_count ; i++)
   {
     if (!(join->table[i]->map & join->const_table_map))
       mark_as_null_row(join->table[i]);		// All fields are NULL
@@ -13787,13 +13814,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   /* Set up select_end */
   Next_select_func end_select= setup_end_select_func(join);
-  if (join->tables)
+  if (join->table_count)
   {
     join->join_tab[join->top_jtrange_tables - 1].next_select= end_select;
     join_tab=join->join_tab+join->const_tables;
   }
   join->send_records=0;
-  if (join->tables == join->const_tables)
+  if (join->table_count == join->const_tables)
   {
     /*
       HAVING will be checked after processing aggregate functions,
@@ -13826,7 +13853,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   }
   else
   {
-    DBUG_ASSERT(join->tables);
+    DBUG_ASSERT(join->table_count);
     error= sub_select(join,join_tab,0);
     if (error == NESTED_LOOP_OK || error == NESTED_LOOP_NO_MORE_ROWS)
       error= sub_select(join,join_tab,1);
@@ -14120,7 +14147,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   if (join->resume_nested_loop)
   {
     /* If not the last table, plunge down the nested loop */
-    if (join_tab < join->join_tab + join->tables - 1)
+    if (join_tab < join->join_tab + join->top_jtrange_tables - 1)
       rc= (*join_tab->next_select)(join, join_tab + 1, 0);
     else
     {
@@ -15152,7 +15179,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       if (join->select_options & OPTION_FOUND_ROWS)
       {
 	JOIN_TAB *jt=join->join_tab;
-	if ((join->tables == 1) && !join->tmp_table && !join->sort_and_group
+	if ((join->table_count == 1) && !join->tmp_table && !join->sort_and_group
 	    && !join->send_group_parts && !join->having && !jt->select_cond &&
 	    !(jt->select && jt->select->quick) &&
 	    (jt->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
@@ -15460,7 +15487,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       table->file->print_error(error, MYF(0));/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);         /* purecov: inspected */
     }
-    join->join_tab[join->tables-1].next_select=end_unique_update;
+    join->join_tab[join->top_jtrange_tables-1].next_select=end_unique_update;
   }
   join->send_records++;
   DBUG_RETURN(NESTED_LOOP_OK);
@@ -16543,7 +16570,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       ref_key_quick_rows= table->quick_rows[ref_key];
 
     read_time= join->best_positions[tablenr].read_time;
-    for (uint i= tablenr+1; i < join->tables; i++)
+    for (uint i= tablenr+1; i < join->table_count; i++)
       fanout*= join->best_positions[i].records_read; // fanout is always >= 1
 
     for (nr=0; nr < table->s->keys ; nr++)
@@ -16719,7 +16746,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     if ((select_limit >= table_records) &&
         (tab->type == JT_ALL &&
-         tab->join->tables > tab->join->const_tables + 1) &&
+         tab->join->table_count > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
       DBUG_RETURN(0);
@@ -16919,7 +16946,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   JOIN_TAB *tab;
   DBUG_ENTER("create_sort_index");
 
-  if (join->tables == join->const_tables)
+  if (join->table_count == join->const_tables)
     DBUG_RETURN(0);				// One row, no need to sort
   tab=    join->join_tab + join->const_tables;
   table=  tab->table;

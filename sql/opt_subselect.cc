@@ -203,6 +203,9 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab);
 static Item *remove_additional_cond(Item* conds);
 static void remove_subq_pushed_predicates(JOIN *join, Item **where);
 
+enum_nested_loop_state 
+end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
+
 
 /*
   Check if we need JOIN::prepare()-phase subquery rewrites and if yes, do them
@@ -644,7 +647,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   {
     st_select_lex *child_select= (*in_subq)->get_select_lex();
     JOIN *child_join= child_select->join;
-    child_join->outer_tables = child_join->tables;
+    child_join->outer_tables = child_join->table_count;
 
     /*
       child_select->where contains only the WHERE predicate of the
@@ -693,15 +696,15 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     bool remove_item= TRUE;
     if ((*in_subq)->is_flattenable_semijoin) 
     {
-      if (join->tables + 
-          (*in_subq)->unit->first_select()->join->tables >= MAX_TABLES)
+      if (join->table_count + 
+          (*in_subq)->unit->first_select()->join->table_count >= MAX_TABLES)
         break;
       if (convert_subq_to_sj(join, *in_subq))
         DBUG_RETURN(TRUE);
     }
     else
     {
-      if (join->tables + 1 >= MAX_TABLES)
+      if (join->table_count + 1 >= MAX_TABLES)
         break;
       if (convert_subq_to_jtbm(join, *in_subq, &remove_item))
         DBUG_RETURN(TRUE);
@@ -830,7 +833,8 @@ void get_delayed_table_estimates(TABLE *table,
   double read_time;
 
   /* Calculate #rows and cost of join execution */
-  get_partial_join_cost(join, join->tables - join->const_tables, &read_time, &rows);
+  get_partial_join_cost(join, join->table_count - join->const_tables, 
+                        &read_time, &rows);
 
   *out_rows= (ha_rows)rows;
   *startup_cost= read_time;
@@ -1097,8 +1101,8 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   subq_pred->exec_method= Item_in_subselect::SEMI_JOIN; // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
-  /* n. Adjust the parent_join->tables counter */
-  uint table_no= parent_join->tables;
+  /* n. Adjust the parent_join->table_count counter */
+  uint table_no= parent_join->table_count;
   /* n. Walk through child's tables and adjust table->map */
   for (tl= subq_lex->leaf_tables; tl; tl= tl->next_leaf, table_no++)
   {
@@ -1111,7 +1115,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
          emb= emb->embedding)
       emb->select_lex= parent_join->select_lex;
   }
-  parent_join->tables += subq_lex->join->tables;
+  parent_join->table_count += subq_lex->join->table_count;
 
   /* 
     Put the subquery's WHERE into semi-join's sj_on_expr
@@ -1300,11 +1304,11 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     ((subselect_hash_sj_engine*)subq_pred->engine);
   jtbm->table= hash_sj_engine->tmp_table;
 
-  jtbm->table->tablenr= parent_join->tables;
-  jtbm->table->map= table_map(1) << (parent_join->tables);
+  jtbm->table->tablenr= parent_join->table_count;
+  jtbm->table->map= table_map(1) << (parent_join->table_count);
 
-  parent_join->tables++;
-  DBUG_ASSERT(parent_join->tables < MAX_TABLES);
+  parent_join->table_count++;
+  DBUG_ASSERT(parent_join->table_count < MAX_TABLES);
 
   Item *conds= hash_sj_engine->semi_join_conds;
   conds->fix_after_pullout(parent_lex, &conds);
@@ -2479,7 +2483,7 @@ at_sjmat_pos(const JOIN *join, table_map remaining_tables, const JOIN_TAB *tab,
 
 void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
 {
-  uint table_count=join->tables;
+  uint table_count=join->table_count;
   uint tablenr;
   table_map remaining_tables= 0;
   table_map handled_tabs= 0;
@@ -2643,8 +2647,6 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
   }
 }
 
-enum_nested_loop_state 
-end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 
 /*
   Setup semi-join materialization strategy for one semi-join nest
@@ -3505,6 +3507,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     FALSE  OK 
     TRUE   Out of memory error
 */
+JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls);
 
 int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 
                                     uint no_jbuf_after)
@@ -3512,17 +3515,19 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
   uint i;
   THD *thd= join->thd;
   DBUG_ENTER("setup_semijoin_dups_elimination");
-
-  for (i= join->const_tables ; i < join->tables; )
+  
+  POSITION *pos= join->best_positions + join->const_tables;
+  for (i= join->const_tables ; i < join->top_jtrange_tables; )
   {
     JOIN_TAB *tab=join->join_tab + i;
-    POSITION *pos= join->best_positions + i;
+    //POSITION *pos= join->best_positions + i;
     uint keylen, keyno;
     switch (pos->sj_strategy) {
       case SJ_OPT_MATERIALIZE:
       case SJ_OPT_MATERIALIZE_SCAN:
         /* Do nothing */
-        i+= pos->n_sj_tables;
+        i+= 1;// It used to be pos->n_sj_tables, but now they are embedded in a nest
+        pos += pos->n_sj_tables;
         break;
       case SJ_OPT_LOOSE_SCAN:
       {
@@ -3539,6 +3544,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         if (pos->n_sj_tables > 1) 
           tab[pos->n_sj_tables - 1].do_firstmatch= tab;
         i+= pos->n_sj_tables;
+        pos+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_DUPS_WEEDOUT:
@@ -3636,6 +3642,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         join->join_tab[i + pos->n_sj_tables - 1].check_weed_out_table= sjtbl;
 
         i+= pos->n_sj_tables;
+        pos+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_FIRST_MATCH:
@@ -3658,10 +3665,12 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         }
         j[-1].do_firstmatch= jump_to;
         i+= pos->n_sj_tables;
+        pos+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_NONE:
         i++;
+        pos++;
         break;
     }
   }
@@ -3848,7 +3857,7 @@ int rewrite_to_index_subquery_engine(JOIN *join)
   if (!join->group_list && !join->order &&
       join->unit->item && 
       join->unit->item->substype() == Item_subselect::IN_SUBS &&
-      join->tables == 1 && join->conds &&
+      join->table_count == 1 && join->conds &&
       !join->unit->is_union())
   {
     if (!join->having)

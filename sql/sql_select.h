@@ -647,7 +647,13 @@ public:
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
   TABLE    *sort_by_table;
-  uint	   tables;        /**< Number of tables in the join */
+  /* 
+    Number of tables in the join. 
+    (In MySQL, it is named 'tables' and is also the number of elements in 
+     join->join_tab array. In MariaDB, the latter is not true, so we've renamed
+     the variable)
+  */
+  uint	   table_count;
   uint     outer_tables;  /**< Number of tables that are not inside semijoin */
   uint     const_tables;
   /* 
@@ -899,7 +905,7 @@ public:
   {
     join_tab= join_tab_save= 0;
     table= 0;
-    tables= 0;
+    table_count= 0;
     top_jtrange_tables= 0;
     const_tables= 0;
     eliminated_tables= 0;
@@ -1015,7 +1021,7 @@ public:
   }
   inline table_map all_tables_map()
   {
-    return (table_map(1) << tables) - 1;
+    return (table_map(1) << table_count) - 1;
   }
   /* 
     Return the table for which an index scan can be used to satisfy 

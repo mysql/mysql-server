@@ -2316,7 +2316,7 @@ bool Item_in_subselect::init_left_expr_cache()
     An IN predicate might be evaluated in a query for which all tables have
     been optimzied away.
   */ 
-  if (!outer_join || !outer_join->tables || !outer_join->tables_list)
+  if (!outer_join || !outer_join->table_count || !outer_join->tables_list)
     return TRUE;
 
   if (!(left_expr_cache= new List<Cached_item>))
@@ -2701,9 +2701,9 @@ int subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint i=join->const_tables ; i < join->tables ; i++)
+      for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); tab;
+           tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
       {
-        JOIN_TAB *tab=join->join_tab+i;
         if (tab && tab->keyuse)
         {
           for (uint i= 0; i < tab->ref.key_parts; i++)
