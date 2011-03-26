@@ -3517,7 +3517,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
   DBUG_ENTER("setup_semijoin_dups_elimination");
   
   POSITION *pos= join->best_positions + join->const_tables;
-  for (i= join->const_tables ; i < join->top_jtrange_tables; )
+  for (i= join->const_tables ; i < join->top_join_tab_count; )
   {
     JOIN_TAB *tab=join->join_tab + i;
     //POSITION *pos= join->best_positions + i;

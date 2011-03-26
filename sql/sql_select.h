@@ -662,7 +662,7 @@ public:
     
     We keep it here so that it is saved/restored with JOIN::restore_tmp.
   */
-  uint     top_jtrange_tables;
+  uint     top_join_tab_count;
   uint	   send_group_parts;
   bool	   group;          /**< If query contains GROUP BY clause */
   /**
@@ -906,7 +906,7 @@ public:
     join_tab= join_tab_save= 0;
     table= 0;
     table_count= 0;
-    top_jtrange_tables= 0;
+    top_join_tab_count= 0;
     const_tables= 0;
     eliminated_tables= 0;
     join_list= 0;

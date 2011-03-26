@@ -1535,7 +1535,7 @@ JOIN::optimize()
     if (exec_tmp_table1->distinct)
     {
       table_map used_tables= thd->used_tables;
-      JOIN_TAB *last_join_tab= join_tab + top_jtrange_tables - 1;
+      JOIN_TAB *last_join_tab= join_tab + top_join_tab_count - 1;
       do
       {
 	if (used_tables & last_join_tab->table->map)
@@ -2352,7 +2352,7 @@ JOIN::exec()
 	  WHERE clause for any tables after the sorted one.
 	*/
 	JOIN_TAB *curr_table= &curr_join->join_tab[curr_join->const_tables+1];
-	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->top_jtrange_tables];
+	JOIN_TAB *end_table= &curr_join->join_tab[curr_join->top_join_tab_count];
 	for (; curr_table < end_table ; curr_table++)
 	{
 	  /*
@@ -6385,7 +6385,7 @@ JOIN_TAB *next_breadth_first_tab(JOIN *join, JOIN_TAB *tab)
   {
     /* We're at top level. Get the next top-level tab */
     tab++;
-    if (tab < join->join_tab + join->top_jtrange_tables)
+    if (tab < join->join_tab + join->top_join_tab_count)
       return tab;
 
     /* No more top-level tabs. Switch to enumerating SJM nest children */
@@ -6413,7 +6413,7 @@ JOIN_TAB *next_breadth_first_tab(JOIN *join, JOIN_TAB *tab)
     Ok, "tab" points to a top-level table, and we need to find the next SJM
     nest and enter it.
   */
-  for (; tab < join->join_tab + join->top_jtrange_tables; tab++)
+  for (; tab < join->join_tab + join->top_join_tab_count; tab++)
   {
     if (tab->bush_children)
       return tab->bush_children->start;
@@ -6449,7 +6449,7 @@ JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls)
   JOIN_TAB *first= join->join_tab;
   if (const_tbls == WITHOUT_CONST_TABLES)
     first+= join->const_tables;
-  if (first < join->join_tab + join->top_jtrange_tables)
+  if (first < join->join_tab + join->top_join_tab_count)
     return first;
   return NULL; /* All tables were const tables */
 }
@@ -6504,7 +6504,7 @@ JOIN_TAB *next_linear_tab(JOIN* join, JOIN_TAB* tab,
   }
 
   /* If no more JOIN_TAB's on the top level */
-  if (++tab == join->join_tab + join->top_jtrange_tables)
+  if (++tab == join->join_tab + join->top_join_tab_count)
     return NULL;
 
   if (include_bush_roots == WITHOUT_BUSH_ROOTS && tab->bush_children)
@@ -6525,7 +6525,7 @@ JOIN_TAB *first_depth_first_tab(JOIN* join)
 {
   JOIN_TAB* tab;
   /* This means we're starting the enumeration */
-  if (join->const_tables == join->top_jtrange_tables)
+  if (join->const_tables == join->top_join_tab_count)
     return NULL;
 
   tab= join->join_tab + join->const_tables;
@@ -6561,7 +6561,7 @@ JOIN_TAB *next_depth_first_tab(JOIN* join, JOIN_TAB* tab)
   /* Move to next tab in the array we're traversing */
   tab++;
   
-  if (tab == join->join_tab +join->top_jtrange_tables)
+  if (tab == join->join_tab +join->top_join_tab_count)
     return NULL; /* Outside SJM nest and reached EOF */
 
   if (tab->bush_children)
@@ -6724,7 +6724,7 @@ get_best_combination(JOIN *join)
     }
   }
 
-  join->top_jtrange_tables= join->join_tab_ranges.head()->end - 
+  join->top_join_tab_count= join->join_tab_ranges.head()->end - 
                             join->join_tab_ranges.head()->start;
 
   //for (i=0 ; i < table_count ; i++)
@@ -7069,7 +7069,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 
   join_tab= parent->join_tab_reexec;
   table= &parent->table_reexec[0]; parent->table_reexec[0]= temp_table;
-  table_count= top_jtrange_tables= 1;
+  table_count= top_join_tab_count= 1;
 
   const_tables= 0;
   const_table_map= 0;
@@ -7514,7 +7514,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	Following force including random expression in last table condition.
 	It solve problem with select like SELECT * FROM t1 WHERE rand() > 0.5
       */
-      if (tab == join->join_tab + join->top_jtrange_tables - 1)
+      if (tab == join->join_tab + join->top_join_tab_count - 1)
 	current_map|= OUTER_REF_TABLE_BIT | RAND_TABLE_BIT;
       used_tables|=current_map;
 
@@ -13816,7 +13816,7 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
   Next_select_func end_select= setup_end_select_func(join);
   if (join->table_count)
   {
-    join->join_tab[join->top_jtrange_tables - 1].next_select= end_select;
+    join->join_tab[join->top_join_tab_count - 1].next_select= end_select;
     join_tab=join->join_tab+join->const_tables;
   }
   join->send_records=0;
@@ -14147,7 +14147,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   if (join->resume_nested_loop)
   {
     /* If not the last table, plunge down the nested loop */
-    if (join_tab < join->join_tab + join->top_jtrange_tables - 1)
+    if (join_tab < join->join_tab + join->top_join_tab_count - 1)
       rc= (*join_tab->next_select)(join, join_tab + 1, 0);
     else
     {
@@ -15487,7 +15487,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
       table->file->print_error(error, MYF(0));/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);         /* purecov: inspected */
     }
-    join->join_tab[join->top_jtrange_tables-1].next_select=end_unique_update;
+    join->join_tab[join->top_join_tab_count-1].next_select=end_unique_update;
   }
   join->send_records++;
   DBUG_RETURN(NESTED_LOOP_OK);
