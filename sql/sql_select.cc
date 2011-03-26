@@ -6362,6 +6362,59 @@ prev_record_reads(JOIN *join, uint idx, table_map found_ref)
 }
 
 
+/*
+  Enumerate join tabs in breadth-first fashion, including const tables.
+*/
+
+JOIN_TAB *first_breadth_first_tab(JOIN *join)
+{
+  return join->join_tab; /* There's always one (i.e. first) table */
+}
+
+
+JOIN_TAB *next_breadth_first_tab(JOIN *join, JOIN_TAB *tab)
+{
+  if (!tab->bush_root_tab)
+  {
+    /* We're at top level. Get the next top-level tab */
+    tab++;
+    if (tab < join->join_tab + join->top_jtrange_tables)
+      return tab;
+
+    /* No more top-level tabs. Switch to enumerating SJM nest children */
+    tab= join->join_tab;
+  }
+  else
+  {
+    /* We're inside of an SJM nest */
+    if (!tab->last_leaf_in_bush)
+    {
+      /* There's one more table in the nest, return it. */
+      return ++tab;
+    }
+    else
+    {
+      /* 
+        There are no more tables in this nest. Get out of it and then we'll
+        proceed to the next nest.
+      */
+      tab= tab->bush_root_tab + 1;
+    }
+  }
+   
+  /* 
+    Ok, "tab" points to a top-level table, and we need to find the next SJM
+    nest and enter it.
+  */
+  for (; tab < join->join_tab + join->top_jtrange_tables; tab++)
+  {
+    if (tab->bush_children)
+      return tab->bush_children->start;
+  }
+  return NULL;
+}
+
+
 JOIN_TAB *first_linear_tab(JOIN *join, enum enum_with_const_tables const_tbls)
 {
   JOIN_TAB *first= join->join_tab;
@@ -19361,18 +19414,16 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
     bool printing_materialize_nest= FALSE;
     uint select_id= join->select_lex->select_number;
 
-    List_iterator<JOIN_TAB_RANGE> it(join->join_tab_ranges);
-    JOIN_TAB_RANGE *jt_range;
-    while ((jt_range= it++))
+    for (JOIN_TAB *tab= first_breadth_first_tab(join); tab;
+         tab= next_breadth_first_tab(join, tab))
     {
-    if (jt_range != join->join_tab_ranges.head())
-    {
-      select_id= jt_range->start->emb_sj_nest->sj_subq_pred->get_identifier();
-      printing_materialize_nest= TRUE;
-    }
+      if (tab->bush_root_tab)
+      {
+        JOIN_TAB *first_sibling= tab->bush_root_tab->bush_children->start;
+        select_id= first_sibling->emb_sj_nest->sj_subq_pred->get_identifier();
+        printing_materialize_nest= TRUE;
+      }
 
-    for (JOIN_TAB *tab= jt_range->start + 0; tab < jt_range->end; tab++)
-    {
       TABLE *table=tab->table;
       TABLE_LIST *table_list= tab->table->pos_in_table_list;
       char buff[512]; 
@@ -19635,21 +19686,9 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* Add "filtered" field to item_list. */
         if (join->thd->lex->describe & DESCRIBE_EXTENDED)
         {
-          /*
-            psergey-todo: 
-              in the code above, we cast to integer when asssigning to
-              examined_rows. 
-              In the code below, we may divide original value but result of
-              conversion of the same value to integer, which may produce a
-              value that's greater than 100%, which looks very odd.
-              I'm not fixing this right away because that might trigger a wave
-              of small EXPLAIN EXTENDED output changes, which I don't have time
-              to deal with right now.
-          */
           float f= 0.0; 
           if (examined_rows)
-            f= (float) (100.0 * tab->records_read/*join->best_positions[i].records_read*/ /
-                        examined_rows);
+            f= (float) (100.0 * tab->records_read / examined_rows);
           item_list.push_back(new Item_float(f, 2));
         }
       }
@@ -19844,7 +19883,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       used_tables|=table->map;
       if (result->send_data(item_list))
 	join->error= 1;
-    }
     }
   }
   for (SELECT_LEX_UNIT *unit= join->select_lex->first_inner_unit();
