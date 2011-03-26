@@ -11530,8 +11530,8 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
   for (i= first_tab; i <= last_tab; i++)
     reopt_remaining_tables |= join->positions[i].table->table->map;
 
-  table_map save_cur_sj_inner_tables= join->cur_sj_inner_tables;
-  join->cur_sj_inner_tables= 0;
+//  table_map save_cur_sj_inner_tables= join->cur_sj_inner_tables;
+//  join->cur_sj_inner_tables= 0;
 
   for (i= first_tab; i <= last_tab; i++)
   {
@@ -11558,7 +11558,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     if (!rs->emb_sj_nest)
       *outer_rec_count *= pos.records_read;
   }
-  join->cur_sj_inner_tables= save_cur_sj_inner_tables;
+//  join->cur_sj_inner_tables= save_cur_sj_inner_tables;
   *reopt_cost= cost;
 }
 
@@ -14942,6 +14942,10 @@ join_read_record_no_init(JOIN_TAB *tab)
 {
   Copy_field *save_copy, *save_copy_end;
   
+  /*
+    init_read_record resets all elements of tab->read_record().
+    Remember things that we don't want to have reset.
+  */
   save_copy=     tab->read_record.copy_field;
   save_copy_end= tab->read_record.copy_field_end;
   
