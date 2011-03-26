@@ -291,7 +291,7 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
 ulonglong ha_tokudb::table_flags() const {
     return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
-#if defined(HA_GENERNAL_ONLINE)
+#if defined(HA_GENERAL_ONLINE)
         int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE | HA_ONLINE_ALTER);
 #else
         int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
