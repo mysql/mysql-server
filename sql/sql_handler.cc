@@ -287,10 +287,6 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   */
   DBUG_ASSERT(! hash_tables->table);
 
-  /*
-    TODO/FIXME: In the upcoming patch we somehow should handle
-                situation with privilege check for temporary table.
-  */
   error= open_temporary_tables(thd, hash_tables);
 
   if (!error)

@@ -2194,9 +2194,10 @@ DROP TABLE tm1, t1, t2, t3, t4, t5;
 --echo # Bug#47633 - assert in ha_myisammrg::info during OPTIMIZE
 --echo #
 CREATE TEMPORARY TABLE t1 (c1 INT);
-ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists,t1);
+CREATE TEMPORARY TABLE t2 (c1 INT);
+ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists, t2);
 OPTIMIZE TABLE t1;
-DROP TABLE t1;
+DROP TABLE t1, t2;
 
 --echo #
 --echo # Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine

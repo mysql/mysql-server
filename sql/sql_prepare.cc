@@ -1716,14 +1716,6 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
   TABLE_LIST *create_table= lex->query_tables;
   TABLE_LIST *tables= lex->create_last_non_select_table->next_global;
 
-  if (lex->create_info.merge_list.elements)
-  {
-    if (open_temporary_tables(thd, lex->create_info.merge_list.first))
-    {
-      DBUG_RETURN(TRUE);
-    }
-  }
-
   if (create_table_precheck(thd, tables, create_table))
     DBUG_RETURN(TRUE);
 

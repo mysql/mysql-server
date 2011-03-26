@@ -577,7 +577,21 @@ private:
 
 inline bool is_temporary_table(TABLE_LIST *tl)
 {
-  return tl->table ? (tl->table->s->tmp_table != NO_TMP_TABLE) : FALSE;
+  if (tl->view || tl->schema_table)
+    return FALSE;
+
+  if (!tl->table)
+    return FALSE;
+
+  /*
+    NOTE: 'table->s' might be NULL for specially constructed TABLE
+    instances. See SHOW TRIGGERS for example.
+  */
+
+  if (!tl->table->s)
+    return FALSE;
+
+  return tl->table->s->tmp_table != NO_TMP_TABLE;
 }
 
 
