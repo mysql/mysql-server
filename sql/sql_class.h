@@ -2026,7 +2026,7 @@ public:
   {
     if (user_time.val)
     {
-      start_time= hrtime_to_time(user_time);
+      start_time= hrtime_to_my_time(user_time);
       start_time_sec_part= hrtime_sec_part(user_time);
       start_utime= utime_after_lock= my_micro_time();
     }
@@ -2035,7 +2035,7 @@ public:
       my_hrtime_t hrtime;
       my_timediff_t timediff;
       my_micro_and_hrtime(&timediff, &hrtime);
-      start_time= hrtime_to_time(hrtime);
+      start_time= hrtime_to_my_time(hrtime);
       start_time_sec_part= hrtime_sec_part(hrtime);
       utime_after_lock= start_utime= timediff.val;
     }
@@ -2043,13 +2043,13 @@ public:
   inline void	set_current_time()
   {
     my_hrtime_t hrtime= my_hrtime();
-    start_time= hrtime_to_time(hrtime);
+    start_time= hrtime_to_my_time(hrtime);
     start_time_sec_part= hrtime_sec_part(hrtime);
   }
   inline void	set_time(my_hrtime_t t)
   {
     user_time= t;
-    start_time= hrtime_to_time(user_time);
+    start_time= hrtime_to_my_time(user_time);
     start_time_sec_part= hrtime_sec_part(user_time);
     start_utime= utime_after_lock= my_micro_time();
   }

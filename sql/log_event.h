@@ -1022,7 +1022,7 @@ public:
       return when;
     }
     my_hrtime_t hrtime= my_hrtime();
-    when= hrtime_to_time(hrtime);
+    when= hrtime_to_my_time(hrtime);
     when_sec_part= hrtime_sec_part(hrtime);
     return when;
   }

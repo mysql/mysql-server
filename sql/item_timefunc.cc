@@ -1610,7 +1610,7 @@ void Item_func_sysdate_local::store_now_in_TIME(MYSQL_TIME *now_time)
 {
   THD *thd= current_thd;
   my_hrtime_t now= my_hrtime();
-  thd->variables.time_zone->gmt_sec_to_TIME(now_time, hrtime_to_time(now));
+  thd->variables.time_zone->gmt_sec_to_TIME(now_time, hrtime_to_my_time(now));
   set_sec_part(hrtime_sec_part(now), now_time, this);
   thd->time_zone_used= 1;
 }

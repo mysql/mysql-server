@@ -158,8 +158,11 @@ static inline longlong sec_part_unshift(longlong second_part, int digits)
 }
 static inline ulong sec_part_truncate(ulong second_part, int digits)
 {
-  return second_part - second_part % log_10_int[MAX_SEC_PART_DIGITS - digits];
+  /* the cast here should be unnecessary! */
+  return second_part - second_part % (ulong)log_10_int[MAX_SEC_PART_DIGITS - digits];
 }
+
+#define hrtime_to_my_time(X) ((my_time_t)hrtime_to_time(X))
 
 /* 
   Available interval types used in any statement.

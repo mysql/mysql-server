@@ -873,7 +873,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
       longlong res;
 
       if (t_type == MYSQL_TIMESTAMP_TIME)
-        res= number_to_time(value, &buf, &was_cut);
+        res= number_to_time((double)value, &buf, &was_cut);
       else
         res= number_to_datetime(value, &buf, TIME_INVALID_DATES|TIME_FUZZY_DATE,
                                 &was_cut);

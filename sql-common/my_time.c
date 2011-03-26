@@ -1351,7 +1351,7 @@ longlong pack_time(MYSQL_TIME *my_time)
                my_time->second_part) * (my_time->neg ? -1 : 1);
 }
 
-#define get_one(WHERE, FACTOR) WHERE= packed % FACTOR; packed/= FACTOR
+#define get_one(WHERE, FACTOR) WHERE= (ulong)(packed % FACTOR); packed/= FACTOR
 
 MYSQL_TIME *unpack_time(longlong packed, MYSQL_TIME *my_time)
 {

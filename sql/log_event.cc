@@ -1719,11 +1719,11 @@ beg:
 
   case MYSQL_TYPE_DATETIME:
     {
-      size_t d, t;
+      uint d, t;
       uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
-      d= i64 / 1000000;
-      t= i64 % 1000000;
-      my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
+      d= (uint)(i64 / 1000000);
+      t= (uint)(i64 % 1000000);
+      my_b_printf(file, "%04u-%02u-%02u %02u:%02u:%02u",
                   d / 10000, (d % 10000) / 100, d % 100,
                   t / 10000, (t % 10000) / 100, t % 100);
       my_snprintf(typestr, typestr_length, "DATETIME");

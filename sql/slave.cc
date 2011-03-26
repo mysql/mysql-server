@@ -2154,7 +2154,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
   if (!ev->when)
   {
     my_hrtime_t hrtime= my_hrtime();
-    ev->when= hrtime_to_time(hrtime);
+    ev->when= hrtime_to_my_time(hrtime);
     ev->when_sec_part= hrtime_sec_part(hrtime);
   }
   ev->thd = thd; // because up to this point, ev->thd == 0
