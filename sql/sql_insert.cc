@@ -3799,10 +3799,10 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
         {
           /*
             This shouldn't happen as creation of temporary table should make
-            it preparable for open. But let us do close_temporary_table() here
-            just in case.
+            it preparable for open. Anyway we can't drop temporary table if
+            we are unable to fint it.
           */
-          drop_temporary_table(thd, create_table, NULL);
+          DBUG_ASSERT(0);
         }
         else
         {

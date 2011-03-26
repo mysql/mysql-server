@@ -2052,8 +2052,6 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     }
   }
 
-  mysql_ha_rm_tables(thd, tables);
-
   if (!drop_temporary)
   {
     if (!thd->locked_tables_mode)
@@ -2062,14 +2060,18 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                            thd->variables.lock_wait_timeout, 0))
         DBUG_RETURN(true);
       for (table= tables; table; table= table->next_local)
+      {
+        if (is_temporary_table(table))
+          continue;
+
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                          false);
+      }
     }
     else
     {
       for (table= tables; table; table= table->next_local)
-        if (table->open_type != OT_BASE_ONLY &&
-	    find_temporary_table(thd, table))
+        if (is_temporary_table(table))
         {
           /*
             A temporary table.
@@ -2135,6 +2137,9 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   @note This function assumes that metadata locks have already been taken.
         It is also assumed that the tables have been removed from TDC.
+
+  @note This function assumes that temporary tables to be dropped have
+        been pre-opened using corresponding table list elements.
 
   @todo When logging to the binary log, we should log
         tmp_tables and transactional tables as separate statements if we

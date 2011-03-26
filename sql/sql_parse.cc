@@ -114,6 +114,7 @@
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
 static void sql_kill(THD *thd, ulong id, bool only_kill_query);
+static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
 const char *any_db="*any*";	// Special symbol for check_access
 
@@ -455,6 +456,7 @@ void init_update_queries(void)
     pre-opening temporary tables for those statements is somewhat custom.
   */
   sql_command_flags[SQLCOM_CREATE_TABLE]|=    CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_DROP_TABLE]|=      CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_CREATE_INDEX]|=    CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_ALTER_TABLE]|=     CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_TRUNCATE]|=        CF_PREOPEN_TMP_TABLES;
@@ -472,6 +474,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SELECT]|=          CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_SET_OPTION]|=      CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_DO]|=              CF_PREOPEN_TMP_TABLES;
+  sql_command_flags[SQLCOM_HA_OPEN]|=         CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_CALL]|=            CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_CHECKSUM]|=        CF_PREOPEN_TMP_TABLES;
   sql_command_flags[SQLCOM_ANALYZE]|=         CF_PREOPEN_TMP_TABLES;
@@ -488,6 +491,7 @@ void init_update_queries(void)
     have to be closed before emporary tables are pre-opened.
   */
   sql_command_flags[SQLCOM_CREATE_TABLE]|=    CF_HA_CLOSE;
+  sql_command_flags[SQLCOM_DROP_TABLE]|=      CF_HA_CLOSE;
   sql_command_flags[SQLCOM_ALTER_TABLE]|=     CF_HA_CLOSE;
   sql_command_flags[SQLCOM_TRUNCATE]|=        CF_HA_CLOSE;
   sql_command_flags[SQLCOM_REPAIR]|=          CF_HA_CLOSE;
@@ -2396,19 +2400,6 @@ case SQLCOM_PREPARE:
       goto end_with_restore_list;
     }
 
-    /*
-      Pre-open temporary tables from UNION clause to simplify privilege
-      checking for them.
-    */
-    if (lex->create_info.merge_list.elements)
-    {
-      if (open_temporary_tables(thd, lex->create_info.merge_list.first))
-      {
-        res= 1;
-        goto end_with_restore_list;
-      }
-    }
-
     if ((res= create_table_precheck(thd, select_tables, create_table)))
       goto end_with_restore_list;
 
@@ -3259,8 +3250,7 @@ end_with_restore_list:
     if (open_temporary_tables(thd, all_tables))
       goto error;
 
-    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
-                           FALSE, UINT_MAX, FALSE))
+    if (lock_tables_precheck(thd, all_tables))
       goto error;
 
     thd->variables.option_bits|= OPTION_TABLE_LOCK;
@@ -3757,6 +3747,9 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE))
       goto error;
+    /* Close temporary tables which were pre-opened for privilege checking. */
+    close_thread_tables(thd);
+    all_tables->table= NULL;
     res= mysql_ha_open(thd, first_table, 0);
     break;
   case SQLCOM_HA_CLOSE:
@@ -4998,10 +4991,10 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
     DBUG_ASSERT(dst_table);
 
     /*
-      TODO/FIXME: In the upcoming patch we somehow should handle
-                  situation when table in question is a temporary
-                  table.
+      Open temporary tables to be able to detect them during privilege check.
     */
+    if (open_temporary_tables(thd, dst_table))
+      return TRUE;
 
     if (check_access(thd, SELECT_ACL, dst_table->db,
                      &dst_table->grant.privilege,
@@ -5015,6 +5008,9 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
     */
     if (check_grant(thd, SELECT_ACL, dst_table, TRUE, UINT_MAX, FALSE))
       return TRUE; /* Access denied */
+
+    close_thread_tables(thd);
+    dst_table->table= NULL;
 
     /* Access granted */
     return FALSE;
@@ -6773,6 +6769,19 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
   DBUG_ENTER("multi_delete_precheck");
 
+  /*
+    Temporary tables are pre-opened in 'tables' list only. Here we need to
+    initialize TABLE instances in 'aux_tables' list.
+  */
+  for (TABLE_LIST *tl= aux_tables; tl; tl= tl->next_global)
+  {
+    if (tl->table)
+      continue;
+
+    if (tl->correspondent_table)
+      tl->table= tl->correspondent_table->table;
+  }
+
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
   if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE))
@@ -7041,9 +7050,9 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     CREATE TABLE ... SELECT, also require INSERT.
   */
 
-  want_priv= ((lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
-              CREATE_TMP_ACL : CREATE_ACL) |
-             (select_lex->item_list.elements ? INSERT_ACL : 0);
+  want_priv= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) ?
+             CREATE_TMP_ACL :
+             (CREATE_ACL | (select_lex->item_list.elements ? INSERT_ACL : 0));
 
   if (check_access(thd, want_priv, create_table->db,
                    &create_table->grant.privilege,
@@ -7052,11 +7061,35 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     goto err;
 
   /* If it is a merge table, check privileges for merge children. */
-  if (lex->create_info.merge_list.first &&
-      check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                         lex->create_info.merge_list.first,
-                         FALSE, UINT_MAX, FALSE))
-    goto err;
+  if (lex->create_info.merge_list.first)
+  {
+    /*
+      Pre-open temporary tables from UNION clause to simplify privilege
+      checking for them.
+    */
+    if (open_temporary_tables(thd, lex->create_info.merge_list.first))
+      goto err;
+
+    if (check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
+                           lex->create_info.merge_list.first,
+                           FALSE, UINT_MAX, FALSE))
+      goto err;
+
+    /*
+      Since the MERGE table in question might already exist with exactly
+      the same definition we need to close all tables opened for underlying
+      checking to allow normal open of table being created.
+      To do this we simply close all tables and then open only tables from
+      the main statement's table list.
+    */
+    close_thread_tables(thd);
+
+    for (TABLE_LIST *tl= lex->query_tables; tl; tl= tl->next_global)
+      tl->table= NULL;
+
+    if (open_temporary_tables(thd, lex->query_tables))
+      DBUG_RETURN(TRUE);
+  }
 
   if (want_priv != CREATE_TMP_ACL &&
       check_grant(thd, want_priv, create_table, FALSE, 1, FALSE))
@@ -7078,6 +7111,35 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
 
 err:
   DBUG_RETURN(error);
+}
+
+
+/**
+  Check privileges for LOCK TABLES statement.
+
+  @param thd     Thread context.
+  @param tables  List of tables to be locked.
+
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
+*/
+
+static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables)
+{
+  TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+
+  for (TABLE_LIST *table= tables; table != first_not_own_table && table;
+       table= table->next_global)
+  {
+    if (is_temporary_table(table))
+      continue;
+
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, table,
+                           FALSE, 1, FALSE))
+      return TRUE;
+  }
+
+  return FALSE;
 }
 
 
