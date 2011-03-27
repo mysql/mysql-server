@@ -6631,8 +6631,7 @@ get_best_combination(JOIN *join)
     DBUG_RETURN(TRUE);
 
   JOIN_TAB *sjm_nest_end= NULL;
-  JOIN_TAB *sjm_saved_tab; /* protected by sjm_nest_end */
-  LINT_INIT(sjm_saved_tab);
+  JOIN_TAB *sjm_nest_root= NULL;
 
   for (j=join_tab, tablenr=0 ; tablenr < table_count ; tablenr++,j++)
   {
@@ -6644,12 +6643,8 @@ get_best_combination(JOIN *join)
       /*
         Ok, we've entered an SJ-Materialization semi-join (note that this can't
         be done recursively, semi-joins are not allowed to be nested).
-      */
-      /*
         1. Put into main join order a JOIN_TAB that represents a lookup or scan
            in the temptable.
-      // TODO: record this join_tab to be processed by 
-      // setup_semijoin_elimination? 
       */
       bzero(j, sizeof(JOIN_TAB));
       j->join= join;
@@ -6674,18 +6669,15 @@ get_best_combination(JOIN *join)
       join->join_tab_ranges.push_back(jt_range);
       j->bush_children= jt_range;
       sjm_nest_end= jt + sjm->tables;
-      sjm_saved_tab= j;
-      root_range->end= j+1;
+      sjm_nest_root= j;
 
       j= jt;
     }
     
     *j= *join->best_positions[tablenr].table;
 
-    if (sjm_nest_end)
-      j->bush_root_tab= sjm_saved_tab;
-    else
-      root_range->end= j+1;
+    j->bush_root_tab= sjm_nest_root;
+
     form=join->table[tablenr]=j->table;
     used_tables|= form->map;
     form->reginfo.join_tab=j;
@@ -6715,20 +6707,19 @@ get_best_combination(JOIN *join)
     j->records_read= (ha_rows)join->best_positions[tablenr].records_read;
     join->map2table[j->table->tablenr]= j;
 
-    // If we've reached the end of sjm nest, switch back to main sequence
+    /* If we've reached the end of sjm nest, switch back to main sequence */
     if (j + 1 == sjm_nest_end)
     {
       j->last_leaf_in_bush= TRUE;
-      j= sjm_saved_tab;
+      j= sjm_nest_root;
+      sjm_nest_root= NULL;
       sjm_nest_end= NULL;
     }
   }
+  root_range->end= j;
 
   join->top_join_tab_count= join->join_tab_ranges.head()->end - 
                             join->join_tab_ranges.head()->start;
-
-  //for (i=0 ; i < table_count ; i++)
-  //  join->map2table[join->join_tab[i].table->tablenr]=join->join_tab+i;
   update_depend_map(join);
   DBUG_RETURN(0);
 }
