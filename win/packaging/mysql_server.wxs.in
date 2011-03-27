@@ -22,6 +22,7 @@
 
     <!-- Upgrade -->
     <Upgrade Id="@CPACK_WIX_UPGRADE_CODE@">
+      <?if "@PATCH_VERSION@" != "0"?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
         IncludeMinimum="yes"
@@ -29,6 +30,7 @@
         Property="OLDERVERSIONBEINGUPGRADED"
         MigrateFeatures="yes"
         />
+     <?endif?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@"
         Maximum="@MAJOR_VERSION@.@MINOR_VERSION@.999"

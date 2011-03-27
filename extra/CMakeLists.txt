@@ -22,19 +22,25 @@ TARGET_LINK_LIBRARIES(comp_err debug dbug mysys strings zlib wsock32)
 
 GET_TARGET_PROPERTY(COMP_ERR_EXE comp_err LOCATION)
 
-ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/include/mysqld_error.h
-                   COMMAND ${COMP_ERR_EXE}
-                    --charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
-                    --out-dir=${CMAKE_BINARY_DIR}/sql/share/
-                    --header_file=${CMAKE_BINARY_DIR}/include/mysqld_error.h 
-                    --name_file=${CMAKE_BINARY_DIR}/include/mysqld_ername.h
-                    --state_file=${CMAKE_BINARY_DIR}/include/sql_state.h
-                    --in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
-                   DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt)
+# Generate mysqld_error.h
+# Try not to change its timestamp if not necessary(as touching
+# mysqld_error.h results in rebuild of the almost whole server)
+# To preserve timestamp, first generate a temp header file, then copy it
+# to mysqld_error.h using cmake -E copy_if_different
+ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp
+   COMMAND ${COMP_ERR_EXE}
+	--charset=${PROJECT_SOURCE_DIR}/sql/share/charsets 
+	--out-dir=${CMAKE_BINARY_DIR}/sql/share/
+	--header_file=${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp 
+	--name_file=${CMAKE_BINARY_DIR}/include/mysqld_ername.h
+	--state_file=${CMAKE_BINARY_DIR}/include/sql_state.h
+	--in_file=${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt
+   COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp ${CMAKE_BINARY_DIR}/include/mysqld_error.h
+   DEPENDS comp_err ${PROJECT_SOURCE_DIR}/sql/share/errmsg.txt)
 
 ADD_CUSTOM_TARGET(GenError
                   ALL
-                  DEPENDS ${CMAKE_BINARY_DIR}/include/mysqld_error.h)
+                  DEPENDS ${CMAKE_BINARY_DIR}/include/mysqld_error.h.tmp)
 
 ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults strings mysys debug dbug taocrypt wsock32)
