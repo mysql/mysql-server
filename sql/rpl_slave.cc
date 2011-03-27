@@ -2514,15 +2514,23 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   DBUG_RETURN(len - 1);
 }
 
-/*
-  Check if the current error is of temporary nature of not.
+/**
+  Check if the current error is of temporary nature or not.
   Some errors are temporary in nature, such as
   ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT.  Ndb also signals
   that the error is temporary by pushing a warning with the error code
   ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
+
+  @param      thd  a THD instance, typically of the slave SQL thread's.
+  @error_arg  the error code for assessment. 
+              defaults to zero which makes the function check the top
+              of the reported errors stack.
+
+  @return 1 as the positive and 0 as the negative verdict
 */
-static int has_temporary_error(THD *thd)
+int has_temporary_error(THD *thd, uint error_arg)
 {
+  uint error;
   DBUG_ENTER("has_temporary_error");
 
   DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
@@ -2533,20 +2541,25 @@ static int has_temporary_error(THD *thd)
                   });
 
   /*
-    If there is no message in THD, we can't say if it's a temporary
+    The state of the slave thread can't be regarded as
+    experiencing a temporary failure in cases of @c is_slave_error was set TRUE,
+    or if there is no message in THD, we can't say if it's a temporary
     error or not. This is currently the case for Incident_log_event,
-    which sets no message. Return FALSE.
+    which sets no message.
   */
-  if (!thd->is_error())
+  if (thd->is_fatal_error || !thd->is_error())
     DBUG_RETURN(0);
+
+  error= (error_arg == 0)? thd->stmt_da->sql_errno() : error_arg;
 
   /*
     Temporary error codes:
     currently, InnoDB deadlock detected by InnoDB or lock
-    wait timeout (innodb_lock_wait_timeout exceeded
+    wait timeout (innodb_lock_wait_timeout exceeded).
+    Notice, the temporary error requires slave_trans_retries != 0)
   */
-  if (thd->stmt_da->sql_errno() == ER_LOCK_DEADLOCK ||
-      thd->stmt_da->sql_errno() == ER_LOCK_WAIT_TIMEOUT)
+  if (slave_trans_retries &&
+      (error == ER_LOCK_DEADLOCK || error == ER_LOCK_WAIT_TIMEOUT))
     DBUG_RETURN(1);
 
 #ifdef HAVE_NDB_BINLOG
@@ -3007,10 +3020,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           }
         }
         else
-          sql_print_error("Slave SQL thread retried transaction %lu time(s) "
-                          "in vain, giving up. Consider raising the value of "
-                          "the slave_transaction_retries variable.",
-                          slave_trans_retries);
+        {
+          thd->is_fatal_error= 1;
+          rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+                      "Slave SQL thread retried transaction %lu time(s) "
+                      "in vain, giving up. Consider raising the value of "
+                      "the slave_transaction_retries variable.", rli->trans_retries);
+        }
       }
       else if ((exec_res && !temp_err) ||
                (opt_using_transactions &&

@@ -17,6 +17,7 @@
 #include "rpl_reporting.h"
 #include "log.h" // sql_print_error, sql_print_warning,
                  // sql_print_information
+#include "rpl_slave.h"
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   : m_thread_name(thread_name)
@@ -29,11 +30,17 @@ void
 Slave_reporting_capability::report(loglevel level, int err_code,
                                    const char *msg, ...) const
 {
+#if !defined(EMBEDDED_LIBRARY)
+  THD *thd= current_thd;
   void (*report_function)(const char *, ...);
   char buff[MAX_SLAVE_ERRMSG];
   char *pbuff= buff;
   uint pbuffsize= sizeof(buff);
   va_list args;
+
+  if (level == ERROR_LEVEL && has_temporary_error(thd, err_code))
+    level= WARNING_LEVEL;
+
   va_start(args, msg);
 
   mysql_mutex_lock(&err_lock);
@@ -51,10 +58,12 @@ Slave_reporting_capability::report(loglevel level, int err_code,
     report_function= sql_print_error;
     break;
   case WARNING_LEVEL:
-    report_function= sql_print_warning;
+    report_function= global_system_variables.log_warnings?
+      sql_print_warning : NULL;
     break;
   case INFORMATION_LEVEL:
-    report_function= sql_print_information;
+    report_function= global_system_variables.log_warnings?
+      sql_print_information : NULL;
     break;
   default:
     DBUG_ASSERT(0);                            // should not come here
@@ -71,6 +80,7 @@ Slave_reporting_capability::report(loglevel level, int err_code,
                   m_thread_name, pbuff,
                   (pbuff[0] && *(strend(pbuff)-1) == '.') ? "" : ",",
                   err_code);
+#endif  
 }
 
 Slave_reporting_capability::~Slave_reporting_capability()
