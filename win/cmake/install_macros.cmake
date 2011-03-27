@@ -151,28 +151,12 @@ IF(WIN32)
    SET(SIGNTOOL_PARAMETERS 
      /a /t http://timestamp.verisign.com/scripts/timstamp.dll
      CACHE STRING "parameters for signtool (list)")
-    FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool)
+    FIND_PROGRAM(SIGNTOOL_EXECUTABLE signtool 
+      PATHS "$ENV{ProgramFiles}/Microsoft SDKs/Windows/v7.0A"
+    )
     IF(NOT SIGNTOOL_EXECUTABLE)
       MESSAGE(FATAL_ERROR 
       "signtool is not found. Signing executables not possible")
-    ENDIF()
-    IF(NOT DEFINED SIGNCODE_ENABLED)
-      FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/testsign.c "int main(){return 0;}")
-      MAKE_DIRECTORY(${CMAKE_CURRENT_BINARY_DIR}/testsign)
-     TRY_COMPILE(RESULT ${CMAKE_CURRENT_BINARY_DIR}/testsign ${CMAKE_CURRENT_BINARY_DIR}/testsign.c  
-      COPY_FILE ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
-     )
-      
-     EXECUTE_PROCESS(COMMAND 
-      ${SIGNTOOL_EXECUTABLE} sign ${SIGNTOOL_PARAMETERS} ${CMAKE_CURRENT_BINARY_DIR}/testsign.exe
-      RESULT_VARIABLE ERR ERROR_QUIET OUTPUT_QUIET
-      )
-      IF(ERR EQUAL 0)
-       SET(SIGNCODE_ENABLED 1 CACHE INTERNAL "Can sign executables")
-      ELSE()
-       MESSAGE(STATUS "Disable authenticode signing for executables")
-        SET(SIGNCODE_ENABLED 0 CACHE INTERNAL "Invalid or missing certificate")
-      ENDIF()
     ENDIF()
     MARK_AS_ADVANCED(SIGNTOOL_EXECUTABLE  SIGNTOOL_PARAMETERS)
   ENDIF()
@@ -195,11 +179,16 @@ MACRO(SIGN_TARGET)
    ENDIF()
    INSTALL(CODE
    "EXECUTE_PROCESS(COMMAND 
+   \"${SIGNTOOL_EXECUTABLE}\" verify /pa /q \"${target_location}\"
+   RESULT_VARIABLE ERR)
+   IF(NOT \${ERR} EQUAL 0)
+     EXECUTE_PROCESS(COMMAND 
      \"${SIGNTOOL_EXECUTABLE}\" sign ${SIGNTOOL_PARAMETERS} \"${target_location}\"
      RESULT_VARIABLE ERR)
-    IF(NOT \${ERR} EQUAL 0)
-      MESSAGE(FATAL_ERROR \"Error signing  ${target_location}\")
-    ENDIF()
+   ENDIF()
+   IF(NOT \${ERR} EQUAL 0)
+    MESSAGE(FATAL_ERROR \"Error signing  '${target_location}'\")
+   ENDIF()
    " ${comp})
  ENDIF()
 ENDMACRO()
@@ -229,7 +218,7 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
 
   FOREACH(target ${TARGETS})
     # If signing is required, sign executables before installing
-     IF(SIGNCODE AND SIGNCODE_ENABLED)
+     IF(SIGNCODE)
       SIGN_TARGET(${target} ${COMP})
     ENDIF()
     # Install man pages on Unix
