@@ -33,7 +33,7 @@ Ndb_local_connection::Ndb_local_connection(THD* thd_arg):
     System(or daemon) threads report error to log file
     all other threads use push_warning
   */
-  m_push_warnings = (thd_arg->command != COM_DAEMON);
+  m_push_warnings = (thd_arg->get_command() != COM_DAEMON);
 }
 
 
