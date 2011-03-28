@@ -35,7 +35,7 @@
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
 
-#include <base64.h>
+#include <ndb_base64.h>
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -2549,7 +2549,7 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
       break;
 
     void *tmp_data = malloc(base64_needed_decoded_length((size_t) (len - 1)));
-    const int res = base64_decode(buf64, len-1, tmp_data, NULL);
+    const int res = ndb_base64_decode(buf64, len-1, tmp_data, NULL);
     delete[] buf64;
     UtilBuffer tmp;
     tmp.append((void *) tmp_data, res);
