@@ -102,11 +102,20 @@ int table_setup_instruments::rnd_next(void)
     case pos_setup_instruments::VIEW_COND:
       instr_class= find_cond_class(m_pos.m_index_2);
       break;
+    case pos_setup_instruments::VIEW_THREAD:
+      /* Not used yet  */
+      break;
     case pos_setup_instruments::VIEW_FILE:
       instr_class= find_file_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_TABLE:
       instr_class= find_table_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_STAGE:
+      instr_class= find_stage_class(m_pos.m_index_2);
+      break;
+    case pos_setup_instruments::VIEW_STATEMENT:
+      instr_class= find_statement_class(m_pos.m_index_2);
       break;
     case pos_setup_instruments::VIEW_SOCKET:
       instr_class= find_socket_class(m_pos.m_index_2);
@@ -143,11 +152,20 @@ int table_setup_instruments::rnd_pos(const void *pos)
   case pos_setup_instruments::VIEW_COND:
     instr_class= find_cond_class(m_pos.m_index_2);
     break;
+  case pos_setup_instruments::VIEW_THREAD:
+    /* Not used yet */
+    break;
   case pos_setup_instruments::VIEW_FILE:
     instr_class= find_file_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_TABLE:
     instr_class= find_table_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_STAGE:
+    instr_class= find_stage_class(m_pos.m_index_2);
+    break;
+  case pos_setup_instruments::VIEW_STATEMENT:
+    instr_class= find_statement_class(m_pos.m_index_2);
     break;
   case pos_setup_instruments::VIEW_SOCKET:
     instr_class= find_table_class(m_pos.m_index_2);

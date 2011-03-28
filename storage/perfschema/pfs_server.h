@@ -78,6 +78,25 @@
 #ifndef PFS_MAX_SETUP_OBJECT
   #define PFS_MAX_SETUP_OBJECT 100
 #endif
+#ifndef PFS_MAX_STAGE_CLASS
+  #define PFS_MAX_STAGE_CLASS 100
+#endif
+#ifndef PFS_STAGES_HISTORY_SIZE
+  #define PFS_STAGES_HISTORY_SIZE 10
+#endif
+#ifndef PFS_STAGES_HISTORY_LONG_SIZE
+  #define PFS_STAGES_HISTORY_LONG_SIZE 10000
+#endif
+#ifndef PFS_STATEMENTS_HISTORY_SIZE
+  #define PFS_STATEMENTS_HISTORY_SIZE 10
+#endif
+#ifndef PFS_STATEMENTS_HISTORY_LONG_SIZE
+  #define PFS_STATEMENTS_HISTORY_LONG_SIZE 10000
+#endif
+#ifndef PFS_STATEMENTS_STACK_SIZE
+  #define PFS_STATEMENTS_STACK_SIZE 10
+#endif
+
 
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
@@ -111,6 +130,12 @@ struct PFS_global_param
   ulong m_setup_actor_sizing;
   /** Maximum number of setup object records. */
   ulong m_setup_object_sizing;
+  ulong m_stage_class_sizing;
+  ulong m_events_stages_history_sizing;
+  ulong m_events_stages_history_long_sizing;
+  ulong m_statement_class_sizing;
+  ulong m_events_statements_history_sizing;
+  ulong m_events_statements_history_long_sizing;
 };
 
 extern PFS_global_param pfs_param;

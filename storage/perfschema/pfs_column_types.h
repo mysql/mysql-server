@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,15 @@
 
 /** Size of the INDEX_NAME columns. */
 #define COL_INDEX_NAME_SIZE 64
+
+/**
+  Size of INFO columns.
+  Size in bytes of:
+  - performance_schema.events_statement_current (INFO)
+  - performance_schema.events_statement_history (INFO)
+  - performance_schema.events_statement_history_long (INFO)
+*/
+#define COL_INFO_SIZE 1024
 
 /** Size of the SOURCE columns. */
 #define COL_SOURCE_SIZE 64
@@ -169,6 +178,24 @@ enum enum_object_type
 #define FIRST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TABLE))
 #define LAST_OBJECT_TYPE (static_cast<int> (OBJECT_TYPE_TEMPORARY_TABLE))
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
+
+/**
+  Enum values for the NESTING_EVENT_TYPE columns.
+  This enum is found in the following tables:
+  - performance_schema.events_waits_current (NESTING_EVENT_TYPE)
+  - performance_schema.events_stages_current (NESTING_EVENT_TYPE)
+  - performance_schema.events_statements_current (NESTING_EVENT_TYPE)
+*/
+enum enum_event_type
+{
+  EVENT_TYPE_STATEMENT= 1,
+  EVENT_TYPE_STAGE= 2,
+  EVENT_TYPE_WAIT= 3
+};
+
+#define FIRST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_STATEMENT))
+#define LAST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_WAIT))
+#define COUNT_EVENT_TYPE (LAST_EVENT_TYPE - FIRST_EVENT_TYPE + 1)
 
 #endif
 

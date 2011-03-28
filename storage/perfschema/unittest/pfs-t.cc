@@ -100,6 +100,12 @@ void test_bootstrap()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
@@ -146,6 +152,12 @@ PSI * load_perfschema()
   param.m_events_waits_history_long_sizing= 10;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   /* test_bootstrap() covered this, assuming it just works */
   boot= initialize_performance_schema(& param);
@@ -1462,6 +1474,12 @@ void test_event_name_index()
   param.m_table_share_sizing= 320;
 
   param.m_thread_class_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   param.m_mutex_sizing= 0;
   param.m_rwlock_sizing= 0;
@@ -1549,6 +1567,10 @@ void test_event_name_index()
   ok(file_class != NULL, "file class 2");
   ok(file_class->m_event_name_index == 71, "index 71");
 
+  ok(global_table_io_class.m_event_name_index == 150, "index 150");
+  ok(global_table_lock_class.m_event_name_index == 151, "index 151");
+  ok(wait_class_max= 152, "152 event names");
+
   PFS_socket_class *socket_class;
   PSI_socket_key dummy_socket_key_1;
   PSI_socket_key dummy_socket_key_2;
@@ -1567,7 +1589,7 @@ void test_event_name_index()
   ok(socket_class->m_event_name_index == 151, "index 151");
 
   ok(global_table_io_class.m_event_name_index == 310, "index 310");
-  ok(max_instrument_class= 313, "313 event names"); // 3 global classes
+  ok(wait_class_max= 313, "313 event names"); // 3 global classes
 }
 
 void do_all_tests()

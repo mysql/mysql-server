@@ -18,10 +18,6 @@
 
 #include "handler.h"                            /* class handler */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface /* gcc class implementation */
-#endif
-
 /**
   @file storage/perfschema/ha_perfschema.h
   Performance schema storage engine (declarations).
