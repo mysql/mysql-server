@@ -314,41 +314,41 @@ int table_socket_summary_by_instance::read_row_values(TABLE *table,
         break;
 
       case  8: /* COUNT_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_count);
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_count);
         break;
       case  9: /* SUM_TIMER_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_sum);
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_sum);
         break;
       case 10: /* MIN_TIMER_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_min);
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_min);
         break;
       case 11: /* AVG_TIMER_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_avg);
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_avg);
         break;
       case 12: /* MAX_TIMER_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_waits.m_max);
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_waits.m_max);
         break;
       case 13: /* SUM_NUMBER_OF_BYTES_READ */
-        set_field_ulonglong(f, m_row.m_io_stat.m_recv.m_bytes);
+        set_field_ulonglong(f, m_row.m_io_stat.m_read.m_bytes);
         break;
 
       case 14: /* COUNT_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_count);
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_count);
         break;
       case 15: /* SUM_TIMER_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_sum);
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_sum);
         break;
       case 16: /* MIN_TIMER_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_min);
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_min);
         break;
       case 17: /* AVG_TIMER_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_avg);
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_avg);
         break;
       case 18: /* MAX_TIMER_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_waits.m_max);
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_waits.m_max);
         break;
       case 19: /* SUM_NUMBER_OF_BYTES_WRITE */
-        set_field_ulonglong(f, m_row.m_io_stat.m_send.m_bytes);
+        set_field_ulonglong(f, m_row.m_io_stat.m_write.m_bytes);
         break;
 
       case 20: /* COUNT_MISC */

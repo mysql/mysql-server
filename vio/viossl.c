@@ -55,10 +55,10 @@ report_errors(SSL* ssl)
 size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 {
   size_t r;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_ssl_read");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
-		         sd, (long) buf, (uint) size, (long) vio->ssl_arg));
+		         mysql_socket_getfd(vio->mysql_socket), (long) buf, (uint) size,
+             (long) vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
@@ -73,10 +73,9 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
 {
   size_t r;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd,
-                       (long) buf, (uint) size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u",
+             mysql_socket_getfd(vio->mysql_socket), (long) buf, (uint) size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF

@@ -61,7 +61,8 @@ struct pos_all_instr : public PFS_double_index,
   - a view on all mutex instances,
   - a view on all rwlock instances,
   - a view on all cond instances,
-  - a view on all file instances
+  - a view on all file instances,
+  - a view on all socket instances
 */
 class table_all_instr : public PFS_engine_table
 {

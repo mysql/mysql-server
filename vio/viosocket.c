@@ -42,7 +42,7 @@ size_t vio_read(Vio* vio, uchar* buf, size_t size)
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
 #ifdef __WIN__
-  r = recv(sd, buf, size,0);
+  r = recv(sd, (char*)buf, size,0);
 #else
   errno=0;					/* For linux */
   r = read(sd, buf, size);
@@ -73,11 +73,10 @@ size_t vio_read(Vio* vio, uchar* buf, size_t size)
 size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
 {
   size_t rc;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_ENTER("vio_read_buff");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
-                       (uint)size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u",
+             mysql_socket_getfd(vio->mysql_socket), (long)buf, (uint)size));
 
   if (vio->read_pos < vio->read_end)
   {
@@ -127,7 +126,7 @@ size_t vio_write(Vio * vio, const uchar* buf, size_t size)
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SEND,
                           size);
 #ifdef __WIN__
-  r = send(sd, buf, size,0);
+  r = send(sd, (char *)buf, size,0);
 #else
   r = write(sd, buf, size);
 #endif /* __WIN__ */
@@ -148,7 +147,7 @@ MYSQL_END_SOCKET_WAIT(locker, bytes_written);
 }
 
 int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
-		 my_bool *old_mode)
+		             my_bool *old_mode)
 {
   int r=0;
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
@@ -305,7 +304,6 @@ my_bool vio_was_interrupted(Vio *vio __attribute__((unused)))
 int vio_close(Vio * vio)
 {
   int r=0;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_close");
 
  if (vio->type != VIO_CLOSED)
@@ -313,7 +311,7 @@ int vio_close(Vio * vio)
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
-    DBUG_ASSERT(sd >= 0);
+    DBUG_ASSERT(mysql_socket_getfd(vio->mysql_socket) >= 0);
 
     if (mysql_socket_shutdown(vio->mysql_socket, SHUT_RDWR))
       r= -1;
@@ -787,10 +785,9 @@ size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
 {
   DWORD bytes_read;
   size_t retval;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_read_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
-             (uint)size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u",
+             mysql_socket_getfd(vio->mysql_socket),(long)buf, (uint)size));
 
   if (ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
       &(vio->pipe_overlapped)))
@@ -817,10 +814,9 @@ size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 {
   DWORD bytes_written;
   size_t retval;
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
   DBUG_ENTER("vio_write_pipe");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", sd, (long)buf,
-                       (uint)size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u",
+             mysql_socket_getfd(vio->mysql_socket), (long)buf, (uint)size));
 
   if (WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written,
       &(vio->pipe_overlapped)))
@@ -900,10 +896,10 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
   size_t remain_local;
   char *current_postion;
   HANDLE events[2];
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   DBUG_ENTER("vio_read_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", sd, (long)buf, size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d",
+             mysql_socket_getfd(vio->mysql_socket), (long)buf, size));
 
   remain_local = size;
   current_postion=buf;
@@ -966,10 +962,10 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
   HANDLE pos;
   const uchar *current_postion;
   HANDLE events[2];
-  my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   DBUG_ENTER("vio_write_shared_memory");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d", sd, (long)buf, size));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %d",
+             mysql_socket_getfd(vio->mysql_socket), (long)buf, size));
 
   remain = size;
   current_postion = buf;

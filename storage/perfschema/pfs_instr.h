@@ -213,12 +213,6 @@ struct PFS_socket : public PFS_instr
   struct sockaddr m_sock_addr;
   /** Length of address */
   socklen_t m_addr_len;
-  /** Socket ip address, IPV4 or IPV6 */ // TBD: Remove?
-  char m_ip[INET6_ADDRSTRLEN];
-  /** Socket ip address length in bytes */
-  uint m_ip_length;
-  /** Socket ip port */
-  uint m_port;
   /** Idle flag. */
   bool m_idle;
   /** Socket class. */

@@ -2787,7 +2787,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
 
 static PSI_socket_locker*
 get_thread_socket_locker_v1(PSI_socket_locker_state *state,
-                               PSI_socket *socket, PSI_socket_operation op)
+                            PSI_socket *socket, PSI_socket_operation op)
 {
   DBUG_ASSERT(static_cast<int> (op) >= 0);
   DBUG_ASSERT(static_cast<uint> (op) < array_elements(socket_operation_map));
@@ -2861,12 +2861,31 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     else
     {
       /*
-        Complete shortcut.
+        get_thread_socket_locker() does not track the byte count associated
+        with socket operations because the requested and actual byte counts
+        may differ. This shortcut is therefore only valid for 'miscellaneous'
+        operations that do not have a byte count.
       */
-      PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *>(socket);
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-      pfs_socket->m_wait_stat.aggregate_counted();
-      return NULL;
+      switch (op)
+      {
+      case PSI_SOCKET_CONNECT:
+      case PSI_SOCKET_CREATE:
+      case PSI_SOCKET_BIND:
+      case PSI_SOCKET_SEEK:
+      case PSI_SOCKET_OPT:
+      case PSI_SOCKET_STAT:
+      case PSI_SOCKET_SHUTDOWN:
+      case PSI_SOCKET_CLOSE:
+        {
+        PFS_socket *pfs_socket= reinterpret_cast<PFS_socket *>(socket);
+        /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
+        pfs_socket->m_wait_stat.aggregate_counted();
+        return NULL;
+        }
+        break;
+      default:
+        break;
+      }
     }
   }
 
@@ -4589,13 +4608,13 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   case PSI_SOCKET_RECV:
   case PSI_SOCKET_RECVFROM:
   case PSI_SOCKET_RECVMSG:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_recv;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_read;
     break;
   /** Group write operations */
   case PSI_SOCKET_SEND:
   case PSI_SOCKET_SENDTO:
   case PSI_SOCKET_SENDMSG:
-    byte_stat= &socket->m_socket_stat.m_io_stat.m_send;
+    byte_stat= &socket->m_socket_stat.m_io_stat.m_write;
     break;
   /** Group remainging operations as miscellaneous */
   case PSI_SOCKET_CONNECT:
@@ -4620,30 +4639,30 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   }
 
   register uint flags= state->m_flags;
-
+  size_t bytes= (byte_count > -1 ? byte_count : 0);
+  
+  /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    socket->m_wait_stat.aggregate_value(wait_time);
-    /* Aggregate to current operation (timed) */
-    byte_stat->m_waits.aggregate_value(wait_time);
+    /* Aggregate to the socket instrument for now (timed) */
+    byte_stat->aggregate(wait_time, bytes);
   }
   else
   {
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    socket->m_wait_stat.aggregate_counted();
-    /* Aggregate to current operation (counted) */
-    byte_stat->m_waits.aggregate_counted();
+    /* Aggregate to the socket instrument for now (counted) */
+    byte_stat->aggregate_counted();
   }
 
+  /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
   {
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
     uint index= socket->m_class->m_event_name_index;
 
+    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */ // move to visitor
     if (flags & STATE_FLAG_TIMED)
     {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
@@ -4655,6 +4674,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       event_name_array[index].aggregate_counted();
     }
 
+    /* Aggregate to EVENTS_WAITS_CURRENT and EVENTS_WAITS_HISTORY */
     if (flags & STATE_FLAG_EVENT)
     {
       DBUG_ASSERT(flags & STATE_FLAG_THREAD);
@@ -4665,6 +4685,8 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       DBUG_ASSERT(wait != NULL);
 
       wait->m_timer_end= timer_end;
+      wait->m_number_of_bytes= bytes;
+
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)
@@ -4672,10 +4694,6 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
       thread->m_events_waits_count--;
     }
   }
-
-  /** Aggregate number of bytes for the operation */
-  if ((int)byte_count > -1)
-    byte_stat->m_bytes+= byte_count;
 }
 
 static void set_socket_state_v1(PSI_socket *socket, PSI_socket_state state)
