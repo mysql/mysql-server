@@ -520,7 +520,10 @@ Field *Item_func::tmp_table_field(TABLE *table)
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), unsigned_flag, decimal_value);
+  longlong nr= val_int();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
