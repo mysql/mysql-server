@@ -1,0 +1,387 @@
+-- source include/have_multi_ndb.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+drop database if exists mysqltest;
+--enable_warnings
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+connection con2;
+-- sleep 2
+connection con1;
+
+#
+# Basic test to show that the ALTER TABLE
+#  is working
+#
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (9410,9412);
+  
+ALTER TABLE t1 ADD COLUMN c int not null;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+#
+# Verfify changing table names between databases
+#
+CREATE DATABASE mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+RENAME TABLE t1 TO test.t1;
+SHOW TABLES;
+DROP DATABASE mysqltest;
+USE test;
+SHOW TABLES;
+DROP TABLE t1;
+
+#
+# More advanced test
+#
+create table t1 (
+col1 int not null auto_increment primary key,
+col2 varchar(30) not null,
+col3 varchar (20) not null,
+col4 varchar(4) not null,
+col5 enum('PENDING', 'ACTIVE', 'DISABLED') not null,
+col6 int not null, to_be_deleted int)  ENGINE=ndbcluster;
+--replace_column 6 # 7 # 8 # 10 # 12 # 13 # 14 # 18 #
+show table status;
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+insert into t1 values
+(0,4,3,5,"PENDING",1,7),(NULL,4,3,5,"PENDING",1,7),(31,4,3,5,"PENDING",1,7), (7,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7), (100,4,3,5,"PENDING",1,7), (99,4,3,5,"PENDING",1,7), (8,4,3,5,"PENDING",1,7), (NULL,4,3,5,"PENDING",1,7);
+--replace_column 6 # 7 # 8 # 10 # 12 # 13 # 14 # 18 #
+show table status;
+select * from t1 order by col1;
+alter table t1
+add column col4_5 varchar(20) not null after col4,
+add column col7 varchar(30) not null after col5,
+add column col8 datetime not null, drop column to_be_deleted,
+change column col2 fourth varchar(30) not null after col3,
+modify column col6 int not null first;
+--replace_column 6 # 7 # 8 # 10 # 12 # 13 # 14 # 18 #
+show table status;
+select * from t1 order by col1;
+insert into t1 values (2, NULL,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+--replace_column 6 # 7 # 8 # 10 # 12 # 13 # 14 # 18 #
+show table status;
+select * from t1 order by col1;
+delete from t1;
+insert into t1 values (0,0,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+SET SQL_MODE='';
+insert into t1 values (1,0,4,3,5,99,"PENDING","EXTRA",'2004-01-01 00:00:00');
+select * from t1 order by col1;
+alter table t1 drop column col4_5;
+insert into t1 values (2,0,4,3,5,"PENDING","EXTRA",'2004-01-01 00:00:00');
+select * from t1 order by col1;
+drop table t1;
+
+
+#
+# Check that invalidating dictionary cache works
+#
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (9410,9412);
+
+ALTER TABLE t1 ADD COLUMN c int not null;
+select * from t1 order by a;
+
+connection con2;
+select * from t1 order by a;
+alter table t1 drop c;
+
+connection con1;
+select * from t1 order by a;
+drop table t1;
+
+connection con2;
+--error 1146
+select * from t1 order by a;
+
+CREATE TABLE t1 (
+  a INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (0,1),(17,18);
+select * from t1 order by a;
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+alter table  t1 modify column a int not null auto_increment;
+SET SQL_MODE='';
+select * from t1 order by a;
+INSERT INTO t1 VALUES (0,19),(20,21);
+select * from t1 order by a;
+drop table t1;
+
+CREATE TABLE t1 (
+  a INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES (0,1),(17,18);
+select * from t1 order by a;
+alter table  t1 add c int not null unique auto_increment;
+select c from t1 order by c;
+INSERT INTO t1 VALUES (1,2,0),(18,19,4),(20,21,0);
+select c from t1 order by c;
+drop table t1;
+
+## Test moved to ndb_alter_table_row|stmt respectively as behaviour differs
+#create table t1 ( a int primary key, b varchar(10), c varchar(10), index (b) )
+#engine=ndb;
+#insert into t1 values (1,'one','one'), (2,'two','two'), (3,'three','three');
+#create index c on t1(c); 
+#connection server2;
+#select * from t1 where c = 'two';
+#connection server1;
+#alter table t1 drop index c;
+#connection server2;
+#select * from t1 where c = 'two';
+#connection server1;
+#drop table t1;
+
+#--disable_warnings
+#DROP TABLE IF EXISTS t2;
+#--enable_warnings
+
+#create table t2 (a int NOT NULL PRIMARY KEY) engine=myisam;
+#let $1=12001;
+#disable_query_log;
+#while ($1)
+#{
+# eval insert into t2 values($1);
+# dec $1;
+#}
+#enable_query_log;
+#alter table t2 engine=ndbcluster;
+#alter table t2 add c int;
+#--error 1297
+#delete from t2;
+#to make sure we do a full table scan
+#select count(*) from t2 where a+0 > 0;
+#truncate table t2;
+#select count(*) from t2;
+#drop table t2;
+
+## Test moved to ndb_alter_table_row|stmt respectively as behaviour differs
+#connection server1;
+#create table t3 (a int primary key) engine=ndbcluster;
+
+#connection server2;
+#begin;
+#insert into t3 values (1);
+
+#connection server1;
+#alter table t3 rename t4;
+
+#connection server2;
+## with rbr the below will not work as the "alter" event
+## explicitly invalidates the dictionary cache.
+### This should work as transaction is ongoing...
+##delete from t3;
+##insert into t3 values (1);
+#commit; 
+
+## This should fail as its a new transaction
+#--error 1146
+#select * from t3;
+#select * from t4;
+#drop table t4;
+#show tables;
+#connection server1;
+
+create table t1 (
+ai bigint auto_increment,
+c001 int(11) not null,
+c002 int(11) not null,
+c003 int(11) not null,
+c004 int(11) not null,
+c005 int(11) not null,
+c006 int(11) not null,
+c007 int(11) not null,
+c008 int(11) not null,
+c009 int(11) not null,
+c010 int(11) not null,
+c011 int(11) not null,
+c012 int(11) not null,
+c013 int(11) not null,
+c014 int(11) not null,
+c015 int(11) not null,
+c016 int(11) not null,
+c017 int(11) not null,
+c018 int(11) not null,
+c019 int(11) not null,
+c020 int(11) not null,
+c021 int(11) not null,
+c022 int(11) not null,
+c023 int(11) not null,
+c024 int(11) not null,
+c025 int(11) not null,
+c026 int(11) not null,
+c027 int(11) not null,
+c028 int(11) not null,
+c029 int(11) not null,
+c030 int(11) not null,
+c031 int(11) not null,
+c032 int(11) not null,
+c033 int(11) not null,
+c034 int(11) not null,
+c035 int(11) not null,
+c036 int(11) not null,
+c037 int(11) not null,
+c038 int(11) not null,
+c039 int(11) not null,
+c040 int(11) not null,
+c041 int(11) not null,
+c042 int(11) not null,
+c043 int(11) not null,
+c044 int(11) not null,
+c045 int(11) not null,
+c046 int(11) not null,
+c047 int(11) not null,
+c048 int(11) not null,
+c049 int(11) not null,
+c050 int(11) not null,
+c051 int(11) not null,
+c052 int(11) not null,
+c053 int(11) not null,
+c054 int(11) not null,
+c055 int(11) not null,
+c056 int(11) not null,
+c057 int(11) not null,
+c058 int(11) not null,
+c059 int(11) not null,
+c060 int(11) not null,
+c061 int(11) not null,
+c062 int(11) not null,
+c063 int(11) not null,
+c064 int(11) not null,
+c065 int(11) not null,
+c066 int(11) not null,
+c067 int(11) not null,
+c068 int(11) not null,
+c069 int(11) not null,
+c070 int(11) not null,
+c071 int(11) not null,
+c072 int(11) not null,
+c073 int(11) not null,
+c074 int(11) not null,
+c075 int(11) not null,
+c076 int(11) not null,
+c077 int(11) not null,
+c078 int(11) not null,
+c079 int(11) not null,
+c080 int(11) not null,
+c081 int(11) not null,
+c082 int(11) not null,
+c083 int(11) not null,
+c084 int(11) not null,
+c085 int(11) not null,
+c086 int(11) not null,
+c087 int(11) not null,
+c088 int(11) not null,
+c089 int(11) not null,
+c090 int(11) not null,
+c091 int(11) not null,
+c092 int(11) not null,
+c093 int(11) not null,
+c094 int(11) not null,
+c095 int(11) not null,
+c096 int(11) not null,
+c097 int(11) not null,
+c098 int(11) not null,
+c099 int(11) not null,
+c100 int(11) not null,
+c101 int(11) not null,
+c102 int(11) not null,
+c103 int(11) not null,
+c104 int(11) not null,
+c105 int(11) not null,
+c106 int(11) not null,
+c107 int(11) not null,
+c108 int(11) not null,
+c109 int(11) not null,
+primary key (ai),
+unique key tx1 (c002, c003, c004, c005)) engine=ndb;
+
+create index tx2 
+on t1 (c010, c011, c012, c013);
+
+drop table t1;
+
+# End of 4.1 tests
+
+# simple test that auto incr is not lost at rename or alter
+create table t1 (a int primary key auto_increment, b int) engine=ndb;
+insert into t1 (b) values (101),(102),(103);
+select * from t1 where a = 3;
+alter table t1 rename t2;
+insert into t2 (b) values (201),(202),(203);
+select * from t2 where a = 6;
+alter table t2 add c int;
+insert into t2 (b) values (301),(302),(303);
+select * from t2 where a = 9;
+alter table t2 rename t1;
+insert into t1 (b) values (401),(402),(403);
+select * from t1 where a = 12;
+drop table t1;
+
+# some other ALTER combinations
+# Check add/drop primary key (not supported on-line)
+create table t1(a int not null) engine=ndb;
+--source show_primary_keys.inc
+insert into t1 values (1),(2),(3);
+alter table t1 add primary key (a);
+--source show_primary_keys.inc
+update t1 set a = 17 where a = 1;
+select * from t1 order by a;
+alter table t1 drop primary key;
+--source show_primary_keys.inc
+update t1 set a = 1 where a = 17;
+select * from t1 order by a;
+drop table t1;
+
+# bug#31233 mysql_alter_table() fails to drop UNIQUE KEY
+create table t1(a int not null) engine=ndb;
+--source show_primary_keys.inc
+insert into t1 values (1),(2),(3);
+create unique index pk on t1(a);
+--source show_primary_keys.inc
+update t1 set a = 17 where a = 1;
+select * from t1 order by a;
+alter table t1 drop index pk;
+--source show_primary_keys.inc
+update t1 set a = 1 where a = 17;
+select * from t1 order by a;
+drop table t1;
+
+# alter .. alter
+create table t1 (a int not null primary key, b int not null default 0, c varchar(254)) engine=ndb;
+show create table t1;
+alter table t1 alter b set default 1;
+show create table t1;
+drop table t1;
+
+# alter .. order by
+create table t1 (a int not null, b int not null) engine=ndb;
+insert into t1 values (1, 300), (2, 200), (3, 100);
+select * from t1 order by a;
+alter table t1 order by b;
+select * from t1 order by b;
+drop table t1;
+
+--echo End of 5.1 tests

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "FastScheduler.hpp"
 #include "RefConvert.hpp"
@@ -99,12 +101,13 @@ FastScheduler::doJob()
       // signal->garbage_register(); 
       // To ensure we find bugs quickly
       register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
-      register BlockNumber reg_bnr = gsnbnr & 0xFFF;
+      // also strip any instance bits since this is non-MT code
+      register BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
       register GlobalSignalNumber reg_gsn = gsnbnr >> 16;
       globalData.incrementWatchDogCounter(1);
       if (reg_bnr > 0) {
         Uint32 tJobCounter = globalData.JobCounter;
-        Uint32 tJobLap = globalData.JobLap;
+        Uint64 tJobLap = globalData.JobLap;
         SimulatedBlock* b = globalData.getBlock(reg_bnr);
         theJobPriority[tJobCounter] = (Uint8)tHighPrio;
         globalData.JobCounter = (tJobCounter + 1) & 4095;
@@ -117,7 +120,6 @@ FastScheduler::doJob()
 	b->m_currentGsn = reg_gsn;
 #endif
 	
-	getSections(signal->header.m_noOfSections, signal->m_sectionPtr);
 #ifdef VM_TRACE
         {
           if (globalData.testOn) {
@@ -127,15 +129,11 @@ FastScheduler::doJob()
             globalSignalLoggers.executeSignal(signal->header,
 					      tHighPrio,
 					      &signal->theData[0], 
-					      globalData.ownId,
-                                              signal->m_sectionPtr,
-                                              signal->header.m_noOfSections);
+					      globalData.ownId);
           }//if
         }
 #endif
         b->executeFunction(reg_gsn, signal);
-	releaseSections(signal->header.m_noOfSections, signal->m_sectionPtr);
-	signal->header.m_noOfSections = 0;
 #ifdef VM_TRACE_TIME
 	NdbTick_CurrentMicrosecond(&ms2, &us2);
 	Uint64 diff = ms2;
@@ -175,16 +173,26 @@ FastScheduler::doJob()
 
 }//FastScheduler::doJob()
 
+void
+FastScheduler::postPoll()
+{
+  Signal * signal = getVMSignals();
+  SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
+  b_fs->executeFunction(GSN_SEND_PACKED, signal);
+}
+
 void FastScheduler::sendPacked()
 {
   if (globalData.sendPackedActivated == 1) {
     SimulatedBlock* b_lqh = globalData.getBlock(DBLQH);
     SimulatedBlock* b_tc = globalData.getBlock(DBTC);
     SimulatedBlock* b_tup = globalData.getBlock(DBTUP);
-    Signal* signal = getVMSignals();
+    SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
+    Signal * signal = getVMSignals();
     b_lqh->executeFunction(GSN_SEND_PACKED, signal);
     b_tc->executeFunction(GSN_SEND_PACKED, signal);
     b_tup->executeFunction(GSN_SEND_PACKED, signal);
+    b_fs->executeFunction(GSN_SEND_PACKED, signal);
     return;
   } else if (globalData.activateSendPacked == 0) {
     return;
@@ -241,27 +249,23 @@ APZJobBuffer::retrieve(Signal* signal)
         tSigDataPtr[3] = tData3;
         tSigDataPtr += 4;
       }//while
+      
+      tSigDataPtr = signal->m_sectionPtrI;
+      tDataRegPtr = buf.theDataRegister + buf.header.theLength;
+      Uint32 ptr0 = * tDataRegPtr ++;
+      Uint32 ptr1 = * tDataRegPtr ++;
+      Uint32 ptr2 = * tDataRegPtr ++;
+      * tSigDataPtr ++ = ptr0;
+      * tSigDataPtr ++ = ptr1;
+      * tSigDataPtr ++ = ptr2;
 
-      /**
-       * Copy sections references (copy all without if-statements)
-       */
-      tDataRegPtr = &buf.theDataRegister[tLength];
-      SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-      Uint32 tData0 = tDataRegPtr[0];
-      Uint32 tData1 = tDataRegPtr[1];
-      Uint32 tData2 = tDataRegPtr[2];
-      
-      tSecPtr[0].i = tData0;
-      tSecPtr[1].i = tData1;
-      tSecPtr[2].i = tData2;
-      
       //---------------------------------------------------------
       // Prefetch of buffer[rPtr] is done here. We prefetch for
       // read both the first cache line and the next 64 byte
       // entry
       //---------------------------------------------------------
-      PREFETCH((void*)&buffer[rPtr]);
-      PREFETCH((void*)(((char*)&buffer[rPtr]) + 64));
+      NDB_PREFETCH_READ((void*)&buffer[rPtr]);
+      NDB_PREFETCH_READ((void*)(((char*)&buffer[rPtr]) + 64));
       return gsnbnr;
     } else {
       bnr_error();
@@ -282,7 +286,7 @@ APZJobBuffer::signal2buffer(Signal* signal,
 {
   Uint32 tSignalId = globalData.theSignalId;
   Uint32 tFirstData = signal->theData[0];
-  Uint32 tLength = signal->header.theLength;
+  Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;
   Uint32 tSigId  = buf.header.theSignalId;
   
   buf.header = signal->header;
@@ -310,18 +314,6 @@ APZJobBuffer::signal2buffer(Signal* signal,
     tDataRegPtr[3] = tData3;
     tDataRegPtr += 4;
   }//while
-
-  /**
-   * Copy sections references (copy all without if-statements)
-   */
-  tDataRegPtr = &buf.theDataRegister[tLength];
-  SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-  Uint32 tData0 = tSecPtr[0].i;
-  Uint32 tData1 = tSecPtr[1].i;
-  Uint32 tData2 = tSecPtr[2].i;
-  tDataRegPtr[0] = tData0;
-  tDataRegPtr[1] = tData1;
-  tDataRegPtr[2] = tData2;
 }//APZJobBuffer::signal2buffer()
 
 void
@@ -345,9 +337,8 @@ APZJobBuffer::insert(const SignalHeader * const sh,
     // write both the first cache line and the next 64 byte
     // entry
     //---------------------------------------------------------
-    WRITEHINT((void*)&buffer[wPtr]);
-    WRITEHINT((void*)(((char*)&buffer[wPtr]) + 64));
-    
+    NDB_PREFETCH_WRITE((void*)&buffer[wPtr]);
+    NDB_PREFETCH_WRITE((void*)(((char*)&buffer[wPtr]) + 64));
   } else {
     jbuf_error();
   }//if
@@ -391,13 +382,16 @@ APZJobBuffer::clear()
  */
 void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
 
-void FastScheduler::dumpSignalMemory(FILE * output)
+void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
 {
   SignalT<25> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  Signal * signal = new (&signalT) Signal(0);
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
+
+  /* Single threaded ndbd scheduler, no threads. */
+  assert(thr_no == 0);
 
   fprintf(output, "\n");
  
@@ -428,8 +422,10 @@ void FastScheduler::dumpSignalMemory(FILE * output)
     else
       ReadPtr[tLevel]--;
     
-    theJobBuffers[tLevel].retrieveDump(&signal, ReadPtr[tLevel]);
-    print_restart(output, &signal, tLevel);
+    theJobBuffers[tLevel].retrieveDump(signal, ReadPtr[tLevel]);
+    // strip instance bits since this in non-MT code
+    signal->header.theReceiversBlockNumber &= NDBMT_BLOCK_MASK;
+    print_restart(output, signal, tLevel);
     
     if (tJob == 0)
       tJob = 4095;
@@ -475,6 +471,47 @@ print_restart(FILE * output, Signal* signal, Uint32 aLevel)
 					 &signal->theData[0]);
 }
 
+void
+FastScheduler::traceDumpPrepare(NdbShutdownType&)
+{
+  /* No-operation in single-threaded ndbd. */
+}
+
+Uint32
+FastScheduler::traceDumpGetNumThreads()
+{
+  return 1;                     // Single-threaded ndbd scheduler
+}
+
+int
+FastScheduler::traceDumpGetCurrentThread()
+{
+  return -1;                     // Single-threaded ndbd scheduler
+}
+
+bool
+FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
+                               const Uint32 * & thrdTheEmulatedJam,
+                               Uint32 & thrdTheEmulatedJamIndex)
+{
+  /* Single threaded ndbd scheduler, no threads. */
+  assert(thr_no == 0);
+
+#ifdef NO_EMULATED_JAM
+  jamBlockNumber = 0;
+  thrdTheEmulatedJam = NULL;
+  thrdTheEmulatedJamIndex = 0;
+#else
+  const EmulatedJamBuffer *jamBuffer =
+    (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
+  thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
+  thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
+  jamBlockNumber = jamBuffer->theEmulatedJamBlockNumber;
+#endif
+  return true;
+}
+
+
 /**
  * This method used to be a Cmvmi member function
  * but is now a "ordinary" function"
@@ -483,17 +520,74 @@ print_restart(FILE * output, Signal* signal, Uint32 aLevel)
  */
 void 
 FastScheduler::reportDoJobStatistics(Uint32 tMeanLoopCount) {
-  SignalT<2> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<2> signal;
 
   memset(&signal.header, 0, sizeof(signal.header));
   signal.header.theLength = 2;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, 0);  
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
 
   signal.theData[0] = NDB_LE_JobStatistic;
   signal.theData[1] = tMeanLoopCount;
-  
-  execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+
+  Uint32 secPtr[3];  
+  execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
+void 
+FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
+                                      Uint32 extra_constant,
+                                      Uint32 *no_exec_loops,
+                                      Uint32 *tot_exec_time,
+                                      Uint32 *no_extra_loops,
+                                      Uint32 *tot_extra_time)
+{
+  SignalT<6> signal;
+
+  memset(&signal.header, 0, sizeof(signal.header));
+  signal.header.theLength = 6;
+  signal.header.theSendersSignalId = 0;
+  signal.header.theSendersBlockRef = numberToRef(0, 0);  
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+
+  signal.theData[0] = NDB_LE_ThreadConfigLoop;
+  signal.theData[1] = expired_time;
+  signal.theData[2] = extra_constant;
+  signal.theData[3] = (*tot_exec_time)/(*no_exec_loops);
+  signal.theData[4] = *no_extra_loops;
+  if (*no_extra_loops > 0)
+    signal.theData[5] = (*tot_extra_time)/(*no_extra_loops);
+  else
+    signal.theData[5] = 0;
+
+  *no_exec_loops = 0;
+  *tot_exec_time = 0;
+  *no_extra_loops = 0;
+  *tot_extra_time = 0;
+
+  Uint32 secPtr[3];  
+  execute(&signal.header, JBA, signal.theData, secPtr);
+}
+
+static NdbMutex g_mm_mutex;
+
+void
+mt_mem_manager_init()
+{
+  NdbMutex_Init(&g_mm_mutex);
+}
+
+void
+mt_mem_manager_lock()
+{
+  NdbMutex_Lock(&g_mm_mutex);
+}
+
+void
+mt_mem_manager_unlock()
+{
+  NdbMutex_Unlock(&g_mm_mutex);
+}

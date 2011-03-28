@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_POOL_HPP
 #define NDB_POOL_HPP
@@ -116,7 +118,7 @@ struct Pool_context
   /**
    * Abort
    */
-  void handleAbort(int code, const char* msg);
+  void handleAbort(int code, const char* msg) ATTRIBUTE_NORETURN;
 };
 
 template <typename T>
@@ -155,6 +157,9 @@ struct PoolImpl
 };
 #endif
 
+struct ArenaHead; // forward decl.
+class ArenaAllocator; // forward decl.
+
 template <typename T, typename P>
 class RecordPool {
 public:
@@ -163,6 +168,7 @@ public:
   
   void init(Uint32 type_id, const Pool_context& pc);
   void wo_pool_init(Uint32 type_id, const Pool_context& pc);
+  void arena_pool_init(ArenaAllocator*, Uint32 type_id, const Pool_context& pc);
   
   /**
    * Update p value for ptr according to i value 
@@ -188,6 +194,11 @@ public:
    * Return i
    */
   bool seize(Ptr<T> &);
+
+  /**
+   * Allocate object from arena - update Ptr
+   */
+  bool seize(ArenaHead&, Ptr<T>&);
 
   /**
    * Return an object to pool
@@ -242,6 +253,26 @@ RecordPool<T, P>::wo_pool_init(Uint32 type_id, const Pool_context& pc)
   ri.m_type_id = type_id;
   m_pool.init(ri, pc);
 }
+
+template <typename T, typename P>
+inline
+void
+RecordPool<T, P>::arena_pool_init(ArenaAllocator* alloc,
+                                  Uint32 type_id, const Pool_context& pc)
+{
+  T tmp;
+  const char * off_base = (char*)&tmp;
+  const char * off_next = (char*)&tmp.nextPool;
+  const char * off_magic = (char*)&tmp.m_magic;
+
+  Record_info ri;
+  ri.m_size = sizeof(T);
+  ri.m_offset_next_pool = Uint32(off_next - off_base);
+  ri.m_offset_magic = Uint32(off_magic - off_base);
+  ri.m_type_id = type_id;
+  m_pool.init(alloc, ri, pc);
+}
+
 
 template <typename T, typename P>
 inline
@@ -307,6 +338,21 @@ RecordPool<T, P>::seize(Ptr<T> & ptr)
 {
   Ptr<void> tmp;
   bool ret = m_pool.seize(tmp);
+  if(likely(ret))
+  {
+    ptr.i = tmp.i;
+    ptr.p = static_cast<T*>(tmp.p);
+  }
+  return ret;
+}
+
+template <typename T, typename P>
+inline
+bool
+RecordPool<T, P>::seize(ArenaHead & ah, Ptr<T> & ptr)
+{
+  Ptr<void> tmp;
+  bool ret = m_pool.seize(ah, tmp);
   if(likely(ret))
   {
     ptr.i = tmp.i;

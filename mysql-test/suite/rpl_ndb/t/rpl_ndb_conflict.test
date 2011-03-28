@@ -1,0 +1,125 @@
+#
+# Test engine native conflict resolution for ndb
+#
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/rpl_ndb/ndb_master-slave.inc
+
+--disable_warnings
+--disable_query_log
+--connection master
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+
+drop table if exists t1_old;
+drop table if exists `test`.`t1_old$EX`;
+drop table if exists t1_max;
+drop table if exists `test`.`t1_max$EX`;
+drop table if exists t1_max_delete_win;
+drop table if exists `test`.`t1_max_delete_win$EX`;
+--enable_warnings
+--enable_query_log
+
+# only test with binlog_type = 7, as everything else feels insane in context of conflict resolution
+insert into mysql.ndb_replication values ("test", "t1_old", 0, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t1_max", 0, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1_max_delete_win", 0, 7, "NDB$MAX_DELETE_WIN(X)");
+
+create table `t1_old$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table `t1_max$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table `t1_max_delete_win$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table t1_old (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+--sync_slave_with_master
+
+###############
+--echo "Test 1"
+
+--connection master
+insert into t1_old values (1, 'Initial X=1', 1);
+insert into t1_max values (1, 'Initial X=1', 1);
+insert into t1_max_delete_win values (1, 'Initial X=1', 1);
+--sync_slave_with_master
+
+--connection slave
+update t1_old set X = 2, b='Slave X=2';
+update t1_max set X = 2, b='Slave X=2';
+update t1_max_delete_win set X = 2, b='Slave X=2';
+
+--connection master
+update t1_old set X = 3, b='Master X=3';
+update t1_max set X = 3, b='Master X=3';
+update t1_max_delete_win set X = 3, b='Master X=3';
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old to contain slave row, and t1_max* to contain master row"
+select * from t1_old;
+select * from t1_max;
+select * from t1_max_delete_win;
+
+# syncronize
+update t1_old set X = 3, b='Master X=3';
+
+###############
+--echo "Test 2"
+
+--connection slave
+update t1_old set X = 4, b='Slave X=4';
+update t1_max set X = 4, b='Slave X=4';
+update t1_max_delete_win set X = 4, b='Slave X=4';
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select * from t1_old;
+select * from t1_max;
+select * from t1_max_delete_win;
+
+# syncronize
+delete from t1_old;
+delete from t1_max;
+
+
+###############
+--echo "Cleanup"
+
+--connection master
+drop table mysql.ndb_replication;
+drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
+--sync_slave_with_master

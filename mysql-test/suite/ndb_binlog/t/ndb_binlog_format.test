@@ -1,0 +1,33 @@
+#
+# test different behavior of ndb using different binlog formats
+#
+
+-- source include/have_blackhole.inc
+-- source include/have_ndb.inc
+-- source include/have_log_bin.inc
+
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+
+#
+# Bug #29222 Statement mode replicates both statement and
+# rows when writing to an NDB table
+#
+CREATE TABLE t1 (m INT, n INT) ENGINE=MYISAM;
+CREATE TABLE t2 (b INT, c INT) ENGINE=BLACKHOLE;
+CREATE TABLE t3 (e INT, f INT) ENGINE=NDB;
+RESET MASTER;
+SET SESSION BINLOG_FORMAT=STATEMENT;
+INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2);
+UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c;
+# A transaction here is not necessary, but I wanted to group the bad statements
+START TRANSACTION;
+INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
+UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
+UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
+COMMIT;
+--source include/show_binlog_events.inc
+DROP TABLE t1, t2, t3;
+

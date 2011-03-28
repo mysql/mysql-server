@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h> 
 
@@ -47,12 +50,12 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
 				 Uint32 reportFreq) :  
   Transporter(t_reg, tt_SCI_TRANSPORTER,
 	      lHostName, rHostName, r_port, isMgmConnection, _localNodeId,
-              _remoteNodeId, serverNodeId, 0, false, chksm, signalId) 
+              _remoteNodeId, serverNodeId, 0, false, chksm, signalId,
+              4 * ((packetSize + 3)/4) + MAX_MESSAGE_SIZE)
 {
   DBUG_ENTER("SCI_Transporter::SCI_Transporter");
   m_PacketSize = (packetSize + 3)/4 ; 
   m_BufferSize = bufferSize; 
-  m_sendBuffer.m_buffer = NULL;
   
   m_RemoteSciNodeId = remoteSciNodeId0; 
    
@@ -99,6 +102,20 @@ SCI_Transporter::SCI_Transporter(TransporterRegistry &t_reg,
   DBUG_VOID_RETURN;
 } 
  
+
+bool
+SCI_Transporter::configure_derived(const TransporterConfiguration* conf)
+{
+  if (conf->sci.sendLimit == (m_PacketSize + 3)/4 &&
+      conf->sci.bufferSize == m_buffersize &&
+      conf->sci.nLocalAdapters == m_adapters &&
+      conf->sci.remoteSciNodeId0 == m_remoteNodes[0] &&
+      conf->sci.remoteSciNodeId1 == m_remoteNodes[1])
+    return true; // No change
+  return false; // Can't reconfigure
+}
+
+
 void SCI_Transporter::disconnectImpl() 
 { 
   DBUG_ENTER("SCI_Transporter::disconnectImpl");
@@ -111,10 +128,6 @@ void SCI_Transporter::disconnectImpl()
     disconnectLocal(); 
   } 
   
-  // Empty send buffer 
-
-  m_sendBuffer.m_dataSize = 0;
-
   m_initLocal=false; 
   m_mapped = false; 
   
@@ -151,18 +164,7 @@ bool SCI_Transporter::initTransporter() {
     m_BufferSize = 2 * MAX_MESSAGE_SIZE + 4096; 
   } 
 
-  // Allocate buffers for sending, send buffer size plus 2048 bytes for avoiding
-  // the need to send twice when a large message comes around. Send buffer size is
-  // measured in words. 
-  Uint32 sz = 4 * m_PacketSize + MAX_MESSAGE_SIZE;;
-  
-  m_sendBuffer.m_sendBufferSize = 4 * ((sz + 3) / 4); 
-  m_sendBuffer.m_buffer = new Uint32[m_sendBuffer.m_sendBufferSize / 4];
-  m_sendBuffer.m_dataSize = 0;
- 
-  DBUG_PRINT("info",
-  ("Created SCI Send Buffer with buffer size %d and packet size %d",
-              m_sendBuffer.m_sendBufferSize, m_PacketSize * 4));
+  DBUG_PRINT("info", ("SCI packet size %d", m_PacketSize * 4));
   if(!getLinkStatus(m_ActiveAdapterId) ||  
      (m_adapters > 1 &&
      !getLinkStatus(m_StandbyAdapterId))) { 
@@ -320,34 +322,47 @@ bool SCI_Transporter::doSend() {
   sci_error_t             err; 
   Uint32 retry=0; 
  
-  const char * const sendPtr = (char*)m_sendBuffer.m_buffer;
-  const Uint32 sizeToSend    = 4 * m_sendBuffer.m_dataSize; //Convert to number of bytes
-  
-  if (sizeToSend > 0){
+  if (!fetch_send_iovec_data())
+    return false;
+
+  Uint32 used = m_send_iovec_used;
+  if (used == 0)
+    return true;                                // Nothing to send
+
 #ifdef DEBUG_TRANSPORTER 
-    if(sizeToSend < 1024 ) 
-      i1024++; 
-    if(sizeToSend > 1024 && sizeToSend < 2048 ) 
-      i10242048++; 
-    if(sizeToSend==2048) 
-      i2048++; 
-    if(sizeToSend>2048 && sizeToSend < 4096) 
-      i20484096++; 
-    if(sizeToSend==4096) 
-      i4096++; 
-    if(sizeToSend==4097) 
-      i4097++; 
+  Uint32 sizeToSend = 0;
+  for (Uint32 i = 0; i < used; i++)
+    sizeToSend += m_send_iovec[i].iov_len;
+
+  if(sizeToSend < 1024 )
+    i1024++;
+  if(sizeToSend > 1024 && sizeToSend < 2048 )
+    i10242048++;
+  if(sizeToSend==2048)
+    i2048++;
+  if(sizeToSend>2048 && sizeToSend < 4096)
+    i20484096++;
+  if(sizeToSend==4096)
+    i4096++;
+  if(sizeToSend==4097)
+    i4097++;
 #endif
       
+  bool status = true;
+  Uint32 curr = 0;
+  Uint32 total = 0;
+  while (curr < used)
+  {
   tryagain:
-    retry++;
     if (retry > 3) { 
       DBUG_PRINT("error", ("SCI Transfer failed"));
       report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
-      return false; 
+      status = false;
+      break;
     } 
+    Uint32 segSize = m_send_iovec[curr].iov_len;
     Uint32 * insertPtr = (Uint32 *) 
-      (m_TargetSegm[m_ActiveAdapterId].writer)->getWritePtr(sizeToSend); 
+      (m_TargetSegm[m_ActiveAdapterId].writer)->getWritePtr(segSize);
     
     if(insertPtr != 0) {	   
       
@@ -356,10 +371,10 @@ bool SCI_Transporter::doSend() {
 	 (char*)(m_TargetSegm[m_ActiveAdapterId].mappedMemory)); 
       
       SCIMemCpy(m_TargetSegm[m_ActiveAdapterId].sequence, 
-		(void*)sendPtr, 
+		(void*)m_send_iovec[curr].iov_base,
 		m_TargetSegm[m_ActiveAdapterId].rhm[m_ActiveAdapterId].map, 
 		remoteOffset, 
-		sizeToSend, 
+		segSize,
 		SCI_FLAG_ERROR_CHECK, 
 		&err);   
       
@@ -369,15 +384,20 @@ bool SCI_Transporter::doSend() {
             err == SCI_ERR_OFFSET_ALIGNMENT) { 
           DBUG_PRINT("error", ("Data transfer error = %d", err));
           report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
-	  return false; 
+          status = false;
+          break;
         } 
         if(err == SCI_ERR_TRANSFER_FAILED) { 
 	  if(getLinkStatus(m_ActiveAdapterId))
+          {
+            retry++;
 	    goto tryagain; 
+          }
           if (m_adapters == 1) {
             DBUG_PRINT("error", ("SCI Transfer failed"));
             report_error(TE_SCI_UNRECOVERABLE_DATA_TFX_ERROR);
-	    return false; 
+            status = false;
+            break;
           }
 	  m_failCounter++; 
 	  Uint32 temp=m_ActiveAdapterId;	    	     
@@ -393,25 +413,32 @@ bool SCI_Transporter::doSend() {
             DBUG_PRINT("error", ("SCI Transfer failed")); 
 	  }
         }
+        break;
       } else { 
 	SHM_Writer * writer = (m_TargetSegm[m_ActiveAdapterId].writer);
-	writer->updateWritePtr(sizeToSend); 
+	writer->updateWritePtr(segSize);
 	
-	Uint32 sendLimit = writer->getBufferSize();
-	sendLimit -= writer->getWriteIndex();
-	
-	m_sendBuffer.m_dataSize = 0;
-	m_sendBuffer.m_forceSendLimit = sendLimit;
+        curr++;
+        total += segSize;
       } 
     } else { 
       /** 
-       * If we end up here, the SCI segment is full.  
+       * If we end up here, the SCI segment is full. As long as we manage to
+       * send _something_, that is ok.
        */ 
-      DBUG_PRINT("error", ("the segment is full for some reason")); 
-      return false; 
+      if (curr == 0)
+      {
+        DBUG_PRINT("error", ("the segment is full for some reason"));
+        status = false;
+      }
+      break;
     } //if  
   } 
-  return true; 
+
+  if (total > 0)
+    iovec_data_sent(total);
+
+  return status;
 } // doSend() 
 
  
@@ -485,8 +512,6 @@ void SCI_Transporter::setupRemoteSegment()
     
    m_TargetSegm[0].writer=writer; 
  
-   m_sendBuffer.m_forceSendLimit = writer->getBufferSize();
-    
    if(createSequence(m_ActiveAdapterId)!=SCI_ERR_OK) { 
      report_error(TE_SCI_UNABLE_TO_CREATE_SEQUENCE); 
      DBUG_PRINT("error", ("Unable to create sequence on active"));
@@ -754,8 +779,6 @@ SCI_Transporter::~SCI_Transporter() {
   DBUG_ENTER("SCI_Transporter::~SCI_Transporter");
   // Close channel to the driver 
   doDisconnect(); 
-  if(m_sendBuffer.m_buffer != NULL)
-    delete[] m_sendBuffer.m_buffer;
   DBUG_VOID_RETURN;
 } // ~SCI_Transporter() 
  
@@ -783,59 +806,6 @@ void SCI_Transporter::closeSCI() {
   DBUG_VOID_RETURN;
 } // closeSCI() 
  
-Uint32 *
-SCI_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio)
-{
-
-  Uint32 sci_buffer_remaining = m_sendBuffer.m_forceSendLimit;
-  Uint32 send_buf_size = m_sendBuffer.m_sendBufferSize;
-  Uint32 curr_data_size = m_sendBuffer.m_dataSize << 2;
-  Uint32 new_curr_data_size = curr_data_size + lenBytes;
-  if ((curr_data_size >= send_buf_size) ||
-      (curr_data_size >= sci_buffer_remaining)) {
-    /**
-     * The new message will not fit in the send buffer. We need to
-     * send the send buffer before filling it up with the new
-     * signal data. If current data size will spill over buffer edge
-     * we will also send to ensure correct operation.
-     */  
-    if (!doSend()) { 
-      /**
-       * We were not successfull sending, report 0 as meaning buffer full and
-       * upper levels handle retries and other recovery matters.
-       */
-      return 0;
-    }
-  }
-  /**
-   * New signal fits, simply fill it up with more data.
-   */
-  Uint32 sz = m_sendBuffer.m_dataSize;
-  return &m_sendBuffer.m_buffer[sz];
-}
-
-void
-SCI_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
-  
-  Uint32 sz = m_sendBuffer.m_dataSize;
-  Uint32 packet_size = m_PacketSize;
-  sz += ((lenBytes + 3) >> 2);
-  m_sendBuffer.m_dataSize = sz;
-  
-  if(sz > packet_size) { 
-    /**------------------------------------------------- 
-     * Buffer is full and we are ready to send. We will 
-     * not wait since the signal is already in the buffer. 
-     * Force flag set has the same indication that we 
-     * should always send. If it is not possible to send 
-     * we will not worry since we will soon be back for 
-     * a renewed trial. 
-     *------------------------------------------------- 
-     */ 
-    doSend();
-  }
-}
-
 enum SciStatus {
   SCIDISCONNECT = 1,
   SCICONNECTED  = 2
@@ -900,10 +870,3 @@ SCI_Transporter::initSCI() {
   } 
   DBUG_RETURN(true);
 } 
- 
-Uint32
-SCI_Transporter::get_free_buffer() const
-{
-  return (m_TargetSegm[m_ActiveAdapterId].writer)->get_free_buffer();
-}
-

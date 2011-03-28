@@ -1,0 +1,486 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
+CREATE TABLE tinnodb (a int) ENGINE = INNODB;
+CREATE TABLE tndb (a int) ENGINE = NDB;
+SHOW CREATE TABLE tmyisam;
+Table	Create Table
+tmyisam	CREATE TABLE `tmyisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tinnodb;
+Table	Create Table
+tinnodb	CREATE TABLE `tinnodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tndb;
+Table	Create Table
+tndb	CREATE TABLE `tndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+[on master]
+==== Single-engine transactions ====
+---- autocommitted ----
+SET AUTOCOMMIT = 1;
+INSERT INTO tmyisam VALUES (0);
+INSERT INTO tinnodb VALUES (1);
+INSERT INTO tndb VALUES (2);
+---- committed with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (3);
+INSERT INTO tmyisam VALUES (4);
+COMMIT;
+BEGIN;
+INSERT INTO tinnodb VALUES (5);
+INSERT INTO tinnodb VALUES (6);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (7);
+INSERT INTO tndb VALUES (8);
+COMMIT;
+---- rolled back with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (9);
+INSERT INTO tmyisam VALUES (10);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tinnodb VALUES (11);
+INSERT INTO tinnodb VALUES (12);
+ROLLBACK;
+BEGIN;
+INSERT INTO tndb VALUES (13);
+INSERT INTO tndb VALUES (14);
+ROLLBACK;
+---- committed with AUTOCOMMIT = 0 ----
+SET AUTOCOMMIT = 0;
+INSERT INTO tmyisam VALUES (15);
+INSERT INTO tmyisam VALUES (16);
+COMMIT;
+INSERT INTO tinnodb VALUES (17);
+INSERT INTO tinnodb VALUES (18);
+COMMIT;
+INSERT INTO tndb VALUES (19);
+INSERT INTO tndb VALUES (20);
+COMMIT;
+---- rolled back with AUTOCOMMIT = 0 ----
+INSERT INTO tmyisam VALUES (21);
+INSERT INTO tmyisam VALUES (22);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tinnodb VALUES (23);
+INSERT INTO tinnodb VALUES (24);
+ROLLBACK;
+INSERT INTO tndb VALUES (25);
+INSERT INTO tndb VALUES (26);
+ROLLBACK;
+SET AUTOCOMMIT = 1;
+==== MyISAM + InnoDB ====
+---- committed with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (27);
+INSERT INTO tinnodb VALUES (28);
+COMMIT;
+BEGIN;
+INSERT INTO tinnodb VALUES (29);
+INSERT INTO tmyisam VALUES (30);
+COMMIT;
+---- rolled back with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (31);
+INSERT INTO tinnodb VALUES (32);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tinnodb VALUES (33);
+INSERT INTO tmyisam VALUES (34);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+---- committed with AUTOCOMMIT = 0 ----
+SET AUTOCOMMIT = 0;
+INSERT INTO tmyisam VALUES (35);
+INSERT INTO tinnodb VALUES (36);
+COMMIT;
+INSERT INTO tinnodb VALUES (37);
+INSERT INTO tmyisam VALUES (38);
+COMMIT;
+---- rolled back with AUTOCOMMIT = 0 ----
+INSERT INTO tmyisam VALUES (39);
+INSERT INTO tinnodb VALUES (40);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tinnodb VALUES (41);
+INSERT INTO tmyisam VALUES (42);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SET AUTOCOMMIT = 1;
+==== MyISAM + NDB ====
+---- committed with BEGIN----
+BEGIN;
+INSERT INTO tmyisam VALUES (43);
+INSERT INTO tndb VALUES (44);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (45);
+INSERT INTO tmyisam VALUES (46);
+COMMIT;
+---- rolled back with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (47);
+INSERT INTO tndb VALUES (48);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tndb VALUES (49);
+INSERT INTO tmyisam VALUES (50);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+---- committed with AUTOCOMMIT = 0 ----
+SET AUTOCOMMIT = 0;
+INSERT INTO tmyisam VALUES (51);
+INSERT INTO tndb VALUES (52);
+COMMIT;
+INSERT INTO tndb VALUES (53);
+INSERT INTO tmyisam VALUES (54);
+COMMIT;
+---- rolled back with AUTOCOMMIT = 0 ----
+INSERT INTO tmyisam VALUES (55);
+INSERT INTO tndb VALUES (56);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tndb VALUES (57);
+INSERT INTO tmyisam VALUES (58);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SET AUTOCOMMIT = 1;
+==== InnoDB + NDB ====
+---- committed with BEGIN ----
+BEGIN;
+INSERT INTO tinnodb VALUES (59);
+INSERT INTO tndb VALUES (60);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (61);
+INSERT INTO tinnodb VALUES (62);
+COMMIT;
+---- rolled back with BEGIN ----
+BEGIN;
+INSERT INTO tinnodb VALUES (63);
+INSERT INTO tndb VALUES (64);
+ROLLBACK;
+BEGIN;
+INSERT INTO tndb VALUES (65);
+INSERT INTO tinnodb VALUES (66);
+ROLLBACK;
+---- committed with AUTOCOMMIT = 0 ----
+SET AUTOCOMMIT = 0;
+INSERT INTO tinnodb VALUES (67);
+INSERT INTO tndb VALUES (68);
+COMMIT;
+INSERT INTO tndb VALUES (69);
+INSERT INTO tinnodb VALUES (70);
+COMMIT;
+---- rolled back with AUTOCOMMIT = 0 ----
+INSERT INTO tinnodb VALUES (71);
+INSERT INTO tndb VALUES (72);
+ROLLBACK;
+INSERT INTO tndb VALUES (73);
+INSERT INTO tinnodb VALUES (74);
+ROLLBACK;
+SET AUTOCOMMIT = 1;
+==== MyISAM + InnoDB + NDB ====
+---- committed with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (75);
+INSERT INTO tinnodb VALUES (76);
+INSERT INTO tndb VALUES (77);
+COMMIT;
+BEGIN;
+INSERT INTO tmyisam VALUES (78);
+INSERT INTO tndb VALUES (79);
+INSERT INTO tinnodb VALUES (80);
+COMMIT;
+BEGIN;
+INSERT INTO tinnodb VALUES (81);
+INSERT INTO tmyisam VALUES (82);
+INSERT INTO tndb VALUES (83);
+COMMIT;
+BEGIN;
+INSERT INTO tinnodb VALUES (84);
+INSERT INTO tndb VALUES (85);
+INSERT INTO tmyisam VALUES (86);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (87);
+INSERT INTO tmyisam VALUES (88);
+INSERT INTO tinnodb VALUES (89);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (90);
+INSERT INTO tinnodb VALUES (91);
+INSERT INTO tmyisam VALUES (92);
+COMMIT;
+---- rolled back with BEGIN ----
+BEGIN;
+INSERT INTO tmyisam VALUES (93);
+INSERT INTO tinnodb VALUES (94);
+INSERT INTO tndb VALUES (95);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tmyisam VALUES (96);
+INSERT INTO tndb VALUES (97);
+INSERT INTO tinnodb VALUES (98);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tinnodb VALUES (99);
+INSERT INTO tmyisam VALUES (100);
+INSERT INTO tndb VALUES (101);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tinnodb VALUES (102);
+INSERT INTO tndb VALUES (103);
+INSERT INTO tmyisam VALUES (104);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tndb VALUES (105);
+INSERT INTO tmyisam VALUES (106);
+INSERT INTO tinnodb VALUES (107);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tndb VALUES (108);
+INSERT INTO tinnodb VALUES (109);
+INSERT INTO tmyisam VALUES (110);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+---- committed with AUTOCOMMIT = 0 ----
+SET AUTOCOMMIT = 0;
+INSERT INTO tmyisam VALUES (111);
+INSERT INTO tinnodb VALUES (112);
+INSERT INTO tndb VALUES (113);
+COMMIT;
+INSERT INTO tmyisam VALUES (114);
+INSERT INTO tndb VALUES (115);
+INSERT INTO tinnodb VALUES (116);
+COMMIT;
+INSERT INTO tinnodb VALUES (117);
+INSERT INTO tmyisam VALUES (118);
+INSERT INTO tndb VALUES (119);
+COMMIT;
+INSERT INTO tinnodb VALUES (120);
+INSERT INTO tndb VALUES (121);
+INSERT INTO tmyisam VALUES (122);
+COMMIT;
+INSERT INTO tndb VALUES (123);
+INSERT INTO tmyisam VALUES (124);
+INSERT INTO tinnodb VALUES (125);
+COMMIT;
+INSERT INTO tndb VALUES (126);
+INSERT INTO tinnodb VALUES (127);
+INSERT INTO tmyisam VALUES (128);
+COMMIT;
+---- rolled back with AUTOCOMMIT = 0 ----
+INSERT INTO tmyisam VALUES (129);
+INSERT INTO tinnodb VALUES (130);
+INSERT INTO tndb VALUES (131);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tmyisam VALUES (132);
+INSERT INTO tndb VALUES (133);
+INSERT INTO tinnodb VALUES (134);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tinnodb VALUES (135);
+INSERT INTO tmyisam VALUES (136);
+INSERT INTO tndb VALUES (137);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tinnodb VALUES (138);
+INSERT INTO tndb VALUES (139);
+INSERT INTO tmyisam VALUES (140);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tndb VALUES (141);
+INSERT INTO tmyisam VALUES (142);
+INSERT INTO tinnodb VALUES (143);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+INSERT INTO tndb VALUES (144);
+INSERT INTO tinnodb VALUES (145);
+INSERT INTO tmyisam VALUES (146);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SET AUTOCOMMIT = 1;
+---- Mixed statements Innodb ----
+BEGIN;
+INSERT INTO tndb VALUES (147);
+INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+COMMIT;
+INSERT INTO tndb VALUES (148);
+BEGIN;
+INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+INSERT INTO tndb VALUES (149);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (150);
+INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+COMMIT;
+INSERT INTO tndb VALUES (151);
+BEGIN;
+INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+INSERT INTO tndb VALUES (152);
+COMMIT;
+==== Verify the result ====
+SELECT * FROM tmyisam ORDER BY a;
+a
+0
+3
+4
+9
+10
+15
+16
+21
+22
+27
+30
+31
+34
+35
+38
+39
+42
+43
+46
+47
+50
+51
+54
+55
+58
+75
+78
+82
+86
+88
+92
+93
+96
+100
+104
+106
+110
+111
+114
+118
+122
+124
+128
+129
+132
+136
+140
+142
+146
+150
+151
+SELECT * FROM tinnodb ORDER BY a;
+a
+1
+5
+6
+17
+18
+28
+29
+36
+37
+59
+62
+67
+70
+76
+80
+81
+84
+89
+91
+112
+116
+117
+120
+125
+127
+147
+148
+SELECT * FROM tndb ORDER BY a;
+a
+2
+7
+8
+19
+20
+44
+45
+52
+53
+60
+61
+68
+69
+77
+79
+83
+85
+87
+90
+113
+115
+119
+121
+123
+126
+147
+148
+149
+150
+151
+152
+[on slave]
+Comparing tables master:test.tmyisam and slave:test.tmyisam
+Comparing tables master:test.tinnodb and slave:test.tinnodb
+Comparing tables master:test.tndb and slave:test.tndb
+==== Clean up ====
+[on master]
+DROP TABLE tmyisam, tinnodb, tndb;
+[on slave]

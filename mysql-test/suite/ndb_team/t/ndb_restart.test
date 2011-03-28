@@ -1,0 +1,85 @@
+--source include/have_ndb.inc
+
+#
+# Setup
+#
+let $ndb_mgm_cmd = $NDB_MGM --no-defaults --verbose=0;
+let $ndb_waiter_cmd = $NDB_WAITER --no-defaults;
+
+#
+# Create test table
+#
+create table t1(a int primary key, b int) engine = ndb;
+insert into t1 values (1, 2);
+
+#
+# Restart node 1
+#
+--exec $ndb_mgm_cmd -e "1 RESTART -n"
+--exec $ndb_waiter_cmd --nowait-nodes=2 --not-started > /dev/null
+--exec $ndb_mgm_cmd -e "1 START"
+--exec $ndb_waiter_cmd  > /dev/null
+
+# Check table is still there
+select * from t1 order by a;
+insert into t1 values (2, 3);
+
+#
+# Restart node 1 --initial
+#
+--exec $ndb_mgm_cmd -e "1 RESTART -n -I"
+--exec $ndb_waiter_cmd --nowait-nodes=2 --not-started  > /dev/null
+--exec $ndb_mgm_cmd -e "1 START"
+--exec $ndb_waiter_cmd  > /dev/null
+
+# Check table is still there
+select * from t1 order by a;
+insert into t1 values (3, 4);
+
+#
+# Restart all
+#
+--exec $ndb_mgm_cmd -e "ALL RESTART -N"
+--exec $ndb_waiter_cmd --not-started > /dev/null
+--exec $ndb_mgm_cmd -e "ALL START"
+--exec $ndb_waiter_cmd > /dev/null
+
+# Wait for mysqld to reconnect
+--disable_result_log
+--disable_query_log
+--source include/ndb_not_readonly.inc
+--enable_result_log
+--enable_query_log
+
+# Check table is still there
+select * from t1 order by a;
+insert into t1 values (4, 5);
+
+#
+# Restart all initial
+#
+
+# need to save/restore backup-id
+--disable_query_log
+--source include/ndb_backup_id.inc
+--enable_query_log
+
+--exec $ndb_mgm_cmd -e "ALL RESTART -N -I"
+--exec $ndb_waiter_cmd --not-started > /dev/null
+--exec $ndb_mgm_cmd -e "ALL START"
+--exec $ndb_waiter_cmd > /dev/null
+
+--inc $the_backup_id
+--exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
+
+# Wait for mysqld to reconnect
+--disable_result_log
+--disable_query_log
+--source include/ndb_not_readonly.inc
+--enable_result_log
+--enable_query_log
+
+# Check table is gone
+--error ER_NO_SUCH_TABLE
+select * from t1;
+

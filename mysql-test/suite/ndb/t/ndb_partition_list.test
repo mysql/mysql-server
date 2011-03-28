@@ -1,0 +1,83 @@
+--source include/have_ndb.inc
+#
+# Simple test for the partition storage engine
+# Focuses on range partitioning tests
+# 
+#-- source include/have_partition.inc
+
+--disable_query_log
+set new=on;
+--enable_query_log
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# Partition by list, basic
+#
+
+CREATE TABLE t1 ( f_int1 INTEGER NOT NULL, f_int2 INTEGER NOT NULL, 
+	          f_char1 CHAR(10),
+                  f_char2 CHAR(10), f_charbig VARCHAR(1000),
+PRIMARY KEY (f_int1,f_int2))
+ENGINE = NDB
+PARTITION BY LIST(MOD(f_int1 + f_int2,4)) 
+(PARTITION part_3 VALUES IN (-3),
+ PARTITION part_2 VALUES IN (-2),
+ PARTITION part_1 VALUES IN (-1),
+ PARTITION part0 VALUES IN (0),
+ PARTITION part1 VALUES IN (1),
+ PARTITION part2 VALUES IN (2),
+ PARTITION part3 VALUES IN (3,4,5));
+
+INSERT INTO t1 SET f_int1 = -2, f_int2 = 20, f_char1 = '20', f_char2 = '20', f_charbig = '===20===';
+INSERT INTO t1 SET f_int1 = 1, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+INSERT INTO t1 SET f_int1 = 2, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+INSERT INTO t1 SET f_int1 = 3, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+INSERT INTO t1 SET f_int1 = 4, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+INSERT INTO t1 SET f_int1 = 5, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+INSERT INTO t1 SET f_int1 = 20, f_int2 = 1, f_char1 = '1', f_char2 = '1', f_charbig = '===1===';
+
+SELECT * FROM t1 ORDER BY f_int1;
+
+DROP TABLE t1;
+
+# Check partition pruning at NdbApi level for list partitioned table
+#
+create table t1 ( a int, b int, c int, primary key (a,b)) engine=ndb 
+partition by list (a)
+(partition part0 values in (0,1,2),
+ partition part1 values in (3,4,5));
+
+insert into t1 values (0, 0, 0);
+insert into t1 values (0, 1, 1);
+insert into t1 values (0, 2, 2);
+insert into t1 values (1, 0, 3);
+insert into t1 values (1, 1, 4);
+insert into t1 values (1, 2, 5);
+insert into t1 values (4, 0, 6);
+insert into t1 values (4, 1, 7);
+insert into t1 values (4, 2, 8);
+
+--echo All partitions scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a=0 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo Single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a=4 order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+--echo MRR single partition scan
+--source suite/ndb/include/ndb_init_scan_counts.inc
+select * from t1 where a in (0, 2) order by c;
+--source suite/ndb/include/ndb_scan_counts.inc
+
+drop table t1;

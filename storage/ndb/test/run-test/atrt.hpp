@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef atrt_config_hpp
 #define atrt_config_hpp
@@ -19,22 +21,27 @@
 #include <ndb_global.h>
 #include <Vector.hpp>
 #include <BaseString.hpp>
+#include <NdbAutoPtr.hpp>
 #include <Logger.hpp>
 #include <mgmapi.h>
 #include <CpcClient.hpp>
 #include <Properties.hpp>
+#include <mysql.h>
+#include <my_dir.h>
 
 enum ErrorCodes 
 {
   ERR_OK = 0,
   ERR_NDB_FAILED = 101,
   ERR_SERVERS_FAILED = 102,
-  ERR_MAX_TIME_ELAPSED = 103
+  ERR_MAX_TIME_ELAPSED = 103,
+  ERR_COMMAND_FAILED = 104,
+  ERR_FAILED_TO_START = 105
 };
 
 struct atrt_host 
 {
-  size_t m_index;
+  unsigned m_index;
   BaseString m_user;
   BaseString m_basedir;
   BaseString m_hostname;
@@ -56,7 +63,7 @@ struct atrt_options
 
 struct atrt_process 
 {
-  size_t m_index;
+  unsigned m_index;
   struct atrt_host * m_host;
   struct atrt_cluster * m_cluster;
 
@@ -71,13 +78,20 @@ struct atrt_process
   } m_type;
 
   SimpleCpcClient::Process m_proc;
-  
+
   NdbMgmHandle m_ndb_mgm_handle;   // if type == ndb_mgm
   atrt_process * m_mysqld;         // if type == client
   atrt_process * m_rep_src;        // if type == mysqld
   Vector<atrt_process*> m_rep_dst; // if type == mysqld
-  
+  MYSQL m_mysql;                   // if type == mysqld
   atrt_options m_options;
+  uint m_nodeid;                   // if m_fix_nodeid
+
+  struct {
+    bool m_saved;
+    SimpleCpcClient::Process m_proc;
+  } m_save;
+
 };
 
 struct atrt_cluster
@@ -86,6 +100,7 @@ struct atrt_cluster
   BaseString m_dir;
   Vector<atrt_process*> m_processes;
   atrt_options m_options;
+  uint m_next_nodeid;                   // if m_fix_nodeid
 };
 
 struct atrt_config 
@@ -110,14 +125,13 @@ struct atrt_testcase
 
 extern Logger g_logger;
 
-void require(bool x);
 bool parse_args(int argc, char** argv);
-bool setup_config(atrt_config&);
+bool setup_config(atrt_config&, const char * mysqld);
 bool configure(atrt_config&, int setup);
 bool setup_directories(atrt_config&, int setup);
 bool setup_files(atrt_config&, int setup, int sshx);
 
-bool deploy(atrt_config&);
+bool deploy(int, atrt_config&);
 bool sshx(atrt_config&, unsigned procmask);
 bool start(atrt_config&, unsigned procmask);
 
@@ -136,25 +150,188 @@ bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
 
+bool do_command(atrt_config& config);
+
+bool start_process(atrt_process & proc);
+bool stop_process(atrt_process & proc);
+
+/**
+ * check configuration if any changes has been 
+ *   done for the duration of the latest running test
+ *   if so, return true, and reset those changes
+ *   (true, indicates that a restart is needed to actually
+ *    reset the running processes)
+ */
+bool reset_config(atrt_config&);
+
+NdbOut&
+operator<<(NdbOut& out, const atrt_process& proc);
+
+/**
+ * SQL
+ */
+bool setup_db(atrt_config&);
+
 /**
  * Global variables...
  */
 extern Logger g_logger;
-extern atrt_config g_config;
 
 extern const char * g_cwd;
 extern const char * g_my_cnf;
 extern const char * g_user;
 extern const char * g_basedir;
 extern const char * g_prefix;
+extern const char * g_prefix1;
 extern int          g_baseport;
 extern int          g_fqpn;
+extern int          g_fix_nodeid;
 extern int          g_default_ports;
 
 extern const char * g_clusters;
 
-extern const char *save_file;
-extern const char *save_group_suffix;
-extern char *save_extra_file;
+#ifdef _WIN32
+#include <direct.h>
 
+inline int lstat(const char *name, struct stat *buf) {
+  return stat(name, buf);
+}
+
+inline int S_ISREG(int x) {
+  return x & _S_IFREG;
+}
+
+inline int S_ISDIR(int x) {
+  return x & _S_IFDIR;
+}
+
+#endif
+
+
+/* in-place replace */
+static inline char* replace_chars(char *str, char from, char to)
+{
+  int i;
+
+  for(i = 0; str[i]; i++) {
+    if(i && str[i]==from && str[i-1]!=' ') {
+      str[i]=to;
+    }
+  }
+  return str;
+}
+
+static inline BaseString &replace_chars(BaseString &bs, char from, char to)
+{
+  replace_chars((char*)bs.c_str(), from, to);
+  return bs;
+}
+static inline BaseString &to_native(BaseString &bs) {
+  return replace_chars(bs, DIR_SEPARATOR[0]=='/'?'\\':'/', DIR_SEPARATOR[0]);
+}
+static inline BaseString &to_fwd_slashes(BaseString &bs) {
+  return replace_chars(bs, '\\', '/');
+}
+static inline char* to_fwd_slashes(char* bs) {
+  return replace_chars(bs, '\\', '/');
+}
+
+//you must free() the result
+static inline char* replace_drive_letters(const char* path) {
+
+  int i, j;
+  int count; // number of ':'s in path
+  char *retval; // return value
+  const char cygdrive[] = "/cygdrive";
+  size_t cyglen = strlen(cygdrive), retval_len;
+
+  for(i = 0, count = 0; path[i]; i++) {
+    count +=  path[i] == ':';
+  }
+  retval_len = strlen(path) + count * cyglen + 1;
+  retval = (char*)malloc(retval_len);
+
+  for(i = j = 0; path[i]; i++) {
+    if(path[i] && path[i+1]) {
+      if( (!i || isspace(path[i-1]) || ispunct(path[i-1])) && path[i+1] == ':')
+{
+        assert(path[i+2] == '/');
+        j += BaseString::snprintf(retval + j, retval_len - 1, "%s/%c", cygdrive, path[i]);
+        i++;
+        continue;
+      }
+    }
+    retval[j++] = path[i];
+  }
+  retval[j] = 0;
+
+  return retval;
+}
+
+static inline int sh(const char *script){
+
+#ifdef _WIN32
+  g_logger.debug("sh('%s')", script);
+
+  /*
+    Running sh script on Windows
+    1) Write the command to run into temporary file
+    2) Run the temporary file with 'sh <temp_file_name>'
+  */
+
+  char tmp_path[MAX_PATH];
+  if (GetTempPath(sizeof(tmp_path), tmp_path) == 0)
+  {
+    g_logger.error( "GetTempPath failed, error: %d", GetLastError());
+    return -1;
+  }
+
+  char tmp_file[MAX_PATH];
+  if (GetTempFileName(tmp_path, "sh_", 0, tmp_file) == 0)
+  {
+    g_logger.error( "GetTempFileName failed, error: %d", GetLastError());
+    return -1;
+  }
+
+  FILE* fp = fopen(tmp_file, "w");
+  if (fp == NULL)
+  {
+    g_logger.error( "Cannot open file '%s', error: %d", tmp_file, errno);
+    return -1;
+  }
+
+  // cygwin'ify the script and write it to temp file
+  {
+    char* cygwin_script = replace_drive_letters(script);
+    g_logger.debug(" - cygwin_script: '%s' ", cygwin_script);
+    fprintf(fp, "%s", cygwin_script);
+    free(cygwin_script);
+  }
+
+  fclose(fp);
+
+  // Run the temp file with "sh"
+  BaseString command;
+  command.assfmt("sh %s", tmp_file);
+  g_logger.debug(" - running '%s' ", command.c_str());
+
+  int ret = system(command.c_str());
+  if (ret == 0)
+    g_logger.debug(" - OK!");
+  else
+    g_logger.warning("Running the command '%s' as '%s' failed, ret: %d",
+                     script, command.c_str(), ret);
+
+  // Remove the temp file
+  unlink(tmp_file);
+
+  return ret;
+
+#else
+
+  return system(script);
+
+#endif
+
+}
 #endif

@@ -1,4 +1,6 @@
-/* Copyright (C) 2008 MySQL AB
+/*
+   Copyright (C) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,16 +13,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <AtrtClient.hpp>
 #include <NDBT_Output.hpp>
 #include <NdbSleep.h>
+#include <NdbEnv.h>
 
-AtrtClient::AtrtClient(const char* _user,
-                       const char* _password,
-                       const char* _group_suffix)
- : DbUtil(_user, _password, _group_suffix)
+AtrtClient::AtrtClient(const char* _group_suffix)
+  : DbUtil("atrt", _group_suffix)
 {
 }
 
@@ -82,7 +84,7 @@ AtrtClient::writeCommand(AtrtCommandType _type,
     return -1;
   }
 
-  return mysql_insert_id(m_mysql);
+  return (int)mysql_insert_id(m_mysql);
 }
 
 
@@ -209,7 +211,16 @@ AtrtClient::getNdbds(int cluster_id, SqlResultSet& result){
                   result);
 }
 
-
-
-
-
+int
+AtrtClient::getOwnProcessId()
+{
+  /**
+   * Put in env for simplicity
+   */
+  char buf[100];
+  if (NdbEnv_GetEnv("ATRT_PID", buf, sizeof(buf)))
+  {
+    return atoi(buf);
+  }
+  return -1;
+}

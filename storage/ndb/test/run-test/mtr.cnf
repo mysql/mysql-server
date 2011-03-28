@@ -1,0 +1,25 @@
+[ndb_mgmd]
+
+[mysqld]
+loose-skip-innodb
+
+[cluster_config.1]
+ndb_mgmd =
+ndbd = ,
+ndbapi= ,,,,,
+mysqld=
+
+NoOfReplicas = 2
+IndexMemory = 100M
+DataMemory = 300M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 1000
+SendBufferMemory = 2M
+
+SharedGlobalMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:128M
+InitialTablespace=datafile01.dat:128M;datafile02.dat:64M
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring

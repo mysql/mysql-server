@@ -1,0 +1,26 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+CREATE TABLE t2 (a INT NOT NULL KEY, b text NOT NULL)ENGINE=NDB;
+INSERT INTO t1 VALUES(1, repeat('abc',10));
+INSERT INTO t1 VALUES(2, repeat('def',200));
+INSERT INTO t1 VALUES(3, repeat('ghi',3000));
+INSERT INTO t2 VALUES(1, repeat('abc',10));
+INSERT INTO t2 VALUES(2, repeat('def',200));
+INSERT INTO t2 VALUES(3, repeat('ghi',3000));
+SHOW TABLES;
+Tables_in_test
+t1
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+INSERT INTO t1 VALUES (3, repeat('bad',1));
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+INSERT INTO t1 VALUES (3, repeat('bad too',1));
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+DROP TABLE IF EXISTS t1, t2;

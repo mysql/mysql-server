@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef SHM_BUFFER_HPP
 #define SHM_BUFFER_HPP
@@ -160,6 +163,9 @@ public:
   
   inline void copyIndexes(SHM_Writer * standbyWriter);
 
+  /* Write struct iovec into buffer. */
+  inline Uint32 writev(const struct iovec *vec, int count);
+
 private:
   char * const m_startOfBuffer;
   Uint32 m_totalBufferSize;
@@ -229,4 +235,84 @@ SHM_Writer::get_free_buffer() const
   return free;
 }
  
+inline
+Uint32
+SHM_Writer::writev(const struct iovec *vec, int count)
+{
+  Uint32 tReadIndex  = * m_sharedReadIndex;
+  Uint32 tWriteIndex = m_writeIndex;
+
+  /**
+   * Loop over iovec entries, copying into the shared memory buffer.
+   *
+   * The free buffer space may be split with one part after currently used data
+   * and one part before. Dealing with this is complicated by the way that the
+   * SHM transporter is designed, it assumes signals are never split. So
+   * buffer wrap-over is defined at the end of the first signal to cross
+   * m_bufferSize (there is extra slack in the buffer to make this possible).
+   *
+   * This means that we need to scan the signal data to find the correct place
+   * to wrap over in the buffer.
+   */
+  Uint32 total = 0;
+  for (int i = 0; i < count; i++)
+  {
+    unsigned char *ptr = (unsigned char *)vec[i].iov_base;
+    Uint32 remain = vec[i].iov_len;
+    Uint32 segment;
+    Uint32 maxBytes;
+    if (tReadIndex <= tWriteIndex)
+    {
+      /* Free buffer is split in two. */
+      if (tWriteIndex + remain > m_bufferSize)
+        maxBytes = (m_bufferSize - tWriteIndex)/4;
+      else
+        maxBytes = remain/4;
+      segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
+                                                           maxBytes/4);
+      if (segment > 0)
+        memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
+      remain -= segment;
+      total += segment;
+      ptr += segment;
+      tWriteIndex = 0;
+      if (remain > 0)
+      {
+        if (remain > tReadIndex)
+          maxBytes = tReadIndex;
+        else
+          maxBytes = remain;
+        segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
+                                                             maxBytes/4);
+        if (segment > 0)
+          memcpy(m_startOfBuffer, ptr, segment);
+        total += segment;
+        tWriteIndex = segment;
+        if (remain > segment)
+          break;                                // No more room
+      }
+    }
+    else
+    {
+      if (tWriteIndex + remain > tReadIndex)
+        maxBytes = tReadIndex - tWriteIndex;
+      else
+        maxBytes = remain;
+      segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
+                                                           maxBytes/4);
+      if (segment > 0)
+        memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
+      total += segment;
+      tWriteIndex += segment;
+      if (remain > segment)
+        break;                                  // No more room
+    }
+  }
+
+  m_writeIndex = tWriteIndex;
+  *m_sharedWriteIndex = tWriteIndex;
+
+  return total;
+}
+
 #endif

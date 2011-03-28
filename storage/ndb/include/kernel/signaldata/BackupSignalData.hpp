@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef BACKUP_HPP
 #define BACKUP_HPP
@@ -35,14 +37,18 @@ class BackupReq {
 
   friend bool printBACKUP_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( WAITCOMPLETED = 0x3 );
+  STATIC_CONST( USE_UNDO_LOG = 0x4 );
 
 private:
   Uint32 senderData;
   Uint32 backupDataLen;
   /* & 0x3 - waitCompleted
+   * & 0x4 - use undo log
    */
   Uint32 flags;
+  Uint32 inputBackupId;
 };
 
 class BackupData {
@@ -157,7 +163,7 @@ public:
 private:
   Uint32 senderData;
   Uint32 backupId;
-  NdbNodeBitmask nodes;
+  NdbNodeBitmaskPOD nodes;
 };
 
 /**
@@ -210,7 +216,7 @@ private:
   Uint32 noOfRecordsLow;
   Uint32 noOfLogBytes;
   Uint32 noOfLogRecords;
-  NdbNodeBitmask nodes;
+  NdbNodeBitmaskPOD nodes;
   Uint32 noOfBytesHigh;
   Uint32 noOfRecordsHigh;
 };

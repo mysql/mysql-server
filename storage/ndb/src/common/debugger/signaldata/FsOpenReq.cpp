@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -46,13 +49,28 @@ printFSOPENREQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receive
     fprintf(output, "Open mode unknown!");
   }
 
+  if (flags & FsOpenReq::OM_APPEND)
+    fprintf(output, ", Append");
+  if (flags & FsOpenReq::OM_SYNC)
+    fprintf(output, ", Sync");
   if (flags & FsOpenReq::OM_CREATE)
     fprintf(output, ", Create new file");
   if (flags & FsOpenReq::OM_TRUNCATE)
     fprintf(output, ", Truncate existing file");
-  if (flags & FsOpenReq::OM_APPEND)
-    fprintf(output, ", Append");
-  
+  if (flags & FsOpenReq::OM_AUTOSYNC)
+    fprintf(output, ", Auto Sync");
+
+  if (flags & FsOpenReq::OM_CREATE_IF_NONE)
+    fprintf(output, ", Create if None");
+  if (flags & FsOpenReq::OM_INIT)
+    fprintf(output, ", Initialise");
+  if (flags & FsOpenReq::OM_CHECK_SIZE)
+    fprintf(output, ", Check Size");
+  if (flags & FsOpenReq::OM_DIRECT)
+    fprintf(output, ", O_DIRECT");
+  if (flags & FsOpenReq::OM_GZ)
+    fprintf(output, ", gz compressed");
+
   fprintf(output, "\n");
   return true;
 }

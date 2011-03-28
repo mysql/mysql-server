@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,20 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <ndb_global.h>
 
-#include <Ndb.hpp>
-#include <NdbTransaction.hpp>
-#include <NdbOperation.hpp>
-#include <NdbScanOperation.hpp>
-#include "NdbApiSignal.hpp"
-#include "TransporterFacade.hpp"
-#include "NdbUtil.hpp"
 #include "API.hpp"
-#include "NdbImpl.hpp"
 
 #include <signaldata/ScanTab.hpp>
 
@@ -39,7 +33,7 @@
  *
  ****************************************************************************/
 int			
-NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
+NdbTransaction::receiveSCAN_TABREF(const NdbApiSignal* aSignal){
   const ScanTabRef * ref = CAST_CONSTPTR(ScanTabRef, aSignal->getDataPtr());
   
   if(checkState_TransId(&ref->transId1)){
@@ -80,17 +74,21 @@ NdbTransaction::receiveSCAN_TABREF(NdbApiSignal* aSignal){
  * 
  *****************************************************************************/
 int			
-NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal, 
+NdbTransaction::receiveSCAN_TABCONF(const NdbApiSignal* aSignal,
 				   const Uint32 * ops, Uint32 len)
 {
   const ScanTabConf * conf = CAST_CONSTPTR(ScanTabConf, aSignal->getDataPtr());
   if(checkState_TransId(&conf->transId1)){
     
+    /*
+      If both EndOfData is set and number of operations is 0, close the scan.
+    */
     if (conf->requestInfo == ScanTabConf::EndOfData) {
       theScanningOp->execCLOSE_SCAN_REP();
       return 0;
     }
 
+    int retVal = -1;
     for(Uint32 i = 0; i<len; i += 3){
       Uint32 opCount, totalLen;
       Uint32 ptrI = * ops++;
@@ -98,19 +96,25 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
       Uint32 info = * ops++;
       opCount  = ScanTabConf::getRows(info);
       totalLen = ScanTabConf::getLength(info);
-      
+
       void * tPtr = theNdb->int2void(ptrI);
       assert(tPtr); // For now
       NdbReceiver* tOp = theNdb->void2rec(tPtr);
       if (tOp && tOp->checkMagicNumber())
       {
-	if (tcPtrI == RNIL && opCount == 0)
-	  theScanningOp->receiver_completed(tOp);
-	else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
-	  theScanningOp->receiver_delivered(tOp);
+        if (tcPtrI == RNIL && opCount == 0)
+        {
+          theScanningOp->receiver_completed(tOp);
+          retVal = 0;
+        }
+        else if (tOp->execSCANOPCONF(tcPtrI, totalLen, opCount))
+        {
+          theScanningOp->receiver_delivered(tOp);
+          retVal = 0;
+        }
       }
     }
-    return 0;
+    return retVal;
   } else {
 #ifdef NDB_NO_DROPPED_SIGNAL
     abort();

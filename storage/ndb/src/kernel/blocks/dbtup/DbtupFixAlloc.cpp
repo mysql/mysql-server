@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #define DBTUP_C
 #define DBTUP_FIXALLOC_CPP
@@ -60,7 +62,8 @@
 // fragment.
 // 
 Uint32*
-Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
+Dbtup::alloc_fix_rec(Uint32 * err,
+                     Fragrecord* const regFragPtr,
 		     Tablerec* const regTabPtr,
 		     Local_key* key,
 		     Uint32 * out_frag_page_id) 
@@ -75,7 +78,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
 /* ---------------------------------------------------------------- */
-    pagePtr.i = getEmptyPage(regFragPtr);
+    pagePtr.i = allocFragPage(err, regFragPtr);
     if (pagePtr.i != RNIL) {
       jam();
 /* ---------------------------------------------------------------- */
@@ -84,10 +87,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /* ---------------------------------------------------------------- */
       c_page_pool.getPtr(pagePtr);
 
-      ndbassert(pagePtr.p->page_state == ZEMPTY_MM);
-      
       convertThPage((Fix_page*)pagePtr.p, regTabPtr, MM);
-      
       pagePtr.p->page_state = ZTH_MM_FREE;
       
       LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
@@ -136,7 +136,7 @@ void Dbtup::convertThPage(Fix_page* regPagePtr,
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
     Tuple_header* ptr = 0;
-    gci_pos = ptr->get_mm_gci(regTabPtr) - (Uint32*)ptr;
+    gci_pos = Uint32(ptr->get_mm_gci(regTabPtr) - (Uint32*)ptr);
     gci_val = 0;
   }
   while (pos + nextTuple <= Fix_page::DATA_WORDS)
@@ -188,57 +188,30 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
 			 Fix_page* regPagePtr)
 {
   Uint32 free= regPagePtr->free_record(key->m_page_idx);
+  PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
   
   if(free == 1)
   {
     jam();
-    PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
     LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
     ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
     regPagePtr->page_state = ZTH_MM_FREE;
     free_pages.addLast(pagePtr);
   } 
+  else if (free == 
+           (Fix_page::DATA_WORDS / regTabPtr->m_offsets[MM].m_fix_header_size))
+  {
+    jam();
+    Uint32 page_no = pagePtr.p->frag_page_id;
+    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    free_pages.remove(pagePtr);
+    releaseFragPage(regFragPtr, page_no, pagePtr);
+  }
 }//Dbtup::freeTh()
 
-
-int
-Dbtup::alloc_page(Tablerec* tabPtrP, Fragrecord* fragPtrP, 
-		  PagePtr * ret, Uint32 page_no)
-{
-  Uint32 pages = fragPtrP->noOfPages;
-  
-  if (page_no >= pages)
-  {
-    Uint32 start = pages;
-    while(page_no >= pages)
-      pages += (pages >> 3) + (pages >> 4) + 2;
-    allocFragPages(fragPtrP, pages - start);
-    if (page_no >= (pages = fragPtrP->noOfPages))
-    {
-      terrorCode = ZMEM_NOMEM_ERROR;
-      return 1;
-    }
-  }
-  
-  PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, getRealpid(fragPtrP, page_no));
-  
-  LocalDLList<Page> alloc_pages(c_page_pool, fragPtrP->emptyPrimPage);
-  LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
-  if (pagePtr.p->page_state == ZEMPTY_MM)
-  {
-    convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
-    pagePtr.p->page_state = ZTH_MM_FREE;
-    alloc_pages.remove(pagePtr);
-    free_pages.addFirst(pagePtr);
-  }
-  
-  *ret = pagePtr;
-  return 0;
-}
-
 Uint32*
-Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
+Dbtup::alloc_fix_rowid(Uint32 * err,
+                       Fragrecord* regFragPtr,
 		       Tablerec* regTabPtr,
 		       Local_key* key,
 		       Uint32 * out_frag_page_id) 
@@ -247,19 +220,19 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   Uint32 idx= key->m_page_idx;
   
   PagePtr pagePtr;
-  if (alloc_page(regTabPtr, regFragPtr, &pagePtr, page_no))
+  if ((pagePtr.i = allocFragPage(err, regTabPtr, regFragPtr, page_no)) == RNIL)
   {
-    terrorCode = ZMEM_NOMEM_ERROR;
     return 0;
   }
 
+  c_page_pool.getPtr(pagePtr);
   Uint32 state = pagePtr.p->page_state;
   LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
   switch(state){
   case ZTH_MM_FREE:
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)
     {
-      terrorCode = ZROWID_ALLOCATED;
+      * err = ZROWID_ALLOCATED;
       return 0;
     }
     
@@ -275,9 +248,9 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
     key->m_page_idx = idx;
     return pagePtr.p->m_data + idx;
   case ZTH_MM_FULL:
-    terrorCode = ZROWID_ALLOCATED;
+    * err = ZROWID_ALLOCATED;
     return 0;
-  case ZEMPTY_MM:
+  default:
     ndbrequire(false);
   }
   return 0;                                     /* purify: deadcode */

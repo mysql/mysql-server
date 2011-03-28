@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2006, 2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <NdbTick.h>
@@ -37,7 +40,10 @@ require(bool b){
     abort();
 }
 
-#define relSz(x) ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength)
+/* Calculate number of segments to release based on section size
+ * Always release one segment, even if size is zero
+ */
+#define relSz(x) ((x == 0)? 1 : ((x + SectionSegment::DataLength - 1) / SectionSegment::DataLength))
 
 void
 release(SectionSegmentPool & thePool, SegmentedSectionPtr & ptr){

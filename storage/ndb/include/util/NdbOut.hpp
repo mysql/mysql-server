@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBOUT_H
 #define NDBOUT_H
@@ -20,6 +23,7 @@
 
 #include <ndb_types.h>
 #include <util/BaseString.hpp>
+#include <ndb_global.h>
 
 /**
  * Class used for outputting logging messages to screen.
@@ -48,7 +52,7 @@ class OutputStream;
 class NullOutputStream;
 
 /*  Declare a static variable of NdbOut as ndbout */
-extern NdbOut ndbout;
+extern NdbOut ndbout, ndberr;
 
 class NdbOut
 {
@@ -73,16 +77,26 @@ public:
   NdbOut& flushline(void);
   NdbOut& setHexFormat(int _format);
   
-  NdbOut(OutputStream &);
+  NdbOut();
+  NdbOut(OutputStream &, bool autoflush = true);
   virtual ~NdbOut();
 
-  void print(const char * fmt, ...);
-  void println(const char * fmt, ...);
+  void print(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
+  void println(const char * fmt, ...)
+    ATTRIBUTE_FORMAT(printf, 2, 3);
   
   OutputStream * m_out;
 private:
+  void choose(const char * fmt,...);
   int isHex;
+  bool m_autoflush;
 };
+
+#ifdef NDB_WIN
+typedef int(*NdbOutF)(char*);
+extern NdbOutF ndbout_svc;
+#endif
 
 inline NdbOut& NdbOut::operator<<(NdbOut& (* _f)(NdbOut&)) {
   (* _f)(*this); 
@@ -106,6 +120,8 @@ inline NdbOut& dec(NdbOut& _NdbOut) {
 }
 extern "C"
 void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+extern "C"
+void vndbout_c(const char * fmt, va_list ap);
 
 class FilteredNdbOut : public NdbOut {
 public:
@@ -125,7 +141,7 @@ private:
 };
 
 #else
-void ndbout_c(const char * fmt, ...);
+void ndbout_c(const char * fmt, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 #endif
 
 #endif

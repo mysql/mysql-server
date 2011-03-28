@@ -1,0 +1,197 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+
+-------- Test for BUG#9361 --------
+CREATE TABLE t1 (
+a int unsigned not null auto_increment primary key,
+b int unsigned
+) ENGINE=NDB;
+CREATE TABLE t2 (
+a int unsigned not null auto_increment primary key,
+b int unsigned
+) ENGINE=NDB;
+INSERT INTO t1 VALUES (NULL, 0);
+INSERT INTO t1 SELECT NULL, 0 FROM t1;
+INSERT INTO t2 VALUES (NULL, 0), (NULL,1);
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	0
+2	1
+UPDATE t2, (SELECT a FROM t1 ORDER BY a) AS t SET t2.b = t.a+5 ;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	6
+2	6
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	0
+2	0
+SELECT * FROM t2 ORDER BY a;
+a	b
+1	6
+2	6
+drop table t1,t2;
+
+-------- Test 1 for BUG#9361 --------
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (
+a1  char(30),
+a2  int,
+a3  int,
+a4  char(30),
+a5  char(30)
+);
+CREATE TABLE t2 (
+b1  int,
+b2  char(30)
+);
+INSERT INTO t1 VALUES ('Yes', 1, NULL, 'foo', 'bar');
+INSERT INTO t2 VALUES (1, 'baz');
+UPDATE t1 a, t2 
+SET    a.a1 = 'No' 
+WHERE  a.a2 = 
+(SELECT  b1 
+FROM    t2 
+WHERE   b2 = 'baz') 
+AND a.a3 IS NULL 
+AND a.a4 = 'foo' 
+AND a.a5 = 'bar';
+SELECT * FROM t1;
+a1	a2	a3	a4	a5
+No	1	NULL	foo	bar
+SELECT * FROM t2;
+b1	b2
+1	baz
+DROP TABLE t1, t2;
+
+-------- Test 2 for BUG#9361 --------
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t1 (
+i   INT,
+j   INT,
+x   INT,
+y   INT,
+z   INT
+);
+CREATE TABLE t2 (
+i   INT,
+k   INT,
+x   INT,
+y   INT,
+z   INT
+);
+CREATE TABLE t3 (
+j   INT,
+k   INT,
+x   INT,
+y   INT,
+z   INT
+);
+INSERT INTO t1 VALUES ( 1, 2,13,14,15);
+INSERT INTO t2 VALUES ( 1, 3,23,24,25);
+INSERT INTO t3 VALUES ( 2, 3, 1,34,35), ( 2, 3, 1,34,36);
+UPDATE      t1 AS a  
+INNER JOIN  t2 AS b 
+ON a.i = b.i
+INNER JOIN  t3 AS c 
+ON a.j = c.j  AND  b.k = c.k
+SET         a.x = b.x, 
+a.y = b.y, 
+a.z = (
+SELECT  sum(z) 
+FROM    t3
+WHERE   y = 34 
+) 
+WHERE       b.x = 23;
+SELECT * FROM t1;
+i	j	x	y	z
+1	2	23	24	71
+DROP TABLE t1, t2, t3;
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t1 (
+idp int(11) NOT NULL default '0',
+idpro int(11) default NULL,
+price decimal(19,4) default NULL,
+PRIMARY KEY (idp)
+);
+CREATE TABLE t2 (
+idpro int(11) NOT NULL default '0',
+price decimal(19,4) default NULL,
+nbprice int(11) default NULL,
+PRIMARY KEY (idpro)
+);
+INSERT INTO t1 VALUES 
+(1,1,'3.0000'),
+(2,2,'1.0000'),
+(3,1,'1.0000'),
+(4,1,'4.0000'),
+(5,3,'2.0000'),
+(6,2,'4.0000');
+INSERT INTO t2 VALUES 
+(1,'0.0000',0),
+(2,'0.0000',0),
+(3,'0.0000',0);
+update 
+t2
+join 
+( select    idpro, min(price) as min_price, count(*) as nbr_price
+from      t1 
+where     idpro>0 and price>0 
+group by  idpro
+) as table_price
+on   t2.idpro = table_price.idpro 
+set  t2.price = table_price.min_price, 
+t2.nbprice = table_price.nbr_price;
+select "-- MASTER AFTER JOIN --" as "";
+
+-- MASTER AFTER JOIN --
+select * from t1;
+idp	idpro	price
+1	1	3.0000
+2	2	1.0000
+3	1	1.0000
+4	1	4.0000
+5	3	2.0000
+6	2	4.0000
+select * from t2;
+idpro	price	nbprice
+1	1.0000	3
+2	1.0000	2
+3	2.0000	1
+select "-- SLAVE AFTER JOIN --" as "";
+
+-- SLAVE AFTER JOIN --
+select * from t1;
+idp	idpro	price
+1	1	3.0000
+2	2	1.0000
+3	1	1.0000
+4	1	4.0000
+5	3	2.0000
+6	2	4.0000
+select * from t2;
+idpro	price	nbprice
+1	1.0000	3
+2	1.0000	2
+3	2.0000	1
+DROP TABLE t1, t2;

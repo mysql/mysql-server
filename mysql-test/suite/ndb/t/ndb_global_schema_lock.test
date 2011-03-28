@@ -1,0 +1,52 @@
+-- source include/have_ndb.inc
+
+#
+# Run all the commands which should take the global schema lock
+# and thus increment the ndb_schema_locks_count variable   
+#
+--source ndb_init_schema_locks_count.inc
+CREATE DATABASE test2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+ALTER DATABASE test2 CHARACTER SET latin2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+DROP DATABASE test2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+CREATE TABLE t1(a int not null primary key) ENGINE ndb;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+RENAME TABLE t1 TO t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+CREATE TABLE t3 LIKE t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+ALTER TABLE t3 ADD COLUMN b int default NULL;
+--source ndb_schema_locks_count.inc
+
+# Insert a row to truncate
+INSERT INTO t2 VALUES(1);
+
+--source ndb_init_schema_locks_count.inc
+TRUNCATE TABLE t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+CREATE TABLE t4 ENGINE=NDB AS SELECT * FROM t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+DROP TABLE t2;
+--source ndb_schema_locks_count.inc
+
+--source ndb_init_schema_locks_count.inc
+DROP TABLE t3, t4;
+--source ndb_schema_locks_count.inc

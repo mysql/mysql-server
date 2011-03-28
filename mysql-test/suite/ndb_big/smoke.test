@@ -1,0 +1,311 @@
+--source suite/ndb_big/suite.inc
+--source include/have_ndb.inc
+--source suite/ndb/include/ndb_info.inc
+# --call mtr.force_restart()
+set new=on;
+
+select version();
+
+#
+# Table with many columns will fill up to 15% of memory
+#
+
+--let $num_cols= 125
+--let $fill_percentage= 15
+--echo # Table with $num_cols columns will fill up to $fill_percentage% of memory
+
+--let $sql= CREATE TABLE manycol (pri int(11) NOT NULL
+--let $c= $num_cols
+while ($c)
+{
+  --let $sql=$sql, c$c CHAR(2) NULL
+  --dec $c
+}
+--let $sql= $sql, PRIMARY KEY (pri)) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (pri)
+--source suite/ndb_big/run_query_with_retry.inc
+
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage before inserts: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Inserting rows into the many columns table
+--source suite/ndb_big/start_timer.inc
+--disable_query_log
+--let $row= 0
+while (`SELECT $MTR_NDB_DATA_USAGE_PERCENTAGE < $fill_percentage`)
+{
+  --let $sql= INSERT INTO manycol (pri
+  --let $c= $num_cols
+  while ($c)
+  {
+    --let $sql=$sql, c$c
+    --dec $c
+  }
+  --let $sql= $sql) VALUES
+
+  --let $separator=
+  --let $batch_size= 50
+  while ($batch_size)
+  {
+    --inc $row
+    --let $sql= $sql$separator($row
+    --let $c= $num_cols
+    while ($c)
+    {
+      --let $sql=$sql, 'ab'
+      --dec $c
+    }
+    --let $sql= $sql)
+    --dec $batch_size
+    --let $separator= ,
+  }
+  --source suite/ndb_big/run_query_with_retry.inc
+
+  --source suite/ndb/include/memory_usage.inc
+
+  # Workaround for bug#52464, since MTR caches --source file content in while loops
+  --eval SET @content = LOAD_FILE('$MYSQLTEST_VARDIR/tmp/ndb_memory_usage_result.inc')
+  --let $start= `SELECT LOCATE('=', @content) + 1`
+  --let $end = `SELECT LOCATE(CHAR(10), @content)`
+  --let $MTR_NDB_DATA_USAGE_PERCENTAGE= `SELECT CAST(TRIM(SUBSTR(@content, $start, $end - $start)) AS DECIMAL(10,2))`
+}
+--enable_query_log
+--source suite/ndb_big/end_timer.inc
+
+SELECT COUNT(*) AS 'Rows inserted into manycol table' FROM manycol;
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after inserts into manycol table: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+
+#
+# Empty table
+#
+--echo # Empty table
+CREATE TABLE empty (pri int(11) NOT NULL) ENGINE=NDB;
+
+
+#
+# Table with many data types
+#
+
+--let $fill_percentage= 25
+--echo # Table with many column types will fill up to $fill_percentage% of memory
+
+CREATE TABLE types (
+  pri int(11) NOT NULL,
+  ti TINYINT,
+  si SMALLINT,
+  mi MEDIUMINT,
+  bi BIGINT,
+  ft FLOAT(20),
+  tt FLOAT(40),
+  du DOUBLE,
+  nu NUMERIC(10, 5),
+  bt BIT(16),
+  da DATE,
+  tm TIME,
+  dt DATETIME,
+  ts TIMESTAMP,
+  ye YEAR,
+  ch CHAR(2),
+  bn BINARY,
+  vc VARCHAR(10),
+  vb VARBINARY(10),
+  en ENUM('one', 'two', 'three'),
+  se SET('one', 'two', 'three'),
+  PRIMARY KEY (pri)
+) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (pri);
+
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage before inserts: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Inserting rows into the column types table
+--source suite/ndb_big/start_timer.inc
+--disable_query_log
+--let $row= 0
+while (`SELECT $MTR_NDB_DATA_USAGE_PERCENTAGE < $fill_percentage`)
+{
+  --let $sql= INSERT INTO types (pri, ti, si, mi, bi, ft, tt, du, nu, bt, da, tm, dt, ts, ye, ch, bn, vc, vb, en, se) VALUES
+
+  --let $batch_size= 50
+  --let $separator=
+  while ($batch_size)
+  {
+    --inc $row
+    --let $sql= $sql$separator($row, 2, 3, 4, 5, 1.2, 3.14, 2.71, 42.42, b'1101', '1977-05-13', '01:23:45', '1980-01-02 01:34:54', NOW(), 2010, 'cd', b'10101', 'xyz', 'abc', 'one', 'one,two')
+    --dec $batch_size
+    --let $separator= ,
+  }
+  --source suite/ndb_big/run_query_with_retry.inc
+
+  --source suite/ndb/include/memory_usage.inc
+
+  # Workaround for bug#52464, since MTR caches --source file content in while loops
+  --eval SET @content = LOAD_FILE('$MYSQLTEST_VARDIR/tmp/ndb_memory_usage_result.inc')
+  --let $start= `SELECT LOCATE('=', @content) + 1`
+  --let $end = `SELECT LOCATE(CHAR(10), @content)`
+  --let $MTR_NDB_DATA_USAGE_PERCENTAGE= `SELECT CAST(TRIM(SUBSTR(@content, $start, $end - $start)) AS DECIMAL(10,2))`
+}
+--enable_query_log
+--source suite/ndb_big/end_timer.inc
+
+SELECT COUNT(*) AS 'Rows inserted into types table' FROM types;
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after inserts into types table: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Index memory usage after inserts: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+
+#
+# Create extra indexes
+#
+
+--echo # Creating indexes
+
+CREATE UNIQUE INDEX types_ints ON types (pri, ti, si, mi, bi);
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after create index 1: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Index memory usage after create index 1: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+CREATE UNIQUE INDEX types_dec ON types (ft, tt, du, nu, pri);
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after create index 2: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Index memory usage after create index 2: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+CREATE UNIQUE INDEX types_date ON types (ts, da, tm, dt, pri);
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after create index 3: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Index memory usage after create index 3: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+
+--source suite/ndb/include/memory_usage.inc
+--echo # Index memory usage after creating secondary indexes: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+
+#
+# Create BLOB (text) table
+#
+
+--echo # Table with BLOB(TEXT) columns
+CREATE TABLE blobs (pri int(11) NOT NULL, data1 TEXT, data2 TEXT, PRIMARY KEY (pri)) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (pri);
+
+--let $fill_percentage= 75
+--echo # Inserting rows into the blobs table until $fill_percentage% memory fill
+--source suite/ndb_big/start_timer.inc
+--disable_query_log
+--let $row= 0
+while (`SELECT $MTR_NDB_DATA_USAGE_PERCENTAGE < $fill_percentage`)
+{
+  --let $sql= INSERT INTO blobs(pri, data1, data2) VALUES
+
+  --let $batch_size= 50
+  --let $separator=
+  while ($batch_size)
+  {
+    --inc $row
+    --let $sql= $sql$separator($row, REPEAT('dt01', 10240 * RAND()), REPEAT('dt02', 1024 * RAND()))
+    --dec $batch_size
+    --let $separator= ,
+  }
+  --source suite/ndb_big/run_query_with_retry.inc
+
+  --source suite/ndb/include/memory_usage.inc
+  # Workaround for bug#52464, since MTR caches --source file content in while loops
+  --eval SET @content = LOAD_FILE('$MYSQLTEST_VARDIR/tmp/ndb_memory_usage_result.inc')
+  --let $start= `SELECT LOCATE('=', @content) + 1`
+  --let $end = `SELECT LOCATE(CHAR(10), @content)`
+  --let $MTR_NDB_DATA_USAGE_PERCENTAGE= `SELECT CAST(TRIM(SUBSTR(@content, $start, $end - $start)) AS DECIMAL(10,2))`
+}
+--enable_query_log
+--source suite/ndb_big/end_timer.inc
+
+SELECT COUNT(*) AS 'Rows inserted into blobs table' FROM blobs;
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after inserts into blobs table: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Index memory usage after inserts into blobs table: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+
+#
+# Fill up with many tables, as long as memory/index usage < 95%
+#
+--let $fill_percentage= 95
+--echo # Creating tables until $fill_percentage% memory/index fill is reached
+
+--source suite/ndb_big/start_timer.inc
+--disable_query_log
+--let $table_id= 0
+while (`SELECT $MTR_NDB_DATA_USAGE_PERCENTAGE < $fill_percentage AND $MTR_NDB_INDEX_USAGE_PERCENTAGE < $fill_percentage AND $table_id < 1500`)
+{
+  --inc $table_id
+  --let sql=CREATE TABLE t$table_id (c1 int(11) NOT NULL, c3 text, PRIMARY KEY (c1)) ENGINE=NDB DEFAULT CHARSET=utf8 PARTITION BY HASH (c1)
+  --source suite/ndb_big/run_query_with_retry.inc
+
+  --let $rows= 100
+  --let $batch_size= 50
+  --let $i= `SELECT $rows / $batch_size`
+  while ($i)
+  {
+    --let $batch= $batch_size
+    let $separator= ;
+    --let $sql= INSERT t$table_id (c1, c3) VALUES
+    while($batch)
+    {
+      --let $sql=$sql$separator(($i*$batch_size)+$batch, REPEAT('ks87', 128*RAND()))
+      --dec $batch
+      --let $separator = ,
+    }
+    --source suite/ndb_big/run_query_with_retry.inc
+    --dec $i
+  }
+
+  --source suite/ndb/include/memory_usage.inc
+  # Workaround for bug#52464, since MTR caches --source file content in while loops
+  --eval SET @content = LOAD_FILE('$MYSQLTEST_VARDIR/tmp/ndb_memory_usage_result.inc')
+  --let $start= `SELECT LOCATE('=', @content) + 1`
+  --let $end = `SELECT LOCATE(CHAR(10), @content)`
+  --let $MTR_NDB_DATA_USAGE_PERCENTAGE= `SELECT CAST(TRIM(SUBSTR(@content, $start, $end - $start)) AS DECIMAL(10,2))`
+  --let $index_start= `SELECT LOCATE('=', @content, $start) + 1`
+  --let $index_end = `SELECT LOCATE(CHAR(10), @content, $end + 1)`
+  --let $MTR_NDB_INDEX_USAGE_PERCENTAGE= `SELECT CAST(TRIM(SUBSTR(@content, $index_start, $index_end - $index_start)) AS DECIMAL(10,2))`
+#  --echo # After table t$table_id: data: $MTR_NDB_DATA_USAGE_PERCENTAGE%, index: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+}
+
+--echo # Num tables: $table_id
+--source suite/ndb/include/memory_usage.inc
+--echo # Memory usage after inserts into many tables table: $MTR_NDB_DATA_USAGE_PERCENTAGE%
+--echo # Index memory usage after inserts into many tables table: $MTR_NDB_INDEX_USAGE_PERCENTAGE%
+
+--append_file $NDB_TOOLS_OUTPUT
+# ndb_mgm -e "ALL REPORT MemoryUsage"
+EOF
+--exec $NDB_MGM -e "ALL REPORT MemoryUsage" >> $NDB_TOOLS_OUTPUT
+
+## Backup
+--echo # Starting backup:
+--source suite/ndb_big/start_timer.inc
+--source include/ndb_backup.inc
+--source suite/ndb_big/end_timer.inc
+
+## Random node restart
+--source suite/ndb_big/start_timer.inc
+--source suite/ndb/include/restart_random_node.inc
+--source suite/ndb_big/end_timer.inc
+
+## System restart
+--source suite/ndb_big/start_timer.inc
+--source suite/ndb/include/restart_cluster.inc
+--source suite/ndb_big/end_timer.inc
+
+## Rolling system restart
+--source suite/ndb_big/start_timer.inc
+--source suite/ndb/include/restart_cluster_rolling.inc
+--source suite/ndb_big/end_timer.inc
+
+## Clean up
+--echo # Dropping tables:
+--let $t= $table_id
+--source suite/ndb_big/start_timer.inc
+while ($t)
+{
+  --let $sql=drop table t$t
+  --source suite/ndb_big/run_query_with_retry.inc
+  --dec $t
+}
+--source suite/ndb_big/end_timer.inc
+
+DROP TABLE blobs;
+DROP TABLE types;
+DROP TABLE manycol;
+DROP TABLE empty;
+
+## Test suceeded
+exit;

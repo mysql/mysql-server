@@ -1,4 +1,5 @@
-/* Copyright (C) 2006 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +12,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include "Rope.hpp"
+#include "DataBuffer2.hpp"
 
 #define DEBUG_ROPE 0
 
@@ -43,7 +46,7 @@ ConstRope::copy(char* buf) const {
 }
 
 int
-ConstRope::compare(const char * str, size_t len) const {
+ConstRope::compare(const char * str, Uint32 len) const {
   if(DEBUG_ROPE)
     ndbout_c("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)", 
 	     head.used, head.firstItem, head.lastItem, str, (int) len);
@@ -104,7 +107,7 @@ Rope::copy(char* buf) const {
 }
 
 int
-Rope::compare(const char * str, size_t len) const {
+Rope::compare(const char * str, Uint32 len) const {
   if(DEBUG_ROPE)
     ndbout_c("Rope::compare(%s, %d)", str, (int) len);
   Uint32 left = head.used > len ? len : head.used;
@@ -140,7 +143,7 @@ Rope::compare(const char * str, size_t len) const {
 }
 
 bool
-Rope::assign(const char * s, size_t len, Uint32 hash){
+Rope::assign(const char * s, Uint32 len, Uint32 hash){
   if(DEBUG_ROPE)
     ndbout_c("Rope::assign(%s, %d, 0x%x)", s, (int) len, hash);
   m_hash = hash;
@@ -151,7 +154,7 @@ Rope::assign(const char * s, size_t len, Uint32 hash){
       Uint32 buf = 0;
       const char * src = (const char*)(((Uint32*)s)+(len >> 2));
       char* dst = (char*)&buf;
-      size_t left = len & 3;
+      Uint32 left = len & 3;
       while(left){
 	* dst ++ = * src++;
 	left--;
@@ -186,3 +189,42 @@ Rope::hash(const char * p, Uint32 len){
   return h;
 }
 
+bool
+ConstRope::equal(const ConstRope& r2) const
+{
+  if (head.used != r2.head.used)
+    return false;
+
+  if (src.m_hash != r2.src.m_hash)
+    return false;
+
+  Uint32 left = head.used;
+  Ptr<Segment> s1, s2;
+  s1.i = head.firstItem;
+  s2.i = r2.head.firstItem;
+  while(left > 4 * getSegmentSize())
+  {
+    thePool.getPtr(s1);
+    thePool.getPtr(s2);
+    int res = memcmp(s1.p->data, s2.p->data, 4 * getSegmentSize());
+    if(res != 0)
+    {
+      return false;
+    }
+    s1.i = s1.p->nextPool;
+    s2.i = s2.p->nextPool;
+    left -= 4 * getSegmentSize();
+  }
+  
+  if(left > 0)
+  {
+    thePool.getPtr(s1);
+    thePool.getPtr(s2);
+    int res = memcmp(s1.p->data, s2.p->data, left);
+    if (res != 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}

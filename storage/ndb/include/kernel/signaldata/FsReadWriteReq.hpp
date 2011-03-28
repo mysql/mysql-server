@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef FS_READWRITEREQ_H
 #define FS_READWRITEREQ_H
@@ -35,6 +37,8 @@ class FsReadWriteReq {
   friend class Ndbfs;
   friend class VoidFs;
   friend class AsyncFile;
+  friend class PosixAsyncFile; // FIXME
+  friend class Win32AsyncFile;
 
   /**
    * Sender(s)
@@ -44,6 +48,7 @@ class FsReadWriteReq {
   friend class Tsman;
   friend class Pgman;
   friend class Restore;
+  friend class Dblqh;
 
   /**
    * For printing
@@ -167,5 +172,12 @@ FsReadWriteReq::getPartialReadFlag(UintR opFlag){
   return (opFlag >> PARTIAL_READ_SHIFT) & 1;
 }
 
+struct FsSuspendOrd
+{
+  UintR filePointer;          // DATA 0
+  Uint32 milliseconds;
+
+  STATIC_CONST(SignalLength = 2);
+};
 
 #endif

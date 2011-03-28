@@ -1,0 +1,67 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+--result_format 2
+
+## Make mtr.pl restart all servers after this test
+call mtr.force_restart(); 
+
+## Show cluster is started with one ndb_mgmd and two ndbd nodes
+--replace_regex /mysql-[0-9]*.[0-9]*.[0-9]*/mysql/ /ndb-[0-9]*.[0-9]*.[0-9]*/ndb/ /localhost:[0-9]*/localhost/
+--exec $NDB_MGM -e show
+
+## Add six nodes to my.cnf
+# Set ndb_mgmd with node id 3, otherwise the configuration will change and the
+# cluster may fail to restart
+--source suite/ndb/include/add_six_nodes.inc
+
+## Reload ndb_mgmd
+--source suite/ndb/include/reload_ndb_mgmd.inc
+--exec $NDB_MGM -e show >> $NDB_TOOLS_OUTPUT
+
+## Restart the "old" ndbd nodes
+--exec $NDB_MGM -e "1 restart" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --nowait-nodes=40,41,42,43,44,45 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "2 restart" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --nowait-nodes=40,41,42,43,44,45 >> $NDB_TOOLS_OUTPUT
+
+## Restart mysqld nodes
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+connect (mysqld_2_1,127.0.0.1,root,,test,$MASTER_MYPORT1,);
+connection mysqld_2_1;
+let $mysqld_name= mysqld.2.1;
+--source include/restart_mysqld.inc
+connection default;
+
+## Initial start of "new" data nodes
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
+--exec $NDB_NDBD --ndb-nodeid=40 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
+--exec $NDB_NDBD --ndb-nodeid=41 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
+--exec $NDB_NDBD --ndb-nodeid=42 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
+--exec $NDB_NDBD --ndb-nodeid=43 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
+--exec $NDB_NDBD --ndb-nodeid=44 --initial
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/YYYY-MM-DD HH:MM:SS/
+/localhost:[0-9]*/localhost/ /generation: [0-9]*/generation: X/
+--exec $NDB_NDBD --ndb-nodeid=45 --initial
+
+## Wait for added nodes started
+--exec $NDB_WAITER --timeout=300 >> $NDB_TOOLS_OUTPUT
+
+## Create nodegroup for "new" nodes
+--exec $NDB_MGM -e "create nodegroup 40,41" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "create nodegroup 42,43" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "create nodegroup 44,45" >> $NDB_TOOLS_OUTPUT
+
+## Cluster running after adding six ndbd nodes:
+--replace_regex /mysql-[0-9]*.[0-9]*.[0-9]*/mysql/ /ndb-[0-9]*.[0-9]*.[0-9]*/ndb/ /localhost:[0-9]*/localhost/
+--exec $NDB_MGM -e show
+

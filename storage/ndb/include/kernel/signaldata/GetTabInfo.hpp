@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef GET_INFO_TAB_HPP
 #define GET_INFO_TAB_HPP
@@ -46,7 +49,7 @@ public:
     Uint32 tableId;
     Uint32 tableNameLen;
   };
-  Uint32 unused; // This is located here so that Req & Ref have the same format
+  Uint32 schemaTransId; // To see own schema trans
 
   enum RequestType {
     RequestById = 0,
@@ -70,7 +73,10 @@ class GetTabInfoRef {
 
   friend bool printGET_TABINFO_REF(FILE *, const Uint32 *, Uint32, Uint16);    
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 7 );
+  /* 6.3 <-> 7.0 upgrade code */
+  STATIC_CONST( OriginalSignalLength = 5 );
+  STATIC_CONST( OriginalErrorOffset = 4 );
 public:
   Uint32 senderData;
   Uint32 senderRef;
@@ -79,7 +85,9 @@ public:
     Uint32 tableId;
     Uint32 tableNameLen;
   };
+  Uint32 schemaTransId;
   Uint32 errorCode;
+  Uint32 errorLine;
 
   enum ErrorCode {
     InvalidTableId = 709,

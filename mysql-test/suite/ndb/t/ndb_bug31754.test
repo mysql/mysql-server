@@ -1,0 +1,6 @@
+-- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+
+-- replace_regex /[0-9]+/x/
+-- exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started"
+

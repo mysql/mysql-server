@@ -518,7 +518,6 @@ struct sql_ex_info
 */
 #define LOG_EVENT_NO_FILTER_F 0x100
 
-
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG
 
@@ -998,6 +997,15 @@ public:
     prevent from infinite loops in circular replication).
   */
   uint32 server_id;
+
+#ifndef MCP_BUG52305
+  /*
+    The server id read from the Binlog.  server_id above has
+    lowest bits of this only according to the value of
+    opt_server_id_bits
+  */
+  uint32 unmasked_server_id;
+#endif
 
   /**
     Some 16 flags. See the definitions above for LOG_EVENT_TIME_F,

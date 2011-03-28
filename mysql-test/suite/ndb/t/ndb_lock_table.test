@@ -1,0 +1,15 @@
+-- source include/have_ndb.inc
+
+# BUG 30996
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int) engine ndb;
+set autocommit=1;
+lock table t1 write;
+set autocommit=0;
+insert into t1 values (0);
+rollback;
+select * from t1;
+unlock tables;
+drop table t1;

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __NDB_TUP_PAGE_HPP
 #define __NDB_TUP_PAGE_HPP
@@ -21,6 +23,7 @@
 
 struct Tup_page 
 {
+  Tup_page() {}
   struct File_formats::Page_header m_page_header;
   Uint32 m_restart_seq;
   Uint32 page_state;
@@ -107,14 +110,8 @@ struct Tup_varsize_page
   Uint32 page_state;
   Uint32 next_page;
   Uint32 prev_page;
-  union {
-    Uint32 first_cluster_page;
-    Uint32 chunk_size;
-  };
-  union {
-    Uint32 last_cluster_page;
-    Uint32 next_chunk;
-  };
+  Uint32 first_cluster_page;
+  Uint32 last_cluster_page;
   Uint32 next_cluster_page;
   Uint32 prev_cluster_page;
   Uint32 frag_page_id;
@@ -256,6 +253,11 @@ struct Tup_varsize_page
   
   Uint32 get_entry_chain(Uint32 page_idx) const {
     return get_index_word(page_idx) & CHAIN;
+  }
+
+  bool is_free(Uint32 page_idx) const
+  {
+    return ((get_index_word(page_idx) & FREE) != 0) ? true : false;
   }
 };
 

@@ -1,0 +1,150 @@
+--source include/have_ndb.inc
+
+--disable_query_log
+set new=on;
+--enable_query_log
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+--disable_query_log
+sleep 1;
+
+# length 61
+set @s0 = 'rggurloniukyehuxdbfkkyzlceixzrehqhvxvxbpwizzvjzpucqmzrhzxzfau';
+set @s1 = 'ykyymbzqgqlcjhlhmyqelfoaaohvtbekvifukdtnvcrrjveevfakxarxexomz';
+set @s2 = 'dbnfqyzgtqxalcrwtfsqabknvtfcbpoonxsjiqvmhnfikxxhcgoexlkoezvah';
+
+set @x1 = repeat(@s0, 100); # 1d42dd9090cf78314a06665d4ea938c35cc760f4
+set @x2 = repeat(@s1, 200); # 10d3c783026b310218d10b7188da96a2401648c6
+set @y1 = repeat(@s2, 300); # a33549d9844092289a58ac348dd59f09fc28406a
+set @y2 = repeat(@s0, 400); # daa61c6de36a0526f0d47dc29d6b9de7e6d2630c
+set @z1 = repeat(@s1, 500); # 70fc9a7d08beebc522258bfb02000a30c77a8f1d
+set @z2 = repeat(@s2, 600); # 090565c580809efed3d369481a4bbb168b20713e
+--enable_query_log
+
+# == partition by range ==
+
+create table t1 (
+  a int not null,
+  b text not null,
+  c int not null,
+  d blob,
+  e int not null,
+  primary key (a, c),
+  unique key (c, e)
+)
+engine=ndb
+partition by range (c)
+partitions 3
+( partition p1 values less than (2),
+  partition p2 values less than (3),
+  partition p3 values less than (4));
+
+# -- insert --
+insert into t1 values (1, @x1, 1, @x2, 1);
+insert into t1 values (1, @y1, 2, @y2, 1);
+insert into t1 values (1, @z1, 3, @z2, 1);
+insert into t1 values (2, @x1, 1, @x2, 2);
+insert into t1 values (2, @y1, 2, @y2, 2);
+insert into t1 values (2, @z1, 3, @z2, 2);
+insert into t1 values (3, @x1, 1, @x2, 3);
+insert into t1 values (3, @y1, 2, @y2, 3);
+insert into t1 values (3, @z1, 3, @z2, 3);
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+
+# -- pk read --
+select a, c, sha1(b), sha1(d) from t1 where a = 1 and c = 1;
+select a, c, sha1(b), sha1(d) from t1 where a = 1 and c = 2;
+select a, c, sha1(b), sha1(d) from t1 where a = 1 and c = 3;
+
+# -- pk update --
+update t1 set b = @y1, d = @y2 where a = 2 and c = 1;
+update t1 set b = @z1, d = @z2 where a = 2 and c = 2;
+update t1 set b = @x1, d = @x2 where a = 2 and c = 3;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+
+# -- hash index update --
+update t1 set b = @y1, d = @y2 where c = 1 and e = 3;
+update t1 set b = @z1, d = @z2 where c = 2 and e = 3;
+update t1 set b = @x1, d = @x2 where c = 3 and e = 3;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+
+# -- full scan update --
+update t1 set b = @x1, d = @x2;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+
+# -- range scan update
+update t1 set b = @x1, d = @x2 where c = 1;
+update t1 set b = @y1, d = @y2 where c = 2;
+update t1 set b = @z1, d = @z2 where c = 3;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+
+# -- delete --
+delete from t1 where a = 1 and c = 1;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+delete from t1 where c = 2 and e = 2;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+delete from t1 where c < 3;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+delete from t1;
+select a, c, sha1(b), sha1(d) from t1 order by a, c;
+
+# -- clean up --
+drop table t1;
+
+# == scan EQ distr key vs charset ==
+
+create table t1 (
+  a char(4),
+  b int,
+  primary key (a, b)
+)
+engine=ndb
+character set latin1
+partition by key (a)
+partitions 4;
+
+insert into t1 values ('aaa',1);
+insert into t1 values ('bbb',1);
+insert into t1 values ('bbb',2);
+
+# if current EQ optim was tried then some of these should fail
+select count(*) from t1 where a = 'aaa';
+select count(*) from t1 where a = 'Aaa';
+select count(*) from t1 where a = 'aAa';
+select count(*) from t1 where a = 'aaA';
+select count(*) from t1 where a = 'AAa';
+select count(*) from t1 where a = 'AaA';
+select count(*) from t1 where a = 'aAA';
+select count(*) from t1 where a = 'AAA';
+
+drop table t1;
+
+create table t1 (
+  a varbinary(10),
+  b int,
+  primary key (a, b)
+)
+engine=ndb
+character set latin1
+partition by key (a)
+partitions 4;
+
+insert into t1 values ('aaa',1);
+insert into t1 values ('aaabbb',1);
+insert into t1 values ('aaabbb',2);
+insert into t1 values ('aaabbbccc',1);
+insert into t1 values ('aaabbbccc',2);
+insert into t1 values ('aaabbbccc',3);
+
+# the EQ optim is done for binary types
+select count(*) from t1 where a = 'aaa';
+select count(*) from t1 where a = 'Aaa';
+select count(*) from t1 where a = 'aaabbb';
+select count(*) from t1 where a = 'aaaBbb';
+select count(*) from t1 where a = 'aaabbbccc';
+select count(*) from t1 where a = 'aaabbbCcc';
+
+drop table t1;

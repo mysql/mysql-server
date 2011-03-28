@@ -2362,6 +2362,14 @@ case SQLCOM_PREPARE:
     {
       select_result *result;
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+      Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+
+      if (!(create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
+          !thd->locked_tables_mode)
+        global_schema_lock_guard.lock();
+#endif
+
       /*
         If:
         a) we inside an SP and there was NAME_CONST substitution,

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef DictCache_H
 #define DictCache_H
@@ -66,17 +68,27 @@ public:
   GlobalDictCache();
   ~GlobalDictCache();
   
-  NdbTableImpl * get(NdbTableImpl *tab);
   NdbTableImpl * get(const char * name, int *error);
   
   NdbTableImpl* put(const char * name, NdbTableImpl *);
-  void release(NdbTableImpl *, int invalidate = 0);
+  void release(const NdbTableImpl *, int invalidate = 0);
 
   void alter_table_rep(const char * name, 
 		       Uint32 tableId, Uint32 tableVersion, bool altered);
 
   unsigned get_size();
   void invalidate_all();
+
+  // update reference count by +1 or -1
+  int inc_ref_count(const NdbTableImpl * impl) {
+    return chg_ref_count(impl, +1);
+  }
+  int dec_ref_count(const NdbTableImpl * impl) {
+    return chg_ref_count(impl, -1);
+  }
+
+  void invalidateDb(const char * name, size_t len);
+
 public:
   enum Status {
     OK = 0,
@@ -86,6 +98,7 @@ public:
   
 private:
   void printCache();
+  int chg_ref_count(const NdbTableImpl *, int value);
 
   struct TableVersion {
     Uint32 m_version;

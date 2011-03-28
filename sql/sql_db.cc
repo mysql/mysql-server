@@ -559,6 +559,11 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   if (lock_schema_name(thd, db))
     DBUG_RETURN(-1);
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  global_schema_lock_guard.lock();
+#endif
+
   /* Check directory */
   path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   path[path_len-1]= 0;                    // Remove last '/' from path
@@ -691,6 +696,11 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   if (lock_schema_name(thd, db))
     DBUG_RETURN(TRUE);
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  global_schema_lock_guard.lock();
+#endif
+
   /* 
      Recreate db options file: /dbpath/.db.opt
      We pass MY_DB_OPT_FILE as "extension" to avoid
@@ -772,6 +782,11 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
   if (lock_schema_name(thd, db))
     DBUG_RETURN(true);
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  global_schema_lock_guard.lock();
+#endif
 
   length= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
   strmov(path+length, MY_DB_OPT_FILE);		// Append db option file name

@@ -411,6 +411,14 @@ handlerton *heap_hton;
 handlerton *myisam_hton;
 handlerton *partition_hton;
 
+#ifndef MCP_BUG53205
+uint opt_server_id_bits= 0;
+ulong opt_server_id_mask= 0;
+#endif
+#ifndef MCP_BUG46955
+extern int(*ndb_wait_setup_func)(ulong);
+extern ulong opt_ndb_wait_setup;
+#endif
 my_bool read_only= 0, opt_readonly= 0;
 my_bool use_temp_pool, relay_log_purge;
 my_bool relay_log_recovery;
@@ -4063,6 +4071,20 @@ will be ignored as the --log-bin option is not defined.");
   }
 #endif
 
+#ifndef MCP_BUG53205
+  opt_server_id_mask = ~ulong(0);
+#ifdef HAVE_REPLICATION
+  opt_server_id_mask = (opt_server_id_bits == 32)?
+    ~ ulong(0) : (1 << opt_server_id_bits) -1;
+  if (server_id != (server_id & opt_server_id_mask))
+  {
+    sql_print_error("server-id configured is too large to represent with"
+                    "server-id-bits configured.");
+    unireg_abort(1);
+  }
+#endif
+#endif
+
   if (opt_bin_log)
   {
     /* Reports an error and aborts, if the --log-bin's path 
@@ -4866,6 +4888,17 @@ int mysqld_main(int argc, char **argv)
   mysqld_server_started= 1;
   mysql_cond_signal(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
+
+#ifndef MCP_BUG46955
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  if (ndb_wait_setup_func && ndb_wait_setup_func(opt_ndb_wait_setup))
+  {
+    sql_print_warning("NDB : Tables not available after %lu seconds."
+                      "  Consider increasing --ndb-wait-setup value",
+                      opt_ndb_wait_setup);
+  }
+#endif
+#endif
 
 #if defined(_WIN32) || defined(HAVE_SMEM)
   handle_connections_methods();

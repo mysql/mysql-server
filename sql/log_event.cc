@@ -694,6 +694,10 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
     cache_type= Log_event::EVENT_TRANSACTIONAL_CACHE;
   else
     cache_type= Log_event::EVENT_STMT_CACHE;
+
+#ifndef MCP_BUG52305
+  unmasked_server_id= server_id;
+#endif
 }
 
 /**
@@ -714,6 +718,10 @@ Log_event::Log_event()
   */
   when=		0;
   log_pos=	0;
+
+#ifndef MCP_BUG52305
+  unmasked_server_id= server_id;
+#endif
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -732,6 +740,17 @@ Log_event::Log_event(const char* buf,
 #endif
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
+#ifndef MCP_BUG52305
+  unmasked_server_id = server_id;
+  /*
+     Mask out any irrelevant parts of the server_id
+  */
+#ifdef HAVE_REPLICATION
+  server_id = unmasked_server_id & opt_server_id_mask;
+#else
+  server_id = unmasked_server_id;
+#endif
+#endif
   data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
   {
@@ -7938,6 +7957,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+#ifndef MCP_WL3733
+    if (slave_allow_batching)
+      thd->variables.option_bits|= OPTION_ALLOW_BATCH;
+    else
+      thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
+#endif
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
@@ -8195,7 +8220,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-  
+#ifndef MCP_WL3733
+  /* reset OPTION_ALLOW_BATCH as not affect later events */
+  thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
+#endif
+
   if (error)
   {
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
@@ -9769,6 +9798,24 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
                                  table->s->reclength) == 0);
 
     */
+
+#ifndef MCP_WL3733
+    /*
+      Ndb does not need read before delete/update (and no updates are sent)
+      if primary key specified
+
+      (Actually uniquekey will also do, but pk will be in each
+      row if table has pk)
+
+      Also set ignore no key, as we don't really know if row exists...
+    */
+    if (table->file->ht->db_type == DB_TYPE_NDBCLUSTER)
+    {
+      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+      DBUG_RETURN(0);
+    }
+#endif
+
     DBUG_PRINT("info",("locating record using primary key (position)"));
     int error;
     if (table->file->inited && (error= table->file->ha_index_end()))
