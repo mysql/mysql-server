@@ -173,9 +173,4 @@ ADD_LIBRARY(libmysqld SHARED cmake_dummy.c libmysqld.def)
 ADD_DEPENDENCIES(libmysqld mysqlserver)
 TARGET_LINK_LIBRARIES(libmysqld mysqlserver wsock32)
 
-INSTALL(TARGETS mysqlserver DESTINATION lib COMPONENT Embedded)
-INSTALL_DEBUG_SYMBOLS(mysqlserver)
-INSTALL_DEBUG_TARGET(mysqlserver DESTINATION lib/debug COMPONENT Embedded)
-
-INSTALL(TARGETS libmysqld DESTINATION lib COMPONENT Embedded)
-INSTALL_DEBUG_SYMBOLS(libmysqld)
+MYSQL_INSTALL_TARGETS(mysqlserver libmysqld DESTINATION lib COMPONENT Embedded)
