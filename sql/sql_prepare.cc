@@ -1457,13 +1457,7 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   lex->select_lex.context.resolve_in_select_list= TRUE;
 
-  ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
-  if (tables)
-  {
-    if (check_table_access(thd, privilege, tables, FALSE, UINT_MAX, FALSE))
-      goto error;
-  }
-  else if (check_access(thd, privilege, any_db, NULL, NULL, 0, 0))
+  if (select_precheck(thd, lex, tables, lex->select_lex.table_list.first))
     goto error;
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))

@@ -113,6 +113,7 @@
    "FUNCTION" : "PROCEDURE")
 
 static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables);
+static bool check_show_access(THD *thd, TABLE_LIST *table);
 static void sql_kill(THD *thd, ulong id, bool only_kill_query);
 static bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 
@@ -2109,25 +2110,14 @@ mysql_execute_command(THD *thd)
 
   switch (lex->sql_command) {
 
-  case SQLCOM_SHOW_EVENTS:
-#ifndef HAVE_EVENT_SCHEDULER
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
-    break;
-#endif
-  case SQLCOM_SHOW_STATUS_PROC:
-  case SQLCOM_SHOW_STATUS_FUNC:
-    if ((res= check_table_access(thd, SELECT_ACL, all_tables, FALSE,
-                                  UINT_MAX, FALSE)))
-      goto error;
-    res= execute_sqlcom_select(thd, all_tables);
-    break;
   case SQLCOM_SHOW_STATUS:
   {
     system_status_var old_status_var= thd->status_var;
     thd->initial_status_var= &old_status_var;
-    if (!(res= check_table_access(thd, SELECT_ACL, all_tables, FALSE,
-                                  UINT_MAX, FALSE)))
+
+    if (!(res= select_precheck(thd, lex, all_tables, first_table)))
       res= execute_sqlcom_select(thd, all_tables);
+
     /* Don't log SHOW STATUS commands to slow query log */
     thd->server_status&= ~(SERVER_QUERY_NO_INDEX_USED |
                            SERVER_QUERY_NO_GOOD_INDEX_USED);
@@ -2142,6 +2132,13 @@ mysql_execute_command(THD *thd)
     mysql_mutex_unlock(&LOCK_status);
     break;
   }
+  case SQLCOM_SHOW_EVENTS:
+#ifndef HAVE_EVENT_SCHEDULER
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
+    break;
+#endif
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_DATABASES:
   case SQLCOM_SHOW_TABLES:
   case SQLCOM_SHOW_TRIGGERS:
@@ -2159,21 +2156,7 @@ mysql_execute_command(THD *thd)
   {
     thd->status_var.last_query_cost= 0.0;
 
-    /*
-      lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
-      requires FILE_ACL access.
-    */
-    ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-      SELECT_ACL;
-
-    if (all_tables)
-      res= check_table_access(thd,
-                              privileges_requested,
-                              all_tables, FALSE, UINT_MAX, FALSE);
-    else
-      res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
-
-    if (res)
+    if ((res= select_precheck(thd, lex, all_tables, first_table)))
       break;
 
     res= execute_sqlcom_select(thd, all_tables);
@@ -4937,20 +4920,19 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 
+/**
+  Check if user has enough privileges for execution of SHOW statement,
+  which was converted to query to one of I_S tables.
+
+  @param thd    Thread context.
+  @param table  Table list element for I_S table to be queried..
+
+  @retval FALSE - Success.
+  @retval TRUE  - Failure.
+*/
+
 static bool check_show_access(THD *thd, TABLE_LIST *table)
 {
-  /*
-    This is a SHOW command using an INFORMATION_SCHEMA table.
-    check_access() has not been called for 'table',
-    and SELECT is currently always granted on the I_S, so we automatically
-    grant SELECT on table here, to bypass a call to check_access().
-    Note that not calling check_access(table) is an optimization,
-    which needs to be revisited if the INFORMATION_SCHEMA does
-    not always automatically grant SELECT but use the grant tables.
-    See Bug#38837 need a way to disable information_schema for security
-  */
-  table->grant.privilege= SELECT_ACL;
-
   switch (get_schema_table_idx(table->schema_table)) {
   case SCH_SCHEMATA:
     return (specialflag & SPECIAL_SKIP_SHOW_DB) &&
@@ -5088,12 +5070,16 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
      */
     tables->grant.orig_want_privilege= (want_access & ~SHOW_VIEW_ACL);
 
-    if (tables->schema_table_reformed)
-    {
-      if (check_show_access(thd, tables))
-        goto deny;
-      continue;
-    }
+    /*
+      We should not encounter table list elements for reformed SHOW
+      statements unless this is first table list element in the main
+      select.
+      Such table list elements require additional privilege check
+      (see check_show_access()). This check is carried out by caller,
+      but only for the first table list element from the main select.
+    */
+    DBUG_ASSERT(!tables->schema_table_reformed ||
+                tables == thd->lex->select_lex.table_list.first);
 
     DBUG_PRINT("info", ("derived: %d  view: %d", tables->derived != 0,
                         tables->view != 0));
@@ -5221,6 +5207,13 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   }
   DBUG_PRINT("exit",("no matching access rights"));
   DBUG_RETURN(1);
+}
+
+#else
+
+static bool check_show_access(THD *thd, TABLE_LIST *table)
+{
+  return false;
 }
 
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
@@ -6668,6 +6661,45 @@ Item * all_any_subquery_creator(Item *left_expr,
     return it->upper_item= new Item_func_not_all(it);	/* ALL */
 
   return it->upper_item= new Item_func_nop_all(it);      /* ANY/SOME */
+}
+
+
+/**
+  Perform first stage of privilege checking for SELECT statement.
+
+  @param thd          Thread context.
+  @param lex          LEX for SELECT statement.
+  @param tables       List of tables used by statement.
+  @param first_table  First table in the main SELECT of the SELECT
+                      statement.
+
+  @retval FALSE - Success (column-level privilege checks might be required).
+  @retval TRUE  - Failure, privileges are insufficient.
+*/
+
+bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
+                     TABLE_LIST *first_table)
+{
+  bool res;
+  /*
+    lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
+    requires FILE_ACL access.
+  */
+  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
+                                              SELECT_ACL;
+
+  if (tables)
+  {
+    res= check_table_access(thd,
+                            privileges_requested,
+                            tables, FALSE, UINT_MAX, FALSE) ||
+         (first_table && first_table->schema_table_reformed &&
+          check_show_access(thd, first_table));
+  }
+  else
+    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+
+  return res;
 }
 
 
