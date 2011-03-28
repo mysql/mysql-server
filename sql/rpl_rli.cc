@@ -170,7 +170,7 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
                         " so replication "
                         "may break when this MySQL server acts as a "
                         "slave and has his hostname changed!! Please "
-                        "use '--log-basename=%' or '--relay-log=%s' to avoid "
+                        "use '--log-basename=#' or '--relay-log=%s' to avoid "
                         "this problem.", ln);
       name_warning_sent= 1;
     }
