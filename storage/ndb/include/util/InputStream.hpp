@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2008 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef INPUT_STREAM_HPP
 #define INPUT_STREAM_HPP
@@ -25,14 +28,14 @@
  */
 class InputStream {
 public:
-  InputStream() { m_mutex= NULL; };
-  virtual ~InputStream() {};
+  InputStream() { m_mutex= NULL; }
+  virtual ~InputStream() {}
   virtual char* gets(char * buf, int bufLen) = 0;
   /**
    * Set the mutex to be UNLOCKED when blocking (e.g. select(2))
    */
-  void set_mutex(NdbMutex *m) { m_mutex= m; };
-  virtual void reset_timeout() {};
+  void set_mutex(NdbMutex *m) { m_mutex= m; }
+  virtual void reset_timeout() {}
 protected:
   NdbMutex *m_mutex;
 };
@@ -57,8 +60,8 @@ public:
   SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 60000);
   virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
-  bool timedout() { return m_timedout; };
-  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;};
+  bool timedout() { return m_timedout; }
+  void reset_timeout() { m_timedout= false; m_timeout_remain= m_timeout_ms;}
 
 };
 

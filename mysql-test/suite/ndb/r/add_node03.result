@@ -1,0 +1,76 @@
+result_format: 2
+## Make mtr.pl restart all servers after this test
+call mtr.force_restart();
+
+## Show cluster is started with one ndb_mgmd and two ndbd nodes
+Connected to Management Server at: localhost
+Cluster Configuration
+---------------------
+[ndbd(NDB)]	2 node(s)
+id=1	@127.0.0.1  (mysql ndb, Nodegroup: 0, Master)
+id=2	@127.0.0.1  (mysql ndb, Nodegroup: 0)
+
+[ndb_mgmd(MGM)]	1 node(s)
+id=3	@127.0.0.1  (mysql ndb)
+
+[mysqld(API)]	14 node(s)
+id=4	@127.0.0.1  (mysql ndb)
+id=5	@127.0.0.1  (mysql ndb)
+id=6	@127.0.0.1  (mysql ndb)
+id=7	@127.0.0.1  (mysql ndb)
+id=8	@127.0.0.1  (mysql ndb)
+id=9	@127.0.0.1  (mysql ndb)
+id=10 (not connected, accepting connect from localhost)
+id=11 (not connected, accepting connect from localhost)
+id=12 (not connected, accepting connect from localhost)
+id=63 (not connected, accepting connect from localhost)
+id=127 (not connected, accepting connect from localhost)
+id=192 (not connected, accepting connect from localhost)
+id=228 (not connected, accepting connect from localhost)
+id=255 (not connected, accepting connect from localhost)
+
+## Add six nodes to my.cnf
+## Reload ndb_mgmd
+## Restart the "old" ndbd nodes
+## Restart mysqld nodes
+
+
+
+
+
+## Initial start of "new" data nodes
+## Wait for added nodes started
+## Create nodegroup for "new" nodes
+## Cluster running after adding six ndbd nodes:
+Connected to Management Server at: localhost
+Cluster Configuration
+---------------------
+[ndbd(NDB)]	8 node(s)
+id=1	@127.0.0.1  (mysql ndb, Nodegroup: 0, Master)
+id=2	@127.0.0.1  (mysql ndb, Nodegroup: 0)
+id=40	@127.0.0.1  (mysql ndb, Nodegroup: 1)
+id=41	@127.0.0.1  (mysql ndb, Nodegroup: 1)
+id=42	@127.0.0.1  (mysql ndb, Nodegroup: 2)
+id=43	@127.0.0.1  (mysql ndb, Nodegroup: 2)
+id=44	@127.0.0.1  (mysql ndb, Nodegroup: 3)
+id=45	@127.0.0.1  (mysql ndb, Nodegroup: 3)
+
+[ndb_mgmd(MGM)]	1 node(s)
+id=3	@127.0.0.1  (mysql ndb)
+
+[mysqld(API)]	14 node(s)
+id=4	@127.0.0.1  (mysql ndb)
+id=5	@127.0.0.1  (mysql ndb)
+id=6	@127.0.0.1  (mysql ndb)
+id=7	@127.0.0.1  (mysql ndb)
+id=8	@127.0.0.1  (mysql ndb)
+id=9	@127.0.0.1  (mysql ndb)
+id=10 (not connected, accepting connect from localhost)
+id=11 (not connected, accepting connect from localhost)
+id=12 (not connected, accepting connect from localhost)
+id=63 (not connected, accepting connect from localhost)
+id=127 (not connected, accepting connect from localhost)
+id=192 (not connected, accepting connect from localhost)
+id=228 (not connected, accepting connect from localhost)
+id=255 (not connected, accepting connect from localhost)
+

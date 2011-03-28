@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDBT_RESTARTER_HPP
 #define NDBT_RESTARTER_HPP
@@ -30,33 +32,41 @@ public:
   enum RestartFlags {
     NRRF_INITIAL = 0x1,
     NRRF_NOSTART = 0x2,
-    NRRF_ABORT   = 0x4
+    NRRF_ABORT   = 0x4,
+    NRRF_FORCE   = 0x8
   };
 
   int restartOneDbNode(int _nodeId, 
 		       bool initial = false, 
 		       bool nostart = false, 
-		       bool abort = false);
+		       bool abort = false,
+                       bool force = false);
 
   int restartOneDbNode2(int _nodeId, Uint32 flags){
     return restartOneDbNode(_nodeId,
                             flags & NRRF_INITIAL,
                             flags & NRRF_NOSTART,
-                            flags & NRRF_ABORT);
+                            flags & NRRF_ABORT,
+                            flags & NRRF_FORCE);
   }
 
   int restartAll(bool initial = false, 
 		 bool nostart = false, 
-		 bool abort = false);
+		 bool abort = false,
+                 bool force = false);
   
   int restartAll2(Uint32 flags){
     return restartAll(flags & NRRF_INITIAL,
                       flags & NRRF_NOSTART,
-                      flags & NRRF_ABORT);
+                      flags & NRRF_ABORT,
+                      flags & NRRF_FORCE);
   }
+
+  int restartNodes(int * nodes, int num_nodes, Uint32 flags);
   
   int startAll();
   int startNodes(const int * _nodes, int _num_nodes);
+  int waitConnected(unsigned int _timeout = 120);
   int waitClusterStarted(unsigned int _timeout = 120);
   int waitClusterSingleUser(unsigned int _timeout = 120);
   int waitClusterStartPhase(int _startphase, unsigned int _timeout = 120);
@@ -68,6 +78,7 @@ public:
   int waitNodesNoStart(const int * _nodes, int _num_nodes,
 		       unsigned int _timeout = 120); 
 
+  int checkClusterAlive(const int * deadnodes, int num_nodes);
 
   int getNumDbNodes();
   int insertErrorInNode(int _nodeId, int error);
@@ -85,9 +96,26 @@ public:
   int getRandomNodeSameNodeGroup(int nodeId, int randomNumber);
   int getRandomNodeOtherNodeGroup(int nodeId, int randomNumber);
   int getRandomNotMasterNodeId(int randomNumber);
+
+  int getMasterNodeVersion(int& version);
+  int getNodeTypeVersionRange(ndb_mgm_node_type type, int& minVer, int& maxVer);
   
+  int getNodeStatus(int nodeId); // return NDB_MGM_NODE_STATUS_*
+
   NdbMgmHandle handle;  
-  
+
+  enum NodeSelector
+  {
+    NS_RANDOM     = 0, // Any node
+    NS_MASTER     = 1, // Master node
+    NS_NON_MASTER = 2
+  };
+
+  int getNode(NodeSelector);
+
+  void setReconnect(bool);
+
+  int rollingRestart(Uint32 flags = 0);
 protected:
 
   int waitClusterState(ndb_mgm_node_status _status,
@@ -110,6 +138,7 @@ protected:
   bool connected;
   BaseString addr;
   ndb_mgm_configuration * m_config;
+  bool m_reconnect;
 protected:
   ndb_mgm_configuration * getConfig();
 

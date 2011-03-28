@@ -2041,6 +2041,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   DBUG_ENTER("mysql_rm_table");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+#endif
+
   /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
@@ -2061,6 +2065,11 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
                            MYSQL_OPEN_SKIP_TEMPORARY))
         DBUG_RETURN(true);
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+      global_schema_lock_guard.lock();
+#endif
+
       for (table= tables; table; table= table->next_local)
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                          false);
@@ -2100,7 +2109,10 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
           if (!table->table)
             DBUG_RETURN(true);
           table->mdl_request.ticket= table->table->mdl_ticket;
-        }
+       }
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+      global_schema_lock_guard.lock();
+#endif
     }
   }
 
@@ -4538,6 +4550,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   bool is_trans= FALSE;
   DBUG_ENTER("mysql_create_table");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+#endif
+
   /*
     Open or obtain an exclusive metadata lock on table being created.
   */
@@ -4546,6 +4562,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     result= TRUE;
     goto end;
   }
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      !create_info->frm_only)
+    global_schema_lock_guard.lock();
+#endif
 
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
@@ -4725,6 +4747,12 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   uint not_used;
   DBUG_ENTER("mysql_create_like_table");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK 
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+ 
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE))
+    global_schema_lock_guard.lock();
+#endif
 
   /*
     We the open source table to get its description in HA_CREATE_INFO
@@ -5484,17 +5512,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
-  if (!create_info->tablespace && create_info->storage_media != HA_SM_MEMORY)
-  {
-    char *tablespace= static_cast<char *>(thd->alloc(FN_LEN + 1));
-    /*
-       Regular alter table of disk stored table (no tablespace/storage change)
-       Copy tablespace name
-    */
-    if (tablespace &&
-        (table->file->get_tablespace_name(thd, tablespace, FN_LEN)))
-      create_info->tablespace= tablespace;
-  }
+  if (!create_info->tablespace)
+    create_info->tablespace= table->s->tablespace;
+
+  if (create_info->storage_media == HA_SM_DEFAULT)
+    create_info->storage_media= table->s->default_storage_media;
+
   restore_record(table, s->default_values);     // Empty record for DEFAULT
   Create_field *def;
 
@@ -5993,6 +6016,32 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+  if (ha_legacy_type(table->s->db_type()) == DB_TYPE_NDBCLUSTER ||
+      ha_legacy_type(create_info->db_type) == DB_TYPE_NDBCLUSTER)
+  {
+    // From or to engine is NDB 
+    if (thd->locked_tables_mode)
+    {
+      /*
+        To avoid deadlock in this situation:
+        - if other thread has lock do not enter lock queue
+        and report an error instead
+      */
+      if (global_schema_lock_guard.lock(true))
+      {
+        my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
+    }
+    else
+    {
+      global_schema_lock_guard.lock();
+    }
+  }
+#endif
 
   /* Check that we are not trying to rename to an existing table */
   if (new_name)

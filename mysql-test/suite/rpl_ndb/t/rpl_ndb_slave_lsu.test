@@ -1,0 +1,219 @@
+###############################################################################
+# Description: Checks if DDL and DML statements are correctly logged by
+#              servers and slave servers according to log-slave-updates,
+#              and independent of their settings on the particular MySQLD
+#              acting in the slave role
+#
+# Testing scenario: Cluster 1 replicates to Cluster 2
+#   Key : BL = log-bin, LSU = log-slave-updates
+#
+#                       BL                        BL
+#  cluster 1 [  srv_master  srv_master1  srv_master2  ]
+#                   |----------+------------
+#                   v          v           v
+#  cluster 2 [  srv_slave  srv_slave1  srv_slave2 ]
+#                                  BL     BL LSU  
+#
+#  - First replicate via srv_slave and check all nodes' Binlog contents
+#  - Second replicate via srv_slave1 and check all nodes' Binlog contents
+#  - Third replicate via srv_slave2 and check all nodes' Binlog contents
+#
+# Makes use of suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
+# Originally motivated by bug#45756
+###############################################################################
+
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+
+###############################################################################
+#                           Configuring Environment
+###############################################################################
+--echo *** Configuring connections ***
+
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+
+connect (srv_master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (srv_master1,127.0.0.1,root,,test,$MASTER_MYPORT1,);
+connect (srv_master2,127.0.0.1,root,,test,$MASTER_MYPORT2,);
+connect (srv_slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+connect (srv_slave1,127.0.0.1,root,,test,$SLAVE_MYPORT1,);
+connect (srv_slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
+
+connection slave;
+--disable_warnings
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+--enable_warnings
+
+--echo *** Waiting for each cluster to startup ***
+
+# Check schema op binlogging enabled between servers on cluster1
+--let $source_server=srv_master
+--let $dest_server=srv_master2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_master1
+--let $dest_server=srv_master
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_master1
+--let $dest_server=srv_master2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_master2
+--let $dest_server=srv_master
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+# Check schema op binlogging enabled between servers on cluster2
+--let $source_server=srv_slave
+--let $dest_server=srv_slave1
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_slave
+--let $dest_server=srv_slave2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_slave1
+--let $dest_server=srv_slave2
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+--let $source_server=srv_slave2
+--let $dest_server=srv_slave1
+source suite/rpl_ndb/t/rpl_ndb_wait_schema_logging.inc;
+
+# Reset state of all Binlogging nodes
+--disable_query_log
+connection master;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_master2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave1;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+--enable_query_log
+
+--echo *** Configuring replication via Slave ***
+connection slave;
+--disable_warnings
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$MASTER_MYPORT,MASTER_USER="root";
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+--enable_warnings
+
+--let $which_slave=srv_slave
+--source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
+
+
+
+--echo *** Configuring replication via Slave1 ***
+connection slave;
+--disable_warnings
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+--enable_warnings
+
+connection srv_slave1;
+--disable_warnings
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+--enable_warnings
+
+# Reset state of all Binlogging nodes
+--disable_query_log
+connection master;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_master2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave1;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+--enable_query_log
+
+connection srv_slave1;
+--disable_warnings
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$MASTER_MYPORT,MASTER_USER="root"
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+--enable_warnings
+
+--let $which_slave=srv_slave1
+--source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc
+
+
+
+--echo *** Configuring replication via Slave2 ***
+connection srv_slave1;
+--disable_warnings
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+--enable_warnings
+
+connection srv_slave2;
+--disable_warnings
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+--enable_warnings
+
+# Reset state of all Binlogging nodes
+--disable_query_log
+connection master;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_master2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave1;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+
+connection srv_slave2;
+--disable_warnings
+RESET MASTER;
+--enable_warnings
+--enable_query_log
+
+connection srv_slave2;
+--disable_warnings
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=$MASTER_MYPORT,MASTER_USER="root";
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+--enable_warnings
+
+--let $which_slave=srv_slave2
+--source suite/rpl_ndb/t/rpl_ndb_multi_binlog_update.inc

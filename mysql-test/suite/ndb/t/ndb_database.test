@@ -1,0 +1,108 @@
+--source include/ndb_have_online_alter.inc
+-- source include/have_ndb.inc
+
+--disable_warnings
+drop database if exists mysqltest;
+--enable_warnings
+
+#
+# Check that all tables in a database are dropped when database is dropped
+#
+
+create database mysqltest;
+create table mysqltest.t1 (a int primary key, b int) engine=ndb;
+use mysqltest;
+show tables;
+
+drop database mysqltest;
+create database mysqltest;
+use mysqltest;
+show tables;
+
+drop database mysqltest;
+
+# End of 4.1 tests
+
+#
+# bug#52225 - special characters in database name
+#
+create database `mysqltest.db`;
+create table `mysqltest.db`.t1 (a int primary key, b int) engine=ndb;
+alter offline table `mysqltest.db`.t1 add column c int;
+alter online table `mysqltest.db`.t1 add column d int column_format dynamic;
+drop table `mysqltest.db`.t1;
+drop database `mysqltest.db`;
+#
+# bug# 54788 DROP DATABASE can remove hidden blob tables without removing parent tables
+#
+# Dropping a database on a server where Ndb tables with Blobs were
+# 'occluded' by a local table can result in Blob part tables being
+# deleted, but the main table not being deleted.
+#
+--source include/have_multi_ndb.inc
+--connection server1
+# Create database with occluding table t1
+create database newdb;
+create table newdb.t1 (a int primary key) engine=myisam;
+
+--connection server2
+# Create Ndb table with Blobs
+# Lots of Blobs to increase prob. that Ndb-list-objects returns a
+# Blob part table before the main table.
+#
+--disable_warnings
+#
+# drop table if exists used to avoid 'table already exists' error on
+# embedded where there is only one server (and this problem cannot be
+# tested).
+# Drop of non-existing table generates a warning on non-embedded, so 
+# warnings disabled.
+#
+drop table if exists newdb.t1;
+--enable_warnings
+
+create table newdb.t1 (a int primary key,
+                       b1  blob,
+                       b2  blob,
+                       b3  blob,
+                       b4  blob,
+                       b5  blob,
+                       b6  blob,
+                       b7  blob,
+                       b8  blob,
+                       b9  blob,
+                       b10 blob,
+                       b11 blob,
+                       b12 blob,
+                       b13 blob,
+                       b14 blob,
+                       b15 blob,
+                       b16 blob,
+                       b17 blob,
+                       b18 blob,
+                       b19 blob,
+                       b20 blob,
+                       b21 blob,
+                       b22 blob,
+                       b23 blob,
+                       b24 blob,
+                       b25 blob,
+                       b26 blob,
+                       b27 blob,
+                       b28 blob,
+                       b29 blob) engine = ndb;
+
+--connection server1
+drop database newdb;
+
+--connection server2
+# Now check that the table is gone
+create database newdb;
+use newdb;
+show tables;
+
+# Check that we can reuse the table name etc.
+create table newdb.t1(a int primary key) engine=ndb;
+show tables;
+drop table t1;
+drop database newdb;

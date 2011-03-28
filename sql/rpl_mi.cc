@@ -104,6 +104,10 @@ Master_info::Master_info(
   ssl_cipher[0]= 0; ssl_key[0]= 0;
   master_uuid[0]= 0;
   ignore_server_ids= new Server_ids();
+
+#ifndef MCP_WL4080
+  master_epoch= 0;
+#endif
 }
 
 Master_info::~Master_info()

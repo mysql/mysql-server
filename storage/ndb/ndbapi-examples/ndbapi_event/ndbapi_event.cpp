@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /**
  *  ndbapi_event.cpp: Using API level events in NDB API
@@ -69,11 +71,11 @@
  * Or using the mysql client:
  *
  * shell> mysql -u root
- * mysql> create database TEST_DB;
- * mysql> use TEST_DB;
+ * mysql> create database ndb_examples;
+ * mysql> use ndb_examples;
  * mysql> create table t0
- *        (c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
- *        primary key(c0, c2)) engine ndb charset latin1;
+          (c0 int, c1 int, c2 char(4), c3 char(4), c4 text,
+          primary key(c0, c2)) engine ndb charset latin1;
  *
  * In another window start ndbapi_event, wait until properly started
  
@@ -157,7 +159,7 @@ int main(int argc, char** argv)
   }
 
   Ndb* myNdb= new Ndb(cluster_connection,
-		      "TEST_DB");  // Object representing the database
+		      "ndb_examples");  // Object representing the database
 
   if (myNdb->init() == -1) APIERROR(myNdb->getNdbError());
 
@@ -292,8 +294,7 @@ int main(int argc, char** argv)
             printf("\n");
           }
 	}
-      } else
-	printf("timed out (%i)\n", timeout);
+      } // else printf("timed out (%i)\n", timeout);
     }
     // don't want to listen to events anymore
     if (myNdb->dropEventOperation(the_op)) APIERROR(myNdb->getNdbError());

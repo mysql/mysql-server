@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CPCD_HPP
 #define CPCD_HPP
@@ -23,13 +26,31 @@
 #include <NdbCondition.h>
 #include <BaseString.hpp>
 
-/* XXX Need to figure out how to do this for non-Unix systems */
-#define CPCD_DEFAULT_WORK_DIR		"/var/run/ndb_cpcd"
+#ifdef _WIN32
+typedef DWORD pid_t;
+#endif
+const pid_t bad_pid = -1;
+
+inline bool is_bad_pid(pid_t pid)
+{
+#ifdef _WIN32
+  return pid == bad_pid;
+#else
+  return pid <= 1;
+#endif
+}
+
 #define CPCD_DEFAULT_PROC_FILE    	"ndb_cpcd.conf"
 #define CPCD_DEFAULT_TCP_PORT		1234
 #define CPCD_DEFAULT_POLLING_INTERVAL	5 /* seconds */
+#ifndef _WIN32
+#define CPCD_DEFAULT_WORK_DIR		"/var/run/ndb_cpcd"
 #define CPCD_DEFAULT_CONFIG_FILE        "/etc/ndb_cpcd.conf"
 
+#else
+#define CPCD_DEFAULT_WORK_DIR		"c:\\ndb_cpcd"
+#define CPCD_DEFAULT_CONFIG_FILE        "c:\\ndb_cpcd\\ndb_cpcd.conf"
+#endif
 enum ProcessStatus {
   STOPPED  = 0,
   STARTING = 1,
@@ -40,30 +61,6 @@ enum ProcessStatus {
 enum ProcessType {
   PERMANENT = 0,
   TEMPORARY = 1
-};
-
-struct CPCEvent {
-  enum EventType {
-    ET_USER_CONNECT,
-    ET_USER_DISCONNECT,
-    
-    ET_PROC_USER_DEFINE,    // Defined proc
-    ET_PROC_USER_UNDEFINE,  // Undefined proc
-    ET_PROC_USER_START,     // Proc ordered to start
-    ET_PROC_USER_STOP,      // Proc ordered to stop
-    ET_PROC_STATE_RUNNING,  // exec returned(?) ok 
-    ET_PROC_STATE_STOPPED   // detected that proc is ! running
-  };
-
-  int m_proc;
-  time_t m_time;
-  EventType m_type;
-};
-
-struct EventSubscriber {
-  virtual void report(const CPCEvent &) = 0;
-  EventSubscriber() {}
-  virtual ~EventSubscriber() {}
 };
 
 /**
@@ -107,7 +104,10 @@ public:
    *  @brief Manages a process
    */
   class Process {
-    int m_pid;
+    pid_t m_pid;
+#ifdef _WIN32
+    HANDLE m_job;
+#endif
   public:
     /** 
      * @brief Constructs and empty Process
@@ -371,19 +371,12 @@ public:
   /** The list of processes. Should not be used directly */
   MutexVector<Process *> m_processes;
 
-  /** Register event subscriber */
-  void do_register(EventSubscriber * sub);
-  EventSubscriber* do_unregister(EventSubscriber * sub);
-  
 private:
   friend class Process;  
   bool notifyChanges();
   int findUniqueId();
   BaseString m_procfile;
   Monitor *m_monitor;
-  
-  void report(int id, CPCEvent::EventType);
-  MutexVector<EventSubscriber *> m_subscribers;
 };
 
 #endif

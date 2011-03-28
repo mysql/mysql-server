@@ -1,0 +1,450 @@
+######################################################################
+# Test restoring backups with lossy conversions on [var]char|binary types
+######################################################################
+
+-- source include/have_ndb.inc
+
+# mysqld's configuration is not relevant to this test
+-- source include/not_embedded.inc
+
+--echo ************************************************************
+--echo * Creating table with char+binary types
+--echo ************************************************************
+
+CREATE TABLE t2(
+  c1 char(2), c2 char(128), c3 char(255),
+  b1 binary(2), b2 binary(128), b3 binary(255),
+  vc1 varchar(2), vc2 varchar(255), vc3 varchar(1024),
+  vb1 varbinary(2), vb2 varbinary(255), vb3 varbinary(1024)
+) ENGINE=NDB;
+
+INSERT INTO t2 VALUES(
+  repeat('a', 2), repeat('b', 128), repeat('c', 255),
+  repeat('d', 2), repeat('e', 128), repeat('f', 255),
+  repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+  repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+
+--echo ************************************************************
+--echo * Backing up table with char+binary types
+--echo ************************************************************
+
+--source include/ndb_backup.inc
+
+# command shortcuts
+--let $restore_cmd=$NDB_RESTORE --no-defaults -b $the_backup_id
+--let $restore_cmd=$restore_cmd -r --backup_path=$NDB_BACKUPS-$the_backup_id
+
+--echo ************************************************************
+--echo * Restoring table with unchanged char+binary types:
+--echo *     char(2)            -->    char(2)
+--echo *     char(128)          -->    char(128)
+--echo *     char(255)          -->    char(255)
+--echo *     binary(2)          -->    binary(2)
+--echo *     binary(128)        -->    binary(128)
+--echo *     binary(255)        -->    binary(255)
+--echo *     varchar(2)         -->    varchar(2)
+--echo *     varchar(255)       -->    varchar(255)
+--echo *     varchar(1024)      -->    varchar(1024)
+--echo *     varbinary(2)       -->    varbinary(2)
+--echo *     varbinary(255)     -->    varbinary(255)
+--echo *     varbinary(1024)    -->    varbinary(1024)
+--echo ************************************************************
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+# for debugging:
+#    --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -L -r --print $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+#    --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -L -r --print $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with 1st degree demoted char+binary types:
+--echo *     char(2)            -->    char(1)
+--echo *     char(128)          -->    char(2)
+--echo *     char(255)          -->    char(128)
+--echo *     binary(2)          -->    binary(1)
+--echo *     binary(128)        -->    binary(2)
+--echo *     binary(255)        -->    binary(128)
+--echo *     varchar(2)         -->    varchar(1)
+--echo *     varchar(255)       -->    varchar(2)
+--echo *     varchar(1024)      -->    varchar(512)
+--echo *     varbinary(2)       -->    varbinary(1)
+--echo *     varbinary(255)     -->    varbinary(2)
+--echo *     varbinary(1024)    -->    varbinary(512)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+ALTER TABLE t2
+  modify c1 char(1), modify c2 char(2), modify c3 char(128),
+  modify b1 binary(1), modify b2 binary(2), modify b3 binary(128),
+  modify vc1 varchar(1), modify vc2 varchar(2), modify vc3 varchar(512),
+  modify vb1 varbinary(1), modify vb2 varbinary(2), modify vb3 varbinary(512);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with 2nd degree demoted char+binary types:
+--echo *     char(2)            -->    char(1)
+--echo *     char(128)          -->    char(1)
+--echo *     char(255)          -->    char(2)
+--echo *     binary(2)          -->    binary(1)
+--echo *     binary(128)        -->    binary(1)
+--echo *     binary(255)        -->    binary(2)
+--echo *     varchar(2)         -->    varchar(1)
+--echo *     varchar(255)       -->    varchar(1)
+--echo *     varchar(1024)      -->    varchar(255)
+--echo *     varbinary(2)       -->    varbinary(1)
+--echo *     varbinary(255)     -->    varbinary(1)
+--echo *     varbinary(1024)    -->    varbinary(255)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+ALTER TABLE t2
+  modify c1 char(1), modify c2 char(1), modify c3 char(2),
+  modify b1 binary(1), modify b2 binary(1), modify b3 binary(2),
+  modify vc1 varchar(1), modify vc2 varchar(1), modify vc3 varchar(255),
+  modify vb1 varbinary(1), modify vb2 varbinary(1), modify vb3 varbinary(255);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with 3rd degree demoted char+binary types:
+--echo *     char(2)            -->    char(1)
+--echo *     char(128)          -->    char(1)
+--echo *     char(255)          -->    char(1)
+--echo *     binary(2)          -->    binary(1)
+--echo *     binary(128)        -->    binary(1)
+--echo *     binary(255)        -->    binary(1)
+--echo *     varchar(2)         -->    varchar(1)
+--echo *     varchar(255)       -->    varchar(1)
+--echo *     varchar(1024)      -->    varchar(1)
+--echo *     varbinary(2)       -->    varbinary(1)
+--echo *     varbinary(255)     -->    varbinary(1)
+--echo *     varbinary(1024)    -->    varbinary(1)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+ALTER TABLE t2
+  modify c1 char(1), modify c2 char(1), modify c3 char(1),
+  modify b1 binary(1), modify b2 binary(1), modify b3 binary(1),
+  modify vc1 varchar(1), modify vc2 varchar(1), modify vc3 varchar(1),
+  modify vb1 varbinary(1), modify vb2 varbinary(1), modify vb3 varbinary(1);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with changed var-ness of char+binary types:
+--echo *     char(2)            -->    varchar(2)
+--echo *     char(128)          -->    varchar(128)
+--echo *     char(255)          -->    varchar(255)
+--echo *     binary(2)          -->    varbinary(2)
+--echo *     binary(128)        -->    varbinary(128)
+--echo *     binary(255)        -->    varbinary(255)
+--echo *     varchar(2)         -->    char(2)
+--echo *     varchar(255)       -->    char(255)
+--echo *     varchar(1024)      -->    varchar(1024)
+--echo *     varbinary(2)       -->    binary(2)
+--echo *     varbinary(255)     -->    binary(255)
+--echo *     varbinary(1024)    -->    varbinary(1024)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+DELETE FROM t2;
+ALTER TABLE t2
+  modify c1 varchar(2), modify c2 varchar(128), modify c3 varchar(255),
+  modify b1 varbinary(2), modify b2 varbinary(128), modify b3 varbinary(255),
+  modify vc1 char(2), modify vc2 char(255), modify vc3 varchar(1024),
+  modify vb1 binary(2), modify vb2 binary(255), modify vb3 varbinary(1024);
+INSERT INTO t2 VALUES(
+  repeat('a', 2), repeat('b', 128), repeat('c', 255),
+  repeat('d', 2), repeat('e', 128), repeat('f', 255),
+  repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+  repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -A > /dev/null
+--exec $restore_cmd -n 2 --print -A > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with changed varness + 1st degree demoted types:
+--echo *     char(2)            -->    varchar(1)
+--echo *     char(128)          -->    varchar(2)
+--echo *     char(255)          -->    varchar(128)
+--echo *     binary(2)          -->    varbinary(1)
+--echo *     binary(128)        -->    varbinary(2)
+--echo *     binary(255)        -->    varbinary(128)
+--echo *     varchar(2)         -->    char(1)
+--echo *     varchar(255)       -->    char(2)
+--echo *     varchar(1024)      -->    char(255)
+--echo *     varbinary(2)       -->    binary(1)
+--echo *     varbinary(255)     -->    binary(2)
+--echo *     varbinary(1024)    -->    binary(255)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+DELETE FROM t2;
+ALTER TABLE t2
+  modify c1 varchar(1), modify c2 varchar(2), modify c3 varchar(128),
+  modify b1 varbinary(1), modify b2 varbinary(2), modify b3 varbinary(128),
+  modify vc1 char(1), modify vc2 char(2), modify vc3 char(255),
+  modify vb1 binary(1), modify vb2 binary(2), modify vb3 binary(255);
+INSERT INTO t2 VALUES(
+  repeat('a', 2), repeat('b', 128), repeat('c', 255),
+  repeat('d', 2), repeat('e', 128), repeat('f', 255),
+  repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+  repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with changed varness + 2nd degree demoted types:
+--echo *     char(2)            -->    varchar(1)
+--echo *     char(128)          -->    varchar(1)
+--echo *     char(255)          -->    varchar(2)
+--echo *     binary(2)          -->    varbinary(1)
+--echo *     binary(128)        -->    varbinary(1)
+--echo *     binary(255)        -->    varbinary(2)
+--echo *     varchar(2)         -->    char(1)
+--echo *     varchar(255)       -->    char(1)
+--echo *     varchar(1024)      -->    char(255)
+--echo *     varbinary(2)       -->    binary(1)
+--echo *     varbinary(255)     -->    binary(1)
+--echo *     varbinary(1024)    -->    binary(255)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+DELETE FROM t2;
+ALTER TABLE t2
+  modify c1 varchar(1), modify c2 varchar(1), modify c3 varchar(2),
+  modify b1 varbinary(1), modify b2 varbinary(1), modify b3 varbinary(2),
+  modify vc1 char(1), modify vc2 char(1), modify vc3 char(255),
+  modify vb1 binary(1), modify vb2 binary(1), modify vb3 binary(255);
+INSERT INTO t2 VALUES(
+  repeat('a', 2), repeat('b', 128), repeat('c', 255),
+  repeat('d', 2), repeat('e', 128), repeat('f', 255),
+  repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+  repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Restoring table with changed varness + 3rd degree demoted types:
+--echo *     char(2)            -->    varchar(1)
+--echo *     char(128)          -->    varchar(1)
+--echo *     char(255)          -->    varchar(1)
+--echo *     binary(2)          -->    varbinary(1)
+--echo *     binary(128)        -->    varbinary(1)
+--echo *     binary(255)        -->    varbinary(1)
+--echo *     varchar(2)         -->    char(1)
+--echo *     varchar(255)       -->    char(1)
+--echo *     varchar(1024)      -->    char(1)
+--echo *     varbinary(2)       -->    binary(1)
+--echo *     varbinary(255)     -->    binary(1)
+--echo *     varbinary(1024)    -->    binary(1)
+--echo ************************************************************
+
+# demote char+binary type attibutes
+--disable_warnings
+DELETE FROM t2;
+ALTER TABLE t2
+  modify c1 varchar(1), modify c2 varchar(1), modify c3 varchar(1),
+  modify b1 varbinary(1), modify b2 varbinary(1), modify b3 varbinary(1),
+  modify vc1 char(1), modify vc2 char(1), modify vc3 char(1),
+  modify vb1 binary(1), modify vb2 binary(1), modify vb3 binary(1);
+INSERT INTO t2 VALUES(
+  repeat('a', 2), repeat('b', 128), repeat('c', 255),
+  repeat('d', 2), repeat('e', 128), repeat('f', 255),
+  repeat('g', 2), repeat('h', 255), repeat('i', 1024),
+  repeat('j', 2), repeat('k', 255), repeat('l', 1024)
+);
+--enable_warnings
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# create a MyISAM table from NDB table, against which to compare data
+CREATE TABLE t2_myisam ENGINE=MYISAM AS SELECT * FROM t2;
+
+# restore table
+DELETE FROM t2;
+--exec $restore_cmd -n 1 --print -L > /dev/null
+--exec $restore_cmd -n 2 --print -L > /dev/null
+SELECT
+  length(c1), length(c2), length(c3),
+  length(b1), length(b2), length(b2),
+  length(vc1), length(vc2), length(vc3),
+  length(vb1), length(vb2), length(vb3)
+FROM t2;
+
+# verify data
+SELECT COUNT(*) FROM t2 NATURAL JOIN t2_myisam;
+DROP TABLE t2_myisam;
+
+--echo ************************************************************
+--echo * Deleting table with char+binary types
+--echo ************************************************************
+
+DROP TABLE t2;

@@ -92,7 +92,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
                  bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-                 y YEAR, t DATE)
+                 y YEAR, t DATE, primary key(t))
                  PARTITION BY RANGE (YEAR(t)) 
                 (PARTITION p0 VALUES LESS THAN (1901), 
                  PARTITION p1 VALUES LESS THAN (1946),  
@@ -117,7 +117,7 @@ SHOW CREATE TABLE t1;
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
-ALTER TABLE t1 ADD PRIMARY KEY(t,id);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(t, id);
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---
@@ -159,7 +159,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
                  bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-                 y YEAR, t DATE)
+                 y YEAR, t DATE, primary key(id))
                  PARTITION BY LIST(id) 
                 (PARTITION p0 VALUES IN (2, 4), 
                  PARTITION p1 VALUES IN (42, 142));
@@ -184,7 +184,6 @@ SHOW CREATE TABLE t1;
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
-ALTER TABLE t1 ADD PRIMARY KEY(id);
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---
@@ -224,7 +223,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id MEDIUMINT NOT NULL, b1 BIT(8), vc VARCHAR(255), 
                  bc CHAR(255), d DECIMAL(10,4) DEFAULT 0, 
                  f FLOAT DEFAULT 0, total BIGINT UNSIGNED, 
-                 y YEAR, t DATE)
+                 y YEAR, t DATE, primary key(t))
                  PARTITION BY HASH( YEAR(t) ) 
                  PARTITIONS 4; 
 
@@ -241,7 +240,7 @@ SHOW CREATE TABLE t1;
 
 --echo --- Check that simple Alter statements are replicated correctly ---
 
-ALTER TABLE t1 ADD PRIMARY KEY(t,id);
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(t,id);
 ALTER TABLE t1 MODIFY vc TEXT;
 
 --echo --- Show the new improved table on the master ---

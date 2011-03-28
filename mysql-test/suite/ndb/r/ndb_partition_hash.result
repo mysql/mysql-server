@@ -1,0 +1,35 @@
+drop table if exists t1;
+CREATE TABLE t1 (
+ol_o_id int NOT NULL,
+ol_d_id int NOT NULL,
+ol_w_id int NOT NULL,
+ol_number int NOT NULL,
+ol_tmp int,
+PRIMARY KEY (ol_w_id, ol_d_id, ol_o_id, ol_number)
+) ENGINE=NDB
+PARTITION BY HASH (ol_w_id);
+insert into t1 values (1,0,0,0,0),(1,0,0,1,0),(1,0,0,2,0),(1,1,0,0,0),(1,1,0,1,0);
+insert into t1 values (2,0,0,0,0),(4,0,0,0,0),(4,0,0,1,0);
+insert into t1 values (0,1,1,4,0),(0,1,1,5,0);
+UPDATE t1 force index (primary) SET ol_tmp = 1
+WHERE ol_o_id = 0 AND ol_d_id = 1 AND ol_w_id = 1;
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+SELECT * FROM t1 WHERE ol_w_id = 1 AND ol_d_id = 1 AND ol_o_id = 0;
+ol_o_id	ol_d_id	ol_w_id	ol_number	ol_tmp
+0	1	1	4	1
+0	1	1	5	1
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+SELECT SUM(ol_number) FROM t1 WHERE ol_o_id = 0 AND ol_w_id = 1 AND ol_d_id = 1;
+SUM(ol_number)
+9
+ndb_scan_count
+1
+ndb_pruned_scan_count
+1
+drop table t1;

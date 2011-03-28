@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2005, 2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /***************************************************************
 * I N C L U D E D   F I L E S                                  *
@@ -39,7 +42,7 @@
 static void getRandomSubscriberNumber(SubscriberNumber number);
 static void getRandomServerId(ServerId *serverId);
 static void getRandomChangedBy(ChangedBy changedBy);
-static void getRandomChangedTime(ChangedTime changedTime);
+//static void getRandomChangedTime(ChangedTime changedTime);
 
 static void clearTransaction(TransactionDefinition *trans);
 static void initGeneratorStatistics(GeneratorStatistics *gen);
@@ -74,7 +77,7 @@ static SequenceValues rollbackDefinition[] = {
    {0,  0}
 };
 
-static int maxsize = 0;
+static unsigned maxsize = 0;
 
 /***************************************************************
 * P U B L I C   D A T A                                        *
@@ -106,11 +109,13 @@ static void getRandomChangedBy(ChangedBy changedBy)
    changedBy[CHANGED_BY_LENGTH] = 0;
 }
 
+#if 0
 static void getRandomChangedTime(ChangedTime changedTime)
 {
    memset(changedTime, myRandom48(26)+'A', CHANGED_TIME_LENGTH);
    changedTime[CHANGED_TIME_LENGTH] = 0;
 }
+#endif
 
 static void clearTransaction(TransactionDefinition *trans)
 {
@@ -249,7 +254,7 @@ doTransaction_T1(Ndb * pNDB, ThreadData * td, int async)
   getRandomChangedBy(td->transactionData.changed_by);
   BaseString::snprintf(td->transactionData.changed_time,
 	   sizeof(td->transactionData.changed_time),
-	   "%ld - %d", td->changedTime++, myRandom48(65536*1024));
+                       "%ld - %u", td->changedTime++, (unsigned)myRandom48(65536*1024));
   //getRandomChangedTime(td->transactionData.changed_time);
   td->transactionData.location = td->transactionData.changed_by[0];
   

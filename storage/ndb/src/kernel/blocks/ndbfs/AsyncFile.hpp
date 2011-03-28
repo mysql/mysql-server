@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,241 +12,136 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef AsyncFile_H
 #define AsyncFile_H
 
-//===========================================================================
-//
-// .DESCRIPTION
-//    Asynchronous file, All actions are executed concurrently with other 
-//    activity of the process. 
-//    Because all action are performed in a seperated thread the result of 
-//    of a action is send back tru a memory channel. 
-//    For the asyncronise notivication of a finished request all the calls
-//    have a request as paramater, the user can use the userData pointer
-//    to add information it needs when the request is send back.
-//      
-//
-// .TYPICAL USE:
-//      Writing or reading data to/from disk concurrently to other activities.
-//
-//===========================================================================
-//=============================================================================
-//
-// .PUBLIC
-//
-//=============================================================================
-///////////////////////////////////////////////////////////////////////////////
-//
-// AsyncFile( );
-// Description:
-//   Initialisation of the class. 
-// Parameters:
-//      -
-///////////////////////////////////////////////////////////////////////////////
-//
-// ~AsyncFile( );
-// Description:
-//   Tell the thread to stop and wait for it to return
-// Parameters:
-//      -
-///////////////////////////////////////////////////////////////////////////////
-// 
-// doStart( );
-// Description: 
-//   Spawns the new  thread.
-// Parameters:
-//  Base path of filesystem
-//
-///////////////////////////////////////////////////////////////////////////////
-//
-// void execute(Request *request);
-// Description:
-//   performens the requered action.
-// Parameters:
-//    request: request to be called when open is finished.
-//       action= open|close|read|write|sync
-//          if action is open then:
-//             par.open.flags= UNIX open flags, see man open
-//             par.open.name= name of the file to open
-//          if action is read or write then:
-//             par.readWrite.buf= user provided buffer to read/write 
-//             the data from/to
-//             par.readWrite.size= how many bytes must be read/written
-//             par.readWrite.offset= absolute offset in file in bytes
-// return:
-//    return values are stored in the request error field:
-//       error= return state of the action, UNIX error see man open/errno
-//       userData= is untouched can be used be user.
-//      
-///////////////////////////////////////////////////////////////////////////////
-//
-// void reportTo( MemoryChannel<Request> *reportTo );
-// Description:
-//   set the channel where the file must report the result of the 
-//    actions back to.
-// Parameters:
-//    reportTo: the memory channel to use use MemoryChannelMultipleWriter 
-//              if more 
-//              than one file uses this channel to report back.
-//      
-///////////////////////////////////////////////////////////////////////////////
-
 #include <kernel_types.h>
-#include "MemoryChannel.hpp"
+#include "AsyncIoThread.hpp"
 #include "Filename.hpp"
-
-const int ERR_ReadUnderflow = 1000;
-
-const int WRITECHUNK = 262144;
-
-class AsyncFile;
-
-class Request
-{
-public:
-  Request() {}
-
-  enum Action {
-    open,
-    close,
-    closeRemove,
-    read,   // Allways leave readv directly after 
-            // read because SimblockAsyncFileSystem depends on it
-    readv,
-    write,// Allways leave writev directly after 
-	        // write because SimblockAsyncFileSystem depends on it
-    writev,
-    writeSync,// Allways leave writevSync directly after 
-    // writeSync because SimblockAsyncFileSystem depends on it
-    writevSync,
-    sync,
-    end,
-    append,
-    append_synch,
-    rmrf,
-    readPartial
-  };
-  Action action;
-  union {
-    struct {
-      Uint32 flags;
-      Uint32 page_size;
-      Uint64 file_size;
-      Uint32 auto_sync_size;
-    } open;
-    struct {
-      int numberOfPages;
-      struct{
-	char *buf;
-	size_t size;
-	off_t offset;
-      } pages[16];
-    } readWrite;
-    struct {
-      const char * buf;
-      size_t size;
-    } append;
-    struct {
-      bool directory;
-      bool own_directory;
-    } rmrf;
-  } par;
-  int error;
-  
-  void set(BlockReference userReference, 
-	   Uint32 userPointer,
-	   Uint16 filePointer);
-  BlockReference theUserReference;
-  Uint32 theUserPointer;
-  Uint16 theFilePointer;
-   // Information for open, needed if the first open action fails.
-  AsyncFile* file;
-  Uint32 theTrace;
-};
-
-NdbOut& operator <<(NdbOut&, const Request&);
-
-inline
-void 
-Request::set(BlockReference userReference, 
-	     Uint32 userPointer, Uint16 filePointer) 
-{
-  theUserReference= userReference;
-  theUserPointer= userPointer;
-  theFilePointer= filePointer;
-}
 
 class AsyncFile
 {
   friend class Ndbfs;
+  friend class AsyncIoThread;
+
 public:
   AsyncFile(SimulatedBlock& fs);
-  ~AsyncFile();
-  
-  void reportTo( MemoryChannel<Request> *reportTo );
-  
-  void execute( Request* request );
-  
-  void doStart();
-  // its a thread so its always running
-  void run();   
+  virtual ~AsyncFile() {};
 
-  bool isOpen();
+  virtual int init() = 0;
+  virtual bool isOpen() = 0;
 
   Filename theFileName;
   Request *m_current_request, *m_last_request;
-private:
-  
-  void openReq(Request *request);
-  void readReq(Request *request);
-  void readvReq(Request *request);
-  void writeReq(Request *request);
-  void writevReq(Request *request);
-  
-  void closeReq(Request *request);
-  void syncReq(Request *request);
-  void removeReq(Request *request);
-  void appendReq(Request *request);
-  void rmrfReq(Request *request, char * path, bool removePath);
-  void endReq();
-  
-  int readBuffer(Request*, char * buf, size_t size, off_t offset);
-  int writeBuffer(const char * buf, size_t size, off_t offset,
-		  size_t chunk_size = WRITECHUNK);
-  
-  int extendfile(Request* request);
-  void createDirectories();
-    
-#ifdef NDB_WIN32
-  HANDLE hFile;
-#else
-  int theFd;
-#endif
 
-  Uint32 m_open_flags; // OM_ flags from request to open file
-  
-  MemoryChannel<Request> *theReportTo;
-  MemoryChannel<Request>* theMemoryChannelPtr;
-  
-  struct NdbThread* theThreadPtr;
-  NdbMutex* theStartMutexPtr;
-  NdbCondition* theStartConditionPtr;
-  bool   theStartFlag;
-  int theWriteBufferSize;
-  char* theWriteBuffer;
-  void* theWriteBufferUnaligned;
-  
+  void set_buffer(Uint32 rg, Ptr<GlobalPage> ptr, Uint32 cnt);
+  bool has_buffer() const;
+  void clear_buffer(Uint32 &rg, Ptr<GlobalPage> & ptr, Uint32 & cnt);
+
+  AsyncIoThread* getThread() const { return m_thread;}
+private:
+
+  /**
+   * Implementers of AsyncFile interface
+   * should implement the following
+   */
+
+  /**
+   * openReq() - open a file.
+   */
+  virtual void openReq(Request *request) = 0;
+
+  /**
+   * readBuffer - read into buffer
+   */
+  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset)=0;
+
+  /**
+   * writeBuffer() - write into file
+   */
+  virtual int writeBuffer(const char * buf, size_t size, off_t offset)=0;
+
+  virtual void closeReq(Request *request)=0;
+  virtual void syncReq(Request *request)=0;
+  virtual void removeReq(Request *request)=0;
+  virtual void appendReq(Request *request)=0;
+  virtual void rmrfReq(Request *request, const char * path, bool removePath)=0;
+  virtual void createDirectories()=0;
+
+  /**
+   * Unlikely to need to implement these. readvReq for iovec
+   */
+protected:
+  virtual void readReq(Request *request);
+  virtual void readvReq(Request *request);
+
+  /**
+   * Unlikely to need to implement these, writeBuffer likely sufficient.
+   * writevReq for iovec (not yet used)
+   */
+  virtual void writeReq(Request *request);
+  virtual void writevReq(Request *request);
+
+private:
+  void attach(AsyncIoThread* thr);
+  void detach(AsyncIoThread* thr);
+
+  AsyncIoThread* m_thread; // For bound files
+
+protected:
   size_t m_write_wo_sync;  // Writes wo/ sync
   size_t m_auto_sync_freq; // Auto sync freq in bytes
+  Uint32 m_open_flags;
 
-  int check_odirect_read(Uint32 flags, int&new_flags, int mode);
-  int check_odirect_write(Uint32 flags, int&new_flags, int mode);
+  /**
+   * file buffers
+   */
+  Uint32 m_resource_group;
+  Uint32 m_page_cnt;
+  Ptr<GlobalPage> m_page_ptr;
+
+  char* theWriteBuffer;
+  Uint32 theWriteBufferSize;
+
 public:
   SimulatedBlock& m_fs;
-  Ptr<GlobalPage> m_page_ptr;
 };
+
+inline
+void
+AsyncFile::set_buffer(Uint32 rg, Ptr<GlobalPage> ptr, Uint32 cnt)
+{
+  assert(!has_buffer());
+  m_resource_group = rg;
+  m_page_ptr = ptr;
+  m_page_cnt = cnt;
+  theWriteBuffer = (char*)ptr.p;
+  theWriteBufferSize = cnt * sizeof(GlobalPage);
+}
+
+inline
+bool
+AsyncFile::has_buffer() const
+{
+  return m_page_cnt > 0;
+}
+
+inline
+void
+AsyncFile::clear_buffer(Uint32 & rg, Ptr<GlobalPage> & ptr, Uint32 & cnt)
+{
+  assert(has_buffer());
+  rg = m_resource_group;
+  ptr = m_page_ptr;
+  cnt = m_page_cnt;
+  m_resource_group = RNIL;
+  m_page_cnt = 0;
+  m_page_ptr.setNull();
+  theWriteBuffer = 0;
+  theWriteBufferSize = 0;
+}
 
 #endif

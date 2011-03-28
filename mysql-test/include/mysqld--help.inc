@@ -21,8 +21,10 @@ perl;
 			   datadir slave-load-tmpdir tmpdir socket/;
 
   # Plugins which may or may not be there:
-  @plugins=qw/innodb ndb archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
+  @plugins=qw/innodb ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit/;
+
+  push(@plugins, 'server-id-bits'); # MCP_BUG53205, variable may not be there
 
   # And substitute the content some environment variables with their
   # names:

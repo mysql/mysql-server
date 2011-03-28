@@ -1,0 +1,29 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
+SHOW TABLES;
+Tables_in_test
+t1
+RESET MASTER;
+INSERT INTO t1 VALUES (1,2);
+INSERT INTO t1 VALUES (2,3);
+STOP SLAVE;
+CHANGE MASTER TO MASTER_HOST="127.0.0.1",MASTER_PORT=SLAVE_PORT,MASTER_USER="root";
+START SLAVE;
+Checking that both slave threads are running.
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	3
+STOP SLAVE;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	2
+2	3
+Checking that both slave threads are running.
+DROP TABLE t1;

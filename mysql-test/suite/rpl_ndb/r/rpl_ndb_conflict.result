@@ -1,0 +1,75 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+insert into mysql.ndb_replication values ("test", "t1_old", 0, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t1_max", 0, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1_max_delete_win", 0, 7, "NDB$MAX_DELETE_WIN(X)");
+create table `t1_old$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table `t1_max$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table `t1_max_delete_win$EX`
+  (server_id int unsigned,
+master_server_id int unsigned,
+master_epoch bigint unsigned,
+count int unsigned,
+a int not null,
+primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+create table t1_old (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+"Test 1"
+insert into t1_old values (1, 'Initial X=1', 1);
+insert into t1_max values (1, 'Initial X=1', 1);
+insert into t1_max_delete_win values (1, 'Initial X=1', 1);
+update t1_old set X = 2, b='Slave X=2';
+update t1_max set X = 2, b='Slave X=2';
+update t1_max_delete_win set X = 2, b='Slave X=2';
+update t1_old set X = 3, b='Master X=3';
+update t1_max set X = 3, b='Master X=3';
+update t1_max_delete_win set X = 3, b='Master X=3';
+"Expect t1_old to contain slave row, and t1_max* to contain master row"
+select * from t1_old;
+a	b	X
+1	Slave X=2	2
+select * from t1_max;
+a	b	X
+1	Master X=3	3
+select * from t1_max_delete_win;
+a	b	X
+1	Master X=3	3
+update t1_old set X = 3, b='Master X=3';
+"Test 2"
+update t1_old set X = 4, b='Slave X=4';
+update t1_max set X = 4, b='Slave X=4';
+update t1_max_delete_win set X = 4, b='Slave X=4';
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+"Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select * from t1_old;
+a	b	X
+1	Slave X=4	4
+select * from t1_max;
+a	b	X
+1	Slave X=4	4
+select * from t1_max_delete_win;
+a	b	X
+delete from t1_old;
+delete from t1_max;
+"Cleanup"
+drop table mysql.ndb_replication;
+drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;

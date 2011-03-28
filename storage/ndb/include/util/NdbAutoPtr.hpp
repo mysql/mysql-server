@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef __NDB_AUTO_PTR_HPP
 #define __NDB_AUTO_PTR_HPP
 
 #include <ndb_global.h>
-#include <my_sys.h>
 
 template<typename T>
 class NdbAutoPtr {
@@ -44,15 +45,6 @@ public:
   NdbAutoObjArrayPtr(T * obj = 0){ m_obj = obj;}
   void reset(T * obj = 0) { if (m_obj) delete[] m_obj; m_obj = obj; }
   ~NdbAutoObjArrayPtr() { if (m_obj) delete[] m_obj;}
-};
-
-template<typename T>
-class My_auto_ptr {
-  T * m_obj;
-public:
-  My_auto_ptr(T * obj = 0){ m_obj = obj;}
-  void reset(T * obj = 0) { if (m_obj) my_free(m_obj); m_obj = obj; }
-  ~My_auto_ptr() { if (m_obj) my_free(m_obj);}
 };
 
 #endif

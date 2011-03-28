@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,20 +12,21 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef ClusterMgr_H
 #define ClusterMgr_H
 
-#include "API.hpp"
 #include <ndb_limits.h>
 #include <NdbThread.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 #include <signaldata/ArbitSignalData.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
-#include <NodeInfo.hpp>
-#include <NodeState.hpp>
+#include "trp_client.hpp"
+#include "trp_node.hpp"
+#include <signaldata/DisconnectRep.hpp>
 
 extern "C" void* runClusterMgr_C(void * me);
 
@@ -32,14 +34,15 @@ extern "C" void* runClusterMgr_C(void * me);
 /**
  * @class ClusterMgr
  */
-class ClusterMgr {
+class ClusterMgr : public trp_client
+{
+  friend class TransporterFacade;
+  friend class ArbitMgr;
   friend void* runClusterMgr_C(void * me);
-  friend void  execute(void *, struct SignalHeader * const, 
-		       Uint8, Uint32 * const, LinearSectionPtr ptr[3]);
 public:
   ClusterMgr(class TransporterFacade &);
-  ~ClusterMgr();
-  void init(struct ndb_mgm_configuration_iterator & config);
+  virtual ~ClusterMgr();
+  void configure(Uint32 nodeId, const ndb_mgm_configuration* config);
   
   void reportConnected(NodeId nodeId);
   void reportDisconnected(NodeId nodeId);
@@ -50,49 +53,51 @@ public:
   void startThread();
 
   void forceHB();
-  void set_max_api_reg_req_interval(unsigned int millisec) { m_max_api_reg_req_interval = millisec; }
+  void set_max_api_reg_req_interval(unsigned int millisec) {
+    m_max_api_reg_req_interval = millisec;
+  }
+
+  void lock() { NdbMutex_Lock(clusterMgrThreadMutex); trp_client::lock(); }
+  void unlock() { trp_client::unlock();NdbMutex_Unlock(clusterMgrThreadMutex); }
 
 private:
+  void startup();
   void threadMain();
   
   int  theStop;
   class TransporterFacade & theFacade;
-  
+  class ArbitMgr * theArbitMgr;
+
 public:
   enum Cluster_state {
     CS_waiting_for_clean_cache = 0,
     CS_waiting_for_first_connect,
     CS_connected
   };
-  struct Node {
+
+  struct Node : public trp_node
+  {
     Node();
-    bool defined;
-    bool connected;     // Transporter connected
-    bool compatible;    // Version is compatible
-    bool nfCompleteRep; // NF Complete Rep has arrived
-    bool m_alive;       // Node is alive
-    bool m_api_reg_conf;// API_REGCONF has arrived
-    
-    NodeInfo  m_info;
-    NodeState m_state;
 
     /**
      * Heartbeat stuff
      */
     Uint32 hbFrequency; // Heartbeat frequence 
     Uint32 hbCounter;   // # milliseconds passed since last hb sent
+    Uint32 hbMissed;    // # missed heartbeats
   };
   
-  const Node &  getNodeInfo(NodeId) const;
+  const trp_node & getNodeInfo(NodeId) const;
   Uint32        getNoOfConnectedNodes() const;
-  bool          isClusterAlive() const;
   void          hb_received(NodeId);
 
+  int m_auto_reconnect;
   Uint32        m_connect_count;
 private:
   Uint32        m_max_api_reg_req_interval;
   Uint32        noOfAliveNodes;
   Uint32        noOfConnectedNodes;
+  Uint32        minDbVersion;
   Node          theNodes[MAX_NODES];
   NdbThread*    theClusterMgrThread;
 
@@ -105,20 +110,26 @@ private:
    * Used for controlling start/stop of the thread
    */
   NdbMutex*     clusterMgrThreadMutex;
-  
-  void showState(NodeId nodeId);
-  void reportNodeFailed(NodeId nodeId, bool disconnect = false);
-  
+
   /**
    * Signals received
    */
   void execAPI_REGREQ    (const Uint32 * theData);
-  void execAPI_REGCONF   (const Uint32 * theData);
+  void execAPI_REGCONF   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
   void execAPI_REGREF    (const Uint32 * theData);
-  void execNODE_FAILREP  (const Uint32 * theData);
-  void execNF_COMPLETEREP(const Uint32 * theData);
+  void execCONNECT_REP   (const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execDISCONNECT_REP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execNODE_FAILREP  (const NdbApiSignal*, const LinearSectionPtr ptr[]);
+  void execNF_COMPLETEREP(const NdbApiSignal*, const LinearSectionPtr ptr[]);
 
-  inline void set_node_alive(Node& node, bool alive){
+  void check_wait_for_hb(NodeId nodeId);
+
+  inline void set_node_alive(trp_node& node, bool alive){
+
+    // Only DB nodes can be "alive"
+    assert(!alive ||
+           (alive && node.m_info.getType() == NodeInfo::DB));
+
     if(node.m_alive && !alive)
     {
       assert(noOfAliveNodes);
@@ -130,11 +141,25 @@ private:
     }
     node.m_alive = alive;
   }
+
+  void set_node_dead(trp_node&);
+
+  void print_nodes(const char* where, NdbOut& out = ndbout);
+  void recalcMinDbVersion();
+
+public:
+  /**
+   * trp_client interface
+   */
+  virtual void trp_deliver_signal(const NdbApiSignal*,
+                                  const LinearSectionPtr p[3]);
 };
 
 inline
-const ClusterMgr::Node &
+const trp_node &
 ClusterMgr::getNodeInfo(NodeId nodeId) const {
+  // Check array bounds
+  assert(nodeId < MAX_NODES);
   return theNodes[nodeId];
 }
 
@@ -145,14 +170,11 @@ ClusterMgr::getNoOfConnectedNodes() const {
 }
 
 inline
-bool
-ClusterMgr::isClusterAlive() const {
-  return noOfAliveNodes != 0;
-}
-inline
 void
 ClusterMgr::hb_received(NodeId nodeId) {
-  theNodes[nodeId].m_info.m_heartbeat_cnt= 0;
+  // Check array bounds + don't allow node 0 to be touched
+  assert(nodeId > 0 && nodeId < MAX_NODES);
+  theNodes[nodeId].hbMissed = 0;
 }
 
 /*****************************************************************************/
@@ -168,7 +190,7 @@ extern "C" void* runArbitMgr_C(void* me);
 class ArbitMgr
 {
 public:
-  ArbitMgr(class TransporterFacade &);
+  ArbitMgr(class ClusterMgr &);
   ~ArbitMgr();
 
   inline void setRank(unsigned n) { theRank = n; }
@@ -181,7 +203,7 @@ public:
   friend void* runArbitMgr_C(void* me);
 
 private:
-  class TransporterFacade & theFacade;
+  class ClusterMgr & m_clusterMgr;
   unsigned theRank;
   unsigned theDelay;
 

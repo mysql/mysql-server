@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef NDB_THREAD_HPP
 #define NDB_THREAD_HPP
@@ -22,7 +25,7 @@
 
 // NDBT_Thread ctor -> NDBT_Thread_run -> thr.run()
 extern "C" {
-static void* NDBT_Thread_run(void* arg);
+void* NDBT_Thread_run(void* arg);
 }
 
 // Function to run in a thread.
@@ -105,10 +108,12 @@ public:
   template <class T> inline void set_output() {
     set_output(new T);
   }
+#if 0
   inline void delete_output() {
     delete m_output;
     m_output = 0;
   }
+#endif
 
   // thread-specific Ndb object
   inline class Ndb* get_ndb() const {

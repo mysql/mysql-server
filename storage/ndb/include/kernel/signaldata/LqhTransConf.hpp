@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef LQH_TRANS_CONF_H
 #define LQH_TRANS_CONF_H
@@ -32,10 +35,17 @@ class LqhTransConf {
    * Sender(s)
    */
   friend class Dblqh;      
+  friend class DblqhProxy;      
 
   friend bool printLQH_TRANSCONF(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 15 );
+  STATIC_CONST( SignalLength = 17 );
+
+  /**
+   * Upgrade
+   */
+  STATIC_CONST( SignalLength_GCI_LO = 16 );
+  STATIC_CONST( SignalLength_FRAG_ID = 17 );
 private:
 
   /**
@@ -69,11 +79,13 @@ private:
   Uint32 lqhConnectPtr;
   Uint32 oldTcOpRec;
   Uint32 requestInfo;
-  Uint32 gci;
+  Uint32 gci_hi;
   Uint32 nextNodeId1;
   Uint32 nextNodeId2;
   Uint32 nextNodeId3;
   Uint32 tableId;
+  Uint32 gci_lo;
+  Uint32 fragId;
 
   /**
    * Getters

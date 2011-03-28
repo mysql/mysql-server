@@ -397,6 +397,10 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+#endif
+
   /* Initialize, or reinitialize in case of reexecution (SP). */
   m_ticket_downgrade= NULL;
 
@@ -441,6 +445,16 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
     if (lock_table(thd, table_ref, &hton_can_recreate))
       DBUG_RETURN(TRUE);
+
+#ifndef MCP_GLOBAL_SCHEMA_LOCK
+    handlerton *hton;
+    if (dd_frm_storage_engine(thd, table_ref->db,
+                              table_ref->table_name, &hton))
+      DBUG_RETURN(TRUE); // Very, very unlikely
+
+    if (ha_legacy_type(hton) == DB_TYPE_NDBCLUSTER)
+      global_schema_lock_guard.lock();
+#endif
 
     if (hton_can_recreate)
     {

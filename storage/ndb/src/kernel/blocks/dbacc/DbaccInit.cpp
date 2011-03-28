@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 
@@ -41,18 +43,57 @@ void Dbacc::initData()
   scanRec = 0;
   tabrec = 0;
 
-  cnoOfAllocatedPages = cpagesize = 0;
+  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = 0;
   // Records with constant sizes
+
+  RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
+
 }//Dbacc::initData()
 
 void Dbacc::initRecords() 
 {
-  // Records with dynamic sizes
-  page8 = (Page8*)allocRecord("Page8",
-			      sizeof(Page8), 
-			      cpagesize,
-			      false,
-            CFG_DB_INDEX_MEM);
+  {
+    AllocChunk chunks[16];
+    const Uint32 pages = (cpagesize + 3) / 4;
+    const Uint32 chunkcnt = allocChunks(chunks, 16, RT_DBTUP_PAGE, pages,
+                                        CFG_DB_INDEX_MEM);
+
+    /**
+     * Set base ptr
+     */
+    Ptr<GlobalPage> pagePtr;
+    m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
+    page8 = (Page8*)pagePtr.p;
+
+    /**
+     * 1) Build free-list per chunk
+     * 2) Add chunks to cfirstfreepage-list
+     */
+    cfirstfreepage = RNIL;
+    cpagesize = 0;
+    cpageCount = 0;
+    for (Int32 i = chunkcnt - 1; i >= 0; i--)
+    {
+      Ptr<GlobalPage> pagePtr;
+      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
+      const Uint32 cnt = 4 * chunks[i].cnt; // 4 8k per 32k
+      Page8* base = (Page8*)pagePtr.p;
+      ndbrequire(base >= page8);
+      const Uint32 ptrI = Uint32(base - page8);
+      for (Uint32 j = 0; j < cnt; j++)
+      {
+        refresh_watch_dog();
+        base[j].word32[0] = ptrI + j + 1;
+      }
+
+      base[cnt-1].word32[0] = cfirstfreepage;
+      cfirstfreepage = ptrI;
+
+      cpageCount += cnt;
+      if (ptrI + cnt > cpagesize)
+        cpagesize = ptrI + cnt;
+    }
+  }
 
   operationrec = (Operationrec*)allocRecord("Operationrec",
 					    sizeof(Operationrec),
@@ -83,8 +124,8 @@ void Dbacc::initRecords()
 				ctablesize);
 }//Dbacc::initRecords()
 
-Dbacc::Dbacc(Block_context& ctx):
-  SimulatedBlock(DBACC, ctx),
+Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBACC, ctx, instanceNumber),
   c_tup(0)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
@@ -113,6 +154,9 @@ Dbacc::Dbacc(Block_context& ctx):
   addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
+
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
 
   initData();
 
@@ -203,10 +247,6 @@ Dbacc::~Dbacc()
 		sizeof(OverflowRecord),
 		coverflowrecsize);
 
-  deallocRecord((void **)&page8, "Page8",
-		sizeof(Page8), 
-		cpagesize);
-  
   deallocRecord((void **)&scanRec, "ScanRec",
 		sizeof(ScanRec), 
 		cscanRecSize);

@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CPCD_PARSER_HPP
 #define CPCD_PARSER_HPP
@@ -19,13 +21,13 @@
 #include "Vector.hpp"
 #include "Properties.hpp"
 #include "InputStream.hpp"
-#include "NdbOut.hpp"
 
 class ParserImpl;
 template<class T> struct ParserRow;
 
 //#define PARSER_DEBUG
 #ifdef PARSER_DEBUG
+#include "NdbOut.hpp"
 #define DEBUG(x) \
   ndbout_c("%s:%d:%s", __FILE__, __LINE__, x);
 #else 
@@ -67,7 +69,8 @@ public:
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    char m_tokenBuffer[512];
+    STATIC_CONST(MaxParseBytes = 512);
+    char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 
     Vector<const ParserRow<T> *> m_aliasUsed;

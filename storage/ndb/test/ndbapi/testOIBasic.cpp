@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,10 +12,13 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 /*
  * testOIBasic - ordered index test
+ *
+ * dummy push to re-created mysql-5.1-telco ...
  */
 
 #include <ndb_global.h>
@@ -49,9 +53,11 @@ struct Opt {
   NdbDictionary::Object::FragmentType m_fragtype;
   const char* m_index;
   uint m_loop;
+  uint m_mrrmaxrng;
   bool m_msglock;
   bool m_nologging;
   bool m_noverify;
+  uint m_pctmrr;
   uint m_pctnull;
   uint m_rows;
   uint m_samples;
@@ -79,9 +85,11 @@ struct Opt {
     m_fragtype(NdbDictionary::Object::FragUndefined),
     m_index(0),
     m_loop(1),
+    m_mrrmaxrng(10),
     m_msglock(true),
     m_nologging(false),
     m_noverify(false),
+    m_pctmrr(50),
     m_pctnull(10),
     m_rows(1000),
     m_samples(0),
@@ -121,8 +129,10 @@ printhelp()
     << "  -fragtype T   fragment type single/small/medium/large" << endl
     << "  -index xyz    only given index numbers (digits 0-9)" << endl
     << "  -loop N       loop count full suite 0=forever [" << d.m_loop << "]" << endl
+    << "  -mrrmaxrng N  max ranges to supply for MRR scan [" << d.m_mrrmaxrng << "]" << endl
     << "  -nologging    create tables in no-logging mode" << endl
     << "  -noverify     skip index verifications" << endl
+    << "  -pctmrr N     pct of index scans to use MRR [" << d.m_pctmrr << "]" << endl
     << "  -pctnull N    pct NULL values in nullable column [" << d.m_pctnull << "]" << endl
     << "  -rows N       rows per thread [" << d.m_rows << "]" << endl
     << "  -samples N    samples for some timings (0=all) [" << d.m_samples << "]" << endl
@@ -150,6 +160,10 @@ static const bool g_compare_null = true;
 static const char* hexstr = "0123456789abcdef";
 
 // random ints
+#ifdef NDB_WIN
+#define random() rand()
+#define srandom(SEED) srand(SEED)
+#endif
 
 static uint
 urandom(uint n)
@@ -275,12 +289,12 @@ static const char* getthrprefix();
 
 // method parameters
 
-class Thr;
-class Con;
-class Tab;
-class ITab;
-class Set;
-class Tmr;
+struct Thr;
+struct Con;
+struct Tab;
+struct ITab;
+struct Set;
+struct Tmr;
 
 struct Par : public Opt {
   uint m_no;
@@ -309,7 +323,7 @@ struct Par : public Opt {
   // do verify after read
   bool m_verify;
   // errors to catch (see Con)
-  bool m_catcherr;
+  uint m_catcherr;
   // abort percentage
   uint m_abortpct;
   NdbOperation::LockMode m_lockmode;
@@ -317,6 +331,7 @@ struct Par : public Opt {
   bool m_tupscan;
   bool m_ordered;
   bool m_descending;
+  bool m_multiRange;
   // threads used by current test case
   uint m_usedthreads;
   Par(const Opt& opt) :
@@ -343,6 +358,7 @@ struct Par : public Opt {
     m_tupscan(false),
     m_ordered(false),
     m_descending(false),
+    m_multiRange(false),
     m_usedthreads(0)
   {
     m_currcase[0] = 0;
@@ -367,11 +383,13 @@ thrrow(Par par, uint j)
   return par.m_usedthreads * j + par.m_no;
 }
 
+#if 0
 static bool
 isthrrow(Par par, uint i)
 {
   return i % par.m_usedthreads == par.m_no;
 }
+#endif
 
 // timer
 
@@ -383,7 +401,7 @@ struct Tmr {
   const char* pct(const Tmr& t1);
   const char* over(const Tmr& t1);
   NDB_TICKS m_on;
-  uint m_ms;
+  NDB_TICKS m_ms;
   uint m_cnt;
   char m_time[100];
   char m_text[100];
@@ -417,9 +435,9 @@ const char*
 Tmr::time()
 {
   if (m_cnt == 0) {
-    sprintf(m_time, "%u ms", m_ms);
+    sprintf(m_time, "%u ms", (unsigned)m_ms);
   } else {
-    sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", m_ms, m_cnt, (1000 * m_ms) / m_cnt);
+    sprintf(m_time, "%u ms per %u ( %u ms per 1000 )", (unsigned)m_ms, m_cnt, (unsigned)((1000 * m_ms) / m_cnt));
   }
   return m_time;
 }
@@ -428,7 +446,7 @@ const char*
 Tmr::pct(const Tmr& t1)
 {
   if (0 < t1.m_ms) {
-    sprintf(m_text, "%u pct", (100 * m_ms) / t1.m_ms);
+    sprintf(m_text, "%u pct", (unsigned)((100 * m_ms) / t1.m_ms));
   } else {
     sprintf(m_text, "[cannot measure]");
   }
@@ -440,9 +458,9 @@ Tmr::over(const Tmr& t1)
 {
   if (0 < t1.m_ms) {
     if (t1.m_ms <= m_ms)
-      sprintf(m_text, "%u pct", (100 * (m_ms - t1.m_ms)) / t1.m_ms);
+      sprintf(m_text, "%u pct", (unsigned)((100 * (m_ms - t1.m_ms)) / t1.m_ms));
     else
-      sprintf(m_text, "-%u pct", (100 * (t1.m_ms - m_ms)) / t1.m_ms);
+      sprintf(m_text, "-%u pct", (unsigned)((100 * (t1.m_ms - m_ms)) / t1.m_ms));
   } else {
     sprintf(m_text, "[cannot measure]");
   }
@@ -531,10 +549,10 @@ Chs::Chs(CHARSET_INFO* cs) :
     // normalize
     memset(xbytes, 0, sizeof(xbytes));
     // currently returns buffer size always
-    int xlen = (*cs->coll->strnxfrm)(cs, xbytes, m_xmul * size, bytes, size);
+    int xlen = NdbSqlUtil::ndb_strnxfrm(cs, xbytes, m_xmul * size, bytes, size);
     // check we got something
     ok = false;
-    for (uint j = 0; j < xlen; j++) {
+    for (uint j = 0; j < (uint)xlen; j++) {
       if (xbytes[j] != 0) {
         ok = true;
         break;
@@ -612,6 +630,10 @@ getcs(Par par)
       uint n = urandom(maxcsnumber);
       cs = get_charset(n, MYF(0));
       if (cs != 0) {
+        // avoid dodgy internal character sets
+        // see bug# 37554
+        if (cs->state & MY_CS_HIDDEN)
+          continue;
         // prefer complex charsets
         if (cs->mbmaxlen != 1 || urandom(5) == 0)
           break;
@@ -634,7 +656,7 @@ struct Col {
     Varchar = NdbDictionary::Column::Varchar,
     Longvarchar = NdbDictionary::Column::Longvarchar
   };
-  const class Tab& m_tab;
+  const struct Tab& m_tab;
   uint m_num;
   const char* m_name;
   bool m_pk;
@@ -646,13 +668,13 @@ struct Col {
   uint m_bytesize;          // full value size
   bool m_nullable;
   const Chs* m_chs;
-  Col(const class Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs);
+  Col(const struct Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs);
   ~Col();
   bool equal(const Col& col2) const;
   void wellformed(const void* addr) const;
 };
 
-Col::Col(const class Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs) :
+Col::Col(const struct Tab& tab, uint num, const char* name, bool pk, Type type, uint length, bool nullable, const Chs* chs) :
   m_tab(tab),
   m_num(num),
   m_name(strcpy(new char [strlen(name) + 1], name)),
@@ -705,6 +727,7 @@ Col::wellformed(const void* addr) const
       const char* src = (const char*)addr;
       uint len = m_bytelength;
       int not_used;
+	  (void)not_used; /* squash warning when assert is #defined to nothing */
       assert((*cs->cset->well_formed_len)(cs, src, src + len, 0xffff, &not_used) == len);
     }
     break;
@@ -715,6 +738,7 @@ Col::wellformed(const void* addr) const
       const char* ssrc = (const char*)src;
       uint len = src[0];
       int not_used;
+	  (void)not_used; /* squash warning when assert is #defined to nothing */
       assert(len <= m_bytelength);
       assert((*cs->cset->well_formed_len)(cs, ssrc + 1, ssrc + 1 + len, 0xffff, &not_used) == len);
     }
@@ -726,6 +750,7 @@ Col::wellformed(const void* addr) const
       const char* ssrc = (const char*)src;
       uint len = src[0] + (src[1] << 8);
       int not_used;
+	  (void)not_used; /* squash warning when assert is #defined to nothing */
       assert(len <= m_bytelength);
       assert((*cs->cset->well_formed_len)(cs, ssrc + 2, ssrc + 2 + len, 0xffff, &not_used) == len);
     }
@@ -775,14 +800,14 @@ operator<<(NdbOut& out, const Col& col)
 // ICol - index column
 
 struct ICol {
-  const class ITab& m_itab;
+  const struct ITab& m_itab;
   uint m_num;
   const Col& m_col;
-  ICol(const class ITab& itab, uint num, const Col& col);
+  ICol(const struct ITab& itab, uint num, const Col& col);
   ~ICol();
 };
 
-ICol::ICol(const class ITab& itab, uint num, const Col& col) :
+ICol::ICol(const struct ITab& itab, uint num, const Col& col) :
   m_itab(itab),
   m_num(num),
   m_col(col)
@@ -807,18 +832,18 @@ struct ITab {
     OrderedIndex = NdbDictionary::Index::OrderedIndex,
     UniqueHashIndex = NdbDictionary::Index::UniqueHashIndex
   };
-  const class Tab& m_tab;
+  const struct Tab& m_tab;
   const char* m_name;
   Type m_type;
   uint m_icols;
   const ICol** m_icol;
   uint m_keymask;
-  ITab(const class Tab& tab, const char* name, Type type, uint icols);
+  ITab(const struct Tab& tab, const char* name, Type type, uint icols);
   ~ITab();
   void icoladd(uint k, const ICol* icolptr);
 };
 
-ITab::ITab(const class Tab& tab, const char* name, Type type, uint icols) :
+ITab::ITab(const struct Tab& tab, const char* name, Type type, uint icols) :
   m_tab(tab),
   m_name(strcpy(new char [strlen(name) + 1], name)),
   m_type(type),
@@ -1454,6 +1479,11 @@ Con::readIndexTuples(Par par)
     scan_flags |= NdbScanOperation::SF_OrderBy;
   if (par.m_descending)
     scan_flags |= NdbScanOperation::SF_Descending;
+  if (par.m_multiRange)
+  {
+    scan_flags |= NdbScanOperation::SF_MultiRange;
+    scan_flags |= NdbScanOperation::SF_ReadRangeNo;
+  }
   CHKCON(m_indexscanop->readTuples(par.m_lockmode, scan_flags, par.m_scanpar, par.m_scanbatch) == 0, *this);
   return 0;
 }
@@ -1596,7 +1626,6 @@ invalidateindex(Par par, const ITab& itab)
 static int
 invalidateindex(Par par)
 {
-  Con& con = par.con();
   const Tab& tab = par.tab();
   for (uint i = 0; i < tab.m_itabs; i++) {
     if (tab.m_itab[i] == 0)
@@ -1933,7 +1962,6 @@ Val::calckeychars(Par par, uint i, uint& n, uchar* buf)
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
-  CHARSET_INFO* cs = chs->m_cs;
   n = 0;
   uint len = 0;
   while (len < col.m_length) {
@@ -1959,7 +1987,7 @@ Val::calcnokey(Par par)
   }
   int r = irandom((par.m_pctrange * par.m_range) / 100);
   if (par.m_bdir != 0 && urandom(10) != 0) {
-    if (r < 0 && par.m_bdir > 0 || r > 0 && par.m_bdir < 0)
+    if ((r < 0 && par.m_bdir > 0) || (r > 0 && par.m_bdir < 0))
       r = -r;
   }
   uint v = par.m_range + r;
@@ -2007,7 +2035,6 @@ Val::calcnokeychars(Par par, uint& n, uchar* buf)
 {
   const Col& col = m_col;
   const Chs* chs = col.m_chs;
-  CHARSET_INFO* cs = chs->m_cs;
   n = 0;
   uint len = 0;
   while (len < col.m_length) {
@@ -2017,7 +2044,7 @@ Val::calcnokeychars(Par par, uint& n, uchar* buf)
     uint half = maxcharcount / 2;
     int r = irandom((par.m_pctrange * half) / 100);
     if (par.m_bdir != 0 && urandom(10) != 0) {
-      if (r < 0 && par.m_bdir > 0 || r > 0 && par.m_bdir < 0)
+      if ((r < 0 && par.m_bdir > 0) || (r > 0 && par.m_bdir < 0))
         r = -r;
     }
     uint i = half + r;
@@ -2125,8 +2152,8 @@ Val::cmpchars(Par par, const uchar* buf1, uint len1, const uchar* buf2, uint len
   CHARSET_INFO* cs = chs->m_cs;
   int k;
   if (!par.m_collsp) {
-    uchar x1[maxxmulsize * 8000];
-    uchar x2[maxxmulsize * 8000];
+    uchar x1[maxxmulsize * NDB_MAX_TUPLE_SIZE];
+    uchar x2[maxxmulsize * NDB_MAX_TUPLE_SIZE];
     // make strxfrm pad both to same length
     uint len = maxxmulsize * col.m_bytelength;
     int n1 = NdbSqlUtil::strnxfrm_bug7284(cs, x1, chs->m_xmul * len, buf1, len1);
@@ -2151,7 +2178,7 @@ Val::verify(Par par, const Val& val2) const
 static void
 printstring(NdbOut& out, const uchar* str, uint len, bool showlen)
 {
-  char buf[4 * 8000];
+  char buf[4 * NDB_MAX_TUPLE_SIZE];
   char *p = buf;
   *p++ = '[';
   if (showlen) {
@@ -2357,7 +2384,6 @@ Row::setval(Par par, uint colmask)
 int
 Row::setval(Par par, const ITab& itab)
 {
-  Con& con = par.con();
   Rsq rsq(itab.m_icols);
   for (uint k = 0; k < itab.m_icols; k++) {
     uint k2 = rsq.next();
@@ -2628,6 +2654,7 @@ struct Set {
   void calc(Par par, uint i, uint colmask = ~0);
   uint count() const;
   const Row* getrow(uint i, bool dirty = false) const;
+  int setrow(uint i, const Row* src, bool force=false);
   // transaction
   void post(Par par, ExecType et);
   // operations
@@ -2824,6 +2851,20 @@ Set::getrow(uint i, bool dirty) const
   return rowp;
 }
 
+int
+Set::setrow(uint i, const Row* src, bool force)
+{
+  assert(i < m_rows);
+  if (m_row[i] != 0)
+    if (!force)
+      return -1;
+  
+  Row* newRow= new Row(src->m_tab);
+  newRow->copy(*src, true);
+  return 0;
+}
+
+
 // transaction
 
 void
@@ -2940,7 +2981,6 @@ Set::delrow(Par par, const ITab& itab, uint i)
 int
 Set::selrow(Par par, const Row& keyrow)
 {
-  Con& con = par.con();
   const Tab& tab = par.tab();
   LL5("selrow " << tab.m_name << " keyrow " << keyrow);
   m_keyrow->copyval(keyrow, tab.m_pkmask);
@@ -2952,7 +2992,6 @@ Set::selrow(Par par, const Row& keyrow)
 int
 Set::selrow(Par par, const ITab& itab, const Row& keyrow)
 {
-  Con& con = par.con();
   LL5("selrow " << itab.m_name << " keyrow " << keyrow);
   m_keyrow->copyval(keyrow, itab.m_keymask);
   CHK(m_keyrow->selrow(par, itab) == 0);
@@ -2963,7 +3002,6 @@ Set::selrow(Par par, const ITab& itab, const Row& keyrow)
 int
 Set::setrow(Par par, uint i)
 {
-  Con& con = par.con();
   assert(m_row[i] != 0);
   CHK(m_row[i]->setrow(par) == 0);
   return 0;
@@ -3001,6 +3039,7 @@ Set::putval(uint i, bool force, uint n)
 {
   const Tab& tab = m_tab;
   LL4("putval key=" << i << " row=" << n << " old=" << m_row[i]);
+  CHK( i<m_rows );
   if (m_row[i] != 0) {
     assert(force);
     delete m_row[i];
@@ -3020,8 +3059,11 @@ Set::putval(uint i, bool force, uint n)
     val.copy(aRef);
     val.m_null = false;
   }
-  if (n != ~0)
+  if (n != (uint) ~0)
+  {
+    CHK(n < m_rows);
     m_rowkey[n] = i;
+  }
   return 0;
 }
 
@@ -3112,10 +3154,9 @@ Set::verify(Par par, const Set& set2, bool pkonly, bool dirty) const
 int
 Set::verifyorder(Par par, const ITab& itab, bool descending) const
 {
-  const Tab& tab = m_tab;
   for (uint n = 0; n < m_rows; n++) {
     uint i2 = m_rowkey[n];
-    if (i2 == ~0)
+    if (i2 == (uint) ~0)
       break;
     if (n == 0)
       continue;
@@ -3123,16 +3164,26 @@ Set::verifyorder(Par par, const ITab& itab, bool descending) const
     assert(m_row[i1] != 0 && m_row[i2] != 0);
     const Row& row1 = *m_row[i1];
     const Row& row2 = *m_row[i2];
+    bool ok;
     if (!descending)
-      CHK(row1.cmp(par, row2, itab) <= 0);
+      ok= (row1.cmp(par, row2, itab) <= 0);
     else
-      CHK(row1.cmp(par, row2, itab) >= 0);
+      ok= (row1.cmp(par, row2, itab) >= 0);
+
+    if (!ok)
+    {
+      LL1("verifyorder " << n << " failed");
+      LL1("row1 " << row1);
+      LL1("row2 " << row2);
+      CHK(false);
+    }
   }
   return 0;
 }
 
 // print
 
+#if 0
 static NdbOut&
 operator<<(NdbOut& out, const Set& set)
 {
@@ -3144,6 +3195,7 @@ operator<<(NdbOut& out, const Set& set)
   }
   return out;
 }
+#endif
 
 // BVal - range scan bound
 
@@ -3259,7 +3311,6 @@ BSet::calc(Par par)
   reset();
   for (uint k = 0; k < itab.m_icols; k++) {
     const ICol& icol = *itab.m_icol[k];
-    const Col& col = icol.m_col;
     for (uint i = 0; i <= 1; i++) {
       if (m_bvals == 0 && urandom(100) == 0)
         return;
@@ -3330,12 +3381,6 @@ BSet::setbnd(Par par) const
     for (uint j = 0; j < m_bvals; j++) {
       uint j2 = rsq1.next();
       const BVal& bval = *m_bval[j2];
-      CHK(bval.setbnd(par) == 0);
-    }
-    // duplicate
-    if (urandom(5) == 0) {
-      uint j3 = urandom(m_bvals);
-      const BVal& bval = *m_bval[j3];
       CHK(bval.setbnd(par) == 0);
     }
   }
@@ -3584,6 +3629,7 @@ pkdelete(Par par)
   return 0;
 }
 
+#if 0
 static int
 pkread(Par par)
 {
@@ -3616,6 +3662,7 @@ pkread(Par par)
     CHK(set1.verify(par, set2, false) == 0);
   return 0;
 }
+#endif
 
 static int
 pkreadfast(Par par, uint count)
@@ -3819,7 +3866,6 @@ scanreadtablefast(Par par, uint countcheck)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
-  const Set& set = par.set();
   LL3("scanfast " << tab.m_name);
   CHK(con.startTransaction() == 0);
   CHK(con.getNdbScanOperation(tab) == 0);
@@ -3905,12 +3951,138 @@ scanreadindex(Par par, const ITab& itab, BSet& bset, bool calc)
   return 0;
 }
 
+
+static int
+scanreadindexmrr(Par par, const ITab& itab, int numBsets)
+{
+  Con& con = par.con();
+  const Tab& tab = par.tab();
+  const Set& set = par.set();
+
+  /* Create space for different sets of bounds, expected results and
+   * results
+   * Calculate bounds and the sets of rows which would result
+   */
+  BSet** boundSets;
+  Set** expectedResults;
+  Set** actualResults;
+  uint* setSizes;
+
+  CHK((boundSets= (BSet**) malloc(numBsets * sizeof(BSet*))) != 0);
+  CHK((expectedResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
+  CHK((actualResults= (Set**) malloc(numBsets * sizeof(Set*))) != 0);
+  CHK((setSizes= (uint*) malloc(numBsets * sizeof(uint))) != 0);
+
+  for (int n=0; n < numBsets; n++)
+  {
+    CHK((boundSets[n]= new BSet(tab, itab)) != NULL );
+    CHK((expectedResults[n]= new Set(tab, set.m_rows)) != NULL);
+    CHK((actualResults[n]= new Set(tab, set.m_rows)) != NULL);
+    setSizes[n]= 0;
+
+    Set& results= *expectedResults[n];
+    /* Calculate some scan bounds which are selective */
+    do {
+      results.reset();
+      calcscanbounds(par, itab, *boundSets[n], set, results);
+    } while ((*boundSets[n]).m_bvals == 0);
+  } 
+
+  /* Define scan with bounds */
+  LL3("scanreadindexmrr " << itab.m_name << " ranges= " << numBsets << " lockmode=" << par.m_lockmode << " ordered=" << par.m_ordered << " descending=" << par.m_descending << " verify=" << par.m_verify);
+  Set set2(tab, set.m_rows);
+  /* Multirange + Read range number for this scan */
+  par.m_multiRange= true;
+  CHK(con.startTransaction() == 0);
+  CHK(con.getNdbIndexScanOperation(itab, tab) == 0);
+  CHK(con.readIndexTuples(par) == 0);
+  /* Set the bounds */
+  for (int n=0; n < numBsets; n++)
+  {
+    CHK(boundSets[n]->setbnd(par) == 0);
+    int res= con.m_indexscanop->end_of_bound(n);
+    if (res != 0)
+    {
+      LL1("end_of_bound error : " << con.m_indexscanop->getNdbError().code);
+      CHK (false);
+    }
+  }
+  set2.getval(par);
+  CHK(con.executeScan() == 0);
+  int rows_received= 0;
+  while (1) {
+    int ret;
+    uint err = par.m_catcherr;
+    CHK((ret = con.nextScanResult(true, err)) == 0 || ret == 1);
+    if (ret == 1)
+      break;
+    if (err) {
+      LL1("scanreadindexmrr stop on " << con.errname(err));
+      break;
+    }
+    uint i = (uint)-1;
+    /* Put value into set2 temporarily */
+    CHK(set2.getkey(par, &i) == 0);
+    CHK(set2.putval(i, false, -1) == 0);
+    
+    /* Now move it to the correct set, based on the range no */
+    int rangeNum= con.m_indexscanop->get_range_no();
+    CHK(rangeNum < numBsets);
+    CHK(set2.m_row[i] != NULL);
+    /* Get rowNum based on what's in the set already (slow) */
+    CHK(setSizes[rangeNum] == actualResults[rangeNum]->count());
+    int rowNum= setSizes[rangeNum];
+    setSizes[rangeNum] ++;
+    CHK((uint) rowNum < set2.m_rows);
+    actualResults[rangeNum]->m_row[i]= set2.m_row[i];
+    actualResults[rangeNum]->m_rowkey[rowNum]= i;
+    set2.m_row[i]= 0;
+    LL4("range " << rangeNum << " key " << i << " row " << rowNum << " " << *set2.m_row[i]);
+    rows_received++;
+  }
+  con.closeTransaction();
+
+  /* Verify that each set has the expected rows, and optionally, that
+   * they're ordered
+   */
+  if (par.m_verify) 
+  {
+    LL4("Verifying " << numBsets << " sets, " << rows_received << " rows");
+    for (int n=0; n < numBsets; n++)
+    {
+      LL5("Set " << n << " of " << expectedResults[n]->count() << " rows");
+      CHK(expectedResults[n]->verify(par, *actualResults[n], false) == 0);
+      if (par.m_ordered)
+      {
+        LL5("Verifying ordering");
+        CHK(actualResults[n]->verifyorder(par, itab, par.m_descending) == 0);
+      }
+    }
+  }
+  
+  /* Cleanup */
+  for (int n=0; n < numBsets; n++)
+  {
+    boundSets[n]->reset();
+    delete boundSets[n];
+    delete expectedResults[n];
+    delete actualResults[n];
+  }
+
+  free(boundSets);
+  free(expectedResults);
+  free(actualResults);
+  free(setSizes);
+
+  LL3("scanreadindexmrr " << itab.m_name << " done rows=" << rows_received);
+  return 0;
+}
+
 static int
 scanreadindexfast(Par par, const ITab& itab, const BSet& bset, uint countcheck)
 {
   Con& con = par.con();
   const Tab& tab = par.tab();
-  const Set& set = par.set();
   LL3("scanfast " << itab.m_name << " " << bset);
   LL4(bset);
   CHK(con.startTransaction() == 0);
@@ -3987,7 +4159,13 @@ scanreadindex(Par par, const ITab& itab)
     if (itab.m_type == ITab::OrderedIndex) {
       BSet bset(tab, itab);
       CHK(scanreadfilter(par, itab, bset, true) == 0);
-      CHK(scanreadindex(par, itab, bset, true) == 0);
+      /* Single range or Multi range scan */
+      if (randompct(g_opt.m_pctmrr))
+        CHK(scanreadindexmrr(par, 
+                             itab, 
+                             1+urandom(g_opt.m_mrrmaxrng-1)) == 0);
+      else
+        CHK(scanreadindex(par, itab, bset, true) == 0);
     }
   }
   return 0;
@@ -4010,6 +4188,7 @@ scanreadindex(Par par)
   return 0;
 }
 
+#if 0
 static int
 scanreadall(Par par)
 {
@@ -4017,6 +4196,7 @@ scanreadall(Par par)
   CHK(scanreadindex(par) == 0);
   return 0;
 }
+#endif
 
 // timing scans
 
@@ -4280,6 +4460,7 @@ scanupdateindex(Par par)
   return 0;
 }
 
+#if 0
 static int
 scanupdateall(Par par)
 {
@@ -4287,6 +4468,7 @@ scanupdateall(Par par)
   CHK(scanupdateindex(par) == 0);
   return 0;
 }
+#endif
 
 // medium level routines
 
@@ -4478,8 +4660,10 @@ static int
 pkupdateindexbuild(Par par)
 {
   if (par.m_no == 0) {
+    NdbSleep_MilliSleep(10 + urandom(100));
     CHK(createindex(par) == 0);
   } else {
+    NdbSleep_MilliSleep(10 + urandom(100));
     par.m_randomkey = true;
     CHK(pkupdate(par) == 0);
   }
@@ -5589,8 +5773,8 @@ runtest(Par par)
     }
     for (uint i = 0; i < tcasecount; i++) {
       const TCase& tcase = tcaselist[i];
-      if (par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0 ||
-          par.m_skip != 0 && strchr(par.m_skip, tcase.m_name[0]) != 0) {
+      if ((par.m_case != 0 && strchr(par.m_case, tcase.m_name[0]) == 0) ||
+          (par.m_skip != 0 && strchr(par.m_skip, tcase.m_name[0]) != 0)) {
         continue;
       }
       sprintf(par.m_currcase, "%c", tcase.m_name[0]);
@@ -5645,7 +5829,7 @@ main(int argc,  char** argv)
   ndb_init();
   uint i;
   ndbout << g_progname;
-  for (i = 1; i < argc; i++)
+  for (i = 1; i < (uint) argc; i++)
     ndbout << " " << argv[i];
   ndbout << endl;
   ndbout_mutex = NdbMutex_Create();
@@ -5736,6 +5920,12 @@ main(int argc,  char** argv)
         continue;
       }
     }
+    if (strcmp(arg, "-mrrmaxrng") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_mrrmaxrng = atoi(argv[0]);
+        continue;
+      }
+    }
     if (strcmp(arg, "-nologging") == 0) {
       g_opt.m_nologging = true;
       continue;
@@ -5743,6 +5933,12 @@ main(int argc,  char** argv)
     if (strcmp(arg, "-noverify") == 0) {
       g_opt.m_noverify = true;
       continue;
+    }
+    if (strcmp(arg, "-pctmrr") == 0) {
+      if (++argv, --argc > 0) {
+        g_opt.m_pctmrr = atoi(argv[0]);
+        continue;
+      }
     }
     if (strcmp(arg, "-pctnull") == 0) {
       if (++argv, --argc > 0) {
@@ -5836,7 +6032,7 @@ main(int argc,  char** argv)
     delete g_ncc;
     g_ncc = 0;
   }
-ok:
+// ok
   return NDBT_ProgramExit(NDBT_OK);
 failed:
   return NDBT_ProgramExit(NDBT_FAILED);

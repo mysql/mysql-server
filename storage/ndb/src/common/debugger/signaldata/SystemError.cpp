@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 
 #include <kernel_types.h>
@@ -28,11 +31,13 @@ printSYSTEM_ERROR(FILE * output, const Uint32 * theData, Uint32 len,
 	  sig->errorRef);   
   fprintf(output, "errorCode: %d\n", 
 	  sig->errorCode);  
-  fprintf(output, "data1: H\'%.8x\n", 
-	  sig->data1);   
-  fprintf(output, "data2: H\'%.8x\n", 
-	  sig->data2);    
-
+  if (len >= 2)
+  {
+    for (Uint32 i = 0; i<len - 2; i++)
+    {
+      fprintf(output, "data[%u]: H\'%.8x\n", i, sig->data[i]);
+    }
+  }
   return true;
 }
 

@@ -316,6 +316,13 @@ my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
+## MCP temp fixes to reduce footprint of large number of failing tests
+$opt_max_save_core = 1; # Don't save many cores
+$opt_max_save_datadir = 1; # Dont save many datadirs
+$opt_max_test_fail = 0; # Allow many tests to fail
+$opt_retry = 1; # Don't retry failed tests
+## MCP temp fixes end
+
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
@@ -2208,6 +2215,38 @@ sub environment_setup {
 		  ["storage/ndb/src/mgmclient", "bin"],
 		  "ndb_mgm");
 
+    $ENV{'NDB_WAITER'}= $exe_ndb_waiter;
+
+    $ENV{'NDB_RESTORE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_restore");
+
+    $ENV{'NDB_CONFIG'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_config");
+
+    $ENV{'NDB_SELECT_ALL'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_select_all");
+
+    $ENV{'NDB_DROP_TABLE'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_drop_table");
+
+    $ENV{'NDB_DESC'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_desc");
+
+    $ENV{'NDB_SHOW_TABLES'}=
+      my_find_bin($bindir,
+		  ["storage/ndb/tools", "bin"],
+		  "ndb_show_tables");
+
     $ENV{'NDB_TOOLS_DIR'}=
       my_find_dir($bindir,
 		  ["storage/ndb/tools", "bin"]);
@@ -2747,6 +2786,7 @@ sub ndb_mgmd_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
+  mtr_add_arg($args, "--configdir=%s", "$dir"); # MCP_MTRPL
 
   my $path_ndb_mgmd_log= "$dir/ndb_mgmd.log";
 

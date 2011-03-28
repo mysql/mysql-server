@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003, 2005, 2006 MySQL AB, 2008 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +13,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef CM_REG_HPP
 #define CM_REG_HPP
@@ -29,12 +32,13 @@ class CmRegReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask::Size );
 private:
   
   Uint32 blockRef;
   Uint32 nodeId;
   Uint32 version;    // See ndb_version.h
+  Uint32 mysql_version;
 
   Uint32 start_type; // As specified by cmd-line or mgm, NodeState::StartType
   Uint32 latest_gci; // 0 means no fs
@@ -52,12 +56,13 @@ class CmRegConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 5 + NdbNodeBitmask::Size );
 private:
   
   Uint32 presidentBlockRef;
   Uint32 presidentNodeId;
   Uint32 presidentVersion;
+  Uint32 presidentMysqlVersion;
 
   /**
    * The dynamic id that the node reciving this signal has
@@ -122,7 +127,7 @@ class CmAdd {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
 private:
   enum RequestType {
@@ -134,6 +139,7 @@ private:
   Uint32 requestType;
   Uint32 startingNodeId;
   Uint32 startingVersion;
+  Uint32 startingMysqlVersion;
 };
 
 class CmAckAdd {
@@ -158,7 +164,7 @@ class CmNodeInfoReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   /**
@@ -167,6 +173,8 @@ private:
   Uint32 nodeId;
   Uint32 dynamicId;
   Uint32 version;
+  Uint32 mysql_version;
+  Uint32 lqh_workers;   // added in telco-6.4
 };
 
 class CmNodeInfoRef {
@@ -194,19 +202,14 @@ class CmNodeInfoConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   Uint32 nodeId;
   Uint32 dynamicId;
   Uint32 version;
+  Uint32 mysql_version;
+  Uint32 lqh_workers;   // added in telco-6.4
 };
 
 #endif
-
-
-
-
-
-
-

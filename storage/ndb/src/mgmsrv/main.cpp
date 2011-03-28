@@ -1,4 +1,5 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,44 +12,38 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
 #include "MgmtSrvr.hpp"
 #include "EventLogger.hpp"
-#include <Config.hpp>
-#include "InitConfigFileParser.hpp"
-#include <SocketServer.hpp>
-#include "Services.hpp"
+#include "Config.hpp"
+
 #include <version.h>
 #include <kernel_types.h>
-#include <Properties.hpp>
-#include <NdbOut.hpp>
-#include <NdbMain.h>
-#include <NdbDaemon.h>
+#include <portlib/ndb_daemon.h>
 #include <NdbConfig.h>
-#include <NdbHost.h>
+#include <NdbSleep.h>
+#include <portlib/NdbDir.hpp>
 #include <ndb_version.h>
-#include <ConfigRetriever.hpp>
 #include <mgmapi_config_parameters.h>
-
 #include <NdbAutoPtr.hpp>
-
 #include <ndb_mgmclient.hpp>
 
-#undef DEBUG
-#define DEBUG(x) ndbout << x << endl;
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
-const char progname[] = "mgmtsrvr";
+
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgmd",0 };
 
 // copied from mysql.cc to get readline
 extern "C" {
 #if defined( __WIN__)
 #include <conio.h>
-#else
+#elif !defined(__NETWARE__)
 #include <readline/readline.h>
 extern "C" int add_history(const char *command); /* From readline directory */
 #define HAVE_READLINE
@@ -88,295 +83,271 @@ read_and_execute(Ndb_mgmclient* com, const char * prompt, int _try_reconnect)
   return com->execute(line_read,_try_reconnect);
 }
 
-/**
- * @struct  MgmGlobals
- * @brief   Global Variables used in the management server
- *****************************************************************************/
-
-/** Command line arguments  */
-static int opt_daemon;   // NOT bool, bool need not be int
-static int opt_non_interactive;
-static int opt_interactive;
-static const char * opt_config_filename= 0;
-static int opt_mycnf = 0;
-  
-struct MgmGlobals {
-  MgmGlobals();
-  ~MgmGlobals();
-  
-  /** Stuff found in environment or in local config  */
-  NodeId localNodeId;
-  bool use_specific_ip;
-  char * interface_name;
-  short unsigned int port;
-  
-  /** The Mgmt Server */
-  MgmtSrvr * mgmObject;
-  
-  /** The Socket Server */
-  SocketServer * socketServer;
-};
-
-int g_no_nodeid_checks= 0;
-int g_print_full_config;
-static MgmGlobals *glob= 0;
-
-/******************************************************************************
- * Function prototypes
- ******************************************************************************/
-/**
- * Global variables
- */
-bool g_StopServer;
-bool g_RestartServer;
-extern EventLogger g_eventLogger;
-
-enum ndb_mgmd_options {
-  OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
-  OPT_NO_NODEID_CHECKS,
-  OPT_NO_DAEMON
-};
-NDB_STD_OPTS_VARS;
+/* Global variables */
+bool g_StopServer= false;
+bool g_RestartServer= false;
+static MgmtSrvr* mgm;
+static MgmtSrvr::MgmtOpts opts;
+static const char* opt_logname = "MgmtSrvr";
+static const char* opt_nowait_nodes = 0;
 
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_mgmd"),
   { "config-file", 'f', "Specify cluster configuration file",
-    &opt_config_filename, &opt_config_filename, 0,
+    (uchar**) &opts.config_filename, (uchar**) &opts.config_filename, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "print-full-config", 'P', "Print full config and exit",
-    &g_print_full_config, &g_print_full_config, 0,
+    (uchar**) &opts.print_full_config, (uchar**) &opts.print_full_config, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "daemon", 'd', "Run ndb_mgmd in daemon mode (default)",
-    &opt_daemon, &opt_daemon, 0,
+    (uchar**) &opts.daemon, (uchar**) &opts.daemon, 0,
     GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0 },
-  { "interactive", OPT_INTERACTIVE,
+  { "interactive", NDB_OPT_NOSHORT,
     "Run interactive. Not supported but provided for testing purposes",
-    &opt_interactive, &opt_interactive, 0,
+    (uchar**) &opts.interactive, (uchar**) &opts.interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "no-nodeid-checks", OPT_NO_NODEID_CHECKS,
-    "Do not provide any node id checks", 
-    &g_no_nodeid_checks, &g_no_nodeid_checks, 0,
+  { "no-nodeid-checks", NDB_OPT_NOSHORT,
+    "Do not provide any node id checks",
+    (uchar**) &opts.no_nodeid_checks, (uchar**) &opts.no_nodeid_checks, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nodaemon", OPT_NO_DAEMON,
+  { "nodaemon", NDB_OPT_NOSHORT,
     "Don't run as daemon, but don't read from stdin",
-    &opt_non_interactive, &opt_non_interactive, 0,
+    (uchar**) &opts.non_interactive, (uchar**) &opts.non_interactive, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "mycnf", 256,
+  { "mycnf", NDB_OPT_NOSHORT,
     "Read cluster config from my.cnf",
-    &opt_mycnf, &opt_mycnf, 0,
+    (uchar**) &opts.mycnf, (uchar**) &opts.mycnf, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "bind-address", NDB_OPT_NOSHORT,
+    "Local bind address",
+    (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "configdir", NDB_OPT_NOSHORT,
+    "Directory for the binary configuration files (alias for --config-dir)",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "config-dir", NDB_OPT_NOSHORT,
+    "Directory for the binary configuration files",
+    (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "config-cache", NDB_OPT_NOSHORT,
+    "Enable configuration cache and change management",
+    (uchar**) &opts.config_cache, (uchar**) &opts.config_cache, 0,
+    GET_BOOL, NO_ARG, 1, 0, 1, 0, 0, 0 },
+  { "verbose", 'v',
+    "Write more log messages",
+    (uchar**) &opts.verbose, (uchar**) &opts.verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "reload", NDB_OPT_NOSHORT,
+    "Reload config from config.ini or my.cnf if it has changed on startup",
+    (uchar**) &opts.reload, (uchar**) &opts.reload, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "initial", NDB_OPT_NOSHORT,
+    "Delete all binary config files and start from config.ini or my.cnf",
+    (uchar**) &opts.initial, (uchar**) &opts.initial, 0,
+    GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "log-name", NDB_OPT_NOSHORT,
+    "Name to use when logging messages for this node",
+    (uchar**) &opt_logname, (uchar**) &opt_logname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nowait-nodes", NDB_OPT_NOSHORT,
+    "Nodes that will not be waited for during start",
+    (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
 static void short_usage_sub(void)
 {
-  printf("Usage: %s [OPTIONS]\n", my_progname);
+  ndb_short_usage_sub(NULL);
+  ndb_service_print_options("ndb_mgmd");
 }
+
 static void usage()
 {
-  short_usage_sub();
-  ndb_std_print_version();
-  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
-  puts("");
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-/*
- *  MAIN 
- */
-int main(int argc, char** argv)
-{
+static char **defaults_argv;
 
+static void mgmd_exit(int result)
+{
+  g_eventLogger->close();
+
+  /* Free memory allocated by 'load_defaults' */
+  free_defaults(defaults_argv);
+
+  ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
+  ndb_daemon_exit(result);
+}
+
+#include "../common/util/parse_mask.hpp"
+
+static int mgmd_main(int argc, char** argv)
+{
   NDB_INIT(argv[0]);
 
+  printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
+
+  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+
   load_defaults("my",load_default_groups,&argc,&argv);
+  defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_mgmd.trace";
+  opt_debug= IF_WIN("d:t:i:F:o,c:\\ndb_mgmd.trace",
+                    "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
-  if ((ho_error=handle_options(&argc, &argv, my_long_options, 
-			       ndb_std_get_one_option)))
-    exit(ho_error);
 
-start:
-  glob= new MgmGlobals;
+  if ((ho_error=handle_options(&argc, &argv, my_long_options,
+                               ndb_std_get_one_option)))
+    mgmd_exit(ho_error);
 
-  if (opt_interactive ||
-      opt_non_interactive ||
-      g_print_full_config) {
-    opt_daemon= 0;
+  if (opts.interactive ||
+      opts.non_interactive ||
+      opts.print_full_config) {
+    opts.daemon= 0;
   }
 
-  if (opt_mycnf && opt_config_filename)
+  if (opts.mycnf && opts.config_filename)
   {
-    ndbout_c("Both --mycnf and -f is not supported");
-    return 0;
+    fprintf(stderr, "ERROR: Both --mycnf and -f is not supported\n");
+    mgmd_exit(1);
   }
 
-  if (opt_mycnf == 0 && opt_config_filename == 0)
+  if (opt_nowait_nodes)
   {
-    struct stat buf;
-    if (stat("config.ini", &buf) != -1)
-      opt_config_filename = "config.ini";
-  }
-  
-  glob->socketServer = new SocketServer();
-
-  MgmApiService * mapi = new MgmApiService();
-
-  glob->mgmObject = new MgmtSrvr(glob->socketServer,
-				 opt_config_filename,
-				 opt_connect_str);
-
-  if (g_print_full_config)
-    goto the_end;
-
-  if (glob->mgmObject->init())
-    goto error_end;
-
-  my_setwd(NdbConfig_get_path(0), MYF(0));
-
-  glob->localNodeId= glob->mgmObject->getOwnNodeId();
-  if (glob->localNodeId == 0) {
-    goto error_end;
-  }
-
-  glob->port= glob->mgmObject->getPort();
-
-  if (glob->port == 0)
-    goto error_end;
-
-  glob->interface_name = 0;
-  glob->use_specific_ip = false;
-
-  if(!glob->use_specific_ip){
-    int count= 5; // no of retries for tryBind
-    while(!glob->socketServer->tryBind(glob->port, glob->interface_name)){
-      if (--count > 0) {
-	NdbSleep_MilliSleep(1000);
-	continue;
-      }
-      ndbout_c("Unable to setup port: %s:%d!\n"
-	       "Please check if the port is already used,\n"
-	       "(perhaps a ndb_mgmd is already running),\n"
-	       "and if you are executing on the correct computer", 
-	       (glob->interface_name ? glob->interface_name : "*"), glob->port);
-      goto error_end;
+    int res = parse_mask(opt_nowait_nodes, opts.nowait_nodes);
+    if(res == -2 || (res > 0 && opts.nowait_nodes.get(0)))
+    {
+      fprintf(stderr, "ERROR: Invalid nodeid specified in nowait-nodes: '%s'\n",
+              opt_nowait_nodes);
+      mgmd_exit(1);
     }
-    free(glob->interface_name);
-    glob->interface_name = 0;
-  }
-
-  if(!glob->socketServer->setup(mapi, &glob->port, glob->interface_name))
-  {
-    ndbout_c("Unable to setup management port: %d!\n"
-	     "Please check if the port is already used,\n"
-	     "(perhaps a ndb_mgmd is already running),\n"
-	     "and if you are executing on the correct computer", 
-	     glob->port);
-    delete mapi;
-    goto error_end;
-  }
-
-  if(!glob->mgmObject->check_start()){
-    ndbout_c("Unable to check start management server.");
-    ndbout_c("Probably caused by illegal initial configuration file.");
-    goto error_end;
-  }
-
-  if (opt_daemon) {
-    // Become a daemon
-    char *lockfile= NdbConfig_PidFileName(glob->localNodeId);
-    char *logfile=  NdbConfig_StdoutFileName(glob->localNodeId);
-    NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
-
-    if (NdbDaemon_Make(lockfile, logfile, 0) == -1) {
-      ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
-      return 1;
+    else if (res < 0)
+    {
+      fprintf(stderr, "ERROR: Unable to parse nowait-nodes argument: '%s'\n",
+              opt_nowait_nodes);
+      mgmd_exit(1);
     }
   }
 
-#ifndef NDB_WIN32
+  /* Setup use of event logger */
+  g_eventLogger->setCategory(opt_logname);
+
+  /* Output to console initially */
+  g_eventLogger->createConsoleHandler();
+
+#ifdef _WIN32
+  /* Output to Windows event log */
+  g_eventLogger->createEventLogHandler("MySQL Cluster Management Server");
+#endif
+
+  if (opts.verbose)
+    g_eventLogger->enable(Logger::LL_ALL); // --verbose turns on everything
+
+  /**
+     Install signal handler for SIGPIPE
+     Done in TransporterFacade as well.. what about Configretriever?
+   */
+#if !defined NDB_WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
+
+  while (!g_StopServer)
   {
-    BaseString error_string;
-    if(!glob->mgmObject->start(error_string)){
-      ndbout_c("Unable to start management server.");
-      ndbout_c("Probably caused by illegal initial configuration file.");
-      ndbout_c(error_string.c_str());
-      goto error_end;
+    mgm= new MgmtSrvr(opts);
+    if (mgm == NULL) {
+      g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
+      mgmd_exit(1);
+    }
+
+    /* Init mgm, load or fetch config */
+    if (!mgm->init()) {
+      delete mgm;
+      mgmd_exit(1);
+    }
+
+    if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
+    {
+      g_eventLogger->warning("Cannot change directory to '%s', error: %d",
+                             NdbConfig_get_path(NULL), errno);
+      // Ignore error
+    }
+
+    if (opts.daemon)
+    {
+      NodeId localNodeId= mgm->getOwnNodeId();
+      if (localNodeId == 0) {
+        g_eventLogger->error("Couldn't get own node id");
+        delete mgm;
+        mgmd_exit(1);
+      }
+
+      char *lockfile= NdbConfig_PidFileName(localNodeId);
+      char *logfile=  NdbConfig_StdoutFileName(localNodeId);
+      if (ndb_daemonize(lockfile, logfile))
+      {
+        g_eventLogger->error("Couldn't start as daemon, error: '%s'",
+                             ndb_daemon_error);
+        mgmd_exit(1);
+      }
+    }
+
+    /* Start mgm services */
+    if (!mgm->start()) {
+      delete mgm;
+      mgmd_exit(1);
+    }
+
+    if (opts.interactive) {
+      int port= mgm->getPort();
+      BaseString con_str;
+      if(opts.bind_address)
+        con_str.appfmt("host=%s:%d", opts.bind_address, port);
+      else
+        con_str.appfmt("localhost:%d", port);
+      Ndb_mgmclient com(con_str.c_str(), 1);
+      while(!g_StopServer){
+        if (!read_and_execute(&com, "ndb_mgm> ", 1))
+          g_StopServer = true;
+      }
+    }
+    else
+    {
+      g_eventLogger->info("MySQL Cluster Management Server %s started",
+                          NDB_VERSION_STRING);
+
+      while (!g_StopServer)
+        NdbSleep_MilliSleep(500);
+    }
+
+    g_eventLogger->info("Shutting down server...");
+    delete mgm;
+    g_eventLogger->info("Shutdown complete");
+
+    if(g_RestartServer){
+      g_eventLogger->info("Restarting server...");
+      g_RestartServer= g_StopServer= false;
     }
   }
 
-  //glob->mgmObject->saveConfig();
-  mapi->setMgm(glob->mgmObject);
-
-  char msg[256];
-  BaseString::snprintf(msg, sizeof(msg),
-	   "NDB Cluster Management Server. %s", NDB_VERSION_STRING);
-  ndbout_c(msg);
-  g_eventLogger.info(msg);
-
-  BaseString::snprintf(msg, 256, "Id: %d, Command port: %d",
-	   glob->localNodeId, glob->port);
-  ndbout_c(msg);
-  g_eventLogger.info(msg);
-  
-  g_StopServer = false;
-  g_RestartServer= false;
-  glob->socketServer->startServer();
-
-  if(opt_interactive) {
-    BaseString con_str;
-    if(glob->interface_name)
-      con_str.appfmt("host=%s:%d", glob->interface_name, glob->port);
-    else 
-      con_str.appfmt("localhost:%d", glob->port);
-    Ndb_mgmclient com(con_str.c_str(), 1);
-    while(g_StopServer != true && read_and_execute(&com, "ndb_mgm> ", 1));
-  } else 
-  {
-    while(g_StopServer != true)
-      NdbSleep_MilliSleep(500);
-  }
-
-  if(g_RestartServer)
-    g_eventLogger.info("Restarting server...");
-  else
-    g_eventLogger.info("Shutting down server...");
-  glob->socketServer->stopServer();
-  // We disconnect from the ConfigRetreiver mgmd when we delete glob below
-  glob->socketServer->stopSessions(true);
-  g_eventLogger.info("Shutdown complete");
- the_end:
-  delete glob;
-  if(g_RestartServer)
-    goto start;
-  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  mgmd_exit(0);
   return 0;
- error_end:
-  delete glob;
-  ndb_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
-  return 1;
 }
 
-MgmGlobals::MgmGlobals(){
-  // Default values
-  port = 0;
-  interface_name = 0;
-  socketServer = 0;
-  mgmObject = 0;
+
+static void mgmd_stop(void)
+{
+  g_StopServer= true;
 }
 
-MgmGlobals::~MgmGlobals(){
-  if (socketServer)
-    delete socketServer;
-  if (mgmObject)
-    delete mgmObject;
-  if (interface_name)
-    free(interface_name);
+
+int main(int argc, char** argv)
+{
+  return ndb_daemon_init(argc, argv, mgmd_main, mgmd_stop,
+                         "ndb_mgmd", "MySQL Cluster Management Server");
 }

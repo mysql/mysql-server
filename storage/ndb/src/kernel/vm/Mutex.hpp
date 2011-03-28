@@ -1,4 +1,6 @@
-/* Copyright (C) 2003 MySQL AB
+/*
+   Copyright (C) 2003-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,13 +13,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 #ifndef BLOCK_MUTEX_HPP
 #define BLOCK_MUTEX_HPP
 
 #include "Callback.hpp"
 #include "SimulatedBlock.hpp"
+#include <signaldata/UtilLock.hpp>
 
 class Mutex;
 
@@ -50,6 +54,10 @@ public:
   bool isNull() const;
   void release(SimulatedBlock::MutexManager & mgr);
 
+  Uint32 getHandle() const;
+  void setHandle(Uint32 handle);
+  void clear(); // disassociate handle from activemutexptr
+
 private:
   Uint32 m_activeMutexPtrI;
 };
@@ -69,11 +77,11 @@ public:
   void release();
   bool isNull() const ;
   
-  bool lock(SimulatedBlock::Callback & callback);
-  bool trylock(SimulatedBlock::Callback & callback);
+  bool lock(SimulatedBlock::Callback & callback, bool exclusive = true, bool notify = false);
+  bool trylock(SimulatedBlock::Callback & callback, bool exclusive = true);
   void unlock(SimulatedBlock::Callback & callback);
   void unlock(); // Ignore callback
-  
+
   bool create(SimulatedBlock::Callback & callback);
   bool destroy(SimulatedBlock::Callback & callback);
 
@@ -133,6 +141,35 @@ MutexHandle2<MutexId>::release(SimulatedBlock::MutexManager & mgr){
   }
 }
 
+template<Uint32 MutexId>
+inline
+Uint32
+MutexHandle2<MutexId>::getHandle() const
+{
+  return m_activeMutexPtrI;
+}
+
+template<Uint32 MutexId>
+inline
+void
+MutexHandle2<MutexId>::clear()
+{
+  m_activeMutexPtrI = RNIL;
+}
+
+template<Uint32 MutexId>
+inline
+void
+MutexHandle2<MutexId>::setHandle(Uint32 val)
+{
+  if (m_activeMutexPtrI == RNIL)
+  {
+    m_activeMutexPtrI = val;
+    return;
+  }
+  ErrorReporter::handleAssert("Mutex::setHandle mutex alreay inuse", 
+			      __FILE__, __LINE__);
+}
 
 inline
 Mutex::Mutex(Signal* signal, SimulatedBlock::MutexManager & mgr, 
@@ -181,12 +218,14 @@ Mutex::isNull() const {
 
 inline
 bool
-Mutex::lock(SimulatedBlock::Callback & callback){
+Mutex::lock(SimulatedBlock::Callback & callback, bool exclusive, bool notify){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
       m_ptr.p->m_callback = callback;
-      m_mgr.lock(m_signal, m_ptr);
+      m_mgr.lock(m_signal, m_ptr, 
+                 ((exclusive == false) ? UtilLockReq::SharedLock : 0) |
+                 ((notify == true) ? UtilLockReq::Notify : 0));
       return true;
     }
     return false;
@@ -198,12 +237,14 @@ Mutex::lock(SimulatedBlock::Callback & callback){
 
 inline
 bool
-Mutex::trylock(SimulatedBlock::Callback & callback){
+Mutex::trylock(SimulatedBlock::Callback & callback, bool exclusive){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
       m_ptr.p->m_callback = callback;
-      m_mgr.lock(m_signal, m_ptr);
+      m_mgr.lock(m_signal, m_ptr, 
+                 UtilLockReq::TryLock |
+                 ((exclusive == false) ? UtilLockReq::SharedLock : 0));
       return true;
     }
     return false;
