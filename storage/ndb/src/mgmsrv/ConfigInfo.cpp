@@ -1926,6 +1926,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"                       /* Max */
   },
 
+  {
+    CFG_DB_PARALLEL_SCANS_PER_FRAG,
+    "MaxParallelScansPerFragment",
+    DB_TOKEN,
+    "Max parallel scans per fragment (tup or tux). If this limit is reached "
+    " scans will be serialized using a queue.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "32",
+    "1",                         /* Min */
+    STR_VALUE(MAX_INT_RNIL)      /* Max */
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
