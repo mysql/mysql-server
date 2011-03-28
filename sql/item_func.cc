@@ -3840,6 +3840,7 @@ Item_func_set_user_var::fix_length_and_dec()
   maybe_null=args[0]->maybe_null;
   max_length=args[0]->max_length;
   decimals=args[0]->decimals;
+  unsigned_flag= args[0]->unsigned_flag;
   collation.set(args[0]->collation.collation, DERIVATION_IMPLICIT);
 }
 
