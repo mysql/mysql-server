@@ -315,8 +315,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   for (; ptr != end && val != val_end; ptr++)
   {
     /* Skip pre-space between each argument */
-    while (val != val_end && my_isspace(cs, *val))
-      val++;
+    if ((val+= cs->cset->scan(cs, val, val_end, MY_SEQ_SPACES)) >= val_end)
+      break;
 
     if (*ptr == '%' && ptr+1 != end)
     {
