@@ -1397,6 +1397,9 @@ sub command_line_setup {
     # Turn off use of bin log
     push(@opt_extra_mysqld_opt, "--skip-log-bin");
 
+    # Write errors to stderr, not to mysqld.1.err
+    push(@opt_extra_mysqld_opt, "--disable-log-error");
+
     if ( using_extern() )
     {
       mtr_error("Can't use --extern with --embedded-server");

@@ -8691,7 +8691,7 @@ mysqld_get_one_option(int optid,
     break;
   }
   case (int) OPT_ERROR_LOG_FILE:
-    opt_error_log= 1;
+    opt_error_log= (argument != disabled_my_option);
     break;
 #ifdef HAVE_REPLICATION
   case (int) OPT_INIT_RPL_ROLE:
