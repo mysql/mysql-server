@@ -26,6 +26,79 @@ Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
                    &err_lock, MY_MUTEX_INIT_FAST);
 }
 
+#if !defined(EMBEDDED_LIBRARY)
+/**
+  Check if the current error is of temporary nature or not.
+  Some errors are temporary in nature, such as
+  ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT.  Ndb also signals
+  that the error is temporary by pushing a warning with the error code
+  ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
+
+  @param      thd  a THD instance, typically of the slave SQL thread's.
+  @error_arg  the error code for assessment. 
+              defaults to zero which makes the function check the top
+              of the reported errors stack.
+
+  @return 1 as the positive and 0 as the negative verdict
+*/
+int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg) const
+{
+  uint error;
+  DBUG_ENTER("has_temporary_error");
+
+  DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
+                  if (thd->stmt_da->is_error())
+                  {
+                    thd->clear_error();
+                    my_error(ER_LOCK_DEADLOCK, MYF(0));
+                  });
+
+  /*
+    The state of the slave thread can't be regarded as
+    experiencing a temporary failure in cases of @c is_slave_error was set TRUE,
+    or if there is no message in THD, we can't say if it's a temporary
+    error or not. This is currently the case for Incident_log_event,
+    which sets no message.
+  */
+  if (thd->is_fatal_error || !thd->is_error())
+    DBUG_RETURN(0);
+
+  error= (error_arg == 0)? thd->stmt_da->sql_errno() : error_arg;
+
+  /*
+    Temporary error codes:
+    currently, InnoDB deadlock detected by InnoDB or lock
+    wait timeout (innodb_lock_wait_timeout exceeded).
+    Notice, the temporary error requires slave_trans_retries != 0)
+  */
+  if (slave_trans_retries &&
+      (error == ER_LOCK_DEADLOCK || error == ER_LOCK_WAIT_TIMEOUT))
+    DBUG_RETURN(1);
+
+#ifdef HAVE_NDB_BINLOG
+  /*
+    currently temporary error set in ndbcluster
+  */
+  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
+  MYSQL_ERROR *err;
+  while ((err= it++))
+  {
+    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
+                        err->get_message_text()));
+    switch (err->get_sql_errno())
+    {
+    case ER_GET_TEMPORARY_ERRMSG:
+      DBUG_RETURN(1);
+    default:
+      break;
+    }
+  }
+#endif
+  DBUG_RETURN(0);
+}
+#endif // EMBEDDED_LIBRARY
+
+
 void
 Slave_reporting_capability::report(loglevel level, int err_code,
                                    const char *msg, ...) const

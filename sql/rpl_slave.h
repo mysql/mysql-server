@@ -213,7 +213,6 @@ void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 int rotate_relay_log(Master_info* mi);
-int has_temporary_error(THD *thd, uint err= 0);
 
 pthread_handler_t handle_slave_io(void *arg);
 pthread_handler_t handle_slave_sql(void *arg);
