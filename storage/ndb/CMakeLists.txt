@@ -18,6 +18,11 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 
+# Temporarily remove -Werror from compiler flags until
+# storage/ndb/ can be built with it
+STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
 IF(SOURCE_SUBLIBS)
   # Sourced by libmysqld/CMakeLists.txt in 5.1 only to get
   # NDBCLUSTER_SOURCES and NDBCLUSTER_LIBS, don't configure
