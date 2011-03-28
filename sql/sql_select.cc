@@ -10962,7 +10962,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 {
   uint i;
   DBUG_ENTER("setup_sj_materialization");
-  TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
   Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
