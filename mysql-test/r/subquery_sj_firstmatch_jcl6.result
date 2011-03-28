@@ -5421,6 +5421,19 @@ f1	f2
 DROP TABLE t1, t2;
 # End of the test for bug#11766739.
 #
+# Bug#11766642: crash in Item_field::register_field_in_read_map with view
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT a FROM t1 WHERE a IN 
+(SELECT a XOR a FROM v1)
+ORDER BY a;
+a
+0
+DROP TABLE t1;
+DROP VIEW v1;
+#
 # Bug#51457 Firstmatch semijoin strategy gives wrong results for
 #           certain query plans
 #
