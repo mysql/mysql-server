@@ -6197,6 +6197,9 @@ int ha_ndbcluster::reset()
     m_cond->cond_clear();
   }
 
+#if 0
+  // Magnus, disble this "hack" until it's possible to test if
+  // it's still needed
   /*
     Regular partition pruning will set the bitmap appropriately.
     Some queries like ALTER TABLE doesn't use partition pruning and
@@ -6204,6 +6207,7 @@ int ha_ndbcluster::reset()
   */
   if (m_part_info)
     bitmap_set_all(&m_part_info->used_partitions);
+#endif
 
   /* reset flags set by extra calls */
   m_read_before_write_removal_possible= FALSE;
