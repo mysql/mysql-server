@@ -21,7 +21,10 @@ DROP DATABASE test2;
 # but generate warnings about failure to acquire global schema lock
 # NOTE! The CREATE's all generate three warnings each, global
 # schema lock, ha_discover and ha_table_exists_in_engine
+# NOTE2! When using ps protocol a fourth warning pops up due to different
+# code path -> turn ps off
 #
+--disable_ps_protocol
 CREATE TABLE t1(a int not null primary key);
 RENAME TABLE t1 TO t2;
 CREATE TABLE t3 LIKE t2;
@@ -31,6 +34,7 @@ TRUNCATE TABLE t2;
 CREATE TABLE t4 AS SELECT * FROM t2;
 DROP TABLE t2;
 DROP TABLE t3, t4;
+--enable_ps_protocol
 
 
 # Start NDB nodes back up again
