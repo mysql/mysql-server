@@ -463,11 +463,11 @@ Ndb_expect_stack(): collation(NULL), length(0), max_length(0), next(NULL)
     expect_no_field_result();
     expect_field_result(result);
   }
-  void expect_collation(CHARSET_INFO* col)
+  void expect_collation(const CHARSET_INFO* col)
   {
     collation= col;
   }
-  bool expecting_collation(CHARSET_INFO* col)
+  bool expecting_collation(const CHARSET_INFO* col)
   {
     bool matching= (!collation)
       ? true
@@ -507,7 +507,7 @@ private:
   MY_BITMAP expect_mask;
   MY_BITMAP expect_field_type_mask;
   MY_BITMAP expect_field_result_mask;
-  CHARSET_INFO* collation;
+  const CHARSET_INFO* collation;
   Uint32 length;
   Uint32 max_length;
   Ndb_expect_stack* next;
@@ -621,11 +621,11 @@ class Ndb_cond_traverse_context : public Sql_alloc
   {
     expect_stack.expect_only_field_result(result);
   }
-  inline void expect_collation(CHARSET_INFO* col)
+  inline void expect_collation(const CHARSET_INFO* col)
   {
     expect_stack.expect_collation(col);
   }
-  inline bool expecting_collation(CHARSET_INFO* col)
+  inline bool expecting_collation(const CHARSET_INFO* col)
   {
     return expect_stack.expecting_collation(col);
   }

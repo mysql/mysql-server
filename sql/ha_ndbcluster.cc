@@ -7518,7 +7518,7 @@ static int create_ndb_column(THD *thd,
     DBUG_RETURN(my_errno= errno);
   }
   // Get char set
-  CHARSET_INFO *cs= field->charset();
+  CHARSET_INFO *cs= const_cast<CHARSET_INFO*>(field->charset());
   // Set type and sizes
   const enum enum_field_types mysql_type= field->real_type();
 
