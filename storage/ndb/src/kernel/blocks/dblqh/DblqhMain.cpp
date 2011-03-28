@@ -8755,6 +8755,8 @@ void Dblqh::closeScanRequestLab(Signal* signal)
       scanptr.p->scanCompletedStatus = ZTRUE;
       break;
     case ScanRecord::WAIT_CLOSE_SCAN:
+      jam();
+      scanptr.p->scanCompletedStatus = ZTRUE;
     case ScanRecord::WAIT_DELETE_STORED_PROC_ID_SCAN:
       jam();
       /*empty*/;
