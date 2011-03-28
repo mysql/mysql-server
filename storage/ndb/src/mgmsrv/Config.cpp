@@ -232,7 +232,7 @@ Config::pack(UtilBuffer& buf) const
 }
 
 
-#include <base64.h>
+#include <ndb_base64.h>
 
 bool
 Config::pack64(BaseString& encoded) const
