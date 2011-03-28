@@ -1133,3 +1133,55 @@ SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM
 f1	f2
 set @@optimizer_switch=@save_optimizer_switch;
 drop table t1,t2;
+#
+# LP BUG#613029 Wrong result with materialization and semijoin, and
+# valgrind warnings in Protocol::net_store_data with materialization
+# for implicit grouping
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY f2 (f2));
+INSERT INTO t1 VALUES (1,9,'x');
+INSERT INTO t1 VALUES (2,5,'g');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+f2 int(11) NOT NULL,
+f3 varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY f2 (f2));
+INSERT INTO t2 VALUES (1,7,'p');
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch='materialization=off,semijoin=off';
+EXPLAIN
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t1	index_subquery	f2	f2	4	func	2	Using index
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+f3	MAX(t1.f2)
+NULL	NULL
+set @@optimizer_switch='materialization=on,semijoin=off';
+EXPLAIN
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	PRIMARY	NULL	NULL	NULL	1	
+1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	
+2	SUBQUERY	t1	index	NULL	f2	4	NULL	2	Using index
+SELECT t1.f3, MAX(t1.f2)
+FROM t1, t2
+WHERE (t2.pk = t1.pk) AND t2.pk IN (SELECT f2 FROM t1);
+f3	MAX(t1.f2)
+NULL	NULL
+TODO: add a test case for semijoin when the wrong result is fixed
+set @@optimizer_switch='materialization=off,semijoin=on';
+set @@optimizer_switch=@save_optimizer_switch;
+drop table t1, t2;

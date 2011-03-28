@@ -954,8 +954,8 @@ public:
   bool init_save_join_tab();
   bool send_row_on_empty_set()
   {
-    return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    !group_list && having_value != Item::COND_FALSE);
+    return (do_send_rows && implicit_grouping &&
+            having_value != Item::COND_FALSE);
   }
   bool change_result(select_result *result);
   bool is_top_level_join() const

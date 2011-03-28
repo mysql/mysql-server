@@ -13452,6 +13452,13 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
       {
         List<Item> *columns_list= (procedure ? &join->procedure_fields_list :
                                    fields);
+        /*
+          With implicit grouping all fields of special row produced for an
+          empty result are NULL. See return_zero_rows() for the same behavior.
+        */
+        for (TABLE_LIST *table= join->select_lex->leaf_tables;
+             table; table= table->next_leaf)
+          mark_as_null_row(table->table);
         rc= join->result->send_data(*columns_list);
       }
     }
