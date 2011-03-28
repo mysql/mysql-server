@@ -2088,9 +2088,10 @@ void Item_func_integer::fix_length_and_dec()
 
 void Item_func_int_val::fix_num_length_and_dec()
 {
-  max_length= args[0]->max_length - (args[0]->decimals ?
-                                     args[0]->decimals + 1 :
-                                     0) + 2;
+  ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
+    (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
+  max_length= tmp_max_length > (ulonglong) 4294967295U ?
+    (uint32) 4294967295U : (uint32) tmp_max_length;
   uint tmp= float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals= 0;
@@ -4261,6 +4262,7 @@ Item_func_set_user_var::fix_length_and_dec()
     fix_length_and_charset(args[0]->max_char_length(),
                            args[0]->collation.collation);
   }
+  unsigned_flag= args[0]->unsigned_flag;
 }
 
 
