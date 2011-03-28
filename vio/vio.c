@@ -182,13 +182,17 @@ void vio_reset(Vio* vio, enum enum_vio_type type,
   vio_init(vio, type, sd, hPipe, flags);
 }
 
-/* Open the socket or TCP/IP connection and read the fnctl() status */
+/* Instrumented version of vio_new() for use in the server. The
+ * non-instrumented vio_new() is used in the client library.
+ */
 
-Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
+Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags)
 {
   Vio *vio;
-  DBUG_ENTER("vio_new");
-  DBUG_PRINT("enter", ("sd: %d", sd));
+  my_socket sd= mysql_socket_getfd(mysql_socket);
+  DBUG_ENTER("mysql_socket_vio_new");
+  DBUG_PRINT("enter", ("sd: %d", sd)); 
+  
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_init(vio, type, sd, 0, flags);
@@ -221,26 +225,27 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
       vio->fcntl_mode &= ~O_NONBLOCK;
     }
 #endif
+
+    vio->mysql_socket= mysql_socket;
   }
+  DBUG_RETURN(vio);  
+}
+
+/* Open the socket or TCP/IP connection and read the fnctl() status */
+
+Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
+{
+  Vio *vio;
+  MYSQL_SOCKET mysql_socket= MYSQL_INVALID_SOCKET;
+  DBUG_ENTER("vio_new");
+  DBUG_PRINT("enter", ("sd: %d", sd));
+
+  mysql_socket_setfd(&mysql_socket, sd);
+  vio = mysql_socket_vio_new(mysql_socket, type, flags);
+  
   DBUG_RETURN(vio);
 }
 
-/* Instrumented version of vio_new() for use in the server. The
- * non-instrumented vio_new() is used in the client library.
- */
-
-Vio *mysql_socket_vio_new(MYSQL_SOCKET mysql_socket, enum enum_vio_type type, uint flags)
-{
-  Vio *vio = vio_new(mysql_socket_getfd(mysql_socket), type, flags);
-
-  /* mysql_socket will likely be more complete than vio->mysql_socket */ 
-  if (vio)
-  {
-    vio->mysql_socket= mysql_socket;
-  }
-
-  return (vio);
-}
 
 #ifdef __WIN__
 

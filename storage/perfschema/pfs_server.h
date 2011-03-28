@@ -55,10 +55,10 @@
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
 #ifndef PFS_MAX_SOCKETS
-  #define PFS_MAX_SOCKETS 10000
+  #define PFS_MAX_SOCKETS 1000
 #endif
 #ifndef PFS_MAX_SOCKET_CLASS
-  #define PFS_MAX_SOCKET_CLASS 50
+  #define PFS_MAX_SOCKET_CLASS 10
 #endif
 #ifndef PFS_MAX_TABLE_SHARE
   #define PFS_MAX_TABLE_SHARE 1000

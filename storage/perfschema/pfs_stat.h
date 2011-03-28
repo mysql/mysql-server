@@ -83,17 +83,21 @@ struct PFS_single_stat
 };
 
 /** Combined statistic. */
-struct PFS_byte_stat
+struct PFS_byte_stat : public PFS_single_stat
 {
-  /** Timer statistics */
-  PFS_single_stat m_waits;
   /** Byte count statistics */
   ulonglong m_bytes;
 
   inline void aggregate(const PFS_byte_stat *stat)
   {
-    m_waits.aggregate(&stat->m_waits);
+    PFS_single_stat::aggregate(stat);
     m_bytes+= stat->m_bytes;
+  }
+
+  inline void aggregate(ulonglong wait, ulonglong bytes)
+  {
+    if (wait != 0) aggregate_value(wait);
+    if (bytes != 0) m_bytes+= bytes;
   }
 
   PFS_byte_stat()
@@ -103,7 +107,7 @@ struct PFS_byte_stat
 
   inline void reset(void)
   {
-    m_waits.reset();
+    PFS_single_stat::reset();
     m_bytes= 0;
   }
 };
@@ -461,18 +465,6 @@ struct PFS_socket_io_stat
   PFS_byte_stat m_read;
   /** WRITE statistics */
   PFS_byte_stat m_write;
-  /** RECV statistics */
-  PFS_byte_stat m_recv;
-  /** SEND statistics */
-  PFS_byte_stat m_send;
-  /** RECVFROM statistics */
-  PFS_byte_stat m_recvfrom;
-  /** SENDTO statistics */
-  PFS_byte_stat m_sendto;
-  /** RECVMSG statistics */
-  PFS_byte_stat m_recvmsg;
-  /** SENDMSG statistics */
-  PFS_byte_stat m_sendmsg;
   /** Miscelleanous statistics */
   PFS_byte_stat m_misc;
 
@@ -480,24 +472,21 @@ struct PFS_socket_io_stat
   {
     m_read.reset();
     m_write.reset();
-    m_recv.reset();
-    m_send.reset();
-    m_recvfrom.reset();
-    m_sendto.reset();
-    m_recvmsg.reset();
-    m_sendmsg.reset();
     m_misc.reset();
   }
 
   inline void aggregate(const PFS_socket_io_stat *stat)
   {
-    m_recv.aggregate(&stat->m_recv);
-    m_send.aggregate(&stat->m_send);
-    m_recvfrom.aggregate(&stat->m_recvfrom);
-    m_sendto.aggregate(&stat->m_sendto);
-    m_recvmsg.aggregate(&stat->m_recvmsg);
-    m_sendmsg.aggregate(&stat->m_sendmsg);
+    m_read.aggregate(&stat->m_read);
+    m_write.aggregate(&stat->m_write);
     m_misc.aggregate(&stat->m_misc);
+  }
+
+  inline void consolidate(PFS_byte_stat *stat)
+  {
+    stat->aggregate(&m_read);
+    stat->aggregate(&m_write);
+    stat->aggregate(&m_misc);
   }
 };
 

@@ -207,7 +207,7 @@ struct PFS_byte_stat_row
   /** Build a row with timer and byte count fields from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_byte_stat *stat)
   {
-    m_waits.set(normalizer, &stat->m_waits);
+    m_waits.set(normalizer, stat);
     m_bytes= stat->m_bytes;
   }
 };
@@ -386,8 +386,8 @@ struct PFS_statement_stat_row
 /** Row fragment for socket io statistics columns. */
 struct PFS_socket_io_stat_row
 {
-  PFS_byte_stat_row m_recv;
-  PFS_byte_stat_row m_send;
+  PFS_byte_stat_row m_read;
+  PFS_byte_stat_row m_write;
   PFS_byte_stat_row m_misc;
   PFS_byte_stat_row m_all;
 
@@ -395,13 +395,13 @@ struct PFS_socket_io_stat_row
   {
     PFS_byte_stat all;
 
-    m_recv.set(normalizer, &stat->m_recv);
-    m_send.set(normalizer, &stat->m_send);
+    m_read.set(normalizer, &stat->m_read);
+    m_write.set(normalizer, &stat->m_write);
     m_misc.set(normalizer, &stat->m_misc);
     
     /* Combine stats for all operations */
-    all.aggregate(&stat->m_recv);
-    all.aggregate(&stat->m_send);
+    all.aggregate(&stat->m_read);
+    all.aggregate(&stat->m_write);
     all.aggregate(&stat->m_misc);
 
     m_all.set(normalizer, &all);

@@ -21,6 +21,7 @@
 #include "my_global.h"
 #include "my_pthread.h"
 #include "table_events_waits.h"
+#include "pfs_global.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
@@ -304,20 +305,31 @@ int table_events_waits_common::make_socket_object_columns(volatile PFS_events_wa
   if (safe_socket->get_version() == wait->m_weak_version)
   {
     /* Convert port number to string, include delimiter in port name length */
-    char port[128];
-    port[0] = ':';
-    int port_len= int10_to_str(safe_socket->m_port, (port+1), 10) - port + 1;
+
+    uint port;
+    char port_str[128];
+    char ip_str[INET6_ADDRSTRLEN];
+    uint ip_len= 0;
+    port_str[0]= ':';
+
+    /* Get the IP address and port number */
+    ip_len= pfs_get_socket_address(ip_str, sizeof(ip_str), &port,
+                                   &safe_socket->m_sock_addr,
+                                   safe_socket->m_addr_len);
+
+    /* Convert port number to a string (length includes ':') */
+    int port_len= int10_to_str(port, (port_str+1), 10) - port_str + 1;
 
     /* OBJECT NAME */
-    m_row.m_object_name_length= safe_socket->m_ip_length + port_len;
+    m_row.m_object_name_length= ip_len + port_len;
 
     if (unlikely((m_row.m_object_name_length == 0) ||
                  (m_row.m_object_name_length > sizeof(m_row.m_object_name))))
       return 1;
 
     char *name= m_row.m_object_name;
-    memcpy(name, safe_socket->m_ip, safe_socket->m_ip_length);
-    memcpy(name + safe_socket->m_ip_length, port, port_len);
+    memcpy(name, ip_str, ip_len);
+    memcpy(name + ip_len, port_str, port_len);
   }
   else
   {

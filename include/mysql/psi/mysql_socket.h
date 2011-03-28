@@ -254,6 +254,15 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
 }
 #endif
 
+/**
+  @def mysql_socket_socket(K, D, T, P)
+  Create a socket.
+  @c mysql_socket_socket is a replacement for @c socket.
+  @param K PSI_socket_key for this instrumented socket
+  @param D Socket domain
+  @param T Socket type
+  @param P Transport protocol
+*/
 
 #ifdef HAVE_PSI_INTERFACE
   #define mysql_socket_socket(K, D, T, P) \
@@ -263,30 +272,62 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker, size_t byte_count
     inline_mysql_socket_socket(D, T, P)
 #endif
 
+/**
+  @def mysql_socket_bind(FD, AP, L)
+  Assign socket to address.
+  @c mysql_socket_bind is a replacement for @c bind.
+  @param FD Instrumented socket descriptor
+  @param AP Pointer to sockaddr structure
+  @param L  Length of sockaddr structure
+*/
 #ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_bind(FD, A, L) \
-    inline_mysql_socket_bind(__FILE__, __LINE__, FD, A, L)
+  #define mysql_socket_bind(FD, AP, L) \
+    inline_mysql_socket_bind(__FILE__, __LINE__, FD, AP, L)
 #else
-  #define mysql_socket_bind(FD, A, L) \
-    inline_mysql_socket_bind(FD, A, L)
+  #define mysql_socket_bind(FD, AP, L) \
+    inline_mysql_socket_bind(FD, AP, L)
 #endif
 
+/**
+  @def mysql_socket_getsockname(FD, AP, LP)
+  Get locally-bound name of a socket.
+  @c mysql_socket_getsockname is a replacement for @c getsockname.
+  @param FD Instrumented socket descriptor
+  @param A  Pointer to sockaddr structure
+  @param L  Pointer to length of sockaddr structure
+*/
 #ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_getsockname(FD, A, LP) \
-    inline_mysql_socket_getsockname(__FILE__, __LINE__, FD, A, LP)
+  #define mysql_socket_getsockname(FD, AP, LP) \
+    inline_mysql_socket_getsockname(__FILE__, __LINE__, FD, AP, LP)
 #else
-  #define mysql_socket_getsockname(FD, A, LP) \
-    inline_mysql_socket_getsockname(FD, A, LP)
+  #define mysql_socket_getsockname(FD, AP, LP) \
+    inline_mysql_socket_getsockname(FD, AP, LP)
 #endif
 
+/**
+  @def mysql_socket_connect(FD, AP, L)
+  Connect a socket to a remote host.
+  @c mysql_socket_connect is a replacement for @c connect.
+  @param FD Instrumented socket descriptor
+  @param AP Pointer to sockaddr structure specifying remote address
+  @param L  Length of sockaddr structure
+*/
 #ifdef HAVE_PSI_INTERFACE
-  #define mysql_socket_connect(FD, A, L) \
-    inline_mysql_socket_connect(__FILE__, __LINE__, FD, A, L)
+  #define mysql_socket_connect(FD, AP, L) \
+    inline_mysql_socket_connect(__FILE__, __LINE__, FD, AP, L)
 #else
-  #define mysql_socket_connect(FD, A, L) \
-    inline_mysql_socket_connect(FD, A, L)
+  #define mysql_socket_connect(FD, AP, L) \
+    inline_mysql_socket_connect(FD, AP, L)
 #endif
 
+/**
+  @def mysql_socket_getpeername(FD, AP, LP)
+  Get the peer address of a socket.
+  @c mysql_socket_getpeername is a replacement for @c getpeername.
+  @param FD Instrumented socket descriptor
+  @param AP Pointer to sockaddr structure
+  @param LP Pointer to length of sockaddr structure
+*/
 #ifdef HAVE_PSI_INTERFACE
   #define mysql_socket_getpeername(FD, A, LP) \
     inline_mysql_socket_getpeername(__FILE__, __LINE__, FD, A, LP)
