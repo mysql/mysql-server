@@ -366,7 +366,6 @@ mtr_memo_push(
 	void*	object,	/*!< in: object */
 	ulint	type);	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 
-
 /* Type definition of a mini-transaction memo stack slot. */
 typedef	struct mtr_memo_slot_struct	mtr_memo_slot_t;
 struct mtr_memo_slot_struct{
@@ -386,6 +385,8 @@ struct mtr_struct{
 	ibool		modifications;
 				/* TRUE if the mtr made modifications to
 				buffer pool pages */
+	ibool		made_dirty;/*!< TRUE if mtr has made at least
+				one buffer pool page dirty */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
