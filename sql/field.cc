@@ -5053,6 +5053,10 @@ static longlong read_bigendian(const uchar *from, uint bytes)
 }
 
 static uint sec_part_bytes[MAX_DATETIME_PRECISION+1]= { 0, 1, 1, 2, 2, 3, 3 };
+static uint datetime_hires_bytes[MAX_DATETIME_PRECISION+1]=
+{ 5, 6, 6, 7, 7, 7, 8 };
+static uint time_hires_bytes[MAX_DATETIME_PRECISION+1]=
+{ 3, 4, 4, 4, 5, 5, 6 };
 
 void Field_timestamp_hires::store_TIME(my_time_t timestamp, ulong sec_part)
 {
@@ -5491,7 +5495,7 @@ void Field_time_hires::store_TIME(MYSQL_TIME *ltime)
 
 uint32 Field_time_hires::pack_length() const
 {
-  return 3 + sec_part_bytes[dec];
+  return time_hires_bytes[dec];
 }
 
 double Field_time_hires::val_real(void)
@@ -6123,7 +6127,7 @@ bool Field_datetime_hires::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 
 uint32 Field_datetime_hires::pack_length() const
 {
-  return 5 + sec_part_bytes[dec];
+  return datetime_hires_bytes[dec];
 }
 
 int Field_datetime_hires::cmp(const uchar *a_ptr, const uchar *b_ptr)
@@ -9696,7 +9700,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case MYSQL_TYPE_INT24:
   case MYSQL_TYPE_NEWDATE: return 3;
   case MYSQL_TYPE_TIME:   return length > MIN_TIME_WIDTH
-                            ? 3 + sec_part_bytes[length - 1 - MIN_TIME_WIDTH]
+                            ? time_hires_bytes[length - 1 - MIN_TIME_WIDTH]
                             : 3;
   case MYSQL_TYPE_TIMESTAMP:
                           return length > MAX_DATETIME_WIDTH
@@ -9708,7 +9712,7 @@ uint32 calc_pack_length(enum_field_types type,uint32 length)
   case MYSQL_TYPE_DOUBLE: return sizeof(double);
   case MYSQL_TYPE_DATETIME:
                           return length > MAX_DATETIME_WIDTH
-                            ? 5 + sec_part_bytes[length - 1 - MAX_DATETIME_WIDTH]
+                            ? datetime_hires_bytes[length - 1 - MAX_DATETIME_WIDTH]
                             : 8;
   case MYSQL_TYPE_LONGLONG: return 8;	/* Don't crash if no longlong */
   case MYSQL_TYPE_NULL	: return 0;
