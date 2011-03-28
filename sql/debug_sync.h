@@ -22,10 +22,6 @@
   Declarations for the Debug Sync Facility. See debug_sync.cc for details.
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                      /* gcc class implementation */
-#endif
-
 #include <my_global.h>
 
 class THD;

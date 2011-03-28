@@ -50,6 +50,12 @@ void test_no_instruments()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -97,6 +103,12 @@ void test_no_instances()
   param.m_events_waits_history_long_sizing= 0;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -173,7 +185,7 @@ void test_no_instances()
 
   /* No result to test, just make sure it does not crash */
   reset_events_waits_by_instance();
-  reset_per_thread_wait_stat();
+  reset_events_waits_by_thread();
 
   cleanup_file_hash();
   cleanup_instruments();
@@ -225,6 +237,12 @@ void test_with_instances()
   param.m_events_waits_history_long_sizing= 10000;
   param.m_setup_actor_sizing= 0;
   param.m_setup_object_sizing= 0;
+  param.m_stage_class_sizing= 0;
+  param.m_events_stages_history_sizing= 0;
+  param.m_events_stages_history_long_sizing= 0;
+  param.m_statement_class_sizing= 0;
+  param.m_events_statements_history_sizing= 0;
+  param.m_events_statements_history_long_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -358,7 +376,7 @@ void test_with_instances()
 
   //TODO: test that cleanup works
   reset_events_waits_by_instance();
-  reset_per_thread_wait_stat();
+  reset_events_waits_by_thread();
 
   cleanup_file_hash();
   cleanup_instruments();

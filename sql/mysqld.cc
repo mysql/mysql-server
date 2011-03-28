@@ -3110,9 +3110,70 @@ SHOW_VAR com_status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+#ifdef HAVE_PSI_INTERFACE
+PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
+PSI_statement_info com_statement_info[(uint) COM_END + 1];
+
+/**
+  Initialize the command names array.
+  Since we do not want to maintain a separate array,
+  this is populated from data mined in com_status_vars,
+  which already has one name for each command.
+*/
+void init_sql_statement_info()
+{
+  char *first_com= (char*) offsetof(STATUS_VAR, com_stat[0]);
+  char *last_com= (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_END]);
+  int record_size= (char*) offsetof(STATUS_VAR, com_stat[1])
+                   - (char*) offsetof(STATUS_VAR, com_stat[0]);
+  char *ptr;
+  uint i;
+  uint com_index;
+
+  static const char* dummy= "";
+  for (i= 0; i < ((uint) SQLCOM_END + 1); i++)
+  {
+    sql_statement_info[i].m_name= dummy;
+    sql_statement_info[i].m_flags= 0;
+  }
+
+  SHOW_VAR *var= &com_status_vars[0];
+  while (var->name != NULL)
+  {
+    ptr= var->value;
+    if ((first_com <= ptr) && (ptr <= last_com))
+    {
+      com_index= ((int)(ptr - first_com))/record_size;
+      DBUG_ASSERT(com_index < (uint) SQLCOM_END);
+      sql_statement_info[com_index].m_name= var->name;
+    }
+    var++;
+  }
+
+  DBUG_ASSERT(strcmp(sql_statement_info[(uint) SQLCOM_SELECT].m_name, "select") == 0);
+  DBUG_ASSERT(strcmp(sql_statement_info[(uint) SQLCOM_SIGNAL].m_name, "signal") == 0);
+
+  sql_statement_info[(uint) SQLCOM_END].m_name= "error";
+}
+
+void init_com_statement_info()
+{
+  uint index;
+
+  for (index= 0; index < (uint) COM_END + 1; index++)
+  {
+    com_statement_info[index].m_name= command_name[index].str;
+    com_statement_info[index].m_flags= 0;
+  }
+
+  /* "statement/com/query" can mutate into "statement/sql/..." */
+  com_statement_info[(uint) COM_QUERY].m_flags= PSI_FLAG_MUTABLE;
+}
+#endif
+
 /**
   Create the name of the default general log file
-
+  
   @param[IN] buff    Location for building new string.
   @param[IN] log_ext The extension for the file (e.g .log)
   @returns Pointer to a new string containing the name
@@ -3230,7 +3291,7 @@ int init_common_variables()
   strmake(pidfile_name, default_logfile_name, sizeof(pidfile_name)-5);
   strmov(fn_ext(pidfile_name),".pid");		// Add proper extension
 
-
+  
   /*
     The default-storage-engine entry in my_long_options should have a
     non-null default value. It was earlier intialized as
@@ -7553,6 +7614,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
     sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+  if (global_system_variables.net_buffer_length > 
+      global_system_variables.max_allowed_packet)
+  {
+    sql_print_warning("net_buffer_length (%lu) is set to be larger "
+                      "than max_allowed_packet (%lu). Please rectify.",
+                      global_system_variables.net_buffer_length, 
+                      global_system_variables.max_allowed_packet);
+  }
 
   if (log_error_file_ptr != disabled_my_option)
     opt_error_log= 1;
@@ -8203,6 +8272,181 @@ static PSI_file_info all_server_files[]=
   { &key_file_trn, "trigger", 0},
   { &key_file_init, "init", 0}
 };
+#endif /* HAVE_PSI_INTERFACE */
+
+PSI_stage_info stage_after_create= { 0, "After create", 0};
+PSI_stage_info stage_allocating_local_table= { 0, "allocating local table", 0};
+PSI_stage_info stage_changing_master= { 0, "Changing master", 0};
+PSI_stage_info stage_checking_master_version= { 0, "Checking master version", 0};
+PSI_stage_info stage_checking_permissions= { 0, "checking permissions", 0};
+PSI_stage_info stage_checking_privileges_on_cached_query= { 0, "checking privileges on cached query", 0};
+PSI_stage_info stage_checking_query_cache_for_query= { 0, "checking query cache for query", 0};
+PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0};
+PSI_stage_info stage_closing_tables= { 0, "closing tables", 0};
+PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0};
+PSI_stage_info stage_converting_heap_to_myisam= { 0, "converting HEAP to MyISAM", 0};
+PSI_stage_info stage_copying_to_group_table= { 0, "Copying to group table", 0};
+PSI_stage_info stage_copying_to_tmp_table= { 0, "Copying to tmp table", 0};
+PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", 0};
+PSI_stage_info stage_creating_delayed_handler= { 0, "Creating delayed handler", 0};
+PSI_stage_info stage_creating_sort_index= { 0, "Creating sort index", 0};
+PSI_stage_info stage_creating_table= { 0, "creating table", 0};
+PSI_stage_info stage_creating_tmp_table= { 0, "Creating tmp table", 0};
+PSI_stage_info stage_deleting_from_main_table= { 0, "deleting from main table", 0};
+PSI_stage_info stage_deleting_from_reference_tables= { 0, "deleting from reference tables", 0};
+PSI_stage_info stage_discard_or_import_tablespace= { 0, "discard_or_import_tablespace", 0};
+PSI_stage_info stage_end= { 0, "end", 0};
+PSI_stage_info stage_executing= { 0, "executing", 0};
+PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0};
+PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0};
+PSI_stage_info stage_flushing_relay_log_and_master_info_files= { 0, "Flushing relay log and master info files.", 0};
+PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0};
+PSI_stage_info stage_freeing_items= { 0, "freeing items", 0};
+PSI_stage_info stage_fulltext_initialization= { 0, "FULLTEXT initialization", 0};
+PSI_stage_info stage_got_handler_lock= { 0, "got handler lock", 0};
+PSI_stage_info stage_got_old_table= { 0, "got old table", 0};
+PSI_stage_info stage_init= { 0, "init", 0};
+PSI_stage_info stage_insert= { 0, "insert", 0};
+PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating query cache entries (table)", 0};
+PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
+PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
+PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
+PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
+PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
+PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
+PSI_stage_info stage_preparing= { 0, "preparing", 0};
+PSI_stage_info stage_purging_old_relay_logs= { 0, "Purging old relay logs", 0};
+PSI_stage_info stage_query_end= { 0, "query end", 0};
+PSI_stage_info stage_queueing_master_event_to_the_relay_log= { 0, "Queueing master event to the relay log", 0};
+PSI_stage_info stage_reading_event_from_the_relay_log= { 0, "Reading event from the relay log", 0};
+PSI_stage_info stage_registering_slave_on_master= { 0, "Registering slave on master", 0};
+PSI_stage_info stage_removing_duplicates= { 0, "Removing duplicates", 0};
+PSI_stage_info stage_removing_tmp_table= { 0, "removing tmp table", 0};
+PSI_stage_info stage_rename= { 0, "rename", 0};
+PSI_stage_info stage_rename_result_table= { 0, "rename result table", 0};
+PSI_stage_info stage_requesting_binlog_dump= { 0, "Requesting binlog dump", 0};
+PSI_stage_info stage_reschedule= { 0, "reschedule", 0};
+PSI_stage_info stage_searching_rows_for_update= { 0, "Searching rows for update", 0};
+PSI_stage_info stage_sending_binlog_event_to_slave= { 0, "Sending binlog event to slave", 0};
+PSI_stage_info stage_sending_cached_result_to_client= { 0, "sending cached result to client", 0};
+PSI_stage_info stage_sending_data= { 0, "Sending data", 0};
+PSI_stage_info stage_setup= { 0, "setup", 0};
+PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
+PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
+PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
+PSI_stage_info stage_statistics= { 0, "statistics", 0};
+PSI_stage_info stage_storing_result_in_query_cache= { 0, "storing result in query cache", 0};
+PSI_stage_info stage_storing_row_into_queue= { 0, "storing row into queue", 0};
+PSI_stage_info stage_system_lock= { 0, "System lock", 0};
+PSI_stage_info stage_update= { 0, "update", 0};
+PSI_stage_info stage_updating= { 0, "updating", 0};
+PSI_stage_info stage_updating_main_table= { 0, "updating main table", 0};
+PSI_stage_info stage_updating_reference_tables= { 0, "updating reference tables", 0};
+PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0};
+PSI_stage_info stage_user_lock= { 0, "User lock", 0};
+PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
+PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
+PSI_stage_info stage_waiting_for_delay_list= { 0, "waiting for delay_list", 0};
+PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
+PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
+PSI_stage_info stage_waiting_for_handler_open= { 0, "waiting for handler open", 0};
+PSI_stage_info stage_waiting_for_insert= { 0, "Waiting for INSERT", 0};
+PSI_stage_info stage_waiting_for_master_to_send_event= { 0, "Waiting for master to send event", 0};
+PSI_stage_info stage_waiting_for_master_update= { 0, "Waiting for master update", 0};
+PSI_stage_info stage_waiting_for_slave_mutex_on_exit= { 0, "Waiting for slave mutex on exit", 0};
+PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0};
+PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0};
+PSI_stage_info stage_waiting_to_get_readlock= { 0, "Waiting to get readlock", 0};
+
+
+#ifdef HAVE_PSI_INTERFACE
+
+PSI_stage_info *all_server_stages[]=
+{
+  & stage_after_create,
+  & stage_allocating_local_table,
+  & stage_changing_master,
+  & stage_checking_master_version,
+  & stage_checking_permissions,
+  & stage_checking_privileges_on_cached_query,
+  & stage_checking_query_cache_for_query,
+  & stage_cleaning_up,
+  & stage_closing_tables,
+  & stage_connecting_to_master,
+  & stage_converting_heap_to_myisam,
+  & stage_copying_to_group_table,
+  & stage_copying_to_tmp_table,
+  & stage_copy_to_tmp_table,
+  & stage_creating_delayed_handler,
+  & stage_creating_sort_index,
+  & stage_creating_table,
+  & stage_creating_tmp_table,
+  & stage_deleting_from_main_table,
+  & stage_deleting_from_reference_tables,
+  & stage_discard_or_import_tablespace,
+  & stage_end,
+  & stage_executing,
+  & stage_execution_of_init_command,
+  & stage_finished_reading_one_binlog_switching_to_next_binlog,
+  & stage_flushing_relay_log_and_master_info_files,
+  & stage_flushing_relay_log_info_file,
+  & stage_freeing_items,
+  & stage_fulltext_initialization,
+  & stage_got_handler_lock,
+  & stage_got_old_table,
+  & stage_init,
+  & stage_insert,
+  & stage_invalidating_query_cache_entries_table,
+  & stage_invalidating_query_cache_entries_table_list,
+  & stage_killing_slave,
+  & stage_logging_slow_query,
+  & stage_manage_keys,
+  & stage_opening_tables,
+  & stage_optimizing,
+  & stage_preparing,
+  & stage_purging_old_relay_logs,
+  & stage_query_end,
+  & stage_queueing_master_event_to_the_relay_log,
+  & stage_reading_event_from_the_relay_log,
+  & stage_registering_slave_on_master,
+  & stage_removing_duplicates,
+  & stage_removing_tmp_table,
+  & stage_rename,
+  & stage_rename_result_table,
+  & stage_requesting_binlog_dump,
+  & stage_reschedule,
+  & stage_searching_rows_for_update,
+  & stage_sending_binlog_event_to_slave,
+  & stage_sending_cached_result_to_client,
+  & stage_sending_data,
+  & stage_setup,
+  & stage_sorting_for_group,
+  & stage_sorting_for_order,
+  & stage_sorting_result,
+  & stage_statistics,
+  & stage_storing_result_in_query_cache,
+  & stage_storing_row_into_queue,
+  & stage_system_lock,
+  & stage_update,
+  & stage_updating,
+  & stage_updating_main_table,
+  & stage_updating_reference_tables,
+  & stage_upgrading_lock,
+  & stage_user_lock,
+  & stage_user_sleep,
+  & stage_verifying_table,
+  & stage_waiting_for_delay_list,
+  & stage_waiting_for_handler_insert,
+  & stage_waiting_for_handler_lock,
+  & stage_waiting_for_handler_open,
+  & stage_waiting_for_insert,
+  & stage_waiting_for_master_to_send_event,
+  & stage_waiting_for_master_update,
+  & stage_waiting_for_slave_mutex_on_exit,
+  & stage_waiting_for_the_next_event_in_relay_log,
+  & stage_waiting_to_finalize_termination,
+  & stage_waiting_to_get_readlock
+};
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;
 
@@ -8239,6 +8483,18 @@ void init_server_psi_keys(void)
 
   count= array_elements(all_server_files);
   PSI_server->register_file(category, all_server_files, count);
+
+  count= array_elements(all_server_stages);
+  PSI_server->register_stage(category, all_server_stages, count);
+
+  init_sql_statement_info();
+  count= array_elements(sql_statement_info);
+  PSI_server->register_statement(category, sql_statement_info, count);
+
+  category= "com";
+  init_com_statement_info();
+  count= array_elements(com_statement_info);
+  PSI_server->register_statement(category, com_statement_info, count);
 
   count= array_elements(all_server_sockets);
   PSI_server->register_socket(category, all_server_sockets, count);
