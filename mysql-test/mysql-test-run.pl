@@ -2658,7 +2658,7 @@ sub check_ndbcluster_support ($) {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites
     $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb";
+    $DEFAULT_SUITES.=",ndb,ndb_binlog";
   }
 
   if ($opt_include_ndbcluster)
