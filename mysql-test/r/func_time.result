@@ -1375,4 +1375,10 @@ Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 Warning	1292	Truncated incorrect time value: ''
 DROP TABLE t1;
+#
+# Bug#11766112  59151:UNINITIALIZED VALUES IN EXTRACT_DATE_TIME WITH STR_TO_DATE(SPACE(..) ...
+#
+SELECT STR_TO_DATE(SPACE(2),'1');
+STR_TO_DATE(SPACE(2),'1')
+0000-00-00
 End of 5.1 tests
