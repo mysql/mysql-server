@@ -469,6 +469,10 @@ static sys_var_thd_enum         sys_myisam_stats_method(&vars, "myisam_stats_met
                                                 &myisam_stats_method_typelib,
                                                 NULL);
 
+static sys_var_const            sys_myisam_block_size(&vars, "myisam_block_size",
+                                             OPT_GLOBAL, SHOW_LONG,
+                                             (uchar*) &myisam_block_size);
+
 #ifdef __NT__
 /* purecov: begin inspected */
 static sys_var_const            sys_named_pipe(&vars, "named_pipe",

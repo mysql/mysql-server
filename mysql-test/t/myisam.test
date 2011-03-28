@@ -1693,3 +1693,6 @@ SET myisam_sort_buffer_size=@@global.myisam_sort_buffer_size;
 SET myisam_repair_threads=@@global.myisam_repair_threads;
 
 --echo End of 5.1 tests
+
+show variables like 'myisam_block_size';
+select @@global.myisam_block_size;
