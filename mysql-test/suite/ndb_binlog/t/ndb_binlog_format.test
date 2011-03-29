@@ -10,11 +10,7 @@
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
---disable_warnings
-drop table if exists t1, t2, t3;
---enable_warnings
-
-#
+	#
 # Bug #29222 Statement mode replicates both statement and
 # rows when writing to an NDB table
 #
