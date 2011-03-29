@@ -8,8 +8,9 @@ drop table if exists t1, t2, t3;
 --error ER_TOO_BIG_PRECISION
 eval create table t1 (a $type(7));
 
-eval create table t1 (a $type(3));
-insert t1 values ('2010-12-11 01:02:03.4567');
+eval create table t1 (a $type(3), key(a));
+insert t1 values ('2010-12-11 00:20:03.1234');
+insert t1 values ('2010-12-11 15:47:11.1234');
 insert t1 values (20101211010203.45678);
 insert t1 values (20101211030405.789e0);
 insert t1 values (99991231235959e1);

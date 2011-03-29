@@ -1,8 +1,11 @@
 drop table if exists t1, t2, t3;
 create table t1 (a time(7));
 ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
-create table t1 (a time(3));
-insert t1 values ('2010-12-11 01:02:03.4567');
+create table t1 (a time(3), key(a));
+insert t1 values ('2010-12-11 00:20:03.1234');
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+insert t1 values ('2010-12-11 15:47:11.1234');
 Warnings:
 Note	1265	Data truncated for column 'a' at row 1
 insert t1 values (20101211010203.45678);
@@ -16,29 +19,33 @@ Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
 select * from t1;
 a
-01:02:03.456
+00:20:03.123
+15:47:11.123
 838:59:59.999
 838:59:59.999
 838:59:59.999
 select truncate(a, 6) from t1;
 truncate(a, 6)
-10203.456000
+2003.123000
+154711.123000
 8385959.999000
 8385959.999000
 8385959.999000
 select a DIV 1 from t1;
 a DIV 1
-10203
+2003
+154711
 8385959
 8385959
 8385959
 select group_concat(distinct a) from t1;
 group_concat(distinct a)
-01:02:03.456,838:59:59.999
+00:20:03.123,15:47:11.123,838:59:59.999
 alter table t1 engine=innodb;
 select * from t1;
 a
-01:02:03.456
+00:20:03.123
+15:47:11.123
 838:59:59.999
 838:59:59.999
 838:59:59.999

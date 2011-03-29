@@ -1,8 +1,9 @@
 drop table if exists t1, t2, t3;
 create table t1 (a datetime(7));
 ERROR 42000: Too big precision 7 specified for column 'a'. Maximum is 6.
-create table t1 (a datetime(3));
-insert t1 values ('2010-12-11 01:02:03.4567');
+create table t1 (a datetime(3), key(a));
+insert t1 values ('2010-12-11 00:20:03.1234');
+insert t1 values ('2010-12-11 15:47:11.1234');
 insert t1 values (20101211010203.45678);
 insert t1 values (20101211030405.789e0);
 insert t1 values (99991231235959e1);
@@ -10,32 +11,36 @@ Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 select * from t1;
 a
-2010-12-11 01:02:03.456
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
 2010-12-11 01:02:03.456
 2010-12-11 03:04:05.789
-0000-00-00 00:00:00.000
+2010-12-11 15:47:11.123
 select truncate(a, 6) from t1;
 truncate(a, 6)
-20101211010203.457031
+0.000000
+20101211002003.121094
 20101211010203.457031
 20101211030405.789062
-0.000000
+20101211154711.121094
 select a DIV 1 from t1;
 a DIV 1
-20101211010203
+0
+20101211002003
 20101211010203
 20101211030405
-0
+20101211154711
 select group_concat(distinct a) from t1;
 group_concat(distinct a)
-2010-12-11 01:02:03.456,2010-12-11 03:04:05.789,0000-00-00 00:00:00.000
+0000-00-00 00:00:00.000,2010-12-11 00:20:03.123,2010-12-11 01:02:03.456,2010-12-11 03:04:05.789,2010-12-11 15:47:11.123
 alter table t1 engine=innodb;
 select * from t1;
 a
-2010-12-11 01:02:03.456
+0000-00-00 00:00:00.000
+2010-12-11 00:20:03.123
 2010-12-11 01:02:03.456
 2010-12-11 03:04:05.789
-0000-00-00 00:00:00.000
+2010-12-11 15:47:11.123
 drop table t1;
 create table t1 (a datetime(4)) engine=innodb;
 insert t1 values ('2010-12-11 01:02:03.456789');

@@ -3184,90 +3184,59 @@ get_innobase_type_from_mysql_type(
 	8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
 	the type */
 
-	DBUG_ASSERT((ulint)MYSQL_TYPE_STRING < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_VAR_STRING < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_DOUBLE < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
-	DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_STRING < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_VAR_STRING < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_DOUBLE < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_FLOAT < 256);
+	compile_time_assert((ulint)MYSQL_TYPE_DECIMAL < 256);
 
-	if (field->flags & UNSIGNED_FLAG) {
+	*unsigned_flag = 0;
 
+	switch (field->key_type()) {
+	case HA_KEYTYPE_USHORT_INT:
+	case HA_KEYTYPE_ULONG_INT:
+	case HA_KEYTYPE_UINT24:
+	case HA_KEYTYPE_ULONGLONG:
 		*unsigned_flag = DATA_UNSIGNED;
-	} else {
-		*unsigned_flag = 0;
-	}
-
-	if (field->real_type() == MYSQL_TYPE_ENUM
-		|| field->real_type() == MYSQL_TYPE_SET) {
-
-		/* MySQL has field->type() a string type for these, but the
-		data is actually internally stored as an unsigned integer
-		code! */
-
-		*unsigned_flag = DATA_UNSIGNED; /* MySQL has its own unsigned
-						flag set to zero, even though
-						internally this is an unsigned
-						integer type */
+		/* fall through */
+	case HA_KEYTYPE_SHORT_INT:
+	case HA_KEYTYPE_LONG_INT:
+	case HA_KEYTYPE_INT24:
+	case HA_KEYTYPE_INT8:
+	case HA_KEYTYPE_LONGLONG:
 		return(DATA_INT);
-	}
-
-	switch (field->type()) {
-		/* NOTE that we only allow string types in DATA_MYSQL and
-		DATA_VARMYSQL */
-	case MYSQL_TYPE_VAR_STRING: /* old <= 4.1 VARCHAR */
-	case MYSQL_TYPE_VARCHAR:    /* new >= 5.0.3 true VARCHAR */
-		if (field->binary()) {
-			return(DATA_BINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+	case HA_KEYTYPE_FLOAT:
+		return(DATA_FLOAT);
+	case HA_KEYTYPE_DOUBLE:
+		return(DATA_DOUBLE);
+	case HA_KEYTYPE_BINARY:
+		return(DATA_FIXBINARY);
+	case HA_KEYTYPE_VARBINARY2:
+		if (field->type() != MYSQL_TYPE_VARCHAR)
+			return(DATA_BLOB);
+		/* fall through */
+	case HA_KEYTYPE_VARBINARY1:
+		return(DATA_BINARY);
+	case HA_KEYTYPE_VARTEXT2:
+		if (field->type() != MYSQL_TYPE_VARCHAR)
+			return(DATA_BLOB);
+		/* fall through */
+	case HA_KEYTYPE_VARTEXT1:
+		if (field->charset() == &my_charset_latin1) {
 			return(DATA_VARCHAR);
 		} else {
 			return(DATA_VARMYSQL);
 		}
-	case MYSQL_TYPE_BIT:
-	case MYSQL_TYPE_STRING: if (field->binary()) {
-
-			return(DATA_FIXBINARY);
-		} else if (strcmp(
-				   field->charset()->name,
-				   "latin1_swedish_ci") == 0) {
+	case HA_KEYTYPE_TEXT:
+		if (field->charset() == &my_charset_latin1) {
 			return(DATA_CHAR);
 		} else {
 			return(DATA_MYSQL);
 		}
-	case MYSQL_TYPE_NEWDECIMAL:
-		return(DATA_FIXBINARY);
-	case MYSQL_TYPE_LONG:
-	case MYSQL_TYPE_LONGLONG:
-	case MYSQL_TYPE_TINY:
-	case MYSQL_TYPE_SHORT:
-	case MYSQL_TYPE_INT24:
-	case MYSQL_TYPE_DATE:
-	case MYSQL_TYPE_DATETIME:
-	case MYSQL_TYPE_YEAR:
-	case MYSQL_TYPE_NEWDATE:
-	case MYSQL_TYPE_TIME:
-	case MYSQL_TYPE_TIMESTAMP:
-		return(DATA_INT);
-	case MYSQL_TYPE_FLOAT:
-		return(DATA_FLOAT);
-	case MYSQL_TYPE_DOUBLE:
-		return(DATA_DOUBLE);
-	case MYSQL_TYPE_DECIMAL:
+	case HA_KEYTYPE_NUM:
 		return(DATA_DECIMAL);
-	case MYSQL_TYPE_GEOMETRY:
-	case MYSQL_TYPE_TINY_BLOB:
-	case MYSQL_TYPE_MEDIUM_BLOB:
-	case MYSQL_TYPE_BLOB:
-	case MYSQL_TYPE_LONG_BLOB:
-		return(DATA_BLOB);
-	case MYSQL_TYPE_NULL:
-		/* MySQL currently accepts "NULL" datatype, but will
-		reject such datatype in the next release. We will cope
-		with it and not trigger assertion failure in 5.1 */
-		break;
-	default:
+	case HA_KEYTYPE_BIT:
+	case HA_KEYTYPE_END:
 		assert(0);
 	}
 

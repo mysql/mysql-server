@@ -1157,6 +1157,7 @@ public:
   void sql_type(String &str) const;
   uint size_of() const { return sizeof(*this); }
   uint32 max_display_length() { return 4; }
+  void move_field_offset(my_ptrdiff_t ptr_diff) {}
 };
 
 
