@@ -168,6 +168,29 @@ void reset_events_waits_history_long(void)
     wait->m_wait_class= NO_WAIT_CLASS;
 }
 
+/** Reset table EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME data. */
+void reset_events_waits_by_thread()
+{
+  PFS_thread *thread= thread_array;
+  PFS_thread *thread_last= thread_array + thread_max;
+
+  for ( ; thread < thread_last; thread++)
+  {
+    if (thread->m_lock.is_populated())
+      aggregate_thread_waits(thread);
+  }
+}
+
+/** Reset table EVENTS_WAITS_GLOBAL_BY_EVENT_NAME data. */
+void reset_events_waits_global()
+{
+  PFS_single_stat *stat= global_instr_class_waits_array;
+  PFS_single_stat *stat_last= global_instr_class_waits_array + wait_class_max;
+
+  for ( ; stat < stat_last; stat++)
+    stat->reset();
+}
+
 void reset_table_waits_by_table()
 {
   PFS_table_share *pfs= table_share_array;
