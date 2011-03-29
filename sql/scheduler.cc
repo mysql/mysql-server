@@ -17,10 +17,6 @@
   Implementation for the thread scheduler
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma implementation
-#endif
-
 #include <sql_priv.h>
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "scheduler.h"

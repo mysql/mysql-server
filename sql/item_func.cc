@@ -20,10 +20,6 @@
   This file defines all numerical functions
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 /*
@@ -524,7 +520,10 @@ Field *Item_func::tmp_table_field(TABLE *table)
 my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 {
   DBUG_ASSERT(fixed);
-  int2my_decimal(E_DEC_FATAL_ERROR, val_int(), unsigned_flag, decimal_value);
+  longlong nr= val_int();
+  if (null_value)
+    return 0; /* purecov: inspected */
+  int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, decimal_value);
   return decimal_value;
 }
 
@@ -2105,9 +2104,10 @@ void Item_func_integer::fix_length_and_dec()
 
 void Item_func_int_val::fix_num_length_and_dec()
 {
-  max_length= args[0]->max_length - (args[0]->decimals ?
-                                     args[0]->decimals + 1 :
-                                     0) + 2;
+  ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
+    (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
+  max_length= tmp_max_length > (ulonglong) 4294967295U ?
+    (uint32) 4294967295U : (uint32) tmp_max_length;
   uint tmp= float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals= 0;
@@ -3898,7 +3898,7 @@ longlong Item_func_get_lock::val_int()
     Structure is now initialized.  Try to get the lock.
     Set up control struct to allow others to abort locks.
   */
-  thd_proc_info(thd, "User lock");
+  THD_STAGE_INFO(thd, stage_user_lock);
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &ull->cond;
 
@@ -3942,7 +3942,6 @@ longlong Item_func_get_lock::val_int()
   mysql_mutex_unlock(&LOCK_user_locks);
 
   mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd_proc_info(thd, 0);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond=  0;
   mysql_mutex_unlock(&thd->mysys_var->mutex);
@@ -4128,7 +4127,7 @@ longlong Item_func_sleep::val_int()
   mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
   mysql_mutex_lock(&LOCK_user_locks);
 
-  thd_proc_info(thd, "User sleep");
+  THD_STAGE_INFO(thd, stage_user_sleep);
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
@@ -4140,7 +4139,6 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
-  thd_proc_info(thd, 0);
   mysql_mutex_unlock(&LOCK_user_locks);
   mysql_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -4278,6 +4276,7 @@ Item_func_set_user_var::fix_length_and_dec()
     fix_length_and_charset(args[0]->max_char_length(),
                            args[0]->collation.collation);
   }
+  unsigned_flag= args[0]->unsigned_flag;
 }
 
 

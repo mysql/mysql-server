@@ -27,9 +27,6 @@
 #include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation
-#endif
 #include "sp_head.h"
 #include "sp.h"
 #include "sp_pcontext.h"

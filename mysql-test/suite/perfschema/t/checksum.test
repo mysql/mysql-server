@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,6 +25,16 @@
 --disable_result_log
 
 checksum table performance_schema.cond_instances;
+checksum table performance_schema.events_stages_current;
+checksum table performance_schema.events_stages_history;
+checksum table performance_schema.events_stages_history_long;
+checksum table performance_schema.events_stages_summary_by_thread_by_event_name;
+checksum table performance_schema.events_stages_summary_global_by_event_name;
+checksum table performance_schema.events_statements_current;
+checksum table performance_schema.events_statements_history;
+checksum table performance_schema.events_statements_history_long;
+checksum table performance_schema.events_statements_summary_by_thread_by_event_name;
+checksum table performance_schema.events_statements_summary_global_by_event_name;
 checksum table performance_schema.events_waits_current;
 checksum table performance_schema.events_waits_history;
 checksum table performance_schema.events_waits_history_long;
@@ -40,9 +50,22 @@ checksum table performance_schema.rwlock_instances;
 checksum table performance_schema.setup_consumers;
 checksum table performance_schema.setup_instruments;
 checksum table performance_schema.setup_timers;
+checksum table performance_schema.table_io_waits_summary_by_index;
+checksum table performance_schema.table_io_waits_summary_by_table;
+checksum table performance_schema.table_lock_waits_summary_by_table;
 checksum table performance_schema.threads;
 
 checksum table performance_schema.cond_instances extended;
+checksum table performance_schema.events_stages_current extended;
+checksum table performance_schema.events_stages_history extended;
+checksum table performance_schema.events_stages_history_long extended;
+checksum table performance_schema.events_stages_summary_by_thread_by_event_name extended;
+checksum table performance_schema.events_stages_summary_global_by_event_name extended;
+checksum table performance_schema.events_statements_current extended;
+checksum table performance_schema.events_statements_history extended;
+checksum table performance_schema.events_statements_history_long extended;
+checksum table performance_schema.events_statements_summary_by_thread_by_event_name extended;
+checksum table performance_schema.events_statements_summary_global_by_event_name extended;
 checksum table performance_schema.events_waits_current extended;
 checksum table performance_schema.events_waits_history extended;
 checksum table performance_schema.events_waits_history_long extended;
@@ -58,6 +81,9 @@ checksum table performance_schema.rwlock_instances extended;
 checksum table performance_schema.setup_consumers extended;
 checksum table performance_schema.setup_instruments extended;
 checksum table performance_schema.setup_timers extended;
+checksum table performance_schema.table_io_waits_summary_by_index extended;
+checksum table performance_schema.table_io_waits_summary_by_table extended;
+checksum table performance_schema.table_lock_waits_summary_by_table extended;
 checksum table performance_schema.threads extended;
 
 --enable_result_log

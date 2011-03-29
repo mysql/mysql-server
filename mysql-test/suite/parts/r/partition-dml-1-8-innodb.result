@@ -87,14 +87,14 @@ connect  session2, localhost, test_user_2,'testpw',test;
 ####### expect p0-29 has not been updated
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b
-1	(p0-29-)subp3
-2	(p0-29-)subp3
 3	(p0-29-)subp3
-4	(p0-29-)subp3
 21	(p0-29-)subp5
-22	(p0-29-)subp5
-23	(p0-29-)subp5
 24	(p0-29-)subp5
+1	(p0-29-)subp3
+4	(p0-29-)subp3
+22	(p0-29-)subp5
+2	(p0-29-)subp3
+23	(p0-29-)subp5
 SELECT * FROM t1 PARTITION (`p0-29`) WHERE a BETWEEN 0 AND 9 LOCK IN SHARE MODE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM t1 PARTITION (`p0-29`) WHERE a BETWEEN 20 AND 29 FOR UPDATE;
