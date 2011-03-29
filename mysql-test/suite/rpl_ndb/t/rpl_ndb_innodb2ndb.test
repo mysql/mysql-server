@@ -13,3 +13,4 @@
 -- source include/ndb_master-slave.inc
 SET storage_engine=innodb;
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
+--source include/rpl_end.inc

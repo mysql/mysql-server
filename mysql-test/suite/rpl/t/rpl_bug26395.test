@@ -95,3 +95,5 @@ connection slave;
 DROP TABLE tinnodb;
 
 # Warning: do not add more tests here. The binlog is in a bad state.
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

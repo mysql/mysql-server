@@ -72,75 +72,36 @@ stop slave;
 
 ###############################################################################
 
---echo
 --echo # Connection: slave
---echo
 --connection slave
 
---echo
 START SLAVE;
 
---echo
 --echo # Connection: master
---echo
 --connection master
 
---echo
 CREATE DATABASE mysqltest1;
 CREATE TABLE t1(db_name CHAR(32), db_col_name CHAR(32));
 
---echo
 PREPARE stmt_d_1 FROM 'INSERT INTO t1 VALUES(DATABASE(), @@collation_database)';
 
---echo
 EXECUTE stmt_d_1;
 
---echo
 use mysqltest1;
 
---echo
 EXECUTE stmt_d_1;
 
---echo
---save_master_pos
-
---echo
 --echo # Connection: slave
---echo
---connection slave
---sync_with_master
+--sync_slave_with_master
 
---echo
 SELECT * FROM t1;
 
---echo
 --echo # Connection: master
---echo
 --connection master
 
---echo
 DROP DATABASE mysqltest1;
 
---echo
 use test;
 DROP TABLE t1;
---echo
---save_master_pos
 
---echo
---echo # Connection: slave
---echo
---connection slave
---sync_with_master
-
---echo
-STOP SLAVE;
-
---echo
---echo ########################################################################
-
-###############################################################################
-
-reset master;
-reset slave;
-disconnect master;
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 drop database if exists mysqltest1;
 create database mysqltest1;
 use mysqltest1;
@@ -989,3 +985,4 @@ drop procedure ` mysqltestbug36570_p2`;
 drop function mysqltestbug36570_f1;
 End of 5.0 tests
 End of 5.1 tests
+include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ==== Initialization ====
 [on master]
 SET @m_default_week_format=  @@global.default_week_format;
@@ -38,12 +34,7 @@ SET @@global.sql_mode = 'ALLOW_INVALID_DATES';
 SET @@local.sql_mode = 'ANSI_QUOTES,ERROR_FOR_DIVISION_BY_ZERO,HIGH_NOT_PRECEDENCE';
 SET @user_num = 10;
 SET @user_text = 'Alunda';
-[on master]
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/rpl_reset.inc
 [on slave]
 SET @@global.init_slave = 'SELECT 1';
 [on master]
@@ -550,15 +541,7 @@ id	truth	num	text
 30	NULL	30	NULL
 31	NULL	NULL	Bergsbrunna
 32	NULL	NULL	Centrum
-Comparing tables master:test.tstmt and master:test.tproc
-Comparing tables master:test.tstmt and master:test.tfunc
-Comparing tables master:test.tstmt and master:test.ttrig
-Comparing tables master:test.tstmt and master:test.tprep
-Comparing tables master:test.tstmt and slave:test.tstmt
-Comparing tables master:test.tstmt and slave:test.tproc
-Comparing tables master:test.tstmt and slave:test.tfunc
-Comparing tables master:test.tstmt and slave:test.ttrig
-Comparing tables master:test.tstmt and slave:test.tprep
+include/diff_tables.inc [master:tstmt,tproc,tfunc,ttrig,tprep, slave:tstmt,tproc,tfunc,ttrig,tprep]
 ==== Clean up ====
 [on master]
 DROP PROCEDURE proc;
@@ -582,3 +565,4 @@ SET @@global.relay_log_purge=      @s_relay_log_purge;
 SET @@global.slave_exec_mode=      @s_slave_exec_mode;
 SET @@global.sql_mode=             @s_sql_mode;
 SET @@global.sync_binlog=          @s_sync_binlog;
+include/rpl_end.inc

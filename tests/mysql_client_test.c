@@ -1,6 +1,4 @@
-/*
-   Copyright (C) 2003-2004 MySQL AB
-    All rights reserved. Use is subject to license terms.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17128,7 +17126,7 @@ static void test_bug20023()
 
   /* Set MAX_JOIN_SIZE to the default value (-1). */
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 18446744073709551615"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */
@@ -17159,7 +17157,7 @@ static void test_bug20023()
 
   DIE_IF(mysql_query(&con, query_buffer));
 
-  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = -1"));
+  DIE_IF(mysql_query(&con, "SET @@global.max_join_size = 18446744073709551615"));
   DIE_IF(mysql_query(&con, "SET @@session.max_join_size = default"));
 
   /* Issue COM_CHANGE_USER. */

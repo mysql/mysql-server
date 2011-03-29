@@ -125,13 +125,11 @@ while ($type)
 connection master;
 sync_slave_with_master;
 
-connection master;
-let $diff_statement= SELECT * FROM t order by i;
-source include/diff_master_slave.inc;
+let $rpl_diff_statement= SELECT * FROM t order by i;
+source include/rpl_diff.inc;
 
-connection master;
-let $diff_statement= SELECT * FROM n order by d, f;
-source include/diff_master_slave.inc;
+let $rpl_diff_statement= SELECT * FROM n order by d, f;
+source include/rpl_diff.inc;
 
 --echo ########################################################################
 --echo #                                Cleanup
@@ -147,3 +145,4 @@ sync_slave_with_master;
 connection master;
 disconnect conn1;
 disconnect conn2;
+--source include/rpl_end.inc

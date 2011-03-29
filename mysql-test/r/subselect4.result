@@ -164,5 +164,16 @@ a	b
 2	NULL
 DROP TABLE t1, t2, t3, t4, t5;
 #
+# Bug#58207: invalid memory reads when using default column value and 
+# tmptable needed
+#
+CREATE TABLE t(a VARCHAR(245) DEFAULT
+'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+INSERT INTO t VALUES (''),(''),(''),(''),(''),(''),(''),(''),(''),(''),('');
+SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
+default(a)
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+DROP TABLE t;
+#
 # End of 5.1 tests.
 #

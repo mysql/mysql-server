@@ -2,7 +2,9 @@ call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to process registered files that would be purged.');
 call mtr.add_suppression('MSYQL_BIN_LOG::open failed to sync the index file');
 call mtr.add_suppression('Turning logging off for the whole duration of the MySQL server process.');
+call mtr.add_suppression('Could not open .*');
 call mtr.add_suppression('MSYQL_BIN_LOG::purge_logs failed to clean registers before purging logs.');
+RESET MASTER;
 flush logs;
 flush logs;
 flush logs;
@@ -116,11 +118,31 @@ master-bin.000011
 # This should put the server in unsafe state and stop
 # accepting any command. If we inject a fault at this
 # point and continue the execution the server crashes.
-# Besides the flush command does not report an error.
 #
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+master-bin.000010
+master-bin.000011
+
 # fault_injection_registering_index
 SET SESSION debug="+d,fault_injection_registering_index";
 flush logs;
+ERROR HY000: Can't open file: 'master-bin.000012' (errno: 1)
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+master-bin.000010
+master-bin.000011
+
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
 SELECT @index;
 @index
@@ -135,6 +157,18 @@ master-bin.000012
 # fault_injection_updating_index
 SET SESSION debug="+d,fault_injection_updating_index";
 flush logs;
+ERROR HY000: Can't open file: 'master-bin.000013' (errno: 1)
+SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
+SELECT @index;
+@index
+master-bin.000006
+master-bin.000007
+master-bin.000008
+master-bin.000009
+master-bin.000010
+master-bin.000011
+master-bin.000012
+
 SET @index=LOAD_FILE('MYSQLTEST_VARDIR/mysqld.1/data//master-bin.index');
 SELECT @index;
 @index

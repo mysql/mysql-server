@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 include/stop_slave.inc
 reset master;
 reset slave;
@@ -240,18 +236,13 @@ slave-bin.000002	#	Query	#	#	BEGIN
 slave-bin.000002	#	Table_map	#	#	table_id: # (test.t2)
 slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 slave-bin.000002	#	Query	#	#	COMMIT
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 show binlog events in 'slave-bin.000005' from 4;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Could not find target log
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/rpl_reset.inc
 create table t1(a int auto_increment primary key, b int);
 insert into t1 values (NULL, 1);
 set insert_id=5;
@@ -273,3 +264,4 @@ a	b
 5	1
 6	1
 drop table t1;
+include/rpl_end.inc

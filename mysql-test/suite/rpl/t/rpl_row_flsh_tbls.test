@@ -14,4 +14,3 @@ let $rename_event_pos= 897;
 --disable_ps_protocol
 -- source extra/rpl_tests/rpl_flsh_tbls.test
 --enable_ps_protocol
-

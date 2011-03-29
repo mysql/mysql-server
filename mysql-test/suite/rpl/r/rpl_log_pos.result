@@ -1,19 +1,16 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when reading data from binary");
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 include/stop_slave.inc
 change master to master_log_pos=MASTER_LOG_POS;
-Read_Master_Log_Pos	75
+Read_Master_Log_Pos = '75'
 start slave;
-Last_IO_Error = Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master'
-include/stop_slave.inc
+include/wait_for_slave_io_error.inc [errno=1236]
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'log event entry exceeded max_allowed_packet; Increase max_allowed_packet on master''
+include/stop_slave_sql.inc
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
@@ -30,3 +27,4 @@ n
 3
 drop table t1;
 End of 5.0 tests
+include/rpl_end.inc
