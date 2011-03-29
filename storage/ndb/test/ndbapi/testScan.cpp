@@ -296,12 +296,25 @@ int runScanRead(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getProperty("Rows", ctx->getNumRecords());
   int parallelism = ctx->getProperty("Parallelism", 240);
   int abort = ctx->getProperty("AbortProb", 5);
+  int tupscan = ctx->getProperty("TupScan", (Uint32)0);
 
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (i<loops && !ctx->isTestStopped()) {
     g_info << i << ": ";
-    if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism) != 0){
+
+    int scan_flags = 0;
+    if (tupscan == 1)
+    {
+      scan_flags |= NdbScanOperation::SF_TupScan;
+      if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism,
+                                    NdbOperation::LM_CommittedRead,
+                                    scan_flags) != 0)
+        return NDBT_FAILED;
+    }
+    else if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism)
+             != 0)
+    {
       return NDBT_FAILED;
     }
     i++;
@@ -1564,6 +1577,13 @@ TESTCASE("ScanRead40",
 }
 TESTCASE("ScanRead100", 
 	 "Verify scan requirement: Scan with 100 simultaneous threads"){
+  INITIALIZER(runLoadTable);
+  STEPS(runScanRead, 100);
+  FINALIZER(runClearTable);
+}
+TESTCASE("TupScanRead100",
+	 "Verify scan requirement: Scan with 100 simultaneous threads"){
+  TC_PROPERTY("TupScan", 1);
   INITIALIZER(runLoadTable);
   STEPS(runScanRead, 100);
   FINALIZER(runClearTable);

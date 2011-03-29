@@ -2778,6 +2778,7 @@ Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
 
   req_struct->out_buf_index = 0; // Reset buffer
   req_struct->out_buf_bits = 0;
+  req_struct->read_length += len;
 }
 
 Uint32

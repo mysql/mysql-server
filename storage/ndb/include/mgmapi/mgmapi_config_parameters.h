@@ -180,6 +180,7 @@
 #define CFG_DB_LATE_ALLOC             615
 
 #define CFG_DB_2PASS_INR              616
+#define CFG_DB_PARALLEL_SCANS_PER_FRAG 617
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
