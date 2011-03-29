@@ -6704,6 +6704,10 @@ get_best_combination(JOIN *join)
     else if (create_ref_for_key(join, j, keyuse, used_tables))
       DBUG_RETURN(TRUE);                        // Something went wrong
   loop_end:
+    /* 
+      Save records_read in JOIN_TAB so that select_describe()/etc don't have
+      to access join->best_positions[]. 
+    */
     j->records_read= (ha_rows)join->best_positions[tablenr].records_read;
     join->map2table[j->table->tablenr]= j;
 
@@ -7765,7 +7769,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       /* First push down constant conditions from on expressions */
       for (JOIN_TAB *join_tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
            join_tab; 
-           join_tab= next_linear_tab(join, join_tab, WITHOUT_BUSH_ROOTS))
+           join_tab= next_linear_tab(join, join_tab, WITH_BUSH_ROOTS))
       {
         if (*join_tab->on_expr_ref)
         {
