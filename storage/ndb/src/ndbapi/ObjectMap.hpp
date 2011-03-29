@@ -47,7 +47,7 @@ private:
   Uint32 m_expandSize;
   Uint32 m_firstFree;
   union MapEntry {
-     Uint32 m_next;
+     UintPtr m_next;
      void * m_obj;
   } * m_map;
 
@@ -60,11 +60,12 @@ Uint32
 NdbObjectIdMap::map(void * object){
   
   //  lock();
+  assert((UintPtr(object) & 3) == 0);
   
   if(m_firstFree == InvalidId && expand(m_expandSize))
     return InvalidId;
   
-  Uint32 ff = m_firstFree;
+  Uint32 ff = m_firstFree >> 1;
   m_firstFree = m_map[ff].m_next;
   m_map[ff].m_obj = object;
   
@@ -86,7 +87,7 @@ NdbObjectIdMap::unmap(Uint32 id, void *object){
     void * obj = m_map[i].m_obj;
     if (object == obj) {
       m_map[i].m_next = m_firstFree;
-      m_firstFree = i;
+      m_firstFree = (2 * i) + 1;
     } else {
       g_eventLogger->error("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
                            id, (long) object, (long) obj);
@@ -109,7 +110,8 @@ NdbObjectIdMap::getObject(Uint32 id){
   // DBUG_PRINT("info",("NdbObjectIdMap::getObject(%u) obj=0x%x", id,  m_map[id>>2].m_obj));
   id >>= 2;
   if(id < m_size){
-    return m_map[id].m_obj;
+    if ((m_map[id].m_next & 3) == 0)
+      return m_map[id].m_obj;
   }
   return 0;
 }
