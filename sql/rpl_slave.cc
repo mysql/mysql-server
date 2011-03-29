@@ -2347,9 +2347,13 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   }
 
   if (thd_type == SLAVE_THD_SQL)
-    thd_proc_info(thd, "Waiting for the next event in relay log");
+  {
+    THD_STAGE_INFO(thd, stage_waiting_for_the_next_event_in_relay_log);
+  }
   else
-    thd_proc_info(thd, "Waiting for master update");
+  {
+    THD_STAGE_INFO(thd, stage_waiting_for_master_update);
+  }
   thd->set_time();
   /* Do not use user-supplied timeout value for system threads. */
   thd->variables.lock_wait_timeout= LONG_TIMEOUT;
@@ -3211,7 +3215,7 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
 
-  thd_proc_info(thd, "Connecting to master");
+  THD_STAGE_INFO(thd, stage_connecting_to_master);
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
   {
@@ -3254,7 +3258,7 @@ connected:
   mysql_mutex_unlock(&mi->run_lock);
 
   thd->slave_net = &mysql->net;
-  thd_proc_info(thd, "Checking master version");
+  THD_STAGE_INFO(thd, stage_checking_master_version);
   ret= get_master_version_and_clock(mysql, mi);
   if (!ret)
     ret= get_master_uuid(mysql, mi);
@@ -3283,7 +3287,7 @@ connected:
     /*
       Register ourselves with the master.
     */
-    thd_proc_info(thd, "Registering slave on master");
+    THD_STAGE_INFO(thd, stage_registering_slave_on_master);
     if (register_slave_on_master(mysql, mi, &suppress_warnings))
     {
       if (!check_io_slave_killed(thd, mi, "Slave I/O thread killed "
@@ -3313,7 +3317,7 @@ connected:
   DBUG_PRINT("info",("Starting reading binary log from master"));
   while (!io_slave_killed(thd,mi))
   {
-    thd_proc_info(thd, "Requesting binlog dump");
+    THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
     if (request_dump(thd, mysql, mi, &suppress_warnings))
     {
       sql_print_error("Failed on request_dump()");
@@ -3346,7 +3350,7 @@ requesting master dump") ||
          important thing is to not confuse users by saying "reading" whereas
          we're in fact receiving nothing.
       */
-      thd_proc_info(thd, "Waiting for master to send event");
+      THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
       event_len= read_event(mysql, mi, &suppress_warnings);
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
 reading event"))
@@ -3394,7 +3398,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
       } // if (event_len == packet_error)
 
       retry_count=0;                    // ok event, reset retry counter
-      thd_proc_info(thd, "Queueing master event to the relay log");
+      THD_STAGE_INFO(thd, stage_queueing_master_event_to_the_relay_log);
       event_buf= (const char*)mysql->net.read_pos + 1;
       if (RUN_HOOK(binlog_relay_io, after_read_event,
                    (thd, mi,(const char*)mysql->net.read_pos + 1,
@@ -3491,7 +3495,7 @@ err:
     mi->mysql=0;
   }
   write_ignored_events_info_to_relay_log(thd, mi);
-  thd_proc_info(thd, "Waiting for slave mutex on exit");
+  THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
 
   /* Forget the relay log's format */
@@ -3865,7 +3869,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->catalog= 0;
   thd->reset_query();
   thd->reset_db(NULL, 0);
-  thd_proc_info(thd, "Waiting for slave mutex on exit");
+  THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   mysql_mutex_lock(&rli->data_lock);
@@ -5708,7 +5712,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
-  thd_proc_info(thd, "Killing slave");
+  THD_STAGE_INFO(thd, stage_killing_slave);
   int thread_mask;
   lock_slave_threads(mi);
   // Get a mask of _running_ threads
@@ -5735,7 +5739,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
   unlock_slave_threads(mi);
-  thd_proc_info(thd, 0);
 
   if (slave_errno)
   {
@@ -5842,7 +5845,7 @@ bool change_master(THD* thd, Master_info* mi)
   }
   thread_mask= SLAVE_IO | SLAVE_SQL;
 
-  thd_proc_info(thd, "Changing master");
+  THD_STAGE_INFO(thd, stage_changing_master);
   /* 
     We need to check if there is an empty master_host. Otherwise
     change master succeeds, a master.info file is created containing 
@@ -6111,7 +6114,6 @@ bool change_master(THD* thd, Master_info* mi)
 
 err:
   unlock_slave_threads(mi);
-  thd_proc_info(thd, 0);
   if (ret == FALSE)
     my_ok(thd);
   DBUG_RETURN(ret);

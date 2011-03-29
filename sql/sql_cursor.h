@@ -16,10 +16,6 @@
 #ifndef _sql_cursor_h_
 #define _sql_cursor_h_
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface                              /* gcc class interface */
-#endif
-
 #include "sql_class.h"                          /* Query_arena */
 
 class JOIN;
