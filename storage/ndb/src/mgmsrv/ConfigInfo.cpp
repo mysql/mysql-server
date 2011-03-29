@@ -31,6 +31,7 @@
 #else
 #include "ConfigInfo.hpp"
 #include <mgmapi_config_parameters.h>
+#include <ndb_version.h>
 #endif /* NDB_MGMAPI */
 
 #define KEY_INTERNAL 0
@@ -933,7 +934,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT64,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "20M",
+#else
+    "128M",
+#endif
     "0",
     "65536G" }, // 32k pages * 32-bit i value
   
@@ -981,7 +986,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "1500",
+#else
+    "5000",
+#endif
     "10",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1041,7 +1050,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "4000",
+#else
+    "0",
+#endif
     "0",
     "256000" },
 
@@ -1254,7 +1267,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "3000",
+#else
+    "7500",
+#endif
     "10",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1935,7 +1952,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "32",
+#else
+    "256",
+#endif
     "1",                         /* Min */
     STR_VALUE(MAX_INT_RNIL)      /* Max */
   },
