@@ -4365,7 +4365,6 @@ int ha_ndbcluster::end_bulk_delete()
                           &ignore_count) != 0)
     {
       no_uncommitted_rows_execute_failure();
-      m_is_bulk_delete = false;
       DBUG_RETURN(ndb_err(m_thd_ndb->trans));
     }
     assert(m_rows_deleted >= ignore_count);
