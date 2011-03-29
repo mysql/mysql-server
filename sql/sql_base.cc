@@ -8188,7 +8188,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
       goto err_no_arena;
   }
 
-  thd->thd_marker.emb_on_expr_nest= (TABLE_LIST*)1;
+  thd->thd_marker.emb_on_expr_nest= NO_JOIN_NEST;
   if (*conds)
   {
     thd->where="where clause";

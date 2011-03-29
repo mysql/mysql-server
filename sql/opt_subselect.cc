@@ -336,7 +336,6 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
       /* Register the subquery for further processing in flatten_subqueries() */
       select_lex->
         outer_select()->join->sj_subselects.append(thd->mem_root, in_subs);
-      in_subs->expr_join_nest= thd->thd_marker.emb_on_expr_nest;
     }
     else
     {
@@ -396,7 +395,7 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           with jtbm strategy
         */
         if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
-            thd->thd_marker.emb_on_expr_nest == (TABLE_LIST*)0x1 &&
+            thd->thd_marker.emb_on_expr_nest == NO_JOIN_NEST &&
             optimizer_flag(thd, OPTIMIZER_SWITCH_SEMIJOIN))
         {
           in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
@@ -560,7 +559,7 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
   Item *replace_me= item->optimizer;
   DBUG_ASSERT(replace_me==substitute);
 
-  Item **tree= (item->emb_on_expr_nest == (TABLE_LIST*)1)?
+  Item **tree= (item->emb_on_expr_nest == NO_JOIN_NEST)?
                  &join->conds : &(item->emb_on_expr_nest->on_expr);
   if (replace_where_subcondition(join, tree, replace_me, substitute, 
                                  do_fix_fields))
@@ -569,7 +568,7 @@ bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *item)
    
   if (!thd->stmt_arena->is_conventional())
   {
-    tree= (item->emb_on_expr_nest == (TABLE_LIST*)1)?
+    tree= (item->emb_on_expr_nest == (TABLE_LIST*)NO_JOIN_NEST)?
            &join->select_lex->prep_where : 
            &(item->emb_on_expr_nest->prep_on_expr);
 
@@ -711,7 +710,7 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
     }
     if (remove_item)
     {
-      Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
+      Item **tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
                      &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
       Item *replace_me= *in_subq;
       /*
@@ -755,7 +754,7 @@ skip_conversion:
 
     Item *substitute= (*in_subq)->substitution;
     bool do_fix_fields= !(*in_subq)->substitution->fixed;
-    Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
+    Item **tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
                    &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
 
     Item *replace_me= *in_subq;
@@ -776,7 +775,7 @@ skip_conversion:
      
     if (!thd->stmt_arena->is_conventional())
     {
-      tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
+      tree= ((*in_subq)->emb_on_expr_nest == NO_JOIN_NEST)?
              &join->select_lex->prep_where : 
              &((*in_subq)->emb_on_expr_nest->prep_on_expr);
 
@@ -944,9 +943,9 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
     1. Find out where to put the predicate into.
      Note: for "t1 LEFT JOIN t2" this will be t2, a leaf.
   */
-  if ((void*)subq_pred->expr_join_nest != (void*)1)
+  if ((void*)subq_pred->emb_on_expr_nest != (void*)NO_JOIN_NEST)
   {
-    if (subq_pred->expr_join_nest->nested_join)
+    if (subq_pred->emb_on_expr_nest->nested_join)
     {
       /*
         We're dealing with
@@ -955,10 +954,10 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
         The sj-nest will be inserted into the brackets nest.
       */
-      emb_tbl_nest=  subq_pred->expr_join_nest;
+      emb_tbl_nest=  subq_pred->emb_on_expr_nest;
       emb_join_list= &emb_tbl_nest->nested_join->join_list;
     }
-    else if (!subq_pred->expr_join_nest->outer_join)
+    else if (!subq_pred->emb_on_expr_nest->outer_join)
     {
       /*
         We're dealing with
@@ -968,13 +967,13 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
         The sj-nest will be tblX's "sibling", i.e. another child of its
         parent. This is ok because tblX is joined as an inner join.
       */
-      emb_tbl_nest= subq_pred->expr_join_nest->embedding;
+      emb_tbl_nest= subq_pred->emb_on_expr_nest->embedding;
       if (emb_tbl_nest)
         emb_join_list= &emb_tbl_nest->nested_join->join_list;
     }
-    else if (!subq_pred->expr_join_nest->nested_join)
+    else if (!subq_pred->emb_on_expr_nest->nested_join)
     {
-      TABLE_LIST *outer_tbl= subq_pred->expr_join_nest;      
+      TABLE_LIST *outer_tbl= subq_pred->emb_on_expr_nest;
       TABLE_LIST *wrap_nest;
       /*
         We're dealing with

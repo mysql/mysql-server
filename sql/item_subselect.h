@@ -313,6 +313,8 @@ public:
 };
 
 
+TABLE_LIST * const NO_JOIN_NEST=(TABLE_LIST*)0x1;
+
 /**
   Representation of IN subquery predicates of the form
   "left_expr IN (SELECT ...)".
@@ -351,12 +353,10 @@ protected:
     all JOIN in UNION
   */
   Item *expr;
-public:
-  Item_in_optimizer *optimizer;
-protected:
   bool was_null;
   bool abort_on_null;
 public:
+  Item_in_optimizer *optimizer;
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
   
@@ -365,7 +365,7 @@ public:
   /*
     Used by subquery optimizations to keep track about in which clause this
     subquery predicate is located: 
-      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
+      NO_JOIN_NEST      - the predicate is an AND-part of the WHERE
       join nest pointer - the predicate is an AND-part of ON expression
                           of a join nest   
       NULL              - for all other locations
@@ -377,7 +377,7 @@ public:
      - pointer to join nest if the subquery predicate is in the ON expression
      - (TABLE_LIST*)1 if the predicate is in the WHERE.
   */
-  TABLE_LIST *expr_join_nest;
+  //TABLE_LIST *expr_join_nest;
   /*
     Types of left_expr and subquery's select list allow to perform subquery
     materialization. Currently, we set this to FALSE when it as well could
@@ -420,7 +420,7 @@ public:
   Item_in_subselect(Item * left_expr, st_select_lex *select_lex);
   Item_in_subselect()
     :Item_exists_subselect(), left_expr_cache(0), first_execution(TRUE),
-    is_constant(FALSE), optimizer(0), abort_on_null(0),
+    is_constant(FALSE), abort_on_null(0), optimizer(0),
     pushed_cond_guards(NULL), exec_method(NOT_TRANSFORMED), upper_item(0)
   {}
   void cleanup();
