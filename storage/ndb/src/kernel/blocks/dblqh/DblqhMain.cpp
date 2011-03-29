@@ -8879,7 +8879,9 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
     jam();
     scanptr.p->scanReleaseCounter++;     
     scanReleaseLocksLab(signal);
-  } else {
+  }
+  else if (scanptr.p->scanCompletedStatus != ZTRUE)
+  {
     jam();
     /*
     We come here when we have been scanning for a long time and not been able
@@ -8889,7 +8891,12 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
     */
     scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
     sendScanFragConf(signal, ZFALSE);
-  }//if
+  }
+  else
+  {
+    jam();
+    closeScanLab(signal);
+  }
 }//Dblqh::scanLockReleasedLab()
 
 bool
