@@ -407,6 +407,10 @@ max-time: 1800
 cmd: testScan
 args: -n ScanRead100 -l 100 T1 D1 D2 
 
+max-time: 1800
+cmd: testScan
+args: -n TupScanRead100 -l 100 T1 D1 D2 
+
 max-time: 600
 cmd: testScan
 args: -n ScanRead40 -l 100 T1 D1 D2 

@@ -733,7 +733,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
 
   if (noOfLocalScanRecords == 0) {
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
+#else
+    noOfLocalScanRecords = 4 * (noOfDBNodes * noOfScanRecords) +
+#endif
       1 /* NR */ + 
       1 /* LCP */; 
   }

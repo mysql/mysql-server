@@ -3240,6 +3240,7 @@ public:
   Uint32 c_max_redo_lag;
   Uint32 c_max_redo_lag_counter;
   Uint64 cTotalLqhKeyReqCount;
+  Uint32 c_max_parallel_scans_per_frag;
 
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
