@@ -862,6 +862,60 @@ disconnect con2;
 set @@global.concurrent_insert= @old_concurrent_insert;
 
 
+--echo #
+--echo # Bug#11763784 56541: ASSERTION TABLE->DB_STAT FAILED IN
+--echo #                     SQL_BASE.CC::OPEN_TABLE() DURING I_S Q
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END;
+
+connect (con1, localhost, root);
+--echo # Connection con2
+connect (con2, localhost, root);
+SET DEBUG_SYNC= 'before_open_in_get_all_tables SIGNAL is_waits WAIT_FOR is_cont';
+--echo # Sending:
+--send SELECT * FROM information_schema.table_constraints JOIN t1 ON table_name = a
+
+--echo # Connection con1
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR is_waits';
+--echo # Sending:
+--send DROP TRIGGER t1_bi
+
+--echo # Connection default
+connection default;
+--echo # Wait until DROP TRIGGER is blocked, waiting for t1
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table" AND
+        info = "DROP TRIGGER t1_bi";
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL is_cont';
+
+--echo # Connection con2
+connection con2;
+--echo # Reaping SELECT * FROM information_schema.table_constraints JOIN t1...
+--reap
+
+--echo # Connection con1
+connection con1;
+--echo # Reaping DROP TRIGGER t1_bi
+--reap
+
+--echo # Connection default
+connection default;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con1;
+disconnect con2;
+
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
