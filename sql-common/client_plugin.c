@@ -27,6 +27,11 @@
   There is no reference counting and no unloading either.
 */
 
+#if _MSC_VER
+/* Silence warnings about variable 'unused' being used. */
+#define FORCE_INIT_OF_VARS 1
+#endif
+
 #include <my_global.h>
 #include "mysql.h"
 #include <my_sys.h>
