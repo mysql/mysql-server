@@ -1546,7 +1546,7 @@ Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
   if ((requestPtr.p->m_state & Request::RS_ABORTING) != 0)
   {
     jam();
-    return;
+    goto checkcomplete;
   }
 
   requestPtr.p->m_state |= Request::RS_ABORTING;
@@ -1573,6 +1573,7 @@ Dbspj::abort(Signal* signal, Ptr<Request> requestPtr, Uint32 errCode)
     }
   }
 
+checkcomplete:
   checkBatchComplete(signal, requestPtr, 0);
 }
 
@@ -5475,6 +5476,33 @@ Dbspj::scanIndex_cleanup(Ptr<Request> requestPtr,
 {
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
   Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+  if (requestPtr.p->m_state & Request::RS_ABORTING)
+  {
+    /**
+     * If we're aborting...there can be keys attached...that has not
+     *   (and will not) be sent...release them to avoid memleak
+     */
+    jam();
+    Ptr<ScanFragHandle> fragPtr;
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      if (fragPtr.p->m_rangePtrI != RNIL)
+      {
+        releaseSection(fragPtr.p->m_rangePtrI);
+        fragPtr.p->m_rangePtrI = RNIL;
+      }
+    }
+  }
+  else
+  {
+#ifdef VM_TRACE
+    Ptr<ScanFragHandle> fragPtr;
+    for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+    {
+      ndbrequire(fragPtr.p->m_rangePtrI == RNIL);
+    }
+#endif
+  }
   list.remove();
 
   if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
