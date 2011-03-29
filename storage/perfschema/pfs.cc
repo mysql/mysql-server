@@ -4639,7 +4639,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   }
 
   register uint flags= state->m_flags;
-  size_t bytes= (byte_count > -1 ? byte_count : 0);
+  size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
   
   /** Aggregation for EVENTS_WAITS_SUMMARY_BY_INSTANCE */
   if (flags & STATE_FLAG_TIMED)
