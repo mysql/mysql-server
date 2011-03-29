@@ -161,8 +161,9 @@ SELECT Country.Name, Country.Population, City.Name, City.Population
 CREATE INDEX City_Population ON City(Population);
 CREATE INDEX City_Name ON City(Name);
 
---replace_result city City
+--disable_result_log
 ANALYZE TABLE City;
+--enable_result_log
 
 EXPLAIN
 SELECT Country.Name, Country.Population, City.Name, City.Population 

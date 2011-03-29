@@ -390,8 +390,6 @@ Czech Republic	10278100	NULL	NULL
 CREATE INDEX City_Population ON City(Population);
 CREATE INDEX City_Name ON City(Name);
 ANALYZE TABLE City;
-Table	Op	Msg_type	Msg_text
-world.City	analyze	status	Table is already up to date
 EXPLAIN
 SELECT Country.Name, Country.Population, City.Name, City.Population 
 FROM Country LEFT JOIN City
