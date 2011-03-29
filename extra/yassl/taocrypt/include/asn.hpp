@@ -23,7 +23,7 @@
 #ifndef TAO_CRYPT_ASN_HPP
 #define TAO_CRYPT_ASN_HPP
 
-
+#include <time.h>
 #include "misc.hpp"
 #include "block.hpp"
 #include "error.hpp"
@@ -32,9 +32,6 @@
 #else
     #include "list.hpp"
 #endif
-
-/* forward declaration for ASN1_TIME_extract */
-struct tm;
 
 
 namespace STL = STL_NAMESPACE;
@@ -375,7 +372,7 @@ int GetCert(Source&);
 int GetPKCS_Cert(const char* password, Source&);
 
 void ASN1_TIME_extract(const unsigned char* date, unsigned char format,
-                       ::tm *parsed_time);
+                       tm *parsed_time);
 
 } // namespace
 
