@@ -66,7 +66,8 @@ NdbObjectIdMap::map(void * object){
     return InvalidId;
   
   Uint32 ff = m_firstFree >> 1;
-  m_firstFree = m_map[ff].m_next;
+  assert(UintPtr(m_map[ff].m_next) == Uint32(m_map[ff].m_next));
+  m_firstFree = Uint32(m_map[ff].m_next);
   m_map[ff].m_obj = object;
   
   //  unlock();
