@@ -116,6 +116,10 @@ ENDIF()
 # Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
 # for more info.
 IF(MSVC)
+    # Tiny version is used to identify the build, it can be set with cmake -DTINY_VERSION=<number>
+    # to bzr revno for example (in the CI builds)
+    SET(TINY_VERSION "0" CACHE INTERNAL "")
+  
     GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 	
     SET(FILETYPE VFT_APP)
