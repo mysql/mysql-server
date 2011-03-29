@@ -47,9 +47,9 @@ int NdbObjectIdMap::expand(Uint32 incSize)
     m_map = tmp;
     
     for(Uint32 i = m_size; i < newSize; i++){
-      m_map[i].m_next = i + 1;
+      m_map[i].m_next = 2 * (i + 1) + 1;
     }
-    m_firstFree = m_size;
+    m_firstFree = (2 * m_size) + 1;
     m_map[newSize-1].m_next = InvalidId;
     m_size = newSize;
   }

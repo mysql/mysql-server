@@ -88,6 +88,8 @@ void Dblqh::initData()
   cTotalLqhKeyReqCount = 0;
   c_max_redo_lag = 30; // seconds
   c_max_redo_lag_counter = 3; // 3 strikes and you're out
+
+  c_max_parallel_scans_per_frag = 32;
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
