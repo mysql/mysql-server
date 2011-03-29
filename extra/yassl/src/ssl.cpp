@@ -29,6 +29,7 @@
 
 /*  see man pages for function descriptions */
 
+#include <time.h>
 #include "runtime.hpp"
 #include "openssl/ssl.h"
 #include "handshake.hpp"
@@ -39,7 +40,6 @@
 #include "coding.hpp"           // HexDecoder
 #include "helpers.hpp"          // for placement new hack
 #include <stdio.h>
-#include <time.h>
 
 #ifdef _WIN32
     #include <windows.h>    // FindFirstFile etc..
