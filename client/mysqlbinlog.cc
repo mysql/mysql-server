@@ -1673,8 +1673,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       */
       ev->register_temp_buf((char *) net->read_pos + 1);
     }
-    if (glob_description_event->binlog_version >= 3 ||
-        (type != LOAD_EVENT && type != CREATE_FILE_EVENT))
+    if (raw_mode || (type != LOAD_EVENT))
     {
       /*
         If this is a Rotate event, maybe it's the end of the requested binlog;
@@ -1762,6 +1761,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
           ev->temp_buf= 0;
           ev= 0;
         }
+      }
+      
+      if (type == LOAD_EVENT)
+      {
+        DBUG_ASSERT(raw_mode);
+        warning("Attempting to load a remote pre-4.0 binary log that contains "
+                "LOAD DATA INFILE statements. The file will not be copied from "
+                "the remote server. ");
       }
 
       if (raw_mode)
