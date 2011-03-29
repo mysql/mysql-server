@@ -17,10 +17,6 @@
 #ifndef _SP_PCONTEXT_H_
 #define _SP_PCONTEXT_H_
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "sql_string.h"                         // LEX_STRING
 #include "mysql_com.h"                          // enum_field_types
 #include "field.h"                              // Create_field

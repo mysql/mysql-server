@@ -18,10 +18,6 @@
 
 /* This file is originally from the mysql distribution. Coded by monty */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 class String;
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);

@@ -4771,6 +4771,14 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (*start && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(true);
+  }
+
   /*
     temporary mem_root for new .frm parsing.
     TODO: variables for size
@@ -4794,7 +4802,7 @@ restart:
   table_to_open= start;
   sroutine_to_open= (Sroutine_hash_entry**) &thd->lex->sroutines_list.first;
   *counter= 0;
-  thd_proc_info(thd, "Opening tables");
+  THD_STAGE_INFO(thd, stage_opening_tables);
 
   /*
     If we are executing LOCK TABLES statement or a DDL statement
@@ -4995,7 +5003,6 @@ restart:
 #endif
 
 err:
-  thd_proc_info(thd, 0);
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
   if (error && *table_to_open)
@@ -5368,7 +5375,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* should not be used in a prelocked_mode context, see NOTE above */
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
-  thd_proc_info(thd, "Opening table");
+  THD_STAGE_INFO(thd, stage_opening_tables);
   thd->current_tablenr= 0;
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
@@ -5437,7 +5444,6 @@ end:
       trans_rollback_stmt(thd);
     close_thread_tables(thd);
   }
-  thd_proc_info(thd, 0);
   DBUG_RETURN(table);
 }
 
@@ -8865,7 +8871,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
     Item_func_match *ifm;
     DBUG_PRINT("info",("Performing FULLTEXT search"));
-    thd_proc_info(thd, "FULLTEXT initialization");
+    THD_STAGE_INFO(thd, stage_fulltext_initialization);
 
     while ((ifm=li++))
       ifm->init_search(no_order);
