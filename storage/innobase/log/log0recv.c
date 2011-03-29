@@ -1826,7 +1826,7 @@ recv_report_corrupt_log(
 	      "InnoDB: on your InnoDB tables to check that they are ok!\n"
 	      "InnoDB: If mysqld crashes after this recovery, look at\n"
 	      "InnoDB: http://dev.mysql.com/doc/refman/5.1/en/"
-	      "forcing-recovery.html\n"
+	      "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
 
 	fflush(stderr);

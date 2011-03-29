@@ -218,3 +218,4 @@ DROP TABLE t1;
 sync_slave_with_master;
 
 # END 5.1 Test Case
+--source include/rpl_end.inc

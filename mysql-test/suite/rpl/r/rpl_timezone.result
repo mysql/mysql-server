@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set @my_time_zone= @@global.time_zone;
 set timestamp=100000000;
 create table t1 (t timestamp, n int not null auto_increment, PRIMARY KEY(n));
@@ -122,6 +118,7 @@ a	b
 SET @@session.time_zone = default;
 DROP TABLE t1;
 SET @@session.time_zone = default;
+include/stop_slave.inc
 reset master;
 CREATE TABLE t1 (date timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP, a int(11) default NULL);
 SET @@session.time_zone='+01:00';
@@ -141,4 +138,5 @@ date	a
 2008-12-23 19:39:39	2
 DROP TABLE t1;
 SET @@session.time_zone = default;
+include/rpl_end.inc
 End of 5.0 tests

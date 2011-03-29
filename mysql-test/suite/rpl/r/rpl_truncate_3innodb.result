@@ -1,20 +1,12 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/master-slave.inc
+[connection master]
+include/rpl_reset.inc
 **** On Master ****
 CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
 **** On Master ****
 TRUNCATE TABLE t1;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 ==== Test using a table with delete triggers ====
 **** On Master ****
 SET @count := 1;
@@ -22,19 +14,15 @@ CREATE TABLE t2 (a INT, b LONG) ENGINE=InnoDB;
 CREATE TRIGGER trg1 BEFORE DELETE ON t1 FOR EACH ROW SET @count := @count + 1;
 **** On Master ****
 TRUNCATE TABLE t1;
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1,t2;
-**** Resetting master and slave ****
-include/stop_slave.inc
-RESET SLAVE;
-RESET MASTER;
-include/start_slave.inc
+include/rpl_reset.inc
 **** On Master ****
 CREATE TABLE t1 (a INT, b LONG) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1,1), (2,2);
 **** On Master ****
 DELETE FROM t1;
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 ==== Test using a table with delete triggers ====
 **** On Master ****
 SET @count := 1;
@@ -42,5 +30,6 @@ CREATE TABLE t2 (a INT, b LONG) ENGINE=InnoDB;
 CREATE TRIGGER trg1 BEFORE DELETE ON t1 FOR EACH ROW SET @count := @count + 1;
 **** On Master ****
 DELETE FROM t1;
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t2, slave:t2]
 DROP TABLE t1,t2;
+include/rpl_end.inc

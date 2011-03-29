@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ########################################################################
 #                             Environment
 ########################################################################
@@ -101,11 +97,12 @@ master-bin.000001	#	Query	#	#	use `test`; UPDATE t SET f = 'dark blue 1' WHERE f
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t VALUES (6 + (1 * 10),"brown")
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO n VALUES (now(),"brown")
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
-source include/diff_master_slave.inc;
-source include/diff_master_slave.inc;
+include/rpl_diff.inc
+include/rpl_diff.inc
 ########################################################################
 #                                Cleanup
 ########################################################################
 DROP TRIGGER tr;
 DROP TABLE t;
 DROP TABLE n;
+include/rpl_end.inc

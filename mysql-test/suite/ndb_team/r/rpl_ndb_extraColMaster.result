@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 set binlog_format=row;
 
 ***********************************************************
@@ -91,7 +87,7 @@ f1	f2	f3	f4
 27	27	27	next
 29	29	29	second
 30	30	30	next
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 ***** Testing Altering table def scenario *****
 
@@ -428,7 +424,7 @@ f1	f2	f3	f4
 
 ** Check slave status **
 
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 ****************************************
 * columns in master at middle of table *
@@ -464,10 +460,8 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 *** Expect slave to fail with Error 1535 ***
 ********************************************
 
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254'
 
 *** Drop t10  ***
 DROP TABLE t10;
@@ -502,10 +496,8 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 *** Expect slave to fail with Error 1535 ***
 ********************************************
 
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15'
 
 *** Drop t11  ***
 DROP TABLE t11;
@@ -616,7 +608,8 @@ c1	c3	hex(c4)	c5	c6
 ************
 * Bug30415 *
 ************
-Last_SQL_Error = Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+include/wait_for_slave_sql_error.inc [errno=1091]
+Last_SQL_Error = 'Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7''
 STOP SLAVE;
 RESET SLAVE;
 
@@ -664,7 +657,8 @@ c1	hex(c4)	c5	c6	c7	c2
 *** Expect slave to fail with Error 1054 ***
 ********************************************
 
-Last_SQL_Error = Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+include/wait_for_slave_sql_error.inc [errno=1054]
+Last_SQL_Error = 'Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7''
 STOP SLAVE;
 RESET SLAVE;
 
@@ -712,7 +706,8 @@ c1	hex(c4)	c5	c6	c7
 *** BUG 30434 ***
 *****************
 
-Last_SQL_Error = Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+include/wait_for_slave_sql_error.inc [errno=1072]
+Last_SQL_Error = 'Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)''
 STOP SLAVE;
 RESET SLAVE;
 
@@ -876,7 +871,6 @@ c1	hex(c4)	c5
 2	6231623162316231	JOE
 3	6231623162316231	QA
 DROP TABLE t5;
-
 set binlog_format=mixed;
 
 ***********************************************************
@@ -964,7 +958,7 @@ f1	f2	f3	f4
 27	27	27	next
 29	29	29	second
 30	30	30	next
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 ***** Testing Altering table def scenario *****
 
@@ -1301,7 +1295,7 @@ f1	f2	f3	f4
 
 ** Check slave status **
 
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 ****************************************
 * columns in master at middle of table *
@@ -1337,10 +1331,8 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 *** Expect slave to fail with Error 1535 ***
 ********************************************
 
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254'
 
 *** Drop t10  ***
 DROP TABLE t10;
@@ -1375,10 +1367,8 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 *** Expect slave to fail with Error 1535 ***
 ********************************************
 
---source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER= 2;
-include/start_slave.inc
+include/wait_for_slave_sql_error_and_skip.inc [errno=1535]
+Last_SQL_Error = 'Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15'
 
 *** Drop t11  ***
 DROP TABLE t11;
@@ -1489,7 +1479,8 @@ c1	c3	hex(c4)	c5	c6
 ************
 * Bug30415 *
 ************
-Last_SQL_Error = Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+include/wait_for_slave_sql_error.inc [errno=1091]
+Last_SQL_Error = 'Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7''
 STOP SLAVE;
 RESET SLAVE;
 
@@ -1537,7 +1528,8 @@ c1	hex(c4)	c5	c6	c7	c2
 *** Expect slave to fail with Error 1054 ***
 ********************************************
 
-Last_SQL_Error = Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+include/wait_for_slave_sql_error.inc [errno=1054]
+Last_SQL_Error = 'Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7''
 STOP SLAVE;
 RESET SLAVE;
 
@@ -1585,7 +1577,8 @@ c1	hex(c4)	c5	c6	c7
 *** BUG 30434 ***
 *****************
 
-Last_SQL_Error = Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+include/wait_for_slave_sql_error.inc [errno=1072]
+Last_SQL_Error = 'Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)''
 STOP SLAVE;
 RESET SLAVE;
 
@@ -1749,4 +1742,4 @@ c1	hex(c4)	c5
 2	6231623162316231	JOE
 3	6231623162316231	QA
 DROP TABLE t5;
-
+include/rpl_end.inc

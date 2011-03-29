@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 create table t2 (n int, PRIMARY KEY(n));
 create temporary table t1 (n int);
 create temporary table t3 (n int not null);
@@ -46,3 +42,4 @@ Slave_open_temp_tables	0
 drop table if exists t1,t2;
 Warnings:
 Note	1051	Unknown table 't1'
+include/rpl_end.inc

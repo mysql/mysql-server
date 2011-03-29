@@ -1,10 +1,6 @@
 ==== Initialization ====
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 ---- setup master ----
 CREATE TABLE myisam_innodb (a INT) ENGINE=MYISAM;
 CREATE TABLE innodb_myisam (a INT) ENGINE=INNODB;
@@ -274,13 +270,14 @@ a
 34
 57
 58
-Comparing tables master:test.myisam_innodb and slave:test.myisam_innodb
-Comparing tables master:test.innodb_myisam and slave:test.innodb_myisam
-Comparing tables master:test.myisam_ndb and slave:test.myisam_ndb
-Comparing tables master:test.ndb_myisam and slave:test.ndb_myisam
-Comparing tables master:test.innodb_ndb and slave:test.innodb_ndb
-Comparing tables master:test.ndb_innodb and slave:test.ndb_innodb
+include/diff_tables.inc [master:myisam_innodb, slave:myisam_innodb]
+include/diff_tables.inc [master:innodb_myisam, slave:innodb_myisam]
+include/diff_tables.inc [master:myisam_ndb, slave:myisam_ndb]
+include/diff_tables.inc [master:ndb_myisam, slave:ndb_myisam]
+include/diff_tables.inc [master:innodb_ndb, slave:innodb_ndb]
+include/diff_tables.inc [master:ndb_innodb, slave:ndb_innodb]
 ==== Clean up ====
 drop table myisam_innodb, innodb_myisam;
 drop table myisam_ndb, ndb_myisam;
 drop table innodb_ndb, ndb_innodb;
+include/rpl_end.inc

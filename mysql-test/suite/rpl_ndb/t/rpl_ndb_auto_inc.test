@@ -134,3 +134,4 @@ drop table t1;
 set ndb_autoincrement_prefetch_sz = @old_ndb_autoincrement_prefetch_sz;
 # End cleanup
 sync_slave_with_master;
+--source include/rpl_end.inc
