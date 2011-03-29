@@ -925,7 +925,7 @@ int Dbtup::handleReadReq(Signal* signal,
 /* ------------------------------------------------------------------------- */
       jam();
       Uint32 TnoOfDataRead= (Uint32) ret;
-      req_struct->read_length= TnoOfDataRead;
+      req_struct->read_length += TnoOfDataRead;
       sendReadAttrinfo(signal, req_struct, TnoOfDataRead, regOperPtr);
       return 0;
     }
@@ -2202,7 +2202,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
      *    This is used for ANYVALUE and interpreted delete.
      */
     req_struct->log_size+= RlogSize;
-    req_struct->read_length= RattroutCounter;
+    req_struct->read_length += RattroutCounter;
     sendReadAttrinfo(signal, req_struct, RattroutCounter, regOperPtr);
     if (RlogSize > 0) {
       return sendLogAttrinfo(signal, req_struct, RlogSize, regOperPtr);

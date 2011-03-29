@@ -1351,6 +1351,16 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   c_max_redo_lag_counter = 3;
   ndb_mgm_get_int_parameter(p, CFG_DB_REDO_OVERCOMMIT_COUNTER,
                             &c_max_redo_lag_counter);
+
+  c_max_parallel_scans_per_frag = 32;
+  ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_SCANS_PER_FRAG,
+                            &c_max_parallel_scans_per_frag);
+
+  if (c_max_parallel_scans_per_frag > (256 - MAX_PARALLEL_SCANS_PER_FRAG) / 2)
+  {
+    jam();
+    c_max_parallel_scans_per_frag = (256 - MAX_PARALLEL_SCANS_PER_FRAG) / 2;
+  }
   return;
 }//Dblqh::execSIZEALT_REP()
 
@@ -9752,6 +9762,8 @@ void Dblqh::closeScanRequestLab(Signal* signal)
       scanptr.p->scanCompletedStatus = ZTRUE;
       break;
     case ScanRecord::WAIT_CLOSE_SCAN:
+      jam();
+      scanptr.p->scanCompletedStatus = ZTRUE;
     case ScanRecord::WAIT_DELETE_STORED_PROC_ID_SCAN:
       jam();
       /*empty*/;
@@ -9874,7 +9886,9 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
     jam();
     scanptr.p->scanReleaseCounter++;     
     scanReleaseLocksLab(signal);
-  } else {
+  }
+  else if (scanptr.p->scanCompletedStatus != ZTRUE)
+  {
     jam();
     /*
     We come here when we have been scanning for a long time and not been able
@@ -9884,7 +9898,12 @@ void Dblqh::scanLockReleasedLab(Signal* signal)
     */
     scanptr.p->scanState = ScanRecord::WAIT_SCAN_NEXTREQ;
     sendScanFragConf(signal, ZFALSE);
-  }//if
+  }
+  else
+  {
+    jam();
+    closeScanLab(signal);
+  }
 }//Dblqh::scanLockReleasedLab()
 
 bool
@@ -11331,7 +11350,19 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
    * !idx uses 1 - (MAX_PARALLEL_SCANS_PER_FRAG - 1)  =  1-11
    *  idx uses from MAX_PARALLEL_SCANS_PER_FRAG - MAX = 12-42)
    */
+
+  /**
+   * ACC only supports 12 parallel scans per fragment (hard limit)
+   * TUP/TUX does not have any such limit...but when scanning with keyinfo
+   *         (for take-over) no more than 255 such scans can be active
+   *         at a fragment (dur to 8 bit number in scan-keyinfo protocol)
+   *
+   * TODO: Make TUP/TUX limits depend on scanKeyinfoFlag (possibly with
+   *       other config limit too)
+   */
+
   Uint32 start, stop;
+  Uint32 max_parallel_scans_per_frag = c_max_parallel_scans_per_frag;
   if (accScan)
   {
     start = 1;
@@ -11340,13 +11371,13 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
   else if (rangeScan)
   {
     start = MAX_PARALLEL_SCANS_PER_FRAG;
-    stop = start + MAX_PARALLEL_INDEX_SCANS_PER_FRAG - 1;
+    stop = start + max_parallel_scans_per_frag - 1;
   }
   else
   {
     ndbassert(tupScan);
-    start = MAX_PARALLEL_SCANS_PER_FRAG + MAX_PARALLEL_INDEX_SCANS_PER_FRAG;
-    stop = start + MAX_PARALLEL_INDEX_SCANS_PER_FRAG - 1;
+    start = MAX_PARALLEL_SCANS_PER_FRAG + max_parallel_scans_per_frag;
+    stop = start + max_parallel_scans_per_frag - 1;
   }
   ndbrequire((start < 32 * tFragPtr.p->m_scanNumberMask.Size) &&
              (stop < 32 * tFragPtr.p->m_scanNumberMask.Size));
@@ -11359,7 +11390,7 @@ Uint32 Dblqh::initScanrec(const ScanFragReq* scanFragReq,
       jam();
       return ScanFragRef::ZTOO_MANY_ACTIVE_SCAN_ERROR;
     }
-    
+
     /**
      * Put on queue
      */
