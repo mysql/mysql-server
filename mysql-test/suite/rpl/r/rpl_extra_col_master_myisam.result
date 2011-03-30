@@ -58,9 +58,9 @@ f1	f2	f3	f4	f5	f6	f7	f8	f9	hex(f10)	hex(f11)
 29	29	29	second	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
 30	30	30	next	2	kaks	2	got stolen from the paradise	very fat blob	1555	123456
 call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 2 type mismatch.* 1535");
-call mtr.add_suppression("Slave SQL.*Error .Can.t DROP .c7.; check that column.key exists. on query.* 1091");
-call mtr.add_suppression("Slave SQL.*Error .Unknown column .c7. in .t15.. on query.* 1054");
-call mtr.add_suppression("Slave SQL.*Error .Key column .c6. doesn.t exist in table. on query.* 1072");
+call mtr.add_suppression("Slave.*Can.t DROP .c7.; check that column.key exists.* Error_code: 1091");
+call mtr.add_suppression("Slave.*Unknown column .c7. in .t15.* Error_code: 1054");
+call mtr.add_suppression("Slave.*Key column .c6. doesn.t exist in table.* Error_code: 1072");
 call mtr.add_suppression("Slave SQL.*Column 2 of table .test.t1.. cannot be converted from type.* Error_code: 1677");
 
 * Select count and 20 rows from Slave *
