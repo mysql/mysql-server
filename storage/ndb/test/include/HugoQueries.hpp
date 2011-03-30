@@ -23,7 +23,7 @@
 #include <NDBT.hpp>
 #include <HugoCalculator.hpp>
 #include <HugoOperations.hpp>
-#include <NdbQueryOperation.hpp>
+#include "../../src/ndbapi/NdbQueryOperation.hpp"
 
 class HugoQueries
 {

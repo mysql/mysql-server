@@ -21,7 +21,7 @@
 
 #include <NDBT.hpp>
 #include <Vector.hpp>
-#include <NdbQueryBuilder.hpp>
+#include "../../src/ndbapi/NdbQueryBuilder.hpp"
 
 class HugoQueryBuilder {
 public:

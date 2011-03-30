@@ -20,7 +20,7 @@
 #include <NDBT_Stats.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
-#include <NdbQueryOperation.hpp>
+#include "../../src/ndbapi/NdbQueryOperation.hpp"
 
 HugoQueries::HugoQueries(const NdbQueryDef & query)
 {

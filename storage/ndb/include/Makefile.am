@@ -31,8 +31,6 @@ ndbapi/NdbDictionary.hpp \
 ndbapi/NdbError.hpp \
 ndbapi/NdbEventOperation.hpp \
 ndbapi/NdbIndexOperation.hpp \
-ndbapi/NdbQueryOperation.hpp \
-ndbapi/NdbQueryBuilder.hpp \
 ndbapi/NdbOperation.hpp \
 ndbapi/ndb_cluster_connection.hpp \
 ndbapi/NdbBlob.hpp \
