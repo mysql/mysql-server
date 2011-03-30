@@ -256,7 +256,11 @@ static MYSQL_THDVAR_BOOL(
   "Enable pushing down of join to datanodes",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
   FALSE                              /* default */
+#else
+  TRUE
+#endif
 );
 
 /*
