@@ -8,6 +8,16 @@ use performance_schema;
 show tables;
 Tables_in_performance_schema
 cond_instances
+events_stages_current
+events_stages_history
+events_stages_history_long
+events_stages_summary_by_thread_by_event_name
+events_stages_summary_global_by_event_name
+events_statements_current
+events_statements_history
+events_statements_history_long
+events_statements_summary_by_thread_by_event_name
+events_statements_summary_global_by_event_name
 events_waits_current
 events_waits_history
 events_waits_history_long
@@ -36,6 +46,248 @@ cond_instances	CREATE TABLE `cond_instances` (
   `NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_current;
+Table	Create Table
+events_stages_current	CREATE TABLE `events_stages_current` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_history;
+Table	Create Table
+events_stages_history	CREATE TABLE `events_stages_history` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_history_long;
+Table	Create Table
+events_stages_history_long	CREATE TABLE `events_stages_history_long` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_summary_by_thread_by_event_name;
+Table	Create Table
+events_stages_summary_by_thread_by_event_name	CREATE TABLE `events_stages_summary_by_thread_by_event_name` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_stages_summary_global_by_event_name;
+Table	Create Table
+events_stages_summary_global_by_event_name	CREATE TABLE `events_stages_summary_global_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_current;
+Table	Create Table
+events_statements_current	CREATE TABLE `events_statements_current` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SQL_TEXT` longtext,
+  `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_TYPE` varchar(64) DEFAULT NULL,
+  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) DEFAULT NULL,
+  `MYSQL_ERRNO` int(11) DEFAULT NULL,
+  `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
+  `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
+  `ERRORS` bigint(20) unsigned NOT NULL,
+  `WARNINGS` bigint(20) unsigned NOT NULL,
+  `ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_history;
+Table	Create Table
+events_statements_history	CREATE TABLE `events_statements_history` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SQL_TEXT` longtext,
+  `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_TYPE` varchar(64) DEFAULT NULL,
+  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) DEFAULT NULL,
+  `MYSQL_ERRNO` int(11) DEFAULT NULL,
+  `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
+  `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
+  `ERRORS` bigint(20) unsigned NOT NULL,
+  `WARNINGS` bigint(20) unsigned NOT NULL,
+  `ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_history_long;
+Table	Create Table
+events_statements_history_long	CREATE TABLE `events_statements_history_long` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_ID` bigint(20) unsigned NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `SOURCE` varchar(64) DEFAULT NULL,
+  `TIMER_START` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_END` bigint(20) unsigned DEFAULT NULL,
+  `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SQL_TEXT` longtext,
+  `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_TYPE` varchar(64) DEFAULT NULL,
+  `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
+  `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `OBJECT_INSTANCE_BEGIN` bigint(20) DEFAULT NULL,
+  `MYSQL_ERRNO` int(11) DEFAULT NULL,
+  `RETURNED_SQLSTATE` varchar(5) DEFAULT NULL,
+  `MESSAGE_TEXT` varchar(128) DEFAULT NULL,
+  `ERRORS` bigint(20) unsigned NOT NULL,
+  `WARNINGS` bigint(20) unsigned NOT NULL,
+  `ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_summary_by_thread_by_event_name;
+Table	Create Table
+events_statements_summary_by_thread_by_event_name	CREATE TABLE `events_statements_summary_by_thread_by_event_name` (
+  `THREAD_ID` int(11) NOT NULL,
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_summary_global_by_event_name;
+Table	Create Table
+events_statements_summary_global_by_event_name	CREATE TABLE `events_statements_summary_global_by_event_name` (
+  `EVENT_NAME` varchar(128) NOT NULL,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_waits_current;
 Table	Create Table
 events_waits_current	CREATE TABLE `events_waits_current` (
@@ -53,6 +305,7 @@ events_waits_current	CREATE TABLE `events_waits_current` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
@@ -74,6 +327,7 @@ events_waits_history	CREATE TABLE `events_waits_history` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
@@ -95,6 +349,7 @@ events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) NOT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
+  `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL,
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) unsigned DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL

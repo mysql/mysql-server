@@ -345,6 +345,15 @@ CREATE TABLE t1 SELECT CAST((CASE(('')) WHEN (CONVERT(1, CHAR(1))) THEN (('' / 1
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#11764994  57900: CREATE TABLE .. SELECT ASSERTS SCALE >= 0 && PRECISION > 0 && SCALE <= PR
+--echo #
+
+CREATE TABLE t1 SELECT CEIL(LINESTRINGFROMWKB(1) DIV NULL);
+DROP TABLE t1;
+CREATE TABLE t1 SELECT FLOOR(LINESTRINGFROMWKB(1) DIV NULL);
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 --echo #
@@ -500,3 +509,8 @@ SELECT ((@a:=@b:=1.0) div (@b:=@a:=get_format(datetime, 'usa')));
 --echo # Bug #59498 div function broken in mysql-trunk
 --echo #
 SELECT 1 div null;
+
+--echo #
+--echo # Bug #11792200 - DIVIDING LARGE NUMBERS CAUSES STACK CORRUPTIONS
+--echo #
+select (1.175494351E-37 div 1.7976931348623157E+308);

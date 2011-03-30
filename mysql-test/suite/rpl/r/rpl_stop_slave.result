@@ -75,7 +75,7 @@ include/wait_for_slave_sql_to_start.inc
 # Test end
 SET GLOBAL debug= '$debug_save';
 include/restart_slave.inc
-call mtr.add_suppression("Slave SQL.*slave SQL thread is being stopped in the middle of applying of a group having updated a non-transaction table");
+call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 [connection master]
 DROP TABLE t1, t2;
 
@@ -93,6 +93,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (c1 INT KEY, c2 INT) ENGINE=InnoDB;
 CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1, 1);
+[connection master]
 SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
 [connection slave]
 include/restart_slave.inc

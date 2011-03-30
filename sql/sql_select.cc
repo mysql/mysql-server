@@ -24,10 +24,6 @@
   @{
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_select.h"
@@ -1467,7 +1463,7 @@ bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
            output is not supported.
         */
         if (tab->select && tab->select->quick)
-          tab->select->quick->need_sorted_output();
+          tab->select->quick->need_sorted_output(true);
 
         /* Calculate key length */
         keylen= 0;
@@ -1762,7 +1758,7 @@ JOIN::optimize()
   optimized= 1;
   DEBUG_SYNC(thd, "before_join_optimize");
 
-  thd_proc_info(thd, "optimizing");
+  THD_STAGE_INFO(thd, stage_optimizing);
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   if (flatten_subqueries())
@@ -1956,7 +1952,7 @@ JOIN::optimize()
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
   /* Calculate how to do the join */
-  thd_proc_info(thd, "statistics");
+  THD_STAGE_INFO(thd, stage_statistics);
   if (make_join_statistics(this, select_lex->leaf_tables, conds, &keyuse) ||
       thd->is_fatal_error)
   {
@@ -1978,7 +1974,7 @@ JOIN::optimize()
     select_distinct= select_distinct && (const_tables != tables);
   }
 
-  thd_proc_info(thd, "preparing");
+  THD_STAGE_INFO(thd, stage_preparing);
   if (result->initialize_tables(this))
   {
     DBUG_PRINT("error",("Error: initialize_tables() failed"));
@@ -2507,7 +2503,7 @@ JOIN::optimize()
   if (need_tmp)
   {
     DBUG_PRINT("info",("Creating tmp table"));
-    thd_proc_info(thd, "Creating tmp table");
+    THD_STAGE_INFO(thd, stage_creating_tmp_table);
 
     init_items_ref_array();
 
@@ -2552,7 +2548,7 @@ JOIN::optimize()
     if (group_list && simple_group)
     {
       DBUG_PRINT("info",("Sorting for group"));
-      thd_proc_info(thd, "Sorting for group");
+      THD_STAGE_INFO(thd, stage_sorting_for_group);
       if (create_sort_index(thd, this, group_list,
 			    HA_POS_ERROR, HA_POS_ERROR, FALSE) ||
 	  alloc_group_fields(this, group_list) ||
@@ -2576,7 +2572,7 @@ JOIN::optimize()
       if (!group_list && ! exec_tmp_table1->distinct && order && simple_order)
       {
         DBUG_PRINT("info",("Sorting for order"));
-        thd_proc_info(thd, "Sorting for order");
+        THD_STAGE_INFO(thd, stage_sorting_for_order);
         if (create_sort_index(thd, this, order,
                               HA_POS_ERROR, HA_POS_ERROR, TRUE))
         {
@@ -2645,10 +2641,14 @@ void JOIN::restore_tmp()
 }
 
 
-int
-JOIN::reinit()
+/**
+  Reset the state of this join object so that it is ready for a
+  new execution.
+*/
+
+void JOIN::reset()
 {
-  DBUG_ENTER("JOIN::reinit");
+  DBUG_ENTER("JOIN::reset");
 
   unit->offset_limit_cnt= (ha_rows)(select_lex->offset_limit ?
                                     select_lex->offset_limit->val_uint() :
@@ -2699,7 +2699,7 @@ JOIN::reinit()
   if (!(select_options & SELECT_DESCRIBE))
     init_ftfuncs(thd, select_lex, test(order));
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -2739,6 +2739,23 @@ JOIN::save_join_tab()
 
 
 /**
+  There may be a pending 'sorted' request on the specified 
+  'join_tab' which we now has decided we can ignore.
+*/
+static void
+disable_sorted_access(JOIN_TAB* join_tab)
+{
+  DBUG_ENTER("disable_sorted_access");
+  join_tab->sorted= 0;
+  if (join_tab->select && join_tab->select->quick)
+  {
+    join_tab->select->quick->need_sorted_output(false);
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Exec select.
 
   @todo
@@ -2758,7 +2775,7 @@ JOIN::exec()
 
   const bool has_group_by= this->group;
 
-  thd_proc_info(thd, "executing");
+  THD_STAGE_INFO(thd, stage_executing);
   error= 0;
   if (procedure)
   {
@@ -2766,7 +2783,8 @@ JOIN::exec()
     if (procedure->change_columns(procedure_fields_list) ||
 	result->prepare(procedure_fields_list, unit))
     {
-      thd->limit_found_rows= thd->examined_row_count= 0;
+      thd->set_examined_row_count(0);
+      thd->limit_found_rows= 0;
       DBUG_VOID_RETURN;
     }
     columns_list= &procedure_fields_list;
@@ -2807,7 +2825,7 @@ JOIN::exec()
 	{
 	  error= (int) result->send_eof();
 	  send_records= ((select_options & OPTION_FOUND_ROWS) ? 1 :
-                         thd->sent_row_count);
+                         thd->get_sent_row_count());
 	}
       }
       else
@@ -2818,7 +2836,7 @@ JOIN::exec()
     }
     /* Single select (without union) always returns 0 or 1 row */
     thd->limit_found_rows= send_records;
-    thd->examined_row_count= 0;
+    thd->set_examined_row_count(0);
     DBUG_VOID_RETURN;
   }
   /*
@@ -2905,7 +2923,7 @@ JOIN::exec()
     curr_tmp_table= exec_tmp_table1;
 
     /* Copy data to the temporary table */
-    thd_proc_info(thd, "Copying to tmp table");
+    THD_STAGE_INFO(thd, stage_copying_to_tmp_table);
     DBUG_PRINT("info", ("%s", thd->proc_info));
     /*
       If there is no sorting or grouping, one may turn off
@@ -2917,7 +2935,7 @@ JOIN::exec()
         curr_join->const_tables != curr_join->tables && 
         curr_join->best_positions[curr_join->const_tables].sj_strategy 
           != SJ_OPT_LOOSE_SCAN)
-      curr_join->join_tab[curr_join->const_tables].sorted= 0;
+      disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
     if ((tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table, 0)))
     {
       error= tmp_error;
@@ -3048,7 +3066,7 @@ JOIN::exec()
 	  DBUG_VOID_RETURN;
 	}
 	DBUG_PRINT("info",("Sorting for index"));
-	thd_proc_info(thd, "Creating sort index");
+	THD_STAGE_INFO(thd, stage_creating_sort_index);
 	if (create_sort_index(thd, curr_join, curr_join->group_list,
 			      HA_POS_ERROR, HA_POS_ERROR, FALSE) ||
 	    make_group_fields(this, curr_join))
@@ -3057,8 +3075,8 @@ JOIN::exec()
 	}
         sortorder= curr_join->sortorder;
       }
-      
-      thd_proc_info(thd, "Copying to group table");
+
+      THD_STAGE_INFO(thd, stage_copying_to_group_table);
       DBUG_PRINT("info", ("%s", thd->proc_info));
       tmp_error= -1;
       if (curr_join != this)
@@ -3083,7 +3101,7 @@ JOIN::exec()
       curr_join->group_list= 0;
       if (!curr_join->sort_and_group &&
           curr_join->const_tables != curr_join->tables)
-        curr_join->join_tab[curr_join->const_tables].sorted= 0;
+        disable_sorted_access(&curr_join->join_tab[curr_join->const_tables]);
       if (setup_sum_funcs(curr_join->thd, curr_join->sum_funcs) ||
 	  (tmp_error= do_select(curr_join, (List<Item> *) 0, curr_tmp_table,
 				0)))
@@ -3122,7 +3140,7 @@ JOIN::exec()
     curr_join->join_free();			/* Free quick selects */
     if (curr_join->select_distinct && ! curr_join->group_list)
     {
-      thd_proc_info(thd, "Removing duplicates");
+      THD_STAGE_INFO(thd, stage_removing_duplicates);
       if (curr_join->tmp_having)
 	curr_join->tmp_having->update_used_tables();
       if (remove_duplicates(curr_join, curr_tmp_table,
@@ -3193,7 +3211,7 @@ JOIN::exec()
   if (curr_join->group_list || curr_join->order)
   {
     DBUG_PRINT("info",("Sorting for send_result_set_metadata"));
-    thd_proc_info(thd, "Sorting result");
+    THD_STAGE_INFO(thd, stage_sorting_result);
     /* If we have already done the group, add HAVING to sorted table */
     if (curr_join->tmp_having && ! curr_join->group_list && 
 	! curr_join->sort_and_group)
@@ -3357,7 +3375,7 @@ JOIN::exec()
   curr_join->fields= curr_fields_list;
   curr_join->procedure= procedure;
 
-  thd_proc_info(thd, "Sending data");
+  THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
   result->send_result_set_metadata((procedure ? curr_join->procedure_fields_list :
                                     *curr_fields_list),
@@ -3374,9 +3392,9 @@ JOIN::exec()
   }
 
   /* Accumulate the counts from all join iterations of all join parts. */
-  thd->examined_row_count+= curr_join->examined_rows;
+  thd->inc_examined_row_count(curr_join->examined_rows);
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
-                        (ulong) thd->examined_row_count));
+                        (ulong) thd->get_examined_row_count()));
 
   /* 
     With EXPLAIN EXTENDED we have to restore original ref_array
@@ -3394,14 +3412,12 @@ JOIN::exec()
 
 
 /**
-  Clean up join.
+  Clean up and destroy join object.
 
-  @return
-    Return error that hold JOIN.
+  @return false if previous execution was successful, and true otherwise
 */
 
-int
-JOIN::destroy()
+bool JOIN::destroy()
 {
   DBUG_ENTER("JOIN::destroy");
   select_lex->join= 0;
@@ -3427,6 +3443,11 @@ JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
+  if (join_tab)
+  {
+    for (JOIN_TAB *tab= join_tab; tab < join_tab+tables; tab++)
+      tab->table= NULL;
+  }
  /* Cleanup items referencing temporary table columns */
   cleanup_item_list(tmp_all_fields1);
   cleanup_item_list(tmp_all_fields3);
@@ -3443,7 +3464,7 @@ JOIN::destroy()
 
   delete_dynamic(&keyuse);
   delete procedure;
-  DBUG_RETURN(error);
+  DBUG_RETURN(test(error));
 }
 
 
@@ -3539,8 +3560,8 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
           subselect execution. So we need to restore them.
         */
         Item_subselect *subselect= select_lex->master_unit()->item;
-        if (subselect && subselect->is_uncacheable() && join->reinit())
-          DBUG_RETURN(TRUE);
+        if (subselect && subselect->is_uncacheable())
+          join->reset();
       }
       else
       {
@@ -3560,7 +3581,7 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
   {
     if (!(join= new JOIN(thd, fields, select_options, result)))
 	DBUG_RETURN(TRUE); /* purecov: inspected */
-    thd_proc_info(thd, "init");
+    THD_STAGE_INFO(thd, stage_init);
     thd->used_tables=0;                         // Updated by setup_fields
     err= join->prepare(rref_pointer_array, tables, wild_num,
                        conds, og_num, order, group, having, proc_param,
@@ -3592,11 +3613,13 @@ mysql_select(THD *thd, Item ***rref_pointer_array,
     select_lex->where= join->conds_history;
     select_lex->having= join->having_history;
   }
+  if (select_options & SELECT_DESCRIBE)
+    free_join= 0;
 
 err:
   if (free_join)
   {
-    thd_proc_info(thd, "end");
+    THD_STAGE_INFO(thd, stage_end);
     err|= select_lex->cleanup();
     DBUG_RETURN(err || thd->is_error());
   }
@@ -10036,12 +10059,14 @@ static bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     {
       /* This is a function, apply condition recursively to arguments */
       Item_func *item_func= (Item_func*)item;
-      Item **child;
-      Item **item_end= (item_func->arguments()) + item_func->argument_count();
-      for (child= item_func->arguments(); child != item_end; child++)
-      {
-        if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
-          return FALSE;
+      if (item_func->argument_count() > 0)
+      {        
+        Item **item_end= (item_func->arguments()) + item_func->argument_count();
+        for (Item **child= item_func->arguments(); child != item_end; child++)
+        {
+          if (!uses_index_fields_only(*child, tbl, keyno, other_tbls_ok))
+            return FALSE;
+        }
       }
       return TRUE;
     }
@@ -10284,13 +10309,17 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
        condition might then also be applied by the storage engine
        when doing the update part and result in either not finding
        the record to update or updating the wrong record.
+    4. The JOIN_TAB is not part of a subquery that has guarded conditions
+       that can be turned on or off during execution of a 'Full scan on NULL 
+       key'.
   */
   if (tab->select_cond &&
       tab->table->file->index_flags(keyno, 0, 1) &
       HA_DO_INDEX_COND_PUSHDOWN &&
       tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN) &&
       tab->join->thd->lex->sql_command != SQLCOM_UPDATE_MULTI &&
-      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI)
+      tab->join->thd->lex->sql_command != SQLCOM_DELETE_MULTI &&
+      !tab->has_guarded_conds())
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););
@@ -10951,7 +10980,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 {
   uint i;
   DBUG_ENTER("setup_sj_materialization");
-  TABLE_LIST *emb_sj_nest= tab->table->pos_in_table_list->embedding;
+  TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
   Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
   THD *thd= tab->join->thd;
   /* First the calls come to the materialization function */
@@ -11165,9 +11194,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   uint i, jcl;
   bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
-  bool sorted= 1;
   uint first_sjm_table= MAX_TABLES;
   uint last_sjm_table= MAX_TABLES;
+
+  /* First table sorted if ORDER or GROUP BY was specified */
+  bool sorted= (join->order || join->group_list);
+
   DBUG_ENTER("make_join_readinfo");
 
   if (setup_semijoin_dups_elimination(join, options, no_jbuf_after))
@@ -11184,12 +11216,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->next_select=sub_select;		/* normal select */
     tab->use_join_cache= JOIN_CACHE::ALG_NONE;
     tab->cache_idx_cond= 0;
-    /* 
-      TODO: don't always instruct first table's ref/range access method to 
-      produce sorted output.
-    */
     tab->sorted= sorted;
-    sorted= 0;                                  // only first must be sorted
+    sorted= false;                              // only first must be sorted
     table->status=STATUS_NO_RECORD;
     pick_table_access_method (tab);
 
@@ -11251,10 +11279,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       /* These init changes read_record */
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
-	join->thd->server_status|=SERVER_QUERY_NO_GOOD_INDEX_USED;
+	join->thd->set_status_no_good_index_used();
 	tab->read_first_record= join_init_quick_read_record;
 	if (statistics)
-	  status_var_increment(join->thd->status_var.select_range_check_count);
+	  join->thd->inc_status_select_range_check();
       }
       else
       {
@@ -11264,13 +11292,13 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      status_var_increment(join->thd->status_var.select_range_count);
+	      join->thd->inc_status_select_range();
 	  }
 	  else
 	  {
-	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
+	    join->thd->set_status_no_index_used();
 	    if (statistics)
-	      status_var_increment(join->thd->status_var.select_scan_count);
+	      join->thd->inc_status_select_scan();
 	  }
 	}
 	else
@@ -11278,13 +11306,13 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  if (tab->select && tab->select->quick)
 	  {
 	    if (statistics)
-	      status_var_increment(join->thd->status_var.select_full_range_join_count);
+	      join->thd->inc_status_select_full_range_join();
 	  }
 	  else
 	  {
-	    join->thd->server_status|=SERVER_QUERY_NO_INDEX_USED;
+	    join->thd->set_status_no_index_used();
 	    if (statistics)
-	      status_var_increment(join->thd->status_var.select_full_join_count);
+	      join->thd->inc_status_select_full_join();
 	  }
 	}
 	if (!table->no_keyread)
@@ -11388,7 +11416,12 @@ bool error_if_full_join(JOIN *join)
 
 
 /**
-  cleanup JOIN_TAB.
+  Cleanup table of join operation.
+
+  @note
+    Notice that this is not a complete cleanup. In some situations, the
+    object may be reused after a cleanup operation, hence we cannot set
+    the table pointer to NULL in this function.
 */
 
 void JOIN_TAB::cleanup()
@@ -11934,7 +11967,8 @@ return_zero_rows(JOIN *join, select_result *result,TABLE_LIST *tables,
       result->send_eof();				// Should be safe
   }
   /* Update results for FOUND_ROWS */
-  join->thd->limit_found_rows= join->thd->examined_row_count= 0;
+  join->thd->set_examined_row_count(0);
+  join->thd->limit_found_rows= 0;
   DBUG_RETURN(0);
 }
 
@@ -15381,7 +15415,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
               (int) distinct, (int) save_sum_fields,
               (ulong) rows_limit,test(group)));
 
-  status_var_increment(thd->status_var.created_tmp_tables);
+  thd->inc_status_created_tmp_tables();
 
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
@@ -16121,7 +16155,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   /*
     STEP 1: Get temporary table name
   */
-  statistic_increment(thd->status_var.created_tmp_tables, &LOCK_status);
+  thd->inc_status_created_tmp_tables();
   if (use_temp_pool && !(test_flags & TEST_KEEP_TMP_TABLES))
     temp_pool_slot = bitmap_lock_set_next(&temp_pool);
 
@@ -16668,7 +16702,7 @@ static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
     table->db_stat=0;
     goto err;
   }
-  status_var_increment(table->in_use->status_var.created_tmp_disk_tables);
+  table->in_use->inc_status_created_tmp_disk_tables();
   share->db_record_offset= 1;
   DBUG_RETURN(0);
  err:
@@ -16685,7 +16719,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   DBUG_PRINT("enter",("table: %s",entry->alias));
 
   save_proc_info=thd->proc_info;
-  thd_proc_info(thd, "removing tmp table");
+  THD_STAGE_INFO(thd, stage_removing_tmp_table);
 
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
@@ -16782,7 +16816,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
     DBUG_RETURN(1);				// End of memory
 
   save_proc_info=thd->proc_info;
-  thd_proc_info(thd, "converting HEAP to MyISAM");
+  THD_STAGE_INFO(thd, stage_converting_heap_to_myisam);
 
   if (create_myisam_tmp_table(&new_table, table->key_info, start_recinfo,
                               recinfo,
@@ -18163,6 +18197,7 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
   int error;
   if (!table->file->inited)
   {
+    DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
     table->file->ha_index_init(table_ref->key, tab->sorted);
   }
 
@@ -18472,7 +18507,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited)
-    table->file->ha_index_init(tab->index, 1);
+    table->file->ha_index_init(tab->index, tab->sorted);
   if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
     return report_error(table, error);
   return 0;
@@ -18496,7 +18531,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 1);
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
@@ -20274,7 +20309,7 @@ check_reverse_order:
       }
     }
     else if (select && select->quick)
-      select->quick->need_sorted_output();
+      select->quick->need_sorted_output(true);
 
   } // QEP has been modified
 
@@ -23181,9 +23216,22 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
         if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE &&
             !(((QUICK_RANGE_SELECT*)(tab->select->quick))->mrr_flags &
-             HA_MRR_USE_DEFAULT_IMPL))
+             (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))) 
         {
-	  extra.append(STRING_WITH_LEN("; Using MRR"));
+          /*
+            During normal execution of a query, multi_range_read_init() is
+            called to initialize MRR. If HA_MRR_SORTED is set at this point,
+            multi_range_read_init() for any native MRR implementation will
+            revert to default MRR because they cannot produce sorted output
+            currently.
+            Calling multi_range_read_init() can potentially be costly, so it
+            is not done when executing an EXPLAIN. We therefore make the
+            assumption that HA_MRR_SORTED means no MRR. If some MRR native
+            implementation will support sorted output in the future, a
+            function "bool mrr_supports_sorted()" should be added in the
+            handler.
+          */
+          extra.append(STRING_WITH_LEN("; Using MRR"));
         }
         if (need_tmp_table)
         {
@@ -23335,7 +23383,6 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
-    res|= unit->cleanup();
   }
   else
   {

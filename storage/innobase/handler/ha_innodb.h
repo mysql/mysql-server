@@ -23,10 +23,6 @@ Place, Suite 330, Boston, MA 02111-1307 USA
   Innodb
 */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #include "dict0stats.h"
 
 /* Structure defines translation table between mysql index and innodb

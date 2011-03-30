@@ -533,7 +533,7 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   table_hton= swap_table->file->ht;
 
-  thd_proc_info(thd, "verifying table");
+  THD_STAGE_INFO(thd, stage_verifying_table);
 
   /* Will append the partition name later in part_info->get_part_elem() */
   part_file_name_len= build_table_filename(part_file_name,

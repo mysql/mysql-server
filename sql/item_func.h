@@ -19,10 +19,6 @@
 
 /* Function items used by mysql */
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 #ifdef HAVE_IEEEFP_H
 extern "C"				/* Bug in BSDI include file */
 {
@@ -130,7 +126,8 @@ public:
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
   virtual bool const_item() const { return const_item_cache; }
-  inline Item **arguments() const { return args; }
+  inline Item **arguments() const
+  { DBUG_ASSERT(argument_count() > 0); return args; }
   void set_arguments(List<Item> &list);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }

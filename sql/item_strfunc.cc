@@ -25,10 +25,6 @@
     (This shouldn't be needed)
 */
 
-#ifdef USE_PRAGMA_IMPLEMENTATION
-#pragma implementation				// gcc: Class implementation
-#endif
-
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
@@ -3216,6 +3212,15 @@ String *Item_func_weight_string::val_str(String *str)
   tmp_length= result_length ? result_length :
               cs->coll->strnxfrmlen(cs, cs->mbmaxlen *
                                     max(res->length(), nweights));
+
+  if(tmp_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                        current_thd->variables.max_allowed_packet);
+    goto nl;
+  }
 
   if (tmp_value.alloc(tmp_length))
     goto nl;

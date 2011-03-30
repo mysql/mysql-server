@@ -1030,18 +1030,18 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         && rli->is_in_group())
     {
       char msg_stopped[]=
-        "... The slave SQL is stopped, leaving the current group "
-        "of events unfinished with a non-transaction table changed. "
-        "If the group consists solely of Row-based events, you can try "
-        "restarting the slave with --slave-exec-mode=IDEMPOTENT, which "
+        "... Slave SQL Thread stopped with incomplete event group "
+        "having non-transactional changes. "
+        "If the group consists solely of row-based events, you can try "
+        "to restart the slave with --slave-exec-mode=IDEMPOTENT, which "
         "ignores duplicate key, key not found, and similar errors (see "
         "documentation for details).";
 
       if (rli->abort_slave)
       {
-        DBUG_PRINT("info", ("Slave SQL thread is being stopped in the middle of"
-                            " a group having updated a non-trans table, giving"
-                            " it some grace period"));
+        DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
+                            "applying a group that has non-transactional "
+                            "changes; waiting for completion of the group ... "));
 
         /*
           Slave sql thread shutdown in face of unfinished group modified 
@@ -1065,9 +1065,9 @@ static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         if (ret == 0)
         {
           rli->report(WARNING_LEVEL, 0,
-                      "slave SQL thread is being stopped in the middle "
-                      "of applying of a group having updated a non-transaction "
-                      "table; waiting for the group completion ... ");
+                      "Request to stop slave SQL Thread received while "
+                      "applying a group that has non-transactional "
+                      "changes; waiting for completion of the group ... ");
         }
         else
         {
@@ -2347,9 +2347,13 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   }
 
   if (thd_type == SLAVE_THD_SQL)
-    thd_proc_info(thd, "Waiting for the next event in relay log");
+  {
+    THD_STAGE_INFO(thd, stage_waiting_for_the_next_event_in_relay_log);
+  }
   else
-    thd_proc_info(thd, "Waiting for master update");
+  {
+    THD_STAGE_INFO(thd, stage_waiting_for_master_update);
+  }
   thd->set_time();
   /* Do not use user-supplied timeout value for system threads. */
   thd->variables.lock_wait_timeout= LONG_TIMEOUT;
@@ -2512,63 +2516,6 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   DBUG_PRINT("exit", ("len: %lu  net->read_pos[4]: %d",
                       len, mysql->net.read_pos[4]));
   DBUG_RETURN(len - 1);
-}
-
-/*
-  Check if the current error is of temporary nature of not.
-  Some errors are temporary in nature, such as
-  ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT.  Ndb also signals
-  that the error is temporary by pushing a warning with the error code
-  ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
-*/
-static int has_temporary_error(THD *thd)
-{
-  DBUG_ENTER("has_temporary_error");
-
-  DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->stmt_da->is_error())
-                  {
-                    thd->clear_error();
-                    my_error(ER_LOCK_DEADLOCK, MYF(0));
-                  });
-
-  /*
-    If there is no message in THD, we can't say if it's a temporary
-    error or not. This is currently the case for Incident_log_event,
-    which sets no message. Return FALSE.
-  */
-  if (!thd->is_error())
-    DBUG_RETURN(0);
-
-  /*
-    Temporary error codes:
-    currently, InnoDB deadlock detected by InnoDB or lock
-    wait timeout (innodb_lock_wait_timeout exceeded
-  */
-  if (thd->stmt_da->sql_errno() == ER_LOCK_DEADLOCK ||
-      thd->stmt_da->sql_errno() == ER_LOCK_WAIT_TIMEOUT)
-    DBUG_RETURN(1);
-
-#ifdef HAVE_NDB_BINLOG
-  /*
-    currently temporary error set in ndbcluster
-  */
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
-  while ((err= it++))
-  {
-    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
-                        err->get_message_text()));
-    switch (err->get_sql_errno())
-    {
-    case ER_GET_TEMPORARY_ERRMSG:
-      DBUG_RETURN(1);
-    default:
-      break;
-    }
-  }
-#endif
-  DBUG_RETURN(0);
 }
 
 
@@ -2961,7 +2908,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
-      if (exec_res && (temp_err= has_temporary_error(thd)))
+      if (exec_res && (temp_err= rli->has_temporary_error(thd)))
       {
         const char *errmsg;
         /*
@@ -3007,10 +2954,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           }
         }
         else
-          sql_print_error("Slave SQL thread retried transaction %lu time(s) "
-                          "in vain, giving up. Consider raising the value of "
-                          "the slave_transaction_retries variable.",
-                          slave_trans_retries);
+        {
+          thd->is_fatal_error= 1;
+          rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+                      "Slave SQL thread retried transaction %lu time(s) "
+                      "in vain, giving up. Consider raising the value of "
+                      "the slave_transaction_retries variable.", rli->trans_retries);
+        }
       }
       else if ((exec_res && !temp_err) ||
                (opt_using_transactions &&
@@ -3211,7 +3161,7 @@ pthread_handler_t handle_slave_io(void *arg)
     goto err;
   }
 
-  thd_proc_info(thd, "Connecting to master");
+  THD_STAGE_INFO(thd, stage_connecting_to_master);
   // we can get killed during safe_connect
   if (!safe_connect(thd, mysql, mi))
   {
@@ -3254,7 +3204,7 @@ connected:
   mysql_mutex_unlock(&mi->run_lock);
 
   thd->slave_net = &mysql->net;
-  thd_proc_info(thd, "Checking master version");
+  THD_STAGE_INFO(thd, stage_checking_master_version);
   ret= get_master_version_and_clock(mysql, mi);
   if (!ret)
     ret= get_master_uuid(mysql, mi);
@@ -3283,7 +3233,7 @@ connected:
     /*
       Register ourselves with the master.
     */
-    thd_proc_info(thd, "Registering slave on master");
+    THD_STAGE_INFO(thd, stage_registering_slave_on_master);
     if (register_slave_on_master(mysql, mi, &suppress_warnings))
     {
       if (!check_io_slave_killed(thd, mi, "Slave I/O thread killed "
@@ -3313,7 +3263,7 @@ connected:
   DBUG_PRINT("info",("Starting reading binary log from master"));
   while (!io_slave_killed(thd,mi))
   {
-    thd_proc_info(thd, "Requesting binlog dump");
+    THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
     if (request_dump(thd, mysql, mi, &suppress_warnings))
     {
       sql_print_error("Failed on request_dump()");
@@ -3346,7 +3296,7 @@ requesting master dump") ||
          important thing is to not confuse users by saying "reading" whereas
          we're in fact receiving nothing.
       */
-      thd_proc_info(thd, "Waiting for master to send event");
+      THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
       event_len= read_event(mysql, mi, &suppress_warnings);
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
 reading event"))
@@ -3394,7 +3344,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
       } // if (event_len == packet_error)
 
       retry_count=0;                    // ok event, reset retry counter
-      thd_proc_info(thd, "Queueing master event to the relay log");
+      THD_STAGE_INFO(thd, stage_queueing_master_event_to_the_relay_log);
       event_buf= (const char*)mysql->net.read_pos + 1;
       if (RUN_HOOK(binlog_relay_io, after_read_event,
                    (thd, mi,(const char*)mysql->net.read_pos + 1,
@@ -3491,7 +3441,7 @@ err:
     mi->mysql=0;
   }
   write_ignored_events_info_to_relay_log(thd, mi);
-  thd_proc_info(thd, "Waiting for slave mutex on exit");
+  THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&mi->run_lock);
 
   /* Forget the relay log's format */
@@ -3865,7 +3815,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->catalog= 0;
   thd->reset_query();
   thd->reset_db(NULL, 0);
-  thd_proc_info(thd, "Waiting for slave mutex on exit");
+  THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   mysql_mutex_lock(&rli->data_lock);
@@ -4372,7 +4322,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at queue_event: byte on position %d", debug_cor_pos));
-      DBUG_SET("");
+      DBUG_SET("-d,corrupt_queue_event");
     }
   );
                                               
@@ -5708,7 +5658,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
     DBUG_RETURN(1);
-  thd_proc_info(thd, "Killing slave");
+  THD_STAGE_INFO(thd, stage_killing_slave);
   int thread_mask;
   lock_slave_threads(mi);
   // Get a mask of _running_ threads
@@ -5735,7 +5685,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
   unlock_slave_threads(mi);
-  thd_proc_info(thd, 0);
 
   if (slave_errno)
   {
@@ -5842,7 +5791,7 @@ bool change_master(THD* thd, Master_info* mi)
   }
   thread_mask= SLAVE_IO | SLAVE_SQL;
 
-  thd_proc_info(thd, "Changing master");
+  THD_STAGE_INFO(thd, stage_changing_master);
   /* 
     We need to check if there is an empty master_host. Otherwise
     change master succeeds, a master.info file is created containing 
@@ -6111,7 +6060,6 @@ bool change_master(THD* thd, Master_info* mi)
 
 err:
   unlock_slave_threads(mi);
-  thd_proc_info(thd, 0);
   if (ret == FALSE)
     my_ok(thd);
   DBUG_RETURN(ret);

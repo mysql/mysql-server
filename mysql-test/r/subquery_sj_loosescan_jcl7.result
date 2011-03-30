@@ -1546,8 +1546,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	End temporary; Using join buffer (BNL, regular buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1723,8 +1723,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	End temporary; Using join buffer (BNL, regular buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1750,8 +1750,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary; End temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	End temporary; Using join buffer (BNL, regular buffers)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2167,8 +2167,8 @@ a
 19
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	Start temporary
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Start temporary
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	Using where; End temporary; Using join buffer (BNL, regular buffers)
 2	DERIVED	t0	ALL	NULL	NULL	NULL	NULL	11	
 drop table t0, t1;
 create table t0 (a int);
@@ -2740,8 +2740,8 @@ t2.b1 IN (select c1 from t3 where c2 > '0')));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (BNL, regular buffers)
 1	PRIMARY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (BNL, regular buffers)
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (BNL, regular buffers)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; End temporary; Using join buffer (BNL, regular buffers)
 Warnings:
 Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2_16` join `test`.`t2` join `test`.`t1_16`) where ((`test`.`t2_16`.`b2` = `test`.`t1_16`.`a2`) and (`test`.`t2_16`.`b1` = `test`.`t1_16`.`a1`) and (`test`.`t2`.`b1` = `test`.`t3`.`c1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (`test`.`t3`.`c2` > '0') and (concat(`test`.`t1`.`a1`,'x') = left(`test`.`t1_16`.`a1`,8)))
@@ -5397,5 +5397,41 @@ a	a	a
 deallocate prepare s;
 DROP TABLE ot1, ot2, ot3, it1;
 # End of the test for bug#57623.
+#
+# Bug#11766739: Crash in tmp_table_param::init() with semijoin=on
+#
+CREATE TABLE t1 (f1 INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (f1 INTEGER, f2 INTEGER) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1,1), (2,1);
+EXPLAIN SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	b1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	b2	ALL	NULL	NULL	NULL	NULL	2	End temporary
+SELECT * FROM t2
+WHERE f2 IN (SELECT t1.f1
+FROM t1 LEFT OUTER JOIN (t2 AS b1 JOIN t2 AS b2 ON TRUE) ON TRUE);
+f1	f2
+1	1
+2	1
+DROP TABLE t1, t2;
+# End of the test for bug#11766739.
+#
+# Bug#11766642: crash in Item_field::register_field_in_read_map with view
+#
+CREATE TABLE t1(a INT);
+CREATE VIEW v1 AS SELECT a FROM t1;
+INSERT INTO t1 VALUES (0),(1),(2);
+SELECT a FROM t1 WHERE a IN 
+(SELECT a XOR a FROM v1)
+ORDER BY a;
+a
+0
+DROP TABLE t1;
+DROP VIEW v1;
 set optimizer_switch=default;
 set optimizer_join_cache_level=default;
