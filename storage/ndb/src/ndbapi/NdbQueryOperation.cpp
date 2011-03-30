@@ -2955,7 +2955,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
 
       if (unlikely(impl->getNodeSequence(nodeId) != seq))
         setFetchTerminated(Err_NodeFailCausedAbort,false);
-      if (unlikely(result != FetchResult_ok))
+      else if (unlikely(result != FetchResult_ok))
       {
         if (result == FetchResult_timeOut)
           setFetchTerminated(Err_ReceiveTimedOut,false);
