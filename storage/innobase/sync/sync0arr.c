@@ -915,8 +915,10 @@ Prints warnings of long semaphore waits to stderr.
 @return	TRUE if fatal semaphore wait threshold was exceeded */
 UNIV_INTERN
 ibool
-sync_array_print_long_waits(void)
-/*=============================*/
+sync_array_print_long_waits(
+/*========================*/
+	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
+	const void**	sema)	/*!< out: longest-waited-for semaphore */
 {
 	sync_cell_t*	cell;
 	ibool		old_val;
@@ -924,6 +926,7 @@ sync_array_print_long_waits(void)
 	ulint		i;
 	ulint		fatal_timeout = srv_fatal_semaphore_wait_threshold;
 	ibool		fatal = FALSE;
+	double		longest_diff = 0;
 
 #ifdef UNIV_DEBUG_VALGRIND
 	/* Increase the timeouts if running under valgrind because it executes
@@ -939,21 +942,35 @@ sync_array_print_long_waits(void)
 
 	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
+		double	diff;
+		void*	wait_object;
+
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time)
-		    > SYNC_ARRAY_TIMEOUT) {
+		wait_object = cell->wait_object;
+
+		if (wait_object == NULL || !cell->waiting) {
+
+			continue;
+		}
+
+		diff = difftime(time(NULL), cell->reservation_time);
+
+		if (diff > SYNC_ARRAY_TIMEOUT) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
 			sync_array_cell_print(stderr, cell);
 			noticed = TRUE;
 		}
 
-		if (cell->wait_object != NULL && cell->waiting
-		    && difftime(time(NULL), cell->reservation_time)
-		    > fatal_timeout) {
+		if (diff > fatal_timeout) {
 			fatal = TRUE;
+		}
+
+		if (diff > longest_diff) {
+			longest_diff = diff;
+			*sema = wait_object;
+			*waiter = cell->thread;
 		}
 	}
 
