@@ -110,22 +110,22 @@ endif
 
 # Storage engine specific compilation options
 ha_ndbcluster.o:ha_ndbcluster.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ -I$(top_srcdir)/storage/ndb/src $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_cond.o:ha_ndbcluster_cond.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ -I$(top_srcdir)/storage/ndb/src $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_push.o:ha_ndbcluster_push.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ -I$(top_srcdir)/storage/ndb/src $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_binlog.o: ha_ndbcluster_binlog.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ -I$(top_srcdir)/storage/ndb/src $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbcluster_connection.o: ha_ndbcluster_connection.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ -I$(top_srcdir)/storage/ndb/src $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 ha_ndbinfo.o: ha_ndbinfo.cc
-		$(CXXCOMPILE) @ndbcluster_includes@ -I$(top_srcdir)/storage/ndb/src $(LM_CFLAGS) -c $<
+		$(CXXCOMPILE) @ndbcluster_includes@ $(LM_CFLAGS) -c $<
 
 # Until we can remove dependency on ha_ndbcluster.h
 handler.o:	handler.cc

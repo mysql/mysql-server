@@ -46,15 +46,12 @@ test_spj_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/kernel \
         -I$(top_srcdir)/storage/ndb/include/ndbapi \
         -I$(top_srcdir)/storage/ndb/include/util \
 	-I$(top_srcdir)/storage/ndb/include/portlib \
-	-I$(top_srcdir)/storage/ndb/include/logger \
-	-I$(top_srcdir)/storage/ndb/src/ndbapi
+	-I$(top_srcdir)/storage/ndb/include/logger
 
 spj_sanity_test_SOURCES = spj_sanity_test.cpp
 spj_sanity_test_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
-spj_sanity_test_CXXFLAGS= -I$(top_srcdir)/storage/ndb/src/ndbapi
 spj_performance_test_SOURCES = spj_performance_test.cpp
 spj_performance_test_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
-spj_performance_test_CXXFLAGS= -I$(top_srcdir)/storage/ndb/src/ndbapi
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am

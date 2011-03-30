@@ -7,8 +7,8 @@
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
-#include <NdbQueryOperation.hpp>
-#include <NdbQueryBuilder.hpp>
+#include "../../src/ndbapi/NdbQueryOperation.hpp"
+#include "../../src/ndbapi/NdbQueryBuilder.hpp"
 
 /* TODO:
  - RecAttr and setResultRowBuff result retrieval.
