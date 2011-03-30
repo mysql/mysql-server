@@ -16,20 +16,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <NdbDictionary.hpp>
+#include "NdbIndexScanOperation.hpp"
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
 #include <ndb_global.h>
 #include <Vector.hpp>
 #include "signaldata/QueryTree.hpp"
 
-#include "Ndb.hpp"
-#include "NdbDictionary.hpp"
+#include <Ndb.hpp>
 #include "NdbDictionaryImpl.hpp"
-#include "NdbRecord.hpp"
+#include <NdbRecord.hpp>
 #include "AttributeHeader.hpp"
-#include "NdbIndexScanOperation.hpp"
 #include "NdbOut.hpp"
-#include "NdbInterpretedCode.hpp"
+#include <NdbInterpretedCode.hpp>
 
 /**
  * Implementation of all QueryBuilder objects are hidden from

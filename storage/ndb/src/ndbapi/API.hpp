@@ -44,6 +44,8 @@
 #include <NdbEventOperation.hpp>
 #include "NdbEventOperationImpl.hpp"
 
+#include "NdbQueryBuilder.hpp"
+#include "NdbQueryOperation.hpp"
 #include "NdbQueryOperationImpl.hpp"
 
 #include <NdbReceiver.hpp>

@@ -24,12 +24,17 @@
 // which means that we need to use <> to include instead of ""
 // for files located in include/ndbapi
 
+// this file is currently not located in include/ndbapi
+// skip includes...and require them to be included first
+// BUH!
+
 /* There is no way to forward declare nested class NdbDictionary::Column,
  * so this header file must be included.*/
-#include <NdbDictionary.hpp>
+// #include <NdbDictionary.hpp>
+
 // Needed to get NdbQueryOptions::ScanOrdering.
-#include "NdbQueryBuilder.hpp"
-#include <NdbIndexScanOperation.hpp>
+// #include "NdbQueryBuilder.hpp"
+// #include <NdbIndexScanOperation.hpp>
 
 
 class Ndb;

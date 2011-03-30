@@ -18,8 +18,11 @@
 
 
 #include <ndb_global.h>
+#include <NdbDictionary.hpp>
+#include <NdbIndexScanOperation.hpp>
+#include "NdbQueryBuilder.hpp"
+#include "NdbQueryOperation.hpp"
 #include "API.hpp"
-#include <NdbQueryBuilder.hpp>
 #include "NdbQueryBuilderImpl.hpp"
 #include "NdbQueryOperationImpl.hpp"
 #include "NdbInterpretedCode.hpp"
