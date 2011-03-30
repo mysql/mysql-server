@@ -1798,7 +1798,7 @@ dict_stats_fetch_index_stats_step(
 		switch (i) {
 		case 0: /* innodb.index_stats.index_name */
 
-			ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
+			ut_a(dtype_get_mtype(type) == DATA_VARMYSQL);
 
 			/* search for index in table's indexes whose name
 			matches data; the fetched index name is in data,
@@ -1829,7 +1829,7 @@ dict_stats_fetch_index_stats_step(
 
 		case 1: /* innodb.index_stats.stat_name */
 
-			ut_a(dtype_get_mtype(type) == DATA_VARCHAR);
+			ut_a(dtype_get_mtype(type) == DATA_VARMYSQL);
 
 			ut_a(index != NULL);
 

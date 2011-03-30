@@ -49,13 +49,9 @@ page0*.h includes rem0rec.h and may include rem0rec.ic. */
 /** Number of bits needed for representing different compressed page sizes */
 #define PAGE_ZIP_SSIZE_BITS 3
 
-/** log2 of smallest compressed page size */
-#define PAGE_ZIP_MIN_SIZE_SHIFT	10
-/** Smallest compressed page size */
-#define PAGE_ZIP_MIN_SIZE	(1 << PAGE_ZIP_MIN_SIZE_SHIFT)
-
 /** Number of supported compressed page sizes */
-#define PAGE_ZIP_NUM_SSIZE (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 2)
+#define PAGE_ZIP_NUM_SSIZE	\
+	(UNIV_ZIP_SIZE_SHIFT_MAX - UNIV_ZIP_SIZE_SHIFT_MIN + 2)
 #if PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)
 # error "PAGE_ZIP_NUM_SSIZE > (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
@@ -77,7 +73,7 @@ struct page_zip_des_struct
 	unsigned	ssize:PAGE_ZIP_SSIZE_BITS;
 					/*!< 0 or compressed page size;
 					the size in bytes is
-					PAGE_ZIP_MIN_SIZE << (ssize - 1). */
+					UNIV_ZIP_SIZE_MIN << (ssize - 1). */
 };
 
 /** Compression statistics for a given page size */
