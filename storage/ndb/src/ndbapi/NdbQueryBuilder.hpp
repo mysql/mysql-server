@@ -22,10 +22,8 @@
 #include <ndb_types.h>
 
 // this file is currently not located in include/ndbapi
-// which means that we need to use <> to include instead of ""
-// for files located in include/ndbapi
-
-#include <NdbDictionary.hpp>
+// skip includes...and require them to be included first
+// BUH!
 
 class Ndb;
 class NdbQueryDef;
