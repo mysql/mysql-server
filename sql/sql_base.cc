@@ -8440,28 +8440,33 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
   List<TABLE> tbl_list;
   Item *value;
   TABLE *table= 0;
+  Field *field;
   bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
 
-  Field *field;
-  tbl_list.empty();
+  if (!*ptr)
+  {
+    /* No fields to update, quite strange!*/
+    DBUG_RETURN(0);
+  }
+
+  /*
+    On INSERT or UPDATE fields are checked to be from the same table,
+    thus we safely can take table from the first field.
+  */
+  table= (*ptr)->table;
+
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
     only one row.
   */
-  if (*ptr)
-  {
-    /*
-      On INSERT or UPDATE fields are checked to be from the same table,
-      thus we safely can take table from the first field.
-    */
-    table= (*ptr)->table;
-    table->auto_increment_field_not_null= FALSE;
-  }
+  table->auto_increment_field_not_null= FALSE;
   while ((field = *ptr++) && ! thd->is_error())
   {
+    /* Ensure that all fields are from the same table */
+    DBUG_ASSERT(field->table == table);
+
     value=v++;
-    table= field->table;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
     if (field->vcol_info && 
@@ -8478,40 +8483,17 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors)
     }
     if (value->save_in_field(field, 0) < 0)
       goto err;
-    tbl_list.push_back(table);
   }
   /* Update virtual fields*/
   thd->abort_on_warning= FALSE;
-  if (tbl_list.head())
-  {
-    List_iterator_fast<TABLE> t(tbl_list);
-    TABLE *prev_table= 0;
-    while ((table= t++))
-    {
-      /*
-        Do simple optimization to prevent unnecessary re-generating 
-        values for virtual fields
-      */
-      if (table != prev_table)
-      {
-        prev_table= table;
-        if (table->vfield)
-        {
-          if (update_virtual_fields(thd, table, TRUE))
-          {
-            goto err;
-          }
-        }
-      }
-    }
-  }
+  if (table->vfield && update_virtual_fields(thd, table, TRUE))
+    goto err;
   thd->abort_on_warning= abort_on_warning_saved;
   DBUG_RETURN(thd->is_error());
 
 err:
   thd->abort_on_warning= abort_on_warning_saved;
-  if (table)
-    table->auto_increment_field_not_null= FALSE;
+  table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(TRUE);
 }
 
