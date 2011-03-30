@@ -38,8 +38,8 @@
 #include <util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
-#include <ndbapi/NdbQueryBuilder.hpp>
-#include <ndbapi/NdbQueryOperation.hpp>
+#include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
+#include "../storage/ndb/src/ndbapi/NdbQueryOperation.hpp"
 
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
