@@ -1440,12 +1440,12 @@ void SSL_SESSION::CopyX509(X509* x)
 
     X509_NAME* issuer   = x->GetIssuer();
     X509_NAME* subject  = x->GetSubject();
-    ASN1_STRING* before = x->GetBefore();
-    ASN1_STRING* after  = x->GetAfter();
+    ASN1_TIME* before = x->GetBefore();
+    ASN1_TIME* after  = x->GetAfter();
 
     peerX509_ = NEW_YS X509(issuer->GetName(), issuer->GetLength(),
-        subject->GetName(), subject->GetLength(), (const char*) before->data,
-        before->length, (const char*) after->data, after->length);
+        subject->GetName(), subject->GetLength(),
+        before, after);
 }
 
 
@@ -2378,9 +2378,10 @@ size_t X509_NAME::GetLength() const
 
 
 X509::X509(const char* i, size_t iSz, const char* s, size_t sSz,
-           const char* b, int bSz, const char* a, int aSz)
+           ASN1_STRING *b, ASN1_STRING *a)
     : issuer_(i, iSz), subject_(s, sSz),
-      beforeDate_(b, bSz), afterDate_(a, aSz)
+      beforeDate_((char *) b->data, b->length, b->type),
+      afterDate_((char *) a->data, a->length, a->type)
 {}
 
 
@@ -2396,13 +2397,13 @@ X509_NAME* X509::GetSubject()
 }
 
 
-ASN1_STRING* X509::GetBefore()
+ASN1_TIME* X509::GetBefore()
 {
     return beforeDate_.GetString();
 }
 
 
-ASN1_STRING* X509::GetAfter()
+ASN1_TIME* X509::GetAfter()
 {
     return afterDate_.GetString();
 }
@@ -2430,12 +2431,12 @@ ASN1_STRING* X509_NAME::GetEntry(int i)
 }
 
 
-StringHolder::StringHolder(const char* str, int sz)
+StringHolder::StringHolder(const char* str, int sz, byte type)
 {
     asnString_.length = sz;
     asnString_.data = NEW_YS byte[sz + 1];
     memcpy(asnString_.data, str, sz);
-    asnString_.type = 0;  // not used for now
+    asnString_.type = type;
 }
 
 

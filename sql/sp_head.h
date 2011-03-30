@@ -17,10 +17,6 @@
 #ifndef _SP_HEAD_H_
 #define _SP_HEAD_H_
 
-#ifdef USE_PRAGMA_INTERFACE
-#pragma interface			/* gcc class implementation */
-#endif
-
 /*
   It is necessary to include set_var.h instead of item.h because there
   are dependencies on include order for set_var.h and item.h. This

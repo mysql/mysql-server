@@ -332,12 +332,12 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM t1 `PARTITION`;
 a	b
 -2	(pNeg-)subp0
-5	p0-9:subp3
-10	p10-99
 -3	pNeg(-subp1)
 -1	pNeg(-subp1)
+5	p0-9:subp3
 1	subp3
 3	subp3
+10	p10-99
 100	`p100-99999`(-subp6)
 1000	`p100-99999`(-subp6)
 101	`p100-99999`(-subp7)
@@ -346,12 +346,12 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM t1 AS `PARTITION`;
 a	b
 -2	(pNeg-)subp0
-5	p0-9:subp3
-10	p10-99
 -3	pNeg(-subp1)
 -1	pNeg(-subp1)
+5	p0-9:subp3
 1	subp3
 3	subp3
+10	p10-99
 100	`p100-99999`(-subp6)
 1000	`p100-99999`(-subp6)
 101	`p100-99999`(-subp7)
@@ -536,10 +536,10 @@ HANDLER_WRITE	127
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 a	b
 -2	(pNeg-)subp0
-10	p10-99
 -3	pNeg(-subp1)
 -1	pNeg(-subp1)
 -21	REPLACEd by REPLACE
+10	p10-99
 FLUSH STATUS;
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`) INTO OUTFILE 'loadtest.txt';
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
@@ -576,7 +576,7 @@ WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
 HANDLER_EXTERNAL_LOCK	6
 HANDLER_ROLLBACK	1
-HANDLER_WRITE	18
+HANDLER_WRITE	21
 # 6 locks (1 ha_partiiton + 2 ha_innobase) x 2 (lock+unlock)
 # 1 rollback
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
@@ -950,12 +950,12 @@ SUBPARTITION BY HASH (a)
 SELECT * FROM t1;
 a	b
 -2	(pNeg-)subp0, Updated
-10	p10-99
+-222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
 1	subp3
 3	subp3
+10	p10-99
 1000	`p100-99999`(-subp6)
--222	`p100-99999`(-subp6), Updated from a = 100
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -981,9 +981,9 @@ SUBPARTITION BY HASH (a)
   SUBPARTITION subp7 ENGINE = InnoDB)) */
 SELECT * FROM t2;
 a	b
-10	p10-99
 1	subp3
 3	subp3
+10	p10-99
 1000	`p100-99999`(-subp6)
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
 SHOW CREATE TABLE t3;
@@ -995,11 +995,11 @@ t3	CREATE TABLE `t3` (
 SELECT * FROM t3;
 a	b
 -2	(pNeg-)subp0, Updated
+-222	`p100-99999`(-subp6), Updated from a = 100
 -21	REPLACEd by REPLACE
 1	subp3
 3	subp3
 1000	`p100-99999`(-subp6)
--222	`p100-99999`(-subp6), Updated from a = 100
 110	`p100-99999`(-subp7), Updated to 103, Updated to 110
 FLUSH STATUS;
 DELETE t1 PARTITION (pNeg), t3 FROM t1, t3

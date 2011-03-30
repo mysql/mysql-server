@@ -25,9 +25,9 @@ insert into t1 values
 ('2000-06-15', 'jukg','zikhuk','m');
 select * from t1;
 a	b	c	d
-1975-01-01	abcde	abcde	m
-1980-10-14	fgbbd	dtzndtz	w
 1983-12-31	cdef	srtbvsr	w
+1980-10-14	fgbbd	dtzndtz	w
+1975-01-01	abcde	abcde	m
 2000-06-15	jukg	zikhuk	m
 select * from t1 where a<19851231;
 a	b	c	d

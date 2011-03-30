@@ -97,7 +97,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length,
 
 /*
   Function to find a string in a TYPELIB
-  (Same format as mysys/typelib.c)
+  (similar to find_type() of mysys/typelib.c)
 
   SYNOPSIS
    find_type()

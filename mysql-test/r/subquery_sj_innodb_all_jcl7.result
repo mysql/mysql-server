@@ -35,8 +35,8 @@ a	b
 9	5
 explain select * from t2 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Materialize; Scan
-1	PRIMARY	t2	ref	b	b	5	test.t1.a	1	Using join buffer (BKA_UNIQUE, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
+1	PRIMARY	t2	ref	b	b	5	test.t1.a	1	End temporary; Using join buffer (BKA_UNIQUE, regular buffers)
 select * from t2 where b in (select a from t1);
 a	b
 1	1
@@ -53,8 +53,8 @@ primary key(pk1, pk2, pk3)
 insert into t3 select a,a, a,a,a from t0;
 explain select * from t3 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	Using join buffer (BKA_UNIQUE, regular buffers)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where; Start temporary
+1	PRIMARY	t3	ref	b	b	5	test.t1.a	1	End temporary; Using join buffer (BKA_UNIQUE, regular buffers)
 select * from t3 where b in (select a from t1);
 a	b	pk1	pk2	pk3
 1	1	1	1	1
@@ -94,8 +94,8 @@ set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
-1	PRIMARY	t2	index	b	b	5	NULL	10	Using index; Materialize
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t2	ref	b	b	5	test.t1.a	5	Using index; FirstMatch(t1)
 select * from t1;
 a	b
 1	1

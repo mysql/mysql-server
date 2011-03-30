@@ -59,6 +59,10 @@ typedef unsigned int PFS_sync_key;
 typedef unsigned int PFS_thread_key;
 /** Key, naming a file instrument. */
 typedef unsigned int PFS_file_key;
+/** Key, naming a stage instrument. */
+typedef unsigned int PFS_stage_key;
+/** Key, naming a statement instrument. */
+typedef unsigned int PFS_statement_key;
 
 struct PFS_thread;
 
@@ -67,7 +71,7 @@ extern uint rwlock_class_start;
 extern uint cond_class_start;
 extern uint file_class_start;
 extern uint table_class_start;
-extern uint max_instrument_class;
+extern uint wait_class_max;
 
 /** Information for all instrumentation. */
 struct PFS_instr_class
@@ -85,7 +89,9 @@ struct PFS_instr_class
   /**
     Instrument name index.
     Self index in:
-    - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME
+    - EVENTS_WAITS_SUMMARY_*_BY_EVENT_NAME for waits
+    - EVENTS_STAGES_SUMMARY_*_BY_EVENT_NAME for stages
+    - EVENTS_STATEMENTS_SUMMARY_*_BY_EVENT_NAME for statements
   */
   uint m_event_name_index;
 
@@ -281,6 +287,22 @@ struct PFS_file_class : public PFS_instr_class
   PFS_file *m_singleton;
 };
 
+/** Instrumentation metadata for a stage. */
+struct PFS_stage_class : public PFS_instr_class
+{
+  /** Stage usage statistics. */
+  PFS_stage_stat m_stage_stat;
+  /** Self index in @c stage_class_array. */
+  uint m_index;
+};
+
+/** Instrumentation metadata for a statement. */
+struct PFS_statement_class : public PFS_instr_class
+{
+  /** Self index in @c statement_class_array. */
+  uint m_index;
+};
+
 void init_event_name_sizing(const PFS_global_param *param);
 
 int init_sync_class(uint mutex_class_sizing,
@@ -296,6 +318,10 @@ int init_table_share_hash();
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
 void cleanup_file_class();
+int init_stage_class(uint stage_class_sizing);
+void cleanup_stage_class();
+int init_statement_class(uint statement_class_sizing);
+void cleanup_statement_class();
 
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
                                   int flags);
@@ -312,6 +338,11 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
 PFS_file_key register_file_class(const char *name, uint name_length,
                                  int flags);
 
+PFS_stage_key register_stage_class(const char *name, uint name_length,
+                                   int flags);
+
+PFS_statement_key register_statement_class(const char *name, uint name_length,
+                                           int flags);
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe);
 PFS_rwlock_class *find_rwlock_class(PSI_rwlock_key key);
@@ -322,6 +353,10 @@ PFS_thread_class *find_thread_class(PSI_thread_key key);
 PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe);
 PFS_file_class *find_file_class(PSI_file_key key);
 PFS_file_class *sanitize_file_class(PFS_file_class *unsafe);
+PFS_stage_class *find_stage_class(PSI_stage_key key);
+PFS_stage_class *sanitize_stage_class(PFS_stage_class *unsafe);
+PFS_statement_class *find_statement_class(PSI_statement_key key);
+PFS_statement_class *sanitize_statement_class(PFS_statement_class *unsafe);
 const char *sanitize_table_schema_name(const char *unsafe);
 const char *sanitize_table_object_name(const char *unsafe);
 PFS_instr_class *find_table_class(uint index);
@@ -349,6 +384,10 @@ extern ulong thread_class_max;
 extern ulong thread_class_lost;
 extern ulong file_class_max;
 extern ulong file_class_lost;
+extern ulong stage_class_max;
+extern ulong stage_class_lost;
+extern ulong statement_class_max;
+extern ulong statement_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
 extern PFS_table_share *table_share_array;
