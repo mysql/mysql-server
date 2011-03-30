@@ -2052,7 +2052,7 @@ SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error 1242
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2060,7 +2060,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2068,7 +2068,7 @@ SELECT a FROM t1 GROUP BY a
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2076,7 +2076,7 @@ SELECT a FROM t1
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
-
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));

@@ -102,6 +102,8 @@ a
 foo
 Warnings:
 Error	1259	ZLIB: Input data corrupted
+Error	1259	ZLIB: Input data corrupted
+Error	1259	ZLIB: Input data corrupted
 explain select *, uncompress(a) from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	

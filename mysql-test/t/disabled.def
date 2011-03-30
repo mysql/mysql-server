@@ -19,3 +19,4 @@ main.mysqlhotcopy_myisam : Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 main.mysqlhotcopy_archive: Bug#56817 2010-10-21 anitha mysqlhotcopy* fails
 log_tables-big           : Bug#48646 2010-11-15 mattiasj report already exists
 read_many_rows_innodb    : Bug#37635 2010-11-15 mattiasj report already exists
+main.subselect_mat_cost  : MWL#89 tests that must be adjusted to the cost model introduced after the code review

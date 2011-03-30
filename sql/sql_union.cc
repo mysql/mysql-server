@@ -184,6 +184,8 @@ st_select_lex_unit::init_prepare_fake_select_lex(THD *thd_arg)
   {
     (*order->item)->walk(&Item::change_context_processor, 0,
                          (uchar*) &fake_select_lex->context);
+    (*order->item)->walk(&Item::set_fake_select_as_master_processor, 0,
+                         (uchar*) fake_select_lex);
   }
 }
 
@@ -267,6 +269,18 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= sl;
 
     can_skip_order_by= is_union_select && !(sl->braces && sl->explicit_limit);
+
+    /*
+      Remove all references from the select_lex_units to the subqueries that
+      are inside the ORDER BY clause.
+    */
+    if (can_skip_order_by)
+    {
+      for (ORDER *ord= (ORDER *)sl->order_list.first; ord; ord= ord->next)
+      {
+        (*ord->item)->walk(&Item::eliminate_subselect_processor, FALSE, NULL);
+      }
+    }
 
     saved_error= join->prepare(&sl->ref_pointer_array,
                                sl->table_list.first,
