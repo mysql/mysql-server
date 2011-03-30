@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -97,13 +97,13 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
-	if (table->flags & (~DICT_TF_COMPACT & ~(~0 << DICT_TF_BITS))) {
+	if (table->flags & ~DICT_TF_COMPACT) {
 		ut_a(table->flags & DICT_TF_COMPACT);
-		ut_a(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
+		ut_a(dict_table_get_format(table) >= UNIV_FORMAT_B);
 		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
 		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
-		ut_a(!(table->flags & (~0 << DICT_TF2_BITS)));
-		mach_write_to_4(ptr, table->flags & ~(~0 << DICT_TF_BITS));
+		ut_a(!(table->flags & ~DICT_TF_BIT_MASK));
+		mach_write_to_4(ptr, table->flags & DICT_TF_BIT_MASK);
 	} else {
 		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 	}
@@ -120,7 +120,9 @@ dict_create_sys_tables_tuple(
 	dfield = dtuple_get_nth_field(entry, 5/*MIX_LEN*/);
 
 	ptr = mem_heap_alloc(heap, 4);
-	mach_write_to_4(ptr, table->flags >> DICT_TF2_SHIFT);
+	/* Be sure all non-used bits are zero. */
+	ut_a(!(table->flags2 & ~DICT_TF2_BIT_MASK));
+	mach_write_to_4(ptr, table->flags2);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
@@ -287,11 +289,12 @@ dict_build_table_def_step(
 			is_path = FALSE;
 		}
 
-		ut_ad(dict_table_get_format(table) <= DICT_TF_FORMAT_MAX);
+		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
 		ut_ad(!dict_table_zip_size(table)
-		      || dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
+		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
-		flags = table->flags & ~(~0 << DICT_TF_BITS);
+		flags = table->flags;
+		ut_a(!(flags & ~DICT_TF_BIT_MASK));
 		error = fil_create_new_single_table_tablespace(
 			space, path_or_name, is_path,
 			flags == DICT_TF_COMPACT ? 0 : flags,
@@ -309,8 +312,10 @@ dict_build_table_def_step(
 
 		mtr_commit(&mtr);
 	} else {
-		/* Create in the system tablespace: disallow new features */
-		table->flags &= (~0 << DICT_TF_BITS) | DICT_TF_COMPACT;
+		/* Create in the system tablespace: disallow Barracuda
+		features by keeping only the first bit which says whether
+		the row format is redundant or compact */
+		table->flags &= DICT_TF_COMPACT;
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
@@ -1123,7 +1128,7 @@ dict_create_index_step(
 			node->table, node->index, FIL_NULL,
 			trx_is_strict(trx)
 			|| dict_table_get_format(node->table)
-			>= DICT_TF_FORMAT_ZIP);
+			>= UNIV_FORMAT_B);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(!node->index == (err != DB_SUCCESS));

@@ -365,8 +365,8 @@ fsp_get_space_header(
 	fsp_header_t*	header;
 
 	ut_ad(ut_is_2pow(zip_size));
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
-	ut_ad(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_ad(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(id || !zip_size);
 
 	block = buf_page_get(id, zip_size, 0, RW_X_LATCH, mtr);
@@ -656,8 +656,8 @@ xdes_calc_descriptor_page(
 		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 #  error
 # endif
-# if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
-		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
+# if UNIV_ZIP_SIZE_MIN <= XDES_ARR_OFFSET \
+		+ (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE) * XDES_SIZE
 #  error
 # endif
 #endif /* !DOXYGEN */
@@ -1361,8 +1361,8 @@ fsp_fill_free_list(
 	zip_size = dict_table_flags_to_zip_size(
 		mach_read_from_4(FSP_SPACE_FLAGS + header));
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_PAGE_SIZE);
-	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
 	if (space == 0 && srv_auto_extend_last_data_file
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
@@ -1456,8 +1456,8 @@ fsp_fill_free_list(
 #if UNIV_PAGE_SIZE % FSP_EXTENT_SIZE
 # error "UNIV_PAGE_SIZE % FSP_EXTENT_SIZE != 0"
 #endif
-#if PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE
-# error "PAGE_ZIP_MIN_SIZE % FSP_EXTENT_SIZE != 0"
+#if UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE
+# error "UNIV_ZIP_SIZE_MIN % FSP_EXTENT_SIZE != 0"
 #endif
 
 		if (UNIV_UNLIKELY(init_xdes)) {
@@ -3935,8 +3935,8 @@ fsp_validate(
 	latch = fil_space_get_latch(space, &flags);
 	zip_size = dict_table_flags_to_zip_size(flags);
 	ut_a(ut_is_2pow(zip_size));
-	ut_a(zip_size <= UNIV_PAGE_SIZE);
-	ut_a(!zip_size || zip_size >= PAGE_ZIP_MIN_SIZE);
+	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
+	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
 	/* Start first a mini-transaction mtr2 to lock out all other threads
 	from the fsp system */
