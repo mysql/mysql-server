@@ -19,12 +19,17 @@
 #define NdbQueryOperation_H
 
 #include <ndb_types.h>
+
+// this file is currently not located in include/ndbapi
+// which means that we need to use <> to include instead of ""
+// for files located in include/ndbapi
+
 /* There is no way to forward declare nested class NdbDictionary::Column,
  * so this header file must be included.*/
-#include "NdbDictionary.hpp"
+#include <NdbDictionary.hpp>
 // Needed to get NdbQueryOptions::ScanOrdering.
-#include "NdbQueryBuilder.hpp" 
-#include "NdbIndexScanOperation.hpp"
+#include "NdbQueryBuilder.hpp"
+#include <NdbIndexScanOperation.hpp>
 
 
 class Ndb;
