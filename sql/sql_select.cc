@@ -7808,7 +7808,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
                                  OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
         for (JOIN_TAB *tab= first_linear_tab(join, WITHOUT_CONST_TABLES); 
              tab; 
-             tab= next_linear_tab(join, tab, WITH_BUSH_ROOTS))
+             tab= (tab == last_tab)? NULL: next_linear_tab(join, tab, 
+                                                           WITH_BUSH_ROOTS))
         {
           if (!tab->table)
           {
@@ -7864,8 +7865,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             if (cond_tab->select)
               cond_tab->select->cond= cond_tab->select_cond;
           }
-          if (tab == last_tab)
-            break;
+          //if (tab == last_tab) //psergey-todo: fix this.
+          //  break;
         }
         first_inner_tab= first_inner_tab->first_upper;       
       }
