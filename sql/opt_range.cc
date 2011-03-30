@@ -11102,7 +11102,7 @@ static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        uchar *key_infix, uint *key_infix_len,
                        KEY_PART_INFO **first_non_infix_part);
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type);
 
 static void
@@ -11676,14 +11676,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 */
 
 static bool
-check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
+check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");
   DBUG_ASSERT(cond && min_max_arg_item);
 
   cond= cond->real_item();
-  Item::Type cond_type= cond->type();
+  Item::Type cond_type= cond->real_type();
   if (cond_type == Item::COND_ITEM) /* 'AND' or 'OR' */
   {
     DBUG_PRINT("info", ("Analyzing: %s", ((Item_func*) cond)->func_name()));
@@ -11699,16 +11699,25 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
   }
 
   /*
-    TODO:
-    This is a very crude fix to handle sub-selects in the WHERE clause
-    (Item_subselect objects). With the test below we rule out from the
-    optimization all queries with subselects in the WHERE clause. What has to
-    be done, is that here we should analyze whether the subselect references
-    the MIN/MAX argument field, and disallow the optimization only if this is
-    so.
+    Disallow loose index scan if the MIN/MAX argument field is referenced by
+    a subquery in the WHERE clause.
   */
-  if (cond->real_type() == Item::SUBSELECT_ITEM)
-    DBUG_RETURN(FALSE);
+  if (cond_type == Item::SUBSELECT_ITEM)
+  {
+    Item_subselect *subs_cond= (Item_subselect*) cond;
+    if (subs_cond->is_correlated)
+    {
+      DBUG_ASSERT(subs_cond->depends_on.elements > 0);
+      List_iterator_fast<Item*> li(subs_cond->depends_on);
+      Item **dep;
+      while ((dep= li++))
+      {
+        if ((*dep)->eq(min_max_arg_item, FALSE))
+          DBUG_RETURN(FALSE);
+      }
+    }
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     Condition of the form 'field' is equivalent to 'field <> 0' and thus

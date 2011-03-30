@@ -1,6 +1,6 @@
 # 
-# Run subselect.test without semi-join optimization (test materialize)
-#
+# Run subselect.test without semi-join and materialization optimizations
+#  (test in-to-exists)
 set optimizer_switch='materialization=off,semijoin=off';
 
 --source t/subselect.test

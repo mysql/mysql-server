@@ -1,0 +1,9 @@
+# 
+# Run subselect_sj2.test with subquery materialization.
+#
+set optimizer_switch='materialization=on';
+
+--source t/subselect_sj2.test
+
+set optimizer_switch=default;
+select @@optimizer_switch like '%materialization=on%';
