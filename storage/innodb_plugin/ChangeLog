@@ -1,3 +1,8 @@
+2011-03-30	The InnoDB Team
+
+	* srv/srv0srv.c, sync/sync0arr.h, sync/sync0arr.c:
+	Fix Bug#11877216 InnoDB too eager to commit suicide on a busy server
+
 2011-03-15	The InnoDB Team
 
 	* btr/btr0cur.c, page/page0zip.c:
