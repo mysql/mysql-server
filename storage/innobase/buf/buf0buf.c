@@ -2461,9 +2461,6 @@ buf_page_get_zip(
 	unsigned	access_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
-#ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside());
-#endif
 	buf_pool->stat.n_page_gets++;
 
 	for (;;) {
@@ -2908,8 +2905,9 @@ buf_page_get_gen(
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 	ut_ad(ut_is_2pow(zip_size));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page_low(space, zip_size, offset,
-					      FALSE, file, line, NULL));
+	ut_ad(!ibuf_inside(mtr)
+	      || ibuf_page_low(space, zip_size, offset,
+			       FALSE, file, line, NULL));
 #endif
 	buf_pool->stat.n_page_gets++;
 	fold = buf_page_address_fold(space, offset);
@@ -3347,7 +3345,8 @@ wait_until_unfixed:
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
-		buf_read_ahead_linear(space, zip_size, offset);
+		buf_read_ahead_linear(space, zip_size, offset,
+				      ibuf_inside(mtr));
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3408,7 +3407,7 @@ buf_page_optimistic_get(
 	access_time = buf_page_is_accessed(&block->page);
 	buf_page_set_accessed_make_young(&block->page, access_time);
 
-	ut_ad(!ibuf_inside()
+	ut_ad(!ibuf_inside(mtr)
 	      || ibuf_page(buf_block_get_space(block),
 			   buf_block_get_zip_size(block),
 			   buf_block_get_page_no(block), NULL));
@@ -3464,7 +3463,8 @@ buf_page_optimistic_get(
 
 		buf_read_ahead_linear(buf_block_get_space(block),
 				      buf_block_get_zip_size(block),
-				      buf_block_get_page_no(block));
+				      buf_block_get_page_no(block),
+				      ibuf_inside(mtr));
 	}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -3540,7 +3540,7 @@ buf_page_get_known_nowait(
 		buf_pool_mutex_exit(buf_pool);
 	}
 
-	ut_ad(!ibuf_inside() || (mode == BUF_KEEP_OLD));
+	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_nowait(&(block->lock),
@@ -3815,14 +3815,13 @@ buf_page_init_for_read(
 		/* It is a read-ahead within an ibuf routine */
 
 		ut_ad(!ibuf_bitmap_page(zip_size, offset));
-		ut_ad(ibuf_inside());
 
-		mtr_start(&mtr);
+		ibuf_mtr_start(&mtr);
 
 		if (!recv_no_ibuf_operations
 		    && !ibuf_page(space, zip_size, offset, &mtr)) {
 
-			mtr_commit(&mtr);
+			ibuf_mtr_commit(&mtr);
 
 			return(NULL);
 		}
@@ -4019,7 +4018,7 @@ func_exit:
 
 	if (mode == BUF_READ_IBUF_PAGES_ONLY) {
 
-		mtr_commit(&mtr);
+		ibuf_mtr_commit(&mtr);
 	}
 
 
@@ -5619,7 +5618,7 @@ buf_page_init_for_backup_restore(
 
 	/* We assume that block->page.data has been allocated
 	with zip_size == UNIV_PAGE_SIZE. */
-	ut_ad(zip_size <= UNIV_PAGE_SIZE);
+	ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_ad(ut_is_2pow(zip_size));
 	page_zip_set_size(&block->page.zip, zip_size);
 	if (zip_size) {
