@@ -29,27 +29,35 @@ Created 11/26/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 #include "mach0data.h"
 
+/***************************************************//**
+Checks if a mini-transaction is dirtying a clean page.
+@return TRUE if the mtr is dirtying a clean page. */
+UNIV_INTERN
+ibool
+mtr_block_dirtied(
+/*==============*/
+	const buf_block_t*	block)	/*!< in: block being x-fixed */
+	__attribute__((nonnull,warn_unused_result));
+
 /***************************************************************//**
-Starts a mini-transaction and creates a mini-transaction handle
-and a buffer in the memory buffer given by the caller.
-@return	mtr buffer which also acts as the mtr handle */
+Starts a mini-transaction. */
 UNIV_INLINE
-mtr_t*
+void
 mtr_start(
 /*======*/
-	mtr_t*	mtr)	/*!< in: memory buffer for the mtr buffer */
+	mtr_t*	mtr)	/*!< out: mini-transaction */
 {
 	dyn_array_create(&(mtr->memo));
 	dyn_array_create(&(mtr->log));
 
 	mtr->log_mode = MTR_LOG_ALL;
 	mtr->modifications = FALSE;
+	mtr->inside_ibuf = FALSE;
 	mtr->n_log_recs = 0;
+	mtr->made_dirty = FALSE;
 
 	ut_d(mtr->state = MTR_ACTIVE);
 	ut_d(mtr->magic_n = MTR_MAGIC_N);
-
-	return(mtr);
 }
 
 /***************************************************//**
@@ -71,6 +79,15 @@ mtr_memo_push(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
+
+	/* If this mtr has x-fixed a clean page then we set
+	the made_dirty flag. This tells us if we need to
+	grab log_flush_order_mutex at mtr_commit so that we
+	can insert the dirtied page to the flush list. */
+	if (type == MTR_MEMO_PAGE_X_FIX && !mtr->made_dirty) {
+		mtr->made_dirty =
+			mtr_block_dirtied((const buf_block_t *)object);
+	}
 
 	memo = &(mtr->memo);
 
