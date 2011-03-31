@@ -7109,7 +7109,7 @@ String *Item_cache_int::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   if (!value_cached && !cache_value())
     return NULL;
-  str->set(value, default_charset());
+  str->set_int(value, unsigned_flag, default_charset());
   return str;
 }
 
