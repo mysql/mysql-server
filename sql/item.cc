@@ -1495,6 +1495,11 @@ void Item::split_sum_func2(THD *thd, Item **ref_pointer_array,
     */
     Item_aggregate_ref *item_ref;
     uint el= fields.elements;
+    /*
+      If this is an item_ref, get the original item
+      This is a safety measure if this is called for things that is
+      already a reference.
+    */
     Item *real_itm= real_item();
 
     ref_pointer_array[el]= real_itm;
@@ -5907,7 +5912,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
                    const char *field_name_arg,
                    bool alias_name_used_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
-   result_field(0), ref(item)
+   result_field(0), ref(item), reference_trough_name(0)
 {
   alias_name_used= alias_name_used_arg;
   /*
@@ -5950,7 +5955,7 @@ public:
 Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
                    const char *field_name_arg, bool alias_name_used_arg)
   :Item_ident(view_arg, field_name_arg),
-   result_field(NULL), ref(item)
+   result_field(NULL), ref(item), reference_trough_name(0)
 {
   alias_name_used= alias_name_used_arg;
   /*
@@ -6033,6 +6038,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
 
   if (!ref || ref == not_found_item)
   {
+    DBUG_ASSERT(reference_trough_name != 0);
     if (!(ref= resolve_ref_in_select_and_group(thd, this,
                                                context->select_lex)))
       goto error;             /* Some error occurred (e.g. ambiguous names). */
@@ -6308,6 +6314,11 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
+  if (reference_trough_name)
+  {
+    /* We have to reset the reference as it may been freed */
+    ref= 0;
+  }
   DBUG_VOID_RETURN;
 }
 
