@@ -45,6 +45,8 @@ public:
   int isUpdateCol(int colId){ return m_updatesCol == colId; };
 
   const NdbDictionary::Table& getTable() const { return m_tab;}
+
+  int equalForRow(Uint8 *, const NdbRecord*, int rowid);
 private:
   const NdbDictionary::Table& m_tab;
   int m_idCol;
