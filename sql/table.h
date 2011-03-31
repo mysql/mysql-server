@@ -687,6 +687,16 @@ struct TABLE_SHARE
   */
   int cached_row_logging_check;
 
+  /*
+    Storage media to use for this table (unless another storage
+    media has been specified on an individual column - in versions
+    where that is supported)
+  */
+  enum ha_storage_media default_storage_media;
+
+  /* Name of the tablespace used for this table */
+  char *tablespace;
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* filled in when reading from frm */
   bool auto_partitioned;
@@ -1654,7 +1664,6 @@ struct TABLE_LIST
   bool          check_option_processed;
   /* FRMTYPE_ERROR if any type is acceptable */
   enum frm_type_enum required_type;
-  handlerton	*db_type;		/* table_type for handler */
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be
@@ -1674,9 +1683,6 @@ struct TABLE_LIST
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy;
-  /* For transactional locking. */
-  int           lock_timeout;           /* NOWAIT or WAIT [X]               */
-  bool          lock_transactional;     /* If transactional lock requested. */
   bool          internal_tmp_table;
   /** TRUE if an alias for this table was specified in the SQL. */
   bool          is_alias;

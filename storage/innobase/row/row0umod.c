@@ -698,7 +698,7 @@ row_undo_mod_upd_exist_sec(
 				store a local 768-byte prefix of each
 				externally stored column. */
 				ut_a(dict_table_get_format(index->table)
-				     >= DICT_TF_FORMAT_ZIP);
+				     >= UNIV_FORMAT_B);
 
 				/* This is only legitimate when
 				rolling back an incomplete transaction
