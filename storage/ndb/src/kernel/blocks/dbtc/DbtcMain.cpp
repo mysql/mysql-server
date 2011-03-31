@@ -14581,6 +14581,7 @@ void Dbtc::readIndexTable(Signal* signal,
   TcKeyReq::setOperationType(tcKeyRequestInfo, 
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0); // No AI in long TCKEYREQ
+  TcKeyReq::setInterpretedFlag(tcKeyRequestInfo, 0);
   tcKeyReq->senderData = indexOp->indexOpId;
   indexOp->indexOpState = IOS_INDEX_ACCESS;
   regApiPtr->executingIndexOp = regApiPtr->accumulatingIndexOp;
