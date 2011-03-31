@@ -21,7 +21,8 @@ SELECT * FROM t1;
 # Actually the output from this currently shows a bug.
 # The injected IO error leaves partially written transactions in the binlog in
 # the form of stray "BEGIN" events.
-# These should disappear from the output if binlog error handling is improved.
+# These should disappear from the output if binlog error handling is improved
+# (see MySQL Bug#37148 and WL#1790).
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
 --replace_column 1 BINLOG 2 POS 5 ENDPOS
 SHOW BINLOG EVENTS;

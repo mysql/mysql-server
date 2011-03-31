@@ -670,7 +670,7 @@ struct handlerton
      Not that like prepare(), commit_ordered() is only called when 2-phase
      commit takes place. Ie. when no binary log and only a single engine
      participates in a transaction, one commit() is called, no
-     commit_orderd(). So engines must be prepared for this.
+     commit_ordered(). So engines must be prepared for this.
 
      The calls to commit_ordered() in multiple parallel transactions is
      guaranteed to happen in the same order in every participating
@@ -683,7 +683,7 @@ struct handlerton
      transaction visible to other transactions, thereby making the order of
      transaction commits be defined by the order of commit_ordered() calls.
 
-     The intension is that commit_ordered() should do the minimal amount of
+     The intention is that commit_ordered() should do the minimal amount of
      work that needs to happen in consistent commit order among handlers. To
      preserve ordering, calls need to be serialised on a global mutex, so
      doing any time-consuming or blocking operations in commit_ordered() will
@@ -727,7 +727,7 @@ struct handlerton
      order transactions will be eventually committed.
 
      Like commit_ordered(), prepare_ordered() calls are serialised to maintain
-     ordering, so the intension is that they should execute fast, with only
+     ordering, so the intention is that they should execute fast, with only
      the minimal amount of work needed to define commit order. Handlers can
      rely on this serialisation, and do not need to do any extra locking to
      avoid two prepare_ordered() calls running in parallel.
@@ -747,8 +747,7 @@ struct handlerton
      require blocking all other commits for an indefinite time).
 
      When 2-phase commit is not used (eg. only one engine (and no binlog) in
-     transaction), prepare() is not called and in such cases prepare_ordered()
-     also is not called.
+     transaction), neither prepare() nor prepare_ordered() is called.
    */
    void (*prepare_ordered)(handlerton *hton, THD *thd, bool all);
    int  (*recover)(handlerton *hton, XID *xid_list, uint len);

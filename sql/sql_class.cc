@@ -4023,8 +4023,8 @@ THD::signal_wakeup_ready()
 {
   pthread_mutex_lock(&LOCK_wakeup_ready);
   wakeup_ready= true;
-  pthread_cond_signal(&COND_wakeup_ready);
   pthread_mutex_unlock(&LOCK_wakeup_ready);
+  pthread_cond_signal(&COND_wakeup_ready);
 }
 
 

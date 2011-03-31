@@ -16,6 +16,7 @@ select * from t2;
 b
 2
 SET sql_log_bin = 0;
+BEGIN;
 INSERT INTO t1 VALUES (3);
 INSERT INTO t2 VALUES (4);
 COMMIT;
