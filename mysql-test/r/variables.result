@@ -280,6 +280,7 @@ NET_BUFFER_LENGTH	1024
 set global net_buffer_length=2000000000;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '2000000000'
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 show global variables like 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	1048576
@@ -502,6 +503,7 @@ set low_priority_updates=1;
 set global max_allowed_packet=100;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '100'
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 set global max_binlog_cache_size=100;
 Warnings:
 Warning	1292	Truncated incorrect max_binlog_cache_size value: '100'
@@ -1059,6 +1061,8 @@ set global max_write_lock_count      =default;
 set global myisam_data_pointer_size  =@my_myisam_data_pointer_size;
 set global myisam_max_sort_file_size =@my_myisam_max_sort_file_size;
 set global net_buffer_length         =@my_net_buffer_length;
+Warnings:
+Warning	1105	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
@@ -1543,6 +1547,22 @@ Warning	1292	Truncated incorrect key_cache_block_size value: '0'
 select @@max_long_data_size;
 @@max_long_data_size
 1048576
+#
+# Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
+#
+CREATE TABLE t1(f1 DECIMAL(1,1) UNSIGNED);
+INSERT INTO t1 VALUES (0.2),(0.1);
+SELECT 1 FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT @a:= CAST(1 AS UNSIGNED) AS a;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(1) unsigned NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
 SET @@global.max_binlog_cache_size=DEFAULT;
 SET @@global.max_join_size=DEFAULT;
 SET @@global.key_buffer_size=@kbs;
