@@ -13234,6 +13234,7 @@ void Dbtc::readIndexTable(Signal* signal,
 			     opType == ZREAD ? ZREAD : ZREAD_EX);
   TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 1); // Allways send one AttrInfo
   TcKeyReq::setExecutingTrigger(tcKeyRequestInfo, 0);
+  TcKeyReq::setInterpretedFlag(tcKeyRequestInfo, 0);
   tcKeyReq->senderData = indexOp->indexOpId;
   indexOp->indexOpState = IOS_INDEX_ACCESS;
   regApiPtr->executingIndexOp = regApiPtr->accumulatingIndexOp;
