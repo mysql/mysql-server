@@ -1842,8 +1842,10 @@ static my_socket activate_tcp_port(uint port)
   }
   if (ret < 0)
   {
-    DBUG_PRINT("error",("Got error: %d from bind",socket_errno));
-    sql_perror("Can't start server: Bind on TCP/IP port");
+    char buff[100];
+    sprintf(buff, "Can't start server: Bind on TCP/IP port. Got error: %d",
+            (int) socket_errno);
+    sql_perror(buff);
     sql_print_error("Do you already have another mysqld server running on "
                     "port: %u ?", port);
     unireg_abort(1);

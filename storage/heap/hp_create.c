@@ -39,6 +39,10 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       share= 0;
     }
   }  
+  else
+  {
+    DBUG_PRINT("info", ("Creating internal (no named) temporary table"));
+  }
 
   if (!share)
   {
@@ -255,10 +259,15 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 
 static inline void heap_try_free(HP_SHARE *share)
 {
+  DBUG_ENTER("heap_try_free");
   if (share->open_count == 0)
     hp_free(share);
   else
+  {
+    DBUG_PRINT("info", ("Table is still in use. Will be freed on close"));
     share->delete_on_close= 1;
+  }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -277,6 +286,7 @@ int heap_delete_table(const char *name)
   else
   {
     result= my_errno=ENOENT;
+    DBUG_PRINT("error", ("Could not find table '%s'", name));
   }
   pthread_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(result);

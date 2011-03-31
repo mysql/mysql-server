@@ -4913,6 +4913,8 @@ sub mysqld_arguments ($$$) {
   }
 
   mtr_add_arg($args, "%s--disable-sync-frm");
+  # Retry bind as this may fail on busy server
+  mtr_add_arg($args, "%s--port-open-timeout=10");
 
   if (!using_extern() and $mysql_version_id >= 50106 && !$opt_user_args)
   {

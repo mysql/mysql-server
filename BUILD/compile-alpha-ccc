@@ -8,7 +8,7 @@ make -k maintainer-clean
 path=`dirname $0`
 . "$path/autorun.sh"
 
-CC=ccc CFLAGS="-fast -O3 -fomit-frame-pointer" CXX=gcc CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -mcpu=ev6 -Wa,-mev6" CXXLDFLAGS='/usr/lib/compaq/libots-2.2.7/libots.so /usr/lib/compaq/cpml-5.0.0/libcpml_ev6.a' ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client
+CC=ccc CFLAGS="-fast -O3 -fomit-frame-pointer" CXX=g++ CXXFLAGS="-O6 -fomit-frame-pointer -felide-constructors -fno-exceptions -fno-rtti -mcpu=ev6 -Wa,-mev6" CXXLDFLAGS='/usr/lib/compaq/libots-2.2.7/libots.so /usr/lib/compaq/cpml-5.0.0/libcpml_ev6.a' ./configure --prefix=/usr/local/mysql --disable-shared --with-extra-charsets=complex --enable-thread-safe-client
 make
 rm */.deps/*
 make

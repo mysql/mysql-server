@@ -8,5 +8,5 @@ make -k maintainer-clean
 path=`dirname $0`
 . "$path/autorun.sh"
 
-CFLAGS=-O1 CC=gcc CXX=gcc CXXFLAGS="-O1 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex  --without-extra-tools
+CFLAGS=-O1 CC=gcc CXX=g++ CXXFLAGS="-O1 -felide-constructors -fno-exceptions -fno-rtti" ./configure --prefix=/usr/local/mysql --with-debug --with-extra-charsets=complex  --without-extra-tools
 make

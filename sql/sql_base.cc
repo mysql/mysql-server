@@ -7513,13 +7513,11 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 	       List<Item> *sum_func_list,
 	       uint wild_num)
 {
-  if (!wild_num)
-    return(0);
-
   Item *item;
   List_iterator<Item> it(fields);
   Query_arena *arena, backup;
   DBUG_ENTER("setup_wild");
+  DBUG_ASSERT(wild_num != 0);
 
   /*
     Don't use arena if we are not in prepared statements or stored procedures
@@ -7608,6 +7606,7 @@ bool setup_fields(THD *thd, Item **ref_pointer_array,
   List_iterator<Item> it(fields);
   bool save_is_item_list_lookup;
   DBUG_ENTER("setup_fields");
+  DBUG_PRINT("enter", ("ref_pointer_array: %p", ref_pointer_array));
 
   thd->mark_used_columns= mark_used_columns;
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
@@ -7842,10 +7841,11 @@ bool setup_tables_and_check_access(THD *thd,
 {
   TABLE_LIST *leaves_tmp= NULL;
   bool first_table= true;
+  DBUG_ENTER("setup_tables_and_check_access");
 
   if (setup_tables(thd, context, from_clause, tables,
                    &leaves_tmp, select_insert))
-    return TRUE;
+    DBUG_RETURN(TRUE);
 
   if (leaves)
     *leaves= leaves_tmp;
@@ -7857,11 +7857,11 @@ bool setup_tables_and_check_access(THD *thd,
                                   want_access, leaves_tmp, FALSE))
     {
       tables->hide_view_error(thd);
-      return TRUE;
+      DBUG_RETURN(TRUE);
     }
     first_table= 0;
   }
-  return FALSE;
+  DBUG_RETURN(FALSE);
 }
 
 
