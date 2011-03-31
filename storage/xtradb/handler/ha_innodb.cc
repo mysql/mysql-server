@@ -11725,6 +11725,12 @@ static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
   "Enable/Disable flushing along modified age. (none, reflex, [estimate])",
   NULL, innodb_adaptive_checkpoint_update, 2, &adaptive_checkpoint_typelib);
 
+static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_deprecated_enable_unsafe_group_commit,
+  PLUGIN_VAR_RQCMDARG,
+  "Enable/Disable unsafe group commit when support_xa=OFF and use with binlog or other XA storage engine. "
+  "(Deprecated, and does nothing, group commit is always enabled in a safe way)",
+  NULL, NULL, 0, 0, 1, 0);
+
 static MYSQL_SYSVAR_ULONG(expand_import, srv_expand_import,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
@@ -11833,6 +11839,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_ahead),
   MYSQL_SYSVAR(adaptive_checkpoint),
   MYSQL_SYSVAR(flush_log_at_trx_commit_session),
+  MYSQL_SYSVAR(enable_unsafe_group_commit),
   MYSQL_SYSVAR(expand_import),
   MYSQL_SYSVAR(extra_rsegments),
   MYSQL_SYSVAR(dict_size_limit),

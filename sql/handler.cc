@@ -1193,17 +1193,16 @@ int ha_commit_trans(THD *thd, bool all)
       Sic: we know that prepare() is not NULL since otherwise
       trans->no_2pc would have been set.
     */
-    if ((err= ht->prepare(ht, thd, all)))
-      my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+    err= ht->prepare(ht, thd, all);
     status_var_increment(thd->status_var.ha_prepare_count);
+    if (err)
+      my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
 
     if (err)
       goto err;
 
-    if (ht->prepare_ordered)
-      need_prepare_ordered= TRUE;
-    if (ht->commit_ordered)
-      need_commit_ordered= TRUE;
+    need_prepare_ordered|= (ht->prepare_ordered != NULL);
+    need_commit_ordered|= (ht->commit_ordered != NULL);
   }
   DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
 
@@ -1232,8 +1231,7 @@ int ha_commit_trans(THD *thd, bool all)
 
   /* Come here if error and we need to rollback. */
 err:
-  if (!error)
-    error= 1;
+  error= 1;                                  /* Transaction was rolled back */
   ha_rollback_trans(thd, all);
 
 end:
@@ -1885,8 +1883,11 @@ int ha_start_consistent_snapshot(THD *thd)
   bool warn= true;
 
   /*
-    Holding the LOCK_commit_ordered mutex ensures that for any transaction
-    we either see it committed in all engines, or in none.
+    Holding the LOCK_commit_ordered mutex ensures that we get the same
+    snapshot for all engines (including the binary log).  This allows us
+    among other things to do backups with
+    START TRANSACTION WITH CONSISTENT SNAPSHOT and
+    have a consistent binlog position.
   */
   pthread_mutex_lock(&LOCK_commit_ordered);
   plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);

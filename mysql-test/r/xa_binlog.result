@@ -1,0 +1,32 @@
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+SET binlog_format= mixed;
+RESET MASTER;
+XA START 'xatest';
+INSERT INTO t1 VALUES (1);
+XA END 'xatest';
+XA PREPARE 'xatest';
+XA COMMIT 'xatest';
+XA START 'xatest';
+INSERT INTO t1 VALUES (2);
+XA END 'xatest';
+XA COMMIT 'xatest' ONE PHASE;
+BEGIN;
+INSERT INTO t1 VALUES (3);
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a
+1
+2
+3
+SHOW BINLOG EVENTS LIMIT 1,9;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1)
+master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (2)
+master-bin.000001	#	Query	1	#	COMMIT
+master-bin.000001	#	Query	1	#	BEGIN
+master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (3)
+master-bin.000001	#	Xid	1	#	COMMIT /* xid=XX */
+DROP TABLE t1;

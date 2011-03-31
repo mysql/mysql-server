@@ -20,6 +20,7 @@ select * from t2;
 
 # Test 2-phase commit when we disable binlogging.
 SET sql_log_bin = 0;
+BEGIN;
 INSERT INTO t1 VALUES (3);
 INSERT INTO t2 VALUES (4);
 COMMIT;
