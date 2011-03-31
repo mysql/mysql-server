@@ -442,3 +442,30 @@ HugoCalculator::getUpdatesValue(NDBT_ResultRow* const pRow) const {
   return pRow->attributeStore(m_updatesCol)->u_32_value();
 }
 
+int
+HugoCalculator::equalForRow(Uint8 * pRow,
+                            const NdbRecord* pRecord,
+                            int rowId)
+{
+  for(int attrId = 0; attrId < m_tab.getNoOfColumns(); attrId++)
+  {
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrId);
+
+    if (attr->getPrimaryKey() == true)
+    {
+      char buf[8000];
+      int len = attr->getSizeInBytes();
+      memset(buf, 0, sizeof(buf));
+      Uint32 real_len;
+      const char * value = calcValue(rowId, attrId, 0, buf,
+                                     len, &real_len);
+      assert(value != 0); // NULLable PK not supported...
+      Uint32 off = 0;
+      bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
+      if (!ret)
+        abort();
+      memcpy(pRow + off, buf, real_len);
+    }
+  }
+  return NDBT_OK;
+}
