@@ -128,6 +128,7 @@ call mtr.add_suppression("Slave.*Can.t DROP .c7.; check that column.key exists.*
 call mtr.add_suppression("Slave.*Unknown column .c7. in .t15.* Error_code: 1054");
 call mtr.add_suppression("Slave.*Key column .c6. doesn.t exist in table.* Error_code: 1072");
 call mtr.add_suppression("Slave I/O: Get master clock failed with error:.* Error_code: 2013");
+call mtr.add_suppression("Slave I/O: Get master SERVER_ID failed with error:.* Error_code: 2013");
 --enable_query_log
 
 sync_slave_with_master;
