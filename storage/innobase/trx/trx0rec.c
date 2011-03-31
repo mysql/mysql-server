@@ -353,7 +353,7 @@ trx_undo_rec_get_col_val(
 		/* @see dtuple_convert_big_rec() */
 		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE * 2);
 		/* we do not have access to index->table here
-		ut_ad(dict_table_get_format(index->table) >= DICT_TF_FORMAT_ZIP
+		ut_ad(dict_table_get_format(index->table) >= UNIV_FORMAT_B
 		      || *len >= REC_MAX_INDEX_COL_LEN
 		      + BTR_EXTERN_FIELD_REF_SIZE);
 		*/
@@ -1084,7 +1084,7 @@ trx_undo_rec_get_partial_row(
 				ut_a(dfield_get_len(dfield)
 				     >= 2 * BTR_EXTERN_FIELD_REF_SIZE);
 				ut_a(dict_table_get_format(index->table)
-				     >= DICT_TF_FORMAT_ZIP
+				     >= UNIV_FORMAT_B
 				     || dfield_get_len(dfield)
 				     >= REC_MAX_INDEX_COL_LEN
 				     + BTR_EXTERN_FIELD_REF_SIZE);
