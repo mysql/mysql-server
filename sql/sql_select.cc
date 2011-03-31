@@ -561,7 +561,8 @@ JOIN::prepare(Item ***rref_pointer_array,
       table_ptr->table->maybe_null= 1;
   }
 
-  if (setup_wild(thd, tables_list, fields_list, &all_fields, wild_num) ||
+  if ((wild_num && setup_wild(thd, tables_list, fields_list, &all_fields,
+                              wild_num)) ||
       select_lex->setup_ref_array(thd, og_num) ||
       setup_fields(thd, (*rref_pointer_array), fields_list, MARK_COLUMNS_READ,
 		   &all_fields, 1) ||
@@ -2554,6 +2555,7 @@ JOIN::destroy()
 
 void JOIN::cleanup_item_list(List<Item> &items) const
 {
+  DBUG_ENTER("JOIN::cleanup_item_list");
   if (!items.is_empty())
   {
     List_iterator_fast<Item> it(items);
@@ -2561,6 +2563,7 @@ void JOIN::cleanup_item_list(List<Item> &items) const
     while ((item= it++))
       item->cleanup();
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -12651,7 +12654,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   {
     if (open_tmp_table(table))
       goto err;
-    table->db_stat= HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   }
 
   thd->mem_root= mem_root_save;
@@ -12807,6 +12809,7 @@ bool open_tmp_table(TABLE *table)
     table->db_stat=0;
     return(1);
   }
+  table->db_stat= HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
   return(0);
 }

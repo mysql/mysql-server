@@ -471,6 +471,7 @@ void Item::print_item_w_name(String *str, enum_query_type query_type)
 void Item::cleanup()
 {
   DBUG_ENTER("Item::cleanup");
+  DBUG_PRINT("enter", ("this: %p", this));
   fixed=0;
   marker= 0;
   if (orig_name)
@@ -6701,8 +6702,7 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime,uint fuzzydate)
 
 Item_cache_wrapper::~Item_cache_wrapper()
 {
-  delete expr_cache;
-  /* expr_value is Item so it will be destroyed from list of Items */
+  DBUG_ASSERT(expr_cache == 0);
 }
 
 
@@ -6761,10 +6761,13 @@ bool Item_cache_wrapper::fix_fields(THD *thd  __attribute__((unused)),
 
 void Item_cache_wrapper::cleanup()
 {
+  DBUG_ENTER("Item_cache_wrapper::cleanup");
+  Item_result_field::cleanup();
   delete expr_cache;
   expr_cache= 0;
-  // expr_value is Item so it will be destroyed from list of Items
+  /* expr_value is Item so it will be destroyed from list of Items */
   expr_value= 0;
+  DBUG_VOID_RETURN;
 }
 
 
@@ -6787,6 +6790,7 @@ void Item_cache_wrapper::cleanup()
 bool Item_cache_wrapper::set_cache(THD *thd, List<Item*> &depends_on)
 {
   DBUG_ENTER("Item_cache_wrapper::set_cache");
+  DBUG_ASSERT(expr_cache == 0);
   expr_cache= new Expression_cache_tmptable(thd, depends_on, expr_value);
   DBUG_RETURN(expr_cache == NULL);
 }

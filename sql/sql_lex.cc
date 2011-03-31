@@ -2053,20 +2053,22 @@ ulong st_select_lex::get_table_join_options()
 
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
+  DBUG_ENTER("st_select_lex::setup_ref_array");
+
   if (ref_pointer_array)
-    return 0;
+    DBUG_RETURN(0);
 
   /*
-    We have to create array in prepared statement memory if it is
+    We have to create array in prepared statement memory if it is a
     prepared statement
   */
-  Query_arena *arena= thd->stmt_arena;
-  return (ref_pointer_array=
-          (Item **)arena->alloc(sizeof(Item*) * (n_child_sum_items +
-                                                 item_list.elements +
-                                                 select_n_having_items +
-                                                 select_n_where_fields +
-                                                 order_group_num)*5)) == 0;
+  ref_pointer_array=
+    (Item **)thd->stmt_arena->alloc(sizeof(Item*) * (n_child_sum_items +
+                                                     item_list.elements +
+                                                     select_n_having_items +
+                                                     select_n_where_fields +
+                                                     order_group_num)*5);
+  DBUG_RETURN(ref_pointer_array == 0);
 }
 
 
