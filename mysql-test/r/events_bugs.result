@@ -747,15 +747,15 @@ event_name	originator
 ev1	4294967295
 DROP EVENT ev1;
 SET GLOBAL server_id = @old_server_id;
+CREATE DATABASE event_test12;
+USE event_test12;
+CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
 CREATE DATABASE event_test1;
 USE event_test1;
-CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
-CREATE DATABASE event_test2;
-USE event_test2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 DROP DATABASE event_test1;
-DROP DATABASE event_test2;
+DROP DATABASE event_test12;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

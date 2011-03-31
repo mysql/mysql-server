@@ -926,8 +926,12 @@ bool Item::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   }
   else
   {
-    longlong value= val_int();
     int was_cut;
+    longlong value= val_int();
+
+    if (null_value)
+      goto err;
+
     if (number_to_datetime(value, ltime, fuzzydate, &was_cut) == LL(-1))
     {
       char buff[22], *end;
