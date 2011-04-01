@@ -254,8 +254,8 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     We do our own version of append by nature. 
     We must always have write access to take card of the header.
   */
-  DBUG_ASSERT(Flags | O_APPEND);
-  DBUG_ASSERT(Flags | O_WRONLY);
+  assert(Flags | O_APPEND);
+  assert(Flags | O_WRONLY);
 
   if (Flags & O_RDWR || Flags & O_WRONLY)
     s->mode = 'w';
@@ -564,7 +564,7 @@ void read_header(azio_stream *s, unsigned char *buffer)
   }
   else
   {
-    DBUG_ASSERT(buffer[0] == az_magic[0]  && buffer[1] == az_magic[1]);
+    assert(buffer[0] == az_magic[0]  && buffer[1] == az_magic[1]);
     return;
   }
 }
@@ -876,8 +876,7 @@ int ZEXPORT azflush (s, flush)
 /* ===========================================================================
   Rewinds input file.
 */
-int azrewind (s)
-  azio_stream *s;
+int azrewind (azio_stream *s)
 {
   if (s == NULL || s->mode != 'r') return -1;
 
