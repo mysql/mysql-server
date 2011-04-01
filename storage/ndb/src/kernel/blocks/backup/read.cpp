@@ -24,7 +24,7 @@
 #include <AttributeHeader.hpp>
 #include <SimpleProperties.hpp>
 #include <ndb_version.h>
-#include <util/azlib.h>
+#include <util/ndbzio.h>
 
 bool readHeader(azio_stream*, BackupFormat::FileHeader *);
 bool readFragHeader(azio_stream*, BackupFormat::DataFile::FragmentHeader *);

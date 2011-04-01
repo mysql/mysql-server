@@ -25,7 +25,7 @@
  * Also does direct IO, preallocation.
  */
 
-#include <azlib.h>
+#include <ndbzio.h>
 
 /**
  * PREAD/PWRITE is needed to use file != thread
