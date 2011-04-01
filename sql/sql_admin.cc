@@ -65,7 +65,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
   if (!(table= table_list->table))
   {
-    char key[MAX_DBKEY_LENGTH];
+    const char *key;
     uint key_length;
     /*
       If the table didn't exist, we have a shared metadata lock
@@ -81,7 +81,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     my_hash_value_type hash_value;
 
-    key_length= create_table_def_key(thd, key, table_list, 0);
     table_list->mdl_request.init(MDL_key::TABLE,
                                  table_list->db, table_list->table_name,
                                  MDL_EXCLUSIVE, MDL_TRANSACTION);
@@ -90,6 +89,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(0);
     has_mdl_lock= TRUE;
+
+    key_length= get_table_def_key(table_list, &key);
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
