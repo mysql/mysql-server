@@ -78,11 +78,10 @@ void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_open_tables(void);
 uint cached_table_definitions(void);
-uint create_table_def_key(THD *thd, char *key,
-                          const TABLE_LIST *table_list,
-                          bool tmp_table);
-TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
-                             uint key_length, uint db_flags, int *error,
+uint get_table_def_key(const TABLE_LIST *table_list, const char **key);
+TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
+                             const char *key, uint key_length,
+                             uint db_flags, int *error,
                              my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
@@ -294,7 +293,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   char *cache_key, uint cache_key_length,
+                   const char *cache_key, uint cache_key_length,
                    MEM_ROOT *mem_root, uint flags);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
