@@ -39,6 +39,42 @@
 #define VALGRIND_MAKE_MEM_NOACCESS(a,b) do {} while(0);
 #endif
 
+/* Start of MySQL Specific Information */
+
+
+#define AZHEADER_SIZE 29
+#define AZMETA_BUFFER_SIZE 512-AZHEADER_SIZE
+
+#define AZ_MAGIC_POS 0
+#define AZ_VERSION_POS 1
+#define AZ_MINOR_VERSION_POS 2
+#define AZ_BLOCK_POS 3
+#define AZ_STRATEGY_POS 4
+#define AZ_FRM_POS 5
+#define AZ_FRM_LENGTH_POS 9
+#define AZ_META_POS 13
+#define AZ_META_LENGTH_POS 17
+#define AZ_START_POS 21
+#define AZ_ROW_POS 29
+#define AZ_FLUSH_POS 37
+#define AZ_CHECK_POS 45
+#define AZ_AUTOINCREMENT_POS 53
+#define AZ_LONGEST_POS 61
+#define AZ_SHORTEST_POS 65
+#define AZ_COMMENT_POS 69
+#define AZ_COMMENT_LENGTH_POS 73
+#define AZ_DIRTY_POS 77
+
+
+/*
+  Flags for state
+*/
+#define AZ_STATE_CLEAN 0
+#define AZ_STATE_DIRTY 1
+#define AZ_STATE_SAVED 2
+#define AZ_STATE_CRASHED 3
+
+
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
