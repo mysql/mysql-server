@@ -845,9 +845,7 @@ int do_flush (ndbzio_stream *s, int flush)
   return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
 }
 
-int ZEXPORT ndbzflush (s, flush)
-  ndbzio_stream *s;
-  int flush;
+int ZEXPORT ndbzflush (ndbzio_stream *s, int flush)
 {
   int err;
 
