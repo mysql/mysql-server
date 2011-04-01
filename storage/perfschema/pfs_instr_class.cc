@@ -567,7 +567,8 @@ void cleanup_socket_class(void)
 static void init_instr_class(PFS_instr_class *klass,
                              const char *name,
                              uint name_length,
-                             int flags)
+                             int flags,
+                             PFS_class_type class_type)
 {
   DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
@@ -576,6 +577,8 @@ static void init_instr_class(PFS_instr_class *klass,
   klass->m_flags= flags;
   klass->m_enabled= true;
   klass->m_timed= true;
+  klass->m_deferred= false;
+  klass->m_type= class_type;
 }
 
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
@@ -639,7 +642,7 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
         in INSTALL PLUGIN.
     */
     entry= &mutex_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_MUTEX);
     entry->m_lock_stat.reset();
     entry->m_index= index;
     entry->m_event_name_index= mutex_class_start + index;
@@ -700,7 +703,7 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
   if (index < rwlock_class_max)
   {
     entry= &rwlock_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_RWLOCK);
     entry->m_read_lock_stat.reset();
     entry->m_write_lock_stat.reset();
     entry->m_index= index;
@@ -736,7 +739,7 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   if (index < cond_class_max)
   {
     entry= &cond_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_COND);
     entry->m_index= index;
     entry->m_event_name_index= cond_class_start + index;
     entry->m_singleton= NULL;
@@ -875,7 +878,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
   if (index < file_class_max)
   {
     entry= &file_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_FILE);
     entry->m_index= index;
     entry->m_event_name_index= file_class_start + index;
     entry->m_singleton= NULL;
@@ -909,7 +912,7 @@ PFS_stage_key register_stage_class(const char *name, uint name_length,
   if (index < stage_class_max)
   {
     entry= &stage_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
     entry->m_index= index;
     entry->m_event_name_index= index;
     PFS_atomic::add_u32(&stage_class_allocated_count, 1);
@@ -943,7 +946,7 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
   if (index < statement_class_max)
   {
     entry= &statement_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_STATEMENT);
     entry->m_index= index;
     entry->m_event_name_index= index;
     PFS_atomic::add_u32(&statement_class_allocated_count, 1);
@@ -1022,10 +1025,11 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
   if (index < socket_class_max)
   {
     entry= &socket_class_array[index];
-    init_instr_class(entry, name, name_length, flags);
+    init_instr_class(entry, name, name_length, flags, PFS_CLASS_SOCKET);
     entry->m_index= index;
     entry->m_event_name_index= socket_class_start + index;
     entry->m_singleton= NULL;
+    entry->m_deferred= true;
     PFS_atomic::add_u32(&socket_class_allocated_count, 1);
     return (index + 1);
   }

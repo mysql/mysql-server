@@ -88,18 +88,38 @@ struct PFS_byte_stat : public PFS_single_stat
   /** Byte count statistics */
   ulonglong m_bytes;
 
+  /* Aggregate wait stats, event count and byte count */
   inline void aggregate(const PFS_byte_stat *stat)
   {
     PFS_single_stat::aggregate(stat);
     m_bytes+= stat->m_bytes;
   }
 
+  /* Aggregate individual wait time, event count and byte count */
   inline void aggregate(ulonglong wait, ulonglong bytes)
   {
-    if (wait != 0) aggregate_value(wait);
-    if (bytes != 0) m_bytes+= bytes;
+    if (wait != 0)
+      aggregate_value(wait);
+
+    if (bytes != 0)
+      m_bytes+= bytes;
   }
 
+  /* Aggregate wait stats and event count */
+  inline void aggregate_waits(const PFS_byte_stat *stat)
+  {
+    PFS_single_stat::aggregate(stat);
+  }
+
+  /* Aggregate event count and byte count */
+  inline void aggregate_counted(ulonglong bytes)
+  {
+    PFS_single_stat::aggregate_counted();
+
+    if (bytes != 0)
+      m_bytes+= bytes;
+  }
+    
   PFS_byte_stat()
   {
     reset();
@@ -482,7 +502,16 @@ struct PFS_socket_io_stat
     m_misc.aggregate(&stat->m_misc);
   }
 
-  inline void consolidate(PFS_byte_stat *stat)
+  /* Sum waits and byte counts */
+  inline void sum(PFS_byte_stat *stat)
+  {
+    stat->aggregate(&m_read);
+    stat->aggregate(&m_write);
+    stat->aggregate(&m_misc);
+  }
+
+  /* Sum waits only */
+  inline void sum_waits(PFS_single_stat *stat)
   {
     stat->aggregate(&m_read);
     stat->aggregate(&m_write);

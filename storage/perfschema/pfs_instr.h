@@ -56,8 +56,6 @@ struct PFS_instr
 {
   /** Internal lock. */
   pfs_lock m_lock;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
@@ -67,6 +65,8 @@ struct PFS_mutex : public PFS_instr
   const void *m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     Mutex lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -88,6 +88,8 @@ struct PFS_rwlock : public PFS_instr
   const void *m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /**
     RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -121,6 +123,8 @@ struct PFS_cond : public PFS_instr
   const void *m_identity;
   /** Condition class. */
   PFS_cond_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** Condition instance usage statistics. */
   PFS_cond_stat m_cond_stat;
 };
@@ -137,6 +141,8 @@ struct PFS_file : public PFS_instr
   uint m_filename_length;
   /** File class. */
   PFS_file_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
 };
@@ -217,6 +223,8 @@ struct PFS_socket : public PFS_instr
   bool m_idle;
   /** Socket class. */
   PFS_socket_class *m_class;
+  /** Instrument wait statistics. */
+  PFS_single_stat m_wait_stat;
   /** Socket usage statistics. */
   PFS_socket_stat m_socket_stat;
 };

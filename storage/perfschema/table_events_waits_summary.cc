@@ -109,8 +109,6 @@ void table_events_waits_summary_by_instance
                  PFS_single_stat *pfs_stat)
 {
   pfs_lock lock;
-  PFS_single_stat *stat= (pfs_stat ? pfs_stat : &pfs->m_wait_stat);
-
   m_row_exists= false;
 
   /*
@@ -124,17 +122,10 @@ void table_events_waits_summary_by_instance
   m_row.m_object_instance_addr= (intptr) object_instance_begin;
 
   time_normalizer *normalizer= time_normalizer::get(wait_timer);
-  m_row.m_stat.set(normalizer, stat);//& pfs->m_wait_stat);
+  m_row.m_stat.set(normalizer, pfs_stat);
 
   if (pfs->m_lock.end_optimistic_lock(&lock))
     m_row_exists= true;
-}
-
-void table_events_waits_summary_by_instance
-::make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
-                 const void *object_instance_begin)
-{
-  make_instr_row(pfs, klass, object_instance_begin, NULL);
 }
 
 /**
@@ -148,7 +139,7 @@ void table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
-  make_instr_row(pfs, safe_class, pfs->m_identity);
+  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_wait_stat);
 }
 
 /**
@@ -162,7 +153,7 @@ void table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
-  make_instr_row(pfs, safe_class, pfs->m_identity);
+  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_wait_stat);
 }
 
 /**
@@ -176,7 +167,7 @@ void table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
-  make_instr_row(pfs, safe_class, pfs->m_identity);
+  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_wait_stat);
 }
 
 /**
@@ -194,7 +185,7 @@ void table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
     Files don't have a in memory structure associated to it,
     so we use the address of the PFS_file buffer as object_instance_begin
   */
-  make_instr_row(pfs, safe_class, pfs);
+  make_instr_row(pfs, safe_class, pfs, &pfs->m_wait_stat);
 }
 
 /**
@@ -207,17 +198,17 @@ void table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs)
   safe_class= sanitize_socket_class(pfs->m_class);
   if (unlikely(safe_class == NULL))
     return;
-  PFS_byte_stat pfs_stat;
 
   /*
      Consolidate wait times and byte counts for individual operations. This is
      done by the consumer in order to reduce overhead on the socket instrument.
   */
-  pfs->m_socket_stat.m_io_stat.consolidate(&pfs_stat);
+  PFS_byte_stat pfs_stat;
+  pfs->m_socket_stat.m_io_stat.sum(&pfs_stat);
 
   /*
-    Sockets don't have a in memory structure associated to it,
-    so we use the address of the PFS_socket buffer as object_instance_begin
+    Sockets don't have an associated in-memory structure, so use the address of
+    the PFS_socket buffer as object_instance_begin.
   */
   make_instr_row(pfs, safe_class, pfs, &pfs_stat);
 }

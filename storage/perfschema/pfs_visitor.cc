@@ -17,6 +17,7 @@
 #include "my_sys.h"
 #include "pfs_visitor.h"
 #include "pfs_instr.h"
+#include "pfs_instr_class.h"
 
 /**
   @file storage/perfschema/pfs_visitor.cc
@@ -179,6 +180,8 @@ void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
   }
 }
 
+/** Socket instance iterator visting all socket instances */
+
 void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
                                                    PFS_instance_visitor *visitor)
 {
@@ -186,28 +189,65 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
 
   visitor->visit_socket_class(klass);
 
-  if (klass->is_singleton())
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= pfs + socket_max;
+  for ( ; pfs < pfs_last; pfs++)
   {
-    PFS_socket *pfs= sanitize_socket(klass->m_singleton);
-    if (likely(pfs != NULL))
+    if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
     {
-      if (likely(pfs->m_lock.is_populated()))
-      {
-        visitor->visit_socket(pfs);
-      }
+      visitor->visit_socket(pfs);
     }
   }
-  else
+}
+
+/** Socket instance iterator visting sockets owned by PFS_thread */
+
+void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
+                                                   PFS_instance_visitor *visitor,
+                                                   PFS_thread *thread)
+{
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(thread != NULL);
+
+  /* Get accumulated socket stats for this thread */
+  visitor->visit_socket_class(klass);
+
+  /* Get current socket stats from each socket instance owned by this thread */
+  PFS_socket *pfs= socket_array;
+  PFS_socket *pfs_last= pfs + socket_max;
+  ulong thread_id= thread->m_thread_internal_id;
+
+  for ( ; pfs < pfs_last; pfs++)
   {
-    PFS_socket *pfs= socket_array;
-    PFS_socket *pfs_last= pfs + socket_max;
-    for ( ; pfs < pfs_last; pfs++)
+    if (pfs->m_class == klass && pfs->m_lock.is_populated()
+         && pfs->m_thread_owner != NULL)
     {
-      if ((pfs->m_class == klass) && pfs->m_lock.is_populated())
-      {
+      if (pfs->m_thread_owner->m_thread_internal_id == thread_id)
         visitor->visit_socket(pfs);
-      }
     }
+  }
+}
+
+
+/** Generic instance iterator with PFS_thread as matching criteria */
+
+void PFS_instance_iterator::visit_instances(PFS_instr_class *instr_class,
+                                            PFS_instance_visitor *visitor,
+                                            PFS_thread *thread)
+{
+  DBUG_ASSERT(visitor != NULL);
+  DBUG_ASSERT(instr_class != NULL);
+
+  switch (instr_class->m_type)
+  {
+  case PFS_CLASS_SOCKET:
+    {
+      PFS_socket_class *klass= reinterpret_cast<PFS_socket_class *>(instr_class);
+      PFS_instance_iterator::visit_socket_instances(klass, visitor, thread);
+    }
+    break;
+  default:
+    break;
   }
 }
 
@@ -380,8 +420,13 @@ void PFS_instance_wait_visitor::visit_file_class(PFS_file_class *pfs)
 
 void PFS_instance_wait_visitor::visit_socket_class(PFS_socket_class *pfs) 
 {
+  /* Collect global wait stats */
   uint index= pfs->m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  m_stat.aggregate(&global_instr_class_waits_array[index]);
+
+  /* If deferred, then pull wait stats directly from the socket class. */
+  if (pfs->m_deferred)
+    pfs->m_socket_stat.m_io_stat.sum_waits(&m_stat);
 }
 
 void PFS_instance_wait_visitor::visit_mutex(PFS_mutex *pfs) 
@@ -406,7 +451,10 @@ void PFS_instance_wait_visitor::visit_file(PFS_file *pfs)
 
 void PFS_instance_wait_visitor::visit_socket(PFS_socket *pfs) 
 {
-  m_stat.aggregate(& pfs->m_wait_stat);
+  /* Combine per-operation socket wait stats before aggregating */
+  PFS_single_stat stat;
+  pfs->m_socket_stat.m_io_stat.sum_waits(&stat);
+  m_stat.aggregate(&stat);
 }
 
 /** Table IO wait visitor */
@@ -565,11 +613,13 @@ PFS_instance_socket_io_stat_visitor::~PFS_instance_socket_io_stat_visitor()
 
 void PFS_instance_socket_io_stat_visitor::visit_socket_class(PFS_socket_class *pfs) 
 {
+  /* Aggregate wait times, event counts and byte counts */
   m_socket_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 }
 
 void PFS_instance_socket_io_stat_visitor::visit_socket(PFS_socket *pfs) 
 {
+  /* Aggregate wait times, event counts and byte counts */
   m_socket_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
 }
 

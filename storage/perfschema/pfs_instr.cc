@@ -1434,10 +1434,16 @@ void destroy_socket(PFS_socket *pfs)
   DBUG_ASSERT(pfs != NULL);
   PFS_socket_class *klass= pfs->m_class;
 
+#if 0   // TODO MA: Here or defer to consumer?
+  /* Combine per-operation stats into a single stat */
+  PFS_single_stat stat;
+  pfs->m_socket_stat.m_io_stat.sum_waits(&stat);
+  
   /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
   uint index= klass->m_event_name_index;
-  global_instr_class_waits_array[index].aggregate(&pfs->m_wait_stat);
+  global_instr_class_waits_array[index].aggregate(&stat);
   pfs->m_wait_stat.reset();
+#endif
 
   /* Aggregate to SOCKET_SUMMARY_BY_INSTANCE and BY_EVENT_NAME */
   klass->m_socket_stat.m_io_stat.aggregate(&pfs->m_socket_stat.m_io_stat);
