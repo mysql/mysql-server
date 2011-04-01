@@ -430,8 +430,7 @@ int read_buffer(azio_stream *s)
 
   returns EOF on error;
 */
-int get_byte(s)
-  azio_stream *s;
+int get_byte(azio_stream *s)
 {
   if (s->stream.avail_in == 0)
     if(read_buffer(s))
@@ -574,8 +573,7 @@ void read_header(azio_stream *s, unsigned char *buffer)
  * Cleanup then free the given azio_stream. Return a zlib error code.
  Try freeing in the reverse order of allocations.
  */
-int destroy (s)
-  azio_stream *s;
+int destroy (azio_stream *s)
 {
   int err = Z_OK;
 
@@ -903,10 +901,7 @@ int azrewind (s)
   SEEK_END is not implemented, returns error.
   In this version of the library, azseek can be extremely slow.
 */
-my_off_t azseek (s, offset, whence)
-  azio_stream *s;
-  my_off_t offset;
-  int whence;
+my_off_t azseek (azio_stream *s, my_off_t offset, int whence)
 {
 
   if (s == NULL || whence == SEEK_END ||
@@ -982,8 +977,7 @@ my_off_t azseek (s, offset, whence)
   given compressed file. This position represents a number of bytes in the
   uncompressed data stream.
 */
-my_off_t ZEXPORT aztell (file)
-  azio_stream *file;
+my_off_t ZEXPORT aztell (azio_stream *file)
 {
   return azseek(file, 0L, SEEK_CUR);
 }
