@@ -52,18 +52,23 @@ PosixAsyncFile::PosixAsyncFile(SimulatedBlock& fs) :
 
 int PosixAsyncFile::init()
 {
-  // Create write buffer for bigger writes
-  nzfBufferUnaligned= (Byte*)ndbd_malloc((AZ_BUFSIZE_READ+AZ_BUFSIZE_WRITE)
-                                         +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
+  /*
+    Preallocate read and write buffers for ndbzio to workaround
+    default behaviour of alloc/free at open/close
+  */
+  const size_t read_size = ndbz_bufsize_read();
+  const size_t write_size = ndbz_bufsize_write();
 
+  nzfBufferUnaligned= ndbd_malloc(read_size + write_size +
+                                  NDB_O_DIRECT_WRITE_ALIGNMENT-1);
   nzf.inbuf= (Byte*)(((UintPtr)nzfBufferUnaligned
                       + NDB_O_DIRECT_WRITE_ALIGNMENT - 1) &
                      ~(UintPtr)(NDB_O_DIRECT_WRITE_ALIGNMENT - 1));
+  nzf.outbuf= nzf.inbuf + read_size;
 
-  nzf.outbuf= nzf.inbuf + AZ_BUFSIZE_READ;
-
+  /* Preallocate inflate/deflate buffers for ndbzio */
   nz_mempool.size = nz_mempool.mfree =
-    ndbz_inflate_mem_size()+ndbz_deflate_mem_size();
+    ndbz_inflate_mem_size() + ndbz_deflate_mem_size();
 
   ndbout_c("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
            (unsigned int)nz_mempool.size);
@@ -824,15 +829,19 @@ loop:
 
 PosixAsyncFile::~PosixAsyncFile()
 {
+  /* Free the read and write buffer memory used by ndbzio */
   if (nzfBufferUnaligned)
-    ndbd_free(nzfBufferUnaligned, (AZ_BUFSIZE_READ*AZ_BUFSIZE_WRITE)
-              +NDB_O_DIRECT_WRITE_ALIGNMENT-1);
-
-  if(nz_mempool.mem)
-    ndbd_free(nz_mempool.mem,nz_mempool.size);
-
-  nz_mempool.mem = NULL;
+    ndbd_free(nzfBufferUnaligned,
+              ndbz_bufsize_read() +
+              ndbz_bufsize_write() +
+              NDB_O_DIRECT_WRITE_ALIGNMENT-1);
   nzfBufferUnaligned = NULL;
+
+  /* Free the inflate/deflate buffers for ndbzio */
+  if(nz_mempool.mem)
+    ndbd_free(nz_mempool.mem, nz_mempool.size);
+  nz_mempool.mem = NULL;
+
   destroy_mutex();
 }
 

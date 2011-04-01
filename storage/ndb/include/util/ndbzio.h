@@ -69,9 +69,6 @@ struct ndbz_alloc_rec {
   char *mem;
 };
 
-#define AZ_BUFSIZE_READ 32768
-#define AZ_BUFSIZE_WRITE 16384
-
 typedef struct ndbzio_stream {
   z_stream stream;
   int      z_err;   /* error code for last stream operation */
@@ -104,6 +101,12 @@ typedef struct ndbzio_stream {
   unsigned int comment_start_pos;   /* Position for start of comment */
   unsigned int comment_length;   /* Position for start of comment */
 } ndbzio_stream;
+
+/* Return the size in bytes used for reading */
+size_t ndbz_bufsize_read(void);
+
+/* Return the size in bytes used for writing */
+size_t ndbz_bufsize_write(void);
 
                         /* basic functions */
 extern int ndbzopen(ndbzio_stream *s, const char *path, int Flags);
