@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11320,7 +11320,8 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
   if (!tmp.length())
     tmp.append(STRING_WITH_LEN("(empty)"));
 
-  DBUG_PRINT("info", ("SEL_TREE: 0x%lx (%s)  scans: %s", (long) tree, msg, tmp.ptr()));
+  DBUG_PRINT("info", ("SEL_TREE: 0x%lx (%s)  scans: %s", (long) tree, msg,
+                      tmp.c_ptr()));
 
   DBUG_VOID_RETURN;
 }
@@ -11343,7 +11344,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
   }
   if (!tmp.length())
     tmp.append(STRING_WITH_LEN("(empty)"));
-  DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
+  DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.c_ptr()));
   DBUG_VOID_RETURN;
 }
 

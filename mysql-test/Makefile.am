@@ -1,11 +1,11 @@
 # Copyright (C) 2000-2006 MySQL AB
 #
-# This library is free software; you can redistribute it and/or
+# This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
 # License as published by the Free Software Foundation; version 2
 # of the License.
 #
-# This library is distributed in the hope that it will be useful,
+# This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Library General Public License for more details.
@@ -109,6 +109,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
 	suite/innodb_plugin suite/innodb_plugin/t suite/innodb_plugin/r \
 	suite/innodb_plugin/include \
+	suite/handler \
 	suite/engines suite/engines/funcs suite/engines/iuds suite/engines/rr_trx \
 	suite/engines/funcs/r suite/engines/funcs/t suite/engines/iuds/r \
 	suite/engines/iuds/t suite/engines/rr_trx/include suite/engines/rr_trx/r \

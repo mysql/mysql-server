@@ -23,9 +23,8 @@
  * .configure. mbmaxlen_gb2312=2
  */
 
-#include <my_global.h>
-#include "m_string.h"
-#include "m_ctype.h"
+#include "strings_def.h"
+#include <m_ctype.h>
 
 #ifdef HAVE_CHARSET_gb2312
 

@@ -141,7 +141,6 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor("subselect");
   }
-  Item *safe_charset_converter(CHARSET_INFO *tocs);
 
   /**
     Get the SELECT_LEX structure associated with this Item.

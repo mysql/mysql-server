@@ -25,9 +25,6 @@
 source include/have_log_bin.inc;
 source include/not_embedded.inc;
 
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
-
 
 --echo ==== Read modern binlog (version 5.1.23) ====
 
@@ -162,3 +159,4 @@ DROP TABLE t1, t2, t3;
 #SELECT * FROM t1 ORDER BY a;
 #SELECT * FROM t2 ORDER BY a;
 #SELECT COUNT(*) FROM t3;
+#--source include/rpl_end.inc

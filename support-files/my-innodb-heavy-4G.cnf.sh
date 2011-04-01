@@ -4,14 +4,17 @@
 #END CONFIG INFO
 
 #
-# This is a MySQL example config file for systems with 4GB of memory
-# running mostly MySQL using InnoDB only tables and performing complex
+# This is a MariaDB example config file for systems with 4GB of memory
+# running mostly MariaDB using InnoDB only tables and performing complex
 # queries with few connections.
 # 
-# You can copy this file to /etc/my.cnf to set global options,
-# mysql-data-dir/my.cnf to set server-specific options 
-# (@localstatedir@ for this installation) or to
-# ~/.my.cnf to set user-specific options.
+# MariaDB programs look for option files in a set of
+# locations which depend on the deployment platform.
+# You can copy this option file to one of those
+# locations. For information about these locations, do:
+# 'my_print_defaults --help' and see what is printed under
+# Default options are read from the following files in the given order:
+# More information at: http://dev.mysql.com/doc/mysql/en/option-files.html
 #
 # In this file, you can use all long options that a program supports.
 # If you want to know which options a program supports, run the program
@@ -22,11 +25,11 @@
 #
 
 #
-# The following options will be read by MySQL client applications.
-# Note that only client applications shipped by MySQL are guaranteed
-# to read this section. If you want your own MySQL client program to
+# The following options will be read by MariaDB client applications.
+# Note that only client applications shipped by MariaDB are guaranteed
+# to read this section. If you want your own MariaDB client program to
 # honor these values, you need to specify it as an option during the
-# MySQL client library initialization.
+# MariaDB client library initialization.
 #
 [client]
 #password	= [your_password]
@@ -36,7 +39,7 @@ socket		= @MYSQL_UNIX_ADDR@
 # *** Application-specific options follow here ***
 
 #
-# The MySQL server
+# The MariaDB server
 #
 [mysqld]
 
@@ -45,7 +48,7 @@ port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
 
 # back_log is the number of connections the operating system can keep in
-# the listen queue, before the MySQL connection manager thread has
+# the listen queue, before the MariaDB connection manager thread has
 # processed them. If you have a very high connection rate and experience
 # "connection refused" errors, you might need to increase this value.
 # Check your OS documentation for the maximum value of this parameter.
@@ -61,14 +64,14 @@ back_log = 50
 # (via the "enable-named-pipe" option) will render mysqld useless!
 #skip-networking
 
-# The maximum amount of concurrent sessions the MySQL server will
+# The maximum amount of concurrent sessions the MariaDB server will
 # allow. One of these connections will be reserved for a user with
 # SUPER privileges to allow the administrator to login even if the
 # connection limit has been reached.
 max_connections = 100
 
 # Maximum amount of errors allowed per host. If this limit is reached,
-# the host will be blocked from connecting to the MySQL server until
+# the host will be blocked from connecting to the MariaDB server until
 # "FLUSH HOSTS" has been run or the server was restarted. Invalid
 # passwords and other errors during the connect phase result in
 # increasing this value. See the "Aborted_connects" status variable for
@@ -170,7 +173,7 @@ query_cache_limit = 2M
 ft_min_word_len = 4
 
 # If your system supports the memlock() function call, you might want to
-# enable this option while running MySQL to keep it locked in memory and
+# enable this option while running MariaDB to keep it locked in memory and
 # to avoid potential swapping out in case of high memory pressure. Good
 # for performance.
 #memlock
@@ -180,7 +183,7 @@ ft_min_word_len = 4
 default-storage-engine = MYISAM
 
 # Thread stack size to use. This amount of memory is always reserved at
-# connection time. MySQL itself usually needs no more than 64K of
+# connection time. MariaDB itself usually needs no more than 64K of
 # memory, while if you use your own stack hungry UDF functions or your
 # OS requires more stack for some operations, you might need to set this
 # to a higher value.
@@ -215,7 +218,7 @@ binlog_format=mixed
 #log
 
 # Print warnings to the error log file.  If you have any problem with
-# MySQL you should enable logging of warnings and examine the error log
+# MariaDB you should enable logging of warnings and examine the error log
 # for possible explanations. 
 #log_warnings
 
@@ -228,7 +231,7 @@ slow_query_log
 
 # All queries taking more than this amount of time (in seconds) will be
 # trated as slow. Do not use "1" as a value here, as this will result in
-# even very fast queries being logged from time to time (as MySQL
+# even very fast queries being logged from time to time (as MariaDB
 # currently measures time with second accuracy only).
 long_query_time = 2
 
@@ -241,13 +244,11 @@ long_query_time = 2
 # be used in a round-robin fashion.
 #tmpdir = /tmp
 
-
 # ***  Replication related settings 
-
 
 # Unique server identification number between 1 and 2^32-1. This value
 # is required for both master and slave hosts. It defaults to 1 if
-# "master-host" is not set, but will MySQL will not function as a master
+# "master-host" is not set, but will MariaDB will not function as a master
 # if it is omitted.
 server-id = 1
 
@@ -328,13 +329,13 @@ key_buffer_size = 32M
 # This buffer is allocated when a bulk insert is detected.
 bulk_insert_buffer_size = 64M
 
-# This buffer is allocated when MySQL needs to rebuild the index in
+# This buffer is allocated when MariaDB needs to rebuild the index in
 # REPAIR, OPTIMIZE, ALTER table statements as well as in LOAD DATA INFILE
 # into an empty table. It is allocated per thread so be careful with
 # large settings.
 myisam_sort_buffer_size = 128M
 
-# The maximum size of the temporary file MySQL is allowed to use while
+# The maximum size of the temporary file MariaDB is allowed to use while
 # recreating the index (during REPAIR, ALTER TABLE or LOAD DATA INFILE.
 # If the file-size would be bigger than this, the index will be created
 # through the key cache (which is slower).
@@ -350,7 +351,7 @@ myisam_recover
 
 # *** INNODB Specific options ***
 
-# Use this option if you have a MySQL server with InnoDB support enabled
+# Use this option if you have a MariaDB server with InnoDB support enabled
 # but you do not plan to use it. This will save memory and disk space
 # and speed up some things.
 #skip-innodb
@@ -381,7 +382,7 @@ innodb_buffer_pool_size = 2G
 innodb_data_file_path = ibdata1:10M:autoextend
 
 # Set this option if you would like the InnoDB tablespace files to be
-# stored in another location. By default this is the MySQL datadir.
+# stored in another location. By default this is the MariaDB datadir.
 #innodb_data_home_dir = <directory>
 
 # Number of IO threads to use for async IO operations. This value is
@@ -431,7 +432,7 @@ innodb_log_file_size = 256M
 # enough.
 innodb_log_files_in_group = 3
 
-# Location of the InnoDB log files. Default is the MySQL datadir. You
+# Location of the InnoDB log files. Default is the MariaDB datadir. You
 # may wish to point it to a dedicated hard drive or a RAID1 volume for
 # improved performance
 #innodb_log_group_home_dir

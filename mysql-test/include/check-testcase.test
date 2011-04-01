@@ -8,8 +8,10 @@
 # any unwanted side affects.
 #
 --disable_query_log
+--replace_column 5 # 6 # 7 # 8 # 9 # 10 # 22 # 23 # 24 # 25 # 26 #
+query_vertical
+SHOW SLAVE STATUS;
+
 call mtr.check_testcase();
 --enable_query_log
-
-
 

@@ -239,3 +239,5 @@ DROP TABLE t1;
 sync_slave_with_master;
 connection slave;
 SET GLOBAL debug="";
+
+--source include/rpl_end.inc

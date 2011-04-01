@@ -22,8 +22,6 @@
 # any of the variables.
 #
 
---source include/big_test.inc
-
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements
 
@@ -47,6 +45,9 @@ let $more_pk_ui_tests= 0;
 --source include/not_embedded.inc
 # The server must support partitioning.
 --source include/have_partition.inc
+
+# This test takes long time, so only run it with the --big mtr-flag.
+--source include/big_test.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements

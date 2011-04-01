@@ -222,7 +222,8 @@ loop:
 			is no index */
 
 			if (dict_table_get_first_index(table)) {
-				dict_update_statistics_low(table, TRUE);
+				dict_update_statistics(table, FALSE /* update
+						       even if initialized */);
 			}
 
 			dict_table_print_low(table);

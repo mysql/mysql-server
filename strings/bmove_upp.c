@@ -22,8 +22,7 @@
     "src-len" to the destination "dst-len" counting downwards.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 #if defined(MC68000) && defined(DS90)
 

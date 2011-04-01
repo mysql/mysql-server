@@ -1,4 +1,5 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1224,7 +1225,11 @@ int ha_commit_trans(THD *thd, bool all)
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 
   DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
-  tc_log->unlog(cookie, xid);
+  if (tc_log->unlog(cookie, xid))
+  {
+    error= 2;                                /* Error during commit */
+    goto end;
+  }
 
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
   goto end;
@@ -2053,7 +2058,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     dummy_share.db.length= strlen(db);
     dummy_share.table_name.str= (char*) alias;
     dummy_share.table_name.length= strlen(alias);
-    dummy_table.alias= alias;
+    dummy_table.alias.set(alias, dummy_share.table_name.length,
+                          table_alias_charset);
 
     file->change_table_ptr(&dummy_table, &dummy_share);
 
@@ -2237,7 +2243,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   computes the lowest number
   - strictly greater than "nr"
   - of the form: auto_increment_offset + N * auto_increment_increment
-
+  If overflow happened then return MAX_ULONGLONG value as an
+  indication of overflow.
   In most cases increment= offset= 1, in which case we get:
   @verbatim 1,2,3,4,5,... @endverbatim
     If increment=10 and offset=5 and previous number is 1, we get:
@@ -2246,13 +2253,23 @@ int handler::read_first_row(uchar * buf, uint primary_key)
 inline ulonglong
 compute_next_insert_id(ulonglong nr,struct system_variables *variables)
 {
+  const ulonglong save_nr= nr;
+
   if (variables->auto_increment_increment == 1)
-    return (nr+1); // optimization of the formula below
-  nr= (((nr+ variables->auto_increment_increment -
-         variables->auto_increment_offset)) /
-       (ulonglong) variables->auto_increment_increment);
-  return (nr* (ulonglong) variables->auto_increment_increment +
-          variables->auto_increment_offset);
+    nr= nr + 1; // optimization of the formula below
+  else
+  {
+    nr= (((nr+ variables->auto_increment_increment -
+           variables->auto_increment_offset)) /
+         (ulonglong) variables->auto_increment_increment);
+    nr= (nr* (ulonglong) variables->auto_increment_increment +
+         variables->auto_increment_offset);
+  }
+
+  if (unlikely(nr <= save_nr))
+    return ULONGLONG_MAX;
+
+  return nr;
 }
 
 
@@ -2463,7 +2480,7 @@ int handler::update_auto_increment()
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
                          &nb_reserved_values);
-      if (nr == ~(ulonglong) 0)
+      if (nr == ULONGLONG_MAX)
         DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);  // Mark failure
 
       /*
@@ -2493,6 +2510,9 @@ int handler::update_auto_increment()
       DBUG_PRINT("info",("auto_increment: special not-first-in-index"));
     }
   }
+
+  if (unlikely(nr == ULONGLONG_MAX))
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
@@ -2694,17 +2714,11 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
     - table->alias
 */
 
-#ifndef DBUG_OFF
 #define SET_FATAL_ERROR fatal_error=1
-#else
-#define SET_FATAL_ERROR
-#endif
 
 void handler::print_error(int error, myf errflag)
 {
-#ifndef DBUG_OFF
   bool fatal_error= 0;
-#endif
   DBUG_ENTER("handler::print_error");
   DBUG_PRINT("enter",("error: %d",error));
 
@@ -2780,7 +2794,10 @@ void handler::print_error(int error, myf errflag)
     textno=ER_DUP_UNIQUE;
     break;
   case HA_ERR_RECORD_CHANGED:
-    SET_FATAL_ERROR;
+    /*
+      This is not fatal error when using HANDLER interface
+      SET_FATAL_ERROR;
+    */
     textno=ER_CHECKREAD;
     break;
   case HA_ERR_CRASHED:
@@ -2896,11 +2913,12 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.c_ptr(),
+                   engine);
 	else
         {
           SET_FATAL_ERROR;
-	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_ERRMSG, MYF(0), error, str.c_ptr(), engine);
         }
       }
       else
@@ -2908,6 +2926,15 @@ void handler::print_error(int error, myf errflag)
       DBUG_VOID_RETURN;
     }
   }
+  if (fatal_error && (debug_assert_if_crashed_table ||
+                      global_system_variables.log_warnings > 1))
+  {
+    /*
+      Log error to log before we crash or if extended warnings are requested
+    */
+    errflag|= ME_NOREFRESH;
+  }
+    
   my_error(textno, errflag, table_share->table_name.str, error);
   DBUG_ASSERT(!fatal_error || !debug_assert_if_crashed_table);
   DBUG_VOID_RETURN;
@@ -4564,11 +4591,11 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
   int error, error1;
   LINT_INIT(error1);
 
-  error= index_init(index, 0);
+  error= ha_index_init(index, 0);
   if (!error)
   {
     error= index_read_map(buf, key, keypart_map, find_flag);
-    error1= index_end();
+    error1= ha_index_end();
   }
   return error ?  error : error1;
 }
@@ -4900,6 +4927,7 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  pushed_cond= NULL;
   DBUG_RETURN(reset());
 }
 

@@ -7560,6 +7560,19 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     user_len-= 2;
   }
 
+  /*
+    Clip username to allowed length in characters (not bytes).  This is
+    mostly for backward compatibility.
+  */
+  {
+    CHARSET_INFO *cs= system_charset_info;
+    int           err;
+
+    user_len= (uint) cs->cset->well_formed_len(cs, user, user + user_len,
+                                               USERNAME_CHAR_LENGTH, &err);
+    user[user_len]= '\0';
+  }
+
   Security_context *sctx= thd->security_ctx;
 
   if (thd->make_lex_string(&mpvio->db, db, db_len, 0) == 0)

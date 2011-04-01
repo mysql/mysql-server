@@ -66,5 +66,11 @@ let $relay_log_pos= `SELECT SUBSTRING(a.c2, 5)
   FROM events_at a, events_pos b
   WHERE a.c1=b.c1+1 and b.c2 LIKE '% $master_log_pos%'`;
 DROP TEMPORARY TABLE mysqlbinlog_events, events_at, events_pos;
+
+if (!$relay_log_pos)
+{
+  --echo 'Failed to read from relay_log_file: $relay_log_file  pos: $master_log_pos'
+  --die 'variable $relay_log_pos is null'
+}
 --remove_file $_tmp_file
 --enable_query_log

@@ -327,7 +327,10 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   or fall back to the default implementation.
 */
 
-static int init_dialog()
+static int init_dialog(char *errbuf __attribute__((unused)),
+                       size_t sizeof_errbuf __attribute__((unused)),
+                       int argc __attribute__((unused)),
+                       va_list args __attribute__((unused)))
 {
   void *sym= dlsym(RTLD_DEFAULT, "mysql_authentication_dialog_ask");
   ask= sym ? (mysql_authentication_dialog_ask_t)sym : builtin_ask;

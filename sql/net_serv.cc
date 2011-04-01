@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->vio = vio;
   my_net_local_init(net);			/* Set some limits */
   if (!(net->buff=(uchar*) my_malloc((size_t) net->max_packet+
-				     NET_HEADER_SIZE + COMP_HEADER_SIZE,
+				     NET_HEADER_SIZE + COMP_HEADER_SIZE +1,
 				     MYF(MY_WME))))
     DBUG_RETURN(1);
   net->buff_end=net->buff+net->max_packet;
@@ -168,17 +168,7 @@ my_bool net_realloc(NET *net, size_t length)
   DBUG_ENTER("net_realloc");
   DBUG_PRINT("enter",("length: %lu", (ulong) length));
 
-  /*
-    When compression is off, net->where_b is always 0.
-    With compression turned on, net->where_b may indicate
-    that we still have a piece of the previous logical
-    packet in the buffer, unprocessed. Take it into account
-    when checking that max_allowed_packet is not exceeded.
-    This ensures that the client treats max_allowed_packet
-    limit identically, regardless of compression being on
-    or off.
-  */
-  if (length >= (net->max_packet_size + net->where_b))
+  if (length >= net->max_packet_size)
   {
     DBUG_PRINT("error", ("Packet too large. Max size: %lu",
                          net->max_packet_size));
@@ -590,7 +580,7 @@ net_real_write(NET *net,const uchar *packet, size_t len)
     uchar *b;
     uint header_length=NET_HEADER_SIZE+COMP_HEADER_SIZE;
     if (!(b= (uchar*) my_malloc(len + NET_HEADER_SIZE +
-                                COMP_HEADER_SIZE, MYF(MY_WME))))
+                                COMP_HEADER_SIZE + 1, MYF(MY_WME))))
     {
       net->error= 2;
       net->last_errno= ER_OUT_OF_RESOURCES;

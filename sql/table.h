@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -721,7 +721,7 @@ struct st_table {
   Table_triggers_list *triggers;
   TABLE_LIST *pos_in_table_list;/* Element referring to this table */
   ORDER		*group;
-  const char	*alias;            	  /* alias or table name */
+  String	alias;            	  /* alias or table name */
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, def_vcol_set, tmp_set; 
@@ -1781,7 +1781,7 @@ typedef struct st_nested_join
 
      2. All child join nest nodes are fully covered.
    */
-  bool is_fully_covered() const { return join_list.elements == counter; }
+  bool is_fully_covered() const { return n_tables == counter; }
 } NESTED_JOIN;
 
 

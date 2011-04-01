@@ -1,4 +1,5 @@
-/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
+   2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -469,8 +470,6 @@ typedef struct system_status_var
   ulong select_range_count;
   ulong select_range_check_count;
   ulong select_scan_count;
-  ulong rows_read;
-  ulong rows_sent;
   ulong long_query_count;
   ulong filesort_merge_passes;
   ulong filesort_range_count;
@@ -484,6 +483,9 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+  ulong empty_queries;
+  ulong access_denied_errors;
+  ulong lost_connections;
   /*
     Number of statements sent from the client
   */
@@ -494,11 +496,10 @@ typedef struct system_status_var
     Below 'last_system_status_var' are all variables that cannot be handled
     automatically by add_to_status()/add_diff_to_status().
   */
-  ulong empty_queries;
-  ulong access_denied_errors;                   /* Can only be 0 or 1 */
-  ulong lost_connections;
   ulonglong bytes_received;
   ulonglong bytes_sent;
+  ulonglong rows_read;
+  ulonglong rows_sent;
   ulonglong binlog_bytes_written;
   double last_query_cost;
   double cpu_time, busy_time;
@@ -2260,8 +2261,6 @@ public:
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
-  bool is_context_analysis_only()
-    { return stmt_arena->is_stmt_prepare() || lex->view_prepare_mode; }
   void reset_n_backup_open_tables_state(Open_tables_state *backup);
   void restore_backup_open_tables_state(Open_tables_state *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);

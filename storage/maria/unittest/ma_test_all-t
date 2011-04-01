@@ -8,7 +8,7 @@ use File::Basename;
 
 $|= 1;
 $^W = 1; # warnings, because env cannot parse 'perl -w'
-$VER= "1.4";
+$VER= "1.5";
 
 $opt_version=         0;
 $opt_help=            0;
@@ -28,6 +28,8 @@ my $NEW_TEST= 0;      # Test group separator in an array of tests
 my $test_begin= 0;
 my $test_end= 0;
 my $test_counter= 0;
+my $full_tmpdir;
+my $tmpdir="tmp";
 
 run_tests();
 
@@ -46,6 +48,7 @@ sub run_tests
                   "abort-on-error" => \$opt_abort_on_error,
                   "valgrind=s" => \$opt_valgrind,
                   "silent=s" => \$opt_silent,
+                  "tmpdir=s" => \$full_tmpdir,
                   "number-of-tests" => \$opt_number_of_tests,
                   "run-tests=s" => \$opt_run_tests,
                   "start-from=s" => \$opt_run_tests))
@@ -77,9 +80,22 @@ sub run_tests
         }
       }
     }
-  }    
+  }
 
   usage() if ($opt_help || $flag_exit);
+
+  if (defined($full_tmpdir))
+  {
+    $tmpdir= $full_tmpdir;
+  }
+  else
+  {
+    $full_tmpdir= "tmp";
+    if (! -d "$full_tmpdir")
+    {
+      die if (!mkdir("$full_tmpdir"));
+    }
+  }
 
   #
   # IMPORTANT: If you modify this file, please read this:
@@ -146,7 +162,7 @@ sub run_tests
   # clean-up
   #
 
-  unlink <*.TMD aria_log*>;        # Delete temporary files
+  unlink_all_possible_tmp_files();
 
   #
   # Run tests
@@ -210,6 +226,7 @@ sub run_tests
   run_ma_test_recovery($opt_verbose, 0);
   run_tests_on_clrs($suffix, $opt_verbose, 0);
 
+  unlink_all_possible_tmp_files();
   exit($runtime_error);
 }
 
@@ -280,38 +297,38 @@ sub run_check_tests
 
   for ($i= 0; defined($ma_test1_opt[$i]); $i++)
   {
-    unlink <aria_log_control aria_log.*>;
-    ok("$maria_exe_path/ma_test1$suffix $silent $ma_test1_opt[$i][0] $row_type",
+    unlink_log_files();
+    ok("$maria_exe_path/ma_test1$suffix $silent -h$tmpdir $ma_test1_opt[$i][0] $row_type",
        $verbose, $i + 1);
-    ok("$maria_exe_path/aria_chk$suffix $ma_test1_opt[$i][1] test1",
+    ok("$maria_exe_path/aria_chk$suffix -h$tmpdir $ma_test1_opt[$i][1] $tmpdir/test1",
        $verbose, $i + 1);
   }
   #
   # These tests are outside the loops. Make sure to include them in
   # nr_tests manually
   #
-  ok("$maria_exe_path/aria_pack$suffix --force -s test1", $verbose, 0);
-  ok("$maria_exe_path/aria_chk$suffix -ess test1", $verbose, 0);
+  ok("$maria_exe_path/aria_pack$suffix --force -s $tmpdir/test1", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -ess $tmpdir/test1", $verbose, 0);
 
   for ($i= 0; defined($ma_test2_opt[$i]); $i++)
   {
-    unlink <aria_log_control aria_log.*>;
-    ok("$maria_exe_path/ma_test2$suffix $silent $ma_test2_opt[$i][0] $row_type",
+    unlink_log_files();
+    ok("$maria_exe_path/ma_test2$suffix $silent -h$tmpdir $ma_test2_opt[$i][0] $row_type",
        $verbose, $i + 1);
-    ok("$maria_exe_path/aria_chk$suffix $ma_test2_opt[$i][1] test2",
+    ok("$maria_exe_path/aria_chk$suffix -h$tmpdir $ma_test2_opt[$i][1] $tmpdir/test2",
        $verbose, $i + 1);
   }
 
   for ($i= 0; defined($ma_rt_test_opt[$i]); $i++)
   {
-    unlink <aria_log_control aria_log.*>;
-    ok("$maria_exe_path/ma_rt_test$suffix $silent $ma_rt_test_opt[$i][0] $row_type",
+    unlink_log_files();
+    ok("$maria_exe_path/ma_rt_test$suffix $silent -h$tmpdir $ma_rt_test_opt[$i][0] $row_type",
        $verbose, $i + 1);
-    ok("$maria_exe_path/aria_chk$suffix $ma_rt_test_opt[$i][1] rt_test",
+    ok("$maria_exe_path/aria_chk$suffix -h$tmpdir $ma_rt_test_opt[$i][1] $tmpdir/rt_test",
        $verbose, $i + 1);
   }
 
-  unlink <aria_log_control aria_log.*>;
+  unlink_log_files();
 
   return 0;
 }
@@ -433,25 +450,25 @@ sub run_tests_on_warnings_and_errors
 
   return 9 if ($count);  # Number of tests in this function, e.g. calls to ok()
 
-  ok("$maria_exe_path/ma_test2$suffix $silent -L -K -W -P -S -R1 -m500",
+  ok("$maria_exe_path/ma_test2$suffix -h$tmpdir $silent -L -K -W -P -S -R1 -m500",
      $verbose, 0);
-  ok("$maria_exe_path/aria_chk$suffix -sm test2", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -h$tmpdir -sm $tmpdir/test2", $verbose, 0);
   # ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n
   # In the following a failure is a success and success is a failure
-  $com=  "$maria_exe_path/ma_test2$suffix $silent -L -K -R1 -m2000 ";
+  $com=  "$maria_exe_path/ma_test2$suffix -h$tmpdir $silent -L -K -R1 -m2000 ";
   $com.= ">ma_test2_message.txt 2>&1";
   ok($com, $verbose, 0, 1);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"Error: 135\" ma_test2_message.txt > /dev/null", $verbose, 0);
-  # maria_exe_path/aria_chk$suffix -sm test2 will warn that
+  # maria_exe_path/aria_chk$suffix -h$tmpdir -sm $tmpdir/test2 will warn that
   # Datafile is almost full
-  ok("$maria_exe_path/aria_chk$suffix -sm test2 >ma_test2_message.txt 2>&1",
+  ok("$maria_exe_path/aria_chk$suffix -h$tmpdir -sm $tmpdir/test2 >ma_test2_message.txt 2>&1",
      $verbose, 0);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"warning: Datafile is almost full\" ma_test2_message.txt>/dev/null",
      $verbose, 0);
   unlink <ma_test2_message.txt>;
-  ok("$maria_exe_path/aria_chk$suffix -ssm test2", $verbose, 0);
+  ok("$maria_exe_path/aria_chk$suffix -h$tmpdir -ssm $tmpdir/test2", $verbose, 0);
 
   return 0;
 }
@@ -479,33 +496,33 @@ sub run_tests_on_clrs
   my ($i);
 
   my @t= ($NEW_TEST,
-          "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b -t2 -A1",
-          "cp aria_log_control tmp",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -s -e test2",
-          "cp tmp/aria_log_control .",
-          "rm test2.MA?",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -s -e test2",
-          "rm test2.MA?",
+          "$maria_exe_path/ma_test2$suffix -h$tmpdir -s -L -K -W -P -M -T -c -b -t2 -A1",
+          "cp $tmpdir/aria_log_control $tmpdir/aria_log_control.backup",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -s -e $tmpdir/test2",
+          "mv $tmpdir/aria_log_control.backup $tmpdir/aria_log_control",
+          "rm $tmpdir/test2.MA?",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -s -e $tmpdir/test2",
+          "rm $tmpdir/test2.MA?",
           $NEW_TEST,
-          "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b -t2 -A1",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -s -e test2",
-          "rm test2.MA?",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -e -s test2",
-          "rm test2.MA?",
+          "$maria_exe_path/ma_test2$suffix -h$tmpdir -s -L -K -W -P -M -T -c -b -t2 -A1",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir ",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -s -e $tmpdir/test2",
+          "rm $tmpdir/test2.MA?",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -e -s $tmpdir/test2",
+          "rm $tmpdir/test2.MA?",
           $NEW_TEST,
-          "$maria_exe_path/ma_test2$suffix -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -es test2",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -es test2",
-          "rm test2.MA?",
-          "$maria_exe_path/aria_read_log$suffix -a -s",
-          "$maria_exe_path/aria_chk$suffix -es test2",
-          "rm test2.MA?"
+          "$maria_exe_path/ma_test2$suffix -h$tmpdir -s -L -K -W -P -M -T -c -b32768 -t4 -A1",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -es $tmpdir/test2",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir ",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -es $tmpdir/test2",
+          "rm $tmpdir/test2.MA?",
+          "$maria_exe_path/aria_read_log$suffix -a -s -h$tmpdir",
+          "$maria_exe_path/aria_chk$suffix -h$tmpdir -es $tmpdir/test2",
+          "rm $tmpdir/test2.MA?"
          );
 
   return &count_tests(\@t) if ($count);
@@ -550,10 +567,14 @@ sub ok
 
   if ($verbose)
   {
-    print "$com ";
+    # Print command with out the long unittest/../ prefix 
+    my $tmp;
+    $tmp= $com;
+    $tmp =~ s|^unittest/../||;
+    print "$tmp ";
+    $len= length($tmp);
   }
   $output= `$com 2>&1`;
-  $len= length($com);
   if ($verbose)
   {
     print " " x (62 - $len);
@@ -650,6 +671,19 @@ sub count_tests
   return $nr_tests;
 }
 
+sub unlink_log_files
+{
+  unlink "$full_tmpdir/aria_log_control", "$full_tmpdir/aria_log.00000001", "$full_tmpdir/aria_log.00000002";
+}
+
+sub unlink_all_possible_tmp_files()
+{
+  unlink_log_files();
+
+  # Unlink tmp files that may have been created when testing the test programs
+  unlink <$full_tmpdir/*.TMD aria_log_control aria_log.00000001 aria_log.00000002 aria_logtest1.MA? test2.MA? test3.MA?>;
+}
+
 ####
 #### Run a bunch of tests
 #### Arguments: $t:       an array of the tests
@@ -666,7 +700,7 @@ sub run_test_bunch
   {
     if ($clear && @$t[$i] eq $NEW_TEST)
     {
-      unlink <aria_log.* aria_log_control>;
+      unlink_log_files();
     }
     if (@$t[$i] ne $NEW_TEST)
     {

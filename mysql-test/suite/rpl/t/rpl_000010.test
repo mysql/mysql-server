@@ -1,0 +1,20 @@
+# This tests the offset off by 22 mystery bug
+# Must run slave with --disconnect-slave-event-count=1 --master-connect-retry=1
+
+source include/master-slave.inc;
+
+create table t1 (n int not null auto_increment primary key);
+insert into t1 values(NULL);
+insert into t1 values(2);
+save_master_pos;
+connection slave;
+sync_with_master;
+select n from t1;
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;
+
+# End of 4.1 tests
+--source include/rpl_end.inc

@@ -2,15 +2,12 @@
 # exist, must be binlogged with a non-zero error code)
 source include/master-slave.inc;
 source include/have_innodb.inc;
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
+
 create table t1 (a int);
 --error 1051
 drop table t1, t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+--sync_slave_with_master
+
 # End of 4.1 tests
 
 # BUG#55625 RBR breaks on failing 'CREATE TABLE'
@@ -65,3 +62,5 @@ SET @@global.binlog_format= @old_binlog_format;
 SET @@global.binlog_format= @old_binlog_format;
 
 # End of 5.1 tests
+
+--source include/rpl_end.inc

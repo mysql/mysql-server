@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -574,10 +574,17 @@ public:
   Field *make_string_field(TABLE *table);
   virtual bool fix_fields(THD *, Item **);
   /*
-    should be used in case where we are sure that we do not need
+    This method should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
+    Usually this method is used by the optimizer when it has to create a new
+    item out of other already fixed items. For example, if the optimizer has
+    to create a new Item_func for an inferred equality whose left and right
+    parts are already fixed items. In some cases the optimizer cannot use
+    directly fixed items as the arguments of the created functional item, 
+    but rather uses intermediate type conversion items. Then the method is
+    supposed to be applied recursively.  
   */
-  inline void quick_fix_field() { fixed= 1; }
+  virtual inline void quick_fix_field() { fixed= 1; }
   /* Function returns 1 on overflow and -1 on fatal errors */
   int save_in_field_no_warnings(Field *field, bool no_conversions);
   virtual int save_in_field(Field *field, bool no_conversions);
@@ -1043,11 +1050,11 @@ public:
   virtual bool set_no_const_sub(uchar *arg) { return FALSE; }
   virtual Item *replace_equal_field(uchar * arg) { return this; }
   /*
-    Check if an expression value depends on the current timezone. Used by
-    partitioning code to reject timezone-dependent expressions in a
-    (sub)partitioning function.
+    Check if an expression value has allowed arguments, like DATE/DATETIME
+    for date functions. Also used by partitioning code to reject
+    timezone-dependent expressions in a (sub)partitioning function.
   */
-  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return FALSE;
   }
@@ -3123,11 +3130,10 @@ class Item_cache: public Item_basic_constant
 protected:
   Item *example;
   table_map used_table_map;
-  /*
-    Field that this object will get value from. This is set/used by 
+  /**
+    Field that this object will get value from. This is used by 
     index-based subquery engines to detect and remove the equality injected 
     by IN->EXISTS transformation.
-    For all other uses of Item_cache, cached_field doesn't matter.
   */  
   Field *cached_field;
   enum enum_field_types cached_field_type;
@@ -3188,6 +3194,13 @@ public:
   {
     return trace_unsupported_by_check_vcol_func_processor("cache");
   }
+
+  /** 
+    If this item caches a field value, return pointer to underlying field.
+
+    @return Pointer to field, or NULL if this is not a cache for a field value.
+  */
+  Field* field() { return cached_field; }
 
   virtual void store(Item *item);
   virtual bool cache_value()= 0;

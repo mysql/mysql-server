@@ -273,6 +273,26 @@ static void report_error(int where_to, uint error, ...)
   }
 }
 
+/**
+   Check if the provided path is valid in the sense that it does cause
+   a relative reference outside the directory.
+
+   @note Currently, this function only check if there are any
+   characters in FN_DIRSEP in the string, but it might change in the
+   future.
+
+   @code
+   check_valid_path("../foo.so") -> true
+   check_valid_path("foo.so") -> false
+   @endcode
+ */
+bool check_valid_path(const char *path, size_t len)
+{
+  size_t prefix= my_strcspn(files_charset_info, path, path + len, FN_DIRSEP);
+  return  prefix < len;
+}
+
+
 /****************************************************************************
   Value type thunks, allows the C world to play in the C++ world
 ****************************************************************************/
@@ -303,7 +323,7 @@ static const char *item_val_str(struct st_mysql_value *value,
     Lets be nice and create a temporary string since the
     buffer was too small
   */
-  return current_thd->strmake(res->c_ptr_quick(), res->length());
+  return current_thd->strmake(res->ptr(), res->length());
 }
 
 
@@ -615,13 +635,15 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
+  DBUG_PRINT("enter", ("dl->str: '%s', dl->length: %d",
+                       dl->str, (int) dl->length));
   plugin_dir_len= strlen(opt_plugin_dir);
   /*
     Ensure that the dll doesn't have a path.
     This is done to ensure that only approved libraries from the
     plugin directory are used (to make this even remotely secure).
   */
-  if (my_strchr(files_charset_info, dl->str, dl->str + dl->length, FN_LIBCHAR) ||
+  if (check_valid_path(dl->str, dl->length) ||
       check_string_char_length((LEX_STRING *) dl, "", NAME_CHAR_LEN,
                                system_charset_info, 1) ||
       plugin_dir_len + dl->length + 1 >= FN_REFLEN)

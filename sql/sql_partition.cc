@@ -1015,12 +1015,13 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   }
 
   /*
-    We don't allow creating partitions with timezone-dependent expressions as
-    a (sub)partitioning function, but we want to allow such expressions when
-    opening existing tables for easier maintenance. This exception should be
-    deprecated at some point in future so that we always throw an error.
+    We don't allow creating partitions with expressions with non matching
+    arguments as a (sub)partitioning function,
+    but we want to allow such expressions when opening existing tables for
+    easier maintenance. This exception should be deprecated at some point
+    in future so that we always throw an error.
   */
-  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+  if (func_expr->walk(&Item::check_valid_arguments_processor,
                       0, NULL))
   {
     if (is_create_table_ind)
@@ -1983,6 +1984,9 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
+  if (p_elem->connect_string.length)
+    err+= add_keyword_string(fptr, "CONNECTION", TRUE,
+                             p_elem->connect_string.str);
   return err + add_engine(fptr,p_elem->engine_type);
 }
 
@@ -5936,6 +5940,12 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (lpt->thd->locked_tables)
   {
     /*
+      Close the table if open, to remove/destroy the already altered
+      table->part_info object, so that it is not reused.
+    */
+    if (lpt->table->db_stat)
+      abort_and_upgrade_lock_and_close_table(lpt);
+    /*
       When we have the table locked, it is necessary to reopen the table
       since all table objects were closed and removed as part of the
       ALTER TABLE of partitioning structure.
@@ -6437,7 +6447,20 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
                                  table, table_list, FALSE, NULL,
                                  written_bin_log));
 err:
-  close_thread_tables(thd);
+  if (thd->locked_tables)
+  {
+    /*
+      table->part_info was altered in prep_alter_part_table and must be
+      destroyed and recreated, since otherwise it will be reused, since
+      we are under LOCK TABLE.
+    */
+    alter_partition_lock_handling(lpt);
+  }
+  else
+  {
+    /* Force the table to be closed to avoid reuse of the table->part_info */
+    close_thread_tables(thd);
+  }
   DBUG_RETURN(TRUE);
 }
 #endif
@@ -6748,8 +6771,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
 {
   DBUG_ASSERT(!is_subpart);
   Field *field= part_info->part_field_array[0];
-  uint32             max_endpoint_val;
-  get_endpoint_func  get_endpoint;
+  uint32             UNINIT_VAR(max_endpoint_val);
+  get_endpoint_func  UNINIT_VAR(get_endpoint);
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   part_iter->ret_null_part= part_iter->ret_null_part_orig= FALSE;

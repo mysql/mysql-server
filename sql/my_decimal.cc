@@ -109,6 +109,7 @@ int my_decimal2string(uint mask, const my_decimal *d,
   result= decimal2string((decimal_t*) d, (char*) str->ptr(),
                          &length, (int)fixed_prec, fixed_dec,
                          filler);
+  str->set_charset(&my_charset_bin);
   str->length(length);
   return check_result(mask, result);
 }

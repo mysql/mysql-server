@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1474,12 +1474,11 @@ void close_temporary_tables(THD *thd)
 
   /* Better add "if exists", in case a RESET MASTER has been done */
   const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
-  uint stub_len= sizeof(stub) - 1;
-  char buf[256];
-  String s_query= String(buf, sizeof(buf), system_charset_info);
+  char buf[FN_REFLEN];
+  String s_query(buf, sizeof(buf), system_charset_info);
   bool found_user_tables= FALSE;
 
-  memcpy(buf, stub, stub_len);
+  s_query.copy(stub, sizeof(stub)-1, system_charset_info);
 
   /*
     Insertion sort of temp tables by pseudo_thread_id to build ordered list
@@ -1533,19 +1532,25 @@ void close_temporary_tables(THD *thd)
     {
       bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
+      char db_buf[FN_REFLEN];
+      String db(db_buf, sizeof(db_buf), system_charset_info);
+
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
-      String db;
-      db.append(table->s->db.str);
+
+      db.copy(table->s->db.str, table->s->db.length, system_charset_info);
+      /* Reset s_query() if changed by previous loop */
+      s_query.length(sizeof(stub)-1);
+
       /* Loop forward through all tables that belong to a common database
          within the sublist of common pseudo_thread_id to create single
          DROP query 
       */
-      for (s_query.length(stub_len);
+      for (;
            table && is_user_table(table) &&
              tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
              table->s->db.length == db.length() &&
-             strcmp(table->s->db.str, db.ptr()) == 0;
+             memcmp(table->s->db.str, db.ptr(), db.length()) == 0;
            table= next)
       {
         /*
@@ -1849,7 +1854,7 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list)
   /* Table might be in use by some outer statement. */
   if (table->query_id && table->query_id != thd->query_id)
   {
-    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+    my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias.c_ptr());
     DBUG_RETURN(-1);
   }
 
@@ -1872,7 +1877,7 @@ void close_temporary_table(THD *thd, TABLE *table,
   DBUG_ENTER("close_temporary_table");
   DBUG_PRINT("tmptable", ("closing table: '%s'.'%s' 0x%lx  alias: '%s'",
                           table->s->db.str, table->s->table_name.str,
-                          (long) table, table->alias));
+                          (long) table, table->alias.c_ptr()));
 
   /*
     When closing a MERGE parent or child table, detach the children
@@ -2606,7 +2611,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
                      ("query_id: %lu  server_id: %u  pseudo_thread_id: %lu",
                       (ulong) table->query_id, (uint) thd->server_id,
                       (ulong) thd->variables.pseudo_thread_id));
-	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+	  my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias.c_ptr());
 	  DBUG_RETURN(0);
 	}
 	table->query_id= thd->query_id;
@@ -2643,7 +2648,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
           When looking for a usable TABLE, ignore MERGE children, as they
           belong to their parent and cannot be used explicitly.
         */
-        if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
+        if (!my_strcasecmp(system_charset_info, table->alias.c_ptr(), alias) &&
             table->query_id != thd->query_id && /* skip tables already used */
             !(thd->prelocked_mode && table->query_id) &&
             !table->parent)
@@ -2999,13 +3004,9 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     table->alias_name_used= my_strcasecmp(table_alias_charset,
                                           table->s->table_name.str, alias);
   /* Fix alias if table name changes */
-  if (strcmp(table->alias, alias))
-  {
-    uint length=(uint) strlen(alias)+1;
-    table->alias= (char*) my_realloc((char*) table->alias, length,
-                                     MYF(MY_WME));
-    memcpy((char*) table->alias, alias, length);
-  }
+  if (strcmp(table->alias.c_ptr(), alias))
+    table->alias.copy(alias, strlen(alias), table->alias.charset());
+
   /* These variables are also set in reopen_table() */
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
@@ -3017,6 +3018,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->insert_values= 0;
   table->fulltext_searched= 0;
   table->file->ha_start_of_new_statement();
+  table->file->ft_handler= 0;
+  /*
+    Check that there is no reference to a condition from an earlier query
+    (cf. Bug#58553). 
+  */
+  DBUG_ASSERT(table->file->pushed_cond == NULL);
   table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
@@ -3089,7 +3096,7 @@ bool reopen_table(TABLE *table)
 #ifdef EXTRA_DEBUG
   if (table->db_stat)
     sql_print_error("Table %s had a open data handler in reopen_table",
-		    table->alias);
+		    table->alias.c_ptr());
 #endif
   bzero((char*) &table_list, sizeof(TABLE_LIST));
   table_list.db=         table->s->db.str;
@@ -3100,7 +3107,7 @@ bool reopen_table(TABLE *table)
     DBUG_RETURN(1);                             // Thread was killed
 
   if (open_unireg_entry(thd, &tmp, &table_list,
-			table->alias,
+			table->alias.c_ptr(),
                         table->s->table_cache_key.str,
                         table->s->table_cache_key.length,
                         thd->mem_root, 0))
@@ -3139,14 +3146,14 @@ bool reopen_table(TABLE *table)
     VOID(closefrm(table, 1));		// close file, free everything
 
   *table= tmp;
+  table->alias.move(tmp.alias);
   table->default_column_bitmaps();
   table->file->change_table_ptr(table, table->s);
 
-  DBUG_ASSERT(table->alias != 0);
+  DBUG_ASSERT(table->alias.ptr() != 0);
   for (field=table->field ; *field ; field++)
   {
-    (*field)->table= (*field)->orig_table= table;
-    (*field)->table_name= &table->alias;
+    (*field)->init(table);
   }
   for (key=0 ; key < table->s->keys ; key++)
   {
@@ -3273,7 +3280,7 @@ static bool reattach_merge(THD *thd, TABLE **err_tables_p)
       DBUG_PRINT("tcache", ("MERGE parent, attach children"));
       if(table->file->extra(HA_EXTRA_ATTACH_CHILDREN))
       {
-        my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias);
+        my_error(ER_CANT_REOPEN_TABLE, MYF(0), table->alias.c_ptr());
         error= TRUE;
         /* Remove table from open_tables. */
         *prv_p= next;
@@ -3366,7 +3373,8 @@ bool reopen_tables(THD *thd, bool get_locks, bool mark_share_as_old)
     if (!tables || (!db_stat && reopen_table(table)))
     {
       my_error(ER_CANT_REOPEN_TABLE, MYF(0),
-               table->alias ? table->alias : table->s->table_name.str);
+               table->alias.ptr() ? table->alias.c_ptr() :
+               table->s->table_name.str);
       /*
         If we could not allocate 'tables', we may close open tables
         here. If a MERGE table is affected, detach the children first.
@@ -3563,7 +3571,8 @@ bool table_is_used(TABLE *table, bool wait_for_name_lock)
     char *key= table->s->table_cache_key.str;
     uint key_length= table->s->table_cache_key.length;
 
-    DBUG_PRINT("loop", ("table_name: %s", table->alias ? table->alias : ""));
+    DBUG_PRINT("loop", ("table_name: %s",
+                        table->alias.ptr() ? table->alias.c_ptr() : ""));
     HASH_SEARCH_STATE state;
     for (TABLE *search= (TABLE*) hash_first(&open_cache, (uchar*) key,
                                              key_length, &state);
@@ -4357,7 +4366,7 @@ void detach_merge_children(TABLE *table, bool clear_refs)
           Set alias to "" to ensure that table is not used if we are in
           LOCK TABLES
         */
-        ((char*) child_l->table->alias)[0]= 0;
+        child_l->table->alias.length(0);
 
         /* Clear the table reference to force new assignment at next open. */
         child_l->table= NULL;
@@ -4910,7 +4919,7 @@ static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
   if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
       (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
   {
-    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias.c_ptr());
     DBUG_RETURN(1);
   }
   if ((error=table->file->start_stmt(thd, lock_type)))
@@ -6000,6 +6009,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
 /*
   Find field by name in a base table or a view with temp table algorithm.
 
+  The caller is expected to check column-level privileges.
+
   SYNOPSIS
     find_field_in_table()
     thd				thread handler
@@ -6022,7 +6033,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
   Field **field_ptr, *field;
   uint cached_field_index= *cached_field_index_ptr;
   DBUG_ENTER("find_field_in_table");
-  DBUG_PRINT("enter", ("table: '%s', field name: '%s'", table->alias, name));
+  DBUG_PRINT("enter", ("table: '%s', field name: '%s'", table->alias.c_ptr(),
+                       name));
 
   /* We assume here that table->field < NO_CACHED_FIELD_INDEX = UINT_MAX */
   if (cached_field_index < table->s->fields &&
@@ -6106,6 +6118,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
     - a list of Natural_join_column objects for NATURAL/USING joins.
     This procedure detects the type of the table reference 'table_list'
     and calls the corresponding search routine.
+
+    The routine checks column-level privieleges for the found field.
 
   RETURN
     0			field is not found
@@ -6380,8 +6394,16 @@ find_field_in_tables(THD *thd, Item_ident *item,
       when table_ref->field_translation != NULL.
       */
     if (table_ref->table && !table_ref->view)
+    {
       found= find_field_in_table(thd, table_ref->table, name, length,
                                  TRUE, &(item->cached_field_index));
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* Check if there are sufficient access rights to the found field. */
+      if (found && check_privileges &&
+          check_column_grant_in_table_ref(thd, table_ref, name, length))
+        found= WRONG_GRANT;
+#endif
+    }
     else
       found= find_field_in_table_ref(thd, table_ref, name, length, item->name,
                                      NULL, NULL, ref, check_privileges,
@@ -8256,11 +8278,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
   Item_field *field;
-  TABLE *table= 0;
-  List<TABLE> tbl_list;
+  TABLE *table= 0, *vcol_table= 0;
   bool abort_on_warning_saved= thd->abort_on_warning;
   DBUG_ENTER("fill_record");
-  tbl_list.empty();
 
   /*
     Reset the table->auto_increment_field_not_null as it is valid for
@@ -8283,7 +8303,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     f.rewind();
   }
   else if (thd->lex->unit.insert_table_with_stored_vcol)
-    tbl_list.push_back(thd->lex->unit.insert_table_with_stored_vcol);
+    vcol_table= thd->lex->unit.insert_table_with_stored_vcol;
   while ((fld= f++))
   {
     if (!(field= fld->filed_for_view_update()))
@@ -8313,31 +8333,17 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
-    tbl_list.push_back(table);
+    DBUG_ASSERT(vcol_table == 0 || vcol_table == table);
+    vcol_table= table;
   }
   /* Update virtual fields*/
   thd->abort_on_warning= FALSE;
-  if (tbl_list.head())
+  if (vcol_table)
   {
-    List_iterator_fast<TABLE> it(tbl_list);
-    TABLE *prev_table= 0;
-    while ((table= it++))
+    if (vcol_table->vfield)
     {
-      /*
-        Do simple optimization to prevent unnecessary re-generating 
-        values for virtual fields
-      */
-      if (table != prev_table)
-      {
-        prev_table= table;
-        if (table->vfield)
-        {
-          if (update_virtual_fields(thd, table, TRUE))
-          {
-            goto err;
-          }
-        }
-      }
+      if (update_virtual_fields(thd, vcol_table, TRUE))
+        goto err;
     }
   }
   thd->abort_on_warning= abort_on_warning_saved;

@@ -15,4 +15,3 @@ let $rename_event_pos= `select @binlog_start_pos + 819`;
 --disable_ps_protocol
 -- source extra/rpl_tests/rpl_flsh_tbls.test
 --enable_ps_protocol
-

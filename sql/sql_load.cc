@@ -314,56 +314,57 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
                        MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
                        MY_RETURN_REAL_PATH);
-#if !defined(__WIN__) && ! defined(__NETWARE__)
-      MY_STAT stat_info;
-      if (!my_stat(name,&stat_info,MYF(MY_WME)))
-	DBUG_RETURN(TRUE);
+    }
 
-      // if we are not in slave thread, the file must be:
-      if (!thd->slave_thread &&
-	  !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
-	    (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
-	    ((stat_info.st_mode & S_IFREG) == S_IFREG ||
-	     (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
-      {
-	my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
-	DBUG_RETURN(TRUE);
-      }
-      if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
-	is_fifo = 1;
-#endif
-
-      if (thd->slave_thread)
-      {
+    if (thd->slave_thread)
+    {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-        if (strncmp(active_mi->rli.slave_patternload_file, name, 
-            active_mi->rli.slave_patternload_file_size))
-        {
-          /*
-            LOAD DATA INFILE in the slave SQL Thread can only read from 
-            --slave-load-tmpdir". This should never happen. Please, report a bug.
-           */
-
-          sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
-                          "Please, report a bug.");
-          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
-          DBUG_RETURN(TRUE);
-        }
-#else
-        /*
-          This is impossible and should never happen.
-        */
-        DBUG_ASSERT(FALSE); 
-#endif
-      }
-      else if (!is_secure_file_path(name))
+      if (strncmp(active_mi->rli.slave_patternload_file, name, 
+          active_mi->rli.slave_patternload_file_size))
       {
-        /* Read only allowed from within dir specified by secure_file_priv */
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+        /*
+          LOAD DATA INFILE in the slave SQL Thread can only read from 
+          --slave-load-tmpdir". This should never happen. Please, report a bug.
+        */
+
+        sql_print_error("LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. " \
+                        "Please, report a bug.");
+        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--slave-load-tmpdir");
         DBUG_RETURN(TRUE);
       }
-
+#else
+      /*
+        This is impossible and should never happen.
+      */
+      DBUG_ASSERT(FALSE); 
+#endif
     }
+    else if (!is_secure_file_path(name))
+    {
+      /* Read only allowed from within dir specified by secure_file_priv */
+      my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+      DBUG_RETURN(TRUE);
+    }
+
+#if !defined(__WIN__) && ! defined(__NETWARE__)
+    MY_STAT stat_info;
+    if (!my_stat(name,&stat_info,MYF(MY_WME)))
+	    DBUG_RETURN(TRUE);
+
+    // if we are not in slave thread, the file must be:
+    if (!thd->slave_thread &&
+	      !((stat_info.st_mode & S_IROTH) == S_IROTH &&  // readable by others
+	        (stat_info.st_mode & S_IFLNK) != S_IFLNK && // and not a symlink
+	        ((stat_info.st_mode & S_IFREG) == S_IFREG ||
+	         (stat_info.st_mode & S_IFIFO) == S_IFIFO)))
+    {
+	    my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), name);
+	    DBUG_RETURN(TRUE);
+    }
+    if ((stat_info.st_mode & S_IFIFO) == S_IFIFO)
+	    is_fifo = 1;
+#endif
+
     if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
       DBUG_RETURN(TRUE);
   }
@@ -567,6 +568,13 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                                                   transactional_table,
                                                   errcode);
       }
+
+      /*
+        Flushing the IO CACHE while writing the execute load query log event
+        may result in error (for instance, because the max_binlog_size has been 
+        reached, and rotation of the binary log failed).
+      */
+      error= error || mysql_bin_log.get_log_file()->error;
     }
     if (error)
       goto err;
@@ -604,11 +612,15 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   size_t               pl= 0;
   List<Item>           fv;
   Item                *item, *val;
-  String               pfield, pfields;
   int                  n;
   const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
-  String              string_buf;
+  char 		      name_buffer[SAFE_NAME_LEN*2];
+  char                command_buffer[1024];
+  String              string_buf(name_buffer, sizeof(name_buffer),
+                                 system_charset_info);
+  String              pfields(command_buffer, sizeof(command_buffer),
+                              system_charset_info);
 
   if (!thd->db || strcmp(db_arg, thd->db)) 
   {
@@ -617,7 +629,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       prefix table name with database name so that it 
       becomes a FQ name.
      */
-    string_buf.set_charset(system_charset_info);
+    string_buf.length(0);
     string_buf.append(db_arg);
     string_buf.append("`");
     string_buf.append(".");
@@ -638,6 +650,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
   */
+  pfields.length(0);
   if (!thd->lex->field_list.is_empty())
   {
     List_iterator<Item>  li(thd->lex->field_list);
@@ -682,8 +695,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     }
   }
 
-  p= pfields.c_ptr_safe();
-  pl= strlen(p);
+  p=  pfields.c_ptr_safe();
+  pl= pfields.length();
 
   if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
     return TRUE;

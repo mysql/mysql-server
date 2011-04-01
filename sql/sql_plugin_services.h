@@ -36,7 +36,7 @@ static struct thd_alloc_service_st thd_alloc_handler= {
   thd_make_lex_string
 };
 
-static struct st_service_ref list_of_services[]=
+static struct st_service_ref list_of_services[] __attribute__((unused)) =
 {
   { "my_snprintf_service", VERSION_my_snprintf, &my_snprintf_handler },
   { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler }

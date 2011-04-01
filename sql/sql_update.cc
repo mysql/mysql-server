@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1617,7 +1617,8 @@ loop_end:
     do
     {
       Field_string *field= new Field_string(tbl->file->ref_length, 0,
-                                            tbl->alias, &my_charset_bin);
+                                            tbl->alias.c_ptr(),
+                                            &my_charset_bin);
       if (!field)
         DBUG_RETURN(1);
       field->init(tbl);

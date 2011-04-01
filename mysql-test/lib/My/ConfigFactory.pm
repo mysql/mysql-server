@@ -145,7 +145,6 @@ sub fix_secure_file_priv {
 
 sub fix_std_data {
   my ($self, $config, $group_name, $group)= @_;
-  #return "$::opt_vardir/std_data";
   my $testdir= $self->get_testdir($group);
   return "$testdir/std_data";
 }
@@ -355,7 +354,7 @@ sub post_check_client_group {
 
     if (! defined $option){
       #print $config;
-      croak "Could not get value for '$name_from'";
+      croak "Could not get value for '$name_from' for test $self->{testname}";
     }
     $config->insert($client_group_name, $name_to, $option->value())
   }
@@ -441,9 +440,9 @@ sub resolve_at_variable {
     $after = $';
     chop($group_name);
 
-    my $from_group= $config->group($group_name)
-      or croak "There is no group named '$group_name' that ",
-        "can be used to resolve '$option_name'";
+  my $from_group= $config->group($group_name)
+    or croak "There is no group named '$group_name' that ",
+      "can be used to resolve '$option_name' for test '$self->{testname}'";
 
     my $value= $from_group->value($option_name);
     $res .= $before.$value;
@@ -611,6 +610,7 @@ sub new_config {
 		   ARGS         => $args,
 		   PORT         => $args->{baseport},
 		   SERVER_ID    => 1,
+                   testname     => $args->{testname},
 		  }, $class;
 
   # add auto-options

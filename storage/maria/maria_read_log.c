@@ -44,9 +44,9 @@ int main(int argc, char **argv)
   uint warnings_count;
   MY_INIT(argv[0]);
 
+  maria_data_root= (char *)".";
   load_defaults("my", load_default_groups, &argc, &argv);
   default_argv= argv;
-  maria_data_root= (char *)".";
   get_options(&argc, &argv);
 
   maria_in_recovery= TRUE;
@@ -192,14 +192,18 @@ static struct my_option my_long_options[] =
   {"display-only", 'd', "display brief info read from records' header",
    &opt_display_only, &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
-  {"aria-log-dir-path", 'l',
+  { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
+    "will not be applied", &opt_end_lsn, &opt_end_lsn,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
+  {"aria-log-dir-path", 'h',
     "Path to the directory where to store transactional log",
     (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "page-buffer-size", 'P', "",
+  { "page-buffer-size", 'P',
+    "The size of the buffer used for index blocks for Aria tables",
     &opt_page_buffer_size, &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
-    (long) USE_BUFFER_INIT, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
+    1024L*1024L, (long) ~(ulong) 0, (long) MALLOC_OVERHEAD,
     (long) IO_SIZE, 0},
   { "start-from-lsn", 'o', "Start reading log from this lsn",
     &opt_start_from_lsn, &opt_start_from_lsn,
@@ -207,15 +211,12 @@ static struct my_option my_long_options[] =
   {"start-from-checkpoint", 'C', "Start applying from last checkpoint",
    &opt_start_from_checkpoint, &opt_start_from_checkpoint, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "end-lsn", 'e', "Stop applying at this lsn. If end-lsn is used, UNDO:s "
-    "will not be applied", &opt_end_lsn, &opt_end_lsn,
-    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
   {"silent", 's', "Print less information during apply/undo phase",
    &opt_silent, &opt_silent, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Print more information during apply/undo phase",
-   &maria_recovery_verbose, &maria_recovery_verbose, 0,
-   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"tables-to-redo", 'T',
+   "List of tables sepearated with , that we should apply REDO on. Use this if you only want to recover some tables",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Path for temporary files. Multiple paths can be specified, "
    "separated by "
 #if defined( __WIN__) || defined(__NETWARE__)
@@ -227,6 +228,9 @@ static struct my_option my_long_options[] =
   {"undo", 'u', "Apply UNDO records to tables. (disable with --disable-undo)",
    (uchar **) &opt_apply_undo, (uchar **) &opt_apply_undo, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"verbose", 'v', "Print more information during apply/undo phase",
+   &maria_recovery_verbose, &maria_recovery_verbose, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Print version and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -245,7 +249,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright (C) 2007 MySQL AB");
+  puts("Copyright (C) 2007 MySQL AB, 2009-2011 Monty Program Ab");
   puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
   puts("and you are welcome to modify and redistribute it under the GPL license\n");
 
@@ -266,10 +270,18 @@ static void usage(void)
 
 #include <help_end.h>
 
+static uchar* my_hash_get_string(const uchar *record, size_t *length,
+                                my_bool first __attribute__ ((unused)))
+{
+  *length= (size_t) (strcend((const char*) record,',')- (const char*) record);
+  return (uchar*) record;
+}
+
+
 static my_bool
 get_one_option(int optid __attribute__((unused)),
                const struct my_option *opt __attribute__((unused)),
-               char *argument __attribute__((unused)))
+               char *argument)
 {
   switch (optid) {
   case '?':
@@ -278,6 +290,23 @@ get_one_option(int optid __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case 'T':
+  {
+    char *pos;
+    if (!my_hash_inited(&tables_to_redo))
+    {
+      my_hash_init2(&tables_to_redo, 16, &my_charset_bin,
+                    16, 0, 0, my_hash_get_string, 0, HASH_UNIQUE);
+    }
+    do
+    {
+      pos= strcend(argument, ',');
+      if (pos != argument)                      /* Skip empty strings */
+        my_hash_insert(&tables_to_redo, (uchar*) argument);
+      argument= pos+1;
+    } while (*(pos++));
+    break;
+  }
 #ifndef DBUG_OFF
   case '#':
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
@@ -290,6 +319,7 @@ get_one_option(int optid __attribute__((unused)),
 static void get_options(int *argc,char ***argv)
 {
   int ho_error;
+  my_bool need_help= 0;
 
   if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
@@ -297,8 +327,23 @@ static void get_options(int *argc,char ***argv)
   if (!opt_apply)
     opt_apply_undo= FALSE;
 
-  if (((opt_display_only + opt_apply) != 1) || (*argc > 0))
+  if (*argc > 0)
   {
+    need_help= 1;
+    fprintf(stderr, "Too many arguments given\n");
+  }
+  if ((opt_display_only + opt_apply) != 1)
+  {
+    need_help= 1;
+    fprintf(stderr,
+            "You must use one and only one of the options 'display-only' or "
+            "'apply'\n");
+  }
+
+  if (need_help)
+  {
+    fflush(stderr);
+    need_help =1;
     usage();
     exit(1);
   }

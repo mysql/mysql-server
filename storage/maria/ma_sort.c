@@ -275,12 +275,13 @@ static ha_rows find_all_keys(MARIA_SORT_PARAM *info, uint keys,
   idx=error=0;
   sort_keys[0]= (uchar*) (sort_keys+keys);
 
+  info->sort_info->info->in_check_table= 1;
   while (!(error=(*info->key_read)(info,sort_keys[idx])))
   {
     if (info->real_key_length > info->key_length)
     {
       if (write_key(info,sort_keys[idx],tempfile_for_exceptions))
-        DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+        goto err;                             /* purecov: inspected */
       continue;
     }
 
@@ -289,7 +290,7 @@ static ha_rows find_all_keys(MARIA_SORT_PARAM *info, uint keys,
       if (info->write_keys(info,sort_keys,idx-1,
                            (BUFFPEK *)alloc_dynamic(buffpek),
                            tempfile))
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+        goto err;                             /* purecov: inspected */
 
       sort_keys[0]=(uchar*) (sort_keys+keys);
       memcpy(sort_keys[0],sort_keys[idx-1],(size_t) info->key_length);
@@ -298,18 +299,23 @@ static ha_rows find_all_keys(MARIA_SORT_PARAM *info, uint keys,
     sort_keys[idx]=sort_keys[idx-1]+info->key_length;
   }
   if (error > 0)
-    DBUG_RETURN(HA_POS_ERROR);		/* Aborted by get_key */ /* purecov: inspected */
+    goto err;                             /* purecov: inspected */
   if (buffpek->elements)
   {
     if (info->write_keys(info,sort_keys,idx,(BUFFPEK *)alloc_dynamic(buffpek),
                          tempfile))
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+      goto err;                         /* purecov: inspected */      
     *maxbuffer=buffpek->elements-1;
   }
   else
     *maxbuffer=0;
 
+  info->sort_info->info->in_check_table= 0;
   DBUG_RETURN((*maxbuffer)*(keys-1)+idx);
+
+err:
+  info->sort_info->info->in_check_table= 0;   /* purecov: inspected */
+  DBUG_RETURN(HA_POS_ERROR);                  /* purecov: inspected */
 } /* find_all_keys */
 
 

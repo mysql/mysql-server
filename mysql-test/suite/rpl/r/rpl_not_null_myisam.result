@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 SET SQL_LOG_BIN= 0;
 CREATE TABLE t1(`a` INT, `b` DATE DEFAULT NULL,
 `c` INT DEFAULT NULL,
@@ -45,8 +41,8 @@ INSERT INTO t4(a,c) VALUES (4, 4);
 INSERT INTO t4(a) VALUES (5);
 ************* SHOWING THE RESULT SETS WITH INSERTS *************
 TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-Comparing tables master:test.t1 and slave:test.t1
-Comparing tables master:test.t2 and slave:test.t2
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
 TABLES t2 and t3 must be different.
 SELECT * FROM t3 ORDER BY a;
 a	b
@@ -80,7 +76,7 @@ UPDATE t1 set b= NULL, c= 300 where a= 1;
 REPLACE INTO t1(a,b,c) VALUES (2, NULL, 300);
 ************* SHOWING THE RESULT SETS WITH UPDATES and REPLACES *************
 TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 ************* CLEANING *************
 DROP TABLE t1;
 DROP TABLE t2;
@@ -122,7 +118,7 @@ UPDATE t1 set b= NULL, c= b'00' where a= 1;
 REPLACE INTO t1(a,b,c) VALUES (2, NULL, b'00');
 ************* SHOWING THE RESULT SETS WITH UPDATES and REPLACES *************
 TABLES t1 and t2 must be equal otherwise an error will be thrown. 
-Comparing tables master:test.t1 and slave:test.t1
+include/diff_tables.inc [master:t1, slave:t1]
 DROP TABLE t1;
 ################################################################################
 #                       NULL ---> NOT NULL (STRICT MODE)
@@ -200,3 +196,4 @@ a	b	c
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+include/rpl_end.inc

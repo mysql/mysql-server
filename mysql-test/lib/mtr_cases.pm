@@ -1,6 +1,6 @@
 # -*- cperl -*-
-# Copyright (C) 2005-2006 MySQL AB
-#
+# Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -89,6 +89,21 @@ sub init_pattern {
 }
 
 
+sub testcase_sort_order {
+  my ($a, $b, $sort_criteria)= @_;
+  # Run slow tests first, trying to avoid getting stuck at the end
+  # with a slow test in one worker and the other workers idle.
+  return -1 if $a->{'long_test'} && !$b->{'long_test'};
+  return 1 if !$a->{'long_test'} && $b->{'long_test'};
+
+  my $a_sort_criteria= $sort_criteria->{$a->fullname()};
+  my $b_sort_criteria= $sort_criteria->{$b->fullname()};
+  my $res= $a_sort_criteria cmp $b_sort_criteria;
+  return $res if $res;
+
+  return $a->fullname() cmp $b->fullname();
+}
+
 ##############################################################################
 #
 #  Collect information about test cases to be run
@@ -129,7 +144,7 @@ sub collect_test_cases ($$$) {
       {
 	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
-	if ( $test->{name} =~ /.*\.$tname/ )
+	if ( $test->{name} =~ /^$sname.*\.$tname$/ )
 	{
 	  $found= 1;
 	  last;
@@ -169,24 +184,32 @@ sub collect_test_cases ($$$) {
       # Append the criteria for sorting, in order of importance.
       #
       push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "A" : "B"));
+      push(@criteria, $tinfo->{template_path});
       # Group test with equal options together.
       # Ending with "~" makes empty sort later than filled
       my $opts= $tinfo->{'master_opt'} ? $tinfo->{'master_opt'} : [];
       push(@criteria, join("!", sort @{$opts}) . "~");
+      # Add slave opts if any
+      if ($tinfo->{'slave_opt'})
+      {
+	push(@criteria, join("!", sort @{$tinfo->{'slave_opt'}}));
+      }
+      # This sorts tests with force-restart *before* identical tests
+      push(@criteria, $tinfo->{force_restart} ? "force-restart" : "no-restart");
 
-      $sort_criteria{$tinfo->fullname()} = join(" ", @criteria);
+      $tinfo->{criteria}= join(" ", @criteria);
+      $sort_criteria{$tinfo->fullname()} = $tinfo->{criteria};
     }
 
-    @$cases = sort {
-      $sort_criteria{$a->fullname()} . $a->fullname() cmp
-	$sort_criteria{$b->fullname()} . $b->fullname() } @$cases;
+    @$cases = sort { testcase_sort_order($a, $b, \%sort_criteria) } @$cases;
 
     # For debugging the sort-order
     # foreach my $tinfo (@$cases)
     # {
-    #   print $sort_criteria{$tinfo->fullname()}," -> \t",$tinfo->fullname(),"\n";
+    #   my $tname= $tinfo->{name} . ' ' . $tinfo->{combination};
+    #   my $crit= $tinfo->{criteria};
+    #   print("$tname\n\t$crit\n");
     # }
-
   }
 
   if (defined $print_testcases){
@@ -890,8 +913,13 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'big-test' option";
+    $tinfo->{'comment'}= "Test needs --big-test";
     return $tinfo
+  }
+  if ( $tinfo->{'big_test'} )
+  {
+    # All 'big_test' takes a long time to run
+    $tinfo->{'long_test'}= 1;
   }
 
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
@@ -915,7 +943,7 @@ sub collect_one_test_case {
     {
       # All ndb test's should be skipped
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
+      $tinfo->{'comment'}= "No ndbcluster";
       return $tinfo;
     }
   }
@@ -936,7 +964,7 @@ sub collect_one_test_case {
     if ( $skip_rpl )
     {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
+      $tinfo->{'comment'}= "No replication tests";
       return $tinfo;
     }
   }
@@ -1065,6 +1093,7 @@ my @tags=
  ["include/have_example_plugin.inc", "example_plugin_test", 1],
  ["include/have_oqgraph_engine.inc", "oqgraph_test", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
+ ["include/long_test.inc", "long_test", 1],
 );
 
 

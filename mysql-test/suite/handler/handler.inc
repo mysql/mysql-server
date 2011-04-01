@@ -1,0 +1,465 @@
+# handler.inc
+#
+# See init.inc for setup of variables for this script
+# 
+# The variables
+#     $engine_type       -- storage engine to be tested
+#     $other_engine_type -- storage engine <> $engine_type
+#     $other_handler_engine_type -- storage engine <> $engine_type, if possible
+#                           1. $other_handler_engine_type must support handler
+#                           2. $other_handler_engine_type must point to an all
+#                              time available storage engine
+#                              2006-08 MySQL 5.1 MyISAM and MEMORY only
+#
+# test of HANDLER ...
+#
+# Last update:
+# 2006-07-31 ML test refactored (MySQL 5.1)
+#               code of t/handler.test and t/innodb_handler.test united
+#               main testing code put into handler.inc
+#
+
+#
+# Start testing the table created in init.inc
+#
+handler t1 open as t2;
+handler t2 read a first;
+handler t2 read a next;
+handler t2 read a next;
+handler t2 read a prev;
+handler t2 read a last;
+handler t2 read a prev;
+handler t2 read a prev;
+
+handler t2 read a first;
+handler t2 read a prev;
+
+handler t2 read a last;
+handler t2 read a prev;
+handler t2 read a next;
+handler t2 read a next;
+
+handler t2 read a=(15);
+handler t2 read a=(16);
+
+--error 1070
+handler t2 read a=(19,"fff");
+
+handler t2 read b=(19,"fff");
+handler t2 read b=(19,"yyy");
+handler t2 read b=(19);
+
+--error 1109
+handler t1 read a last;
+
+handler t2 read a=(11);
+handler t2 read a>=(11);
+
+# Search on something we ca nfind
+handler t2 read a=(18);
+handler t2 read a>=(18);
+handler t2 read a>(18);
+handler t2 read a<=(18);
+handler t2 read a<(18);
+
+# Search on something we can't find
+handler t2 read a=(15);
+handler t2 read a>=(15);
+handler t2 read a>(15);
+handler t2 read a<=(15);
+handler t2 read a<(15);
+
+# Search from upper end
+handler t2 read a=(54);
+handler t2 read a>=(54);
+handler t2 read a>(54);
+handler t2 read a<=(54);
+handler t2 read a<(54);
+
+# Search from lower end
+handler t2 read a=(1);
+handler t2 read a>=(1);
+handler t2 read a>(1);
+handler t2 read a<=(1);
+handler t2 read a<(1);
+
+handler t2 read a first limit 5;
+handler t2 read a next  limit 3;
+handler t2 read a prev  limit 10;
+
+handler t2 read a>=(16) limit 4;
+handler t2 read a>=(16) limit 2,2;
+handler t2 read a last  limit 3;
+
+handler t2 read a=(19);
+handler t2 read a=(19) where b="yyy";
+
+handler t2 read first;
+handler t2 read next;
+handler t2 read next;
+handler t2 close;
+
+handler t1 open;
+handler t1 read a next; # this used to crash as a bug#5373
+handler t1 read a next;
+handler t1 close;
+
+handler t1 open;
+handler t1 read a prev; # this used to crash as a bug#5373
+handler t1 read a prev;
+handler t1 close;
+
+handler t1 open as t2;
+handler t2 read first;
+eval alter table t1 engine = $engine_type;
+--error 1109
+handler t2 read first;
+
+#
+# DROP TABLE / ALTER TABLE
+#
+handler t1 open as t2;
+drop table t1;
+create table t1 (a int not null);
+insert into t1 values (17);
+--error 1109
+handler t2 read first;
+handler t1 open as t2;
+eval alter table t1 engine=$other_engine_type;
+--error 1109
+handler t2 read first;
+drop table t1;
+
+#
+# Test case for the bug #787
+#
+create table t1 (a int);
+insert into t1 values (1),(2),(3),(4),(5),(6);
+delete from t1 limit 2;
+handler t1 open;
+handler t1 read first;
+handler t1 read first limit 1,1;
+handler t1 read first limit 2,2;
+delete from t1 limit 3;
+handler t1 read first;
+drop table t1;
+
+#
+# Test for #751
+#
+eval create table t1(a int, index $key_type (a));
+insert into t1 values (1), (2), (3);
+handler t1 open;
+--error 1054
+handler t1 read a=(W);
+--error 1210
+handler t1 read a=(a);
+drop table t1;
+#
+# BUG#2304
+#
+create table t1 (a char(5));
+insert into t1 values ("Ok");
+handler t1 open as t;
+handler t read first;
+use mysql;
+handler t read first;
+handler t close;
+handler test.t1 open as t;
+handler t read first;
+handler t close;
+use test;
+drop table t1;
+
+#
+# BUG#3649
+#
+eval create table t1 ( a int, b int, INDEX a $key_type (a) );
+insert into t1 values (1,2), (2,1);
+handler t1 open;
+handler t1 read a=(1) where b=2;
+handler t1 read a=(1) where b=3;
+handler t1 read a=(1) where b=1;
+handler t1 close;
+drop table t1;
+
+#
+# Test if fix for BUG#4286 correctly closes handler tables.
+#
+create table t1 (c1 char(20));
+insert into t1 values ("t1");
+handler t1 open as h1;
+handler h1 read first limit 9;
+create table t2 (c1 char(20));
+insert into t2 values ("t2");
+handler t2 open as h2;
+handler h2 read first limit 9;
+create table t3 (c1 char(20));
+insert into t3 values ("t3");
+handler t3 open as h3;
+handler h3 read first limit 9;
+create table t4 (c1 char(20));
+insert into t4 values ("t4");
+handler t4 open as h4;
+handler h4 read first limit 9;
+create table t5 (c1 char(20));
+insert into t5 values ("t5");
+handler t5 open as h5;
+handler h5 read first limit 9;
+# close first
+eval alter table t1 engine=$other_handler_engine_type;
+--error 1109
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+handler h3 read first limit 9;
+handler h4 read first limit 9;
+handler h5 read first limit 9;
+# close last
+eval alter table t5 engine=$other_handler_engine_type;
+--error 1109
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+handler h3 read first limit 9;
+handler h4 read first limit 9;
+--error 1109
+handler h5 read first limit 9;
+# close middle
+eval alter table t3 engine=$other_handler_engine_type;
+--error 1109
+handler h1 read first limit 9;
+handler h2 read first limit 9;
+--error 1109
+handler h3 read first limit 9;
+handler h4 read first limit 9;
+--error 1109
+handler h5 read first limit 9;
+handler h2 close;
+handler h4 close;
+# close all depending handler tables
+handler t1 open as h1_1;
+handler t1 open as h1_2;
+handler t1 open as h1_3;
+handler h1_1 read first limit 9;
+handler h1_2 read first limit 9;
+handler h1_3 read first limit 9;
+eval alter table t1 engine=$engine_type;
+--error 1109
+handler h1_1 read first limit 9;
+--error 1109
+handler h1_2 read first limit 9;
+--error 1109
+handler h1_3 read first limit 9;
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+drop table t5;
+
+#
+# Bug#14397 - OPTIMIZE TABLE with an open HANDLER causes a crash
+#
+create table t1 (c1 int);
+insert into t1 values (1);
+# client 1
+handler t1 open;
+handler t1 read first;
+# client 2
+connect (con2,localhost,root,,);
+connection con2;
+--exec echo send the below to another connection, do not wait for the result
+send optimize table t1;
+--sleep 1
+# client 1
+--exec echo proceed with the normal connection
+connection default;
+handler t1 read next;
+handler t1 close;
+# client 2
+--exec echo read the result from the other connection
+connection con2;
+reap;
+# client 1
+--exec echo proceed with the normal connection
+connection default;
+drop table t1;
+
+eval CREATE TABLE t1 (  no1 smallint(5) NOT NULL default '0',  no2 int(10) NOT NULL default '0',  PRIMARY KEY $key_type (no1,no2));
+INSERT INTO t1 VALUES (1,274),(1,275),(2,6),(2,8),(4,1),(4,2);
+HANDLER t1 OPEN;
+HANDLER t1 READ `primary` = (1, 1000);
+HANDLER t1 READ `primary` PREV;
+HANDLER t1 READ `primary` = (1, 1000);
+HANDLER t1 READ `primary` NEXT;
+DROP TABLE t1;
+
+# End of 4.1 tests
+
+#
+# Addendum to Bug#14397 - OPTIMIZE TABLE with an open HANDLER causes a crash
+# Show that DROP TABLE can no longer deadlock against
+# FLUSH TABLES WITH READ LOCK. This is a 5.0 issue.
+#
+create table t1 (c1 int);
+insert into t1 values (14397);
+flush tables with read lock;
+# The thread with the global read lock cannot drop the table itself:
+--error 1223
+drop table t1;
+#
+# client 2
+# We need a second connection to try the drop.
+# The drop waits for the global read lock to go away.
+# Without the addendum fix it locked LOCK_open before entering the wait loop.
+connection con2;
+--exec echo send the below to another connection, do not wait for the result
+send drop table t1;
+--sleep 1
+#
+# client 1
+# Now we need something that wants LOCK_open. A simple table access which
+# opens the table does the trick.
+--exec echo proceed with the normal connection
+connection default;
+# This would hang on LOCK_open without the 5.0 addendum fix.
+select * from t1;
+# Release the read lock. This should make the DROP go through.
+unlock tables;
+#
+# client 2
+# Read the result of the drop command.
+connection con2;
+--exec echo read the result from the other connection
+reap;
+#
+# client 1
+# Now back to normal operation. The table should not exist any more.
+--exec echo proceed with the normal connection
+connection default;
+--error 1146
+select * from t1;
+# Just to be sure and not confuse the next test case writer.
+drop table if exists t1;
+
+#
+# Bug#25856 - HANDLER table OPEN in one connection lock DROP TABLE in another one
+#
+eval create table t1 (a int not null) ENGINE=$other_engine_type;
+--echo --> client 2
+connection con2;
+--error 1031
+handler t1 open;
+--echo --> client 1
+connection default;
+drop table t1;
+disconnect con2;
+
+#
+# Bug#30632 HANDLER read failure causes hang
+#
+create table t1 (a int);
+handler t1 open as t1_alias;
+--error 1176
+handler t1_alias read a next;
+--error 1054
+handler t1_alias READ a next where inexistent > 0;
+--error 1176
+handler t1_alias read a next;
+--error 1054
+handler t1_alias READ a next where inexistent > 0;
+handler t1_alias close;
+drop table t1;
+
+#
+# Bug#30882 Dropping a temporary table inside a stored function may cause a server crash
+#
+# Test HANDLER statements in conjunction with temporary tables. While the temporary table
+# is open by a HANDLER, no other statement can access it.
+#
+
+eval create temporary table t1 (a int, b char(1), key a $key_type (a), key b(a,b));
+insert into t1 values (0,"a"),(1,"b"),(2,"c"),(3,"d"),(4,"e"),
+                      (5,"f"),(6,"g"),(7,"h"),(8,"i"),(9,"j"),(9,'k');
+select a,b from t1;
+handler t1 open as a1;
+handler a1 read a=(1);
+handler a1 read a next;
+handler a1 read a next;
+--error ER_CANT_REOPEN_TABLE
+select a,b from t1;
+handler a1 read a prev;
+handler a1 read a prev;
+handler a1 read a=(6) where b="g";
+handler a1 close;
+select a,b from t1;
+handler t1 open as a2;
+handler a2 read a=(9);
+handler a2 read a next;
+handler a2 read a prev limit 2;
+--error 0,1031
+handler a2 read a last;
+handler a2 read a prev;
+handler a2 close;
+drop table t1;
+
+# Test that temporary tables associated with handlers are properly dropped.
+
+create table t1 (a int);
+eval create temporary table t2 (a int, key $key_type (a));
+handler t1 open as a1;
+handler t2 open as a2;
+handler a2 read a first;
+drop table t1, t2;
+--error ER_UNKNOWN_TABLE
+handler a2 read a next;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+
+# Alter table drop handlers
+
+eval create table t1 (a int, key $key_type (a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+handler a2 read a first;
+alter table t1 add b int;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+handler a2 close;
+drop table t1, t2;
+
+# Rename table drop handlers
+
+eval create table t1 (a int, key $key_type (a));
+handler t1 open as a1;
+handler a1 read a first;
+rename table t1 to t2;
+--error ER_UNKNOWN_TABLE
+handler a1 read a first;
+drop table t2;
+
+# Optimize table drop handlers
+
+eval create table t1 (a int, key $key_type (a));
+create table t2 like t1;
+handler t1 open as a1;
+handler t2 open as a2;
+handler a1 read a first;
+handler a2 read a first;
+optimize table t1;
+--error ER_UNKNOWN_TABLE
+handler a1 close;
+handler a2 close;
+drop table t1, t2;
+
+--echo #
+--echo # BUG#51877 - HANDLER interface causes invalid memory read
+--echo #
+eval CREATE TABLE t1(a INT, KEY $key_type (a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+INSERT INTO t1 VALUES(1);
+--error 0,ER_CHECKREAD
+HANDLER t1 READ a NEXT;
+HANDLER t1 CLOSE;
+DROP TABLE t1;

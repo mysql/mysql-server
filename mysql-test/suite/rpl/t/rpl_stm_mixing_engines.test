@@ -8,7 +8,7 @@
 # BUG#49522: Replication problem with mixed MyISAM/InnoDB
 #
 
--- source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 -- connection master
 
 CREATE TABLE `t1` ( 
@@ -32,12 +32,11 @@ SET AUTOCOMMIT=1;
 
 -- sync_slave_with_master
 
--- let $diff_table_1=master:test.t1
--- let $diff_table_2=slave:test.t1
+-- let $diff_tables= master:t1, slave:t1
 -- source include/diff_tables.inc
 
 -- connection master
 DROP TABLE `t1`;
 -- sync_slave_with_master
 
--- source include/master-slave-end.inc
+--source include/rpl_end.inc

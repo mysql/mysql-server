@@ -126,7 +126,7 @@ emit_endl()
 static void
 handle_core_signal(int signo)
 {
-  BAIL_OUT("Signal %d thrown", signo);
+  BAIL_OUT("Signal %d thrown\n", signo);
 }
 
 void
@@ -136,6 +136,8 @@ BAIL_OUT(char const *fmt, ...)
   va_start(ap, fmt);
   fprintf(tapout, "Bail out! ");
   vfprintf(tapout, fmt, ap);
+  diag("%d tests planned,  %d failed,  %d was last executed",
+       g_test.plan, g_test.failed, g_test.last);
   emit_endl();
   va_end(ap);
   exit(255);
@@ -159,6 +161,7 @@ typedef struct signal_entry {
 } signal_entry;
 
 static signal_entry install_signal[]= {
+  { SIGINT,  handle_core_signal },
   { SIGQUIT, handle_core_signal },
   { SIGILL,  handle_core_signal },
   { SIGABRT, handle_core_signal },

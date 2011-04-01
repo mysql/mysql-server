@@ -154,6 +154,12 @@ ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
 TARGET_LINK_LIBRARIES(mysqlserver psapi.lib)
 
+IF(MSVC AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+  # Workaround cmake bug http://www.vtk.org/Bug/view.php?id=11240
+  SET_TARGET_PROPERTIES(mysqlserver PROPERTIES STATIC_LIBRARY_FLAGS
+    "/MACHINE:AMD64")
+ENDIF()
+
 # Add any additional libraries requested by engine(s)
 FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})
   STRING(TOUPPER ${ENGINE_LIB} ENGINE_LIB_UPPER)

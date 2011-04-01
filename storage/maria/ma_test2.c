@@ -69,24 +69,25 @@ int main(int argc, char *argv[])
   MARIA_KEYDEF keyinfo[10];
   MARIA_COLUMNDEF recinfo[10];
   MARIA_INFO info;
-  const char *filename;
   char *blob_buffer;
   MARIA_CREATE_INFO create_info;
+  char filename[FN_REFLEN];
 
 #if defined(SAFE_MUTEX) && defined(THREAD)
   safe_mutex_deadlock_detector= 1;
 #endif
   MY_INIT(argv[0]);
 
-  filename= "test2";
+  maria_data_root= (char *)".";
   get_options(argc,argv);
+  fn_format(filename, "test2", maria_data_root, "", MYF(0));
+
   if (! async_io)
     my_disable_async_io=1;
 
   /* If we sync or not have no affect on this test */
   my_disable_sync= 1;
 
-  maria_data_root= (char *)".";
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, pagecache_size, 0, 0,
@@ -1100,6 +1101,9 @@ static void get_options(int argc, char **argv)
       break;
     case 'H':
       checkpoint= atoi(++pos);
+      break;
+    case 'h':
+      maria_data_root= ++pos;
       break;
     case 'k':
       if ((keys=(uint) atoi(++pos)) < 1 ||

@@ -1248,3 +1248,129 @@ Note	1449	The user specified as a definer ('unknown'@'unknown') does not exist
 LOCK TABLES v1 READ;
 ERROR HY000: The user specified as a definer ('unknown'@'unknown') does not exist
 DROP VIEW v1;
+#
+# Bug #58499 "DEFINER-security view selecting from INVOKER-security view
+#             access check wrong".
+#
+# Check that we correctly handle privileges for various combinations
+# of INVOKER and DEFINER-security views using each other.
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+USE mysqltest1;
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+#
+# 1) DEFINER-security view uses INVOKER-security view (covers
+#    scenario originally described in the bug report).
+CREATE SQL SECURITY INVOKER VIEW v1_uses_t1 AS SELECT * FROM t1;
+CREATE SQL SECURITY INVOKER VIEW v1_uses_t2 AS SELECT * FROM t2;
+CREATE USER 'mysqluser1'@'%';
+GRANT CREATE VIEW ON mysqltest1.* TO 'mysqluser1'@'%';
+GRANT SELECT ON t1 TO 'mysqluser1'@'%';
+# To be able create 'v2_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t1 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t2 TO 'mysqluser1'@'%';
+#
+# Connection 'mysqluser1'.
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+#
+# Connection 'default'.
+CREATE USER 'mysqluser2'@'%';
+GRANT SELECT ON v2_uses_t1 TO 'mysqluser2'@'%';
+GRANT SELECT ON v2_uses_t2 TO 'mysqluser2'@'%';
+GRANT SELECT ON t2 TO 'mysqluser2'@'%';
+GRANT CREATE VIEW ON mysqltest1.* TO 'mysqluser2'@'%';
+# Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+#
+# Connection 'mysqluser2'.
+# The below statement should succeed thanks to suid nature of v2_uses_t1.
+SELECT * FROM v2_uses_t1;
+i
+1
+# The below statement should fail due to suid nature of v2_uses_t2.
+SELECT * FROM v2_uses_t2;
+ERROR HY000: View 'mysqltest1.v2_uses_t2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# 2) INVOKER-security view uses INVOKER-security view.
+#
+# Connection 'default'.
+DROP VIEW v2_uses_t1, v2_uses_t2;
+CREATE SQL SECURITY INVOKER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY INVOKER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+GRANT SELECT ON v2_uses_t1 TO 'mysqluser1'@'%';
+GRANT SELECT ON v2_uses_t2 TO 'mysqluser1'@'%';
+GRANT SELECT ON v1_uses_t1 TO 'mysqluser2'@'%';
+GRANT SELECT ON v1_uses_t2 TO 'mysqluser2'@'%';
+#
+# Connection 'mysqluser1'.
+# For both versions of 'v2' 'mysqluser1' privileges should be used.
+SELECT * FROM v2_uses_t1;
+i
+1
+SELECT * FROM v2_uses_t2;
+ERROR HY000: View 'mysqltest1.v2_uses_t2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# Connection 'mysqluser2'.
+# And now for both versions of 'v2' 'mysqluser2' privileges should
+# be used.
+SELECT * FROM v2_uses_t1;
+ERROR HY000: View 'mysqltest1.v2_uses_t1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM v2_uses_t2;
+j
+2
+#
+# 3) INVOKER-security view uses DEFINER-security view.
+#
+# Connection 'default'.
+DROP VIEW v1_uses_t1, v1_uses_t2;
+# To be able create 'v1_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+#
+# Connection 'mysqluser1'.
+CREATE SQL SECURITY DEFINER VIEW v1_uses_t1 AS SELECT * FROM t1;
+CREATE SQL SECURITY DEFINER VIEW v1_uses_t2 AS SELECT * FROM t2;
+#
+# Connection 'default'.
+# Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+#
+# Connection 'mysqluser2'.
+# Due to suid nature of v1_uses_t1 and v1_uses_t2 the first
+# select should succeed and the second select should fail.
+SELECT * FROM v2_uses_t1;
+i
+1
+SELECT * FROM v2_uses_t2;
+ERROR HY000: View 'mysqltest1.v2_uses_t2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+#
+# 4) DEFINER-security view uses DEFINER-security view.
+#
+# Connection 'default'.
+DROP VIEW v2_uses_t1, v2_uses_t2;
+# To be able create 'v2_uses_t2' we also need select on t2. 
+GRANT SELECT ON t2 TO 'mysqluser1'@'%';
+#
+# Connection 'mysqluser2'.
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t1 AS SELECT * FROM v1_uses_t1;
+CREATE SQL SECURITY DEFINER VIEW v2_uses_t2 AS SELECT * FROM v1_uses_t2;
+#
+# Connection 'default'.
+# Make 'mysqluser1' unable to access t2.
+REVOKE SELECT ON t2 FROM 'mysqluser1'@'%';
+#
+# Connection 'mysqluser2'.
+# Again privileges of creator of innermost views should apply.
+SELECT * FROM v2_uses_t1;
+i
+1
+SELECT * FROM v2_uses_t2;
+ERROR HY000: View 'mysqltest1.v2_uses_t2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+USE test;
+DROP DATABASE mysqltest1;
+DROP USER 'mysqluser1'@'%';
+DROP USER 'mysqluser2'@'%';

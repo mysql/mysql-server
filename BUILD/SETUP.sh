@@ -98,7 +98,7 @@ SSL_LIBRARY=--with-ssl
 
 if [ "x$warning_mode" != "xpedantic" ]; then
 # Both C and C++ warnings
-  warnings="-Wall -Wextra -Wunused -Wwrite-strings"
+  warnings="-Wall -Wextra -Wunused -Wwrite-strings -Wno-uninitialized"
 
 # For more warnings, uncomment the following line
 # warnings="$warnings -Wshadow"
@@ -112,7 +112,7 @@ if [ "x$warning_mode" != "xpedantic" ]; then
 # Added unless --with-debug=full
   debug_extra_cflags="-O0 -g3 -gdwarf-2"
 else
-  warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -D_POSIX_SOURCE"
+  warnings="-W -Wall -ansi -pedantic -Wno-long-long -Wno-unused -Wno-uninitialized -D_POSIX_SOURCE"
   c_warnings="$warnings"
   cxx_warnings="$warnings -std=c++98"
 # NOTE: warning mode should not influence optimize/debug mode.
@@ -127,12 +127,13 @@ fi
 # Override -DFORCE_INIT_OF_VARS from debug_cflags. It enables the macro
 # LINT_INIT(), which is only useful for silencing spurious warnings
 # of static analysis tools. We want LINT_INIT() to be a no-op in Valgrind.
-valgrind_flags="-USAFEMALLOC -UFORCE_INIT_OF_VARS -DHAVE_valgrind "
+valgrind_flags="-DHAVE_valgrind -USAFEMALLOC"
+valgrind_flags="$valgrind_flags -UFORCE_INIT_OF_VARS -Wno-uninitialized"
 valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
 valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
-debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+debug_cflags="-DUNIV_MUST_NOT_INLINE -DEXTRA_DEBUG"
 debug_cflags="$debug_cflags -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC"
 error_inject="--with-error-inject "
 #
@@ -206,6 +207,24 @@ fi
 if test -z "$CXX" ; then
   CXX=g++
 fi
+
+
+#
+# Set -Wuninitialized to debug flags for gcc 4.4 and above
+# because it is allowed there without -O
+#
+if test `$CC -v 2>&1 | tail -1 | sed 's/ .*$//'` = 'gcc' ; then
+  GCCVERSION=`$CC -v 2>&1 | tail -1 | \
+    sed 's/^[a-zA-Z][a-zA-Z]* [a-zA-Z][a-zA-Z]* //' | sed 's/ .*$//'`
+  GCCV1=`echo $GCCVERSION | sed 's/\..*$//'`
+  GCCV2=`echo $GCCVERSION | sed 's/[0-9][0-9]*\.//'|sed 's/\..*$//'`
+  if test '(' "$GCCV1" -gt '4' ')' -o \
+    '(' '(' "$GCCV1" -eq '4' ')' -a '(' "$GCCV2" -ge '4' ')' ')'
+  then
+    debug_cflags="$debug_cflags -DFORCE_INIT_OF_VARS -Wuninitialized"
+  fi
+fi
+
 
 # If ccache (a compiler cache which reduces build time)
 # (http://samba.org/ccache) is installed, use it.

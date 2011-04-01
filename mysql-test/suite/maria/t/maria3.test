@@ -172,11 +172,13 @@ create table t1 (a bigint auto_increment, primary key(a), b char(255), c varchar
 let $1=1000;
 --disable_query_log
 --disable_warnings
+lock tables t1 write;
 while ($1)
 {
   insert into t1 () values();
   dec $1;
 }
+unlock tables;
 --enable_query_log
 update t1 set b=repeat('a',100) where a between 1 and 100;
 check table t1;

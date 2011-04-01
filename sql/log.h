@@ -41,7 +41,7 @@ class TC_LOG
   virtual int log_and_order(THD *thd, my_xid xid, bool all,
                             bool need_prepare_ordered,
                             bool need_commit_ordered) = 0;
-  virtual void unlog(ulong cookie, my_xid xid)=0;
+  virtual int unlog(ulong cookie, my_xid xid)=0;
 
 protected:
   /*
@@ -90,7 +90,7 @@ public:
     DBUG_ASSERT(0 /* Internal error - TC_LOG_DUMMY::log_and_order() called */);
     return 1;
   }
-  void unlog(ulong cookie, my_xid xid)  { }
+  int unlog(ulong cookie, my_xid xid)  { return 0; }
 };
 
 #ifdef HAVE_MMAP
@@ -163,7 +163,7 @@ class TC_LOG_MMAP: public TC_LOG
   void close();
   int log_and_order(THD *thd, my_xid xid, bool all,
                     bool need_prepare_ordered, bool need_commit_ordered);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover();
 
   private:
@@ -381,8 +381,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
     new_file() is locking. new_file_without_locking() does not acquire
     LOCK_log.
   */
-  void new_file_without_locking();
-  void new_file_impl(bool need_lock);
+  int new_file_without_locking();
+  int new_file_impl(bool need_lock);
   int write_transaction(group_commit_entry *entry);
   bool write_transaction_to_binlog_events(group_commit_entry *entry);
   void trx_group_commit_leader(group_commit_entry *leader);
@@ -424,7 +424,7 @@ public:
   void close();
   int log_and_order(THD *thd, my_xid xid, bool all,
                     bool need_prepare_ordered, bool need_commit_ordered);
-  void unlog(ulong cookie, my_xid xid);
+  int unlog(ulong cookie, my_xid xid);
   int recover(IO_CACHE *log, Format_description_log_event *fdle);
 #if !defined(MYSQL_CLIENT)
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
@@ -464,7 +464,7 @@ public:
   bool open_index_file(const char *index_file_name_arg,
                        const char *log_name, bool need_mutex);
   /* Use this to start writing a new log file */
-  void new_file();
+  int new_file();
 
   void reset_gathered_updates(THD *thd);
   bool write(Log_event* event_info,
@@ -472,6 +472,7 @@ public:
   bool write_transaction_to_binlog(THD *thd, binlog_trx_data *trx_data,
                                    Log_event *end_ev, bool all);
 
+  bool write_incident_already_locked(THD *thd);
   bool write_incident(THD *thd);
   int  write_cache(THD *thd, IO_CACHE *cache);
   void set_write_error(THD *thd);
@@ -491,7 +492,7 @@ public:
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
   int update_log_index(LOG_INFO* linfo, bool need_update_threads);
-  void rotate_and_purge(uint flags);
+  int rotate_and_purge(uint flags);
   bool flush_and_sync();
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,

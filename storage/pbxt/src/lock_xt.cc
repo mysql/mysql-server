@@ -2058,11 +2058,12 @@ static void lck_free_thread_data(XTThreadPtr XT_UNUSED(self), void *XT_UNUSED(da
 
 static void lck_do_job(XTThreadPtr self, int job, XSLockTestPtr data, xtBool reader)
 {
-	char b1[2048], b2[2048];
+	char b1[1024], b2[1024];
 
 	switch (job) {
 		case JOB_MEMCPY:
-			memcpy(b1, b2, 2048);
+                        memset(b1, 0, sizeof(b1));
+                        memset(b2, 1, sizeof(b2));
 			data->xs_inc++;
 			break;
 		case JOB_SLEEP:

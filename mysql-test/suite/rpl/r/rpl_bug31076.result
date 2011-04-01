@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE DATABASE track;
 USE track;
 CREATE TABLE `visits` (
@@ -67,3 +63,4 @@ event_id	visit_id	timestamp	src	data	visits_events_id
 20000	21231038	2007-09-18 03:59:02		Downloads/MySQL-4.1/mysql-4.1.12a-win32.zip	33712207
 DROP DATABASE track;
 End of 5.1 tests
+include/rpl_end.inc

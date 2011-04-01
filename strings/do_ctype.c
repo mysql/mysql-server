@@ -20,10 +20,9 @@
 #undef DBUG_OFF
 #endif
 
-#include <my_global.h>
+#include "strings_def.h"
 #include <ctype.h>
 #include <my_sys.h>
-#include "m_string.h"
 
 uchar NEAR to_upper[256];
 uchar NEAR to_lower[256],NEAR sort_order[256];

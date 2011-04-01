@@ -22,8 +22,7 @@
   the pattern counted from the begining of the string.
 */
 
-#include <my_global.h>
-#include "m_string.h"
+#include "strings_def.h"
 
 size_t r_strinstr(reg1 const char * str, size_t from, reg4 const char * search)
 {

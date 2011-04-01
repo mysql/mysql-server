@@ -2113,7 +2113,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     if (!foreign_key_error)
       my_printf_error(ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR), MYF(0),
-                      wrong_tables.c_ptr());
+                      wrong_tables.c_ptr_safe());
     else
       my_message(ER_ROW_IS_REFERENCED, ER(ER_ROW_IS_REFERENCED), MYF(0));
     error= 1;
@@ -6955,10 +6955,9 @@ view_err:
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-			  table->alias);
+			  table->alias.c_ptr());
     }
 
-    VOID(pthread_mutex_lock(&LOCK_open));
     /*
       Unlike to the above case close_cached_table() below will remove ALL
       instances of TABLE from table cache (it will also remove table lock
@@ -6976,15 +6975,10 @@ view_err:
         Workaround InnoDB ending the transaction when the table instance
         is unlocked/closed (close_cached_table below), otherwise the trx
         state will differ between the server and storage engine layers.
-
-        We have to unlock LOCK_open here as otherwise we can get deadlock
-        in wait_if_global_readlock().  This is still safe as we have a
-        name lock on the table object.
       */
-      VOID(pthread_mutex_unlock(&LOCK_open));
       ha_autocommit_or_rollback(thd, 0);
-      VOID(pthread_mutex_lock(&LOCK_open));
 
+      VOID(pthread_mutex_lock(&LOCK_open));
       /*
         Then do a 'simple' rename of the table. First we need to close all
         instances of 'source' table.
@@ -7017,13 +7011,15 @@ view_err:
         }
       }
     }
+    else
+      VOID(pthread_mutex_lock(&LOCK_open));
 
     if (error == HA_ERR_WRONG_COMMAND)
     {
       error= 0;
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			  ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-			  table->alias);
+			  table->alias.c_ptr());
     }
 
     if (!error)
@@ -7228,6 +7224,16 @@ view_err:
           /* Non-primary unique key. */
           needed_online_flags|=  HA_ONLINE_ADD_UNIQUE_INDEX;
           needed_fast_flags|= HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES;
+          if (ignore)
+          {
+            /*
+              If ignore is used, we have to remove all duplicate rows,
+              which require a full table copy.
+            */
+            need_copy_table= ALTER_TABLE_DATA_CHANGED;
+            pk_changed= 2;                      // Don't change need_copy_table
+            break;
+          }
         }
       }
       else

@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
-   Copyright (c) 2009-2010 Monty Program Ab
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
+   2009-2011 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -548,7 +548,8 @@ JOIN::prepare(Item ***rref_pointer_array,
     thd->lex->allow_sum_func= save_allow_sum_func;
   }
 
-  if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
+  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
+      !(select_options & SELECT_DESCRIBE))
   {
     Item_subselect *subselect;
     /* Is it subselect? */
@@ -4111,10 +4112,13 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
 	  continue;
       }
 
-#ifdef HAVE_valgrind
-      /* Valgrind complains about overlapped memcpy when save_pos==use. */
+      /*
+        Old gcc used a memcpy(), which is undefined if save_pos==use:
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=19410
+        http://gcc.gnu.org/bugzilla/show_bug.cgi?id=39480
+        This also disables a valgrind warning, so better to have the test.
+      */
       if (save_pos != use)
-#endif
         *save_pos= *use;
       prev=use;
       found_eq_constant= !use->used_tables;
@@ -5078,7 +5082,7 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 
     All other cases are in-between these two extremes. Thus the parameter
     'search_depth' controlls the exhaustiveness of the search. The higher the
-    value, the longer the optimizaton time and possibly the better the
+    value, the longer the optimization time and possibly the better the
     resulting plan. The lower the value, the fewer alternative plans are
     estimated, but the more likely to get a bad QEP.
 
@@ -6157,9 +6161,10 @@ static void add_not_null_conds(JOIN *join)
           */
           if (notnull->fix_fields(join->thd, &notnull))
             DBUG_VOID_RETURN;
-          DBUG_EXECUTE("where",print_where(notnull,
-                                           referred_tab->table->alias,
-                                           QT_ORDINARY););
+          DBUG_EXECUTE("where",
+                       print_where(notnull,
+                                   referred_tab->table->alias.c_ptr(),
+                                   QT_ORDINARY););
           add_cond_and_fix(&referred_tab->select_cond, notnull);
         }
       }
@@ -6418,7 +6423,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
       if (tmp || !cond || tab->type == JT_REF)
       {
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(tmp,tab->table->alias.c_ptr(),
+                                 QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
                                        thd->memdup((uchar*) select,
                                                    sizeof(*select)));
@@ -6441,7 +6448,6 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond=sel->cond=tmp;
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
-          tab->table->file->pushed_cond= NULL;
 	  if (thd->variables.engine_condition_pushdown)
           {
             COND *push_cond= 
@@ -6458,7 +6464,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond= sel->cond= NULL;
 
 	sel->head=tab->table;
-        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(tmp,tab->table->alias.c_ptr(),
+                                 QT_ORDINARY););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
@@ -9911,7 +9919,12 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                           convert_blob_length);
     if (orig_type == Item::REF_ITEM && orig_modify)
       ((Item_ref*)orig_item)->set_result_field(result);
-    if (field->field->eq_def(result))
+    /*
+      Fields that are used as arguments to the DEFAULT() function already have
+      their data pointers set to the default value during name resolution. See
+      Item_default_value::fix_fields.
+    */
+    if (orig_type != Item::DEFAULT_VALUE_ITEM && field->field->eq_def(result))
       *default_field= field->field;
     return result;
   }
@@ -10178,7 +10191,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   thd->mem_root= &table->mem_root;
 
   table->field=reg_field;
-  table->alias= table_alias;
+  table->alias.set(table_alias, strlen(table_alias), table_alias_charset);
+
   table->reginfo.lock_type=TL_WRITE;	/* Will be updated */
   table->db_stat=HA_OPEN_KEYFILE+HA_OPEN_RNDFILE;
   table->map=1;
@@ -10544,7 +10558,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       null_count=(null_count+7) & ~7;		// move to next byte
 
     // fix table name in field entry
-    field->table_name= &table->alias;
+    field->set_table_name(&table->alias);
   }
 
   param->copy_field_end=copy;
@@ -11151,6 +11165,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   const char *save_proc_info;
   int write_err;
   DBUG_ENTER("create_internal_tmp_table_from_heap2");
+  LINT_INIT(write_err);
 
   if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)
@@ -11214,6 +11229,11 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
     DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
     if (write_err)
       goto err;
+    if (thd->killed)
+    {
+      thd->send_kill_message();
+      goto err_killed;
+    }
   }
   /* copy row that filled HEAP table */
   if ((write_err=new_table.file->ha_write_row(table->record[0])))
@@ -11244,6 +11264,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
  err:
   DBUG_PRINT("error",("Got error: %d",write_err));
   table->file->print_error(write_err, MYF(0));
+err_killed:
   (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
@@ -11262,7 +11283,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   MEM_ROOT own_root= entry->mem_root;
   const char *save_proc_info;
   DBUG_ENTER("free_tmp_table");
-  DBUG_PRINT("enter",("table: %s",entry->alias));
+  DBUG_PRINT("enter",("table: %s",entry->alias.c_ptr()));
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "removing tmp table");
@@ -11957,7 +11978,8 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   }
 
-  for (JOIN_TAB *tmp=join->join_tab; tmp != join_tab ; tmp++)
+  for (JOIN_TAB *tmp= join_tab-1;
+       tmp >= join->join_tab && !tmp->cache.buff; tmp--)
   {
     tmp->status=tmp->table->status;
     tmp->table->status=0;
@@ -12017,7 +12039,8 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
   reset_cache_write(&join_tab->cache);
   if (error > 0)				// Fatal error
     return NESTED_LOOP_ERROR;                   /* purecov: inspected */
-  for (JOIN_TAB *tmp2=join->join_tab; tmp2 != join_tab ; tmp2++)
+  for (JOIN_TAB *tmp2= join_tab-1;
+       tmp2 >= join->join_tab && !tmp2->cache.buff; tmp2--)
     tmp2->table->status=tmp2->status;
   return NESTED_LOOP_OK;
 }
@@ -15556,6 +15579,8 @@ calc_group_buffer(JOIN *join,ORDER *group)
         {
           key_length+= 8;
         }
+        else if (type == MYSQL_TYPE_BLOB)
+          key_length+= MAX_BLOB_WIDTH;		// Can't be used as a key
         else
         {
           /*
@@ -16020,6 +16045,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
+          str.extra_allocation(1024);
 	  item->print(&str, QT_ORDINARY);
 	  item_field->name= sql_strmake(str.ptr(),str.length());
 	}

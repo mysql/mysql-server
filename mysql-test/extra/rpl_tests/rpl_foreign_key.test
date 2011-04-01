@@ -60,6 +60,4 @@ select count(*) from t1 /* must be zero */;
 connection master;
 drop table t2,t1;
 
-sync_slave_with_master;
-
-
+--source include/rpl_end.inc

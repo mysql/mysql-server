@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1536,9 +1536,9 @@ void Field::make_field(Send_field *field)
   }
   else
     field->org_table_name= field->db_name= "";
-  if (orig_table && orig_table->alias)
+  if (orig_table && orig_table->alias.ptr())
   {
-    field->table_name= orig_table->alias;
+    field->table_name= orig_table->alias.ptr();
     field->org_col_name= field_name;
   }
   else

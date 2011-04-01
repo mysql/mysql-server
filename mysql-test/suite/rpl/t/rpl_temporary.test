@@ -1,10 +1,10 @@
--- source include/master-slave.inc
-
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
 # But we only need it on the master, not the slave.
 SET sql_log_bin = 0;
 source include/add_anonymous_users.inc;
 SET sql_log_bin = 1;
+
+-- source include/master-slave.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -292,11 +292,15 @@ connection master;
 drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
-# Delete the anonymous users
-SET sql_log_bin = 0;
-source include/delete_anonymous_users.inc;
-SET sql_log_bin = 1;
+--sync_slave_with_master
 
+# Delete the anonymous users.
+--source include/stop_slave.inc
+source include/delete_anonymous_users.inc;
+--connection master
+source include/delete_anonymous_users.inc;
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
 
 
 #
@@ -328,9 +332,7 @@ connection slave;
 
 DROP USER user43748@127.0.0.1;
 
---echo -- done. back to master.
-connection master;
-
-
 
 --echo End of 5.1 tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

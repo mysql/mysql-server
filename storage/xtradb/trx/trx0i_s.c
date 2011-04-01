@@ -404,6 +404,42 @@ table_cache_create_empty_row(
 	return(row);
 }
 
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Validates a row in the locks cache.
+@return	TRUE if valid */
+static
+ibool
+i_s_locks_row_validate(
+/*===================*/
+	const i_s_locks_row_t*	row)	/*!< in: row to validate */
+{
+	ut_ad(row->lock_trx_id != 0);
+	ut_ad(row->lock_mode != NULL);
+	ut_ad(row->lock_type != NULL);
+	ut_ad(row->lock_table != NULL);
+	ut_ad(row->lock_table_id != 0);
+
+	if (row->lock_space == ULINT_UNDEFINED) {
+		/* table lock */
+		ut_ad(!strcmp("TABLE", row->lock_type));
+		ut_ad(row->lock_index == NULL);
+		ut_ad(row->lock_data == NULL);
+		ut_ad(row->lock_page == ULINT_UNDEFINED);
+		ut_ad(row->lock_rec == ULINT_UNDEFINED);
+	} else {
+		/* record lock */
+		ut_ad(!strcmp("RECORD", row->lock_type));
+		ut_ad(row->lock_index != NULL);
+		/* row->lock_data == NULL if buf_page_try_get() == NULL */
+		ut_ad(row->lock_page != ULINT_UNDEFINED);
+		ut_ad(row->lock_rec != ULINT_UNDEFINED);
+	}
+
+	return(TRUE);
+}
+#endif /* UNIV_DEBUG */
+
 /*******************************************************************//**
 Fills i_s_trx_row_t object.
 If memory can not be allocated then FALSE is returned.
@@ -431,18 +467,15 @@ fill_trx_row(
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
+	row->requested_lock_row = requested_lock_row;
+	ut_ad(requested_lock_row == NULL
+	      || i_s_locks_row_validate(requested_lock_row));
 
 	if (trx->wait_lock != NULL) {
-
 		ut_a(requested_lock_row != NULL);
-
-		row->requested_lock_row = requested_lock_row;
 		row->trx_wait_started = (ib_time_t) trx->wait_started;
 	} else {
-
 		ut_a(requested_lock_row == NULL);
-
-		row->requested_lock_row = NULL;
 		row->trx_wait_started = 0;
 	}
 
@@ -461,7 +494,6 @@ fill_trx_row(
 	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
 
 	if (stmt != NULL) {
-
 		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
 
 		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
@@ -474,6 +506,8 @@ fill_trx_row(
 		row->trx_query = ha_storage_put_memlim(
 			cache->storage, stmt, stmt_len + 1,
 			MAX_ALLOWED_FOR_STORAGE(cache));
+
+		row->trx_query_cs = innobase_get_charset(trx->mysql_thd);
 
 		if (row->trx_query == NULL) {
 
@@ -725,6 +759,7 @@ fill_locks_row(
 	row->lock_table_id = lock_get_table_id(lock);
 
 	row->hash_chain.value = row;
+	ut_ad(i_s_locks_row_validate(row));
 
 	return(TRUE);
 }
@@ -745,6 +780,9 @@ fill_lock_waits_row(
 						relevant blocking lock
 						row in innodb_locks */
 {
+	ut_ad(i_s_locks_row_validate(requested_lock_row));
+	ut_ad(i_s_locks_row_validate(blocking_lock_row));
+
 	row->requested_lock_row = requested_lock_row;
 	row->blocking_lock_row = blocking_lock_row;
 
@@ -816,6 +854,7 @@ locks_row_eq_lock(
 					or ULINT_UNDEFINED if the lock
 					is a table lock */
 {
+	ut_ad(i_s_locks_row_validate(row));
 #ifdef TEST_NO_LOCKS_ROW_IS_EVER_EQUAL_TO_LOCK_T
 	return(0);
 #else
@@ -873,7 +912,7 @@ search_innodb_locks(
 		/* auxiliary variable */
 		hash_chain,
 		/* assertion on every traversed item */
-		,
+		ut_ad(i_s_locks_row_validate(hash_chain->value)),
 		/* this determines if we have found the lock */
 		locks_row_eq_lock(hash_chain->value, lock, heap_no));
 
@@ -913,6 +952,7 @@ add_lock_to_cache(
 	dst_row = search_innodb_locks(cache, lock, heap_no);
 	if (dst_row != NULL) {
 
+		ut_ad(i_s_locks_row_validate(dst_row));
 		return(dst_row);
 	}
 #endif
@@ -950,6 +990,7 @@ add_lock_to_cache(
 	} /* for()-loop */
 #endif
 
+	ut_ad(i_s_locks_row_validate(dst_row));
 	return(dst_row);
 }
 

@@ -12,3 +12,4 @@
 let $engine_type=InnoDB;
 -- source extra/rpl_tests/rpl_row_blob.test
 
+--source include/rpl_end.inc

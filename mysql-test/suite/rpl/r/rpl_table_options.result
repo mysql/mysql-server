@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 install plugin example soname 'ha_example.so';
 set storage_engine=example;
 create table t1 (a int not null) ull=12340;
@@ -23,3 +19,4 @@ select 1;
 1
 1
 uninstall plugin example;
+include/rpl_end.inc

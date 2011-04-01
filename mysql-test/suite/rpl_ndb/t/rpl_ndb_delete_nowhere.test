@@ -6,3 +6,4 @@
 -- source include/ndb_master-slave.inc
 let $engine_type=NDB;
 -- source extra/rpl_tests/rpl_delete_no_where.test
+--source include/rpl_end.inc

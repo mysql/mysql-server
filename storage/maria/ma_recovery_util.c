@@ -59,9 +59,11 @@ void tprint(FILE *trace_file __attribute__ ((unused)),
   va_list args;
 #ifndef DBUG_OFF
   {
-    char buff[1024];
+    char buff[1024], *end;
     va_start(args, format);
     vsnprintf(buff, sizeof(buff)-1, format, args);
+    if (*(end= strend(buff)) == '\n')
+      *end= 0;                                  /* Don't print end \n */
     DBUG_PRINT("info", ("%s", buff));
     va_end(args);
   }
@@ -129,16 +131,20 @@ my_bool _ma_redo_not_needed_for_page(uint16 shortid, LSN lsn,
       Next 2 bytes: table's short id
       Next 5 bytes: page number
     */
+    char llbuf[22];
     uint64 file_and_page_id=
       (((uint64)((index << 16) | shortid)) << 40) | page;
     struct st_dirty_page *dirty_page= (struct st_dirty_page *)
       hash_search(&all_dirty_pages,
                   (uchar *)&file_and_page_id, sizeof(file_and_page_id));
-    DBUG_PRINT("info", ("in dirty pages list: %d", dirty_page != NULL));
+    DBUG_PRINT("info", ("page %lld in dirty pages list: %d",
+                        (ulonglong) page,
+                        dirty_page != NULL));
     if ((dirty_page == NULL) ||
         cmp_translog_addr(lsn, dirty_page->rec_lsn) < 0)
     {
-      tprint(tracef, ", ignoring because of dirty_pages list\n");
+      tprint(tracef, ", ignoring page %s because of dirty_pages list\n",
+             llstr((ulonglong) page, llbuf));
       return TRUE;
     }
   }

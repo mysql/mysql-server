@@ -71,6 +71,10 @@ public:
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -88,6 +92,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -114,6 +122,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -145,6 +157,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -162,6 +178,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -179,6 +199,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -196,6 +220,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -213,6 +241,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -244,6 +276,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -263,6 +299,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 
@@ -294,6 +334,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_date_args();
+  }
 };
 
 class Item_func_dayname :public Item_func_weekday
@@ -324,7 +368,7 @@ public:
     (and thus may not be used as a partitioning function)
     when its argument is NOT of the TIMESTAMP type.
   */
-  bool is_timezone_dependent_processor(uchar *int_arg)
+  bool check_valid_arguments_processor(uchar *int_arg)
   {
     return !has_timestamp_args();
   }
@@ -352,11 +396,16 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_length_and_dec()
   {
+    maybe_null= TRUE;
     decimals=0;
     max_length=10*MY_CHARSET_BIN_MB_MAXLEN;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 
@@ -623,6 +672,10 @@ public:
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return has_date_args() || has_time_args();
+  }
 };
 
 
@@ -750,6 +803,42 @@ class Item_extract :public Item_int_func
   virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    switch (int_type) {
+    case INTERVAL_YEAR:
+    case INTERVAL_YEAR_MONTH:
+    case INTERVAL_QUARTER:
+    case INTERVAL_MONTH:
+    /* case INTERVAL_WEEK: Not allowed as partitioning function, bug#57071 */
+    case INTERVAL_DAY:
+      return !has_date_args();
+    case INTERVAL_DAY_HOUR:
+    case INTERVAL_DAY_MINUTE:
+    case INTERVAL_DAY_SECOND:
+    case INTERVAL_DAY_MICROSECOND:
+      return !has_datetime_args();
+    case INTERVAL_HOUR:
+    case INTERVAL_HOUR_MINUTE:
+    case INTERVAL_HOUR_SECOND:
+    case INTERVAL_MINUTE:
+    case INTERVAL_MINUTE_SECOND:
+    case INTERVAL_SECOND:
+    case INTERVAL_MICROSECOND:
+    case INTERVAL_HOUR_MICROSECOND:
+    case INTERVAL_MINUTE_MICROSECOND:
+    case INTERVAL_SECOND_MICROSECOND:
+      return !has_time_args();
+    default:
+      /*
+        INTERVAL_LAST is only an end marker,
+        INTERVAL_WEEK depends on default_week_format which is a session
+        variable and cannot be used for partitioning. See bug#57071.
+      */
+      break;
+    }
+    return true;
+  }
 };
 
 
@@ -1001,6 +1090,10 @@ public:
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
+  bool check_valid_arguments_processor(uchar *int_arg)
+  {
+    return !has_time_args();
+  }
 };
 
 

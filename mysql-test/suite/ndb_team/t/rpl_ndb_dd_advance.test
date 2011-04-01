@@ -1,6 +1,4 @@
 ###############################################
-# Author: JBM                                 #
-# Date: 2006-03-07                            #
 # Purpose: To test advance DD and replication #
 ###############################################
 
@@ -10,11 +8,6 @@
 --source include/ndb_default_cluster.inc
 --source include/not_embedded.inc
 --source include/ndb_master-slave.inc
-
-#### Test start cleanup section #####
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3;
---enable_warnings
 
 ######################################################
 # Requirment: Cluster DD and replication must be able#
@@ -408,3 +401,4 @@ remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_M.sql;
 remove_file $MYSQLTEST_VARDIR/tmp/RPL_DD_ADV_S.sql;
 
 # End 5.1 test case
+--source include/rpl_end.inc

@@ -50,7 +50,8 @@ struct st_client_plugin_int {
 static my_bool initialized= 0;
 static MEM_ROOT mem_root;
 
-static const char *plugin_declarations_sym= "_mysql_client_plugin_declaration_";
+static const char *plugin_declarations_sym __attribute__((unused)) =
+                                "_mysql_client_plugin_declaration_";
 static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS]=
 {
   0, /* these two are taken by Connector/C */
@@ -180,7 +181,7 @@ err2:
     plugin->deinit();
 err1:
   if (dlhandle)
-    dlclose(dlhandle);
+    (void)dlclose(dlhandle);
   set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
                            ER(CR_AUTH_PLUGIN_CANNOT_LOAD), plugin->name,
                            errmsg);
@@ -239,6 +240,8 @@ int mysql_client_plugin_init()
 {
   MYSQL mysql;
   struct st_mysql_client_plugin **builtin;
+  va_list unused;
+  LINT_INIT_STRUCT(unused);
 
   if (initialized)
     return 0;
@@ -255,7 +258,7 @@ int mysql_client_plugin_init()
   pthread_mutex_lock(&LOCK_load_client_plugin);
 
   for (builtin= mysql_client_builtins; *builtin; builtin++)
-    add_plugin(&mysql, *builtin, 0, 0, 0);
+    add_plugin(&mysql, *builtin, 0, 0, unused);
 
   pthread_mutex_unlock(&LOCK_load_client_plugin);
 
@@ -285,7 +288,7 @@ void mysql_client_plugin_deinit()
       if (p->plugin->deinit)
         p->plugin->deinit();
       if (p->dlhandle)
-        dlclose(p->dlhandle);
+        (void)dlclose(p->dlhandle);
     }
 
   bzero(&plugin_list, sizeof(plugin_list));
@@ -301,6 +304,9 @@ struct st_mysql_client_plugin *
 mysql_client_register_plugin(MYSQL *mysql,
                              struct st_mysql_client_plugin *plugin)
 {
+  va_list unused;
+  LINT_INIT_STRUCT(unused);
+
   if (is_not_initialized(mysql, plugin->name))
     return NULL;
 
@@ -315,7 +321,7 @@ mysql_client_register_plugin(MYSQL *mysql,
     plugin= NULL;
   }
   else
-    plugin= add_plugin(mysql, plugin, 0, 0, 0);
+    plugin= add_plugin(mysql, plugin, 0, 0, unused);
 
   pthread_mutex_unlock(&LOCK_load_client_plugin);
   return plugin;
@@ -360,7 +366,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   if (!(sym= dlsym(dlhandle, plugin_declarations_sym)))
   {
     errmsg= "not a plugin";
-    dlclose(dlhandle);
+    (void)dlclose(dlhandle);
     goto err;
   }
 

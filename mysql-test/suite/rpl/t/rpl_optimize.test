@@ -61,3 +61,4 @@ sync_slave_with_master;
 # starts, this test will demonstrate nothing but will pass.
 
 # End of 4.1 tests
+--source include/rpl_end.inc

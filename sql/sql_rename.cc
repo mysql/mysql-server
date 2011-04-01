@@ -99,7 +99,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            DBUG_RETURN(1);
+            goto err;
           }
         }
         else
@@ -112,7 +112,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            DBUG_RETURN(1);
+            goto err;
           }
           else
           {
@@ -130,7 +130,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
       else
         my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[1],
                  rename_log_table[1]);
-      DBUG_RETURN(1);
+      goto err;
     }
   }
 

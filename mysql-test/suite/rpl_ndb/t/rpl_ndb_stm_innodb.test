@@ -35,3 +35,4 @@ SET binlog_format = STATEMENT;
 let $off_set = 6;
 let $rpl_format = 'SBR';
 --source extra/rpl_tests/rpl_ndb_apply_status.test
+--source include/rpl_end.inc

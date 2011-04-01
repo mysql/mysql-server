@@ -153,3 +153,4 @@ DROP DATABASE test1;
 sync_slave_with_master;
 --enable_query_log
 
+--source include/rpl_end.inc

@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
 `nom` char(4) default NULL,
 `prenom` char(4) default NULL,
@@ -140,7 +136,8 @@ set GLOBAL slave_transaction_retries=1;
 **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
-Last_SQL_Error = Could not execute Write_rows event on table test.t1; Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB, Error_code: 1297; Lock wait timeout exceeded; try restarting transaction, Error_code: 1205; handler error HA_ERR_LOCK_WAIT_TIMEOUT; the event's master log master-bin.000001, end_log_pos 6834
+include/wait_for_slave_sql_error.inc [errno=1205 ]
+Last_SQL_Error = 'Could not execute Write_rows event on table test.t1; Got temporary error 266 'Time-out in NDB, probably caused by deadlock' from NDB, Error_code: 1297; Lock wait timeout exceeded; try restarting transaction, Error_code: 1205; handler error HA_ERR_LOCK_WAIT_TIMEOUT; the event's master log master-bin.000001, end_log_pos 6834'
 set GLOBAL slave_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;
@@ -191,3 +188,4 @@ c1
 104
 105
 DROP TABLE t1;
+include/rpl_end.inc

@@ -110,7 +110,7 @@ public:
 
     word32 size(bool use_current = false);
 private:
-    void put(Source&);
+    size_t put(Source&);
 
     FileSink(const FileSink&);            // hide
     FileSink& operator=(const FileSink&); // hide

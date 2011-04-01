@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,6 +117,7 @@ public:
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
+  void quick_fix_field();
   table_map used_tables() const;
   table_map not_null_tables() const;
   void update_used_tables();
@@ -189,6 +190,7 @@ public:
     null_value=1;
     return 0.0;
   }
+
   bool has_timestamp_args()
   {
     DBUG_ASSERT(fixed == TRUE);
@@ -200,6 +202,45 @@ public:
     }
     return FALSE;
   }
+
+  bool has_date_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          (args[i]->field_type() == MYSQL_TYPE_DATE ||
+           args[i]->field_type() == MYSQL_TYPE_DATETIME))
+        return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool has_time_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          (args[i]->field_type() == MYSQL_TYPE_TIME ||
+           args[i]->field_type() == MYSQL_TYPE_DATETIME))
+        return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool has_datetime_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          args[i]->field_type() == MYSQL_TYPE_DATETIME)
+        return TRUE;
+    }
+    return FALSE;
+  }
+
   /*
     We assume the result of any function that has a TIMESTAMP argument to be
     timezone-dependent, since a TIMESTAMP value in both numeric and string
@@ -208,7 +249,7 @@ public:
     representation of a TIMESTAMP argument verbatim, and thus does not depend on
     the timezone.
    */
-  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  virtual bool check_valid_arguments_processor(uchar *bool_arg)
   {
     return has_timestamp_args();
   }

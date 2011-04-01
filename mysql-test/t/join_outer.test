@@ -1,3 +1,5 @@
+--source include/long_test.inc
+
 #
 # test of left outer join
 #

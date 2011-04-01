@@ -3393,8 +3393,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  rotate_relay_log(mi); /* will take the right mutexes */
-  DBUG_RETURN(0);
+  DBUG_RETURN(rotate_relay_log(mi) /* will take the right mutexes */);
 }
 
 /*
@@ -4478,10 +4477,11 @@ err:
   is void).
 */
 
-void rotate_relay_log(Master_info* mi)
+int rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
   Relay_log_info* rli= &mi->rli;
+  int error= 0;
 
   /* We don't lock rli->run_lock. This would lead to deadlocks. */
   pthread_mutex_lock(&mi->run_lock);
@@ -4497,7 +4497,8 @@ void rotate_relay_log(Master_info* mi)
   }
 
   /* If the relay log is closed, new_file() will do nothing. */
-  rli->relay_log.new_file();
+  if ((error= rli->relay_log.new_file()))
+    goto end;
 
   /*
     We harvest now, because otherwise BIN_LOG_HEADER_SIZE will not immediately
@@ -4515,7 +4516,7 @@ void rotate_relay_log(Master_info* mi)
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
   pthread_mutex_unlock(&mi->run_lock);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(error);
 }
 
 

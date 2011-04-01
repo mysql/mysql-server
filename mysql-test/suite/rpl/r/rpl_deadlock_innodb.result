@@ -1,9 +1,5 @@
-stop slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-reset master;
-reset slave;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
+include/master-slave.inc
+[connection master]
 *** Prepare tables and data ***
 CREATE TABLE t1 (a INT NOT NULL, KEY(a)) ENGINE=innodb;
 CREATE TABLE t2 (a INT) ENGINE=innodb;
@@ -50,7 +46,7 @@ a
 SELECT * FROM t3;
 a
 3
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 *** Test lock wait timeout ***
 include/stop_slave.inc
@@ -61,6 +57,7 @@ SELECT * FROM t1 FOR UPDATE;
 a
 1
 START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1205]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
@@ -74,7 +71,7 @@ SELECT * FROM t3;
 a
 3
 3
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 *** Test lock wait timeout and purged relay logs ***
 SET @my_max_relay_log_size= @@global.max_relay_log_size;
@@ -88,6 +85,7 @@ a
 1
 1
 START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1205]
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
@@ -103,9 +101,10 @@ a
 3
 3
 3
-Checking that both slave threads are running.
+include/check_slave_is_running.inc
 
 *** Clean up ***
 DROP TABLE t1,t2,t3;
 SET global max_relay_log_size= @my_max_relay_log_size;
 End of 5.1 tests
+include/rpl_end.inc

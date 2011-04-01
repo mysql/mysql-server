@@ -19,6 +19,7 @@
 
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
+-- source include/rpl_reset.inc
 
 # Test is dependent on binlog positions
 
@@ -192,10 +193,12 @@ sync_with_master;
 # to substitute the genuine one with a prepared on 4.1 server.
 #
 
---source include/master-slave-reset.inc
+--source include/rpl_reset.inc
 
 connection master;
+--disable_warnings
 drop table if exists t1; # there is create table t1 in bug47142_master-bin.000001
+--enable_warnings
 sync_slave_with_master;
 connection slave;
 stop slave;
@@ -218,9 +221,7 @@ show tables /* t1 must exist */;
 
 drop table t1; # drop on slave only, master does not have t1. 
 stop slave;
-reset slave;
-
-connection master;
-reset master;
 
 # End of tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

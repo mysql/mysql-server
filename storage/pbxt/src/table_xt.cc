@@ -726,7 +726,7 @@ xtPublic void xt_check_tables(XTThreadPtr self)
 {
 	u_int					edx;
 	XTTableEntryPtr			te_ptr;
-	volatile XTTableHPtr	tab;
+	volatile XTTableHPtr	tab= 0;
 	char					path[PATH_MAX];
 
 	enter_();
@@ -1132,7 +1132,7 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
 	XTOpenFilePtr	of_rec, of_ind;
 	XTTableEntryPtr	te_ptr;
 	size_t			tab_format_offset;
-	size_t			tab_head_size;
+	size_t			tab_head_size= 0;
 
 	enter_();
 
@@ -1755,6 +1755,8 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name, xtBool drop
 			tab_close_mapped_files(self, tab);
 
 			tab_delete_table_files(self, tab_name, tab_id);
+                        /* Remove table from "repair-pending" */
+                        xt_tab_table_repaired(tab);
 
 			ASSERT(xt_get_self() == self);
 			if ((te_ptr = (XTTableEntryPtr) xt_sl_find(self, db->db_table_by_id, &tab_id))) {

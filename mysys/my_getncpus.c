@@ -33,7 +33,7 @@ int my_getncpus()
     GetSystemInfo(&sysinfo);
     ncpus= sysinfo.dwNumberOfProcessors;
 #else
-/* unknown so play safe: assume SMP and forbid uniprocessor build */
+    /* unknown so play safe: assume SMP and forbid uniprocessor build */
     ncpus= 2;
 #endif
   }

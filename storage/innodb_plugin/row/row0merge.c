@@ -2043,7 +2043,7 @@ row_merge_drop_index(
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
 
-	dict_table_replace_index_in_foreign_list(table, index);
+	dict_table_replace_index_in_foreign_list(table, index, trx);
 	dict_index_remove_from_cache(table, index);
 
 	trx->op_info = "";
@@ -2341,7 +2341,7 @@ row_merge_rename_tables(
 {
 	ulint		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_TABLE_NAME_LEN + 1];
+	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_ad(old_table != new_table);
@@ -2356,7 +2356,7 @@ row_merge_rename_tables(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
-			MAX_TABLE_NAME_LEN);
+			MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
