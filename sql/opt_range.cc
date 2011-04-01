@@ -742,6 +742,12 @@ public:
   bool is_ror_scan;
   /* Number of ranges in the last checked tree->key */
   uint n_ranges;
+
+  /* 
+     The sort order the range access method must be able
+     to provide. Three-value logic: asc/desc/don't care
+  */
+  ORDER::enum_order order_direction;
 };
 
 class TABLE_READ_PLAN;
@@ -2142,6 +2148,8 @@ static int fill_used_fields_bitmap(PARAM *param)
       limit             Query limit
       force_quick_range Prefer to use range (instead of full table scan) even
                         if it is more expensive.
+      interesting_order The sort order the range access method must be able
+                        to provide. Three-value logic: asc/desc/don't care
 
   NOTES
     Updates the following in the select parameter:
@@ -2197,9 +2205,9 @@ static int fill_used_fields_bitmap(PARAM *param)
 */
 
 int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
-				  table_map prev_tables,
-				  ha_rows limit, bool force_quick_range, 
-                                  bool ordered_output)
+                                  table_map prev_tables,
+                                  ha_rows limit, bool force_quick_range, 
+                                  const ORDER::enum_order interesting_order)
 {
   uint idx;
   double scan_time;
@@ -2260,7 +2268,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     param.imerge_cost_buff_size= 0;
     param.using_real_indexes= TRUE;
     param.remove_jump_scans= TRUE;
-    param.force_default_mrr= ordered_output;
+    param.force_default_mrr= (interesting_order != ORDER::ORDER_NOT_RELEVANT);
+    param.order_direction= interesting_order;
 
     thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(&alloc, thd->variables.range_alloc_block_size, 0);
@@ -2386,10 +2395,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         /*
           Simultaneous key scans and row deletes on several handler
           objects are not allowed so don't use ROR-intersection for
-          table deletes.
+          table deletes. Also, ROR-intersection cannot return rows in
+          descending order
         */
         if ((thd->lex->sql_command != SQLCOM_DELETE) && 
-             thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE))
+            thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
+            interesting_order != ORDER::ORDER_DESC)
         {
           /*
             Get best non-covering ROR-intersection plan and prepare data for
@@ -2413,7 +2424,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       }
       else
       {
-        if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE))
+        // Cannot return rows in descending order.
+        if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
+            interesting_order != ORDER::ORDER_DESC)
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
@@ -4574,6 +4587,9 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
 
   if ((tree->n_ror_scans < 2) || !param->table->file->stats.records ||
       !param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
+    DBUG_RETURN(NULL);
+
+  if (param->order_direction == ORDER::ORDER_DESC)
     DBUG_RETURN(NULL);
 
   /*
@@ -9652,6 +9668,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       (join->select_lex->olap == ROLLUP_TYPE)) /* Check (B3) for ROLLUP */
     DBUG_RETURN(NULL);
   if (table->s->keys == 0)        /* There are no indexes to use. */
+    DBUG_RETURN(NULL);
+  /* Cannot do reverse ordering */
+  if (param->order_direction == ORDER::ORDER_DESC)
     DBUG_RETURN(NULL);
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/

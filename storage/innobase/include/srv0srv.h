@@ -109,7 +109,7 @@ extern ibool	srv_file_per_table;
 /** The file format to use on new *.ibd files. */
 extern ulint	srv_file_format;
 /** Whether to check file format during startup.  A value of
-DICT_TF_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
+UNIV_FORMAT_MAX + 1 means no checking ie. FALSE.  The default is to
 set it to the highest format we support. */
 extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
@@ -575,27 +575,6 @@ srv_conc_exit_innodb(
 /*=================*/
 	trx_t*	trx);	/*!< in: transaction object associated with the
 			thread */
-/***************************************************************//**
-Puts a MySQL OS thread to wait for a lock to be released. If an error
-occurs during the wait trx->error_state associated with thr is
-!= DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
-are possible errors. DB_DEADLOCK is returned if selective deadlock
-resolution chose this transaction as a victim. */
-UNIV_INTERN
-void
-srv_suspend_mysql_thread(
-/*=====================*/
-	que_thr_t*	thr);	/*!< in: query thread associated with the MySQL
-				OS thread */
-/********************************************************************//**
-Releases a MySQL OS thread waiting for a lock to be released, if the
-thread is already suspended. */
-UNIV_INTERN
-void
-srv_release_mysql_thread_if_suspended(
-/*==================================*/
-	que_thr_t*	thr);	/*!< in: query thread associated with the
-				MySQL OS thread */
 /*********************************************************************//**
 A thread which prints the info output by various InnoDB monitors.
 @return	a dummy parameter */

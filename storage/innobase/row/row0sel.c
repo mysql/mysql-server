@@ -58,7 +58,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "buf0lru.h"
 #include "ha_prototypes.h"
 
-#include "my_handler.h" /* enum icp_result */
+#include "my_compare.h" /* enum icp_result */
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16

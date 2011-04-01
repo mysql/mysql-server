@@ -2518,63 +2518,6 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
   DBUG_RETURN(len - 1);
 }
 
-/*
-  Check if the current error is of temporary nature of not.
-  Some errors are temporary in nature, such as
-  ER_LOCK_DEADLOCK and ER_LOCK_WAIT_TIMEOUT.  Ndb also signals
-  that the error is temporary by pushing a warning with the error code
-  ER_GET_TEMPORARY_ERRMSG, if the originating error is temporary.
-*/
-static int has_temporary_error(THD *thd)
-{
-  DBUG_ENTER("has_temporary_error");
-
-  DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->stmt_da->is_error())
-                  {
-                    thd->clear_error();
-                    my_error(ER_LOCK_DEADLOCK, MYF(0));
-                  });
-
-  /*
-    If there is no message in THD, we can't say if it's a temporary
-    error or not. This is currently the case for Incident_log_event,
-    which sets no message. Return FALSE.
-  */
-  if (!thd->is_error())
-    DBUG_RETURN(0);
-
-  /*
-    Temporary error codes:
-    currently, InnoDB deadlock detected by InnoDB or lock
-    wait timeout (innodb_lock_wait_timeout exceeded
-  */
-  if (thd->stmt_da->sql_errno() == ER_LOCK_DEADLOCK ||
-      thd->stmt_da->sql_errno() == ER_LOCK_WAIT_TIMEOUT)
-    DBUG_RETURN(1);
-
-#ifdef HAVE_NDB_BINLOG
-  /*
-    currently temporary error set in ndbcluster
-  */
-  List_iterator_fast<MYSQL_ERROR> it(thd->warning_info->warn_list());
-  MYSQL_ERROR *err;
-  while ((err= it++))
-  {
-    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
-                        err->get_message_text()));
-    switch (err->get_sql_errno())
-    {
-    case ER_GET_TEMPORARY_ERRMSG:
-      DBUG_RETURN(1);
-    default:
-      break;
-    }
-  }
-#endif
-  DBUG_RETURN(0);
-}
-
 
 /**
   If this is a lagging slave (specified with CHANGE MASTER TO MASTER_DELAY = X), delays accordingly. Also unlocks rli->data_lock.
@@ -2965,7 +2908,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
-      if (exec_res && (temp_err= has_temporary_error(thd)))
+      if (exec_res && (temp_err= rli->has_temporary_error(thd)))
       {
         const char *errmsg;
         /*
@@ -3011,10 +2954,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
           }
         }
         else
-          sql_print_error("Slave SQL thread retried transaction %lu time(s) "
-                          "in vain, giving up. Consider raising the value of "
-                          "the slave_transaction_retries variable.",
-                          slave_trans_retries);
+        {
+          thd->is_fatal_error= 1;
+          rli->report(ERROR_LEVEL, thd->stmt_da->sql_errno(),
+                      "Slave SQL thread retried transaction %lu time(s) "
+                      "in vain, giving up. Consider raising the value of "
+                      "the slave_transaction_retries variable.", rli->trans_retries);
+        }
       }
       else if ((exec_res && !temp_err) ||
                (opt_using_transactions &&
@@ -4376,7 +4322,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
       debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
       DBUG_PRINT("info", ("Corrupt the event at queue_event: byte on position %d", debug_cor_pos));
-      DBUG_SET("");
+      DBUG_SET("-d,corrupt_queue_event");
     }
   );
                                               

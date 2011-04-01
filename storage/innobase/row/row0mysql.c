@@ -1610,14 +1610,12 @@ row_unlock_for_mysql(
 			/* We did not update the record: unlock it */
 
 			rec = btr_pcur_get_rec(pcur);
-			index = btr_pcur_get_btr_cur(pcur)->index;
 
 			lock_rec_unlock(trx, btr_pcur_get_block(pcur),
 					rec, prebuilt->select_lock_type);
 
 			if (prebuilt->new_rec_locks >= 2) {
 				rec = btr_pcur_get_rec(clust_pcur);
-				index = btr_pcur_get_btr_cur(clust_pcur)->index;
 
 				lock_rec_unlock(trx,
 						btr_pcur_get_block(clust_pcur),
@@ -3418,8 +3416,7 @@ check_next_foreign:
 			is_temp = TRUE;
 		} else {
 			name_or_path = name;
-			is_temp = (table->flags >> DICT_TF2_SHIFT)
-				& DICT_TF2_TEMPORARY;
+			is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		}
 
 		dict_table_remove_from_cache(table);
@@ -3554,15 +3551,19 @@ row_mysql_drop_temp_tables(void)
 			break;
 		}
 
+		/* The high order bit of N_COLS is set unless
+		ROW_FORMAT=REDUNDANT. */
 		rec = btr_pcur_get_rec(&pcur);
 		field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
-		if (len != 4 || !(mach_read_from_4(field) & 0x80000000UL)) {
+		if (len != 4
+		    || !(mach_read_from_4(field) & DICT_N_COLS_COMPACT)) {
 			continue;
 		}
 
-		/* Because this is not a ROW_FORMAT=REDUNDANT table,
-		the is_temp flag is valid.  Examine it. */
-
+		/* Older versions of InnoDB, which only supported tables
+		in ROW_FORMAT=REDUNDANT could write garbage to
+		SYS_TABLES.MIX_LEN, where we now store the is_temp flag.
+		Above, we assumed is_temp=0 if ROW_FORMAT=REDUNDANT. */
 		field = rec_get_nth_field_old(rec, 7/*MIX_LEN*/, &len);
 		if (len != 4
 		    || !(mach_read_from_4(field) & DICT_TF2_TEMPORARY)) {
