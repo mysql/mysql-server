@@ -66,6 +66,18 @@ typedef unsigned int PFS_statement_key;
 /** Key, naming a socket instrument. */
 typedef unsigned int PFS_socket_key;
 
+enum PFS_class_type
+{
+  PFS_CLASS_MUTEX=  1,
+  PFS_CLASS_RWLOCK= 2,
+  PFS_CLASS_COND=   3,
+  PFS_CLASS_FILE=   4,
+  PFS_CLASS_TABLE=  5,
+  PFS_CLASS_STAGE=  6,
+  PFS_CLASS_STATEMENT= 7,
+  PFS_CLASS_SOCKET= 8
+};
+
 struct PFS_thread;
 
 extern uint mutex_class_start;
@@ -79,6 +91,8 @@ extern uint wait_class_max;
 /** Information for all instrumentation. */
 struct PFS_instr_class
 {
+  /** Class type */
+  PFS_class_type m_type;
   /** Instrument name. */
   char m_name[PFS_MAX_INFO_NAME_LENGTH];
   /** Length in bytes of @c m_name. */
@@ -89,6 +103,8 @@ struct PFS_instr_class
   bool m_enabled;
   /** True if this instrument is timed. */
   bool m_timed;
+  /** True if this instrument requires deferred aggregation */
+  bool m_deferred;
   /**
     Instrument name index.
     Self index in:

@@ -59,8 +59,6 @@ protected:
   void make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
                       const void *object_instance_begin,
                       PFS_single_stat *pfs_stat);
-  void make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
-                      const void *object_instance_begin);
   virtual void make_mutex_row(PFS_mutex *pfs);
   virtual void make_rwlock_row(PFS_rwlock *pfs);
   virtual void make_cond_row(PFS_cond *pfs);

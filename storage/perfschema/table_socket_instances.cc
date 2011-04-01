@@ -166,7 +166,7 @@ void table_socket_instances::make_row(PFS_socket *pfs)
 
   if (safe_thread != NULL)
   {
-    m_row.m_thread_id= safe_thread->m_thread_id;
+    m_row.m_thread_id= safe_thread->m_thread_internal_id;
     m_row.m_thread_id_set= true;
   }
 
@@ -175,7 +175,7 @@ void table_socket_instances::make_row(PFS_socket *pfs)
 }
 
 int table_socket_instances::read_row_values(TABLE *table,
-                                          unsigned char *,
+                                          unsigned char *buf,
                                           Field **fields,
                                           bool read_all)
 {
@@ -183,6 +183,10 @@ int table_socket_instances::read_row_values(TABLE *table,
 
   if (unlikely(!m_row_exists))
     return HA_ERR_RECORD_DELETED;
+
+  /* Set the null bits */
+  DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
   {

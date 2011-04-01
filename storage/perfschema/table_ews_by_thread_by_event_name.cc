@@ -235,7 +235,22 @@ void table_ews_by_thread_by_event_name
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_wait_visitor visitor(klass);
-  PFS_connection_iterator::visit_thread(thread, & visitor);
+  PFS_connection_iterator::visit_thread(thread, &visitor);
+
+  /*
+     If the aggregation for this class is deferred, then we must pull the stats
+     from the class itself and from the instances associated with this thread.
+  */  
+  if (klass->m_deferred)
+  {
+    PFS_instance_socket_io_stat_visitor inst_visitor;
+    PFS_instance_iterator::visit_instances(klass, &inst_visitor, thread);
+    /* Sum separate per-operation stats into one */
+    PFS_byte_stat stat;
+    inst_visitor.m_socket_io_stat.sum(&stat);
+    /* Combine the deferred stats and global stats */
+    visitor.m_stat.aggregate(&stat);
+  }
 
   if (! thread->m_lock.end_optimistic_lock(&lock))
     return;

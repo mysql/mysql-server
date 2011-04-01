@@ -56,7 +56,7 @@ public:
   virtual ~PFS_connection_visitor() {}
   /** Visit all connections. */
   virtual void visit_global() {}
-  /** Visit all a thread. */
+  /** Visit a thread. */
   virtual void visit_thread(PFS_thread *pfs) {}
 };
 
@@ -157,6 +157,23 @@ public:
   */
   static void visit_socket_instances(PFS_socket_class *klass,
                                      PFS_instance_visitor *visitor);
+  /**
+    Visit a socket class and related instances.
+    @param klass the klass to visit.
+    @param visitor the visitor to call
+  */
+  static void visit_socket_instances(PFS_socket_class *klass,
+                                     PFS_instance_visitor *visitor,
+                                     PFS_thread *thread);
+  /**
+    Visit an instrument class and related instances.
+    @param klass the klass to visit.
+    @param visitor the visitor to call
+    @param thread comparison criteria
+  */
+  static void visit_instances(PFS_instr_class *klass,
+                              PFS_instance_visitor *visitor,
+                              PFS_thread *thread);
 };
 
 /**

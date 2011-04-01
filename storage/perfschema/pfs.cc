@@ -4651,26 +4651,22 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   }
   else
   {
-    /* Aggregate to the socket instrument for now (counted) */
-    byte_stat->aggregate_counted();
+    /* Aggregate to the socket instrument (event count and byte count) */
+    byte_stat->aggregate_counted(bytes);
   }
 
   /** Global thread aggregation */
   if (flags & STATE_FLAG_THREAD)
   {
-    PFS_single_stat *event_name_array;
-    event_name_array= thread->m_instr_class_waits_stats;
-    uint index= socket->m_class->m_event_name_index;
-
-    /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME */ // move to visitor
-    if (flags & STATE_FLAG_TIMED)
+    /*
+       Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted).
+       Aggregation of socket wait stats per thread are deferred.
+     */
+    if (flags & ~STATE_FLAG_TIMED) // TODO MA: Moved to consumer except count
     {
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
-      event_name_array[index].aggregate_value(wait_time);
-    }
-    else
-    {
-      /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (counted) */
+      PFS_single_stat *event_name_array;
+      event_name_array= thread->m_instr_class_waits_stats;
+      uint index= socket->m_class->m_event_name_index;
       event_name_array[index].aggregate_counted();
     }
 
@@ -4715,6 +4711,11 @@ static void set_socket_info_v1(PSI_socket *socket,
   DBUG_ASSERT(socket);
   PFS_socket *pfs= reinterpret_cast<PFS_socket*>(socket);
 
+  /** Set socket thread owner */
+  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (thread)
+    pfs->m_thread_owner= thread;
+  
   /** Set socket descriptor */
   if (fd != NULL)
     pfs->m_fd= *fd;
