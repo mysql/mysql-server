@@ -7095,6 +7095,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
   /* If it is a merge table, check privileges for merge children. */
   if (lex->create_info.merge_list.first)
   {
+    TABLE_LIST *tl;
     /*
       Pre-open temporary tables from UNION clause to simplify privilege
       checking for them.
@@ -7116,7 +7117,14 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
     */
     close_thread_tables(thd);
 
-    for (TABLE_LIST *tl= lex->query_tables; tl; tl= tl->next_global)
+    /*
+      To make things safe for re-execution and upcoming open_temporary_tables()
+      we need to reset TABLE_LIST::table pointers in both main table list and
+      and UNION clause.
+    */
+    for (tl= lex->query_tables; tl; tl= tl->next_global)
+      tl->table= NULL;
+    for (tl= lex->create_info.merge_list.first; tl; tl= tl->next_global)
       tl->table= NULL;
 
     if (open_temporary_tables(thd, lex->query_tables))

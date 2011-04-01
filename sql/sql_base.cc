@@ -6153,9 +6153,10 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl)
 
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
 {
+  TABLE_LIST *first_not_own= thd->lex->first_not_own_table();
   DBUG_ENTER("open_temporary_tables");
 
-  for (TABLE_LIST *tl= tl_list; tl; tl= tl->next_global)
+  for (TABLE_LIST *tl= tl_list; tl && tl != first_not_own; tl= tl->next_global)
   {
     if (tl->derived || tl->schema_table)
     {
@@ -6164,9 +6165,6 @@ bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list)
       */
       continue;
     }
-
-    if (tl->table)
-      continue; // Skip if it's already opened.
 
     if (open_temporary_table(thd, tl))
       DBUG_RETURN(TRUE);

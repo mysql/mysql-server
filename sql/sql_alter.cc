@@ -67,6 +67,8 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   /* If it is a merge table, check privileges for merge children. */
   if (create_info.merge_list.first)
   {
+    TABLE_LIST *tl;
+
     /* Pre-open underlying temporary tables to simplify privilege checking. */
     if (open_temporary_tables(thd, create_info.merge_list.first))
       DBUG_RETURN(TRUE);
@@ -84,7 +86,14 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     */
     close_thread_tables(thd);
 
-    for (TABLE_LIST *tl= lex->query_tables; tl; tl= tl->next_global)
+    /*
+      To make things safe for re-execution and upcoming open_temporary_tables()
+      we need to reset TABLE_LIST::table pointers in both main table list and
+      and UNION clause.
+    */
+    for (tl= lex->query_tables; tl; tl= tl->next_global)
+      tl->table= NULL;
+    for (tl= lex->create_info.merge_list.first; tl; tl= tl->next_global)
       tl->table= NULL;
 
     if (open_temporary_tables(thd, lex->query_tables))
