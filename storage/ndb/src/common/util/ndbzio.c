@@ -195,6 +195,19 @@ static inline int posix_memalign(void **memptr, size_t alignment, size_t size)
 }
 #endif
 
+#define AZ_BUFSIZE_READ 32768
+#define AZ_BUFSIZE_WRITE 16384
+
+size_t ndbz_bufsize_read(void)
+{
+  return AZ_BUFSIZE_READ;
+}
+
+size_t ndbz_bufsize_write(void)
+{
+  return AZ_BUFSIZE_WRITE;
+}
+
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
   is as in fopen ("rb" or "wb"). The file is given either by file descriptor
