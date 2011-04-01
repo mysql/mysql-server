@@ -237,8 +237,7 @@ public:
     IOS_NOOP = 0,
     IOS_INDEX_ACCESS = 1,
     IOS_INDEX_ACCESS_WAIT_FOR_TCKEYCONF = 2,
-    IOS_INDEX_ACCESS_WAIT_FOR_TRANSID_AI = 3,
-    IOS_INDEX_OPERATION = 4
+    IOS_INDEX_ACCESS_WAIT_FOR_TRANSID_AI = 3
   };
   
   enum IndexState {
@@ -704,15 +703,20 @@ public:
     ReturnSignal returnsignal;
     AbortState abortState;
 
-    Uint8 indexOpReturn;
-    Uint8 triggerPending; // Used to mark waiting for a CONTINUEB
+    enum TransactionFlags
+    {
+      TF_INDEX_OP_RETURN = 1,
+      TF_TRIGGER_PENDING = 2, // Used to mark waiting for a CONTINUEB
+      TF_EXEC_FLAG       = 4,
+      TF_COMMIT_ACK_MARKER_RECEIVED = 8,
+      TF_END = 0
+    };
+    Uint32 m_flags;
 
-    Uint8 m_exec_flag;
     Uint8 m_special_op_flags; // Used to mark on-going TcKeyReq as indx table
 
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
-    Uint8 m_commit_ack_marker_received;
 
     Uint8 tckeyrec; // Changed from R
 
@@ -957,8 +961,6 @@ public:
     UintR packedWordsLqh[26];
     UintR noOfWordsTCKEYCONF;
     UintR packedWordsTCKEYCONF[30];
-    UintR noOfWordsTCINDXCONF;
-    UintR packedWordsTCINDXCONF[30];
     BlockReference hostLqhBlockRef;
 
     enum NodeFailBits
@@ -1406,9 +1408,6 @@ private:
   void sendPackedTCKEYCONF(Signal* signal,
                            HostRecord * ahostptr,
                            UintR hostId);
-  void sendPackedTCINDXCONF(Signal* signal,
-                            HostRecord * ahostptr,
-                            UintR hostId);
   void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
   Uint32 sendCommitLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
@@ -1506,7 +1505,6 @@ private:
                      BlockReference TBRef);
   void sendSystemError(Signal* signal, int line);
   void sendtckeyconf(Signal* signal, UintR TcommitFlag);
-  void sendTcIndxConf(Signal* signal, UintR TcommitFlag);
   void unlinkApiConnect(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);
   void unlinkGcp(Ptr<GcpRecord>);
   void unlinkReadyTcCon(Signal* signal);
