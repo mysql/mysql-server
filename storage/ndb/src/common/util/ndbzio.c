@@ -196,7 +196,6 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
     s->stream.zalloc = (alloc_func)az_alloc;
     s->stream.zfree = (free_func)az_free;
   }
-/*  s->stream.opaque = (voidpf)r; */
   s->bufalloced = 0;
   if(!s->inbuf)
   {
@@ -822,14 +821,6 @@ int do_flush (azio_stream *s, int flush)
   else
     s->dirty= AZ_STATE_SAVED; /* Mark it clean, we should be good now */
 
-/*  afterwrite_pos= my_tell(s->file, MYF(0));
-  if(afterwrite_pos == -1)
-    return Z_ERRNO;
-  if(write_header(s) == -1)
-    return Z_ERRNO;
-  if(my_seek(s->file, afterwrite_pos, SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR)
-    return Z_ERRNO;
-*/
   return  s->z_err == Z_STREAM_END ? Z_OK : s->z_err;
 }
 
@@ -1033,8 +1024,6 @@ int azclose (azio_stream *s)
     putLong(s, 0x4E444244);
 
     flush_write_buffer(s);
-
-/*    write_header(s); */
   }
 
   return destroy(s);
