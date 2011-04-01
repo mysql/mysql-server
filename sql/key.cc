@@ -652,6 +652,9 @@ ulong key_hashnr(KEY *key_info, uint used_key_parts, const uchar *key)
     uint length, pack_length;
     bool is_string= TRUE;
     LINT_INIT(cs);
+    LINT_INIT(length);
+    LINT_INIT(pack_length);
+
     key+= key_part->length;
     if (key_part->null_bit)
     {
@@ -756,6 +759,9 @@ bool key_buf_cmp(KEY *key_info, uint used_key_parts,
     uint length1, length2, pack_length;
     bool is_string= TRUE;
     LINT_INIT(cs);
+    LINT_INIT(length1);
+    LINT_INIT(length2);
+
     key1+= key_part->length;
     key2+= key_part->length;
     if (key_part->null_bit)
