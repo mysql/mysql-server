@@ -5812,7 +5812,7 @@ bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
     DBUG_RETURN(1);
   order->item_ptr= item;
   order->item= &order->item_ptr;
-  order->asc = asc;
+  order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
   order->free_me=0;
   order->used=0;
   order->counter_used= 0;

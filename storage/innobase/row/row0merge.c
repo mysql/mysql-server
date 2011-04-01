@@ -2295,7 +2295,8 @@ row_merge_create_temporary_table(
 	ut_ad(table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	new_table = dict_mem_table_create(table_name, 0, n_cols, table->flags);
+	new_table = dict_mem_table_create(
+		table_name, 0, n_cols, table->flags, table->flags2);
 
 	for (i = 0; i < n_cols; i++) {
 		const dict_col_t*	col;

@@ -200,7 +200,7 @@ row_undo_search_clust_to_pcur(
 	} else {
 		row_ext_t**	ext;
 
-		if (dict_table_get_format(node->table) >= DICT_TF_FORMAT_ZIP) {
+		if (dict_table_get_format(node->table) >= UNIV_FORMAT_B) {
 			/* In DYNAMIC or COMPRESSED format, there is
 			no prefix of externally stored columns in the
 			clustered index record. Build a cache of
