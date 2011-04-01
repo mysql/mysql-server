@@ -472,3 +472,48 @@ HugoCalculator::equalForRow(Uint8 * pRow,
   }
   return NDBT_OK;
 }
+
+int
+HugoCalculator::setValues(Uint8 * pRow,
+                          const NdbRecord* pRecord,
+                          int rowId,
+                          int updateVal)
+{
+  int res = equalForRow(pRow, pRecord, rowId);
+  if (res != 0)
+  {
+    return res;
+  }
+
+  for(int attrId = 0; attrId < m_tab.getNoOfColumns(); attrId++)
+  {
+    const NdbDictionary::Column* attr = m_tab.getColumn(attrId);
+
+    if (attr->getPrimaryKey() == false)
+    {
+      char buf[8000];
+      int len = attr->getSizeInBytes();
+      memset(buf, 0, sizeof(buf));
+      Uint32 real_len;
+      const char * value = calcValue(rowId, attrId, updateVal, buf,
+                                     len, &real_len);
+      if (value != 0)
+      {
+        Uint32 off = 0;
+        bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
+        if (!ret)
+          abort();
+        memcpy(pRow + off, buf, real_len);
+        if (attr->getNullable())
+          NdbDictionary::setNull(pRecord, (char*)pRow, attrId, false);
+      }
+      else
+      {
+        assert(attr->getNullable());
+        NdbDictionary::setNull(pRecord, (char*)pRow, attrId, true);
+      }
+    }
+  }
+
+  return NDBT_OK;
+}
