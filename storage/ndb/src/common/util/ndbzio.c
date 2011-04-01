@@ -88,16 +88,16 @@ static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 
 #define AZ_MEMLEVEL 8
 
-int az_open(azio_stream *s, const char *path, int Flags, File  fd);
-int do_flush(azio_stream *file, int flush);
-int    get_byte(azio_stream *s);
-unsigned char* get_block(azio_stream *s, int blksz);
-int   check_header(azio_stream *s);
-int write_header(azio_stream *s);
-int    destroy(azio_stream *s);
-void putLong(azio_stream *s, uLong x);
-uLong  getLong(azio_stream *s);
-void read_header(azio_stream *s, unsigned char *buffer);
+static int az_open(azio_stream *s, const char *path, int Flags, File  fd);
+static int do_flush(azio_stream *file, int flush);
+static int get_byte(azio_stream *s);
+static unsigned char* get_block(azio_stream *s, int blksz);
+static int check_header(azio_stream *s);
+static int write_header(azio_stream *s);
+static int destroy(azio_stream *s);
+static void putLong(azio_stream *s, uLong x);
+static uLong getLong(azio_stream *s);
+static void read_header(azio_stream *s, unsigned char *buffer);
 
 size_t az_inflate_mem_size()
 {
