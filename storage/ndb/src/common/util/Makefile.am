@@ -31,7 +31,7 @@ libgeneral_la_SOURCES = \
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 
-libndbazio_la_SOURCES = azio.c
+libndbazio_la_SOURCES = ndbzio.c
 libndbazio_la_LIBADD = @ZLIB_LIBS@
 
 noinst_PROGRAMS = BaseString-t HashMap-t Bitmask-t SparseBitmask-t ndb_version-t

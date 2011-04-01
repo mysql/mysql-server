@@ -28,7 +28,7 @@
 #include "../../../../zlib/inflate.h"
 #include "../../../../zlib/deflate.h"
 
-#include <util/azlib.h>
+#include <util/ndbzio.h>
 
 #include <my_sys.h>
 
