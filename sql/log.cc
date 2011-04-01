@@ -159,7 +159,7 @@ public:
     before_stmt_pos(MY_OFF_T_UNDEF), last_commit_pos_offset(0), using_xa(0)
   {
     trans_log.end_of_file= max_binlog_cache_size;
-    strcpy(last_commit_pos_file, "");
+    last_commit_pos_file[0]= 0;
   }
 
   ~binlog_trx_data()
@@ -217,7 +217,7 @@ public:
     incident= FALSE;
     trans_log.end_of_file= max_binlog_cache_size;
     using_xa= FALSE;
-    strcpy(last_commit_pos_file, "");
+    last_commit_pos_file[0]= 0;
     last_commit_pos_offset= 0;
     DBUG_ASSERT(empty());
   }
@@ -4369,6 +4369,10 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
         rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
       }
 
+      /*
+        Take mutex to protect against a reader seeing partial writes of 64-bit
+        offset on 32-bit CPUs.
+      */
       pthread_mutex_lock(&LOCK_commit_ordered);
       last_commit_pos_offset= my_b_tell(&log_file);
       pthread_mutex_unlock(&LOCK_commit_ordered);
@@ -4562,8 +4566,13 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 err_unlock:
     if (file == &log_file)
     {
+      my_off_t offset= my_b_tell(&log_file);
+      /*
+        Take mutex to protect against a reader seeing partial writes of 64-bit
+        offset on 32-bit CPUs.
+      */
       pthread_mutex_lock(&LOCK_commit_ordered);
-      last_commit_pos_offset= my_b_tell(&log_file);
+      last_commit_pos_offset= offset;
       pthread_mutex_unlock(&LOCK_commit_ordered);
       pthread_mutex_unlock(&LOCK_log);
     }
@@ -4856,6 +4865,7 @@ int query_error_code(THD *thd, bool not_killed)
 bool MYSQL_BIN_LOG::write_incident(THD *thd)
 {
   uint error= 0;
+  my_off_t offset;
   DBUG_ENTER("MYSQL_BIN_LOG::write_incident");
   Incident incident= INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);
@@ -4867,8 +4877,13 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd)
     signal_update();
     rotate_and_purge(RP_LOCK_LOG_IS_ALREADY_LOCKED);
   }
+  offset= my_b_tell(&log_file);
+  /*
+    Take mutex to protect against a reader seeing partial writes of 64-bit
+    offset on 32-bit CPUs.
+  */
   pthread_mutex_lock(&LOCK_commit_ordered);
-  last_commit_pos_offset= my_b_tell(&log_file);
+  last_commit_pos_offset= offset;
   pthread_mutex_unlock(&LOCK_commit_ordered);
   pthread_mutex_unlock(&LOCK_log);
 
@@ -6678,8 +6693,7 @@ TC_LOG_BINLOG::set_status_variables(THD *thd)
   else
     trx_data= NULL;
 
-  bool have_snapshot=
-    (trx_data && 0 != strcmp(trx_data->last_commit_pos_file, ""));
+  bool have_snapshot= (trx_data && trx_data->last_commit_pos_file[0] != 0);
   pthread_mutex_lock(&LOCK_commit_ordered);
   binlog_status_var_num_commits= this->num_commits;
   binlog_status_var_num_group_commits= this->num_group_commits;
