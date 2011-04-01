@@ -61,9 +61,9 @@
 extern "C" {
 #endif
 
-size_t az_inflate_mem_size();
-size_t az_deflate_mem_size();
-struct az_alloc_rec {
+size_t ndbz_inflate_mem_size();
+size_t ndbz_deflate_mem_size();
+struct ndbz_alloc_rec {
   size_t size;
   size_t mfree;
   char *mem;
@@ -72,7 +72,7 @@ struct az_alloc_rec {
 #define AZ_BUFSIZE_READ 32768
 #define AZ_BUFSIZE_WRITE 16384
 
-typedef struct azio_stream {
+typedef struct ndbzio_stream {
   z_stream stream;
   int      z_err;   /* error code for last stream operation */
   int      z_eof;   /* set if end of input file */
@@ -83,7 +83,7 @@ typedef struct azio_stream {
   char     *msg;    /* error message */
   int      transparent; /* 1 if input file is not a .gz file */
   char     mode;    /* 'w' or 'r' */
-  char     bufalloced; /* true if azio allocated buffers */
+  char     bufalloced; /* true if ndbzio allocated buffers */
   my_off_t  start;   /* start of compressed data in file (header skipped) */
   my_off_t  in;      /* bytes into deflate or inflate */
   my_off_t  out;     /* bytes out of deflate or inflate */
@@ -103,10 +103,10 @@ typedef struct azio_stream {
   unsigned int frm_length;   /* Position for start of FRM */
   unsigned int comment_start_pos;   /* Position for start of comment */
   unsigned int comment_length;   /* Position for start of comment */
-} azio_stream;
+} ndbzio_stream;
 
                         /* basic functions */
-extern int azopen(azio_stream *s, const char *path, int Flags);
+extern int ndbzopen(ndbzio_stream *s, const char *path, int Flags);
 /*
      Opens a gzip (.gz) file for reading or writing. The mode parameter
    is as in fopen ("rb" or "wb") but can also include a compression level
@@ -115,29 +115,30 @@ extern int azopen(azio_stream *s, const char *path, int Flags);
    as in "wb1R". (See the description of deflateInit2 for more information
    about the strategy parameter.)
 
-     azopen can be used to read a file which is not in gzip format; in this
+     ndbzopen can be used to read a file which is not in gzip format; in this
    case gzread will directly read from the file without decompression.
 
-     azopen returns NULL if the file could not be opened or if there was
+     ndbzopen returns NULL if the file could not be opened or if there was
    insufficient memory to allocate the (de)compression state; errno
    can be checked to distinguish the two cases (if errno is zero, the
    zlib error is Z_MEM_ERROR).  */
 
-int azdopen(azio_stream *s,File fd, int Flags); 
+int ndbzdopen(ndbzio_stream *s, File fd, int Flags);
 /*
-     azdopen() associates a azio_stream with the file descriptor fd.  File
+     ndbzdopen() associates a ndbzio_stream with the file descriptor fd.  File
    descriptors are obtained from calls like open, dup, creat, pipe or
    fileno (in the file has been previously opened with fopen).
-   The mode parameter is as in azopen.
-     The next call of gzclose on the returned azio_stream will also close the
+   The mode parameter is as in ndbzopen.
+     The next call of gzclose on the returned ndbzio_stream will also close the
    file descriptor fd, just like fclose(fdopen(fd), mode) closes the file
-   descriptor fd. If you want to keep fd open, use azdopen(dup(fd), mode).
-     azdopen returns NULL if there was insufficient memory to allocate
+   descriptor fd. If you want to keep fd open, use ndbzdopen(dup(fd), mode).
+     ndbzdopen returns NULL if there was insufficient memory to allocate
    the (de)compression state.
 */
 
 
-extern unsigned int azread ( azio_stream *s, voidp buf, unsigned int len, int *error);
+extern unsigned int ndbzread (ndbzio_stream *s, voidp buf,
+                              unsigned int len, int *error);
 /*
      Reads the given number of uncompressed bytes from the compressed file.
    If the input file was not in gzip format, gzread copies the given number
@@ -145,15 +146,16 @@ extern unsigned int azread ( azio_stream *s, voidp buf, unsigned int len, int *e
      gzread returns the number of uncompressed bytes actually read (0 for
    end of file, -1 for error). */
 
-extern unsigned int azwrite (azio_stream *s, const void* buf, unsigned int len);
+extern unsigned int ndbzwrite (ndbzio_stream *s, const void* buf,
+                               unsigned int len);
 /*
      Writes the given number of uncompressed bytes into the compressed file.
-   azwrite returns the number of uncompressed bytes actually written
+   ndbzwrite returns the number of uncompressed bytes actually written
    (0 in case of error).
 */
 
 
-extern int azflush(azio_stream *file, int flush);
+extern int ndbzflush(ndbzio_stream *file, int flush);
 /*
      Flushes all pending output into the compressed file. The parameter
    flush is as in the deflate() function. The return value is the zlib
@@ -163,8 +165,8 @@ extern int azflush(azio_stream *file, int flush);
    degrade compression.
 */
 
-extern my_off_t azseek (azio_stream *file,
-                                      my_off_t offset, int whence);
+extern my_off_t ndbzseek (ndbzio_stream *file,
+                          my_off_t offset, int whence);
 /*
       Sets the starting position for the next gzread or gzwrite on the
    given compressed file. The offset represents a number of bytes in the
@@ -181,14 +183,14 @@ extern my_off_t azseek (azio_stream *file,
    would be before the current position.
 */
 
-extern int azrewind(azio_stream *file);
+extern int ndbzrewind(ndbzio_stream *file);
 /*
      Rewinds the given file. This function is supported only for reading.
 
    gzrewind(file) is equivalent to (int)gzseek(file, 0L, SEEK_SET)
 */
 
-extern my_off_t aztell(azio_stream *file);
+extern my_off_t ndbztell(ndbzio_stream *file);
 /*
      Returns the starting position for the next gzread or gzwrite on the
    given compressed file. This position represents a number of bytes in the
@@ -197,7 +199,7 @@ extern my_off_t aztell(azio_stream *file);
    gztell(file) is equivalent to gzseek(file, 0L, SEEK_CUR)
 */
 
-extern int azclose(azio_stream *file);
+extern int ndbzclose(ndbzio_stream *file);
 /*
      Flushes all pending output if necessary, closes the compressed file
    and deallocates all the (de)compression state. The return value is the zlib

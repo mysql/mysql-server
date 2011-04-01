@@ -311,7 +311,7 @@ class RestoreLogIterator;
 
 class BackupFile {
 protected:
-  azio_stream m_file;
+  ndbzio_stream m_file;
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
   bool m_hostByteOrder;

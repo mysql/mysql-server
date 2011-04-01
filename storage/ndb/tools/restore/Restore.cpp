@@ -1314,7 +1314,7 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 BackupFile::~BackupFile(){
   if(m_file.file > 1)
   {
-    azclose(&m_file);
+    ndbzclose(&m_file);
     memset(&m_file,0,sizeof(m_file));
   }
   if(m_buffer != 0)
@@ -1324,7 +1324,7 @@ BackupFile::~BackupFile(){
 bool
 BackupFile::openFile(){
   if(m_file.file > 1){
-    azclose(&m_file);
+    ndbzclose(&m_file);
     m_file.file = 0;
     m_file_size = 0;
     m_file_pos = 0;
@@ -1332,7 +1332,7 @@ BackupFile::openFile(){
 
   info.setLevel(254);
   info << "Opening file '" << m_fileName << "'\n";
-  int r= azopen(&m_file,m_fileName, O_RDONLY);
+  int r= ndbzopen(&m_file, m_fileName, O_RDONLY);
 
   if(m_file.file < 0)
     r= -1;
@@ -1420,17 +1420,20 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
 	   * Read data into buffer before existing data.
 	   */
           // Move to the start of data to be read
-          azseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
-          r = azread(&m_file, (char *)buffer_data_start - file_left_entry_data, Uint32(file_left_entry_data), &error);
+          ndbzseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
+          r = ndbzread(&m_file,
+                       (char *)buffer_data_start - file_left_entry_data,
+                       Uint32(file_left_entry_data),
+                       &error);
           //move back
-          azseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
+          ndbzseek(&m_file, sizeof(m_fileHeader), SEEK_SET);
         }
         else
         {
 	  // Fill remaing space at start of buffer with data from file.
-          azseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
-          r = azread(&m_file, ((char *)m_buffer), buffer_free_space, &error);
-          azseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
+          ndbzseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
+          r = ndbzread(&m_file, ((char *)m_buffer), buffer_free_space, &error);
+          ndbzseek(&m_file, m_file_pos-buffer_free_space, SEEK_SET);
         }
       }
       m_file_pos -= r;
@@ -1442,9 +1445,9 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     {
       memmove(m_buffer, m_buffer_ptr, m_buffer_data_left);
       int error;
-      Uint32 r = azread(&m_file,
-                        ((char *)m_buffer) + m_buffer_data_left,
-                        m_buffer_sz - m_buffer_data_left, &error);
+      Uint32 r = ndbzread(&m_file,
+                          ((char *)m_buffer) + m_buffer_data_left,
+                          m_buffer_sz - m_buffer_data_left, &error);
       m_file_pos += r;
       m_buffer_data_left += r;
       m_buffer_ptr = m_buffer;
@@ -1634,7 +1637,7 @@ BackupFile::readHeader(){
       struct stat buf;
       if (fstat(m_file.file, &buf) == 0)
         m_file_size = (Uint64)buf.st_size;
-      azseek(&m_file, 4, SEEK_END);  
+      ndbzseek(&m_file, 4, SEEK_END);
       m_file_pos = m_file_size - 4;
       m_buffer_data_left = 0;
       m_buffer_ptr = m_buffer;
