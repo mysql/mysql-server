@@ -1183,7 +1183,7 @@ void test_locker_disabled()
   socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
   ok(socket_locker == NULL, "no locker (global disabled)");
 
-  /* Pretent the mode is global, counted only */
+  /* Pretend the mode is global, counted only */
   /* ---------------------------------------- */
 
   setup_thread(thread_1, true);
@@ -1218,7 +1218,8 @@ void test_locker_disabled()
   ok(file_locker != NULL, "locker (global counted)");
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);
   psi->end_file_wait(file_locker, 10);
-  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_SEND);
+  /* The null locker shortcut applies only to socket ops with no byte count */
+  socket_locker= psi->get_thread_socket_locker(&socket_state, socket_A1, PSI_SOCKET_BIND);
   ok(socket_locker == NULL, "no locker (global counted)");
 
   /* TODO */
@@ -1567,10 +1568,6 @@ void test_event_name_index()
   ok(file_class != NULL, "file class 2");
   ok(file_class->m_event_name_index == 71, "index 71");
 
-  ok(global_table_io_class.m_event_name_index == 150, "index 150");
-  ok(global_table_lock_class.m_event_name_index == 151, "index 151");
-  ok(wait_class_max= 152, "152 event names");
-
   PFS_socket_class *socket_class;
   PSI_socket_key dummy_socket_key_1;
   PSI_socket_key dummy_socket_key_2;
@@ -1589,6 +1586,7 @@ void test_event_name_index()
   ok(socket_class->m_event_name_index == 151, "index 151");
 
   ok(global_table_io_class.m_event_name_index == 310, "index 310");
+  ok(global_table_lock_class.m_event_name_index == 311, "index 311");
   ok(wait_class_max= 313, "313 event names"); // 3 global classes
 }
 
@@ -1606,7 +1604,7 @@ void do_all_tests()
 
 int main(int, char **)
 {
-  plan(213);
+  plan(214);
   MY_INIT("pfs-t");
   do_all_tests();
   return 0;
