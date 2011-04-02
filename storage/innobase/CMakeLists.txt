@@ -212,7 +212,7 @@ IF (MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 				    PROPERTIES COMPILE_FLAGS -Od)
 ENDIF()
 
-SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
+SET(INNOBASE_SOURCES	api/api0api.c api/api0misc.c btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			buf/buf0buddy.c buf/buf0buf.c buf/buf0flu.c buf/buf0lru.c buf/buf0rea.c
 			data/data0data.c data/data0type.c
 			dict/dict0boot.c dict/dict0crea.c dict/dict0dict.c dict/dict0load.c dict/dict0mem.c dict/dict0stats.c

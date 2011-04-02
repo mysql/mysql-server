@@ -83,6 +83,7 @@ extern "C" {
 #include "ibuf0ibuf.h"
 #include "dict0dict.h"
 #include "srv0mon.h"
+#include "api0api.h"
 }
 
 #include "ha_innodb.h"
@@ -361,6 +362,47 @@ static PSI_file_info	all_innodb_files[] = {
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
+/** Set up InnoDB API callback function array */
+ib_cb_t innodb_api_cb[] = {
+	(ib_cb_t) ib_cursor_open_table,
+	(ib_cb_t) ib_cursor_read_row,
+	(ib_cb_t) ib_cursor_insert_row,
+	(ib_cb_t) ib_cursor_delete_row,
+	(ib_cb_t) ib_cursor_update_row,
+	(ib_cb_t) ib_cursor_moveto,
+	(ib_cb_t) ib_cursor_first,
+	(ib_cb_t) ib_cursor_last,
+	(ib_cb_t) ib_cursor_set_match_mode,
+	(ib_cb_t) ib_sec_search_tuple_create,
+	(ib_cb_t) ib_clust_read_tuple_create,
+	(ib_cb_t) ib_tuple_delete,
+	(ib_cb_t) ib_tuple_copy,
+	(ib_cb_t) ib_tuple_read_u32,
+	(ib_cb_t) ib_tuple_write_u32,
+	(ib_cb_t) ib_tuple_read_u64,
+	(ib_cb_t) ib_tuple_write_u64,
+	(ib_cb_t) ib_tuple_read_i32,
+	(ib_cb_t) ib_tuple_write_i32,
+	(ib_cb_t) ib_tuple_read_i64,
+	(ib_cb_t) ib_tuple_write_i64,
+	(ib_cb_t) ib_tuple_get_n_cols,
+	(ib_cb_t) ib_col_set_value,
+	(ib_cb_t) ib_col_get_value,
+	(ib_cb_t) ib_col_get_meta,
+	(ib_cb_t) ib_trx_begin,
+	(ib_cb_t) ib_trx_commit,
+	(ib_cb_t) ib_trx_rollback,
+	(ib_cb_t) ib_cursor_lock,
+	(ib_cb_t) ib_cursor_close,
+	(ib_cb_t) ib_cursor_new_trx,
+	(ib_cb_t) ib_cursor_reset,
+	(ib_cb_t) ib_create_cursor,
+	(ib_cb_t) ib_open_table_by_name,
+	(ib_cb_t) ib_col_get_name,
+	(ib_cb_t) ib_table_truncate,
+	(ib_cb_t) ib_cursor_open_index_using_name
+};
+	
 /** "GEN_CLUST_INDEX" is the name reserved for Innodb default
 system primary index. */
 static const char innobase_index_reserve_name[]= "GEN_CLUST_INDEX";
@@ -2393,6 +2435,8 @@ innobase_init(
 		innobase_release_temporary_latches;
 
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
+
+	innobase_hton->data = &innodb_api_cb;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 

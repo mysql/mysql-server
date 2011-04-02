@@ -794,6 +794,10 @@ struct row_prebuilt_struct {
 	/*----------------------*/
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
+	/*----------------------*/
+	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
+					query */
+	
 };
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687

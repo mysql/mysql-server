@@ -1,0 +1,113 @@
+Following are simple steps to get everything started:
+
+1) Find out your plugin dir:
+
+mysql> select @@plugin_dir;
++----------------------------------------------------+
+| @@plugin_dir                                       |
++----------------------------------------------------+
+| /home/jy/work2/mysql-5.6-memcached-labs/lib/plugin |
++----------------------------------------------------+
+1 row in set (0.00 sec)
+
+2) Install libevent
+
+In libevent directory
+run automake, autoconf, ./configure, make, and sudo make install
+
+3) Build MySQL/InnoDB server
+
+4) cd "daemon_memcached" and "innodb_memcache" directory, make and generate two .so file in .libs directory.
+
+To make innodb_engine.so, you would need to specify the memcached directory, by running ./configure --with-memcached=../daemon_memcached
+
+5) copy generated shared library to plugin dir
+
+cp daemon_memcached/.libs/libmemcached.so /home/jy/work2/mysql-5.6-memcached-labs/lib/plugin
+cp innodb_memcache/.libs/innodb_engine.so /home/jy/work2/mysql-5.6-memcached-labs/lib/plugin
+
+6) Boot the server 
+
+7) Create the configure table and an demo table
+sql < innodb_memcache/scripts/innodb_config.sql
+
+
+8) Install the plugin:
+
+mysql>  install plugin daemon_memcached soname "libmemcached.so";
+
+if anything happened, you can uninstall and reinstall it
+mysql> uninstall plugin daemon_memcached;
+
+9) Test it out
+telnet 127.0.0.1 11211
+
+set a11 0 0 9
+123456789
+STORED
+get a11
+VALUE a11 0 9
+123456789
+END
+
+10) Run memcapable
+Memcapable is part of libmemcached package, it is available at "https://code.launchpad.net/~libmemcached-developers/libmemcached/trunk"
+
+jy@jy-laptop:~/work2/mysql-5.6-labs-innodb-memcached/bld/mysql-test$ memcapable -v
+ascii quit                              [pass]
+ascii version                           [pass]
+ascii verbosity                         [pass]
+ascii set                               [pass]
+ascii set noreply                       [pass]
+ascii get                               [pass]
+ascii gets                              [pass]
+ascii mget                              [pass]
+ascii flush                             [pass]
+ascii flush noreply                     [pass]
+ascii add                               [pass]
+ascii add noreply                       [pass]
+ascii replace                           [pass]
+ascii replace noreply                   [pass]
+ascii cas                               [pass]
+ascii cas noreply                       [pass]
+ascii delete                            [pass]
+ascii delete noreply                    [pass]
+ascii incr                              [pass]
+ascii incr noreply                      [pass]
+ascii decr                              [pass]
+ascii decr noreply                      [pass]
+ascii append                            [pass]
+ascii append noreply                    [pass]
+ascii prepend                           [pass]
+ascii prepend noreply                   [pass]
+ascii stat                              [pass]
+binary noop                             [pass]
+binary quit                             [pass]
+binary quitq                            [pass]
+binary set                              [pass]
+binary setq                             [pass]
+binary flush                            [pass]
+binary flushq                           [pass]
+binary add                              [pass]
+binary addq                             [pass]
+binary replace                          [pass]
+binary replaceq                         [pass]
+binary delete                           [pass]
+binary deleteq                          [pass]
+binary get                              [pass]
+binary getq                             [pass]
+binary getk                             [pass]
+binary getkq                            [pass]
+binary incr                             [pass]
+binary incrq                            [pass]
+binary decr                             [pass]
+binary decrq                            [pass]
+binary version                          [pass]
+binary append                           [pass]
+binary appendq                          [pass]
+binary prepend                          [pass]
+binary prependq                         [pass]
+binary stat                             [pass]
+All tests passed
+
+
