@@ -184,7 +184,7 @@ explain
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	16	Using index condition; Using MRR
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	16	Using index condition; Rowid-ordered scan
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                     or c='no-such-row2');
 a	b	c	filler
@@ -206,7 +206,7 @@ NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	32	Using index condition; Using MRR
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	32	Using index condition; Rowid-ordered scan
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 a	b	c	filler
 b-1	NULL	c-1	NULL-15
@@ -309,7 +309,7 @@ from t1 A, t1 B, t1 C;
 explain
 select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	9	NULL	99	Using index condition; Using MRR
+1	SIMPLE	t2	range	a	a	9	NULL	99	Using index condition; Rowid-ordered scan
 select count(length(a) + length(filler)) from t2 where a>='a-1000-a' and a <'a-1001-a';
 count(length(a) + length(filler))
 100
@@ -319,7 +319,7 @@ filler char(10), key(d), primary key (a,b,c)) engine= innodb;
 insert into t2 select A.a, B.a, B.a, A.a, 'filler' from t1 A, t1 B;
 explain select * from t2 force index (d) where d < 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	d	d	5	NULL	#	Using index condition; Using MRR
+1	SIMPLE	t2	range	d	d	5	NULL	#	Using index condition; Rowid-ordered scan
 drop table t2;
 drop table t1;
 set @@mrr_buffer_size= @mrr_buffer_size_save;

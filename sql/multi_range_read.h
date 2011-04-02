@@ -395,6 +395,9 @@ public:
 };
 
 
+#define DSMRR_IMPL_SORT_KEYS   HA_MRR_IMPLEMENTATION_FLAG1
+#define DSMRR_IMPL_SORT_ROWIDS HA_MRR_IMPLEMENTATION_FLAG2
+
 /*
   DS-MRR implementation for one table. Create/use one object of this class for
   each ha_{myisam/innobase/etc} object. That object will be further referred to
@@ -548,6 +551,8 @@ public:
   ha_rows dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq, 
                             void *seq_init_param, uint n_ranges, uint *bufsz,
                             uint *flags, COST_VECT *cost);
+
+  int dsmrr_explain_info(uint mrr_mode, char *str, size_t size);
 private:
   /* Buffer to store (key, range_id) pairs */
   Lifo_buffer *key_buffer;

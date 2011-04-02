@@ -2491,8 +2491,36 @@ void JOIN_CACHE::print_explain_comment(String *str)
   str->append(join_alg);
   str->append(STRING_WITH_LEN(" join"));
   str->append(STRING_WITH_LEN(")"));
- }
-   
+}
+
+
+static void add_mrr_explain_info(String *str, uint mrr_mode, handler *file)
+{
+  char mrr_str_buf[128]={0};
+  int len;
+  len= file->multi_range_read_explain_info(mrr_mode, mrr_str_buf,
+                                           sizeof(mrr_str_buf));
+  if (len > 0)
+  {
+    str->append(STRING_WITH_LEN("; "));
+    str->append(mrr_str_buf, len);
+  }
+}
+
+
+void JOIN_CACHE_BKA::print_explain_comment(String *str)
+{
+  JOIN_CACHE::print_explain_comment(str); 
+  add_mrr_explain_info(str, mrr_mode, join_tab->table->file);
+}
+
+
+void JOIN_CACHE_BKAH::print_explain_comment(String *str)
+{
+  JOIN_CACHE::print_explain_comment(str); 
+  add_mrr_explain_info(str, mrr_mode, join_tab->table->file);
+}
+
 
 /* 
   Initialize a hashed join cache       

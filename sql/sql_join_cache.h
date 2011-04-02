@@ -637,7 +637,7 @@ public:
   enum_nested_loop_state join_records(bool skip_last);
 
   /* Add a comment on the join algorithm employed by the join cache */
-  void print_explain_comment(String *str);
+  virtual void print_explain_comment(String *str);
 
   virtual ~JOIN_CACHE() {}
   void reset_join(JOIN *j) { join= j; }
@@ -1315,6 +1315,7 @@ public:
   /* Check index condition of the joined table for a record from BKA cache */
   bool skip_index_tuple(range_id_t range_info);
 
+  void print_explain_comment(String *str);
 };
 
 
@@ -1404,4 +1405,6 @@ public:
 
   /* Check index condition of the joined table for a record from BKAH cache */
   bool skip_index_tuple(range_id_t range_info);
+
+  void print_explain_comment(String *str);
 };

@@ -186,7 +186,7 @@ explain
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                       or c='no-such-row2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using index condition; Using MRR
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	10	Using index condition; Rowid-ordered scan
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                     or c='no-such-row2');
 a	b	c	filler
@@ -208,7 +208,7 @@ NULL	NULL	NULL	NULL-1
 explain 
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using index condition; Using MRR
+1	SIMPLE	t4	range	idx1	idx1	29	NULL	21	Using index condition; Rowid-ordered scan
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 a	b	c	filler
 b-1	NULL	c-1	NULL-15
@@ -403,16 +403,16 @@ insert into t1 select A.a + 10 *(B.a + 10*C.a), A.a + 10 *(B.a + 10*C.a) from t0
 A query that will use ICP: 
 explain select * from t1 where a < 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Rowid-ordered scan
 set @save_optimizer_switch=@@optimizer_switch;
 set optimizer_switch='index_condition_pushdown=off';
 explain select * from t1 where a < 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	20	Using where; Using MRR
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using where; Rowid-ordered scan
 set optimizer_switch='index_condition_pushdown=on';
 explain select * from t1 where a < 20;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	5	NULL	20	Using index condition; Rowid-ordered scan
 set optimizer_switch=@save_optimizer_switch;
 # 
 # BUG#629684: Unreachable code in multi_range_read.cc in maria-5.3-dsmrr-cpk
@@ -426,7 +426,7 @@ explain
 select * from t0, t1 where t0.a<=>t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	5	
-1	SIMPLE	t1	ref	a	a	5	test.t0.a	1	Using index condition(BKA); Using join buffer (flat, BKA join)
+1	SIMPLE	t1	ref	a	a	5	test.t0.a	1	Using index condition(BKA); Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 select * from t0, t1 where t0.a<=>t1.a;
 a	a	b
 0	0	0
@@ -504,7 +504,7 @@ table3.col_varchar_key = table2.col_varchar_nokey AND
 table3.pk<>0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	table2	ALL	col_varchar_key	NULL	NULL	NULL	20	Using where
-1	SIMPLE	table3	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.table2.col_varchar_key	3	Using where; Using join buffer (flat, BKA join)
+1	SIMPLE	table3	ref	PRIMARY,col_varchar_key	col_varchar_key	3	test.table2.col_varchar_key	3	Using where; Using join buffer (flat, BKA join); Key-ordered Rowid-ordered scan
 set join_cache_level= @save_join_cache_level;
 set join_buffer_size= @save_join_buffer_size;
 drop table t1;

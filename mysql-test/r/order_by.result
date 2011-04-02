@@ -611,7 +611,7 @@ DS-MRR: use two IGNORE INDEX queries, otherwise we get cost races, because
 DS-MRR: records_in_range/read_time return the same numbers for all three indexes
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (LongField, StringField) WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	FieldKey	FieldKey	38	NULL	4	Using index condition; Using MRR; Using filesort
+1	SIMPLE	t1	range	FieldKey	FieldKey	38	NULL	4	Using index condition; Rowid-ordered scan; Using filesort
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (FieldKey, LongField) WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	StringField	StringField	38	NULL	4	Using where; Using filesort
@@ -1112,7 +1112,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	k2	k3	5	NULL	73	Using where
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 20 AND 30 ORDER BY c3 LIMIT 4000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k2	k2	5	NULL	386	Using index condition; Using where; Using MRR; Using filesort
+1	SIMPLE	t2	range	k2	k2	5	NULL	386	Using index condition; Using where; Rowid-ordered scan; Using filesort
 SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
 id	c3
 6	14
@@ -1607,19 +1607,19 @@ INSERT INTO t2 SELECT a+4, b FROM t2;
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR; Using temporary; Using filesort
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Rowid-ordered scan; Using temporary; Using filesort
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 USE INDEX FOR ORDER BY (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR; Using temporary; Using filesort
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Rowid-ordered scan; Using temporary; Using filesort
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 # should have "using filesort"
 EXPLAIN 
 SELECT * FROM t1 FORCE INDEX FOR JOIN (a), t2 WHERE t1.a < 2 ORDER BY t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Using MRR; Using temporary; Using filesort
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using index condition; Rowid-ordered scan; Using temporary; Using filesort
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	10	Using join buffer (flat, BNL join)
 DROP TABLE t1, t2;
 #

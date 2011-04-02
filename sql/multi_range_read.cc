@@ -1372,7 +1372,7 @@ ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
   DBUG_ASSERT(!res);
 
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) || 
-      choose_mrr_impl(keyno, rows, &def_flags, &def_bufsz, cost))
+      choose_mrr_impl(keyno, rows, flags, bufsz, cost))
   {
     /* Default implementation is choosen */
     DBUG_PRINT("info", ("Default MRR implementation choosen"));
@@ -1517,11 +1517,13 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   bool doing_cpk_scan= check_cpk_scan(thd, keyno, *flags); 
   bool using_cpk= test(keyno == table->s->primary_key &&
                        primary_file->primary_key_is_clustered());
+  *flags &= ~HA_MRR_IMPLEMENTATION_FLAGS;
   if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||
       (using_cpk && !doing_cpk_scan) || key_uses_partial_cols(table, keyno))
   {
     /* Use the default implementation */
     *flags |= HA_MRR_USE_DEFAULT_IMPL;
+    *flags &= ~HA_MRR_IMPLEMENTATION_FLAGS;
     return TRUE;
   }
 
@@ -1549,9 +1551,24 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     *cost= dsmrr_cost;
     res= FALSE;
 
+
+    if ((using_cpk && doing_cpk_scan) ||
+        (optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS) &&
+         *flags & HA_MRR_SINGLE_POINT))
+    {
+      *flags |= DSMRR_IMPL_SORT_KEYS;
+    }
+    
+    if (!(using_cpk && doing_cpk_scan) &&
+        !(*flags & HA_MRR_INDEX_ONLY))
+    {
+      *flags |= DSMRR_IMPL_SORT_ROWIDS;
+    }
+    /*
     if ((*flags & HA_MRR_SINGLE_POINT) && 
          optimizer_flag(thd, OPTIMIZER_SWITCH_MRR_SORT_KEYS))
       *flags |= HA_MRR_MATERIALIZED_KEYS;
+    */
   }
   else
   {
@@ -1559,6 +1576,38 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     res= TRUE;
   }
   return res;
+}
+
+/*
+  Take the flags we've returned previously and print one of
+  - Key-ordered scan
+  - Rowid-ordered scan
+  - Key-ordered Rowid-ordered scan
+*/
+
+int DsMrr_impl::dsmrr_explain_info(uint mrr_mode, char *str, size_t size)
+{
+  const char *key_ordered=   "Key-ordered scan";
+  const char *rowid_ordered= "Rowid-ordered scan";
+  const char *both_ordered=  "Key-ordered Rowid-ordered scan";
+  const char *used_str="";
+  const uint BOTH_FLAGS= (DSMRR_IMPL_SORT_KEYS | DSMRR_IMPL_SORT_ROWIDS);
+
+  if (!(mrr_mode & HA_MRR_USE_DEFAULT_IMPL))
+  {
+    if ((mrr_mode & BOTH_FLAGS) == BOTH_FLAGS)
+      used_str= both_ordered;
+    else if (mrr_mode & DSMRR_IMPL_SORT_KEYS)
+      used_str= key_ordered;
+    else if (mrr_mode & DSMRR_IMPL_SORT_ROWIDS)
+      used_str= rowid_ordered;
+
+    uint used_str_len= strlen(used_str);
+    uint copy_len= min(used_str_len, size);
+    memcpy(str, used_str, size);
+    return copy_len;
+  }
+  return 0;
 }
 
 

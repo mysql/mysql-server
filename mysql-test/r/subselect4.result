@@ -954,28 +954,28 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -983,21 +983,21 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -1005,7 +1005,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
 not_in
 1
@@ -1013,7 +1013,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
 not_in
 NULL
@@ -1021,7 +1021,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -1029,7 +1029,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -1045,28 +1045,28 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3+f4, min(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, min(f4)+max(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, min(f4) FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -1074,21 +1074,21 @@ EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT f3, f3 + count(f4) FROM t2 WHERE f3 > 10);
 f1	f2
 EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -1096,7 +1096,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) > 7) as not_in;
 not_in
 1
@@ -1104,7 +1104,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT f3, count(f4) FROM t2 WHERE f3 > 10 HAVING max(f4) is null) as not_in;
 not_in
 NULL
@@ -1112,7 +1112,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4) FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL
@@ -1120,7 +1120,7 @@ EXPLAIN
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using MRR
+2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Rowid-ordered scan
 SELECT (2, 0) NOT IN (SELECT max(f3+f3), count(f4)+f3 FROM t2 WHERE f3 > 10) as not_in;
 not_in
 NULL

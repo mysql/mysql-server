@@ -221,27 +221,27 @@ update t1 set y=x;
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	3	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	y	y	5	const	1	
-1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Using MRR; Using join buffer (flat, BNL join)
+1	SIMPLE	t2	range	x	x	5	NULL	2	Using index condition; Rowid-ordered scan; Using join buffer (flat, BNL join)
 explain select count(*) from t1 where x in (1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	x	x	5	const	1	Using index
@@ -276,7 +276,7 @@ INSERT INTO t1 VALUES
 (33,5),(33,5),(33,5),(33,5),(34,5),(35,5);
 EXPLAIN SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a,b	a	5	NULL	2	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	a,b	a	5	NULL	2	Using index condition; Using where; Rowid-ordered scan
 SELECT * FROM t1 WHERE a IN(1,2) AND b=5;
 a	b
 DROP TABLE t1;
@@ -421,19 +421,19 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	Table is already up to date
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Using MRR
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Rowid-ordered scan
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Using MRR
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	112	Using index condition; Rowid-ordered scan
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Using MRR
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Rowid-ordered scan
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Using MRR
+1	SIMPLE	t1	range	uid_index	uid_index	4	NULL	113	Using index condition; Rowid-ordered scan
 1	SIMPLE	t2	ref	uid_index	uid_index	4	test.t1.uid	38	
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	name	uid	id	name	uid
@@ -618,10 +618,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	a	a	11	const	2	Using index condition
 explain select * from t1 where a=binary 'aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition; Rowid-ordered scan
 explain select * from t1 where a='aaa' collate latin1_bin;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	11	NULL	2	Using index condition; Rowid-ordered scan
 explain select * from t1 where a='aaa' collate latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	9	Using where
@@ -878,10 +878,10 @@ INSERT INTO t1 VALUES
 (55,'C'), (56,'C'), (57,'C'), (58,'C'), (59,'C'), (60,'C');
 EXPLAIN SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition; Using MRR
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition; Rowid-ordered scan
 EXPLAIN SELECT * FROM t1 WHERE status NOT IN ('A','B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition; Using MRR
+1	SIMPLE	t1	range	status	status	23	NULL	11	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE status <> 'A' AND status <> 'B';
 id	status
 53	C
@@ -910,10 +910,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	status	status	23	NULL	11	Using where; Using index
 EXPLAIN SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Using MRR
+1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Rowid-ordered scan
 EXPLAIN SELECT * FROM t1 WHERE status < 'A' OR status > 'B';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Using MRR
+1	SIMPLE	t1	range	status	status	23	NULL	10	Using index condition; Rowid-ordered scan
 SELECT * FROM t1 WHERE status NOT BETWEEN 'A' AND 'B';
 id	status
 53	C
@@ -1014,10 +1014,10 @@ create table t2 (a varchar(10), filler char(200), key(a));
 insert into t2 select * from t1;
 explain select * from t1 where a between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Rowid-ordered scan
 explain select * from t1 where a = 'a' or a='a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Rowid-ordered scan
 explain select * from t2 where a between 'a' and 'a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	13	const	#	Using index condition
@@ -1027,7 +1027,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 update t1 set a='b' where a<>'a';
 explain select * from t1 where a not between 'b' and 'b';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Using MRR
+1	SIMPLE	t1	range	a	a	13	NULL	#	Using index condition; Rowid-ordered scan
 select a, hex(filler) from t1 where a not between 'b' and 'b';
 a	hex(filler)
 a	0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -1071,10 +1071,10 @@ id	b	c
 0	3	4
 EXPLAIN  SELECT * FROM t1 WHERE b<=3 AND 3<=c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using index condition; Using where; Using MRR
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using index condition; Using where; Rowid-ordered scan
 EXPLAIN  SELECT * FROM t1 WHERE 3 BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where; Using MRR
+1	SIMPLE	t1	range	idx1,idx2	idx2	4	NULL	3	Using where; Rowid-ordered scan
 SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 id	b	c
 0	3	4
@@ -1151,7 +1151,7 @@ INSERT INTO t1 VALUES
 This must use range access:
 explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '2007-01-02 23:59:59';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	dateval	dateval	4	NULL	2	Using index condition; Using MRR
+1	SIMPLE	t1	range	dateval	dateval	4	NULL	2	Using index condition; Rowid-ordered scan
 drop table t1;
 CREATE TABLE t1 (
 a varchar(32), index (a)
