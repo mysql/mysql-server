@@ -2860,6 +2860,8 @@ get_thread_socket_locker_v1(PSI_socket_locker_state *state,
     }
     else
     {
+      flags= 0;
+
       /*
         get_thread_socket_locker() does not track the byte count associated
         with socket operations because the requested and actual byte counts
